@@ -54,10 +54,9 @@ const cek = (nama, ok) => {
   console.log(`  ${ok ? 'OK  ' : 'GAGAL'}  ${nama}`);
   if (ok) lulus++;
 };
-const ada = (v.namaMcp ?? []).filter((n) => n.startsWith('mcp__tedi__'));
 const baru = (v.namaMcp ?? []).filter((n) => n.startsWith('mcp__zephyr__'));
 
 cek('semua tool MCP memakai awalan mcp__zephyr__', baru.length === (v.namaMcp ?? []).length && baru.length > 0);
-cek('tidak ada satu pun nama retired yang ditawarkan', ada.length === 0);
+cek('setidaknya satu tool MCP terdaftar', baru.length > 0);
 console.log(`\n== ${lulus}/2 lulus ==`);
 process.exit(lulus === 2 ? 0 : 1);

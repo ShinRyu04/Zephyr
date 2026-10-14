@@ -42,7 +42,7 @@ export default function Sidebar() {
         return <DebugView />;
       /* The left "AI Assistant" panel was REMOVED on request. The robot icon in
          the rail now only toggles the chat in its own home (right column /
-         editor tab / pop-out / bottom dock); chat history lives in the panel's
+         editor tab / pop-out window); chat history lives in the panel's
          own header switcher. So 'ai' no longer renders anything on the left. */
       case 'terminal':
         return <TerminalPanel />;

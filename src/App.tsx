@@ -27,6 +27,7 @@ const UpdateBanner = lazy(() => import('./components/shell/UpdateBanner'));
 const DonateDialog = lazy(() => import('./components/shell/DonateDialog'));
 const ExtApprovalModal = lazy(() => import('./components/extensions/ExtApprovalModal'));
 const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
+const AiModelsModal = lazy(() => import('./components/settings/AiModelsModal'));
 const KeybindingsEditor = lazy(() => import('./components/shell/KeybindingsEditor'));
 const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
 const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
@@ -177,18 +178,36 @@ let aiListenerConsumers = 0;
 let ghListenerBound = false;
 let ghListenerUnlisten: (() => void) | undefined;
 
-let mcpListenerBound = false;
-let mcpListenerUnlisten: (() => void) | undefined;
+/* Jembatan MCP diikat SEKALI per jendela, bukan sekali per mount.
+   Tiga listener (aksi, screenshot, connect) dulu memakai flag modul + cleanup
+   yang melepasnya. Pola itu bocor di React StrictMode dan bocor lagi setiap
+   HMR menyusun ulang modul ini:
 
-/* mcp-screenshot dan mcp-connect dulu hanya menumpang guard mcp-action. Kalau
-   listen mcp-action sudah siap, kedua pemasangan ini ikut dilewati; sebaliknya
-   saat mcp-action gagal keduanya ikut dipasang ulang. Masing-masing sekarang
-   punya guard dan unlisten sendiri supaya tidak saling bergantung. */
-let mcpShotListenerBound = false;
-let mcpShotListenerUnlisten: (() => void) | undefined;
+     mount pertama  -> guard false -> tandai true -> listen() #1 (belum selesai)
+     cleanup mount1 -> unlisten masih undefined (tak ada yang bisa dilepas)
+                       dan guard di-reset false
+     mount kedua    -> guard false -> listen() #2
 
-let mcpConnectListenerBound = false;
-let mcpConnectListenerUnlisten: (() => void) | undefined;
+   => DUA listener hidup; unlisten #1 bahkan hilang karena referensinya ditimpa
+   #2, jadi tidak ada cara melepasnya lagi. Akibatnya SETIAP event dijalankan
+   dua kali. Terukur (scratch/probe-aksi-ganda.mjs + probe-emit-js.mjs,
+   2026-10-13): satu RPC `run_command terminal.new` menambah 2 pane, dan satu
+   event `mcp-action` yang dikirim dari JS sendiri memanggil handleAction 2x -
+   itu sebab verify11 V7 gagal (pane +2, bukan +1).
+
+   Jalur lama juga tetap bocor lewat HMR: modul baru = variabel modul baru =
+   guard false lagi, sementara listener modul lama masih hidup. Karena itu
+   penanda ikatan disimpan di `window` (bertahan lintas penyusunan ulang modul)
+   dan NILAI penandanya adalah janji ikatan itu sendiri - 'proses' selama
+   listen() berjalan, lalu fungsi unlisten-nya bila berhasil. Cleanup effect
+   tidak melepas apa pun: jembatan ini hidup selama jendela hidup, sama seperti
+   store zustand yang menaungi handler-nya (semua handler membaca state lewat
+   getState(), jadi tidak ada closure basi). */
+type IkatanMCP = 'proses' | Promise<() => void> | (() => void);
+
+const jembatanMCP: Record<string, IkatanMCP> = ((
+  window as unknown as { __ZEPHYR_JEMBATAN_MCP__?: Record<string, IkatanMCP> }
+).__ZEPHYR_JEMBATAN_MCP__ ??= {});
 
 let lspListenerBound = false;
 let lspListenerUnlisten: (() => void) | undefined;
@@ -320,33 +339,28 @@ export default function App() {
   const dragging = useRef(false);
 
   /*
-   * ActivityBar owns the sidebar state, while AI lives in the independent
-   * bottom-panel store. Remember whether the clicked surface was open before
-   * ActivityBar updates its own state, then apply one unambiguous toggle after
-   * its click handler has run. This also repairs stale states such as
-   * `activity === 'settings'` with the settings editor already closed.
+   * ActivityBar owns the sidebar state, while AI is its own surface (right
+   * column / editor tab / pop-out window). Remember whether the clicked surface
+   * was open before ActivityBar updates its own state, then apply one
+   * unambiguous toggle after its click handler has run. This also repairs stale
+   * states such as `activity === 'settings'` with the settings editor already
+   * closed.
    */
   const activityToggleIntent = useRef<{ id: 'ai' | 'settings'; wasOpen: boolean } | null>(null);
   const rememberActivityToggle = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const id = (e.target as HTMLElement).closest<HTMLElement>('[data-activity]')?.dataset.activity;
     if (id === 'ai') {
       /*
-       * The AI chat has a HOME other than the bottom dock now (right column,
-       * editor area, pop-out window). Clicking the robot icon must toggle
-       * whichever home is configured — the old code always drove the bottom
-       * panel, so the chat kept appearing at the bottom even when the user had
-       * moved it to the right. "Open" is read per home.
+       * The AI chat has no bottom-dock home any more. Clicking the robot icon
+       * toggles whichever of the REMAINING homes is configured: the pop-out
+       * window (just focused) or the right column / editor area (the column
+       * visibility flag is the state).
        */
       const posAi = useStore.getState().settings.general.aiPanel ?? 'right';
-      let wasOpen: boolean;
-      if (posAi === 'bottom') {
-        wasOpen = useTerminal.getState().visible && usePanel.getState().activeTab === 'ai';
-      } else if (posAi === 'window') {
-        wasOpen = true; // the window is its own surface; the icon just focuses it
-      } else {
-        /* right column OR editor area: the column visibility flag is the state. */
-        wasOpen = useStore.getState().aiKolomVisible;
-      }
+      const wasOpen =
+        posAi === 'window'
+          ? true // the window is its own surface; the icon just focuses it
+          : useStore.getState().aiKolomVisible;
       activityToggleIntent.current = { id, wasOpen };
     } else if (id === 'settings') {
       activityToggleIntent.current = { id, wasOpen: useStore.getState().settingsOpen };
@@ -366,16 +380,6 @@ export default function App() {
       /* NOT setActivity('ai'): there is no left AI panel any more, so switching
          the sidebar's activity would just blank whatever panel is open. */
       const posAi = store.settings.general.aiPanel ?? 'right';
-
-      if (posAi === 'bottom') {
-        if (intent.wasOpen) {
-          useTerminal.getState().setVisible(false);
-        } else {
-          store.setSidebarVisible(true);
-          usePanel.getState().focusTab('ai');
-        }
-        return;
-      }
 
       if (posAi === 'window') {
         void import('./lib/aiWindow').then((m) => m.bukaAiWindow());
@@ -499,8 +503,22 @@ export default function App() {
       const binding = eventToBinding(e);
       if (!binding) return;
 
-      const hitKb = useKb.getState().resolve(binding);
-      if (hitKb) return;
+      /*
+       * This handler predates the keybinding engine and still owns the actions
+       * that only exist in settings.shortcuts. Where the engine knows a chord,
+       * the engine wins - but "the chord" is not always one keystroke: for a
+       * two-stroke sequence (Ctrl+K Ctrl+B) the trailing stroke on its own
+       * resolves to nothing, so this handler used to fire the action as well as
+       * the engine and the action ran twice (a toggle netting out to no visible
+       * change - a marketplace keymap pack looked dead).
+       *
+       * So while the engine is part-way through a sequence, and whenever the
+       * engine knows the keystroke, this handler stands down. Legacy actions
+       * bound to a single stroke keep working: pending is only set between the
+       * strokes of a sequence, and it clears itself after CHORD_TIMEOUT_MS.
+       */
+      const kbNow = useKb.getState();
+      if (kbNow.pending || kbNow.resolve(binding)) return;
 
       const s = useStore.getState();
       const actionId = bindingMap(s.settings.shortcuts).get(binding);
@@ -622,15 +640,7 @@ export default function App() {
           s.setSettingsOpen(false);
 
           const posAi = s.settings.general.aiPanel ?? 'right';
-          if (posAi === 'bottom') {
-            if (!s.sidebarVisible) s.toggleSidebar();
-            const P = usePanel.getState();
-            if (t.visible && P.activeTab === 'ai') t.setVisible(false);
-            else {
-              t.setVisible(true);
-              P.focusTab('ai');
-            }
-          } else if (posAi === 'window') {
+          if (posAi === 'window') {
             void import('./lib/aiWindow').then((m) => m.bukaAiWindow());
           } else {
             /* Right column / editor area: toggle the column, never the dock. */
@@ -687,10 +697,17 @@ export default function App() {
       if ((e.target as HTMLElement | null)?.closest?.('.zephyr-cm-host')) return;
       e.preventDefault();
       const s = useStore.getState();
-      const t = useTerminal.getState();
       s.setSettingsOpen(false);
-      t.setVisible(true);
-      usePanel.getState().focusTab('ai');
+      /*
+       * Focus the AI chat in whichever of its OWN surfaces is configured — the
+       * pop-out window or the right column. Ctrl+I used to force the bottom
+       * panel open and select the (now removed) AI tab there.
+       */
+      if ((s.settings.general.aiPanel ?? 'right') === 'window') {
+        void import('./lib/aiWindow').then((m) => m.bukaAiWindow());
+      } else {
+        s.setAiKolomVisible(true);
+      }
 
       window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 80);
     };
@@ -846,7 +863,9 @@ export default function App() {
           const s = useStore.getState();
           for (const p of event.payload.paths) {
             try {
-              await s.openPath(p);
+              /* A drop is deliberate, same as a file dialog: pin it rather than
+                 letting it occupy the preview slot. */
+              await s.openPath(p, { preview: false });
             } catch {
               s.setStatus(`Could not open: ${p}`);
             }
@@ -1055,14 +1074,22 @@ export default function App() {
     if (!aiListenerBound && !aiListenerBinding) {
       aiListenerBinding = onAiChunk((c) => useAi.getState().onChunk(c))
         .then((un) => {
+          aiListenerBinding = undefined;
+          if (aiListenerConsumers === 0) {
+            un?.();
+            window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
+            window.__ZEPHYR_AI_CALLBACK__ = undefined;
+            return undefined;
+          }
           aiListenerUnlisten = un;
           aiListenerBound = true;
-          aiListenerBinding = undefined;
           return un;
         })
         .catch((e) => {
           aiListenerBound = false;
           aiListenerBinding = undefined;
+          window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
+          window.__ZEPHYR_AI_CALLBACK__ = undefined;
           console.error('gagal memasang listener ai-chunk', e);
           return undefined;
         });
@@ -1070,14 +1097,13 @@ export default function App() {
     return () => {
       aiListenerConsumers--;
       if (aiListenerConsumers === 0) {
-        const p = window.__ZEPHYR_AI_LISTENER_PROMISE__;
-        aiListenerUnlisten?.();
-        aiListenerUnlisten = undefined;
-        aiListenerBound = false;
-        aiListenerBinding = undefined;
-        window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
-        window.__ZEPHYR_AI_CALLBACK__ = undefined;
-        void p?.catch(() => {});
+        if (aiListenerUnlisten) {
+          aiListenerUnlisten();
+          aiListenerUnlisten = undefined;
+          aiListenerBound = false;
+          window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
+          window.__ZEPHYR_AI_CALLBACK__ = undefined;
+        }
       }
     };
   }, []);
@@ -1199,23 +1225,21 @@ export default function App() {
   useEffect(() => {
     void useMcp.getState().init();
 
-    if (!mcpListenerBound) {
-      // Guard-nya di-set setelah listen() utama sukses (pola pty), supaya kegagalan
-      // sesaat tidak membuat MCP mati permanen di proses ini.
+    if (!jembatanMCP.mcp) {
+      jembatanMCP.mcp = 'proses';
       onMcpAction((a) => void useMcp.getState().handleAction(a))
         .then((un) => {
-          mcpListenerUnlisten = un;
-          mcpListenerBound = true;
+          jembatanMCP.mcp = un;
           void import('./lib/commands').then((c) => c.mcpUiReady().catch(() => {}));
         })
         .catch((e) => {
-          mcpListenerBound = false;
+          delete jembatanMCP.mcp;
           console.error('gagal memasang listener mcp-action', e);
         });
     }
 
-    if (!mcpShotListenerBound) {
-      mcpShotListenerBound = true;
+    if (!jembatanMCP.shot) {
+      jembatanMCP.shot = 'proses';
       // Dulu unlisten-nya dibuang dengan void, jadi satu tombol screenshot tercatat
       // dua kali di log MCP setelah StrictMode memasang listener kedua.
       onMcpScreenshot(({ paneId, path }) => {
@@ -1225,42 +1249,34 @@ export default function App() {
         useMcp.setState({ lastShot: path, mcpInfo: `Screenshot pane ${paneId} → ${path}` });
       })
         .then((un) => {
-          mcpShotListenerUnlisten = un;
+          jembatanMCP.shot = un;
         })
         .catch((e) => {
-          mcpShotListenerBound = false;
+          delete jembatanMCP.shot;
           console.error('gagal memasang listener mcp-screenshot', e);
         });
     }
 
-    if (!mcpConnectListenerBound) {
-      mcpConnectListenerBound = true;
+    if (!jembatanMCP.connect) {
+      jembatanMCP.connect = 'proses';
       // Sama: satu koneksi klien MCP akan muncul dua kali di log tanpa guard ini.
       onMcpConnect(({ client }) => {
         useMcp.getState().pushLog(`MCP connected: ${client}`, 'connect');
       })
         .then((un) => {
-          mcpConnectListenerUnlisten = un;
+          jembatanMCP.connect = un;
         })
         .catch((e) => {
-          mcpConnectListenerBound = false;
+          delete jembatanMCP.connect;
           console.error('gagal memasang listener mcp-connect', e);
         });
     }
 
-    return () => {
-      mcpListenerUnlisten?.();
-      mcpListenerUnlisten = undefined;
-      mcpListenerBound = false;
-
-      mcpShotListenerUnlisten?.();
-      mcpShotListenerUnlisten = undefined;
-      mcpShotListenerBound = false;
-
-      mcpConnectListenerUnlisten?.();
-      mcpConnectListenerUnlisten = undefined;
-      mcpConnectListenerBound = false;
-    };
+    // Sengaja TIDAK ada cleanup di sini: ikatan jembatan MCP hidup selama
+    // jendela hidup (lihat catatan di jembatanMCP). Melepasnya dari cleanup
+    // justru akar bug di atas - StrictMode melepas effect mount pertama saat
+    // listen() masih pending, jadi tak ada yang bisa dilepas, sementara
+    // penandanya di-reset sehingga mount kedua memasang listener kedua.
   }, []);
 
   useEffect(() => {
@@ -1465,9 +1481,10 @@ export default function App() {
             )}
           </main>
 
-          {/* A-10: panel AI sebagai kolom kanan 340px ala VS Code, bukan dock
-              dock level with the terminal. Rendered ONLY when dock = 'ai' so the
-              editor width does not shrink while the user is in the terminal. */}
+          {/* AI: the chat as a right-hand column — VS Code's secondary side bar.
+              Rendered only for aiPanel === 'right' and while aiKolomVisible, so
+              neither the bottom panel (Terminal) nor the editor width is touched
+              by the old bottom dock arrangement. */}
           {/* AI column resizer: draggable like the sidebar. Previously the width
               340px WAS FIXED - the user asked for "bisa di lebarkan" (make it wider). */}
           {aiKanan && !aiMax && (
@@ -1623,6 +1640,7 @@ export default function App() {
             time because execution can be requested from any worker. */}
         <ExtApprovalModal />
         <AgentCustomModal />
+        <AiModelsModal />
         <KeybindingsEditor />
         <LspOverlay />
       </Suspense>

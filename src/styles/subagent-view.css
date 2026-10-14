@@ -462,3 +462,389 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Subagents overview: mission composer, run progress, agent cards, report. */
+.sav-root {
+  gap: 14px;
+  padding: 16px 18px 14px;
+  background: var(--bg);
+}
+
+.sav-head {
+  min-height: 42px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sav-judul {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sav-angka {
+  display: none;
+}
+
+.sav-status-counts {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.sav-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.sav-status-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.sav-status-chip.is-running i { background: var(--accent); }
+.sav-status-chip.is-done i { background: var(--success); }
+.sav-status-chip.is-failed i { background: var(--danger); }
+.sav-status-chip.is-waiting i { background: var(--text-muted); }
+
+.sav-maks {
+  display: none;
+}
+
+.sav-model {
+  position: relative;
+  display: inline-flex;
+  order: 2;
+  margin-left: 0;
+}
+
+.sav-model .ai-model-trigger {
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 7px;
+}
+
+.sav-head .btn {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.sav-root > .sub-form {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--bg) 35%, transparent);
+}
+
+.sav-root .sub-form-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 29px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sav-root .sub-form-judul {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.sav-root .sub-form-judul::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.sav-root .sub-form-hint {
+  margin-left: 2px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.sav-root .sub-input {
+  min-height: 54px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.55;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.sav-root .sub-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.sav-root .sub-daftar {
+  gap: 4px;
+  padding: 7px 2px 0;
+  max-height: 112px;
+}
+
+.sav-root .sub-daftar-baris {
+  min-height: 25px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.sav-root .sub-daftar-teks {
+  font-size: 11px;
+}
+
+.sav-root .sub-form-foot {
+  min-height: 34px;
+  padding-top: 8px;
+}
+
+.sav-root .sub-form-foot .btn-primary,
+.sav-root .sub-form-foot button[type="submit"] {
+  min-height: 30px;
+  padding: 0 14px;
+  border-radius: 7px;
+}
+
+.sav-root .sub-form-foot .sub-run-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 146px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 7px;
+  color: var(--text-on-accent, #fff);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.sav-root .sub-form-foot .sub-run-btn span {
+  white-space: nowrap;
+}
+
+.sav-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 1px 0 0;
+}
+
+.sav-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.sav-progress-head strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sav-progress-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.sav-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.sav-root > .sub-panel {
+  display: block;
+  flex: 0 0 auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.sav-root .sub-panel > .sub-progress {
+  display: none;
+}
+
+.sav-root .sub-tabel-head {
+  display: none;
+}
+
+.sav-root .sub-timeline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  padding: 0;
+}
+
+.sav-root .sub-baris {
+  grid-template-columns: 26px minmax(0, 1fr);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+
+.sav-root .sub-baris.is-jalan { border-left-color: var(--accent); }
+.sav-root .sub-baris.is-selesai { border-left-color: var(--success); }
+.sav-root .sub-baris.is-gagal { border-left-color: var(--danger); }
+.sav-root .sub-baris.is-menunggu,
+.sav-root .sub-baris.is-batal { border-left-color: var(--text-muted); }
+
+.sav-root .sub-baris:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+}
+
+.sav-root .sub-node-col { padding-top: 1px; }
+.sav-root .sub-isi { min-width: 0; padding: 0; }
+.sav-root .sub-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.sav-root .sub-spacer { display: none; }
+.sav-root .sub-robot { flex: 0 0 16px; }
+.sav-root .sub-agent-chip { order: 0; }
+.sav-root .sub-tugas {
+  order: 2;
+  flex: 1 0 100%;
+  min-width: 0;
+  padding: 1px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.sav-root .sub-peran { order: 3; }
+.sav-root .sub-model-wrap { order: 4; }
+.sav-root .sub-verdict { order: 5; }
+.sav-root .sub-badge { order: 6; margin-left: auto; }
+.sav-root .sub-waktu { order: 7; }
+.sav-root .sub-token { order: 8; }
+.sav-root .sub-aksi-btn { order: 9; }
+.sav-root .sub-ket {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background: var(--bg);
+}
+
+.sav-root .sub-ringkas {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+
+.sav-root .sub-ringkas > summary {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+
+@container panel (max-width: 760px) {
+  .sav-root { padding: 10px; gap: 11px; }
+  .sav-head { gap: 7px; }
+  .sav-status-counts { order: 3; width: 100%; margin: 0; }
+  .sav-status-chip { padding: 4px 7px; }
+  .sav-root .sub-timeline { grid-template-columns: minmax(0, 1fr); }
+  .sav-root > .sub-form { padding: 10px; }
+  .sav-root .sub-form-foot { flex-wrap: wrap; }
+  .sav-root .sub-form-foot .sub-run-btn { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sav-progress-track > span { transition: none; }
+}
+
+/* ── Write permission line ─────────────────────────────────────────────────
+ * The state of the write gate, stated where the subagents run.
+ *
+ * Two gates decide it - the `allowWrite` setting and the Auto approval mode -
+ * and the tab used to say nothing about either: a read-only tab looked exactly
+ * like a writable one, and a user who had turned the setting on still saw
+ * refusals with no reason on screen. This is a state, not decoration, so the
+ * left edge carries the "off"/"on" at a glance and the reason sits next to the
+ * sentence instead of inside a tooltip nobody opens.
+ */
+.sav-tulis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 7px;
+  background: var(--surface-1);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.sav-tulis.is-off { border-left-color: var(--warn); }
+.sav-tulis.is-on { border-left-color: var(--ok); }
+.sav-tulis-teks {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.sav-tulis-alasan {
+  flex: 1 1 260px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+.sav-tulis-setelan {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.sav-tulis-ditolak {
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}

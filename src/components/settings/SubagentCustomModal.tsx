@@ -433,7 +433,7 @@ export default function SubagentCustomModal({ awal }: Props) {
               {menuBuka && (
                 <div className="sc-model-menu" data-testid="sc-model-menu" role="listbox">
                   {opsiModel.length === 1 && (
-                    <p className="sc-model-kosong">{tr('No provider has an API key yet. Add one in Settings → AI Models.')}</p>
+                    <p className="sc-model-kosong">{tr('No provider has an API key yet. Add one in AI Models.')}</p>
                   )}
                   {opsiModel.map((m) => (
                     <button

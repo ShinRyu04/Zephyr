@@ -1,29 +1,18 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { usePanel } from '../../lib/panelStore';
 import { useTerminal } from '../../lib/terminalStore';
-import { useStore } from '../../lib/store';
 import PanelTabStrip from './PanelTabStrip';
 import ProblemsView from './ProblemsView';
 import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
 import SubAgentView from './SubAgentView';
-import AiHost from '../ai/AiHost';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
 
-function AiTabView() {
-  const tr = useT();
-  const aiBukanBawah = useStore((s) => (s.settings.general.aiPanel ?? 'right') !== 'bottom');
-  if (aiBukanBawah) {
-    return (
-      <p className="ai-moved" data-testid="ai-tab-moved">
-        {tr('The AI panel is showing in its own area. Change it in Settings → General → AI panel.')}
-      </p>
-    );
-  }
-  return <AiHost />;
-}
+/* The AI chat is NOT a bottom-panel tab any more: it is its own secondary side
+   bar (right column / editor tab / pop-out window). This panel is Terminal,
+   Problems, Output, Debug Console, Ports and Subagents only. */
 
 export default function Panel() {
   const tr = useT();
@@ -93,12 +82,6 @@ export default function Panel() {
         {activeTab === 'debug' && <DebugConsoleView />}
         {activeTab === 'ports' && <PortsView />}
         {activeTab === 'subagents' && <SubAgentView />}
-
-        {/* T4.11: AI tab. AiPanel stays a SINGLE instance: if the AI panel is moved
-            to the right column (Settings → General → AI Panel), this tab shows
-            a note about the move - not a second copy of the panel (two streaming
-            listeners = every token shown twice). */}
-        {activeTab === 'ai' && <AiTabView />}
 
         {/* Terminal: stays mounted (see the note above), hidden while
             another tab is active. HTML `hidden` is not used because xterm needs an

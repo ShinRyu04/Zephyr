@@ -211,8 +211,59 @@ export const useMcp = create<McpStore>((set, get) => ({
 
   refreshServers: async () => {
     try {
-      set({ servers: await cmd.mcpClientList() });
+      const servers = await cmd.mcpClientList();
+      set({ servers });
+      /*
+       * Pull each server's tools and hand them to the agent registry.
+       *
+       * Done HERE, on the same refresh that the Settings panel triggers, so the
+       * set the model sees is the set the reader is looking at. Doing it
+       * lazily at send time would make the first request after opening the app
+       * race the network; doing it never is what left configured servers
+       * invisible to the agent.
+       *
+       * One failing server must not empty the registry: a server that is down
+       * contributes nothing, and the others still work.
+       */
+      const daftar: import('./mcpTools').McpExternalTool[] = [];
+      await Promise.all(
+        servers.map(async (s) => {
+          try {
+            const tools = await cmd.mcpClientTools(s.url, s.token);
+            for (const t of tools) {
+              daftar.push({
+                serverId: s.id,
+                serverLabel: s.label || s.id,
+                name: t.name,
+                description: t.description,
+                schema: (t.schema ?? {}) as Record<string, unknown>,
+              });
+            }
+          } catch {
+            /* Server unreachable: it contributes no tools, and the others do. */
+          }
+        }),
+      );
+      const { setMcpExternalTools } = await import('./mcpTools');
+      /*
+       * Batas per server dibaca dari setelan pada saat yang sama dengan
+       * daftarnya. Kalau batas dibaca di tempat lain (mis. di jalur kirim),
+       * panel Setelan dan yang benar-benar dikirim bisa memakai angka berbeda -
+       * dan yang salah selalu yang tidak terlihat.
+       */
+      const batas = useStore.getState().settings?.mcp?.maxToolsPerServer;
+      setMcpExternalTools(daftar, typeof batas === 'number' ? batas : undefined);
     } catch (e) {
+      /*
+       * Daftar server tidak terbaca: registry DIKOSONGKAN, bukan ditinggal.
+       *
+       * Kalau dibiarkan, tool dari server yang sudah hilang tetap ditawarkan ke
+       * model: ia memanggil, panggilannya gagal, dan yang dibaca pengguna adalah
+       * "tool rusak" - bukan "daftar server gagal dibaca". Kosong itu jujur, dan
+       * pesannya sudah tampil di panel.
+       */
+      const { setMcpExternalTools } = await import('./mcpTools');
+      setMcpExternalTools([]);
       set({ mcpError: cmd.asZephyrError(e).message });
     }
   },
@@ -254,12 +305,28 @@ export const useMcp = create<McpStore>((set, get) => ({
     set({ busy: true, mcpError: null, mcpInfo: null });
     try {
       const tools = await cmd.mcpClientTools(url.trim(), token.trim());
-      set({
-        mcpInfo: `Terhubung — ${tools.length} tool tersedia: ${tools
-          .slice(0, 8)
-          .map((t) => t.name)
-          .join(', ')}${tools.length > 8 ? ', …' : ''}`,
-      });
+      /*
+       * Prompts are reported too, and their ABSENCE is stated rather than
+       * implied.
+       *
+       * A server with prompts but no tools used to read as "connected — 0 tool
+       * available", which looks like a broken server. Most prompt-only servers
+       * are not broken at all; the client was only asking half the protocol.
+       * The prompt call is allowed to fail on its own — a server that has not
+       * implemented `prompts/list` answers with a JSON-RPC error, and that must
+       * not turn a perfectly good tools connection into a failure.
+       */
+      const prompts = await cmd.mcpClientPrompts(url.trim(), token.trim()).catch(() => null);
+      const bagianTool = `${tools.length} tool tersedia${
+        tools.length > 0 ? `: ${tools.slice(0, 8).map((t) => t.name).join(', ')}${tools.length > 8 ? ', …' : ''}` : ''
+      }`;
+      const bagianPrompt =
+        prompts === null
+          ? 'server ini tidak melaporkan prompt'
+          : prompts.length === 0
+            ? 'tanpa prompt'
+            : `${prompts.length} prompt: ${prompts.slice(0, 6).map((p) => p.name).join(', ')}${prompts.length > 6 ? ', …' : ''}`;
+      set({ mcpInfo: `Terhubung — ${bagianTool}, ${bagianPrompt}` });
       return tools.length;
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
@@ -622,19 +689,17 @@ async function runEditorCommand(id: string): Promise<unknown> {
 
     case 'ai.focus': {
       s.setSettingsOpen(false);
-      /* Open the chat in its configured home; the left 'ai' sidebar is gone. */
+      /* Open the chat in its configured home; the bottom dock is not one. */
       const posAi = s.settings.general.aiPanel ?? 'right';
-      if (posAi === 'bottom') {
-        if (!s.sidebarVisible) s.toggleSidebar();
-        t.setVisible(true);
-        usePanel.getState().focusTab('ai');
-      } else if (posAi === 'window') {
+      if (posAi === 'window') {
         void import('./aiWindow').then((m) => m.bukaAiWindow());
       } else {
         s.setAiKolomVisible(true);
       }
       window.setTimeout(() => window.dispatchEvent(new Event('zephyr-ai-focus')), 60);
-      return { ok: true, id, tab: 'ai' };
+      /* The AI has no home in the bottom panel: report where it actually
+         opened (the right column, or the pop-out window). */
+      return { ok: true, id, home: posAi === 'window' ? 'window' : 'right' };
     }
 
     case 'ai.send':

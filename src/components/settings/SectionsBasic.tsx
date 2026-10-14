@@ -1,13 +1,19 @@
 
 import * as cmd from '../../lib/commands';
+import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../../lib/store';
-import { useT, UI_LANGS } from '../../lib/i18n';
-import { semuaTema } from '../../lib/themes';
+import { useAi } from '../../lib/aiStore';
+import { useT, useTf, UI_LANGS } from '../../lib/i18n';
+import { resolveTheme, semuaTema, TOKEN_OVERRIDE as TOKEN_WARNA } from '../../lib/themes';
+import { saringTema, type JenisTema } from './temaFilter';
+import { PratinjauTema } from './TemaPratinjau';
+import { bacaPalet, hexBisa, overrideTerisi } from '../../lib/themeBuilder';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
 
-import { useTerminal } from '../../lib/terminalStore';
+import type { FormatterCmd } from '../../lib/formatters';
 export function GeneralSection() {
   const tr = useT();
+
   const g = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
   const dataDir = useStore((s) => s.appInfo?.dataDir ?? '');
@@ -21,7 +27,19 @@ export function GeneralSection() {
           label={tr('general.theme')}
           testid="general-theme"
           value={g.theme}
-          onChange={(v) => patch({ theme: v as typeof g.theme })}
+          onChange={(v) => {
+            // Pill ini artinya "pakai tema Zephyr yang ini", jadi tema aktifnya ikut
+            // dipindah. Tanpa ini, memilih 'Zephyr Light' saat tema lain sedang aktif
+            // menampilkan zephyr-light padahal kartu tema masih menunjuk pilihan lama.
+            const dipilih = v as typeof g.theme;
+            const pasangan =
+              dipilih === 'light' ? 'zephyr-light' : dipilih === 'dark' ? 'zephyr-dark' : null;
+            void apply(
+              pasangan
+                ? { general: { theme: dipilih }, theme: { current: pasangan } }
+                : { general: { theme: dipilih } },
+            );
+          }}
           options={[
             { value: 'dark', label: 'Zephyr Dark' },
             { value: 'light', label: 'Zephyr Light' },
@@ -208,11 +226,10 @@ export function GeneralSection() {
           className="inp"
           data-testid="general-ai-panel"
           aria-label={tr('AI panel position')}
-          value={g.aiPanel === 'bottom' ? 'right' : (g.aiPanel ?? 'right')}
+          value={g.aiPanel ?? 'right'}
           onChange={async (e) => {
             const nilai = e.target.value as 'right' | 'editor' | 'window';
             patch({ aiPanel: nilai });
-            useTerminal.getState().setVisible(false);
           }}
         >
           <option value="right">{tr('Right (340px)')}</option>
@@ -252,6 +269,7 @@ export function GeneralSection() {
 
 export function EditorSection() {
   const tr = useT();
+
   const e = useStore((s) => s.settings.editor);
   const apply = useStore((s) => s.applySettings);
   const patch = (p: Partial<typeof e>) => void apply({ editor: p });
@@ -337,6 +355,159 @@ export function EditorSection() {
           testid="editor-ghost"
           checked={e.ghostText}
           onChange={(v) => patch({ ghostText: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.codeFolding')}
+        hint={tr('Chevron in the gutter collapses a block. Ctrl-Shift-[ folds, Ctrl-Shift-] unfolds.')}
+      >
+        <Toggle
+          label={tr('editor.codeFolding')}
+          testid="editor-code-folding"
+          checked={e.codeFolding}
+          onChange={(v) => patch({ codeFolding: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.diagLens')}
+        hint={tr('Prints the diagnostic message at the end of the line, without hovering.')}
+      >
+        <Toggle
+          label={tr('editor.diagLens')}
+          testid="editor-diag-lens"
+          checked={e.diagLens}
+          onChange={(v) => patch({ diagLens: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.gitBlame')}
+        hint={tr('Shows who last changed each line, at the end of the line. Needs a git repository.')}
+      >
+        <Toggle
+          label={tr('editor.gitBlame')}
+          testid="editor-git-blame"
+          checked={e.gitBlame}
+          onChange={(v) => patch({ gitBlame: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.lineNumbers')}
+        hint={tr('Relative shows the distance from the cursor, which is what Vim-style jumps need.')}
+      >
+        <Select
+          label={tr('editor.lineNumbers')}
+          testid="editor-line-numbers"
+          value={e.lineNumbers}
+          onChange={(v) => patch({ lineNumbers: v as typeof e.lineNumbers })}
+          options={[
+            { value: 'on', label: tr('Absolute') },
+            { value: 'relative', label: tr('Relative') },
+            { value: 'off', label: tr('Off') },
+          ]}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.scrollMargin')}
+        hint={tr('Blank lines kept above and below the cursor while scrolling.')}
+      >
+        <NumberInput
+          label={tr('editor.scrollMargin')}
+          testid="editor-scroll-margin"
+          value={e.scrollMargin}
+          min={0}
+          max={30}
+          onChange={(v) => patch({ scrollMargin: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.scrollPastEnd')}
+        hint={tr('Lets the last line be scrolled up to the middle of the window.')}
+      >
+        <Toggle
+          label={tr('editor.scrollPastEnd')}
+          testid="editor-scroll-past-end"
+          checked={e.scrollPastEnd}
+          onChange={(v) => patch({ scrollPastEnd: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.centeredWidth')}
+        hint={tr('Narrow, centred text column. 0 keeps full width.')}
+      >
+        <NumberInput
+          label={tr('editor.centeredWidth')}
+          testid="editor-centered-width"
+          value={e.centeredWidth}
+          min={0}
+          max={3000}
+          onChange={(v) => patch({ centeredWidth: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.fixAllOnSave')}
+        hint={tr('Runs the language server\'s "fix all" action on save. This REWRITES your code - separate from formatting.')}
+      >
+        <Toggle
+          label={tr('editor.fixAllOnSave')}
+          testid="editor-fix-all-on-save"
+          checked={e.fixAllOnSave}
+          onChange={(v) => patch({ fixAllOnSave: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.gitGutter')}
+        hint={tr('Bars in the gutter for lines added, changed or removed since the last commit.')}
+      >
+        <Toggle
+          label={tr('editor.gitGutter')}
+          testid="editor-git-gutter"
+          checked={e.gitGutter}
+          onChange={(v) => patch({ gitGutter: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.inlayHints')}
+        hint={tr('Language server shows inferred types and parameter names inside the code.')}
+      >
+        <Toggle
+          label={tr('editor.inlayHints')}
+          testid="editor-inlay-hints"
+          checked={e.inlayHints}
+          onChange={(v) => patch({ inlayHints: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.semanticTokens')}
+        hint={tr('Language server colours identifiers by meaning, over the parser\'s own highlighting.')}
+      >
+        <Toggle
+          label={tr('editor.semanticTokens')}
+          testid="editor-semantic-tokens"
+          checked={e.semanticTokens}
+          onChange={(v) => patch({ semanticTokens: v })}
+        />
+      </Row>
+
+      <Row
+        label={tr('editor.debugInlineValues')}
+        hint={tr('Shows local values at the line the debugger is paused on, without opening the Variables panel.')}
+      >
+        <Toggle
+          label={tr('editor.debugInlineValues')}
+          testid="editor-debug-inline"
+          checked={e.debugInlineValues}
+          onChange={(v) => patch({ debugInlineValues: v })}
         />
       </Row>
 
@@ -433,6 +604,8 @@ export function EditorSection() {
             onChange={(v) => patch({ formatOnSave: v })}
           />
         </Row>
+
+        <FormattersRow daftar={e.formatters ?? []} onUbah={(v) => patch({ formatters: v })} />
       </div>
 
       {/* ── phase 24: editor extras ──
@@ -536,26 +709,112 @@ const BG_KOSONG = {} as NonNullable<ReturnType<typeof useStore.getState>['settin
 
 export function ThemeSection() {
   const tr = useT();
+
   const theme = useStore((s) => s.settings.theme);
 
   const bg = useStore((s) => s.settings.background ?? BG_KOSONG);
   const general = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
 
+  /*
+   * Kotak cari + pil jenis (item 181).
+   *
+   * Keduanya masuk ke SATU penyaring (`saringTema`), dan hasil penyaring itulah
+   * yang dipakai tiga tempat sekaligus: kisinya, hitungan "n dari m", dan
+   * keadaan kosong. Kalau salah satu dari ketiganya menyaring sendiri, hitungan
+   * bisa menyebut 7 sementara kisinya menampilkan 5 dan tidak ada yang tahu mana
+   * yang benar.
+   */
+  const [kueri, setKueri] = useState('');
+  const [jenis, setJenis] = useState<JenisTema>('semua');
+  /*
+   * Tema yang sedang ditunjuk kursor atau papan tuts di kisi.
+   *
+   * Pratinjau besar menampilkan tema ini, bukan tema aktif: sebelum memilih,
+   * pembaca butuh MEMBANDINGKAN, dan membandingkan berarti melihat kandidat -
+   * bukan melihat apa yang sudah terpasang. Tanpa penunjukan, pratinjau besar
+   * hanya mengulang tema yang sedang dipakai dan tidak menambah apa pun.
+   */
+  const [sorot, setSorot] = useState<string | null>(null);
+
+  const semua = semuaTema();
+  const tampil = saringTema(semua, kueri, jenis, tr);
+  const aktifId = resolveTheme(general, theme);
+  /* Tema yang ditunjuk, bila masih ada setelah disaring; kalau tidak, yang aktif;
+     kalau yang aktif pun tersaring keluar, kartu pertama yang tersisa. */
+  const besarId =
+    sorot && tampil.some((t) => t.id === sorot)
+      ? sorot
+      : tampil.some((t) => t.id === aktifId)
+        ? aktifId
+        : (tampil[0]?.id ?? aktifId);
+  const besarInfo = semua.find((t) => t.id === besarId);
+
   return (
     <Section title={tr('settings.theme')}>
       <p className="set-note">{tr('theme.description')}</p>
 
+      <Row label={tr('nav.search')} hint="nama, jenis (gelap/terang), id, atau teks petunjuk">
+        <span className="set-cari-tema" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextInput
+            label={tr('nav.search')}
+            testid="theme-search"
+            value={kueri}
+            placeholder={tr('nav.search')}
+            onChange={setKueri}
+          />
+          <Pills
+            label={tr('settings.theme')}
+            testid="theme-jenis"
+            value={jenis}
+            onChange={(v) => setJenis(v as JenisTema)}
+            options={[
+              { value: 'semua', label: 'Semua' },
+              { value: 'dark', label: 'Gelap' },
+              { value: 'light', label: 'Terang' },
+            ]}
+          />
+        </span>
+      </Row>
+
+      <p className="set-note" data-testid="theme-hitung">
+        {tampil.length} / {semua.length}
+      </p>
+
+      {/*
+        * Pratinjau BESAR. Komponennya SAMA dengan yang di kartu
+        * (`TemaPratinjau`), hanya `ukuran` yang berbeda - jadi isi pratinjau
+        * besar tidak bisa menyimpang dari isi kartu, karena tidak ada markup
+        * kedua yang bisa menyimpang.
+        */}
+      <div
+        className="theme-besar"
+        data-testid="theme-preview-besar"
+        style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '4px 0 10px' }}
+      >
+        <PratinjauTema themeId={besarId} ukuran="besar" accent={theme.accent} />
+        <span className="theme-name" data-testid="theme-preview-besar-nama">
+          {besarInfo?.label ?? besarId}
+        </span>
+      </div>
+
       <div className="theme-grid" data-testid="theme-grid">
         {/* semuaTema() = built-in + themes from active extensions (phase 19.5). */}
-        {semuaTema().map((th) => {
-          const active = theme.current === th.id;
+        {tampil.map((th) => {
+          // Aktif = tema yang BENAR-BENAR dirender (resolveTheme), bukan pilihan
+          // mentah di settings. Dulu `theme.current === th.id`: kalau mode tampilan
+          // (pill Zephyr Light/Dark) menimpa pilihan itu, kartu menunjuk tema yang
+          // tidak sedang dipakai — UI berbohong tanpa pesan apa pun.
+          const active = aktifId === th.id;
           return (
             <button
               key={th.id}
               className={`theme-card${active ? ' is-active' : ''}`}
               data-theme-card={th.id}
               aria-pressed={active}
+              onMouseEnter={() => setSorot(th.id)}
+              onMouseLeave={() => setSorot((s) => (s === th.id ? null : s))}
+              onFocus={() => setSorot(th.id)}
               onClick={() =>
                 void apply({
                   theme: { current: th.id },
@@ -564,23 +823,27 @@ export function ThemeSection() {
                 })
               }
             >
-              {/* The preview uses a local data-theme: theme tokens apply even
-                  before it becomes the active theme. */}
-              <span className="theme-preview" data-theme={th.id}>
-                <span className="tp-side" />
-                <span className="tp-main">
-                  <span className="tp-line tp-kw" />
-                  <span className="tp-line tp-str" />
-                  <span className="tp-line tp-fn" />
-                </span>
-                <span className="tp-term" />
-              </span>
+              {/* Pratinjau kartu = komponen pratinjau yang SAMA dengan pratinjau
+                  besar; `data-theme`-nya dipasang di dalam komponen supaya token
+                  tema itu terpakai walau temanya belum dipilih. */}
+              <PratinjauTema themeId={th.id} accent={theme.accent} />
               <span className="theme-name">{th.label}</span>
               <span className="theme-hint">{tr(th.hint)}</span>
             </button>
           );
         })}
       </div>
+
+      {tampil.length === 0 && (
+        /* Keadaan kosong memakai hasil penyaring yang sama, jadi angkanya tidak
+           bisa berbeda dari kisi di atasnya. Teks ini layak jadi kunci kamus;
+           untuk sekarang ditulis apa adanya seperti label lain di berkas ini. */
+        <p className="set-note" data-testid="theme-kosong">
+          {kueri
+            ? `Tidak ada tema yang cocok dengan "${kueri}".`
+            : 'Tidak ada tema untuk jenis ini.'}
+        </p>
+      )}
 
       <Row label={tr('theme.accent')} hint={tr('theme.accentHint')}>
         <span className="set-accent">
@@ -606,6 +869,11 @@ export function ThemeSection() {
           whether setting a photo, is that possible?"). The image is NOT copied to the
           data folder - its path is used directly via convertFileSrc so there is no
           duplication of large files and the user can still move their photo. */}
+      <ThemeBuilder
+        overrides={theme.overrides ?? {}}
+        onUbah={(v) => void apply({ theme: { overrides: v } })}
+      />
+
       <Row label={tr('theme.background')} hint={tr('theme.backgroundHint')}>
         <span className="set-bg">
           <button
@@ -711,5 +979,240 @@ export function ThemeSection() {
         <code>{general.theme}</code>
       </p>
     </Section>
+  );
+}
+
+/* ── External formatters ───────────────────────────────────────────────── */
+
+/**
+ * The formatter chain.
+ *
+ * A list rather than one command because real setups chain — `gofmt` then
+ * `goimports`, `prettier` then `eslint --fix` — and because "one command" would
+ * force a reader with a two-step pipeline to wrap it in a shell script of their
+ * own, which is a worse editor for no reason.
+ *
+ * Each row says what the command receives and returns, because that contract is
+ * not guessable: a formatter written to rewrite a file in place will not work
+ * here, and the reader needs to know that before they wonder why the box does
+ * nothing.
+ */
+function FormattersRow({
+  daftar,
+  onUbah,
+}: {
+  daftar: FormatterCmd[];
+  onUbah: (v: FormatterCmd[]) => void;
+}) {
+  const tr = useT();
+
+  const ubah = (i: number, patch: Partial<FormatterCmd>) =>
+    onUbah(daftar.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+
+  return (
+    <>
+      <Row
+        label={tr('editor.formatters')}
+        hint={tr('Commands run in order after the LSP formatter. Each receives the file on stdin and returns the new text on stdout.')}
+      >
+        <button
+          className="btn btn-sm"
+          data-testid="editor-formatter-add"
+          onClick={() => onUbah([...daftar, { cmd: '', extensions: [] }])}
+        >
+          {tr('Add')}
+        </button>
+      </Row>
+      {daftar.map((f, i) => (
+        <div className="row-inline" key={i} data-testid={`editor-formatter-${i}`}>
+          <input
+            className="input input-sm is-mono"
+            data-testid={`editor-formatter-cmd-${i}`}
+            placeholder={tr('e.g. npx prettier --stdin-filepath {file}')}
+            value={f.cmd}
+            onChange={(ev) => ubah(i, { cmd: ev.target.value })}
+          />
+          <input
+            className="input input-sm"
+            data-testid={`editor-formatter-ext-${i}`}
+            placeholder={tr('.ts,.tsx (empty = every file)')}
+            value={(f.extensions ?? []).join(',')}
+            onChange={(ev) =>
+              ubah(i, {
+                extensions: ev.target.value
+                  .split(',')
+                  .map((x) => x.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+          <button
+            className="btn btn-sm btn-danger"
+            data-testid={`editor-formatter-del-${i}`}
+            aria-label={tr('Remove')}
+            onClick={() => onUbah(daftar.filter((_, j) => j !== i))}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ── Theme Builder ─────────────────────────────────────────────────────── */
+
+/**
+ * Edit the palette without writing CSS.
+ *
+ * A `Row` per token would be 27 full-width rows and a lot of scrolling, so the
+ * tokens are a compact grid: a swatch, the token name, and the value. The
+ * swatch IS the picker — clicking it opens the native colour dialog, which
+ * means the control the reader aims at is the colour they are looking at.
+ *
+ * ## Why the value is read from the DOM when the panel opens
+ *
+ * The starting point must be what is on screen, which is the base theme plus any
+ * theme extension plus the accent plus whatever overrides already exist. Only
+ * the computed style knows that answer. A table here would be a fifth copy of
+ * the same information.
+ *
+ * Re-read on every theme change, so switching theme and then opening the builder
+ * shows the new theme's colours rather than the old one's.
+ *
+ * ## Everything is live
+ *
+ * Every keystroke applies immediately. A builder that needed "Preview" would
+ * make the reader judge a colour from a thumbnail, which is the one thing a
+ * colour tool cannot do well.
+ */
+function ThemeBuilder({
+  overrides,
+  onUbah,
+}: {
+  overrides: Record<string, string>;
+  onUbah: (v: Record<string, string>) => void;
+}) {
+  const tr = useT();
+  const tf = useTf();
+  const [buka, setBuka] = useState(false);
+  const themeId = useStore((s) => s.settings.theme.current);
+  const [palet, setPalet] = useState<Record<string, string>>({});
+
+  /*
+   * Read after paint: `getComputedStyle` during the render that CHANGED the
+   * theme would return the old value, because the style has not been recalculated
+   * yet. `requestAnimationFrame` waits for that.
+   */
+  const baca = useCallback(() => {
+    const id = requestAnimationFrame(() => setPalet(bacaPalet()));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (!buka) return;
+    return baca();
+  }, [buka, themeId, baca]);
+
+  const isi = overrideTerisi(overrides);
+  const jumlah = Object.keys(isi).length;
+
+  return (
+    <div className="tb-wrap" data-testid="theme-builder">
+      <Row
+        label={tr('theme.builder')}
+        hint={tr('Change individual colours without writing CSS. Applies immediately.')}
+      >
+        <span className="tb-head">
+          {jumlah > 0 && (
+            <span className="tb-count" data-testid="tb-count">
+              {tf('{n} changed', { n: String(jumlah) })}
+            </span>
+          )}
+          <button className="btn btn-sm" data-testid="tb-toggle" onClick={() => setBuka((v) => !v)}>
+            {buka ? tr('common.close') : tr('theme.builderOpen')}
+          </button>
+        </span>
+      </Row>
+
+      {buka && (
+        <>
+          <div className="tb-grid" data-testid="tb-grid">
+            {TOKEN_WARNA.map((t) => {
+              const asli = palet[t] ?? '';
+              const kini = isi[t] ?? asli;
+              const hex = hexBisa(kini);
+              const diubah = !!isi[t];
+              return (
+                <div className="tb-row" key={t} data-token={t} data-changed={diubah ? '1' : undefined}>
+                  <label className="tb-swatch" title={t}>
+                    <input
+                      type="color"
+                      data-testid={`tb-color-${t}`}
+                      value={hex ?? '#000000'}
+                      onChange={(e) => onUbah({ ...overrides, [t]: e.target.value })}
+                    />
+                  </label>
+                  <span className="tb-nama">{t.replace(/^--/, '')}</span>
+                  {/*
+                    * A value the colour input cannot represent (an extension
+                    * theme may use `rgb()`, `color-mix()` or a `var()`) is shown
+                    * as text. Showing `#000000` for it would be a control that
+                    * displays black while the screen shows something else — the
+                    * reader would then "fix" a colour that was never wrong.
+                    */}
+                  {hex ? null : (
+                    <code className="tb-nilai" data-testid={`tb-raw-${t}`}>
+                      {kini || '—'}
+                    </code>
+                  )}
+                  {diubah && (
+                    <button
+                      className="tb-reset"
+                      data-testid={`tb-reset-${t}`}
+                      title={tr('common.reset')}
+                      aria-label={`${tr('common.reset')} ${t}`}
+                      onClick={() => {
+                        const n = { ...overrides };
+                        delete n[t];
+                        onUbah(n);
+                      }}
+                    >
+                      ↺
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="tb-aksi">
+            <button
+              className="btn btn-sm"
+              data-testid="tb-export"
+              disabled={jumlah === 0}
+              onClick={() => {
+                const teks = JSON.stringify({ zephyrThemeOverrides: isi }, null, 2);
+                void import('../../lib/clipboard')
+                  .then((m) => m.clipboardWrite(teks))
+                  .then(() =>
+                    useAi.getState().setToast(tf('{n} colours copied as JSON', { n: String(jumlah) })),
+                  );
+              }}
+            >
+              {tr('theme.builderExport')}
+            </button>
+            <button
+              className="btn btn-sm btn-danger"
+              data-testid="tb-clear"
+              disabled={jumlah === 0}
+              onClick={() => onUbah({})}
+            >
+              {tr('theme.builderClear')}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

@@ -17,8 +17,18 @@
  * sesudah perbaikan, jadi tidak membuktikan apa pun.
  */
 const PORT = process.argv[2] || '9223';
-const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+let list;
+try {
+  list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+} catch (e) {
+  console.log(`TIDAK BERLAKU: app tidak bisa dihubungi di port ${PORT} (${String(e).split('\n')[0]}).`);
+  process.exit(2);
+}
 const page = list.find((t) => t.type === 'page' && t.url && !t.url.startsWith('devtools'));
+if (!page) {
+  console.log(`TIDAK BERLAKU: tidak ada halaman app di port ${PORT}.`);
+  process.exit(2);
+}
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
@@ -40,7 +50,7 @@ await new Promise((r) => (ws.onopen = r));
 /* Rules that must survive whatever the persona says. Short distinctive
  * phrases, so rewording the prompt cannot silently flip the test. */
 const WAJIB = [
-  ['todoWrite', 'plan 2 to 5 steps in todo_write'],
+  ['todoWrite', 'plan 2-5 steps in todo_write'],
   ['satuLangkahSatuTool', 'One step, one tool'],
   ['buktiBukanBukti', 'A claim is not proof'],
   ['hematTool', 'Spend a tool call only when it brings something new'],
@@ -58,7 +68,19 @@ const expr = `(async () => {
 })()`;
 const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
 ws.close();
-const st = JSON.parse(r.result?.result?.value ?? '{}');
+const keluaran = r.result?.result?.value;
+if (typeof keluaran !== 'string') {
+  console.log('TIDAK BERLAKU: app tidak menjawab Runtime.evaluate dengan nilai (tak ada halaman app / import gagal).');
+  process.exit(2);
+}
+let st;
+try {
+  st = JSON.parse(keluaran);
+} catch (e) {
+  console.log(`TIDAK BERLAKU: keluaran evaluate tidak terbaca sebagai JSON (${String(e).split('\n')[0]}).`);
+  console.log(`  awal keluaran: ${keluaran.slice(0, 200)}`);
+  process.exit(2);
+}
 
 console.log(`persona aktif: ${st.persona}`);
 console.log(`caraKerja persona: ${st.per?.caraKerja?.length ?? 0} karakter`);
@@ -67,7 +89,7 @@ console.log(`caraKerja persona: ${st.per?.caraKerja?.length ?? 0} karakter`);
  * caraKerja. Without that, it would pass before and after the fix. */
 if (!st.per?.caraKerja) {
   console.log('\nTIDAK BERLAKU: persona tidak mengisi caraKerja, jadi blok bawaan tidak pernah tergantikan.');
-  process.exit(1);
+  process.exit(2);
 }
 
 let lulus = 0;

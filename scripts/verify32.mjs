@@ -17,6 +17,7 @@
 // V5 require() modul tak dikenal → error JELAS (bukan ReferenceError)
 
 import { skripEkstensi } from '../src/lib/extRunner.ts';
+import { keluarBersih } from './lib-cdp.mjs';
 
 /** Jalankan skrip seolah-olah di Worker (fake self/postMessage). */
 function jalankan(script) {
@@ -357,4 +358,4 @@ cek(
 );
 
 console.log(gagal === 0 ? '\nSemua lulus.' : `\n${gagal} gagal.`);
-process.exit(gagal ? 1 : 0);
+keluarBersih(gagal ? 1 : 0);

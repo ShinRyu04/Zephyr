@@ -15,7 +15,7 @@
 //   V9  menu View memanggil command yang sama dengan shortcut
 
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagianA } from './v20/bagianA.mjs';
 import { bagianB } from './v20/bagianB.mjs';
 import { bagianC } from './v20/bagianC.mjs';
@@ -103,5 +103,5 @@ const main = async () => {
 
 main().catch((e) => {
   console.error('verify20 error:', e.message);
-  process.exit(1);
+  keluarBersih(1);
 });

@@ -21,7 +21,7 @@ export type AlatId =
   | 'bash_logs'
   | 'bash_list'
   | 'notes_read'
-  | 'fetch';
+  | 'web_fetch';
 
 export interface AlatInfo {
   id: AlatId;
@@ -43,7 +43,7 @@ export const ALAT: AlatInfo[] = [
   { id: 'bash_logs', label: 'Read a log', hint: 'Read the output of a background process', ikon: '≡' },
   { id: 'bash_list', label: 'List processes', hint: 'List background processes and their exit codes', ikon: '⚠' },
   { id: 'notes_read', label: 'Read memory', hint: 'Notes that persist across sessions', ikon: '◈' },
-  { id: 'fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
+  { id: 'web_fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
 ];
 
 export interface SubagentCustom {
@@ -121,7 +121,20 @@ export function bacaDaftar(): SubagentCustom[] {
   const s = useStore.getState().settings as unknown as {
     subagentCustom?: SubagentCustom[];
   };
-  return Array.isArray(s.subagentCustom) ? s.subagentCustom : [];
+  const daftar = Array.isArray(s.subagentCustom) ? s.subagentCustom : [];
+  /*
+   * `fetch` dan `web_fetch` adalah tool yang sama; yang pertama dihapus dan
+   * definisi lama masih menyimpan id itu. Tanpa penerjemahan di sini, pekerja
+   * yang dulu diberi izin "Fetch a page" kehilangan toolnya diam-diam -
+   * penyaring nama tidak mengenali id itu dan hasilnya daftar kosong, tanpa
+   * satu pun pesan bahwa ada yang hilang.
+   */
+  return daftar.map((d) => ({
+    ...d,
+    alat: (Array.isArray(d.alat) ? d.alat : []).map((a) =>
+      String(a) === 'fetch' ? ('web_fetch' as AlatId) : a,
+    ),
+  }));
 }
 
 /**

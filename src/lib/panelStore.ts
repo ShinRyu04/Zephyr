@@ -9,7 +9,6 @@ export type PanelTabId =
   | 'debug'
   | 'terminal'
   | 'ports'
-  | 'ai'
   | 'subagents';
 
 const TAB_LAMA: PanelTabId[] = ['problems', 'output', 'debug', 'terminal', 'ports'];
@@ -20,8 +19,6 @@ export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = 
   { id: 'debug', label: 'Debug Console', command: 'debugConsolePanel.focus' },
   { id: 'terminal', label: 'Terminal', command: 'terminalPanel.focus' },
   { id: 'ports', label: 'Ports', command: 'portsPanel.focus' },
-
-  { id: 'ai', label: 'AI', command: 'aiPanel.focus' },
 
   { id: 'subagents', label: 'Subagents', command: 'subagentsPanel.focus' },
 ];
@@ -116,15 +113,13 @@ export const usePanel = create<PanelState & PanelActions>((set, get) => ({
       const vt = (visibleTabs ?? []).filter((x): x is PanelTabId =>
         SEMUA.includes(x as PanelTabId),
       );
-      let at = SEMUA.includes(activeTab as PanelTabId) ? (activeTab as PanelTabId) : 'terminal';
+      const at = SEMUA.includes(activeTab as PanelTabId) ? (activeTab as PanelTabId) : 'terminal';
       /*
-       * A saved activeTab of 'ai' is stale once the chat lives in its own area
-       * (right/editor/window). Leaving it selected shows the bottom panel open
-       * on the "moved" note, which reads as "AI is still in the bottom panel".
-       * Fall back to the terminal tab in that case.
+       * The AI chat does NOT live in this store any more: it is its own
+       * secondary side bar (right column / editor tab / pop-out window). A
+       * saved `ai` entry is simply an unknown id now, so the SEMUA filter above
+       * already drops it and a stale activeTab of 'ai' falls back to Terminal.
        */
-      const posAi = useStore.getState().settings.general.aiPanel ?? 'right';
-      if (at === 'ai' && posAi !== 'bottom') at = 'terminal';
       const daftar = vt.length > 0 ? vt : SEMUA.slice();
 
       const TAB_BARU: PanelTabId[] = SEMUA.filter((t) => !TAB_LAMA.includes(t));

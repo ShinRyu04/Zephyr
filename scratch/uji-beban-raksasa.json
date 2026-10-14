@@ -1,0 +1,52 @@
+{
+  "model": "model-tanpa-entri-katalog",
+  "jendela": 128000,
+  "jendelaAsli": 128000,
+  "batasPadat": 102400,
+  "berkas": 44,
+  "capPesan": 23251,
+  "reserveTool": 16749,
+  "sistemChar": 23657,
+  "lulus": 16,
+  "gagal": 0,
+  "temuan": 2,
+  "kasus": [
+    "LULUS  B1-inti — faktaInti()=6.986 char / 1.747 token vs AMBANG_TOKEN_INTI=2.000 token (=8.000 char)",
+    "LULUS  B2-anggaran — systemPromptFor()=23.657 char (5.915 token); suntikanIndeks=846 char; spec 26 tool=14.701 char; reserveTools=16.749 char; capUntukPesan=23.251 char; PAYLOAD_MAX_CHARS=40.000; total tetap=41.252 char",
+    "LULUS  B3-suntik — suntikanIndeks('malformed JSON arguments')=846 char (0 baris entri dari 40 fakta cocok; indeks punya 6.212 entri) vs BATAS_KARAKTER_SUNTIK=1.200 char + kepala/penutup tetap (BATAS_HASIL_SUNTIK=10 entri)",
+    "LULUS  B4-cariFakta — cariFakta('malformed JSON arguments', batas=999) → 40 hasil (BATAS_HASIL_MAKS=40, bawaan=8); formatHasil=5.865 char (10 baris) vs BATAS_KARAKTER_HASIL=6.000",
+    "LULUS  B5-muat — 44/44 berkas di 44 giliran; payload/giliran awalan-akhir=27.014-27.014 char (rata-rata 24.242, puncak 5.974 token); pelanggaran anggaran=0; puncak token riwayat=73.919 vs batas padat=102.400",
+    "LULUS  B6-irama — 1.00 berkas/giliran; 44 giliran terpakai vs MAX_AGENT_STEPS=200 (sisa ruang 156 giliran, cukup untuk 156 berkas lagi)",
+    "LULUS  B7-potong — hasil tool 30.016 char → 594 char; catatan pemotongan dari kode asli=true; jumlah karakter yang hilang disebut=true; vonis di ekor ikut terbawa=true; HISTORY_TOOL_CHARS=500, HISTORY_TOOL_TAIL_RATIO=0.4",
+    "LULUS  B8-jendela — giliran terbaru tetap utuh (6.010 char); hasil tertua dipotong ke 593 char (HISTORY_TOOL_CHARS=500, HISTORY_KEEP_STEPS=6)",
+    "LULUS  B9-padat-sebelum-langgar — padat pertama di giliran 26 (sebelum=103.462 token → sesudah=27.956 token, 68 pesan diringkas); pelanggaran anggaran pertama=tidak ada; AMBANG_PADAT_TOKEN=102.400; batas dipakai=102.400",
+    "LULUS  B10-padat-mengecil — 1 pemadatan nyala; semua sesudah < sebelum=true; contoh: 103.462 → 27.956 token; RASIO_RINGKAS_TARGET=0.5",
+    "LULUS  B11-tugas-terbawa — peristiwa pemadatan dengan berkas sisa: 1 (giliran 26: 18/18 sisa terbawa di penjaga); hilang diam-diam=0; tugas belum tercatat di penjaga akhir=18 butir (PADAT_BATAS_BERKAS=20)",
+    "LULUS  B12-format-terkirim — giliran dengan riwayat dipotong: 43/44; giliran tanpa pesan=0; pesan system selalu di depan=true; giliran yang PESAN TERAKHIRNYA dipotong=43 (semuanya saat payload > cap=true, tanpa catatan pemotongan=0); contoh giliran 2: pesan tool 55→504 char (role kirim=assistant), payload 24.449 > cap 23.251; payload puncak melebihi capUntukPesan sebesar 3.763 char (system prompt sendirian sudah 23.657 > cap 23.251)",
+    "LULUS  B13-determinisme — digest jalan 1 = jalan 2 = 9c22e08c3644ae08…; berkas tertulis identik=true",
+    "LULUS  B14-urutan — urutan berkas yang dikerjakan = 0…43 (44 berkas), naik-tanpa-lompat=true, duplikat=0",
+    "LULUS  B15-laporan-jujur — dipotong di 10 giliran: dilaporkan selesai 10/44, belum 34 (semua bernama: true), butir tugas belum tercatat=34; klaim \"selesai semua\"=false",
+    "LULUS  B16-uji-negatif — jendela dipaksa 6.000 token: pemadatan nyala=7, pelanggaran anggaran terdeteksi=0 (payload tetap di bawah PAYLOAD_MAX_CHARS karena cap char 40k, bukan token)"
+  ],
+  "temuanCatat": [
+    "TEMUAN B2-reserve — systemPromptFor() (23.657 char) SUDAH melebihi capUntukPesan (23.251 char) sebelum satu pun pesan riwayat ikut; sisa anggaran untuk riwayat = 0 char. ringkasUkuran() tidak pernah menyentuh pesan system, jadi yang dikorbankan adalah riwayat.",
+    "TEMUAN B12-ekor — 43/44 giliran mengirim pesan TERAKHIR dalam bentuk terpotong (contoh giliran 2: tool 55→504 char) karena payload 24.449 melebihi cap 23.251. Catatan pemotongan ikut terkirim=true, jadi tidak ada pemotongan diam-diam — tetapi penyebabnya adalah TEMUAN B2 (system prompt 23.657 char > cap 23.251 char)."
+  ],
+  "bebanNormal": {
+    "selesai": 44,
+    "langkah": 44,
+    "puncakTokenRiwayat": 73919,
+    "puncakCharsPayload": 27014,
+    "pelanggaran": 0,
+    "pemadatan": 0
+  },
+  "bebanBerat": {
+    "selesai": 44,
+    "langkah": 44,
+    "puncakTokenRiwayat": 103462,
+    "padatNyala": 1,
+    "pelanggaran": 0,
+    "hilang": 0
+  },
+  "durasiMs": 17654
+}

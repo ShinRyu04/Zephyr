@@ -103,11 +103,11 @@ fn baca_meta(dir: &Path) -> MetaFile {
 fn tulis_meta(dir: &Path, m: &MetaFile) {
     if let Ok(s) = serde_json::to_string_pretty(m) {
         /* Senyap (`let _ =`) dipertahankan: meta yang gagal ditulis tidak boleh
-           menggagalkan pembuatan snapshot, karena snapshot-nya sendiri yang
-           penting bagi pengguna. Tapi penulisannya sekarang atomik, jadi
-           meta.json tidak bisa lagi tinggal separuh kalau prosesnya mati
-           di tengah - dan meta yang separuh membuat SELURUH riwayat tidak
-           terbaca, bukan cuma satu entri. */
+        menggagalkan pembuatan snapshot, karena snapshot-nya sendiri yang
+        penting bagi pengguna. Tapi penulisannya sekarang atomik, jadi
+        meta.json tidak bisa lagi tinggal separuh kalau prosesnya mati
+        di tengah - dan meta yang separuh membuat SELURUH riwayat tidak
+        terbaca, bukan cuma satu entri. */
         let _ = crate::tulis_aman::tulis_atomik_teks(&dir.join("meta.json"), &s);
     }
 }
@@ -193,9 +193,12 @@ fn pangkas_total(root: &Path, maks: usize) -> usize {
         return 0;
     }
     let mut hapus = 0;
-    let mut per_folder: std::collections::HashMap<PathBuf, usize> = std::collections::HashMap::new();
+    let mut per_folder: std::collections::HashMap<PathBuf, usize> =
+        std::collections::HashMap::new();
     for (f, s) in &list {
-        *per_folder.entry(f.parent().unwrap_or(f).to_path_buf()).or_insert(0) += 1;
+        *per_folder
+            .entry(f.parent().unwrap_or(f).to_path_buf())
+            .or_insert(0) += 1;
     }
     for (path, s) in &list {
         if list.len() - hapus <= maks {
@@ -268,8 +271,8 @@ pub fn snapshot_internal(state: &AppState, path: &Path, reason: &str) -> ZResult
     }
     let id = format!("{}__{}.snap", now_ms(), reason);
     /* Snapshot ditulis atomik: berkas yang tinggal separuh karena proses mati di
-       tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
-       kehilangan SELURUH riwayat, bukan hanya satu titik. */
+    tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
+    kehilangan SELURUH riwayat, bukan hanya satu titik. */
     crate::tulis_aman::tulis_atomik(&dir.join(&id), &isi)?;
     meta.hash_terakhir = hash;
     meta.total += 1;
@@ -326,8 +329,8 @@ pub fn history_snapshot(
 
     let id = format!("{}__{}.snap", now_ms(), reason);
     /* Snapshot ditulis atomik: berkas yang tinggal separuh karena proses mati di
-       tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
-       kehilangan SELURUH riwayat, bukan hanya satu titik. */
+    tengah penulisan akan terbaca sebagai riwayat yang rusak, dan pengguna
+    kehilangan SELURUH riwayat, bukan hanya satu titik. */
     crate::tulis_aman::tulis_atomik(&dir.join(&id), &isi)?;
     meta.hash_terakhir = hash;
     meta.total += 1;
@@ -520,7 +523,10 @@ mod tests {
 
         std::fs::write(dir.join("1577836800000__save.snap"), "tua").unwrap();
         let buang = pangkas(&dir, 50, 30);
-        assert_eq!(buang, 0, "the last snapshot must not be deleted along with it");
+        assert_eq!(
+            buang, 0,
+            "the last snapshot must not be deleted along with it"
+        );
         assert_eq!(daftar_snapshot(&dir).len(), 1);
         std::fs::remove_dir_all(&dir).ok();
     }

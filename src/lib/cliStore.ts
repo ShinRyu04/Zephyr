@@ -154,7 +154,10 @@ async function jalankanSatu(t: CliTarget, args: CliArgs): Promise<void> {
   try {
     
     if (line) await S.openPathAt(path, line, col || 1);
-    else await S.openPath(path);
+    /* An external CLI asked for this file by name. That is deliberate — it
+       must not land in the preview slot and be replaceable by the next tree
+       click. */
+    else await S.openPath(path, { preview: false });
 
     if (args.wait && args.waitToken) {
       useCli.setState((s) => ({ menunggu: { ...s.menunggu, [path]: args.waitToken as string } }));

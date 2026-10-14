@@ -3,7 +3,7 @@ import { useStore, useActiveTab } from '../../lib/store';
 import { useGit } from '../../lib/gitStore';
 import { getAppInfo, getDiagnostics } from '../../lib/commands';
 import { onRamUsage } from '../../lib/events';
-import { LANG_LABEL } from '../../lib/lang';
+import { labelBahasa } from '../../lib/lang';
 import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
@@ -181,7 +181,15 @@ export default function StatusBar() {
       <span className="sb-sep">|</span>
       <span className="sb-item">{tab ? (tab.lineEnding === 'crlf' ? 'CRLF' : 'LF') : 'CRLF'}</span>
       <span className="sb-sep">|</span>
-      <span className="sb-item">{tab ? LANG_LABEL[tab.lang] : 'Plain Text'}</span>
+      {/*
+        * `LANG_LABEL[tab.lang]` only knew the built-in languages, so a file
+        * highlighted by a contributed language pack still read "Plain Text"
+        * here - the highlight changed and the label did not, which reads as a
+        * broken pack. `labelBahasa` asks the same precedence the editor uses
+        * (built-in wins, pack fills the gaps), so the label and the highlight
+        * can no longer disagree.
+        */}
+      <span className="sb-item">{tab ? labelBahasa(tab.path ?? null) : 'Plain Text'}</span>
       <span className="sb-sep">|</span>
       <span className="sb-item">
         Ln {cursor.line}, Col {cursor.col}

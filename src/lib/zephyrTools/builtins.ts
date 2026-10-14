@@ -1,5 +1,5 @@
 /**
- * Tool bawaan - implementasi untuk 26 nama pertama di katalog.
+ * Tool bawaan - implementasi untuk 40 nama pertama di katalog.
  *
  * ## Kenapa berkas ini ada
  *
@@ -44,12 +44,20 @@
  *   isi yang salah dengan yakin.
  */
 import { useStore } from '../store';
-import { useAi } from '../aiStore';
+import { useAi, MAX_TODOS, todoTerpangkas } from '../aiStore';
 import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import type { SearchOpts } from '../types';
 import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
 import { kutipUrlDiPerintah } from '../kutipPerintah';
+/*
+ * `zephyr_self` membaca indeks fakta yang dibundel bersama aplikasi (ratusan
+ * kilobyte). Import-nya HANYA tipe: yang nyata dimuat di dalam badan tool,
+ * dengan alasan yang sama seperti helper LSP di bawah - daftar tool ini
+ * dievaluasi saat aplikasi menyal, dan indeks berisi ribuan entri yang tidak
+ * ada gunanya di jalur boot.
+ */
+import type { FaktaKategori } from '../zephyrCari';
 
 /*
  * The LSP helpers are imported lazily inside the tool bodies rather than here.
@@ -66,6 +74,8 @@ const lspDef = async (path: string, pos: { line: number; column: number }) =>
 const lspHover = async (path: string, pos: { line: number; column: number }) =>
   (await import('../agentLsp')).lspHoverTool(path, pos);
 const lspDiagnostics = async (path: string) => (await import('../agentLsp')).lspDiagnosticsTool(path);
+const lspCallHierarchy = async (path: string, pos: { line: number; column: number }) =>
+  (await import('../agentLsp')).lspCallHierarchyTool(path, pos);
 
 /** Tolak jalur rahasia/terproteksi sebelum tool menyentuhnya. */
 function jagaBaca(...paths: string[]): void {
@@ -99,14 +109,27 @@ export const BATAS_DAFTAR = 300;
  * Versi pertama fungsi ini hanya memotong, diam-diam. Model lalu membaca daftar
  * yang terpotong sebagai daftar yang lengkap. Menyebutkan berapa yang
  * disembunyikan membuat kesimpulan seperti itu tidak mungkin lagi.
+ *
+ * Sejak itu ada perbaikan kedua yang sama pentingnya: EKORNYA ikut disimpan.
+ * Memotong kepala saja membuang kesimpulan setiap keluaran berbentuk log -
+ * `error: could not compile`, baris `N failed`, jejak tumpukan - dan justru
+ * itulah bagian yang dicari model. Yang dibuang sekarang adalah TENGAHNYA,
+ * bagian yang paling sedikit memberi informasi pada log build dan pada
+ * pembacaan berkas yang panjang.
  */
+export const POTONG_EKOR_RASIO = 0.4;
+
 export function potong(teks: string, batas = BATAS_HASIL): string {
   if (teks.length <= batas) return teks;
-  const hilang = teks.length - batas;
+  const ekor = Math.floor(batas * POTONG_EKOR_RASIO);
+  const kepala = batas - ekor;
+  const hilang = teks.length - kepala - ekor;
   return (
-    teks.slice(0, batas) +
-    `\n\n[terpotong: ${hilang} karakter lagi tidak ditampilkan. ` +
-    'Persempit permintaannya, misalnya dengan pola atau kedalaman.]'
+    teks.slice(0, kepala) +
+    `\n\n[terpotong: ${hilang} karakter di TENGAH tidak ditampilkan; ` +
+    'yang tersisa adalah bagian awal dan bagian akhir. ' +
+    'Persempit permintaannya, misalnya dengan pola, kedalaman, atau offset/limit.]\n\n' +
+    teks.slice(teks.length - ekor)
   );
 }
 
@@ -281,6 +304,14 @@ const PADANAN_KATA = new Map<string, readonly string[]>([
   ['pratinjau', ['preview']],
   ['perintah', ['command']],
   ['jalankan', ['run', 'command']],
+  /* Kendali jendela: kata yang benar-benar dipakai user/model saat minta
+     sesuatu DIMUNCULKAN. Tanpa entri ini, tool yang membuka panel dan bagian
+     Settings ditemukan hanya lewat kata Inggris ("panel" kebetulan sama),
+     sementara "setelan" dan "jendela" tidak cocok dengan deskripsi mana pun -
+     tool-nya terpasang dan aktif, tapi tidak terjangkau lewat pencarian. */
+  ['setelan', ['setting', 'settings']],
+  ['pengaturan', ['setting', 'settings']],
+  ['jendela', ['window']],
   ['berkas', ['file']],
   ['folder', ['directory', 'folder']],
   ['direktori', ['directory']],
@@ -350,9 +381,77 @@ async function cariToolTerdefer(
   return skor.slice(0, limit).map(({ nama, deskripsi, params }) => ({ nama, deskripsi, params }));
 }
 
-/** Akar workspace saat ini, untuk bawaannya. */
-function akar(): string {
-  return useStore.getState().workspace ?? '.';
+/**
+ * Akar workspace saat ini, atau `null` kalau belum ada yang dibuka.
+ *
+ * Mengembalikan `null` — BUKAN `'.'` — dan itu bukan detail gaya.
+ *
+ * `'.'` adalah folder kerja PROSES APLIKASI, bukan folder yang sedang
+ * dikerjakan user. Selama aplikasi dijalankan dari `npm run tauri dev`, `'.'`
+ * kebetulan berarti akar repo dan tidak ada yang terlihat salah. Tetapi begitu
+ * aplikasi dijalankan dari folder lain — hasil build, shortcut Start Menu,
+ * pemanggilan dari direktori mana pun — `'.'` menunjuk tempat yang sama sekali
+ * berbeda. Perintah user lalu berjalan di folder yang salah, dan pesan
+ * kegagalannya menyebut jalur yang tidak pernah dipilih siapa pun.
+ *
+ * Ada alasan kedua yang lebih langsung: backend SUDAH menyimpan workspace-nya
+ * sendiri, dan `search_grep` memakai simpanan itu ketika `root` tidak dikirim
+ * (`search.rs`: `None => state.workspace_path()`). Mengirim `'.'` menutupi
+ * fallback yang benar itu dengan tebakan dari sisi frontend. `null` membiarkan
+ * backend memakai sumber yang otoritatif.
+ *
+ * Karena itu setiap pemanggil harus memutuskan sendiri: kalau jalurnya WAJIB
+ * (mis. `list_directory` yang memang butuh folder), pakai `akarWajib` supaya
+ * pesannya jelas; kalau jalurnya OPSIONAL (cwd perintah, akar pencarian),
+ * teruskan `undefined` dan biarkan backend yang menentukan.
+ */
+function akar(): string | null {
+  return useStore.getState().workspace;
+}
+
+/**
+ * Akar workspace, atau lempar dengan pesan yang bisa ditindaklanjuti.
+ *
+ * Dipakai tool yang memang tidak punya arti tanpa workspace. Melempar di sini
+ * menghasilkan kalimat yang menjelaskan APA yang kurang, alih-alih membiarkan
+ * jalur `'.'` berjalan diam-diam ke folder yang salah lalu gagal jauh di
+ * belakang sebagai pesan sistem berkas yang membingungkan.
+ */
+/**
+ * Folder kerja untuk perintah SHELL: folder berkas yang sedang dibuka, bukan
+ * selalu akar folder yang terbuka.
+ *
+ * Kenapa dipisah dari akar(): user membuka satu folder besar (mis. sumber
+ * Zephyr sendiri) lalu bertanya soal proyek lain. Kalau setiap perintah
+ * dijalankan dari akar folder yang terbuka, agen terlihat "selalu mengarah ke
+ * Zephyr" dan `npm test` berjalan di proyek yang salah. Berkas yang sedang
+ * dilihat user adalah petunjuk terbaik soal "di mana kita sekarang"; tanpa
+ * berkas terbuka, folder yang terbuka masih jawaban yang masuk akal; tanpa
+ * keduanya `null` diserahkan ke backend supaya ia yang memutuskan.
+ */
+function akarCwd(): string | null {
+  const s = useStore.getState();
+  const tab = s.activeTabId ? s.tabs.find((t) => t.id === s.activeTabId) : undefined;
+  const berkas = tab?.path ?? '';
+  if (berkas) {
+    const potong = Math.max(berkas.lastIndexOf('/'), berkas.lastIndexOf('\\'));
+    /* `potong > 1` menolak akar telanjang seperti `C:file.txt`, yang foldernya
+       tidak bisa ditentukan dari stringnya. */
+    if (potong > 1 && !/^[A-Za-z]:$/.test(berkas.slice(0, potong))) return berkas.slice(0, potong);
+  }
+  return s.workspace;
+}
+
+function akarWajib(apa: string): string {
+  const a = akar();
+  if (!a) {
+    throw new Error(
+      `Belum ada folder yang terbuka, jadi ${apa} tidak punya tempat untuk dijalankan. ` +
+        'Kalau user sudah menyebut folder atau path tertentu, pakai path itu apa adanya. ' +
+        'Kalau tugasnya memang perlu seluruh proyek, baru minta user membuka foldernya (File -> Open Folder), lalu ulangi.',
+    );
+  }
+  return a;
 }
 
 /* ------------------------------------------------------------------ */
@@ -616,7 +715,13 @@ export const TOOL_BAWAAN: AgentTool[] = [
       },
     },
     run: async (a) => {
-      const path = String(a.path ?? '') || akar();
+      /*
+       * `list_directory` memang tidak punya arti tanpa folder, jadi di sini
+       * `akarWajib` dipakai - bukan `akar()` yang bisa `null`. Melempar dengan
+       * kalimat "belum ada workspace" jauh lebih menolong daripada menyisir
+       * folder kerja proses aplikasi lalu melaporkan isinya sebagai milik user.
+       */
+      const path = String(a.path ?? '') || akarWajib('mendaftar isi folder');
       const depth = Math.min(3, Math.max(1, bacaAngka(a.depth, 1) ?? 1));
       const simpul = await cmd.scanDir(path);
       const baris: string[] = [];
@@ -696,6 +801,18 @@ export const TOOL_BAWAAN: AgentTool[] = [
        * tambahan.
        */
       const lama = await bacaLengkap(path).catch(() => '');
+      /*
+       * Recorded for the turn's checkpoint BEFORE the write.
+       *
+       * This call site writes through `cmd.fsWrite` rather than `tulis()`
+       * because it needs the OLD content for a diff, and `tulis` does not
+       * return it. That made it a second write path, and the checkpoint only
+       * watched the first — so a file created by this tool was invisible to
+       * "put back what this turn changed". Exactly the failure the note in
+       * `checkpoint.ts` warns about: recording at the call sites means
+       * remembering to add it to the next one.
+       */
+      await (await import('../checkpoint')).catat(path);
       await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
       await segarkanTab(path);
       const diff = buatDiff(path, lama, isi);
@@ -768,6 +885,9 @@ export const TOOL_BAWAAN: AgentTool[] = [
       jagaBaca(from);
       jagaTulis(to);
       const hasil = await cmd.fsRead(from);
+      /* The destination is a file this turn creates. Recorded so the checkpoint
+         can delete it — same reason as the create path above. */
+      await (await import('../checkpoint')).catat(to);
       await cmd.fsWrite(to, hasil.content, undefined, undefined, { allowMissing: true });
       return `Disalin: ${from} -> ${to} (${hasil.content.length} karakter)`;
     },
@@ -817,7 +937,16 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const pattern = wajib(a, 'pattern');
       const replacement = String(a.replacement ?? '');
       const opsi = opsiCari(a, pattern);
-      opsi.root = a.root ? String(a.root) : akar();
+      /*
+       * `undefined`, bukan `'.'`, ketika belum ada workspace.
+       *
+       * `search_grep` sudah menangani `root` yang kosong dengan memakai
+       * workspace yang disimpan backend (`search.rs`: `None => state
+       * .workspace_path()`), jadi mengirim `'.'` justru MENUTUPI fallback yang
+       * benar itu dengan tebakan dari sini - dan `'.'` berarti folder kerja
+       * proses aplikasi, bukan folder user.
+       */
+      opsi.root = a.root ? String(a.root) : (akar() ?? undefined);
       opsi.regex = true;
 
       /* Mode uji jalan memakai pencarian yang SAMA dengan penggantian, supaya
@@ -1001,7 +1130,10 @@ export const TOOL_BAWAAN: AgentTool[] = [
     run: async (a) => {
       const pattern = wajib(a, 'pattern');
       const opsi = opsiCari(a, pattern);
-      opsi.root = a.root ? String(a.root) : akar();
+      /* Sama seperti `replace_in_files`: `undefined` membiarkan `search_grep`
+         memakai workspace yang disimpan backend, sedangkan `'.'` mengarahkan
+         pencarian ke folder kerja proses aplikasi. */
+      opsi.root = a.root ? String(a.root) : (akar() ?? undefined);
       /* Model menulis pola dengan asumsi case-insensitive lebih sering daripada
          tidak; `caseSensitive` disetel terbalik dari `ignoreCase` supaya
          argumennya bisa dibaca apa adanya. */
@@ -1038,7 +1170,10 @@ export const TOOL_BAWAAN: AgentTool[] = [
          jadi penyaringan pola dilakukan di sini. Ia mencari NAMA, bukan isi -
          untuk isi, pakai grep. */
       const re = polaKeRegex(pattern);
-      const cocok = semua.map((f) => f.path).filter((p) => re.test(p)).slice(0, batas);
+      /* Cocokkan path ber-slash maju: daftarnya memakai `\` Windows sementara
+         regex glob memakai `/` sebagai pemisah - tanpa normalisasi ini glob
+         tak pernah cocok. Lihat catatan di `kumpulkanBerkas`. */
+      const cocok = semua.map((f) => f.path).filter((p) => re.test(p.replace(/\\/g, '/'))).slice(0, batas);
       if (!cocok.length) return `Tidak ada berkas yang cocok dengan ${pattern}.`;
       const kepala = cocok.length >= batas ? `[dibatasi ${batas} berkas]\n` : '';
       return potong(kepala + cocok.join('\n'));
@@ -1051,12 +1186,16 @@ export const TOOL_BAWAAN: AgentTool[] = [
     spec: {
       name: 'bash_run',
       description:
-        'Jalankan perintah dan tunggu sampai selesai. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), pakai bash_background.',
+        'Jalankan perintah dan tunggu sampai selesai. Perintah dijalankan di folder berkas yang sedang dibuka; tanpa berkas terbuka, di folder yang dibuka. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), pakai bash_background. Perintah berat (build, install, test suite) boleh berjalan sampai 5 menit; isi `timeout` (milidetik) bila perintahnya butuh lebih lama lagi.',
       parameters: {
         type: 'object',
         properties: {
           command: { type: 'string', description: 'Perintah yang dijalankan.' },
-          timeout: { type: ['number', 'string'], description: 'Batas waktu dalam milidetik.' },
+          timeout: {
+            type: ['number', 'string'],
+            description:
+              'Batas waktu dalam milidetik. Bawaan 300000 (5 menit); maksimum 600000 (10 menit).',
+          },
         },
         required: ['command'],
       },
@@ -1073,13 +1212,17 @@ export const TOOL_BAWAAN: AgentTool[] = [
        */
       const { perintah: aman, diubah } = kutipUrlDiPerintah(command);
       /*
-       * `cwd` dikirim dari sini, bukan diserahkan ke tebakan backend. Backend
-       * menyimpan workspace-nya sendiri; kalau state itu basi, `cd` melaporkan
-       * folder install aplikasi, bukan folder yang sedang dikerjakan user.
-       * `akar()` adalah sumber yang sama dengan yang dipakai `bash_background`.
-       * Backend tetap memvalidasi path-nya sebelum menjalankan apa pun.
+       * `cwd` diteruskan apa adanya - termasuk `undefined` ketika belum ada
+       * workspace - supaya `tentukan_cwd` di Rust memakai `state
+       * .workspace_path()` miliknya sendiri. Mengirim `'.'` di sini adalah
+       * bug yang dilaporkan sebagai `cwd bukan folder: .`: `'.'` bukan folder
+       * yang dipilih user, dan `lexical_clean` dulu menghapusnya sampai jadi
+       * path kosong sehingga validasinya menolak folder yang jelas ada.
+       *
+       * Kalau frontend mengirim jalur eksplisit, jalur itu tetap divalidasi
+       * backend sebelum apa pun dijalankan.
        */
-      const r = await cmd.agentExec(aman, bacaAngka(a.timeout), akar());
+      const r = await cmd.agentExec(aman, bacaAngka(a.timeout), akarCwd() ?? undefined);
       const bagian = [
         `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
         diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
@@ -1135,7 +1278,11 @@ export const TOOL_BAWAAN: AgentTool[] = [
         kind: 'shell',
         command: shell,
         args: [bendera, command],
-        cwd: akar(),
+        /* `undefined` = serahkan ke backend, sama seperti `bash_run`. Proses
+           latar yang dijalankan di folder kerja aplikasi alih-alih folder user
+           adalah kegagalan yang paling sulit dilacak, karena ia terlihat
+           "jalan" sambil menulis ke tempat yang salah. */
+        cwd: akarCwd() ?? undefined,
         isBackground: true,
       });
 
@@ -1261,30 +1408,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
       await cmd.tasksKill(id);
       await cmd.ptyKill(id).catch(() => undefined);
       return `Proses ${id} dihentikan.`;
-    },
-  },
-
-  /* ---------------- Network ---------------- */
-
-  {
-    spec: {
-      name: 'fetch',
-      description:
-        'Ambil satu URL dan kembalikan teksnya. Skrip di halaman TIDAK dijalankan, jadi situs yang isinya dibuat JavaScript akan tampak kosong - untuk itu pakai browser_open lalu browser_read.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: 'URL http atau https.' },
-          maxChars: { type: ['number', 'string'], description: 'Jumlah karakter maksimum.' },
-        },
-        required: ['url'],
-      },
-    },
-    run: async (a) => {
-      const url = wajib(a, 'url');
-      const maks = bacaAngka(a.maxChars, 40000) ?? 40000;
-      const teks = await cmd.webFetch(url, maks);
-      return potong(teks || '(halaman kosong)');
     },
   },
 
@@ -1418,6 +1541,50 @@ export const TOOL_BAWAAN: AgentTool[] = [
       return (
         `${r.hasil.length} pemakaian:\n` +
         r.hasil.map((l) => `${l.file}:${l.line}:${l.column}  ${l.teks ?? ''}`.trimEnd()).join('\n')
+      );
+    },
+  },
+
+  {
+    spec: {
+      name: 'lsp_call_hierarchy',
+      description:
+        'Siapa yang MEMANGGIL fungsi pada posisi tertentu, dan fungsi itu memanggil apa. Berbeda dari lsp_references: yang itu mengembalikan LOKASI pemakaian, yang ini mengembalikan FUNGSI yang memuatnya, sudah bernama. Pakai untuk memahami alur sebelum mengubah perilaku - "kalau aku ubah ini, siapa yang terpengaruh" dan "ini bergantung pada apa".',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Jalur berkas yang memuat fungsinya.' },
+          line: { type: ['number', 'string'], description: 'Baris NAMA fungsi, dihitung dari 1.' },
+          column: { type: ['number', 'string'], description: 'Kolom NAMA fungsi, dihitung dari 1.' },
+        },
+        required: ['path', 'line'],
+      },
+    },
+    run: async (a) => {
+      const path = wajib(a, 'path');
+      const pos = { line: bacaAngka(a.line) ?? 1, column: bacaAngka(a.column) ?? 1 };
+      const r = await lspCallHierarchy(path, pos);
+      if (!r.ok) return r.pesan;
+
+      /*
+       * Both directions in one answer, and said plainly when one is empty.
+       *
+       * "No callers" and "the server said nothing" look identical if the
+       * section is just omitted, and an agent reading a missing section
+       * concludes the function is unused — which is the wrong conclusion to
+       * draw from a server that does not implement this.
+       */
+      const bagian = (judul: string, daftar: { file: string; line: number; column: number; teks?: string }[]) =>
+        daftar.length === 0
+          ? `${judul}: tidak ada.`
+          : `${judul} (${daftar.length}):\n` +
+            daftar.map((l) => `  ${l.file}:${l.line}:${l.column}  ${l.teks ?? ''}`.trimEnd()).join('\n');
+
+      return (
+        `${r.simbol}\n\n` +
+        bagian('Dipanggil oleh', r.pemanggil) +
+        '\n\n' +
+        bagian('Memanggil', r.dipanggil)
       );
     },
   },
@@ -1657,7 +1824,13 @@ export const TOOL_BAWAAN: AgentTool[] = [
             'Isi medan "title" atau "content" pada setiap tugas.',
         );
       }
-      return `Daftar tugas diperbarui: ${diterima} tugas, ${selesai} selesai.`;
+      const dipangkas = todoTerpangkas();
+      return (
+        `Daftar tugas diperbarui: ${diterima} tugas, ${selesai} selesai.` +
+        (dipangkas > 0
+          ? ` PERINGATAN: ${dipangkas} tugas terakhir TIDAK disimpan karena batas ${MAX_TODOS} tugas per panggilan - kirim sisanya di panggilan berikutnya supaya tidak ada langkah yang hilang.`
+          : '')
+      );
     },
   },
 
@@ -2073,6 +2246,94 @@ export const TOOL_BAWAAN: AgentTool[] = [
       return await jalankanAgentTool(nama, args);
     },
   },
+
+  /* ---------------- Pengetahuan diri ---------------- */
+
+  {
+    spec: {
+      name: 'zephyr_self',
+      description:
+        'Cari fakta tentang ZEPHYR SENDIRI dari indeks yang ikut terpasang di aplikasi ini: label antarmuka, nama setelan beserta nilai bawaannya, perintah palet, pintasan, tool, ekstensi bawaan, halaman dan seksi Settings, port, dokumen yang dikirim bersama aplikasi (CHANGELOG, ARCHITECTURE, RELEASE_NOTES), dan peta kode (berkas -> simbol -> ringkasan satu baris). Pakai tool ini untuk pertanyaan soal Zephyr - jangan menebak, dan jangan meminta folder proyek ke user: indeksnya sudah ada di dalam aplikasi. Kosongkan kueri untuk melihat kategori yang tersedia beserta jumlahnya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kueri: {
+            type: 'string',
+            description:
+              'Kata kunci. Boleh beberapa kata; setiap kata harus cocok (kunci atau isi fakta).',
+          },
+          kategori: {
+            type: 'string',
+            description:
+              'Batasi ke satu kategori: label, setelan, pintasan, perintah, tool, ekstensi, seksi, port, dokumen, kode, bridge, atau semua.',
+          },
+          batas: {
+            type: ['number', 'string'],
+            description: 'Jumlah maksimum hasil (bawaan 8, maksimum 40).',
+          },
+        },
+        required: [],
+      },
+    },
+    run: async (a) => {
+      /*
+       * Indeks fakta dimuat di sini, bukan di kepala berkas: tabel `TOOL_BAWAAN`
+       * dievaluasi saat aplikasi menyal, sementara isi indeks hanya berguna
+       * kalau model benar-benar bertanya soal Zephyr.
+       */
+      const { cariFakta, formatHasil, hitungCocok, kategoriTersedia, versiFakta, kataTakDikenal, BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS } =
+        await import('../zephyrCari');
+      const kueri = String(a.kueri ?? '').trim();
+      const kategori = String(a.kategori ?? 'semua').trim() as FaktaKategori | 'semua';
+      const batas = Math.min(
+        BATAS_HASIL_MAKS,
+        Math.max(1, bacaAngka(a.batas, BATAS_HASIL_BAWAAN) ?? BATAS_HASIL_BAWAAN),
+      );
+      const versi = versiFakta();
+
+      if (!kueri) {
+        const daftar = kategoriTersedia()
+          .map((k) => `${k.kategori} (${k.jumlah})`)
+          .join(', ');
+        return [
+          `Indeks fakta Zephyr yang ikut terpasang: versi aplikasi ${versi.aplikasi}, hash sumber ${versi.hashSumber}.`,
+          `Kategori: ${daftar}.`,
+          'Kirim `kueri` (boleh beberapa kata) dan opsional `kategori`.',
+          'Isi berkas sumber TIDAK ikut pemasangan: yang ada di sini peta berkas -> simbol dan ringkasan. Kalau user memang membuka folder proyek Zephyr, isi berkasnya bisa dibaca lewat read_file; kalau tidak, jawab dari peta ini dan sebutkan batasnya.',
+        ].join('\n');
+      }
+
+      const hasil = cariFakta(kueri, { kategori, batas });
+      if (!hasil.length) {
+        const petunjuk = kategoriTersedia()
+          .map((k) => `${k.kategori}(${k.jumlah})`)
+          .join(', ');
+        const takDikenal = kataTakDikenal(kueri);
+        const catatan = takDikenal.length
+          ? ` Kata ini tidak ada di fakta Zephyr: ${takDikenal.join(', ')} - jadi kemungkinan besar yang kamu cari memang belum ada. Jangan mengarang jawabannya.`
+          : '';
+        return `Tidak ada fakta yang cocok dengan "${kueri}".${catatan} Kategori yang bisa dicari: ${petunjuk}. Coba kata kunci lain, atau satu kata saja.`;
+      }
+      const total = hitungCocok(kueri, kategori);
+      const barisCatatan: string[] = [];
+      const takDikenal = kataTakDikenal(kueri);
+      if (takDikenal.length) {
+        barisCatatan.push(
+          `Catatan: kata ${takDikenal.join(', ')} tidak ada di fakta Zephyr - kemungkinan besar yang kamu cari memang belum ada. Jangan mengarang.`,
+        );
+      }
+      if (hasil.some((h) => h.longgar)) {
+        barisCatatan.push(
+          'Catatan: hasil di bawah ini cocok SEBAGIAN saja (tidak semua kata kueri cocok) - pakai sebagai petunjuk arah, bukan bukti.',
+        );
+      }
+      return [
+        `${hasil.length} dari ${total} fakta cocok (indeks versi ${versi.aplikasi}, hash sumber ${versi.hashSumber}).`,
+        ...barisCatatan,
+        formatHasil(hasil),
+      ].join('\n');
+    },
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -2101,7 +2362,21 @@ async function kumpulkanBerkas(opsi: SearchOpts): Promise<string[]> {
   const jalur = semua.map((f) => f.path);
   if (!opsi.include) return jalur;
   const re = polaKeRegex(opsi.include);
-  return jalur.filter((p) => re.test(p));
+  /*
+   * Cocokkan pada path ber-slash maju, bukan path mentah.
+   *
+   * `list_workspace_files` mengembalikan path Windows asli
+   * (`D:\Testing\senja\index.html`), sementara glob model memakai `/`
+   * (`senja/**` + /*.html). Regex dari `polaKeRegex` memakai `/` sebagai
+   * pemisah literal, jadi ia TIDAK PERNAH cocok dengan path backslash -
+   * sehingga `grep`/`replace_in_files` dengan glob selalu balik "tidak ada
+   * hasil" walau polanya jelas ada. Terbukti di run live: model menyalahkan
+   * grep ("tidak bisa dipercaya") lalu memboroskan belasan langkah menyisir
+   * dengan PowerShell. Menormalkan ke `/` di sini membuat glob benar-benar
+   * menyaring, dan path asli tetap dikembalikan supaya tool pembacanya
+   * (searchGrep/searchReplace di backend) menerima bentuk yang ia harapkan.
+   */
+  return jalur.filter((p) => re.test(p.replace(/\\/g, '/')));
 }
 
 /** Ubah pola glob menjadi regex untuk penyaringan di sisi JS. */
@@ -2112,10 +2387,20 @@ function polaKeRegex(glob: string): RegExp {
   const bagian = glob.split('|').filter(Boolean).map((g) => {
     const pola = g
       .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      // Pola "bintang-bintang garis-miring" harus cocok dengan NOL folder atau
+      // lebih. Ini perilaku glob standar: "senja" lalu bintang-ganda lalu
+      // "*.html" menjangkau berkas langsung di folder dasar MAUPUN di subfolder.
+      // Versi lama menerjemahkan bintang-ganda lalu garis-miring terpisah
+      // menjadi pola yang MEWAJIBKAN sedikitnya satu garis-miring, jadi berkas
+      // yang persis di folder dasar tak pernah cocok - padahal itu bentuk glob
+      // paling umum yang ditulis model. Ditangani sebagai satu unit, memakai
+      // sentinel supaya tidak tertimpa oleh aturan bintang di bawahnya.
+      .replace(/\*\*\//g, '\u0001')
       .replace(/\*\*/g, '\u0000')
       .replace(/\*/g, '[^/\\\\]*')
       .replace(/\?/g, '.')
-      .replace(/\u0000/g, '.*');
+      .replace(/\u0000/g, '.*')
+      .replace(/\u0001/g, '(?:.*/)?');
     return pola;
   });
   return new RegExp(`(?:${bagian.join('|')})$`, 'i');
@@ -2243,6 +2528,21 @@ async function jalankanSubagent(prompts: string[]): Promise<string> {
  * Kalau berkasnya TIDAK terbuka, tulisannya langsung ke disk.
  */
 export async function tulis(path: string, isi: string): Promise<void> {
+  /*
+   * Snapshot BEFORE the write, so the turn's checkpoint can undo it.
+   *
+   * Here rather than at each tool that writes, because this is the single point
+   * every agent write already goes through — including the ones a reader would
+   * not think of as "an edit" (a create, a multi-edit, a rename target).
+   * Recording at the call sites would mean remembering to add it to the next
+   * one, and a checkpoint that silently skips a file is worse than none.
+   *
+   * Failures are swallowed inside `catatSebelumTulis`: the snapshot is a safety
+   * net, and refusing to do the reader's work because the net could not be hung
+   * would be the wrong trade.
+   */
+  await (await import('../checkpoint')).catat(path);
+
   const tab = tabUntuk(path);
   if (tab) {
     useStore.getState().updateTabContent(tab.id, isi);

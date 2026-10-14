@@ -17,7 +17,17 @@
 import { Cdp } from './lib-cdp.mjs';
 import { halamanZephyr } from './lib-zephyr-page.mjs';
 
-const page = await halamanZephyr('9223');
+let page;
+try {
+  page = await halamanZephyr('9223');
+} catch (e) {
+  console.log(`TIDAK BERLAKU: app tidak hidup di port 9223 (${String(e).split('\n')[0]}).`);
+  process.exit(2);
+}
+if (!page) {
+  console.log('TIDAK BERLAKU: tidak ada halaman app di port 9223.');
+  process.exit(2);
+}
 const { cdp } = await Cdp.attach('9223', page.title);
 
 const hasil = [];
@@ -104,6 +114,23 @@ const batal = await cdp.runAsync(
   return {
     saatJalan,
     busyAkhir: st.agentBusy,
+    /* Kenapa send() tidak memulai run? Dibaca read-only dari store supaya
+       penyebabnya kelihatan, bukan cuma "prasyarat gagal". */
+    diagnostik: {
+      activeId: st.activeId,
+      adaSesiAktif: !!st.sessions[st.activeId],
+      jumlahSesi: st.sessions.length,
+      agentMode: st.agentMode,
+      agentBusy: st.agentBusy,
+      pesanSebelum: sebelum,
+      pesanDiSesi: ${bacaSesi}.length,
+      antrean: st.antrians && st.antrians[''] ? st.antrians[''].length : null,
+      bidangProvider: Object.fromEntries(
+        Object.keys(st)
+          .filter((k) => /provider|apikey|model|key/i.test(k))
+          .map((k) => [k, typeof st[k]]),
+      ),
+    },
     pesanBaru: ${bacaSesi}.length - sebelum,
     err: akhir.error || null,
     streaming: !!akhir.streaming,
@@ -114,7 +141,19 @@ const batal = await cdp.runAsync(
   40000,
 );
 console.log('batal ->', JSON.stringify(batal));
-cek('agent benar-benar sempat berjalan sebelum dibatalkan', batal.saatJalan === true, String(batal.saatJalan));
+/*
+ * PRASYARAT, bukan invarian. Kalau agent tidak pernah mulai, dua invarian di
+ * bawah lulus secara PALSU: `busy` dan `streaming` memang false karena tidak
+ * ada yang jalan. Dulu baris ini mencetak GAGAL pada prasyarat (laporan "2/3")
+ * padahal aplikasinya sehat dan cuma tidak ada run yang bisa dibatalkan.
+ */
+if (batal.saatJalan !== true) {
+  console.log('TIDAK BERLAKU: agent tidak sempat berjalan 1500 ms sesudah send(), jadi tidak ada yang bisa dinilai.');
+  console.log('  diagnostik: ' + JSON.stringify(batal.diagnostik));
+  console.log('  baca: toast "Added to the queue" berarti send() cuma mengantre karena agentBusy sudah true (src/lib/aiStore.ts:4388).');
+  cdp.close();
+  process.exit(2);
+}
 cek('setelah cancel, agent TIDAK menggantung (busy kembali false)', batal.busyAkhir === false, String(batal.busyAkhir));
 cek('setelah cancel, bubble berhenti streaming', batal.streaming === false, String(batal.streaming));
 

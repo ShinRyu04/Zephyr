@@ -69,7 +69,10 @@ const mode = await cdp.runAsync(`
     ada: true,
     bukaKeAtas: pr.bottom <= br.top + 2,
     diAtasViewport: pr.top >= 0,
-    item: qa('[data-testid="ai-mode-chat-item"], [data-testid="ai-mode-agent-item"]').length,
+    /* Sakelar Chat/Agent sudah dipensiunkan (mode chat dihapus 2026-10-13),
+       jadi menu ini sekarang daftar PERSONA. Yang dihitung: baris persona. */
+    item: qa('[data-testid^="ai-persona-"]').length,
+    kelola: qa('[data-testid="ai-mode-manage"]').length,
   };
 `, 30000);
 console.log('  MODE :', JSON.stringify(mode));

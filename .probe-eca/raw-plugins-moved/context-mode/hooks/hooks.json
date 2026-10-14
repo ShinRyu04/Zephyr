@@ -1,0 +1,25 @@
+{
+  "context-mode.session-start": {
+    "type": "sessionStart",
+    "visible": false,
+    "actions": [
+      { "type": "shell", "file": "ctx-sessionstart.sh" }
+    ]
+  },
+  "context-mode.pre-tool": {
+    "type": "preToolCall",
+    "matcher": "eca__shell_command|eca__read_file|eca__grep",
+    "visible": false,
+    "actions": [
+      { "type": "shell", "file": "ctx-pretooluse.sh" }
+    ]
+  },
+  "context-mode.post-tool": {
+    "type": "postToolCall",
+    "matcher": "eca__shell_command|eca__read_file|eca__write_file|eca__edit_file|eca__grep|eca__directory_tree|eca__git|eca__spawn_agent|eca__task|eca__compact_chat|context-mode",
+    "visible": false,
+    "actions": [
+      { "type": "shell", "file": "ctx-posttooluse.sh" }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "pomodoro",
+  "description": "Pomodoro Technique timer that reminds you to take breaks after 25 minutes of coding",
+  "version": "1.0.0",
+  "author": "editor-code-assistant",
+  "category": "Productivity",
+  "tags": [
+    "productivity",
+    "hooks",
+    "timer",
+    "wellness"
+  ],
+  "icon": "🍅",
+  "provides": {
+    "skills": [],
+    "agents": [],
+    "rules": [],
+    "hooks": [
+      "pomodoro.start",
+      "pomodoro.check"
+    ],
+    "mcp": []
+  }
+}

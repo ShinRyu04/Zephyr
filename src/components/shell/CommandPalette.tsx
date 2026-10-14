@@ -131,6 +131,21 @@ export default function CommandPalette() {
   const setIndex = usePalette((s) => s.setIndex);
   const move = usePalette((s) => s.move);
   const accept = usePalette((s) => s.accept);
+  const acceptItem = usePalette((s) => s.acceptItem);
+  /**
+   * Run the highlighted entry without recording it as recently used.
+   *
+   * Reads the index at call time rather than closing over it: the palette
+   * re-renders on every keystroke, and a stale index would run whatever was
+   * selected when the handler was created — which after typing a query is a
+   * different row from the one on screen.
+   */
+  const acceptSekali = () => {
+    const st = usePalette.getState();
+    const item = st.items()[st.index];
+    if (!item) return Promise.resolve();
+    return acceptItem(item, true);
+  };
   const close = usePalette((s) => s.close);
   
   const items = open ? usePalette.getState().items() : [];
@@ -201,7 +216,17 @@ export default function CommandPalette() {
                 move(-8);
               } else if (e.key === 'Enter') {
                 e.preventDefault();
-                void accept();
+                /*
+                 * Ctrl/Cmd+Enter is the ONE-SHOT: run it, but do not record it
+                 * as recently used.
+                 *
+                 * The recent list drives the palette's ordering, so a command
+                 * fired repeatedly in one sitting (a task, a formatter) would
+                 * otherwise crowd out the commands the reader actually reaches
+                 * for. Plain Enter is the ordinary run.
+                 */
+                const sekali = e.ctrlKey || e.metaKey;
+                void (sekali ? acceptSekali() : accept());
               } else if (e.key === 'Escape') {
                 e.preventDefault();
                 close();
@@ -247,6 +272,13 @@ export default function CommandPalette() {
           </span>
           <span>
             <kbd>Enter</kbd> run
+          </span>
+          {/* The one-shot has to be discoverable, or the only way to find it is
+              to have read the source. Muted styling so it reads as secondary
+              without being hidden. */}
+          <span className="cp-foot-once" data-testid="cp-foot-once">
+            <kbd>Ctrl</kbd>
+            <kbd>Enter</kbd> {tr('run without remembering')}
           </span>
           <span>
             <kbd>Esc</kbd> close

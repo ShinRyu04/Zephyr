@@ -69,9 +69,9 @@ fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
         req = req.header("Authorization", &format!("Bearer {bersih}"));
     }
 
-    let resp = req.send_json(&body).map_err(|e| {
-        ZephyrError::Mcp(format!("could not reach the MCP server '{alamat}': {e}"))
-    })?;
+    let resp = req
+        .send_json(&body)
+        .map_err(|e| ZephyrError::Mcp(format!("could not reach the MCP server '{alamat}': {e}")))?;
 
     let status = resp.status().as_u16();
     let mut baca = resp.into_body();
@@ -106,7 +106,11 @@ pub fn list_tools(url: &str, token: &str) -> ZResult<Vec<McpToolSpec>> {
     Ok(arr
         .iter()
         .map(|t| McpToolSpec {
-            name: t.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+            name: t
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string(),
             description: t
                 .get("description")
                 .and_then(|d| d.as_str())
@@ -134,6 +138,75 @@ pub fn call_tool(url: &str, token: &str, tool: &str, args: Value) -> ZResult<Val
         token,
         "tools/call",
         json!({ "name": nama, "arguments": arguments }),
+    )
+}
+
+/**
+ * Prompts a server offers — the other half of the protocol.
+ *
+ * A server can expose two things: TOOLS, which the model calls on its own, and
+ * PROMPTS, which a person picks deliberately. The difference matters. A tool is
+ * an action the agent decides to take; a prompt is a template the user invokes
+ * ("review this diff", "write the commit message") that expands into a message.
+ *
+ * Zephyr only spoke the tools half, so a server whose value is mainly its
+ * prompts appeared to do nothing at all — its prompts were unreachable, and
+ * there was no way to tell that from a server that simply had none.
+ */
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpPromptSpec {
+    pub name: String,
+    pub description: String,
+    /// The arguments the prompt accepts, as the server describes them.
+    pub arguments: Value,
+}
+
+pub fn list_prompts(url: &str, token: &str) -> ZResult<Vec<McpPromptSpec>> {
+    let result = rpc(url, token, "prompts/list", json!({}))?;
+    let arr = result
+        .get("prompts")
+        .and_then(|t| t.as_array())
+        .cloned()
+        .unwrap_or_default();
+    Ok(arr
+        .iter()
+        .map(|p| McpPromptSpec {
+            name: p
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string(),
+            description: p
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .to_string(),
+            arguments: p.get("arguments").cloned().unwrap_or_else(|| json!([])),
+        })
+        .filter(|p| !p.name.is_empty())
+        .collect())
+}
+
+/**
+ * Ask the server to expand a prompt into messages.
+ *
+ * The returned `messages` are what the agent loop sends. A server that does not
+ * implement prompts answers with a JSON-RPC error, which the caller surfaces —
+ * "this server has no prompts" is a fact worth telling the reader, not a
+ * failure to hide.
+ */
+pub fn get_prompt(url: &str, token: &str, name: &str, args: Value) -> ZResult<Value> {
+    let n = name.trim();
+    if n.is_empty() {
+        return Err(ZephyrError::InvalidInput("prompt name empty".into()));
+    }
+    let arguments = if args.is_null() { json!({}) } else { args };
+    rpc(
+        url,
+        token,
+        "prompts/get",
+        json!({ "name": n, "arguments": arguments }),
     )
 }
 

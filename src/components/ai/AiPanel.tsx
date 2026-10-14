@@ -8,6 +8,7 @@ import {
   type AgentSurfaceState,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
+import { useAiModels } from '../../lib/aiModelsStore';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
@@ -130,15 +131,41 @@ const PesanList = memo(function PesanList({
   });
 
   /*
-   * Keep the newest output in view, but only while the reader is already at the
-   * bottom: yanking someone away from the passage they are reading is worse
-   * than making them scroll. Runs after the DOM has the new text.
+   * Keep the newest output in view while the agent works.
+   *
+   * "Lengket ke bawah" (stick-to-bottom), bukan "cek jarak < 120px tiap render".
+   * Ambang kecil itu bugnya: satu langkah agent sering menambah tinggi JAUH
+   * lebih dari 120px sekaligus (diff berkas, hasil tool, blok kode), jadi tepat
+   * setelah DOM tumbuh `scrollHeight - scrollTop - clientHeight` langsung > 120,
+   * `nearBottom` jadi false, dan auto-scroll BERHENTI mengikuti - user harus
+   * gulir manual terus seperti yang dilaporkan. Yang benar: ingat niat user
+   * dalam sebuah ref. Selama `lengket` true, selalu susul ke dasar apa pun
+   * seberapa besar lompatannya. Hanya gulir-ke-ATAS oleh user yang melepas
+   * `lengket`; begitu ia kembali ke dasar, `lengket` menyala lagi.
    */
+  const lengket = useRef(true);
+  const scrollTerakhir = useRef(0);
   useEffect(() => {
     const el = ambilScroller();
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (nearBottom) el.scrollTop = el.scrollHeight;
+    const onScroll = () => {
+      const sisa = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const naik = el.scrollTop < scrollTerakhir.current - 2;
+      scrollTerakhir.current = el.scrollTop;
+      /* Gulir ke atas = user mau membaca sesuatu, lepas kelengketan. Kembali ke
+         dekat dasar (ambang longgar 160px) = sambung lagi. Lompatan DOM saat
+         streaming bukan gulir user, jadi tidak pernah memicu `naik`. */
+      if (naik && sisa > 160) lengket.current = false;
+      else if (sisa < 160) lengket.current = true;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [ambilScroller]);
+
+  useEffect(() => {
+    const el = ambilScroller();
+    if (!el) return;
+    if (lengket.current) el.scrollTop = el.scrollHeight;
   });
 
   /*
@@ -275,7 +302,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const deleteChat = useAi((s) => s.deleteChat);
   const setClearAllOpen = useAi((s) => s.setClearAllOpen);
   const runInTerminal = useAi((s) => s.runInTerminal);
-  const agentMode = useAi((s) => s.agentMode);
   const agentBusy = useAi((s) => s.agentBusys[composerId] ?? false);
   /*
    * THIS surface's run, read from its own record.
@@ -297,10 +323,9 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const agentStepLimit = kosong.stepLimit;
   const agentLastProgressAt = kosong.lastProgressAt;
   const agentStartedAt = kosong.startedAt;
-  const agentSteps = kosong.steps;
   const agentConfirm = kosong.confirm;
-  /* Mode switching lives in ModeMenu; AiPanel only reads the mode to pick the
-     placeholder and the send label. */
+  /* Dispatch is the agent, always - chat was retired, so this panel no longer
+     switches on the mode; it only reads the run's own record (above). */
   const agentPutuskan = useAi((s) => s.agentPutuskan);
   /* Pertanyaan dari agen (tool ask_user): agen menahan langkahnya sampai user
      menjawab, jadi kartunya tidak boleh ikut disembunyikan saat panel sibuk. */
@@ -311,7 +336,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const [bukaSendMenu, setBukaSendMenu] = useState(false);
   const [progressNow, setProgressNow] = useState(() => Date.now());
   const [loopBuka, setLoopBuka] = useState(false);
-  const [loopMenuBuka, setLoopMenuBuka] = useState(false);
   const [backgroundBuka, setBackgroundBuka] = useState(false);
   /*
    * The queue opens expanded.
@@ -337,8 +361,14 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const subagentsAktif = subagents.filter((a) => a.status === 'jalan' || a.status === 'menunggu');
   const jadwalAktif = jadwal.filter((j) => j.enabled);
   const backgroundCount = subagentsAktif.length + jadwalAktif.length;
-  const loopRuns = agentSteps.filter((step) => step.kind === 'mulai').length;
-  const loopFinished = !sibuk && agentSteps.some((step) => step.kind === 'selesai');
+  /*
+   * The HydraFusion stage running right now, if any.
+   *
+   * Read from the store rather than passed down: the runner reports it from
+   * inside the send path, which has no access to this component's props - and
+   * a prop would have to be threaded through every render between them.
+   */
+  const hydraTahap = useAi((s) => s.hydraTahap);
   /*
    * Prompt and cadence for the loop section.
    *
@@ -356,8 +386,15 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * Gelombang 3: the status stack used to render even when every counter was
    * zero. `stackKosong` lets the whole block leave the DOM instead of drawing
    * four rows that only say "nothing is happening".
+   *
+   * The loop row is excluded on purpose after a run ends. It used to linger as
+   * "Loop finished · 1 runs" above the composer, occupying a full row to say
+   * that something had stopped - the reader can see that from the transcript
+   * itself, and the finished bar pushed the composer down for no information.
+   * The row (and its step detail) now exists only while the loop is running,
+   * which is when the progress it shows is still news.
    */
-  const stackKosong = !sibuk && !loopFinished && backgroundCount === 0 && antrian.length === 0;
+  const stackKosong = !sibuk && backgroundCount === 0 && antrian.length === 0;
 
   useEffect(() => {
     if (!sibuk || !agentLastProgressAt) return;
@@ -402,15 +439,23 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
 
   const provider = useAi((s) => s.provider);
   const keys = useAi((s) => s.keys);
-  const bukaSettings = useStore((s) => s.setSettingsOpen);
+  /*
+ * "Add a key" opens the AI MODELS POP-UP, where the provider cards keep the
+ * key.
+ *
+ * This banner is the place a user lands when a request failed with 401, so it
+ * has to end in the field that fixes it. That field is the provider card in the
+ * pop-up; sending the reader to a Settings page (first the editor-area one, then
+ * Chat Settings -> Models) meant crossing the whole window to arrive somewhere
+ * that no longer owned the row.
+ */
+const bukaModels = () => useAiModels.getState().buka();
   const providerTanpaKey =
     keys.length > 0 && !keys.some((k) => k.provider === provider && k.hasKey);
 
-  /* `aiDiKanan`: the vertical-panel modes (right column, editor-area tab, pop-out
-     window) as opposed to the legacy full-width bottom dock. Used for the header
-     logic and the maximise/hide buttons. */
-  const aiModePos = useStore((s) => s.settings.general.aiPanel ?? 'right');
-  const aiDiKanan = aiModePos !== 'bottom';
+  /* The bottom-dock AI home is retired: every remaining home (the right column,
+     the editor-area tab, the pop-out window) is a vertical panel, so the header
+     always takes its column shape. */
   const aiMax = useStore((s) => s.aiMax);
   const sesiSisiBuka = useSessionsSide((s) => s.buka);
   const setSesiSisiBuka = useSessionsSide((s) => s.setBuka);
@@ -868,7 +913,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
     <div
       className={`ai-panel${aiSempit ? ' is-kanan' : ''}`}
       data-testid="ai-panel"
-      data-pos={aiDiKanan ? 'kanan' : 'bawah'}
+      data-pos="kanan"
     >
       {/*
         * The panel's own header row — hidden while MAXIMISED.
@@ -1022,9 +1067,9 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
             <button
               className="btn btn-primary btn-sm"
               data-testid="ai-nokey-open"
-              onClick={() => bukaSettings(true)}
+              onClick={() => bukaModels()}
             >
-              {tr('Open Settings → AI Models')}
+              {tr('Open AI Models')}
             </button>
           </div>
         )}
@@ -1189,7 +1234,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
 
       {(!stackKosong || todosAda) && (
       <div className="ai-work-stack" data-testid="ai-work-stack">
-        {(sibuk || loopFinished) && (
+        {sibuk && (
         <section className="ai-work-section" data-testid="ai-work-stack-loop">
           {/*
             * Header row: trigger + action menu on ONE line.
@@ -1244,7 +1289,9 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
               {loopBuka ? '▾' : '▸'}
             </span>
             <span
-              className={`ai-work-glyph${sibuk ? ' is-running' : ' is-done'}`}
+              /* Inside the `sibuk` guard above, so there is no finished state to
+                 paint here: the row does not outlive the run. */
+              className="ai-work-glyph is-running"
               aria-hidden="true"
             >
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1252,53 +1299,41 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
               </svg>
             </span>
             <span className="ai-work-title">
-              {tr(sibuk ? 'Loop running' : 'Loop finished')}
-              {loopRuns > 0 && <span className="ai-work-meta">· {tf('{n} runs', { n: loopRuns })}</span>}
+              {/* Ada loop sungguhan maupun tidak, baris ini berarti "satu run
+                  sedang jalan" - jadi labelnya pun begitu. Versi lama menulis
+                  "Loop running" pada SETIAP run biasa, dan menghitung langkah
+                  sebagai "runs", sehingga user mengira ada loop terjadwal. */}
+              {tr('Thinking')}
             </span>
           </button>
+          </div>
           {/*
-            * Loop actions, mirroring Hermes' ellipsis menu.
+            * Which HydraFusion stage is running RIGHT NOW.
             *
-            * Hermes puts pause/resume/stop on the loop section
-            * (session-control-loop.tsx, `renderMenuItems`). Zephyr's loop has no
-            * scheduler to pause, so the only honest action is stopping the run
-            * that is in flight - and the menu is hidden entirely when nothing
-            * is running, because a menu whose single item does nothing reads as
-            * broken.
+            * The layered-streaming problem: a critique-and-revise run is three
+            * requests, and only the last one streams into the transcript. Two
+            * of the three produce nothing the reader can see, so without this
+            * row the panel looks idle for the length of two whole answers - it
+            * is the same "is it stuck or is it working" question the loop timer
+            * answers for a normal run. It carries the honest denominator
+            * (`total`) rather than the cost cap, and it exists only while the
+            * run does: it is a state, not a receipt.
             */}
-          {sibuk && (
-            <button
-              className="ai-work-menu"
-              data-testid="ai-work-menu"
-              title={tr('Loop actions')}
-              aria-label={tr('Loop actions')}
-              aria-haspopup="menu"
-              aria-expanded={loopMenuBuka}
-              onClick={() => setLoopMenuBuka((v) => !v)}
-            >
-              <span aria-hidden="true">⋯</span>
-            </button>
-          )}
-          {sibuk && loopMenuBuka && (
-            <div className="ai-work-menu-pop" role="menu" data-testid="ai-work-menu-pop">
-              <button
-                className="ai-work-menu-item is-danger"
-                role="menuitem"
-                data-testid="ai-work-stop"
-                onClick={() => {
-                  setLoopMenuBuka(false);
-                  void cancel();
-                }}
-              >
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-                  <circle cx="8" cy="8" r="5.5" />
-                  <path d="M6 6h4v4H6z" />
-                </svg>
-                {tr('Stop loop')}
-              </button>
+          {hydraTahap && (
+            <div className="ai-work-hydra" data-testid="ai-work-hydra">
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M8 1.8 14 5 8 8.2 2 5z" />
+                <path d="M2.6 8.4 8 11.4l5.4-3" />
+                <path d="M2.6 11.4 8 14.4l5.4-3" />
+              </svg>
+              <span data-testid="ai-work-hydra-tahap">
+                {tf('Stage {n} of {m}', { n: hydraTahap.request, m: hydraTahap.total })}
+              </span>
+              <span className="ai-work-meta" data-testid="ai-work-hydra-peran">
+                {`${hydraTahap.peran} · ${hydraTahap.model}`}
+              </span>
             </div>
           )}
-          </div>
           {loopBuka && (
             <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
               {/*
@@ -1844,13 +1879,9 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
           rows={2}
           placeholder={
             sibuk
-              ? agentMode === 'agent'
-                ? tr('Agent is working…')
-                : tr('Waiting for an answer…')
-              : agentMode === 'agent'
-                ? tr('Type a task for the agent (Enter to send)…')
-                : tr('Write a message (Enter to send, Shift+Enter for a new line) - type @ to attach a file')
-                          }
+              ? tr('Agent is working…')
+              : tr('Type a task for the agent (Enter to send)…')
+          }
           value={draft}
           spellCheck={false}
           aria-label={tr('Message for the AI')}
@@ -2159,8 +2190,8 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
                 className="ai-round-btn is-send"
                 data-testid="ai-send"
                 disabled={!draft.trim() && draftImages.length === 0}
-                title={agentMode === 'agent' ? tr('Run') : tr('Send')}
-                aria-label={agentMode === 'agent' ? tr('Run') : tr('Send')}
+                title={tr('Run')}
+                aria-label={tr('Run')}
                 onClick={() => void kirimSekarang(draft, draftImages, composerId)}
               >
                 <AiIkon name="send" size={15} />

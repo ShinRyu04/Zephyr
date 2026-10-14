@@ -19,9 +19,9 @@
  * yang tetap benar berapa pun jumlah toolnya.
  *
  * Nama protokol tool MCP adalah `mcp__zephyr__`, dan awalan versi lama
- * DIANGGAP SALAH sampai dibuang total: bagian 8 memindai seluruh `src/` dan
- * gagal begitu ada awalan `mcp__<x>__` selain yang itu. Tanpa pemeriksaan itu
- * harness ini akan tetap hijau di tengah rename yang belum selesai.
+ * DIANGGAP SALAH: bagian 8 memindai seluruh `src/` dan gagal begitu ada awalan
+ * `mcp__<x>__` selain yang itu. Tanpa pemeriksaan itu harness ini akan tetap
+ * hijau di tengah rename yang belum selesai.
  *
  * Sumber nama bawaan bukan lagi folder referensi yang sudah dihapus, melainkan
  * handler Zephyr sendiri, supaya berkas ini tidak bisa lulus palsu saat
@@ -37,24 +37,7 @@ const REF = join(AKAR, 'src', 'lib', 'zephyrTools');
 /* Awalan protokol yang WAJIB dipakai tool MCP. Tidak ada lagi yang lain. */
 const PREFIX_MCP = 'mcp__zephyr__';
 
-/* Awalan yang sudah dipensiunkan. Bukan nama yang boleh ditawarkan ke model,
-   hanya INPUT yang harus diterima: sesi yang dilanjutkan, checkpoint, dan
-   setelan tool tersimpan masih membawanya. Lihat bagian 8 untuk alasannya. */
-const PREFIX_RETIRED = 'mcp__tedi__';
-
-/* Berkas yang boleh menyebut awalan retired, dan alasannya. Di luar daftar ini
-   kemunculannya berarti nama lama masih bocor ke tempat yang tidak perlu. */
-const COMPAT_FILES = new Set([
-  'src/lib/agentTools.ts',
-  'src/lib/subagentStore.ts',
-  'src/lib/zephyrTools/catalog.ts',
-  'src/lib/zephyrTools/deskripsiTool.ts',
-  // Ikon tool: setelan tool tersimpan di disk bisa masih membawa nama retired,
-  // jadi pencarian ikon harus tetap menyelesaikannya, bukan jatuh ke ikon generik.
-  'src/components/settings/AlatIkon.tsx',
-]);
-
-/* Berkas yang MEMBANGUN nama tool. Di sini awalan retired tidak boleh muncul
+/* Berkas yang MEMBANGUN nama tool. Di sini awalan asing tidak boleh muncul
    sama sekali, bahkan di dalam penjelasan: di titik inilah nama jadi
    ditawarkan ke model. */
 const NAME_BUILDERS = ['src/lib/zephyrTools/catalog.ts', 'src/lib/zephyrTools/mcp.ts'];
@@ -286,13 +269,22 @@ periksa('TOOL_INTI tidak memuat nama web', !katalog.inti.some((n) => WEB_NAMA.in
 }
 
 console.log('\n== 6. Nama tool lama sudah tidak ada ==');
+/*
+ * Nama era-lama yang HARUS sudah mati.
+ *
+ * `skill_view` sengaja TIDAK ada di daftar ini walau ia seangkatan dengan
+ * nama-nama lain di sini: tool itu dipakai LAGI secara sengaja - baca isi
+ * skill / daftar skill, grup 'Skills' di catalog.ts, sengaja read-only supaya
+ * gerbang izin tidak bisa mematikannya. Yang harus mati dari era itu adalah
+ * skill_list / skill_write / skill_delete, dan ketiganya tetap di bawah.
+ */
 const LAMA = [
   'file_read', 'file_list', 'file_write', 'file_edit', 'file_patch', 'file_delete',
   'file_move', 'file_copy', 'dir_create', 'editor_read', 'editor_write', 'editor_save',
   'shell_exec', 'terminal_exec', 'terminal_read', 'terminal_wait', 'terminal_kill',
   'list_panes', 'get_problems', 'get_output', 'start_server', 'server_status', 'server_stop',
   'run_tests', 'run_task', 'cron_create', 'cron_list', 'cron_delete', 'memory_read',
-  'memory_write', 'subagent_list', 'subagent_run', 'skill_list', 'skill_view',
+  'memory_write', 'subagent_list', 'subagent_run', 'skill_list',
   'skill_write', 'skill_delete', 'mcp_call', 'read_image', 'task_complete', 'plan_mode',
   'screenshot_ui', 'schedule_task', 'wait_terminal',
 ];
@@ -307,25 +299,15 @@ periksa('periksaKatalog() bersih', katalog.masalah.length === 0, { masalah: kata
  *
  * Bagian 1-7 hanya bisa menolak sisa rename pada berkas yang kebetulan dibaca
  * harness ini. Peta label, panel, atau penyimpanan bisa masih memakai awalan
- * lama tanpa satu pun pemeriksaan di atas menyentuhnya - dan itu persis rename
+ * lain tanpa satu pun pemeriksaan di atas menyentuhnya - dan itu persis rename
  * setengah jalan. Karena itu semua `.ts`/`.tsx` di `src/` dipindai.
  *
- * Yang diuji BUKAN "tidak ada awalan retired sama sekali". Itu tidak mungkin
- * dijamin tanpa memutus kompatibilitas mundur, dan kompatibilitas mundur itu
- * wajib: giliran yang dilanjutkan, checkpoint, dan setelan tool tersimpan
- * masih membawa awalan lama. Menerimanya KECIL biaya (satu regex) sedangkan
- * membuangnya besar: giliran yang dilanjutkan berhenti di tengah jalan, dan
- * lebih buruk - pemeriksaan perintah berbahaya dilewati untuk giliran yang
- * direkam dengan awalan lama.
- *
- * Invarian yang benar lebih sempit dan bisa dipalsukan:
- *   - awalan retired HANYA boleh ada di COMPAT_FILES;
- *   - awalan retired tidak boleh muncul di satu pun NAME_BUILDERS, kecuali
- *     di dalam regex penerimaan (dicek terpisah di bawah);
- *   - awalan retired tidak boleh menjadi bagian dari nama yang DIPERIKSA
- *     untuk 연출 label (bagian 1-7 sudah menguji itu).
+ * Invariannya sekarang sederhana: SATU-SATUNYA awalan protokol yang boleh ada
+ * di `src/` adalah PREFIX_MCP. Kompatibilitas mundur sudah dibuang - probe live
+ * membuktikan 0 nama lama hidup, dan localStorage maupun setelan di disk
+ * bersih - jadi awalan lain di mana pun berarti rename setengah jalan.
  */
-console.log('\n== 8. Awalan retired di src hanya untuk kompatibilitas ==');
+console.log('\n== 8. Hanya satu awalan protokol di src ==');
 {
   const awalan = pindaiAwalan(join(AKAR, 'src'));
 
@@ -335,31 +317,22 @@ console.log('\n== 8. Awalan retired di src hanya untuk kompatibilitas ==');
     ditemukan: [...awalan.keys()],
   });
 
-  const berkasRetired = awalan.has(PREFIX_RETIRED) ? awalan.get(PREFIX_RETIRED) : new Set();
-  const diLuar = [...berkasRetired]
-    .map((f) => f.replace(/\\/g, '/'))
-    .filter((f) => !COMPAT_FILES.has(f));
-  periksa(
-    `awalan ${PREFIX_RETIRED} hanya di ${COMPAT_FILES.size} berkas kompatibilitas`,
-    diLuar.length === 0,
-    { diLuar, kompat: [...COMPAT_FILES] },
-  );
+  const asing = [...awalan.keys()].filter((a) => a !== PREFIX_MCP);
+  periksa('tidak ada awalan protokol lain di src', asing.length === 0, {
+    asing,
+    berkas: asing.flatMap((a) => [...awalan.get(a)]).map((f) => f.replace(/\\/g, '/')),
+  });
 
-  /* Penjaga kedua, dan ini yang paling mudah lolos: di berkas pembangun nama,
-     awalan retired hanya boleh muncul sebagai bagian dari regex penerimaan
-     backwards-compatible. Minute satu saja di luar itu berarti katalog masih
-     MENAWARKAN nama lama ke model - dan itulah yang ingin dicegah. */
-  const diLuarRegex = [];
+  /* Penjaga kedua, dan ini yang paling mudah lolos: berkas pembangun nama
+     tidak boleh menyebut awalan asing sama sekali, bahkan di dalam komentar -
+     di titik inilah nama jadi ditawarkan ke model. */
+  const diBuilder = [];
   for (const rel of NAME_BUILDERS) {
-    const isi = readFileSync(join(AKAR, rel), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
-    /* Buang dulu semua kemunculan di dalam regex, sisanya adalah nama nyata. */
-    const tanpaRegex = isi.replace(/=\s*\/\^?[^/\n]*\/[a-z]*;/g, '');
-    if (tanpaRegex.includes(PREFIX_RETIRED)) diLuar.push(rel);
+    const isi = readFileSync(join(AKAR, rel), 'utf8');
+    for (const a of asing) if (isi.includes(a)) diBuilder.push(rel);
   }
-  periksa('berkas pembangun nama tidak menawarkan awalan retired', diLuar.length === 0, {
-    diLuar,
+  periksa('berkas pembangun nama tidak menyebut awalan lain', diBuilder.length === 0, {
+    diBuilder,
   });
 }
 

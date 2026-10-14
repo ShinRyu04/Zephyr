@@ -266,11 +266,12 @@ fn spec_python(state: &AppState) -> AdapterSpec {
         tcp: false,
         missing: match (py.is_some(), ada_debugpy) {
             (false, _) => {
-                "Python not found on PATH. Install Python then: pip install debugpy"
-                    .to_string()
+                "Python not found on PATH. Install Python then: pip install debugpy".to_string()
             }
             (true, false) => {
-                format!("The debugpy package is not installed yet. Run: {exe} -m pip install debugpy")
+                format!(
+                    "The debugpy package is not installed yet. Run: {exe} -m pip install debugpy"
+                )
             }
             (true, true) => String::new(),
         },
@@ -1288,7 +1289,10 @@ mod tests {
         assert!(p > 1024);
 
         let l = std::net::TcpListener::bind(("127.0.0.1", p));
-        assert!(l.is_ok(), "port {p} chosen by port_bebas could not be bound");
+        assert!(
+            l.is_ok(),
+            "port {p} chosen by port_bebas could not be bound"
+        );
     }
 
     #[test]

@@ -4,7 +4,8 @@ import { tags as t } from '@lezer/highlight';
 import type { Extension } from '@codemirror/state';
 import { THEMES } from '../lib/themes';
 
-const v = (name: string) => `var(${name})`;
+const v = (name: string, fallback?: string) =>
+  fallback ? `var(${name}, ${fallback})` : `var(${name})`;
 
 function themeSpec(): Record<string, Record<string, string>> {
   return {
@@ -124,7 +125,7 @@ export const zephyrHighlight: Extension = syntaxHighlighting(
       tag: [t.function(t.variableName), t.function(t.propertyName), t.macroName],
       color: v('--syntax-fn'),
     },
-    { tag: [t.variableName, t.propertyName], color: v('--syn-variable') },
+    { tag: [t.variableName, t.propertyName], color: v('--syn-variable', v('--fg1')) },
     {
       tag: [t.typeName, t.className, t.namespace, t.definition(t.typeName)],
       color: v('--syntax-type'),
@@ -133,9 +134,9 @@ export const zephyrHighlight: Extension = syntaxHighlighting(
       tag: [t.operator, t.operatorKeyword, t.punctuation, t.separator],
       color: v('--syntax-operator'),
     },
-    { tag: [t.tagName, t.angleBracket], color: v('--syn-tag') },
-    { tag: [t.attributeName], color: v('--syn-attr') },
-    { tag: [t.invalid], color: v('--syn-invalid') },
+    { tag: [t.tagName, t.angleBracket], color: v('--syn-tag', v('--syn-keyword')) },
+    { tag: [t.attributeName], color: v('--syn-attr', v('--syn-string')) },
+    { tag: [t.invalid], color: v('--syn-invalid', v('--danger')) },
     { tag: [t.heading], color: v('--syntax-fn'), fontWeight: 'bold' },
     { tag: [t.link, t.url], color: v('--accent'), textDecoration: 'underline' },
     { tag: [t.emphasis], fontStyle: 'italic' },

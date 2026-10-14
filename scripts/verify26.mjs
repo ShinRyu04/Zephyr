@@ -23,7 +23,7 @@
 
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, keluarBersih } from './lib-cdp.mjs';
 import { bagian1 } from './v26/bagian1.mjs';
 import { bagian2 } from './v26/bagian2.mjs';
 
@@ -135,5 +135,5 @@ const main = async () => {
 main().catch((e) => {
   console.error('verify26 error:', e.message);
   bersihkanFixture();
-  process.exit(1);
+  keluarBersih(1);
 });

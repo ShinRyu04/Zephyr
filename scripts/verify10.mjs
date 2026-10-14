@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -57,11 +58,26 @@ class Cdp {
   }
 
   async eval(expr) {
-    const r = await this.send('Runtime.evaluate', {
-      expression: expr,
-      returnByValue: true,
-      userGesture: true,
-    });
+    /*
+     * Batas waktu per panggilan.
+     *
+     * Kalau socket CDP sudah mati (halaman reload, WebView2 membuang konteks),
+     * promise `send` TIDAK PERNAH selesai - dan karena runAsync menunggu eval
+     * di dalam loop polling-nya, deadline runAsync pun tidak pernah dievaluasi.
+     * Hasilnya: harness menggantung sampai runner membunuhnya, dan sebab
+     * kegagalan aslinya hilang. Lebih baik gagal dengan pesan yang jelas.
+     */
+    const r = await Promise.race([
+      this.send('Runtime.evaluate', {
+        expression: expr,
+        returnByValue: true,
+        userGesture: true,
+      }),
+      new Promise((_, rej) => {
+        const t = setTimeout(() => rej(new Error('eval timeout 20s: socket CDP mati / halaman tidak menjawab')), 20000);
+        t.unref?.();
+      }),
+    ]);
     if (r.error) throw new Error(`RPC: ${JSON.stringify(r.error)}`);
     if (r.result?.exceptionDetails) {
       throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error');
@@ -625,11 +641,15 @@ const main = async () => {
     `),
   );
   const mb = Math.round(v11.ram / (1024 * 1024));
+  // Hint tombol Commit adalah literal Inggris di SourceControlPanel.tsx
+  // ('Stage first (click + on a file)') dan belum punya terjemahan Indonesia.
+  // Assertion-nya jangan ditambatkan ke satu bahasa.
+  const hintOk = /stage|tandai|staged/i.test(String(v11.hint));
   check(
     'V11',
     v11.disabledBersih === true &&
       v11.disabledAdaPesan === true &&
-      String(v11.hint).includes('Stage dulu') &&
+      hintOk &&
       v11.bersih === true &&
       v11.errors.length === 0 &&
       mb > 0 &&
@@ -688,11 +708,14 @@ const main = async () => {
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (lulus !== results.length) process.exitCode = 1;
+  // Keluar eksplisit: menyetel process.exitCode saja menyisakan handle
+  // (WebSocket CDP) yang menahan event loop -> runner suite mencatat
+  // "timeout" padahal semua uji sudah selesai.
+  keluarBersih(lulus === results.length ? 0 : 1);
 };
 
 main().catch((e) => {
   console.error('verify10 error:', e.message ?? e);
   bersihkanSandbox();
-  process.exitCode = 2;
+  keluarBersih(2);
 });

@@ -332,7 +332,11 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
     }
     match v.get("type").and_then(|x| x.as_str()) {
         Some("assistant") => {
-            let Some(content) = v.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_array()) else {
+            let Some(content) = v
+                .get("message")
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_array())
+            else {
                 return out;
             };
             let msg_id = v
@@ -425,19 +429,29 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
             }
         }
         Some("user") => {
-            let Some(content) = v.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_array()) else {
+            let Some(content) = v
+                .get("message")
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_array())
+            else {
                 return out;
             };
             for block in content {
                 if block.get("type").and_then(|x| x.as_str()) == Some("tool_result") {
-                    let call_id = block.get("tool_use_id").and_then(|x| x.as_str()).unwrap_or("");
+                    let call_id = block
+                        .get("tool_use_id")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("");
                     /* The result of a call already shown as a checklist carries no
-                       information the checklist does not - "Todos have been
-                       modified successfully" is the tool acknowledging itself. */
+                    information the checklist does not - "Todos have been
+                    modified successfully" is the tool acknowledging itself. */
                     if state.todo_calls.contains(call_id) {
                         continue;
                     }
-                    let is_err = block.get("is_error").and_then(|x| x.as_bool()).unwrap_or(false);
+                    let is_err = block
+                        .get("is_error")
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false);
                     out.push(tool_event(json!({
                         "callId": call_id,
                         "name": "",
@@ -466,7 +480,9 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
          * full there, so tool_use is parsed exclusively from that line.
          */
         Some("stream_event") => {
-            let Some(event) = v.get("event") else { return out; };
+            let Some(event) = v.get("event") else {
+                return out;
+            };
             match event.get("type").and_then(|x| x.as_str()) {
                 Some("message_start") => {
                     state.current_msg = event
@@ -475,14 +491,16 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
                         .map(|s| s.to_string());
                 }
                 Some("content_block_delta") => {
-                    let Some(delta) = event.get("delta") else { return out; };
+                    let Some(delta) = event.get("delta") else {
+                        return out;
+                    };
                     match delta.get("type").and_then(|x| x.as_str()) {
                         Some("text_delta") => {
                             let s = delta.get("text").and_then(|x| x.as_str()).unwrap_or("");
                             if !s.is_empty() {
                                 out.push(json!({ "kind": "text", "text": s }));
                                 /* Remember which id this text came from, so the
-                                   trailing `assistant` line can be deduped. */
+                                trailing `assistant` line can be deduped. */
                                 if let Some(id) = state.current_msg.clone() {
                                     state.text_streamed.insert(id);
                                 }
@@ -681,12 +699,11 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
              */
             let u = v.get("usage").cloned().unwrap_or(Value::Null);
             let n = |k: &str| u.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
-            let input = n("input_tokens")
-                + n("cache_read_input_tokens")
-                + n("cache_creation_input_tokens");
+            let input =
+                n("input_tokens") + n("cache_read_input_tokens") + n("cache_creation_input_tokens");
             let output = n("output_tokens");
             /* A run that reports neither is not a usage report; emitting zeros
-               would read as "this turn was free". */
+            would read as "this turn was free". */
             if input > 0 || output > 0 {
                 out.push(json!({
                     "kind": "usage",
@@ -707,7 +724,9 @@ fn claude_events_from_line_skip(line: &str, state: &mut ClaudeLineState) -> Vec<
      * type must not silently lose it. A `Task` call and all of its nested work
      * then arrive on the UI as one group the agent map can draw.
      */
-    out.into_iter().map(|ev| tandai_sarang(ev, &sarang)).collect()
+    out.into_iter()
+        .map(|ev| tandai_sarang(ev, &sarang))
+        .collect()
 }
 
 /// A readable, one-line target for a Claude tool call: the command for Bash, the
@@ -778,7 +797,9 @@ fn claude_todo_snapshot(name: &str, input: &Value) -> Option<Vec<Value>> {
                     item(
                         t.get("content").and_then(|x| x.as_str()),
                         t.get("activeForm").and_then(|x| x.as_str()),
-                        t.get("status").and_then(|x| x.as_str()).unwrap_or("pending"),
+                        t.get("status")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("pending"),
                         t.get("id").and_then(|x| x.as_str()),
                     )
                 })
@@ -796,9 +817,9 @@ fn claude_todo_snapshot(name: &str, input: &Value) -> Option<Vec<Value>> {
         }
         "TaskUpdate" => {
             /* The id field is not reliably spelled: the SDK docs note that
-               Claude Code repairs `id`/`task_id` to `taskId` before execution
-               but that the repair is NOT reflected in the stream we read. So
-               all three spellings are accepted. */
+            Claude Code repairs `id`/`task_id` to `taskId` before execution
+            but that the repair is NOT reflected in the stream we read. So
+            all three spellings are accepted. */
             let id = input
                 .get("taskId")
                 .or_else(|| input.get("id"))
@@ -809,7 +830,7 @@ fn claude_todo_snapshot(name: &str, input: &Value) -> Option<Vec<Value>> {
             let active = input.get("activeForm").and_then(|x| x.as_str());
             let subject = input.get("subject").and_then(|x| x.as_str());
             /* `deleted` removes the task; passing it through lets the panel
-               drop the row rather than render a task with no state. */
+            drop the row rather than render a task with no state. */
             Some(vec![item(subject, active, status, Some(id))])
         }
         _ => None,
@@ -968,9 +989,8 @@ fn codex_events_from_line(line: &str) -> Vec<Value> {
 }
 
 fn resolve_bin(bin: &str) -> ZResult<std::path::PathBuf> {
-    which::which(bin).map_err(|_| {
-        ZephyrError::NotFound(format!("{bin} is not on PATH — install the CLI first"))
-    })
+    which::which(bin)
+        .map_err(|_| ZephyrError::NotFound(format!("{bin} is not on PATH — install the CLI first")))
 }
 
 #[tauri::command]
@@ -991,7 +1011,13 @@ pub async fn cli_chat(
         .ok_or_else(|| ZephyrError::InvalidInput(format!("CLI not supported here: {agent_id}")))?;
 
     let bin = resolve_bin(rec.bin)?;
-    let args = build_args(&agent_id, &prompt, model.as_deref(), mode.as_deref(), resume.as_deref());
+    let args = build_args(
+        &agent_id,
+        &prompt,
+        model.as_deref(),
+        mode.as_deref(),
+        resume.as_deref(),
+    );
 
     let mut command = crate::proc::tokio_cmd(&bin);
     command
@@ -1084,7 +1110,7 @@ pub async fn cli_chat(
      */
     let mut state = ClaudeLineState::default();
     /* Deltas waiting to be merged and shipped. Flushed by the timer (live
-       streaming), BEFORE any non-delta event (ordering), and at EOF. */
+    streaming), BEFORE any non-delta event (ordering), and at EOF. */
     let mut pending: Vec<Value> = Vec::new();
     let mut tick = tokio::time::interval(std::time::Duration::from_millis(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -1140,8 +1166,8 @@ pub async fn cli_chat(
     }
 
     /* EOF/cancel: the tail of the answer may still be batched, and `done`
-       below makes the frontend freeze the message — it must not see an empty
-       bubble for text that is still sitting here. */
+    below makes the frontend freeze the message — it must not see an empty
+    bubble for text that is still sitting here. */
     flush_events(&app, &id, &mut pending);
 
     // Reap the child and report the outcome.
@@ -1149,7 +1175,10 @@ pub async fn cli_chat(
         let mut map = running().lock().unwrap();
         map.remove(&id).is_none()
     };
-    emit(&app, json!({ "id": id, "done": true, "cancelled": cancelled }));
+    emit(
+        &app,
+        json!({ "id": id, "done": true, "cancelled": cancelled }),
+    );
     Ok(())
 }
 
@@ -1224,7 +1253,9 @@ fn claude_default_alias() -> Option<String> {
     let home = home_dir()?;
     let raw = std::fs::read_to_string(home.join(".claude").join("settings.json")).ok()?;
     let v: Value = serde_json::from_str(&raw).ok()?;
-    v.get("model").and_then(|x| x.as_str()).map(|s| s.to_string())
+    v.get("model")
+        .and_then(|x| x.as_str())
+        .map(|s| s.to_string())
 }
 
 /// The models a hosted CLI offers, as the account that is logged in would see
@@ -1280,7 +1311,11 @@ pub fn cli_models(agent_id: String) -> ZResult<Vec<CliModel>> {
                 }
             };
             vec![
-                m("default", "Default (recommended)", "Use the default model for your account"),
+                m(
+                    "default",
+                    "Default (recommended)",
+                    "Use the default model for your account",
+                ),
                 row("opus", "Most capable — hardest, longest-running tasks"),
                 row("sonnet", "Balanced speed and capability"),
                 row("haiku", "Fastest, for lighter tasks"),
@@ -1288,7 +1323,11 @@ pub fn cli_models(agent_id: String) -> ZResult<Vec<CliModel>> {
             ]
         }
         "codex" => vec![
-            m("default", "Default (recommended)", "Use the configured default"),
+            m(
+                "default",
+                "Default (recommended)",
+                "Use the configured default",
+            ),
             m("gpt-5-codex", "GPT-5 Codex", "Codex-tuned, best for coding"),
             m("gpt-5", "GPT-5", "General purpose"),
             m("o4-mini", "o4-mini", "Fast and economical"),
@@ -1804,7 +1843,11 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
     // Plugins enabled but with no install record still show (as enabled).
     for full in &enabled {
         let (name, market) = full.split_once('@').unwrap_or((full.as_str(), ""));
-        if !info.plugins.iter().any(|p| p.name == name && p.marketplace == market) {
+        if !info
+            .plugins
+            .iter()
+            .any(|p| p.name == name && p.marketplace == market)
+        {
             info.plugins.push(ClaudePlugin {
                 name: name.to_string(),
                 marketplace: market.to_string(),
@@ -1845,9 +1888,11 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
     }
 
     // --- memory / instructions files (user + project CLAUDE.md, AGENTS.md) ---
-    for (p, label, scope) in [
-        (dir.join("CLAUDE.md"), "User memory (~/.claude/CLAUDE.md)", "user"),
-    ] {
+    for (p, label, scope) in [(
+        dir.join("CLAUDE.md"),
+        "User memory (~/.claude/CLAUDE.md)",
+        "user",
+    )] {
         if let Some(f) = file_entry(&p, label, scope) {
             info.memory_files.push(f);
         }
@@ -1868,9 +1913,17 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
             }
         }
         // project slash commands + mcp from .mcp.json
-        scan_commands(&proj.join(".claude").join("commands"), "project", &mut info.slash_commands);
+        scan_commands(
+            &proj.join(".claude").join("commands"),
+            "project",
+            &mut info.slash_commands,
+        );
         if let Some(mcpj) = read_json(&proj.join(".mcp.json")) {
-            collect_mcp(mcpj.get("mcpServers"), "project (.mcp.json)", &mut info.mcp_servers);
+            collect_mcp(
+                mcpj.get("mcpServers"),
+                "project (.mcp.json)",
+                &mut info.mcp_servers,
+            );
         }
     }
 
@@ -1900,7 +1953,10 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
-        info.num_startups = root.get("numStartups").and_then(|x| x.as_u64()).unwrap_or(0);
+        info.num_startups = root
+            .get("numStartups")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
         if let Some(acc) = root.get("oauthAccount").and_then(|x| x.as_object()) {
             // An oauth account means a logged-in subscription; surface the email
             // only (no tokens live here).
@@ -1938,8 +1994,14 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
                     for (model, u) in mu {
                         by_model.push(ClaudeModelUsage {
                             model: pretty_model(model),
-                            input_tokens: u.get("inputTokens").and_then(|x| x.as_u64()).unwrap_or(0),
-                            output_tokens: u.get("outputTokens").and_then(|x| x.as_u64()).unwrap_or(0),
+                            input_tokens: u
+                                .get("inputTokens")
+                                .and_then(|x| x.as_u64())
+                                .unwrap_or(0),
+                            output_tokens: u
+                                .get("outputTokens")
+                                .and_then(|x| x.as_u64())
+                                .unwrap_or(0),
                             cost_usd: u.get("costUSD").and_then(|x| x.as_f64()).unwrap_or(0.0),
                         });
                     }
@@ -1947,18 +2009,39 @@ pub fn claude_account_info(cwd: Option<String>) -> ZResult<ClaudeInfo> {
                 info.usage.push(ClaudeUsage {
                     project: pkey.clone(),
                     cost_usd: cost,
-                    duration_ms: pv.get("lastDuration").and_then(|x| x.as_f64()).unwrap_or(0.0),
-                    input_tokens: pv.get("lastTotalInputTokens").and_then(|x| x.as_u64()).unwrap_or(0),
-                    output_tokens: pv.get("lastTotalOutputTokens").and_then(|x| x.as_u64()).unwrap_or(0),
-                    lines_added: pv.get("lastLinesAdded").and_then(|x| x.as_u64()).unwrap_or(0),
-                    lines_removed: pv.get("lastLinesRemoved").and_then(|x| x.as_u64()).unwrap_or(0),
-                    session_id: pv.get("lastSessionId").and_then(|x| x.as_str()).map(short_id).unwrap_or_default(),
+                    duration_ms: pv
+                        .get("lastDuration")
+                        .and_then(|x| x.as_f64())
+                        .unwrap_or(0.0),
+                    input_tokens: pv
+                        .get("lastTotalInputTokens")
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0),
+                    output_tokens: pv
+                        .get("lastTotalOutputTokens")
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0),
+                    lines_added: pv
+                        .get("lastLinesAdded")
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0),
+                    lines_removed: pv
+                        .get("lastLinesRemoved")
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0),
+                    session_id: pv
+                        .get("lastSessionId")
+                        .and_then(|x| x.as_str())
+                        .map(short_id)
+                        .unwrap_or_default(),
                     by_model,
                 });
             }
             // Active project first, then by cost descending.
             info.usage.sort_by(|a, b| {
-                b.cost_usd.partial_cmp(&a.cost_usd).unwrap_or(std::cmp::Ordering::Equal)
+                b.cost_usd
+                    .partial_cmp(&a.cost_usd)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
         }
     }
@@ -1982,7 +2065,13 @@ fn collect_mcp(servers: Option<&Value>, scope: &str, out: &mut Vec<ClaudeMcp>) {
         let kind = cfg
             .get("type")
             .and_then(|x| x.as_str())
-            .unwrap_or_else(|| if cfg.get("url").is_some() { "http" } else { "stdio" })
+            .unwrap_or_else(|| {
+                if cfg.get("url").is_some() {
+                    "http"
+                } else {
+                    "stdio"
+                }
+            })
             .to_string();
         let target = if let Some(u) = cfg.get("url").and_then(|x| x.as_str()) {
             url_host(u)
@@ -2012,7 +2101,10 @@ fn collect_mcp(servers: Option<&Value>, scope: &str, out: &mut Vec<ClaudeMcp>) {
 /// `claude --version` → the version string, run quickly and non-fatally.
 fn claude_cli_version() -> Option<String> {
     let bin = which::which("claude").ok()?;
-    let out = std::process::Command::new(bin).arg("--version").output().ok()?;
+    let out = std::process::Command::new(bin)
+        .arg("--version")
+        .output()
+        .ok()?;
     let s = String::from_utf8_lossy(&out.stdout);
     Some(s.trim().to_string()).filter(|x| !x.is_empty())
 }
@@ -2179,15 +2271,34 @@ pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
      */
     let daftar: Vec<(&str, &str, &str)> = vec![
         // ---- Session -------------------------------------------------------
-        ("/clear", "Clear conversation history and free up context", "zephyr"),
-        ("/compact", "Compact the conversation to save context", "zephyr"),
-        ("/rewind", "Restore the conversation to an earlier point", "zephyr"),
-        ("/recap", "Summarise the current session in one line", "zephyr"),
+        (
+            "/clear",
+            "Clear conversation history and free up context",
+            "zephyr",
+        ),
+        (
+            "/compact",
+            "Compact the conversation to save context",
+            "zephyr",
+        ),
+        (
+            "/rewind",
+            "Restore the conversation to an earlier point",
+            "zephyr",
+        ),
+        (
+            "/recap",
+            "Summarise the current session in one line",
+            "zephyr",
+        ),
         ("/export", "Export this conversation", "zephyr"),
         ("/exit", "Close this session", "zephyr"),
-
         // ---- Context -------------------------------------------------------
-        ("/context", "See what is filling the context window", "zephyr"),
+        (
+            "/context",
+            "See what is filling the context window",
+            "zephyr",
+        ),
         /*
          * How full the window gets before compaction runs on its own.
          *
@@ -2197,16 +2308,26 @@ pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
          * wants compaction sooner, while a conversational one is happy to run
          * closer to the line. `auto` restores the default.
          */
-        ("/autocompact", "Set how full the context gets before auto-compacting", "zephyr"),
-        ("/usage", "Show token usage and cost for this session", "zephyr"),
-        ("/stats", "Session statistics: turns, tools, tokens", "zephyr"),
+        (
+            "/autocompact",
+            "Set how full the context gets before auto-compacting",
+            "zephyr",
+        ),
+        (
+            "/usage",
+            "Show token usage and cost for this session",
+            "zephyr",
+        ),
+        (
+            "/stats",
+            "Session statistics: turns, tools, tokens",
+            "zephyr",
+        ),
         ("/cost", "Alias for /usage", "zephyr"),
-
         // ---- Model & reasoning ---------------------------------------------
         ("/model", "Change the active model", "zephyr"),
         ("/effort", "How hard the model should think", "zephyr"),
         ("/config", "Open Zephyr settings", "zephyr"),
-
         // ---- Project -------------------------------------------------------
         /*
          * Forwarded to the CLI as a PROMPT: both expand into an instruction the
@@ -2214,44 +2335,99 @@ pub fn claude_builtin_commands() -> ZResult<Vec<BuiltinCommand>> {
          * print mode. Verified against the real binary — `/status` and `/cost`
          * are ignored there, but a prompt-shaped command is answered.
          */
-        ("/init", "Generate a CLAUDE.md with codebase instructions", "cli"),
-        ("/memory", "Edit the project and user memory files", "zephyr"),
+        (
+            "/init",
+            "Generate a CLAUDE.md with codebase instructions",
+            "cli",
+        ),
+        (
+            "/memory",
+            "Edit the project and user memory files",
+            "zephyr",
+        ),
         ("/diff", "Review the changes in the working tree", "zephyr"),
         ("/review", "Review the current changes", "cli"),
-        ("/security-review", "Security review of the pending changes", "zephyr"),
-        ("/privacy-settings", "Review what is sent to the model provider", "zephyr"),
-
+        (
+            "/security-review",
+            "Security review of the pending changes",
+            "zephyr",
+        ),
+        (
+            "/privacy-settings",
+            "Review what is sent to the model provider",
+            "zephyr",
+        ),
         // ---- Extend --------------------------------------------------------
         ("/agents", "Manage subagents", "zephyr"),
-        ("/list-agents", "List the subagents this session can reach", "zephyr"),
+        (
+            "/list-agents",
+            "List the subagents this session can reach",
+            "zephyr",
+        ),
         ("/skills", "Browse and install skills", "zephyr"),
         ("/plugins", "Browse and install plugins", "zephyr"),
         ("/mcp", "Manage MCP servers and view their tools", "zephyr"),
-        ("/hooks", "Configure hooks that run on tool events", "zephyr"),
-        ("/permissions", "View or edit tool permission rules", "zephyr"),
-        ("/sandbox", "Permission mode and sandbox behaviour", "zephyr"),
-        ("/fewer-permission-prompts", "Find repeated prompts worth allowing", "zephyr"),
+        (
+            "/hooks",
+            "Configure hooks that run on tool events",
+            "zephyr",
+        ),
+        (
+            "/permissions",
+            "View or edit tool permission rules",
+            "zephyr",
+        ),
+        (
+            "/sandbox",
+            "Permission mode and sandbox behaviour",
+            "zephyr",
+        ),
+        (
+            "/fewer-permission-prompts",
+            "Find repeated prompts worth allowing",
+            "zephyr",
+        ),
         ("/tasks", "Background jobs and scheduled commands", "zephyr"),
         ("/statusline", "Choose what the status line shows", "zephyr"),
-
         // ---- Account & diagnostics -----------------------------------------
-        ("/status", "Show version, model, account and connection", "zephyr"),
+        (
+            "/status",
+            "Show version, model, account and connection",
+            "zephyr",
+        ),
         ("/doctor", "Diagnose and verify your installation", "zephyr"),
-
         // ---- Appearance ----------------------------------------------------
         ("/theme", "Change the colour theme", "zephyr"),
         ("/vim", "Vim keybindings in the prompt", "zephyr"),
-
         // ---- Terminal-only -------------------------------------------------
-        ("/ide", "Manage IDE integrations and show status", "terminal"),
+        (
+            "/ide",
+            "Manage IDE integrations and show status",
+            "terminal",
+        ),
         ("/login", "Switch Anthropic accounts", "terminal"),
         ("/logout", "Sign out of your Anthropic account", "terminal"),
-        ("/terminal-setup", "Install the Shift+Enter newline keybinding", "terminal"),
+        (
+            "/terminal-setup",
+            "Install the Shift+Enter newline keybinding",
+            "terminal",
+        ),
         ("/keybindings", "Edit Zephyr's keyboard shortcuts", "zephyr"),
-        ("/remote-control", "Control this session from another device", "terminal"),
-        ("/upgrade", "Upgrade the Claude Code installation", "terminal"),
-        ("/release-notes", "What changed in recent versions", "terminal"),
-
+        (
+            "/remote-control",
+            "Control this session from another device",
+            "terminal",
+        ),
+        (
+            "/upgrade",
+            "Upgrade the Claude Code installation",
+            "terminal",
+        ),
+        (
+            "/release-notes",
+            "What changed in recent versions",
+            "terminal",
+        ),
         // ---- Resources -----------------------------------------------------
         ("/help", "Show help and the full command list", "zephyr"),
     ];
@@ -2281,8 +2457,18 @@ mod tests {
 
         // Commands the real palette has and a 19-entry list would be missing.
         for wajib in [
-            "/usage", "/diff", "/rewind", "/recap", "/tasks", "/skills",
-            "/plugins", "/sandbox", "/context", "/stats", "/theme", "/export",
+            "/usage",
+            "/diff",
+            "/rewind",
+            "/recap",
+            "/tasks",
+            "/skills",
+            "/plugins",
+            "/sandbox",
+            "/context",
+            "/stats",
+            "/theme",
+            "/export",
             "/autocompact",
         ] {
             assert!(
@@ -2315,7 +2501,10 @@ mod tests {
 
     #[test]
     fn url_host_strips_path_and_query() {
-        assert_eq!(url_host("https://api.anthropic.com/v1/x?k=secret"), "https://api.anthropic.com");
+        assert_eq!(
+            url_host("https://api.anthropic.com/v1/x?k=secret"),
+            "https://api.anthropic.com"
+        );
         assert_eq!(url_host("http://127.0.0.1:8181"), "http://127.0.0.1:8181");
     }
 
@@ -2422,7 +2611,7 @@ mod tests {
         let mut st = crate::cli_chat::ClaudeLineState::default();
 
         /* 1. The main agent spawns a subagent. No parent: it IS the parent.
-              `Agent` is the name the live CLI uses. */
+        `Agent` is the name the live CLI uses. */
         let panggil = r#"{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"tool_use","id":"toolu_task1","name":"Agent","input":{"description":"Explore the repo","subagent_type":"Explore"}}]}}"#;
         let ev = claude_events_from_line_skip(panggil, &mut st);
         assert_eq!(ev.len(), 1);
@@ -2573,7 +2762,10 @@ mod tests {
         assert_eq!(ev.len(), 1);
         assert_eq!(ev[0]["status"], "completed");
         assert_eq!(ev[0]["summary"], "done");
-        assert!(ev[0].get("tokens").is_none(), "usage non-objek tidak boleh jadi angka karangan");
+        assert!(
+            ev[0].get("tokens").is_none(),
+            "usage non-objek tidak boleh jadi angka karangan"
+        );
     }
 
     /*
@@ -2701,7 +2893,8 @@ mod tests {
     fn text_deltas_stream_and_assistant_line_is_deduped() {
         let mut st = ClaudeLineState::default();
         // message_start names the message the following deltas belong to.
-        let start = r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1"}}}"#;
+        let start =
+            r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1"}}}"#;
         assert!(claude_events_from_line_skip(start, &mut st).is_empty());
         assert_eq!(st.current_msg.as_deref(), Some("msg_1"));
 
@@ -2728,7 +2921,8 @@ mod tests {
     #[test]
     fn thinking_deltas_stream_and_assistant_line_is_deduped() {
         let mut st = ClaudeLineState::default();
-        let start = r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_2"}}}"#;
+        let start =
+            r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_2"}}}"#;
         claude_events_from_line_skip(start, &mut st);
         let d = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"let me reason"}}}"#;
         let ev = claude_events_from_line_skip(d, &mut st);
@@ -2797,8 +2991,17 @@ mod tests {
         // Zephyr" answers "Zephyr." when a later run passes --resume with that
         // session id. Without the flag the context built up in a terminal is
         // stranded there.
-        let a = build_args("claude", "hi", None, None, Some("2df728d2-fb47-4934-92d0-e6205a1fd603"));
-        let pos = a.iter().position(|x| x == "--resume").expect("--resume present");
+        let a = build_args(
+            "claude",
+            "hi",
+            None,
+            None,
+            Some("2df728d2-fb47-4934-92d0-e6205a1fd603"),
+        );
+        let pos = a
+            .iter()
+            .position(|x| x == "--resume")
+            .expect("--resume present");
         assert_eq!(a[pos + 1], "2df728d2-fb47-4934-92d0-e6205a1fd603");
     }
 
@@ -2807,9 +3010,15 @@ mod tests {
         // An empty string would produce a bare `--resume` with no id, which the
         // CLI rejects - so a blank value must add no flag at all.
         let a = build_args("claude", "hi", None, None, Some(""));
-        assert!(!a.iter().any(|x| x == "--resume"), "empty id added a flag: {a:?}");
+        assert!(
+            !a.iter().any(|x| x == "--resume"),
+            "empty id added a flag: {a:?}"
+        );
         let b = build_args("claude", "hi", None, None, None);
-        assert!(!b.iter().any(|x| x == "--resume"), "None added a flag: {b:?}");
+        assert!(
+            !b.iter().any(|x| x == "--resume"),
+            "None added a flag: {b:?}"
+        );
     }
 
     #[test]
@@ -2930,9 +3139,18 @@ model_provider = 'modelrouter'
 [model_providers.modelrouter]
 model = "should-not-be-read"
 "#;
-        assert_eq!(toml_top_string(doc, "model").as_deref(), Some("deepseek-v4.1-flash"));
-        assert_eq!(toml_top_string(doc, "model_reasoning_effort").as_deref(), Some("minimal"));
-        assert_eq!(toml_top_string(doc, "model_provider").as_deref(), Some("modelrouter"));
+        assert_eq!(
+            toml_top_string(doc, "model").as_deref(),
+            Some("deepseek-v4.1-flash")
+        );
+        assert_eq!(
+            toml_top_string(doc, "model_reasoning_effort").as_deref(),
+            Some("minimal")
+        );
+        assert_eq!(
+            toml_top_string(doc, "model_provider").as_deref(),
+            Some("modelrouter")
+        );
         assert_eq!(toml_top_string(doc, "absent"), None);
     }
 

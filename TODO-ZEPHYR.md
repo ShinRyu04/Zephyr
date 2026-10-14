@@ -261,10 +261,10 @@ HEAD             : 09112a0 (belum commit — sesuai perintah user)
 
 | # | Item | Catatan |
 |---|---|---|
-| 2.1 | **"Pojok kanan yang ada di TEDI, kenapa Zephyr gada?"** | Foto `f41a04`+`cc34c4`+`690c4c`: lihat panel kanan. Kemungkinan: sidebar kanan / secondary sidebar / outline |
+| 2.1 | **"Pojok kanan yang ada di aplikasi acuan, kenapa Zephyr gada?"** | Foto `f41a04`+`cc34c4`+`690c4c`: lihat panel kanan. Kemungkinan: sidebar kanan / secondary sidebar / outline |
 | 2.2 | **Autocomplete/IntelliSense popup saat ngetik** | Foto `d2f818`: popup "import named / import default" + hint `Accept [Tab]` |
 | 2.3 | **Inline hint "Accept [Tab] / Accept Word [Ctrl+Right]"** | Foto `8eef58`: bilah hint di atas ghost text, gaya Copilot |
 | 2.4 | **UI Terminal dirombak** | Foto `690c4c`: panel TERMINAL dengan empty state, kartu agent CLI, footer shortcut |
 | 2.5 | **UI Run & Debug dirombak** | Foto `b65b25`: label section, dropdown launch.json, tombol play, status |
 | 2.6 | **UI Extensions (Installed/Recommended/Marketplace)** | Foto `35032f`+`b1f414`+`50106f`+`dcad33`+`2ef091`: 3 tab + search + kartu ekstensi |
-| 2.7 | **Animasi folder di Explorer** | Foto `2ef091`: TEDI punya animasi buka/tutup folder |
+| 2.7 | **Animasi folder di Explorer** | Foto `2ef091`: aplikasi acuan punya animasi buka/tutup folder |

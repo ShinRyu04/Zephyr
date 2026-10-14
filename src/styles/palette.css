@@ -443,3 +443,15 @@
 .mcp-toast-x:hover {
   color: var(--text);
 }
+
+/* The one-shot entry.
+ *
+ * Dimmer than the primary hints, because it is a secondary path — but visible,
+ * because a shortcut nobody can see is a shortcut nobody uses. */
+.cp-foot-once {
+  opacity: 0.75;
+}
+
+.cp-foot-once:hover {
+  opacity: 1;
+}

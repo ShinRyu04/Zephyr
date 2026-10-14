@@ -136,8 +136,8 @@ pub fn cc_plugins_catalog() -> ZResultT<Vec<CatalogPlugin>> {
             let comp = e.get("components").cloned().unwrap_or(Value::Null);
             let (name, market) = id.split_once('@').unwrap_or((id.as_str(), ""));
             /* The catalog's own description is often missing while the
-               marketplace entry has a full one — the panel wants the prose, so
-               either source will do. */
+            marketplace entry has a full one — the panel wants the prose, so
+            either source will do. */
             let desc = {
                 let a = as_str(&me, "description");
                 if a.is_empty() {
@@ -159,7 +159,10 @@ pub fn cc_plugins_catalog() -> ZResultT<Vec<CatalogPlugin>> {
                     .to_string(),
                 category: as_str(&me, "category"),
                 homepage: as_str(&me, "homepage"),
-                installs: e.get("unique_installs").and_then(|x| x.as_u64()).unwrap_or(0),
+                installs: e
+                    .get("unique_installs")
+                    .and_then(|x| x.as_u64())
+                    .unwrap_or(0),
                 commands: count(comp.get("commands").unwrap_or(&Value::Null)),
                 agents: count(comp.get("agents").unwrap_or(&Value::Null)),
                 skills: count(comp.get("skills").unwrap_or(&Value::Null)),
@@ -172,7 +175,7 @@ pub fn cc_plugins_catalog() -> ZResultT<Vec<CatalogPlugin>> {
         .collect();
 
     /* Most-installed first: a browse list is read from the top and the reader
-       is usually after something known-good rather than something obscure. */
+    is usually after something known-good rather than something obscure. */
     out.sort_by(|a, b| b.installs.cmp(&a.installs).then(a.name.cmp(&b.name)));
     Ok(out)
 }
@@ -240,7 +243,11 @@ async fn run_cli(args: Vec<String>) -> ZResultT<String> {
     let fut = cmd.output();
     let out = match tokio::time::timeout(std::time::Duration::from_secs(180), fut).await {
         Ok(Ok(o)) => o,
-        Ok(Err(e)) => return Err(ZephyrError::InvalidInput(format!("running claude failed: {e}"))),
+        Ok(Err(e)) => {
+            return Err(ZephyrError::InvalidInput(format!(
+                "running claude failed: {e}"
+            )))
+        }
         Err(_) => {
             return Err(ZephyrError::InvalidInput(
                 "the plugin command did not finish within 3 minutes".into(),
@@ -252,7 +259,7 @@ async fn run_cli(args: Vec<String>) -> ZResultT<String> {
     let err = String::from_utf8_lossy(&out.stderr);
     if !out.status.success() {
         /* Surface stderr when the command failed — it carries the reason, and a
-           bare "exit 1" tells the reader nothing they can act on. */
+        bare "exit 1" tells the reader nothing they can act on. */
         if !err.trim().is_empty() {
             text.push('\n');
             text.push_str(err.trim());

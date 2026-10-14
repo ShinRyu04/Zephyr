@@ -16,6 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import WebSocket from 'ws';
+import { keluarBersih, tungguBridge } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,11 +72,26 @@ class Cdp {
   }
 
   async eval(expr) {
-    const r = await this.send('Runtime.evaluate', {
-      expression: expr,
-      returnByValue: true,
-      userGesture: true,
-    });
+    /*
+     * Batas waktu per panggilan.
+     *
+     * Kalau socket CDP sudah mati (halaman reload, WebView2 membuang konteks),
+     * promise `send` TIDAK PERNAH selesai - dan karena runAsync menunggu eval
+     * di dalam loop polling-nya, deadline runAsync pun tidak pernah dievaluasi.
+     * Hasilnya: harness menggantung sampai runner membunuhnya, dan sebab
+     * kegagalan aslinya hilang. Lebih baik gagal dengan pesan yang jelas.
+     */
+    const r = await Promise.race([
+      this.send('Runtime.evaluate', {
+        expression: expr,
+        returnByValue: true,
+        userGesture: true,
+      }),
+      new Promise((_, rej) => {
+        const t = setTimeout(() => rej(new Error('eval timeout 20s: socket CDP mati / halaman tidak menjawab')), 20000);
+        t.unref?.();
+      }),
+    ]);
     if (r.error) throw new Error(`RPC: ${JSON.stringify(r.error)}`);
     if (r.result?.exceptionDetails) {
       throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error');
@@ -237,8 +253,15 @@ const main = async () => {
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);
 
-  if ((await cdp.eval('typeof window.__ZEPHYR_THEME__')) === 'undefined') {
-    throw new Error('__ZEPHYR_THEME__ tidak ada — reload halaman (devBridge fase 13)');
+  for (const b of ['__ZEPHYR_THEME__', '__ZEPHYR_EXT__', '__ZEPHYR_SET__']) {
+    /*
+     * Bridge dev dipasang sesaat setelah halaman memuat (sebagian lewat impor
+     * dinamis), jadi memeriksanya SEKALI di sini pernah mematikan harness 0 detik
+     * setelah attach walau app-nya sehat.
+     */
+    if (!(await tungguBridge(cdp, b, 25000))) {
+      throw new Error(`${b} tidak ada setelah 25s — devBridge fase 13 tidak terpasang (app mode dev? halaman sehat?)`);
+    }
   }
 
   const ROOT = extRoot();
@@ -774,10 +797,13 @@ const main = async () => {
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (lulus !== results.length) process.exitCode = 1;
+  // Keluar eksplisit: menyetel process.exitCode saja menyisakan handle
+  // (WebSocket CDP) yang menahan event loop -> runner suite mencatat
+  // "timeout" padahal semua uji sudah selesai.
+  keluarBersih(lulus === results.length ? 0 : 1);
 };
 
 main().catch((e) => {
   console.error(`verify13 error: ${e.message}`);
-  process.exitCode = 1;
+  keluarBersih(1);
 });

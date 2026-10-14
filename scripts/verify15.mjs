@@ -24,6 +24,9 @@ import {
   path,
   spawnSync,
 } from './verify15-setup.mjs';
+// Keluar lewat flush stdout: output harness yang dipotong proses.exit() membuat
+// kegagalan hilang saat runner suite mengalihkan keluaran ke berkas.
+import { keluarBersih } from './lib-cdp.mjs';
 
 const J = JSON.stringify;
 
@@ -710,5 +713,5 @@ const main = async () => {
 
 main().catch((e) => {
   console.error(`verify15 error: ${e.message}`);
-  process.exitCode = 1;
+  keluarBersih(1);
 });

@@ -44,7 +44,12 @@ export function classifySubagentTask(text: string): SubagentTaskCategory {
   return 'general';
 }
 
-function capabilityScore(candidate: SubagentModelCandidate, category: SubagentTaskCategory): number {
+/*
+ * Exported because the chat side (hydraFusion.ts) scores candidates with the
+ * same ruler the subagent router uses. A private copy there would drift the
+ * first time either is tuned.
+ */
+export function capabilityScore(candidate: SubagentModelCandidate, category: SubagentTaskCategory): number {
   const text = `${candidate.id} ${candidate.label} ${candidate.note ?? ''}`.toLowerCase();
   const has = (pattern: RegExp) => pattern.test(text);
   if (category === 'visual-image') return has(/multi.?modal|image|vision|gambar|visual/) ? 100 : 0;

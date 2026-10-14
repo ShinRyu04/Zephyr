@@ -85,5 +85,38 @@ for (let i = 0; i < 30; i++) chat.push({ role: i % 2 ? 'assistant' : 'user', con
 const chatOke = M.ringkasUkuran(chat);
 cek('jalur chat terlindungi', JSON.stringify(chatOke).length <= M.PAYLOAD_MAX_CHARS, JSON.stringify(chat).length + ' -> ' + JSON.stringify(chatOke).length);
 
+// 8. Giliran TERAKHIR yang sendirian melewati cap (hasil tool raksasa).
+// Sebelum ada jaring terakhir, pemangkasan berhenti karena giliran terakhir
+// sengaja dilindungi: sisanya 50.230 karakter dengan cap 40.000 - request yang
+// ditolak gateway, dan SELURUH langkah hilang. Terpotong > ditolak.
+const ekorBesar = [
+  { role: 'system', content: 'sys' },
+  { role: 'user', content: 'baca berkas besar' },
+  { role: 'assistant', content: 'ok', toolCalls: [{ id: 'e0', type: 'function', function: { name: 'read_file', arguments: '{}' } }] },
+  { role: 'tool', toolCallId: 'e0', name: 'read_file', content: 'q'.repeat(200000) },
+];
+const ekorHasil = M.ringkasUkuran(ekorBesar);
+const ekorUkuran = JSON.stringify(ekorHasil).length;
+cek('giliran terakhir raksasa dipotong sampai cap', ekorUkuran <= M.PAYLOAD_MAX_CHARS, `${JSON.stringify(ekorBesar).length} -> ${ekorUkuran}`);
+const ekorTerakhir = ekorHasil[ekorHasil.length - 1];
+cek('identitas tool giliran terakhir dipertahankan', ekorTerakhir?.role === 'tool' && ekorTerakhir?.toolCallId === 'e0' && ekorTerakhir?.name === 'read_file', `${ekorTerakhir?.role}/${ekorTerakhir?.toolCallId}/${ekorTerakhir?.name}`);
+cek('potongan giliran terakhir memberi tahu berapa yang hilang', /dipotong agar request/.test(String(ekorTerakhir?.content)), String(ekorTerakhir?.content).slice(-90));
+cek('tidak ada tool yatim sesudah jaring terakhir', ekorHasil.filter((m, i, arr) => m.role === 'tool' && (i === 0 || arr[i - 1]?.role !== 'assistant')).length === 0, true);
+
+// 9. Hanya gambar di giliran terakhir yang membengkakkan (teksnya kecil):
+// yang boleh dilepas gambarnya saja, teksnya tetap utuh dan model diberi tahu.
+const ekorGambar = [
+  { role: 'system', content: 'sys' },
+  { role: 'user', content: 'lihat layar' },
+  { role: 'assistant', content: 'ok', toolCalls: [{ id: 'f0', type: 'function', function: { name: 'screenshot', arguments: '{}' } }] },
+  { role: 'tool', toolCallId: 'f0', name: 'screenshot', content: 'ok' },
+  { role: 'user', content: 'yang mana?', images: ['G'.repeat(500000), 'G'.repeat(500000), 'G'.repeat(500000)] },
+];
+const g2 = M.ringkasUkuran(ekorGambar);
+const g2Terakhir = g2[g2.length - 1];
+cek('gambar giliran terakhir dilepas kalau itu satu-satunya jalan', JSON.stringify(g2).length <= M.PAYLOAD_MAX_CHARS, JSON.stringify(g2).length);
+cek('teks giliran terakhir tetap utuh saat gambar dilepas', String(g2Terakhir?.content).startsWith('yang mana?'), String(g2Terakhir?.content));
+cek('model diberi tahu gambarnya dilepas', /3 gambar dilepas/.test(String(g2Terakhir?.content)), String(g2Terakhir?.content).slice(-80));
+
 console.log(`\n== ${lulus}/${total} lulus ==`);
 process.exit(lulus === total ? 0 : 1);

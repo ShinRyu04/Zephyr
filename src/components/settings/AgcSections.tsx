@@ -9,17 +9,35 @@ import {
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
 import { buatDraft, type DraftKind, type DraftHasil } from '../../lib/agentDraft';
+import { aturanBaru, type ToolRule } from '../../lib/toolRules';
+import { useStore } from '../../lib/store';
+import { TOOL_DIKIRIM_SELALU } from '../../lib/zephyrTools/catalog';
+
+/*
+ * The tool names offered in the rule editor.
+ *
+ * Taken from the always-sent list rather than a new hand-written array: that
+ * list is already the set of names the model sees by default, and a second list
+ * would drift from it. `*` (any tool) is offered separately by the select.
+ *
+ * Sorted, because the select is long and a reader looking for one name should
+ * be able to scan it.
+ */
+const NAMA_TOOL_ATURAN: string[] = [...TOOL_DIKIRIM_SELALU].sort();
 import {
   ccCatalogList,
   ccCatalogBody,
   instructionCatalogList,
   instructionInstall,
+  folderDialogOpen,
+  fileDialogOpen,
   type SkillInfo,
   type CatalogItem,
   type InstructionInfo,
   type CatalogInstruction,
 } from '../../lib/commands';
 import { useInstructions } from '../../lib/instructionsStore';
+import { usePlugins } from '../../lib/pluginsStore';
 
 /*
  * The real content for Agent Customizations' Skills, Hooks, Plugins and
@@ -794,19 +812,12 @@ function DraftHook({
       <label className="agc-label" htmlFor="agc-dh-event">
         {tr('Runs when')}
       </label>
-      <select
+      <HookEventSelect
         id="agc-dh-event"
-        className="agc-field"
-        data-testid="agc-dh-event"
+        testid="agc-dh-event"
         value={event}
-        onChange={(e) => setEvent(e.target.value as HookEvent)}
-      >
-        {HOOK_EVENTS.map((e) => (
-          <option key={e.id} value={e.id}>
-            {tr(e.label)}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => setEvent(v as HookEvent)}
+      />
       <label className="agc-label" htmlFor="agc-dh-cmd">
         {tr('Command')}
       </label>
@@ -1263,6 +1274,7 @@ function InstructionBaru({
 
 function HookRow({ hook }: { hook: Hook }) {
   const tr = useT();
+  const tf = useTf();
   const update = useAgentExtras((s) => s.updateHook);
   const remove = useAgentExtras((s) => s.removeHook);
   const [open, setOpen] = useState(hook.name === 'New hook');
@@ -1278,8 +1290,28 @@ function HookRow({ hook }: { hook: Hook }) {
           <AiIkon name={open ? 'chev-down' : 'chev-right'} size={11} />
           <AiIkon name="queue" size={14} />
           <span className="agc-item-name">{hook.name || tr('Untitled hook')}</span>
+          {/*
+           * Never `tr('')`. An unknown event used to resolve to no catalogue
+           * entry, so the lookup produced `undefined`, `?? ''` turned that
+           * into the empty string, and `tr('')` was asked to translate nothing.
+           * The subtitle then rendered blank — the row looked like a hook with
+           * no trigger at all, which is the one thing the reader needed to see.
+           *
+           * The three states are now distinct on purpose:
+           *   - a known event        -> its label, plus a marker if it is not live
+           *   - an unknown value     -> says so, and quotes what is stored
+           *   - no value at all      -> says there is no trigger
+           */}
           <span className="agc-item-sub">
-            {tr(HOOK_EVENTS.find((e) => e.id === hook.event)?.label ?? '')}
+            {(() => {
+              const ev = HOOK_EVENTS.find((e) => e.id === hook.event);
+              if (!ev) {
+                return hook.event
+                  ? tf('Unknown event: {x}', { x: String(hook.event) })
+                  : tr('no trigger set');
+              }
+              return ev.live ? tr(ev.label) : `${tr(ev.label)} ${tr('(not active yet)')}`;
+            })()}
           </span>
         </button>
         <label className="agc-item-switch">
@@ -1310,18 +1342,11 @@ function HookRow({ hook }: { hook: Hook }) {
             value={hook.name}
             onChange={(e) => update(hook.id, { name: e.target.value })}
           />
-          <select
-            className="agc-field"
-            data-testid={`agc-hook-event-${hook.id}`}
+          <HookEventSelect
+            testid={`agc-hook-event-${hook.id}`}
             value={hook.event}
-            onChange={(e) => update(hook.id, { event: e.target.value as Hook['event'] })}
-          >
-            {HOOK_EVENTS.map((e) => (
-              <option key={e.id} value={e.id}>
-                {tr(e.label)}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => update(hook.id, { event: v as Hook['event'] })}
+          />
           <input
             className="agc-field agc-field-mono"
             data-testid={`agc-hook-cmd-${hook.id}`}
@@ -1332,6 +1357,67 @@ function HookRow({ hook }: { hook: Hook }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The event picker, shared by the draft editor and the saved-hook editor.
+ *
+ * Two bugs lived here, both about the dropdown telling the reader something
+ * untrue.
+ *
+ * FIRST, a `<select>` whose `value` matches no `<option>` does not show blank
+ * and does not warn — the browser silently displays the FIRST option. A hook
+ * whose `event` was anything else (hand-edited storage, a value from an older
+ * build, a field written before an event was renamed) therefore rendered as
+ * "Session starts" while the stored value was something else entirely. The
+ * dropdown lied, and picking a value was the only way to discover it. The fix
+ * is to keep the unknown value as its own option so it is visible.
+ *
+ * SECOND, every option was offered as if it worked. Only two events have a
+ * caller that fires them, so choosing one of the other three stored a hook
+ * that could never run while the UI showed it as enabled. Those options are
+ * now marked in the label, before the choice is made rather than after.
+ */
+function HookEventSelect({
+  value,
+  onChange,
+  testid,
+  id,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  testid: string;
+  id?: string;
+}) {
+  const tr = useT();
+  const tf = useTf();
+  const dikenal = HOOK_EVENTS.some((e) => e.id === value);
+  return (
+    <select
+      id={id}
+      className={`agc-field${dikenal ? '' : ' is-invalid'}`}
+      data-testid={testid}
+      data-event-valid={dikenal ? 'yes' : 'no'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {/*
+       * An unrecognised value is kept, not silently dropped. Rendering the
+       * select without a matching option is what made the browser fall back to
+       * the first row and misreport what was stored.
+       */}
+      {!dikenal && (
+        <option value={value}>
+          {value === '' ? tr('(no event set)') : tf('Unknown event: {x}', { x: value })}
+        </option>
+      )}
+      {HOOK_EVENTS.map((e) => (
+        <option key={e.id} value={e.id}>
+          {e.live ? tr(e.label) : `${tr(e.label)} ${tr('(not active yet)')}`}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -1441,48 +1527,79 @@ export function AgcHooks() {
 
 /* ── Plugins ─────────────────────────────────────────────────────────────── */
 
+/*
+ * The plugin pane, backed by real packages.
+ *
+ * It used to be a static array inside `agentExtrasStore` where "install" flipped
+ * a boolean: the row turned into "Uninstall" and nothing on disk or in settings
+ * changed. Now every row is a package `plugins.rs` installed, and the buttons
+ * drive the same commands the agent's own tooling would:
+ *
+ *   install   `plugin_install_bundled` (from the catalogue) or `plugin_install`
+ *             (from a folder or .zip the user picked)
+ *   enable    `plugin_enable(name, true)` — skills and rules land as FILES,
+ *             MCP servers land in settings, and this store merges the hooks
+ *             and agents into the two stores that own them
+ *   remove    `plugin_remove` — unwires first, then deletes the package
+ *
+ * The report under the list is the point of the pane: a plugin that skipped a
+ * file because a hand-written skill already owns that name, or that carried a
+ * command-based MCP entry Zephyr cannot connect to, has to say so instead of
+ * looking like it fully installed.
+ */
 export function AgcPlugins() {
   const tr = useT();
-  const plugins = useAgentExtras((s) => s.plugins);
-  const install = useAgentExtras((s) => s.installPlugin);
+  const tf = useTf();
+  const daftar = usePlugins((s) => s.daftar);
+  const pasar = usePlugins((s) => s.pasar);
+  const memuat = usePlugins((s) => s.memuat);
+  const sibuk = usePlugins((s) => s.sibuk);
+  const galat = usePlugins((s) => s.galat);
+  const catatan = usePlugins((s) => s.catatan);
+  const muat = usePlugins((s) => s.muat);
+  const pasang = usePlugins((s) => s.pasang);
+  const pasangBawaan = usePlugins((s) => s.pasangBawaan);
+  const aktifkan = usePlugins((s) => s.aktifkan);
+  const hapus = usePlugins((s) => s.hapus);
   const [cari, setCari] = useState('');
+  const [konfirmasi, setKonfirmasi] = useState<string | null>(null);
+
+  useEffect(() => {
+    void muat();
+  }, [muat]);
 
   const q = cari.trim().toLowerCase();
-  const match = plugins.filter(
-    (p) => !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q),
-  );
-  const installed = match.filter((p) => p.installed);
-  const available = match.filter((p) => !p.installed);
+  const cocok = (x: { name: string; description: string }) =>
+    !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q);
+  const terpasang = daftar.filter(cocok);
+  const tersedia = pasar.filter((p) => !p.installed && cocok(p));
 
-  const Card = ({ p }: { p: (typeof plugins)[number] }) => (
-    <div className="agc-plugin" data-testid={`agc-plugin-${p.id}`}>
-      <div className="agc-plugin-main">
-        <span className="agc-plugin-name">{p.name}</span>
-        <span className="agc-plugin-desc">{tr(p.description)}</span>
-        <span className="agc-plugin-chips">
-          {p.provides.map((c) => (
-            <span className="agc-plugin-chip" key={c}>
-              {c}
-            </span>
-          ))}
-        </span>
-      </div>
-      <button
-        className={`btn btn-sm${p.installed ? '' : ' btn-primary'}`}
-        data-testid={`agc-plugin-${p.installed ? 'uninstall' : 'install'}-${p.id}`}
-        onClick={() => install(p.id, !p.installed)}
-      >
-        {p.installed ? tr('Uninstall') : tr('Install')}
-      </button>
-    </div>
-  );
+  /*
+   * Install from a folder or a .zip. Both go through the backend's own zip-slip
+   * guard (`ext_pkg::unzip_zext`), so a package cannot write outside its own
+   * folder no matter what the archive says.
+   */
+  const pasangDari = async (dari: 'folder' | 'zip') => {
+    try {
+      const path = dari === 'folder' ? await folderDialogOpen() : (await fileDialogOpen(false))?.[0];
+      if (!path) return;
+      await pasang(path);
+    } catch (e) {
+      usePlugins.setState({ galat: String(e) });
+    }
+  };
+
+  const Chip = ({ teks }: { teks: string }) => <span className="agc-plugin-chip">{teks}</span>;
 
   return (
     <div className="agc-pane">
       <h2 className="agc-pane-title">{tr('Plugins')}</h2>
       <p className="agc-pane-desc">
-        {tr('Extend the agent with reusable packages that add commands, skills, agents, hooks, and MCP servers.')}
+        {tr(
+          'A plugin is a package that brings skills, rules, hooks, agents and MCP servers together. Enabling one writes the skills and rules it carries, registers its MCP servers, and adds its hooks (switched off) and agents to the sections that own them.',
+        )}
       </p>
+
       <div className="agc-tools-search agc-plugin-search">
         <AiIkon name="search" size={12} />
         <input
@@ -1493,29 +1610,164 @@ export function AgcPlugins() {
         />
       </div>
 
+      {galat && (
+        <p className="agc-migrate-status" role="alert" data-testid="agc-plugins-galat">
+          {galat}
+        </p>
+      )}
+      {catatan && (
+        <div className="agc-migrate-status" role="status" data-testid="agc-plugins-status">
+          <span>
+            {catatan.enabled
+              ? tf('{name} enabled', { name: catatan.name })
+              : tf('{name} disabled', { name: catatan.name })}
+            {' — '}
+            {[
+              tf('{n} files written', { n: catatan.written.length }),
+              tf('{n} hooks', { n: catatan.hooks.length }),
+              tf('{n} agents', { n: catatan.agents.length }),
+              tf('{n} MCP servers', { n: catatan.mcp.length }),
+            ].join(' · ')}
+            {catatan.scope === 'workspace' ? ` (${tr('this workspace')})` : ` (${tr('all workspaces')})`}
+          </span>
+          {catatan.skipped.length > 0 && (
+            <ul className="agc-plugin-notes">
+              {catatan.skipped.map((s) => (
+                <li key={s}>
+                  {/* The report is relative to the scope root; a path the user
+                      can actually open is the whole point of the message. */}
+                  {tf('Kept your own file, not overwritten: {p}', {
+                    p: catatan.scopeRoot && !s.includes(':') ? catatan.scopeRoot + '/' + s : s,
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+          {catatan.warnings.length > 0 && (
+            <ul className="agc-plugin-notes">
+              {catatan.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <section className="agc-group" data-testid="agc-plugins-installed">
         <div className="agc-group-head">
           <span className="agc-group-title">
-            {tr('Installed')} <span className="agc-group-count">{installed.length}</span>
+            {tr('Installed')} <span className="agc-group-count">{terpasang.length}</span>
           </span>
+          <button
+            className="btn btn-sm"
+            data-testid="agc-plugins-folder"
+            onClick={() => void pasangDari('folder')}
+          >
+            {tr('Install from folder…')}
+          </button>
+          <button className="btn btn-sm" data-testid="agc-plugins-zip" onClick={() => void pasangDari('zip')}>
+            {tr('Install from .zip…')}
+          </button>
         </div>
-        {installed.length === 0 ? (
+        {memuat && terpasang.length === 0 ? (
+          <p className="agc-group-empty">{tr('Loading…')}</p>
+        ) : terpasang.length === 0 ? (
           <p className="agc-group-empty">{tr('Nothing installed yet.')}</p>
         ) : (
-          installed.map((p) => <Card key={p.id} p={p} />)
+          terpasang.map((p) => (
+            <div className="agc-plugin" key={p.name} data-testid={`agc-plugin-${p.name}`}>
+              <div className="agc-plugin-main">
+                <span className="agc-plugin-name">
+                  {p.name}
+                  {p.version && <span className="agc-plugin-desc">v{p.version}</span>}
+                  {p.missing && <span className="agc-plugin-chip">{tr('files missing')}</span>}
+                </span>
+                <span className="agc-plugin-desc">{p.description}</span>
+                {p.author && <span className="agc-plugin-desc">{tf('by {a}', { a: p.author })}</span>}
+                <span className="agc-plugin-chips">
+                  <Chip teks={p.scope === 'workspace' ? tr('this workspace') : tr('all workspaces')} />
+                  {p.provides.map((c) => (
+                    <Chip key={c} teks={c} />
+                  ))}
+                </span>
+                {p.enabled && !p.missing && (
+                  <span className="agc-plugin-desc" data-testid={`agc-plugin-aktif-${p.name}`}>
+                    {tr('Enabled: its skills, rules, hooks, agents and MCP servers are in place.')}
+                  </span>
+                )}
+              </div>
+              {konfirmasi === p.name ? (
+                <div className="agc-plugin-aksi">
+                  <button
+                    className="btn btn-sm btn-danger"
+                    data-testid={`agc-plugin-konfirmasi-hapus-${p.name}`}
+                    onClick={() => {
+                      setKonfirmasi(null);
+                      void hapus(p.name);
+                    }}
+                  >
+                    {tr('Remove for good')}
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setKonfirmasi(null)}>
+                    {tr('Cancel')}
+                  </button>
+                </div>
+              ) : (
+                <div className="agc-plugin-aksi">
+                  <button
+                    className={`btn btn-sm${p.enabled ? '' : ' btn-primary'}`}
+                    disabled={sibuk === p.name || p.missing}
+                    data-testid={`agc-plugin-${p.enabled ? 'disable' : 'enable'}-${p.name}`}
+                    onClick={() => void aktifkan(p.name, !p.enabled)}
+                  >
+                    {p.enabled ? tr('Disable') : tr('Enable')}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    disabled={sibuk === p.name}
+                    data-testid={`agc-plugin-hapus-${p.name}`}
+                    onClick={() => setKonfirmasi(p.name)}
+                  >
+                    {tr('Remove')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
         )}
       </section>
 
       <section className="agc-group" data-testid="agc-plugins-available">
         <div className="agc-group-head">
           <span className="agc-group-title">
-            {tr('Available')} <span className="agc-group-count">{available.length}</span>
+            {tr('Available')} <span className="agc-group-count">{tersedia.length}</span>
           </span>
         </div>
-        {available.length === 0 ? (
+        {tersedia.length === 0 ? (
           <p className="agc-group-empty">{tr('No plugins match.')}</p>
         ) : (
-          available.map((p) => <Card key={p.id} p={p} />)
+          tersedia.map((p) => (
+            <div className="agc-plugin" key={p.id} data-testid={`agc-plugin-${p.id}`}>
+              <div className="agc-plugin-main">
+                <span className="agc-plugin-name">{p.name}</span>
+                <span className="agc-plugin-desc">{p.description}</span>
+                <span className="agc-plugin-chips">
+                  {p.category && <Chip teks={p.category} />}
+                  {p.provides.map((c) => (
+                    <Chip key={c} teks={c} />
+                  ))}
+                </span>
+              </div>
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={sibuk === p.id}
+                data-testid={`agc-plugin-install-${p.id}`}
+                onClick={() => void pasangBawaan(p.id)}
+              >
+                {tr('Install')}
+              </button>
+            </div>
+          ))
         )}
       </section>
     </div>
@@ -1533,7 +1785,9 @@ export function AgcMigrations() {
    */
   const skills = useSkills((s) => s.daftar);
   const hooks = useAgentExtras((s) => s.hooks);
-  const plugins = useAgentExtras((s) => s.plugins);
+  /* Plugins come from the real registry, so an exported bundle lists the
+     packages that are actually installed rather than a browser key. */
+  const plugins = usePlugins((s) => s.daftar);
   const [status, setStatus] = useState<string | null>(null);
 
   const exportBundle = async () => {
@@ -1541,7 +1795,7 @@ export function AgcMigrations() {
       exportedAt: new Date().toISOString(),
       skills,
       hooks,
-      installedPlugins: plugins.filter((p) => p.installed).map((p) => p.id),
+      installedPlugins: plugins.map((p) => p.name),
     };
     const text = JSON.stringify(bundle, null, 2);
     try {
@@ -1561,7 +1815,9 @@ export function AgcMigrations() {
     }
   };
 
-  const total = skills.length + hooks.length + plugins.filter((p) => p.installed).length;
+  /* An installed package is a real one here, so every row counts — including
+     the disabled ones, which are still on disk and would still export. */
+  const total = skills.length + hooks.length + plugins.length;
 
   return (
     <div className="agc-pane">
@@ -1573,7 +1829,7 @@ export function AgcMigrations() {
         <div className="agc-migrate-summary">
           <span>{tf('{n} skills', { n: skills.length })}</span>
           <span>{tf('{n} hooks', { n: hooks.length })}</span>
-          <span>{tf('{n} plugins', { n: plugins.filter((p) => p.installed).length })}</span>
+          <span>{tf('{n} plugins', { n: plugins.length })}</span>
         </div>
         <button
           className="btn btn-primary"
@@ -1591,6 +1847,193 @@ export function AgcMigrations() {
             {status}
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Per-tool permissions ───────────────────────────────────────────────── */
+
+/**
+ * The rule list.
+ *
+ * Ordered, and the order is the precedence — so the UI has to make the order
+ * visible and changeable rather than treating the list as a set. The arrows are
+ * the point of the panel: a reader who puts a blanket `deny` at the bottom and
+ * wonders why it never fires has to be able to see and fix that here.
+ *
+ * Every rule reads as a sentence: "TOOL matching PATTERN -> ACTION". The
+ * pattern field is a raw regex, which is shown as such (monospace) rather than
+ * hidden behind a friendly builder — a builder would have to be either
+ * expressive enough to be a regex anyway, or restrictive enough to be a lie.
+ */
+export function AgcPermissions() {
+  const tr = useT();
+  const tf = useTf();
+  const rules = useStore((s) => s.settings.agents?.toolRules) ?? [];
+  const [pesan, setPesan] = useState<string | null>(null);
+
+  const simpan = (next: ToolRule[]) => {
+    void useStore.getState().applySettings({ agents: { toolRules: next } } as never);
+  };
+
+  const geser = (i: number, arah: -1 | 1) => {
+    const j = i + arah;
+    if (j < 0 || j >= rules.length) return;
+    const next = [...rules];
+    [next[i], next[j]] = [next[j], next[i]];
+    simpan(next);
+  };
+
+  /*
+   * A broken pattern is reported BEFORE it is saved, not after.
+   *
+   * The evaluator fails closed on a bad regex (see `toolRules.ts`), so a typo
+   * costs the reader a rule that silently does nothing — which is safe but
+   * confusing. Telling them at the moment they type it is the difference
+   * between a five-second fix and an afternoon of "why is my rule not working".
+   */
+  const ujiPola = (pola: string): string | null => {
+    if (!pola.trim()) return null;
+    try {
+      new RegExp(pola);
+      return null;
+    } catch (e) {
+      return String((e as Error).message ?? e);
+    }
+  };
+
+  return (
+    <div className="agc-pane" data-testid="agc-pane-permissions">
+      <h2 className="agc-pane-title">{tr('Permissions')}</h2>
+      <p className="agc-pane-desc">
+        {tr('Allow, confirm or block a tool call by pattern. Rules are checked top to bottom and the FIRST match decides — so a rule that should always apply belongs at the top. With no matching rule, the approval mode above decides as before.')}
+      </p>
+
+      {rules.length === 0 ? (
+        <div className="agc-empty" data-testid="agc-perm-empty">
+          {tr('No rules. The approval mode decides every call.')}
+        </div>
+      ) : (
+        <div className="agc-rules" data-testid="agc-perm-list">
+          {rules.map((r, i) => {
+            const salah = ujiPola(r.match);
+            return (
+              <div className="agc-rule" key={r.id} data-testid={`agc-perm-${r.id}`} data-index={i}>
+                <div className="agc-rule-urut">
+                  <button
+                    className="ex-btn scm-mini"
+                    title={tr('Move up')}
+                    aria-label={tr('Move up')}
+                    data-testid={`agc-perm-up-${r.id}`}
+                    disabled={i === 0}
+                    onClick={() => geser(i, -1)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="ex-btn scm-mini"
+                    title={tr('Move down')}
+                    aria-label={tr('Move down')}
+                    data-testid={`agc-perm-down-${r.id}`}
+                    disabled={i === rules.length - 1}
+                    onClick={() => geser(i, 1)}
+                  >
+                    ▼
+                  </button>
+                  <span className="agc-rule-no">{i + 1}</span>
+                </div>
+
+                <select
+                  className="agc-field agc-field-sempit"
+                  data-testid={`agc-perm-tool-${r.id}`}
+                  value={r.tool}
+                  aria-label={tr('Tool')}
+                  onChange={(e) =>
+                    simpan(rules.map((x) => (x.id === r.id ? { ...x, tool: e.target.value } : x)))
+                  }
+                >
+                  <option value="*">{tr('Any tool')}</option>
+                  {NAMA_TOOL_ATURAN.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  className={`agc-field agc-field-mono${salah ? ' is-salah' : ''}`}
+                  data-testid={`agc-perm-match-${r.id}`}
+                  aria-label={tr('Pattern (regular expression)')}
+                  placeholder={tr('Pattern, e.g. cargo\s+test (empty = every call)')}
+                  value={r.match}
+                  onChange={(e) =>
+                    simpan(rules.map((x) => (x.id === r.id ? { ...x, match: e.target.value } : x)))
+                  }
+                />
+
+                <select
+                  className="agc-field agc-field-sempit"
+                  data-testid={`agc-perm-action-${r.id}`}
+                  value={r.action}
+                  aria-label={tr('Action')}
+                  onChange={(e) =>
+                    simpan(
+                      rules.map((x) =>
+                        x.id === r.id ? { ...x, action: e.target.value as ToolRule['action'] } : x,
+                      ),
+                    )
+                  }
+                >
+                  <option value="allow">{tr('Allow')}</option>
+                  <option value="confirm">{tr('Confirm')}</option>
+                  <option value="deny">{tr('Block')}</option>
+                </select>
+
+                <label className="agc-item-switch" title={tr('Enabled')}>
+                  <input
+                    type="checkbox"
+                    data-testid={`agc-perm-on-${r.id}`}
+                    checked={r.enabled !== false}
+                    onChange={(e) =>
+                      simpan(rules.map((x) => (x.id === r.id ? { ...x, enabled: e.target.checked } : x)))
+                    }
+                  />
+                </label>
+
+                <button
+                  className="agc-item-del"
+                  data-testid={`agc-perm-del-${r.id}`}
+                  title={tr('Delete')}
+                  aria-label={tr('Delete')}
+                  onClick={() => simpan(rules.filter((x) => x.id !== r.id))}
+                >
+                  <AiIkon name="trash" size={13} />
+                </button>
+
+                {salah && (
+                  <p className="agc-rule-salah" data-testid={`agc-perm-bad-${r.id}`}>
+                    {tf('Pattern is not valid: {x}', { x: salah })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="agc-actions">
+        <button
+          className="btn btn-sm"
+          data-testid="agc-perm-add"
+          onClick={() => {
+            setPesan(null);
+            simpan([...rules, aturanBaru()]);
+          }}
+        >
+          {tr('Add a rule')}
+        </button>
+        {pesan && <span className="agc-actions-pesan">{pesan}</span>}
       </div>
     </div>
   );

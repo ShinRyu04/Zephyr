@@ -34,10 +34,13 @@ async function evalJs(expr, awaitPromise = false) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-await evalJs(`(() => { const b = [...document.querySelectorAll('[data-activity]')].find(e => e.getAttribute('data-activity') === 'settings'); if (b) b.click(); return 1; })()`);
+// Buka pop-up "AI Models" (menu "…" -> "AI Models"). Seksi AI Models sudah
+// DICABUT dari nav Settings kiri, jadi pintunya bukan lagi set-nav-models.
+await evalJs(`(() => { const b = document.querySelector('[data-testid="ai-more"]'); if (b) b.click(); return 1; })()`);
+await sleep(500);
+await evalJs(`(() => { const b = document.querySelector('[data-testid="ai-open-models"]'); if (b) b.click(); return 1; })()`);
 await sleep(1000);
-await evalJs(`(() => { const b = document.querySelector('[data-testid="set-nav-models"]'); if (b) b.click(); return 1; })()`);
-await sleep(600);
+console.log('pop-up AI Models aktif?', await evalJs(`!!document.querySelector('[data-testid="aim-pop"]') && !!document.querySelector('[data-testid="models-answerlang"]')`));
 
 const sebelum = await evalJs(`(() => { const e = document.querySelector('[data-testid="models-answerlang"]'); return e.value; })()`);
 console.log('answerlang sebelum:', sebelum);

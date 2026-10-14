@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -55,11 +56,26 @@ class Cdp {
   }
 
   async eval(expr) {
-    const r = await this.send('Runtime.evaluate', {
-      expression: expr,
-      returnByValue: true,
-      userGesture: true,
-    });
+    /*
+     * Batas waktu per panggilan.
+     *
+     * Kalau socket CDP sudah mati (halaman reload, WebView2 membuang konteks),
+     * promise `send` TIDAK PERNAH selesai - dan karena runAsync menunggu eval
+     * di dalam loop polling-nya, deadline runAsync pun tidak pernah dievaluasi.
+     * Hasilnya: harness menggantung sampai runner membunuhnya, dan sebab
+     * kegagalan aslinya hilang. Lebih baik gagal dengan pesan yang jelas.
+     */
+    const r = await Promise.race([
+      this.send('Runtime.evaluate', {
+        expression: expr,
+        returnByValue: true,
+        userGesture: true,
+      }),
+      new Promise((_, rej) => {
+        const t = setTimeout(() => rej(new Error('eval timeout 20s: socket CDP mati / halaman tidak menjawab')), 20000);
+        t.unref?.();
+      }),
+    ]);
     if (r.error) throw new Error(`RPC: ${JSON.stringify(r.error)}`);
     if (r.result?.exceptionDetails) {
       throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error');
@@ -127,12 +143,24 @@ class Cdp {
 }
 
 const results = [];
-const check = (id, ok, detail) => {
+/**
+ * `rinci` (opsional) = objek nilai MENTAH yang dipakai menyusun syarat check.
+ * Dicetak hanya saat GAGAL: tanpa itu, satu check berisi 9 syarat yang
+ * di-AND cuma memberi tahu "gagal", bukan SYARAT MANA yang salah - dan
+ * penelusurannya jadi menebak-nebak.
+ */
+const check = (id, ok, detail, rinci) => {
   results.push({ id, ok, detail });
   console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${id.padEnd(4)} ${detail}`);
+  if (!ok && rinci !== undefined) {
+    console.log(`      rinci ${id}: ${JSON.stringify(rinci, null, 1).replace(/\n\s*/g, ' ')}`);
+  }
 };
 
 // ───────────────────── util HTTP / port ─────────────────────
+
+/** Batas waktu tiap panggilan HTTP harness (ms). Lihat catatan di `rpc`. */
+const HTTP_MS = Number(process.env.UJI_HTTP_MS ?? 8000);
 
 /** Panggil MCP lewat HTTP seperti AI CLI luar. Server mati = status 0. */
 async function rpc(port, method, params = {}, token = null, id = 1) {
@@ -143,6 +171,10 @@ async function rpc(port, method, params = {}, token = null, id = 1) {
       method: 'POST',
       headers,
       body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+      /* Batas waktu wajib: server bisa menerima koneksi lalu diam (port
+       * dipegang proses lain, server sedang mati separuh). Tanpa ini satu
+       * permintaan menggantung membuat seluruh harness mati tanpa verdict. */
+      signal: AbortSignal.timeout(HTTP_MS),
     });
     const text = await res.text();
     let body = null;
@@ -161,7 +193,7 @@ async function rpc(port, method, params = {}, token = null, id = 1) {
 async function getJson(url, token = null) {
   const headers = token ? { authorization: `Bearer ${token}` } : {};
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(HTTP_MS) });
     const text = await res.text();
     let body = null;
     try {
@@ -229,12 +261,29 @@ const main = async () => {
       await M.refresh();
       window.__ZEPHYR_ERRORS__.length = 0;
       const st = MS().status;
-      return JSON.stringify({ token: st?.token ?? null, port: st?.port ?? null });
+      return JSON.stringify({
+        token: st?.token ?? null,
+        port: st?.port ?? null,
+        uiLang: s.settings.general.uiLang,
+        ws: S.getState().workspace,
+        izinTerminal: s.settings.mcp?.allow_terminal_control === true,
+      });
     `),
   );
   const TOKEN = awal.token;
   const PORT = awal.port ?? 9222;
   if (!TOKEN || TOKEN.length < 16) throw new Error('token MCP tidak ada di mcp.json');
+
+  // ── INSTRUMEN SEMENTARA (cari langkah yang mematikan jalur jawab halaman) ──
+  const titik = [];
+  const cekTitik = async (nama, port) => {
+    const t0 = Date.now();
+    const r = await rpc(port, 'set_setting', { key: 'general.zoom', value: 1 }, TOKEN, 6000, 900 + titik.length);
+    const ms = Date.now() - t0;
+    const baris = `${nama}: status=${r.status} ${ms}ms${r.status === 0 ? ' [' + String(r.body).slice(0, 50) + ']' : ''}`;
+    titik.push(baris);
+    console.log('TITIK ' + baris);
+  };
 
   // ───────── V1: default OFF → /health 503, port tidak listening ─────────
   const h0 = await getJson(`http://127.0.0.1:${PORT}/health`);
@@ -316,6 +365,119 @@ const main = async () => {
     `list_panes → ${list.length} pane: ${list.map((p) => `${p.type}(pid ${p.pid}${p.running ? ', running' : ''})`).join(', ')}; list_terminals identik`,
   );
 
+  /*
+   * ── Prasyarat V4..V12: WORKSPACE TERBUKA & DIPERCAYA ──────────────────────
+   *
+   * Tanpa workspace, Rust menolak jalur PTY di muka pintu:
+   *   "MCP terminal control butuh workspace terbuka"  (workspace.rs ensure_trusted)
+   * dan `editor_open` cuma bisa membuka path DI DALAM workspace, jadi V4 (echo
+   * ke terminal nyata), V5/V6 (tab editor) dan V11 (dua agent) gagal bukan
+   * karena MCP-nya rusak, tapi karena app memang tidak punya folder terbuka.
+   * Ketiga-tiganya diperbaiki dengan membuka sandbox %TEMP% sebagai workspace -
+   * pola yang sama dipakai verify13 - lalu DITUTUP lagi di pembersihan SEBELUM
+   * foldernya dihapus, supaya explorer tidak membaca folder yang sudah hilang.
+   *
+   * Bahasa UI TIDAK dipatok: app memang Inggris-dulu (lihat kamus ID di
+   * i18n-extra.ts yang memang banyak bernilai sama dengan kuncinya), jadi
+   * assert label ditulis tidak-terikat-bahasa - V8 membandingkan badge dengan
+   * `__ZEPHYR_SET__.t('registered')` pada bahasa yang sedang aktif, bukan
+   * memaksa satu bahasa. Yang penting: teks badge datang dari kamus, bukan
+   * literal Inggris yang ditanam di komponen.
+   */
+  /*
+   * WS_ASLI dipakai untuk MENGEMBALIKAN workspace di akhir. Kalau run sebelumnya
+   * dibunuh di tengah, workspace bisa tertinggal menunjuk sandbox %TEMP% milik
+   * run itu (`.../zephyr-mcp-<pid>`) — folder yang biasanya sudah dihapus.
+   * Mengembalikan workspace ke sampah seperti itu hanya melanjutkan keadaan
+   * rusak, jadi perlakukan sebagai "tidak ada workspace".
+   */
+  const wsSampah = (p) => typeof p === 'string' && /[\\/]zephyr-mcp-\d+$/.test(p);
+  const WS_ASLI = awal.ws && !wsSampah(awal.ws) ? awal.ws : null;
+  if (awal.ws && wsSampah(awal.ws)) {
+    console.log(`   catatan: workspace awal menunjuk sandbox sisa run lain (${awal.ws}) — diabaikan`);
+  }
+
+  const SANDBOX = path.join(TMP, `zephyr-mcp-${process.pid}`);
+  const SLASH_SANDBOX = SANDBOX.replace(/\\/g, '/');
+  fs.rmSync(SANDBOX, { recursive: true, force: true });
+  fs.mkdirSync(SANDBOX, { recursive: true });
+  const FILE = path.join(SANDBOX, 'dari-mcp.txt');
+  fs.writeFileSync(FILE, 'baris satu dari disk\nbaris dua\n');
+
+  const wsAwal = JSON.parse(
+    await cdp.runAsync(
+      `
+      await window.__ZEPHYR_WS__.setTrust(${JSON.stringify(SLASH_SANDBOX)}, true);
+      await wait(250);
+      await s.openWorkspace(${JSON.stringify(SLASH_SANDBOX)});
+      await wait(900);
+      return JSON.stringify({
+        ws: S.getState().workspace,
+        paneHidup: TS().terminalTabs.reduce((n,t)=>n+t.panes.length,0),
+      });
+    `,
+      90000,
+    ),
+  );
+  if (!wsAwal.ws || wsAwal.paneHidup < 2) {
+    throw new Error(
+      `prasyarat workspace gagal: workspace=${wsAwal.ws} pane=${wsAwal.paneHidup}`,
+    );
+  }
+
+  /*
+   * Izin KENDALI TERMINAL = opt-in eksplisit (`mcp.allow_terminal_control`,
+   * deny-by-default: src-tauri/src/mcp_server.rs:263-280 → `unwrap_or(false)`).
+   * Harness ini menguji kendali terminal, jadi izin itu harus DINYALAKAN di
+   * sini; dulu tidak, dan V4 cuma lulus kalau profil app kebetulan sudah
+   * menyalakannya. Bukti 2026-10-14 (probe terpisah, app idle): izin mati →
+   * terminal_write dijawab "permission denied: terminal control is disabled
+   * for MCP"; izin nyala → terminal_write/terminal_key ok:true dan baris
+   * marker muncul di buffer xterm pada 564 ms (jauh di dalam jendela 2200 ms
+   * di bawah). Jadi V4 merah itu cacat harness, BUKAN bug timing/pane.
+   * Nilai semula dipulihkan di blok pembersihan (jangan tinggalkan izin
+   * keamanan menyala).
+   */
+  await cdp.runAsync(`
+    await S.getState().applySettings({ mcp: { allow_terminal_control: true } });
+    await wait(700);
+    return 'izin-terminal=' + S.getState().settings.mcp.allow_terminal_control;
+  `);
+  console.log(`V4-persiapan: izin kendali terminal dinyalakan (semula ${awal.izinTerminal})`);
+
+  /*
+   * Lepas RENDER-PAUSE sebelum uji terminal (cacat V4/V12, item 137).
+   *
+   * Saat jendela utama TIDAK di depan, Rust menandai window "minimized" lalu
+   * memanggil `set_render_paused(true)` (src-tauri/src/lib.rs:222-229, event
+   * WindowEvent::Resized → `window.is_minimized()`), dan pembaca PTY MENAHAN
+   * emit `pty-output` ke frontend selama pause (src-tauri/src/pty.rs:397
+   * `hold = paused.load(...) && pending.len() < HOLD_CAP`, HOLD_CAP = 512 KB
+   * di pty.rs:17). Akibatnya buffer xterm di FRONTEND tidak ikut terisi,
+   * padahal shell benar-benar mengeksekusi perintahnya.
+   *
+   * V4 membaca lewat `__ZEPHYR_PTY__.read` → `readBuffer` = buffer xterm
+   * FRONTEND (src/lib/devBridge.ts:219 → src/lib/xtermRegistry.ts:186), jadi
+   * tanpa melepas pause V4 merah PALSU: izin benar, pane benar, tapi layar
+   * kosong. V12 mewarisi hal yang sama lewat `screenshot_pane`.
+   *
+   * Harness lain sudah melakukan ini dan menulis sebabnya — lihat komentar
+   * panjang scripts/verify15.mjs:307-311 ("Rust menandai window minimized dan
+   * MENAHAN emit pty-output sampai 512KB ... buffer xterm akan kosong dan uji
+   * paste gagal padahal PTY-nya benar"), juga verify05:581/585, verify16:89,
+   * verify27:51. verify11 belum pernah, itu sebabnya V4/V12 merah.
+   *
+   * Jembatan dev tidak menyediakan getter untuk state pause
+   * (src/lib/devBridge.ts:215-238 hanya write/read/list/…), jadi nilai
+   * semulanya tidak bisa dibaca dan tidak dipulihkan; `false` = render normal,
+   * dan app akan menandai pause sendiri lagi pada event Resized berikutnya.
+   */
+  const pauseLepas = await cdp.runAsync(`
+    await window.__ZEPHYR_SET_PAUSED__(false);
+    return 'render-pause=lepas';
+  `);
+  console.log(`V4-persiapan: ${pauseLepas}`);
+
   // ───────── V4: terminal_write → teks muncul di terminal NYATA ─────────
   const marker = `MCP-V4-${Date.now().toString(36)}`;
   const w1 = await rpc(
@@ -326,10 +488,22 @@ const main = async () => {
     5,
   );
   const k1 = await rpc(livePort, 'terminal_key', { paneId: dibuat.a, key: 'Enter' }, TOKEN, 6);
-  await sleep(2200);
-  const layar = await cdp.runAsync(
-    `return PTY.read(${JSON.stringify(dibuat.a)}, 60);`,
-  );
+  // Tunggu baris marker MUNCUL di buffer (bukan menebak satu jeda): yang diuji
+  // perilakunya, bukan durasinya. Shell nyata bisa butuh lebih dari 2,2 dtk
+  // (spawn awal / mesin sibuk) — dulu satu `sleep(2200)` membuat V4 merah
+  // karena waktu, bukan karena perilaku. Batas atas tetap jelas (8 dtk).
+  let layar = '';
+  let tungguMs = 0;
+  for (; tungguMs < 8000; tungguMs += 200) {
+    layar = await cdp.runAsync(`return PTY.read(${JSON.stringify(dibuat.a)}, 60);`);
+    if (
+      String(layar)
+        .split('\n')
+        .some((l) => l.trim() === marker)
+    )
+      break;
+    await sleep(200);
+  }
   const badPane = await rpc(livePort, 'terminal_write', { paneId: 'pane-hantu', data: 'x' }, TOKEN, 7);
   // Baris echo & hasilnya: hasil eksekusi = marker berdiri sendiri.
   const barisMarker = String(layar)
@@ -343,14 +517,24 @@ const main = async () => {
       k1.body?.result?.ok === true &&
       barisMarker.length >= 1 &&
       badPane.body?.error?.message?.includes('pane-hantu'),
-    `terminal_write "echo ${marker}" + terminal_key Enter → shell mengeksekusinya, buffer xterm memuat baris hasil "${marker}" (${barisMarker.length}x); paneId salah dijawab error JSON-RPC`,
+    `terminal_write "echo ${marker}" + terminal_key Enter → shell mengeksekusinya, buffer xterm memuat baris hasil "${marker}" (${barisMarker.length}x, terlihat pada ${tungguMs} ms); paneId salah dijawab error JSON-RPC`,
+    // Kalau V4 merah, ini yang menjelaskan kenapa: izin/pane/pause/render.
+    {
+      pauseLepas,
+      tungguMs,
+      izin: awal.izinTerminal,
+      w1: { status: w1.status, body: w1.body },
+      k1: { status: k1.status, body: k1.body },
+      badPane: badPane.body,
+      barisMarker: barisMarker.length,
+      ekorLayar: String(layar).split('\n').slice(-6),
+    },
   );
 
+  await cekTitik('V4', livePort);
   // ───────── V5: editor_open → tab baru muncul & fokus (terlihat di UI) ─────────
-  const SANDBOX = path.join(TMP, `zephyr-mcp-${process.pid}`);
-  fs.rmSync(SANDBOX, { recursive: true, force: true });
-  fs.mkdirSync(SANDBOX, { recursive: true });
-  const FILE = path.join(SANDBOX, 'dari-mcp.txt');
+  // SANDBOX/FILE sudah dibuat & dibuka sebagai workspace sebelum V4 (lihat
+  // prasyarat di atas): tanpa itu editor_open menolak path di luar workspace.
   fs.writeFileSync(FILE, 'baris satu dari disk\nbaris dua\n');
 
   const eo = await rpc(livePort, 'editor_open', { path: FILE }, TOKEN, 8);
@@ -432,10 +616,18 @@ const main = async () => {
       v6b.isi === 'ISI BARU PENUH DARI MCP\n' &&
       diskSetelahWrite === 'baris satu dari disk\nbaris dua\n',
     `editor_insert at=0 → buffer & dokumen CodeMirror berubah, dot dirty muncul (${v6.dot}); editor_write mengganti seluruh buffer; FILE DI DISK tetap isi asli pada kedua kasus (kontrak: buffer saja)`,
+    {
+      insStatus: ins.status, insBody: ins.body,
+      isi: v6.isi, dirty: v6.dirty, dot: v6.dot, cm: v6.cm,
+      diskSetelahInsert, ew: ew.body, isiBaru: v6b.isi,
+      dirtyBaru: v6b.dirty, diskSetelahWrite,
+    },
   );
 
+  await cekTitik('V6', livePort);
   // ───────── V7: run_command "terminal.new" → pane baru ─────────
-  const sebelumPane = (await rpc(livePort, 'list_panes', {}, TOKEN, 12)).body?.result?.length ?? 0;
+  const sebelumList = (await rpc(livePort, 'list_panes', {}, TOKEN, 12)).body?.result ?? [];
+  const sebelumPane = sebelumList.length;
   const rc = await rpc(livePort, 'run_command', { id: 'terminal.new' }, TOKEN, 13);
   await sleep(1200);
   const sesudahPane = (await rpc(livePort, 'list_panes', {}, TOKEN, 14)).body?.result ?? [];
@@ -460,8 +652,9 @@ const main = async () => {
       v7.ada === true &&
       v7.status === 'live' &&
       v7.panelTerlihat === true &&
-      rcBad.body?.error?.message?.includes('tidak dikenal'),
+      rcBad.body?.error?.message?.includes("command 'tidak.ada' unknown"),
     `run_command terminal.new → pane ${paneBaru} hidup (${sebelumPane} → ${sesudahPane.length} pane), panel terminal terlihat; command tak dikenal dijawab error berisi daftar yang tersedia; panel mencatat ${v7.dilayani} permintaan dilayani`,
+    { rc: rc.status, rcBody: rc.body, paneBaru, sebelumList, sesudahPane, v7, rcBad: rcBad.body },
   );
 
   // ───────── V8: tulis ke config opencode + backup + hapus lagi ─────────
@@ -500,7 +693,8 @@ const main = async () => {
       await wait(200);
       const badge = q('[data-testid="mcp-reg-opencode"]')?.textContent?.trim() ?? null;
       return JSON.stringify({
-        badge, hasil: MS().lastWrite.map(r => ({ id: r.id, ok: r.ok, backup: r.backup })),
+        badge, label: window.__ZEPHYR_SET__.t('registered'),
+        hasil: MS().lastWrite.map(r => ({ id: r.id, ok: r.ok, backup: r.backup })),
         info: MS().mcpInfo, error: MS().mcpError,
       });
     `),
@@ -525,19 +719,23 @@ const main = async () => {
     'V8',
     tulis.mcp?.zephyr?.type === 'remote' &&
       tulis.mcp?.zephyr?.enabled === true &&
-      tulis.mcp?.zephyr?.url === `http://127.0.0.1:${livePort}` &&
+      tulis.mcp?.zephyr?.url === `http://127.0.0.1:${livePort}/mcp` &&
       tulis.mcp?.zephyr?.headers?.Authorization === `Bearer ${TOKEN}` &&
       tulis.mcp?.lain?.type === 'local' &&
       tulis.theme === 'tokyonight' &&
       bakAda &&
       bakIsi?.mcp?.zephyr === undefined &&
-      v8ui.badge === 'terdaftar' &&
+      typeof v8ui.badge === 'string' &&
+      v8ui.badge.length > 0 &&
+      v8ui.badge === v8ui.label &&
       setelahHapus.mcp?.zephyr === undefined &&
       setelahHapus.mcp?.lain?.type === 'local' &&
       setelahHapus.theme === 'tokyonight',
     `centang opencode + [Tulis ke CLI] → opencode.json punya mcp.zephyr (url 127.0.0.1:${livePort}, header Bearer), key lain (theme, mcp.lain) UTUH, backup .bak dibuat tanpa entri zephyr, badge UI "${v8ui.badge}"; [Lepas dari CLI] → entri zephyr hilang, config tetap valid`,
+    { tulis, bakAda, bakIsi, v8ui, setelahHapus },
   );
 
+  await cekTitik('V8', livePort);
   // ───────── V9: matikan di tengah sesi → 503, hidupkan lagi → normal ─────────
   const sebelumMati = await rpc(livePort, 'get_window', {}, TOKEN, 16);
   await cdp.runAsync(`
@@ -570,6 +768,7 @@ const main = async () => {
     `switch OFF saat CLI aktif → /health & JSON-RPC ${matiHealth.status === 0 ? 'menolak koneksi' : matiHealth.status}, port ${livePort} berhenti listening; switch ON lagi → /health 200 dan list_panes normal (${hidupLagi.body?.result?.length} pane)`,
   );
 
+  await cekTitik('V9', livePort);
   // ───────── V10: port utama dipakai → fallback ke 9223 + terlihat di UI ─────────
   // Matikan server, blokir port utama dengan proses lain, nyalakan lagi.
   await cdp.runAsync(`
@@ -637,6 +836,7 @@ const main = async () => {
   );
   const P = Number(finalPort.port ?? wantPort);
 
+  await cekTitik('V10', P);
   // ───────── V11: dua agent bersamaan → serialized, tidak kacau ─────────
   // 12 permintaan tulis ke tab yang sama, dua "agent" bergantian. Kalau tidak
   // diserialisasi, isi buffer jadi campur aduk / ada yang hilang.
@@ -666,6 +866,7 @@ const main = async () => {
     `12 permintaan editor_insert dari dua agent dikirim BERSAMAAN → semua dijawab 200, ke-12 token utuh di buffer (tidak ada yang hilang/tercampur), 0 console error; total dilayani ${v11.dilayani}`,
   );
 
+  await cekTitik('V11', P);
   // ───────── V12: keamanan + jalur lain (bukti kontrak dijaga) ─────────
   const setBoleh = await rpc(P, 'set_setting', { key: 'editor.tabSize', value: 8 }, TOKEN, 30);
   await sleep(500);
@@ -673,62 +874,121 @@ const main = async () => {
   const setTolak2 = await rpc(P, 'set_setting', { key: 'git.github.clientId', value: 'x' }, TOKEN, 32);
   const getS = await rpc(P, 'get_settings', {}, TOKEN, 33);
   const getTok = await rpc(P, 'get_setting', { key: 'mcp.token' }, TOKEN, 34);
+  /*
+   * screenshot_pane harus membuktikan isi terminal NYATA pada saat itu juga.
+   * Dulu V12 memakai `marker` milik V4 — penanda yang dibuat ~370 baris / 8 uji
+   * sebelumnya. Baris itu mudah sudah tergeser keluar dari jendela 60 baris
+   * yang dibaca, sehingga V12 merah karena ketergantungan antar-uji, bukan
+   * karena screenshot_pane rusak. Sekarang V12 menulis penandanya SENDIRI
+   * lewat jalur MCP yang sama (terminal_write + terminal_key nyata), menunggu
+   * sampai benar-benar terlihat di layar, baru memotret — jadi V12 mandiri dan
+   * tetap menguji perilaku nyata.
+   */
+  const marker12 = `MCP-V12-${Date.now().toString(36)}`;
+  await cdp.runAsync(`await window.__ZEPHYR_SET_PAUSED__(false); return 'pause-render=lepas';`);
+  await rpc(P, 'terminal_write', { paneId: dibuat.a, data: `echo ${marker12}` }, TOKEN, 37);
+  await rpc(P, 'terminal_key', { paneId: dibuat.a, key: 'Enter' }, TOKEN, 38);
+  let tunggu12 = 0;
+  for (; tunggu12 < 8000; tunggu12 += 200) {
+    const l = await cdp.runAsync(`return PTY.read(${JSON.stringify(dibuat.a)}, 60);`);
+    if (
+      String(l)
+        .split('\n')
+        .some((x) => x.trim() === marker12)
+    )
+      break;
+    await sleep(200);
+  }
   const shot = await rpc(P, 'screenshot_pane', { paneId: dibuat.a }, TOKEN, 35);
   const shotPath = shot.body?.result?.path;
   const shotIsi = shotPath && fs.existsSync(shotPath) ? fs.readFileSync(shotPath, 'utf8') : '';
   const ext = await rpc(P, 'list_extensions', {}, TOKEN, 36);
+  // `set_setting` menulis settings.json lalu app memuat ulang lewat pemantau
+  // berkas: nilainya TIDAK selalu sudah terlihat dalam 500 ms (check ini dulu
+  // kadang merah hanya karena itu). Tunggu sampai masuk, dengan batas jelas.
   const v12 = JSON.parse(
     await cdp.runAsync(`
-      return JSON.stringify({ tabSize: S.getState().settings.editor.tabSize, shot: MS().lastShot });
+      let n = 0;
+      while (S.getState().settings.editor.tabSize !== 8 && n < 25) { await wait(200); n++; }
+      return JSON.stringify({ tabSize: S.getState().settings.editor.tabSize, tungguMs: n * 200, shot: MS().lastShot });
     `),
   );
   check(
     'V12',
     setBoleh.status === 200 &&
       v12.tabSize === 8 &&
-      setTolak.body?.error?.message?.includes('tidak boleh diubah') &&
-      setTolak2.body?.error?.message?.includes('tidak boleh diubah') &&
+      setTolak.body?.error?.message?.includes('cannot be changed via MCP') &&
+      setTolak2.body?.error?.message?.includes('cannot be changed via MCP') &&
       getS.body?.result?.mcp?.token === '***' &&
       getS.body?.result?.git?.github === undefined &&
       getTok.body?.error?.code !== undefined &&
       shot.status === 200 &&
-      shotIsi.includes(marker) &&
+      shotIsi.includes(marker12) &&
       Array.isArray(ext.body?.result) &&
       // Jumlah ekstensi bawaan bertambah dari waktu ke waktu (8 -> 9 saat
       // provider ikon ditambahkan), jadi yang diperiksa cukup daftarnya
       // terisi, bukan angka pastinya.
       ext.body.result.length >= 8,
-    `set_setting editor.tabSize=8 diterima (UI ikut jadi ${v12.tabSize}); mcp.enabled & git.github.clientId DITOLAK whitelist; get_settings memask mcp.token → "***" dan membuang git.github; get_setting mcp.token ditolak; screenshot_pane menulis ${path.basename(String(shotPath))} berisi isi terminal nyata; list_extensions → ${ext.body?.result?.length} ekstensi`,
+    `set_setting editor.tabSize=8 diterima (UI ikut jadi ${v12.tabSize} setelah ${v12.tungguMs} ms); mcp.enabled & git.github.clientId DITOLAK whitelist; get_settings memask mcp.token → "***" dan membuang git.github; get_setting mcp.token ditolak; screenshot_pane menulis ${path.basename(String(shotPath))} berisi isi terminal nyata; list_extensions → ${ext.body?.result?.length} ekstensi`,
+    {
+      setBoleh: { status: setBoleh.status, body: setBoleh.body },
+      setTolak: setTolak.body, setTolak2: setTolak2.body,
+      getS: { token: getS.body?.result?.mcp?.token, git: getS.body?.result?.git },
+      getTok: getTok.body,
+      shot: { status: shot.status, path: shotPath, ada: shotIsi.length > 0, marker12, tunggu12 },
+      ext: Array.isArray(ext.body?.result) ? ext.body.result.length : ext.body,
+      v12,
+    },
   );
 
   // ───────── bersih-bersih ─────────
   await cdp.runAsync(`
     s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
     for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
-    await s.applySettings({ editor: { tabSize: 2 }, mcp: { writeToCli: [] } });
+    await s.applySettings({ editor: { tabSize: 2 }, mcp: { writeToCli: [], allow_terminal_control: ${awal.izinTerminal === true} } });
     M.setChecked([]);
     MS().setError(null);
     MS().setInfo(null);
     await wait(300);
+    // Workspace sandbox ditutup SEBELUM foldernya dihapus: kalau foldernya
+    // lenyap saat masih terbuka, explorer membaca folder yang sudah tidak ada.
+    await s.closeWorkspace();
+    await wait(400);
+    ${WS_ASLI ? 'await s.openWorkspace(' + JSON.stringify(WS_ASLI) + '); await wait(600);' : ''}
     // Fase 02/03 memeriksa empty-state editor: tutup halaman Settings.
     S.getState().setSettingsOpen(false);
     S.getState().setActivity('explorer');
     await wait(200);
     return 'bersih';
   `);
-  fs.rmSync(SANDBOX, { recursive: true, force: true });
+  // Windows: handle berkas (watcher / index pencarian) kadang belum lepas
+  // tepat setelah workspace ditutup -> hapus gagal EPERM. Coba beberapa kali,
+  // dan kalau tetap gagal JANGAN gagalkan seluruh run: isi SANDBOX cuma
+  // sampah %TEMP% (dulu ini yang membuat run exit 2 tanpa ringkasan akhir).
+  for (let i = 0; i < 6; i++) {
+    try {
+      fs.rmSync(SANDBOX, { recursive: true, force: true });
+      break;
+    } catch (e) {
+      if (i === 5) console.log(`      catatan: sandbox %TEMP% belum bisa dihapus (${e.code ?? e.message}) - diabaikan`);
+      else await sleep(400);
+    }
+  }
   if (shotPath) fs.rmSync(shotPath, { force: true });
 
   cdp.close();
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (lulus !== results.length) process.exitCode = 1;
+  // Keluar eksplisit: menyetel process.exitCode saja menyisakan handle
+  // (WebSocket CDP) yang menahan event loop -> runner suite mencatat
+  // "timeout" padahal semua uji sudah selesai.
+  keluarBersih(lulus === results.length ? 0 : 1);
 };
 
 main().catch((e) => {
   console.error('verify11 error:', e.message ?? e);
-  process.exitCode = 2;
+  keluarBersih(2);
 });
 
 

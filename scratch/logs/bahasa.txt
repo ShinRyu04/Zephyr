@@ -1,0 +1,70 @@
+UJI BAHASA JAWABAN (ZEPH-NGAWUR-BAHASA)
+
+LAPIS A1 - deteksiBahasaGiliran() menurut kontraknya sendiri
+  OK    deteksi "lanjut"                               harap id -> dapat id
+  OK    deteksi "bagus"                                harap id -> dapat id
+  OK    deteksi "apa itu"                              harap id -> dapat id
+  OK    deteksi "tolong jelaskan"                      harap id -> dapat id
+  OK    deteksi "kenapa begitu"                        harap id -> dapat id
+  OK    deteksi "tadi ada error"                       harap id -> dapat id
+  OK    deteksi "gimana cara buka settings"            harap id -> dapat id
+  OK    deteksi "perbaiki ini"                         harap id -> dapat id
+  OK    deteksi "hapus file itu"                       harap id -> dapat id
+  OK    deteksi "mana tabelnya"                        harap id -> dapat id
+  OK    deteksi "what is a token"                      harap en -> dapat en
+  OK    deteksi "please open the file"                 harap en -> dapat en
+  OK    deteksi "where is the panel"                   harap en -> dapat en
+  OK    deteksi "что такое токен"                      harap ru -> dapat ru
+  OK    deteksi "これは何ですか"                              harap ja -> dapat ja
+  OK    deteksi ""                                     harap null -> dapat null
+  OK    deteksi "   "                                  harap null -> dapat null
+  OK    deteksi "file"                                 harap null -> dapat null
+  OK    deteksi "token commit"                         harap null -> dapat null
+  OK    deteksi "ok"                                   harap null -> dapat null
+
+LAPIS A2 - pertanyaan Indonesia nyata WAJIB terdeteksi "id" (keluhan user)
+  OK    nyata "buka file ini"                          harap id -> dapat id
+  GAGAL nyata "cek panel output ya"                    harap id -> dapat null
+  OK    nyata "jelaskan commit yang barusan"           harap id -> dapat id
+  OK    nyata "dimana pengaturan tema"                 harap id -> dapat id
+  OK    nyata "kok jawabannya jadi inggris?"           harap id -> dapat id
+  GAGAL nyata "kasih contoh"                           harap id -> dapat null
+  GAGAL nyata "buka file"                              harap id -> dapat null
+  OK    nyata "kenapa error"                           harap id -> dapat id
+  GAGAL nyata "cara buka Settings"                     harap id -> dapat null
+  OK    nyata "yang tadi itu apa"                      harap id -> dapat id
+
+LAPIS A3 - instruksiBahasa() mengikat bahasa giliran ini
+  OK    A3.1 blok ada saat kueri Indonesia             # Language for this turn (this rule outranks every block below)
+  OK    A3.2 blok bahasa Inggris                       # Language for this turn (this rule outranks every block below)
+  OK    A3.3 kueri kosong -> TIDAK menebak (blok kosong) kosong (benar)
+  OK    A3.4 kunci Setelan menang atas pesan           - The answer language is FIXED in Zephyr settings to English. Write the WHOLE reply in English, whatever language the user writes in.
+  OK    A3.5 kunci Indonesia menang atas pesan Inggris - The answer language is FIXED in Zephyr settings to Indonesian (Bahasa Indonesia). Write the WHOLE reply in Indonesian (Bahasa Indonesia), whatever language the user writes in.
+  OK    A3.6 blok menyebut materi rujukan berbahasa Inggris ya/tidak
+
+LAPIS A4 - systemPromptFor() menaruh aturan bahasa di KEPALA prompt
+  OK    A4.1 baris pertama = blok bahasa               # Language for this turn (this rule outranks every block below)
+  OK    A4.2 blok bahasa menyebut Indonesian           - The message you are answering is written in Indonesian (Bahasa Indonesia). Write the WHOLE reply in Indonesian (Bahasa Indonesia): the closing answer, the sentences between tool calls, and every list item.
+  OK    A4.3 label blok tetap bahasa Inggris           label EN ditemukan
+  OK    A4.4 prompt memuat fakta + indeks nyata        22458 char, menyebut zephyr_self: true
+  OK    A4.5 kueri Inggris -> baris pertama blok bahasa English # Language for this turn (this rule outranks every block below)
+  OK    A4.6 uiLang=id -> LABEL blok Indonesia         label ID ada (uiLang=id)
+  OK    A4.7 bahasa jawaban tetap ikut PESAN, bukan UI - The message you are answering is written in English. Write the WHOLE reply in English: the closing answer, the sentences between tool calls, and every list item.
+
+LAPIS A5 - identityReminder() (sufiks di ujung pesan user)
+  OK    A5.1 sufiks memaksa Indonesian                 Answer in Indonesian (Bahasa Indonesia) - the message above is written in it
+  OK    A5.2 sufiks memaksa English                    Answer in English - the message above is written in it
+  OK    A5.3 kueri ambigu -> TIDAK menempel sufiks     bersih (benar)
+
+LAPIS B - bahasa jawaban NYATA (butuh berkas bukti)
+  LEWAT  lapis B                                     TIDAK DIUJI - tidak ada scratch\jawaban
+
+  LAPIS B: TIDAK DIUJI
+  CELAH DETEKSI (pertanyaan Indonesia yang TIDAK terbaca):
+    - "cek panel output ya"
+    - "kasih contoh"
+    - "buka file"
+    - "cara buka Settings"
+    Perbaikan ada di src/lib/systemPrompt.ts:373-390 (daftar kata), BUKAN di gate ini.
+  SKOR: 42 lulus / 46 diperiksa
+  VERDICT: GAGAL - 4 pemeriksaan merah

@@ -8,6 +8,7 @@
 import WebSocket from 'ws';
 import fs from 'node:fs';
 import path from 'node:path';
+import { keluarBersih } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,16 +34,36 @@ class Cdp {
       const p = c.#pending.get(msg.id);
       if (p) {
         c.#pending.delete(msg.id);
-        p(msg);
+        clearTimeout(p.jaring);
+        p.resolve(msg);
       }
     });
+    // Socket mati: semua permintaan yang menunggu tidak akan pernah dijawab.
+    // Tanpa ini uji membeku tanpa pesan, dan runner suite hanya melihat timeout.
+    c.#ws.on('close', () => c.#tolakSemua(new Error('socket CDP tertutup: app reload / target hilang?')));
+    c.#ws.on('error', (e) => c.#tolakSemua(new Error(`socket CDP error: ${e?.message ?? e}`)));
     return c;
+  }
+
+  #tolakSemua(err) {
+    for (const [, p] of this.#pending) {
+      clearTimeout(p.jaring);
+      p.reject(err);
+    }
+    this.#pending.clear();
   }
 
   #send(method, params = {}) {
     const id = ++this.#id;
-    return new Promise((res) => {
-      this.#pending.set(id, res);
+    return new Promise((resolve, reject) => {
+      // Jaring per panggilan: socket setengah mati tidak mengirim 'close',
+      // jadi tanpa ini permintaannya menggantung tanpa batas.
+      const jaring = setTimeout(() => {
+        this.#pending.delete(id);
+        reject(new Error(`timeout 20000ms: ${method} tidak dijawab (socket CDP macet?)`));
+      }, 20000);
+      jaring.unref?.();
+      this.#pending.set(id, { resolve, reject, jaring });
       this.#ws.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -600,11 +621,11 @@ const main = async () => {
   console.log(`\n== ${results.length - fail.length}/${results.length} lulus ==`);
   if (fail.length) {
     console.log('GAGAL: ' + fail.map((f) => f.id).join(', '));
-    process.exit(1);
+    keluarBersih(1);
   }
 };
 
 main().catch((e) => {
   console.error('verify04 error:', e.message);
-  process.exit(2);
+  keluarBersih(2);
 });

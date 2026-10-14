@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useMcp } from '../../lib/mcpStore';
 import { useT } from '../../lib/i18n';
-import { Row, Section, Toggle } from './SettingsControls';
+import { NumberInput, Row, Section, Toggle } from './SettingsControls';
 import CapturePanel from './CapturePanel';
+import { mcpBatas, mcpTerpotong } from '../../lib/mcpTools';
 
 const ORDER = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'copilot', 'cursor', 'startup'];
 
@@ -55,6 +56,12 @@ export default function McpPanel() {
   const saveServer = useMcp((s) => s.saveServer);
   const removeServer = useMcp((s) => s.removeServer);
   const testServer = useMcp((s) => s.testServer);
+  /*
+   * Angka batas tool dibaca dari registry yang sama dengan yang dipakai
+   * pengiriman ke provider, jadi panel tidak bisa menampilkan angka lain
+   * daripada yang benar-benar dikirim.
+   */
+  const terpotongMcp = mcpTerpotong();
   const [extLabel, setExtLabel] = useState('');
   const [extUrl, setExtUrl] = useState('');
   const [extToken, setExtToken] = useState('');
@@ -260,6 +267,29 @@ export default function McpPanel() {
           <span className="mcp-count-pill">{servers.length} {tr('connected')}</span>
         </header>
       <Row
+        label={tr('Max tools per MCP server')}
+        hint={tr('Tools beyond this are not offered to the model; the panel says how many were held back. 0 = no limit.')}
+      >
+        <NumberInput
+          label={tr('Max tools per MCP server')}
+          testid="mcp-max-tools"
+          min={0}
+          max={500}
+          value={mcpBatas()}
+          onChange={(v) => {
+            /*
+             * Setelan ditulis lalu registry dipasang ulang pada klik yang sama.
+             * Kalau menunggu restart, pembaca mengubah angka, tidak terjadi
+             * apa-apa, dan kesimpulannya "setelannya rusak" - padahal cuma
+             * belum dibaca.
+             */
+            void useStore.getState().applySettings({ mcp: { maxToolsPerServer: v } });
+            void useMcp.getState().refreshServers();
+          }}
+        />
+      </Row>
+
+      <Row
         label={tr('External MCP servers')}
         hint={tr('Add a server endpoint, then test the connection to see which tools it provides.')}
       >
@@ -269,6 +299,17 @@ export default function McpPanel() {
               {tr('No external MCP server yet.')}
             </span>
           )}
+          {terpotongMcp.map((r) => (
+            <p className="set-note mcp-batas-tool" key={`batas-${r.serverId}`} data-testid={`mcp-batas-${r.serverId}`}>
+              <strong>{tr('MCP tool limit')}</strong>{' '}
+              {tr('Only the first {n} of {total} tools from {label} are sent to the AI; {m} are held back ({contoh}).')
+                .replace('{n}', String(r.dipakai))
+                .replace('{total}', String(r.total))
+                .replace('{label}', r.serverLabel)
+                .replace('{m}', String(r.dibuang))
+                .replace('{contoh}', r.contohDibuang.join(', '))}
+            </p>
+          ))}
           {servers.map((s) => (
             <div className="mcp-external-server" key={s.id} data-server-id={s.id} data-testid="mcp-server-row">
               <div className="mcp-external-server-info">
@@ -349,20 +390,6 @@ export default function McpPanel() {
         </div>
       </Row>
 
-      {/* Exposure toggle: cuts off external AI access WITHOUT removing the configuration.
-          WHY separate from the revoke button: users often just want to "turn it
-          off for a bit", not tear down everything already set up. */}
-      <Row
-        label={tr('Allow external AI to control Zephyr')}
-        hint={tr('When off, the MCP server stops accepting commands - the CLI configuration is not changed.')}
-      >
-        <Toggle
-          checked={running}
-          label={tr('Allow external AI to control Zephyr')}
-          testid="mcp-ekspos"
-          onChange={(v) => void toggleServer(v)}
-        />
-      </Row>
       </section>
 
       {err && (

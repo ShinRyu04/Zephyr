@@ -15,8 +15,16 @@ import { readFileSync } from 'node:fs';
 
 const berkas = process.argv[2];
 if (!berkas) {
+  /*
+   * Ini ALAT, bukan uji. Tanpa argumen tidak ada berkas yang diperiksa, jadi
+   * tidak ada putusan yang sah: di berkas ini 2 berarti "ada backtick
+   * bermasalah" dan 1 akan terbaca sebagai uji gagal - dua-duanya salah di
+   * sini. Karena itu keluarannya 0, dengan spanduk BUKAN UJI supaya tidak
+   * terbaca sebagai "bersih".
+   */
+  console.error('BUKAN UJI (alat): butuh argumen <berkas>, tidak ada yang diperiksa.');
   console.error('pakai: node scripts/cek-backtick.mjs <berkas>');
-  process.exit(1);
+  process.exit(0);
 }
 
 const baris = readFileSync(berkas, 'utf8').split('\n');

@@ -434,6 +434,458 @@ pub fn resolve_in_ext(root: &Path, rel: &str) -> ZResult<PathBuf> {
     Ok(real)
 }
 
+/// One line of an install report: one contribution, and what Zephyr does with it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct KontribItem {
+    pub kind: String,
+    pub label: String,
+    pub detail: String,
+}
+
+/// What installing a package changes on this side of the app.
+///
+/// This exists because "Installed" used to be the whole story. A package whose
+/// contributions nothing consumes — a theme with `tokenColors` and no `colors`,
+/// a bundle of declared commands with no `main` script, a `contributes.menus`
+/// block — installed fine, appeared in the list, and moved nothing in the
+/// window. `didukung` lists what the app can act on (with the count of colours,
+/// icons, bindings, snippet packs as the evidence), `diabaikan` lists what it
+/// cannot with the reason, and `ringkasan` is one line per kind: the "what
+/// changed" the panel shows after an install and after a delete.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Pengaruh {
+    pub didukung: Vec<KontribItem>,
+    pub diabaikan: Vec<KontribItem>,
+    pub ringkasan: Vec<String>,
+}
+
+impl Pengaruh {
+    pub fn ada_didukung(&self) -> bool {
+        !self.didukung.is_empty()
+    }
+}
+
+/// First line of the refusal `extensions_install` returns for a package with
+/// nothing the app can use. The UI matches on it to tell "this package does
+/// nothing here" apart from "this package failed to install".
+pub const TOLAK_PENANDA: &str = "NOTHING TO INSTALL:";
+
+/// Top-level `contributes` keys the app reads. Everything else in the block is
+/// reported as ignored rather than dropped in silence.
+const KONTRIB_DIDUKUNG: &[&str] = &[
+    "themes",
+    "iconThemes",
+    "keymaps",
+    "snippets",
+    "languages",
+    "commands",
+];
+
+fn ki(kind: &str, label: &str, detail: String) -> KontribItem {
+    KontribItem {
+        kind: kind.to_string(),
+        label: label.to_string(),
+        detail,
+    }
+}
+
+fn jumlah_nama(n: usize, satu: &str, jamak: &str) -> String {
+    if n == 1 {
+        satu.to_string()
+    } else {
+        format!("{n} {jamak}")
+    }
+}
+
+/// Length of an object or array member, 0 for anything else. The counts in the
+/// report (`colors`, `tokenColors`, `iconDefinitions`, `keybindings`) are the
+/// evidence the user is asking for, so they are read from the file, not assumed.
+fn hitung(v: &Value, k: &str) -> usize {
+    match v.get(k) {
+        Some(Value::Object(o)) => o.len(),
+        Some(Value::Array(a)) => a.len(),
+        _ => 0,
+    }
+}
+
+/// Read a contribution file inside the package, bounded to the same size
+/// `extensions_read_contrib` allows. `None` = missing, oversized, or not JSON,
+/// all of which mean "this contributes nothing".
+fn baca_json_paket(dir: &Path, rel: &str) -> Option<Value> {
+    let p = resolve_in_ext(dir, rel).ok()?;
+    if std::fs::metadata(&p).ok()?.len() > MAX_CONTRIB_BYTES {
+        return None;
+    }
+    serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()
+}
+
+/// The script the extension host would run, resolved the way
+/// `extensions_read_main` resolves it (bare name → `.js`/`.cjs`/`.mjs`).
+fn skrip_utama(dir: &Path, main: &str) -> Option<String> {
+    let m = main.trim();
+    if m.is_empty() {
+        return None;
+    }
+    if resolve_in_ext(dir, m).is_ok() {
+        return Some(m.to_string());
+    }
+    for akhiran in [".js", ".cjs", ".mjs"] {
+        let calon = format!("{m}{akhiran}");
+        if resolve_in_ext(dir, &calon).is_ok() {
+            return Some(calon);
+        }
+    }
+    None
+}
+
+/// Work out what a package on disk can actually do, contribution by
+/// contribution, straight from the files it ships.
+pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
+    let mut p = Pengaruh::default();
+    let c = &m.contributes;
+
+    /*
+     * Themes. A VS Code colour theme carries two independent halves: `colors`
+     * (the UI - editor background, sidebar, status bar) and `tokenColors` (the
+     * code). Zephyr paints the window from `colors`, so a theme with tokens and
+     * no UI colours leaves every pixel where it was: "installed, nothing
+     * happened". That case is listed as ignored, not counted as a theme.
+     */
+    let (mut n_tema, mut warna_ui, mut warna_kode) = (0usize, 0usize, 0usize);
+    for t in &c.themes {
+        let label = if t.label.trim().is_empty() {
+            t.path.clone()
+        } else {
+            t.label.clone()
+        };
+        match baca_json_paket(dir, &t.path) {
+            None => p.diabaikan.push(ki(
+                "theme",
+                &label,
+                format!(
+                    "{} is missing, oversized, or not JSON — there is nothing to apply",
+                    t.path
+                ),
+            )),
+            Some(v) => {
+                let ui = hitung(&v, "colors");
+                let kode = hitung(&v, "tokenColors");
+                if ui == 0 {
+                    p.diabaikan.push(ki(
+                        "theme",
+                        &label,
+                        format!(
+                            "{} (tokenColors) and 0 UI colors — the window would look exactly the same",
+                            jumlah_nama(kode, "1 code color", "code colors")
+                        ),
+                    ));
+                } else {
+                    n_tema += 1;
+                    warna_ui += ui;
+                    warna_kode += kode;
+                    p.didukung.push(ki(
+                        "theme",
+                        &label,
+                        format!(
+                            "{} + {}",
+                            jumlah_nama(ui, "1 UI color", "UI colors"),
+                            jumlah_nama(kode, "1 code color", "code colors")
+                        ),
+                    ));
+                }
+            }
+        }
+    }
+    if n_tema > 0 {
+        p.ringkasan.push(format!(
+            "{}: {} + {}",
+            jumlah_nama(n_tema, "1 theme", "themes"),
+            jumlah_nama(warna_ui, "1 UI color", "UI colors"),
+            jumlah_nama(warna_kode, "1 code color", "code colors")
+        ));
+    }
+
+    /* Icon themes: the count that matters is the icon definitions in the file. */
+    let (mut n_ikon, mut jumlah_ikon) = (0usize, 0usize);
+    for i in &c.icon_themes {
+        let label = if i.label.trim().is_empty() {
+            i.path.clone()
+        } else {
+            i.label.clone()
+        };
+        match baca_json_paket(dir, &i.path) {
+            None => p.diabaikan.push(ki(
+                "iconTheme",
+                &label,
+                format!(
+                    "{} is missing, oversized, or not JSON — the file tree keeps its default icons",
+                    i.path
+                ),
+            )),
+            Some(v) => {
+                let n = hitung(&v, "iconDefinitions");
+                if n == 0 {
+                    p.diabaikan.push(ki(
+                        "iconTheme",
+                        &label,
+                        format!("0 icon definitions in {} — no icon changes", i.path),
+                    ));
+                } else {
+                    n_ikon += 1;
+                    jumlah_ikon += n;
+                    p.didukung.push(ki("iconTheme", &label, format!("{n} icons")));
+                }
+            }
+        }
+    }
+    if n_ikon > 0 {
+        p.ringkasan.push(format!(
+            "{}: {jumlah_ikon} icons",
+            jumlah_nama(n_ikon, "1 icon theme", "icon themes")
+        ));
+    }
+
+    /* Snippet packs: the file has to exist, because the loader reads it. */
+    let mut n_snippet = 0usize;
+    for s in &c.snippets {
+        let label = if s.language.trim().is_empty() {
+            s.path.clone()
+        } else {
+            s.language.clone()
+        };
+        if resolve_in_ext(dir, &s.path).is_err() {
+            p.diabaikan.push(ki(
+                "snippet",
+                &label,
+                format!("the snippet file {} is missing from the package", s.path),
+            ));
+            continue;
+        }
+        n_snippet += 1;
+        p.didukung.push(ki("snippet", &label, format!("snippet pack {}", s.path)));
+    }
+    if n_snippet > 0 {
+        p.ringkasan
+            .push(jumlah_nama(n_snippet, "1 snippet pack", "snippet packs"));
+    }
+
+    /* Keymaps: report the number of bindings the file actually carries. */
+    let (mut n_keymap, mut n_binding) = (0usize, 0usize);
+    for k in &c.keymaps {
+        let label = if k.label.trim().is_empty() {
+            k.path.clone()
+        } else {
+            k.label.clone()
+        };
+        match baca_json_paket(dir, &k.path) {
+            None => p.diabaikan.push(ki(
+                "keymap",
+                &label,
+                format!(
+                    "{} is missing, oversized, or not JSON — no key bindings are added",
+                    k.path
+                ),
+            )),
+            Some(v) => {
+                let n = hitung(&v, "keybindings");
+                if n == 0 {
+                    p.diabaikan.push(ki(
+                        "keymap",
+                        &label,
+                        format!("{} declares 0 key bindings", k.path),
+                    ));
+                } else {
+                    n_keymap += 1;
+                    n_binding += n;
+                    p.didukung
+                        .push(ki("keymap", &label, format!("{n} key bindings")));
+                }
+            }
+        }
+    }
+    if n_keymap > 0 {
+        p.ringkasan.push(format!(
+            "{}: {n_binding} key bindings",
+            jumlah_nama(n_keymap, "1 keymap", "keymaps")
+        ));
+    }
+
+    /* Language declarations claim file extensions for a language mode. A
+       declaration with neither extensions nor a grammar mode claims nothing. */
+    let mut n_bahasa = 0usize;
+    for l in &c.languages {
+        if l.extensions.is_empty() && l.cm_lang.trim().is_empty() {
+            p.diabaikan.push(ki(
+                "language",
+                &l.label,
+                "declares no file extensions and no grammar mode — no file is claimed".to_string(),
+            ));
+            continue;
+        }
+        n_bahasa += 1;
+        let detail = if l.extensions.is_empty() {
+            format!("language mode '{}'", l.cm_lang)
+        } else {
+            format!(
+                "claims {}",
+                l.extensions
+                    .iter()
+                    .map(|e| format!(".{e}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        p.didukung.push(ki("language", &l.label, detail));
+    }
+    if n_bahasa > 0 {
+        p.ringkasan
+            .push(jumlah_nama(n_bahasa, "1 language", "languages"));
+    }
+
+    /*
+     * The main script, and the commands that depend on it.
+     *
+     * `contributes.commands` alone is the case from the bug report: the command
+     * ids show up in the palette, but nothing is registered to handle them until
+     * a script does it, so the package has no effect. A package that ships the
+     * script does have one — the host runs it.
+     */
+    let skrip = skrip_utama(dir, &m.main);
+    let n_perintah = c.commands.len();
+    if let Some(s) = &skrip {
+        let detail = if n_perintah > 0 {
+            format!(
+                "{s} runs in the extension host and provides {}",
+                jumlah_nama(n_perintah, "1 command", "commands")
+            )
+        } else {
+            format!("{s} runs in the extension host")
+        };
+        p.didukung.push(ki("script", s, detail));
+    } else {
+        if !m.main.trim().is_empty() {
+            p.diabaikan.push(ki(
+                "script",
+                &m.main,
+                format!(
+                    "the declared main script {} is not in the package — nothing runs",
+                    m.main
+                ),
+            ));
+        }
+        if n_perintah > 0 {
+            p.diabaikan.push(ki(
+                "command",
+                "contributes.commands",
+                format!(
+                    "{} but nothing registers them: the package ships no main script",
+                    jumlah_nama(n_perintah, "1 declared command", "declared commands")
+                ),
+            ));
+        }
+    }
+
+    /*
+     * Everything else in `contributes`.
+     *
+     * A VS Code manifest can declare menus, views, configuration, task
+     * definitions, debuggers, TextMate grammars. Zephyr consumes none of them,
+     * and the old behaviour was to parse the block, drop the unknown keys, and
+     * say nothing. Keys are reported in sorted order so the refusal message for
+     * the same package is always the same text.
+     */
+    let mut n_grammar = 0usize;
+    if let Some(obj) = m.raw.get("contributes").and_then(|x| x.as_object()) {
+        let mut kunci: Vec<&String> = obj.keys().collect();
+        kunci.sort();
+        for k in kunci {
+            let v = &obj[k];
+            if k == "grammars" {
+                n_grammar += match v {
+                    Value::Array(a) => a.len(),
+                    _ => 1,
+                };
+                continue;
+            }
+            if KONTRIB_DIDUKUNG.contains(&k.as_str()) {
+                continue;
+            }
+            let n = match v {
+                Value::Array(a) => a.len(),
+                Value::Object(o) => o.len(),
+                _ => 1,
+            };
+            p.diabaikan.push(ki(
+                k,
+                &format!("contributes.{k}"),
+                format!(
+                    "{} declared, and Zephyr has no support for contributes.{k} yet",
+                    jumlah_nama(n, "1 entry", "entries")
+                ),
+            ));
+        }
+        if let Some(ls) = obj.get("languages").and_then(|x| x.as_array()) {
+            for l in ls {
+                if let Some(g) = l.get("grammars").and_then(|x| x.as_array()) {
+                    n_grammar += g.len();
+                }
+            }
+        }
+    }
+    if n_grammar > 0 {
+        p.diabaikan.push(ki(
+            "grammar",
+            "grammars",
+            format!(
+                "{} — Zephyr has no TextMate engine, so highlighting stays with the built-in languages",
+                jumlah_nama(n_grammar, "1 TextMate grammar", "TextMate grammars")
+            ),
+        ));
+    }
+
+    p
+}
+
+/// The refusal message, or `None` when the package has something usable.
+pub fn tolak_paket(m: &ExtManifest, p: &Pengaruh) -> Option<String> {
+    if p.ada_didukung() {
+        return None;
+    }
+    Some(pesan_tolak(m, p))
+}
+
+/// The text shown when a package is declined: what it declares, and why none of
+/// it can be applied here.
+fn pesan_tolak(m: &ExtManifest, p: &Pengaruh) -> String {
+    let nama = if m.name.trim().is_empty() {
+        m.id.clone()
+    } else {
+        m.name.clone()
+    };
+    let versi = if m.version.trim().is_empty() {
+        "?".to_string()
+    } else {
+        m.version.clone()
+    };
+
+    let mut s = format!(
+        "{TOLAK_PENANDA} {nama} v{versi} was not installed: nothing in it is something Zephyr can use yet.\nWhat the package declares:\n"
+    );
+    if p.diabaikan.is_empty() {
+        s.push_str("  - no contributions at all (no contributes block, no main script)\n");
+    }
+    for i in &p.diabaikan {
+        s.push_str(&format!("  - {} ({}): {}\n", i.label, i.kind, i.detail));
+    }
+    s.push_str(&format!(
+        "Zephyr {} can apply themes that carry UI colors, icon themes, snippet packs, keymaps, language declarations, and the commands of a package that ships a main script. Nothing else in the list above is read, so installing it would have changed nothing. Nothing was written to disk — fix the package and install it again.",
+        env!("CARGO_PKG_VERSION")
+    ));
+    s
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledEntry {
@@ -479,7 +931,7 @@ fn upsert_installed(state: &AppState, e: InstalledEntry) -> ZResult<()> {
     write_installed(state, &list)
 }
 
-fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
+pub(crate) fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
     std::fs::create_dir_all(dst)?;
     for e in std::fs::read_dir(src)? {
         let e = e?;
@@ -507,7 +959,7 @@ fn copy_dir(src: &Path, dst: &Path, terpakai: &mut u64) -> ZResult<()> {
     Ok(())
 }
 
-fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
+pub(crate) fn unzip_zext(arsip: &Path, dst: &Path) -> ZResult<()> {
     let sz = std::fs::metadata(arsip)?.len();
     if sz > MAX_ZEXT_BYTES {
         return Err(ZephyrError::InvalidInput(format!(
@@ -595,6 +1047,11 @@ pub struct InstallHasil {
 
     pub perlu_reload: bool,
     pub manifest: ExtManifest,
+
+    /// What the package actually changes, and what was skipped because nothing
+    /// in the app consumes it. Sent with the install result so the panel can
+    /// answer "what changed" instead of only "installed".
+    pub pengaruh: Pengaruh,
 }
 
 #[tauri::command]
@@ -660,6 +1117,22 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
             )));
         }
 
+        /*
+         * Refuse a package that would install and change nothing.
+         *
+         * This is the whole point of the check: a package whose only
+         * contribution is a bundle of declared commands with no script, or a
+         * theme with `tokenColors` and no `colors`, used to install, appear in
+         * the list as "Installed", and leave the window exactly as it was -
+         * with no word about why. The refusal happens BEFORE the folder is
+         * moved into place, so a declined package leaves nothing behind, and
+         * the message names every contribution the package declares.
+         */
+        let pengaruh = pengaruh_paket(&akar, &man);
+        if let Some(pesan) = tolak_paket(&man, &pengaruh) {
+            return Err(ZephyrError::InvalidInput(pesan));
+        }
+
         let final_dir = dir_ext.join(&man.id);
         if final_dir.exists() {
             std::fs::remove_dir_all(&final_dir)?;
@@ -688,11 +1161,18 @@ pub fn extensions_install(state: State<AppState>, path: String) -> ZResult<Insta
             version: man.version.clone(),
             path: final_dir.to_string_lossy().to_string(),
 
-            perlu_reload: !man.contributes.themes.is_empty()
-                || !man.contributes.keymaps.is_empty()
-                || !man.contributes.languages.is_empty()
-                || !man.contributes.icon_themes.is_empty(),
+            /*
+             * A reload is only worth asking for when something the app can
+             * apply actually changes. It used to be "the manifest mentions a
+             * theme/keymap/language/icon theme", which was true even when the
+             * theme had no UI colours and nothing was applied - a banner asking
+             * for a reload that would change nothing.
+             */
+            perlu_reload: pengaruh.didukung.iter().any(|i| {
+                matches!(i.kind.as_str(), "theme" | "iconTheme" | "keymap" | "language")
+            }),
             manifest: man,
+            pengaruh,
         })
     })();
 
@@ -1116,6 +1596,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                     tercatat: ent.is_some(),
                     path: d.to_string_lossy().to_string(),
                     error: None,
+                    pengaruh: pengaruh_paket(&d, &m),
                     manifest: Some(m),
                     icon_path: icon_data,
                 });
@@ -1125,6 +1606,7 @@ pub fn extensions_manifests(state: State<AppState>) -> ZResult<Vec<ExtManifestSt
                 tercatat: false,
                 path: d.to_string_lossy().to_string(),
                 error: Some(e.to_string()),
+                pengaruh: Pengaruh::default(),
                 manifest: None,
                 icon_path: None,
             }),
@@ -1143,19 +1625,70 @@ pub struct ExtManifestStatus {
     pub path: String,
     pub error: Option<String>,
 
+    /// What this package can do here.
+    ///
+    /// Carried on every status, not only on install results, because the
+    /// install-time check cannot reach packages that were installed before it
+    /// existed: those still sit in the list looking exactly like a working
+    /// package while applying nothing. With this field the panel can say so.
+    pub pengaruh: Pengaruh,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_path: Option<String>,
 }
 
-#[tauri::command(async)]
-pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
-    const IZIN: &[&str] = &["open-vsx.org", "www.open-vsx.org"];
+/// Registry hosts a download may come from. Kept as a named constant so the
+/// refusal message and the check can never drift apart, and so a test can hold
+/// them still: loosening the list has to be a deliberate edit here.
+pub const IZIN_UNDUH: &[&str] = &["open-vsx.org", "www.open-vsx.org"];
+
+/// The gate for `extensions_download_zext`: https only, and only the trusted
+/// registry. Pulled out of the command so it can be tested without an app and
+/// without a network - the command itself needs Tauri state and a live socket,
+/// this does not.
+pub fn izin_unduh(url: &str) -> ZResult<()> {
     let host = url.split('/').nth(2).unwrap_or("").to_lowercase();
-    if !url.starts_with("https://") || !IZIN.contains(&host.as_str()) {
+    if !url.starts_with("https://") || !IZIN_UNDUH.contains(&host.as_str()) {
         return Err(ZephyrError::Permission(
             "extension downloads are only allowed from a trusted registry (open-vsx.org)".into(),
         ));
     }
+    Ok(())
+}
+
+/// sha256 of a byte slice, lowercase hex. The registry publishes the hash of the
+/// package it serves; this is how a package that arrived truncated or swapped is
+/// caught before it is written to disk.
+pub fn hash_sha256(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(bytes);
+    h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Normalise a hash for comparison: trim, lowercase, drop a `sha256:` prefix.
+pub fn normalisasi_hash(h: &str) -> String {
+    let t = h.trim().to_lowercase();
+    t.strip_prefix("sha256:")
+        .unwrap_or(t.as_str())
+        .trim()
+        .to_string()
+}
+
+/// Does the downloaded hash match the expected one? An empty expectation means
+/// "no hash to check against" and passes - absence of a published hash is not a
+/// mismatch.
+pub fn hash_cocok(dapat: &str, harap: &str) -> bool {
+    let h = normalisasi_hash(harap);
+    if h.is_empty() {
+        return true;
+    }
+    normalisasi_hash(dapat) == h
+}
+
+#[tauri::command(async)]
+pub fn extensions_download_zext(url: String, id: String, sha256: Option<String>) -> ZResult<String> {
+    izin_unduh(&url)?;
 
     if !id_aman(&id) {
         return Err(ZephyrError::InvalidInput(format!("invalid id: {id}")));
@@ -1200,6 +1733,20 @@ pub fn extensions_download_zext(url: String, id: String) -> ZResult<String> {
     if bytes.is_empty() {
         return Err(ZephyrError::InvalidInput(".zext empty".into()));
     }
+
+    // Verify the registry's own hash BEFORE the byte is written to disk, so a
+    // truncated or swapped package never becomes a file that the installer
+    // could pick up later. An absent hash means the registry did not publish
+    // one: not a mismatch, and the file still gets written.
+    let dapat = hash_sha256(&bytes);
+    if let Some(harap) = &sha256 {
+        if !hash_cocok(&dapat, harap) {
+            return Err(ZephyrError::InvalidInput(format!(
+                "sha256 mismatch for {id}: got {dapat}, expected {} - nothing was written",
+                normalisasi_hash(harap)
+            )));
+        }
+    }
     std::fs::write(&tujuan, &bytes)?;
 
     Ok(tujuan.to_string_lossy().to_string())
@@ -1229,5 +1776,526 @@ mod tests {
         assert!(id_aman("my-extension"));
         assert!(id_aman("publisher.ext_name"));
         assert!(id_aman("Ext123"));
+    }
+}
+
+#[cfg(test)]
+mod tests_pengaruh {
+    use super::*;
+    use serde_json::json;
+
+    fn dir_uji(nama: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("zephyr-pengaruh-{}-{nama}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn tulis(dir: &Path, rel: &str, isi: &str) {
+        let p = dir.join(rel);
+        if let Some(i) = p.parent() {
+            std::fs::create_dir_all(i).unwrap();
+        }
+        std::fs::write(&p, isi).unwrap();
+    }
+
+    fn muat(dir: &Path, manifest: &Value) -> (ExtManifest, Pengaruh) {
+        tulis(dir, MANIFEST_NATIVE, &manifest.to_string());
+        let m = read_manifest(dir).expect("the test manifest must parse");
+        let p = pengaruh_paket(dir, &m);
+        (m, p)
+    }
+
+    /// A package that only declares commands, with no script to register them,
+    /// has no effect on this app: it must be refused before anything is written
+    /// to disk, and the refusal must name what the package declares.
+    #[test]
+    fn paket_nol_kontribusi_didukung_ditolak() {
+        let d = dir_uji("nol-kontribusi");
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "dead-commands",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": {
+                    "commands": [
+                        { "command": "acme.x", "title": "X" },
+                        { "command": "acme.y", "title": "Y" }
+                    ]
+                }
+            }),
+        );
+
+        assert!(
+            p.didukung.is_empty(),
+            "nothing here can be applied: {:?}",
+            p.didukung
+        );
+        assert!(
+            p.diabaikan.iter().any(|i| i.kind == "command"),
+            "the declared commands must be reported, not dropped: {:?}",
+            p.diabaikan
+        );
+
+        let tolak = tolak_paket(&m, &p).expect("a package with nothing usable must be refused");
+        assert!(tolak.starts_with(TOLAK_PENANDA), "{tolak}");
+        assert!(tolak.contains("2 declared commands"), "{tolak}");
+        assert!(tolak.contains("contributes.commands"), "{tolak}");
+        assert!(tolak.contains("Nothing was written to disk"), "{tolak}");
+    }
+
+    /// The other half of the same hole: a theme with code colors and no UI
+    /// colors installs, appears in the list, and repaints nothing.
+    #[test]
+    fn tema_tanpa_warna_ui_ditolak_bila_itu_satu_satunya_isi() {
+        let d = dir_uji("tema-token-saja");
+        tulis(
+            &d,
+            "themes/t.json",
+            &json!({ "tokenColors": [{ "scope": "a" }, { "scope": "b" }] }).to_string(),
+        );
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "token-only",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": {
+                    "themes": [{ "label": "Tokens Only", "path": "./themes/t.json" }]
+                }
+            }),
+        );
+
+        assert!(p.didukung.is_empty(), "{:?}", p.didukung);
+        let i = p
+            .diabaikan
+            .iter()
+            .find(|i| i.kind == "theme")
+            .expect("the theme must be reported as ignored");
+        assert!(i.detail.contains("0 UI colors"), "{}", i.detail);
+        let tolak = tolak_paket(&m, &p).expect("a theme that changes nothing is not an install");
+        assert!(tolak.contains("Tokens Only"), "{tolak}");
+    }
+
+    /// A mixed package installs, and the parts nothing consumes come back in
+    /// `diabaikan` instead of vanishing.
+    #[test]
+    fn paket_campuran_mengisi_daftar_diabaikan() {
+        let d = dir_uji("campuran");
+        tulis(
+            &d,
+            "themes/mix.json",
+            &json!({
+                "colors": { "editor.background": "#101010" },
+                "tokenColors": [{ "scope": "a" }, { "scope": "b" }]
+            })
+            .to_string(),
+        );
+        tulis(&d, "snippets/rust.json", "{\"Print\": {\"prefix\": \"pp\"}}");
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "mixed",
+                "publisher": "acme",
+                "version": "2.0.0",
+                "contributes": {
+                    "themes": [{ "label": "Mixed Dark", "path": "./themes/mix.json" }],
+                    "snippets": [{ "language": "rust", "path": "./snippets/rust.json" }],
+                    "languages": [{
+                        "id": "rust",
+                        "extensions": [".rs"],
+                        "grammars": [{
+                            "language": "rust",
+                            "scopeName": "source.rust",
+                            "path": "./syntaxes/rust.tmLanguage.json"
+                        }]
+                    }],
+                    "menus": { "editor/context": [{ "command": "acme.x" }] },
+                    "configuration": {
+                        "title": "x",
+                        "properties": { "acme.on": { "type": "boolean" } }
+                    }
+                }
+            }),
+        );
+
+        assert!(p.ada_didukung(), "the theme alone makes this installable");
+        assert!(
+            p.didukung.iter().any(|i| i.kind == "theme")
+                && p.didukung.iter().any(|i| i.kind == "snippet")
+                && p.didukung.iter().any(|i| i.kind == "language"),
+            "theme + snippet + language: {:?}",
+            p.didukung
+        );
+        assert!(
+            p.diabaikan.iter().any(|i| i.kind == "menus"),
+            "menus are not consumed: {:?}",
+            p.diabaikan
+        );
+        assert!(
+            p.diabaikan.iter().any(|i| i.kind == "configuration"),
+            "{:?}",
+            p.diabaikan
+        );
+        /*
+         * The count appears once: `jumlah_nama` writes the number itself, and a
+         * plural that carries its own copy produced "2 2 declared commands" and
+         * "3 3 TextMate grammars".
+         */
+        for (k, awal) in [
+            ("menus", "1 entry declared"),
+            ("configuration", "2 entries declared"),
+        ] {
+            let i = p.diabaikan.iter().find(|i| i.kind == k).expect("entry");
+            assert!(
+                i.detail.starts_with(awal),
+                "{k}: the count must appear once, got: {}",
+                i.detail
+            );
+        }
+        assert!(
+            p.diabaikan.iter().any(|i| i.kind == "grammar"),
+            "TextMate grammars have no engine: {:?}",
+            p.diabaikan
+        );
+        let g = p
+            .diabaikan
+            .iter()
+            .find(|i| i.kind == "grammar")
+            .expect("grammar entry");
+        assert!(
+            g.detail.starts_with("1 TextMate grammar —"),
+            "the count must appear once, got: {}",
+            g.detail
+        );
+        assert!(
+            tolak_paket(&m, &p).is_none(),
+            "a package with one usable theme must install"
+        );
+        assert!(
+            p.ringkasan.iter().any(|r| r == "1 theme: 1 UI color + 2 code colors"),
+            "{:?}",
+            p.ringkasan
+        );
+    }
+
+    /// A normal package: everything it declares is counted, nothing is skipped,
+    /// and the summary reads as the numbers the user asked to see.
+    #[test]
+    fn paket_normal_lulus_dengan_ringkasan_yang_diminta() {
+        let d = dir_uji("normal");
+
+        let colors: serde_json::Map<String, Value> = (0..12)
+            .map(|i| (format!("ui.k{i}"), Value::String(format!("#00000{i}"))))
+            .collect();
+        let tokens: Vec<Value> = (0..11)
+            .map(|i| json!({ "scope": format!("s{i}"), "settings": { "foreground": "#ffffff" } }))
+            .collect();
+        tulis(
+            &d,
+            "themes/t.json",
+            &json!({ "colors": colors, "tokenColors": tokens }).to_string(),
+        );
+
+        let ikon: serde_json::Map<String, Value> = (0..19)
+            .map(|i| (format!("i{i}"), json!({ "iconPath": format!("./i{i}.svg") })))
+            .collect();
+        tulis(&d, "icons/i.json", &json!({ "iconDefinitions": ikon }).to_string());
+
+        let bindings: Vec<Value> = (0..7)
+            .map(|i| json!({ "key": format!("ctrl+{i}"), "command": format!("acme.c{i}") }))
+            .collect();
+        tulis(&d, "keymaps/k.json", &json!({ "keybindings": bindings }).to_string());
+
+        tulis(&d, "snippets/r.json", "{\"Print\": {\"prefix\": \"pp\"}}");
+        tulis(&d, "extension.js", "module.exports = {};");
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "normal",
+                "publisher": "acme",
+                "version": "3.1.4",
+                "main": "./extension.js",
+                "contributes": {
+                    "themes": [{ "label": "Normal Dark", "path": "./themes/t.json" }],
+                    "iconThemes": [{ "label": "Normal Icons", "path": "./icons/i.json" }],
+                    "keymaps": [{ "label": "Normal Keys", "path": "./keymaps/k.json" }],
+                    "snippets": [{ "language": "rust", "path": "./snippets/r.json" }],
+                    "languages": [{ "id": "rust", "extensions": [".rs"] }],
+                    "commands": [{ "command": "acme.x", "title": "X" }]
+                }
+            }),
+        );
+
+        assert!(
+            p.diabaikan.is_empty(),
+            "nothing in a normal package is ignored: {:?}",
+            p.diabaikan
+        );
+        assert_eq!(p.didukung.len(), 6, "{:?}", p.didukung);
+        assert!(tolak_paket(&m, &p).is_none());
+        let s = p
+            .didukung
+            .iter()
+            .find(|i| i.kind == "script")
+            .expect("script entry");
+        assert!(
+            s.detail.ends_with("provides 1 command"),
+            "the count must appear once, got: {}",
+            s.detail
+        );
+
+        for baris in [
+            "1 theme: 12 UI colors + 11 code colors",
+            "1 icon theme: 19 icons",
+            "1 keymap: 7 key bindings",
+            "1 snippet pack",
+            "1 language",
+        ] {
+            assert!(
+                p.ringkasan.iter().any(|r| r == baris),
+                "missing summary line '{baris}' in {:?}",
+                p.ringkasan
+            );
+        }
+    }
+
+    /// A package with a main script does have an effect even with no
+    /// contributions: the extension host runs it.
+    #[test]
+    fn paket_dengan_skrip_utama_tidak_ditolak() {
+        let d = dir_uji("skrip");
+        tulis(&d, "extension.js", "module.exports = {};");
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "script-pkg",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "main": "./extension.js",
+                "contributes": { "commands": [{ "command": "acme.x", "title": "X" }] }
+            }),
+        );
+
+        assert!(
+            p.didukung.iter().any(|i| i.kind == "script"),
+            "{:?}",
+            p.didukung
+        );
+        assert!(
+            p.diabaikan.is_empty(),
+            "a package whose script runs has nothing to apologise for: {:?}",
+            p.diabaikan
+        );
+        assert!(tolak_paket(&m, &p).is_none());
+    }
+}
+
+/// The download path, tested where it can be tested without an app: the URL
+/// gate and the hash check are pure, and the archive -> extract -> "what
+/// changed" chain only needs the filesystem. `extensions_download_zext` itself
+/// needs Tauri state and a live socket, so it is NOT covered here (BUTUH APP);
+/// what it calls is.
+#[cfg(test)]
+mod tests_unduh {
+    use super::*;
+    use serde_json::json;
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+    use zip::CompressionMethod;
+
+    fn dir_uji(nama: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("zephyr-unduh-{}-{nama}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    /// A stored (uncompressed) .zext, so this test does not depend on a codec.
+    fn tulis_zext(tujuan: &Path, berkas: &[(&str, &str)]) {
+        let f = std::fs::File::create(tujuan).unwrap();
+        let mut z = zip::ZipWriter::new(f);
+        for (nama, isi) in berkas {
+            z.start_file(
+                *nama,
+                SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
+            )
+            .unwrap();
+            z.write_all(isi.as_bytes()).unwrap();
+        }
+        z.finish().unwrap();
+    }
+
+    #[test]
+    fn izin_unduh_menerima_openvsx_https_saja() {
+        assert!(izin_unduh("https://open-vsx.org/api/acme/paket/1.0.0/file/acme.paket.zext").is_ok());
+        assert!(izin_unduh("https://www.open-vsx.org/api/x").is_ok());
+    }
+
+    #[test]
+    fn izin_unduh_menolak_host_di_luar_allowlist() {
+        for u in [
+            "https://evil.example.com/acme.zext",
+            "https://open-vsx.org.evil.example/acme.zext",
+            "https://raw.githubusercontent.com/acme/x.zext",
+            "https://openvsx.org/x.zext",
+        ] {
+            let e = izin_unduh(u).expect_err("host luar allowlist harus ditolak");
+            assert!(matches!(e, ZephyrError::Permission(_)), "{u}: {e:?}");
+        }
+    }
+
+    #[test]
+    fn izin_unduh_menolak_bukan_https() {
+        let e = izin_unduh("http://open-vsx.org/acme.zext").expect_err("http harus ditolak");
+        assert!(matches!(e, ZephyrError::Permission(_)), "{e:?}");
+        assert!(izin_unduh("ftp://open-vsx.org/x").is_err());
+        assert!(izin_unduh("open-vsx.org/x").is_err());
+    }
+
+    #[test]
+    fn hash_sha256_cocok_dengan_vektor_kenal() {
+        assert_eq!(
+            hash_sha256(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(hash_sha256(b"").len(), 64);
+    }
+
+    #[test]
+    fn hash_dinormalkan_dan_ditolak_saat_tidak_cocok() {
+        let h = hash_sha256(b"paket");
+        assert_eq!(normalisasi_hash(&format!("  SHA256:{}  ", h.to_uppercase())), h);
+        assert!(hash_cocok(&h, &h));
+        assert!(hash_cocok(&h, &format!("sha256:{h}")));
+        assert!(!hash_cocok(&h, &hash_sha256(b"paket-lain")));
+        assert!(!hash_cocok(&h, "bukan-hash"));
+        // Tanpa hash yang diterbitkan registry, tidak ada yang perlu dicocokkan.
+        assert!(hash_cocok(&h, ""));
+    }
+
+    /// The whole chain the item is about: a .zext archive is extracted, its
+    /// manifest is read, and the report carries NUMBERS per contribution kind -
+    /// read from the files in the archive, not assumed from the manifest.
+    #[test]
+    fn zext_lalu_laporan_bukti_berangka_per_jenis() {
+        let d = dir_uji("laporan");
+        let z = d.join("paket-uji.zext");
+        let man = json!({
+            "name": "paket-uji",
+            "publisher": "acme",
+            "version": "1.0.0",
+            "contributes": {
+                "themes": [{ "label": "Malam", "path": "./themes/malam.json" }],
+                "iconThemes": [{ "label": "Ikon", "path": "./icons/ikon.json" }],
+                "snippets": [{ "language": "go", "path": "./snippets/go.json" }],
+                "keymaps": [{ "label": "Pintasan", "path": "./keymaps/p.json" }],
+                "languages": [
+                    { "id": "go", "label": "Go", "extensions": ["go"], "cmLang": "go" }
+                ]
+            }
+        })
+        .to_string();
+        let tema = json!({
+            "colors": { "editor.background": "#111111", "editor.foreground": "#eeeeee" },
+            "tokenColors": [{ "scope": "a" }, { "scope": "b" }, { "scope": "c" }]
+        })
+        .to_string();
+        let ikon = json!({ "iconDefinitions": { "f1": {}, "f2": {}, "f3": {}, "f4": {} } }).to_string();
+        let peta = json!({ "keybindings": [{ "key": "ctrl+k" }, { "key": "ctrl+j" }] }).to_string();
+
+        tulis_zext(
+            &z,
+            &[
+                (MANIFEST_NATIVE, man.as_str()),
+                ("themes/malam.json", tema.as_str()),
+                ("icons/ikon.json", ikon.as_str()),
+                ("snippets/go.json", "{}"),
+                ("keymaps/p.json", peta.as_str()),
+            ],
+        );
+
+        let dst = d.join("isi");
+        unzip_zext(&z, &dst).expect("a well-formed .zext must extract");
+
+        let akar = turun_ke_akar(&dst);
+        let m = read_manifest(&akar).expect("the extracted manifest must parse");
+        // The id in the report is the QUALIFIED id `publisher.name` (same key the
+        // marketplace lists the package under), not the bare name: with no
+        // explicit "id" in the manifest, `read_manifest` builds it from
+        // publisher + name. Both halves stay asserted so this cannot silently
+        // become the folder name or the bare name.
+        assert_eq!(m.id, "acme.paket-uji");
+        assert_eq!(m.name, "paket-uji");
+        assert_eq!(m.publisher, "acme");
+        let p = pengaruh_paket(&akar, &m);
+
+        assert_eq!(p.didukung.len(), 5, "{:?}", p.didukung);
+        assert!(p.diabaikan.is_empty(), "{:?}", p.diabaikan);
+        assert!(tolak_paket(&m, &p).is_none());
+        for baris in [
+            "1 theme: 2 UI colors + 3 code colors",
+            "1 icon theme: 4 icons",
+            "1 keymap: 2 key bindings",
+            "1 snippet pack",
+            "1 language",
+        ] {
+            assert!(
+                p.ringkasan.iter().any(|r| r == baris),
+                "missing '{baris}' in {:?}",
+                p.ringkasan
+            );
+        }
+    }
+
+    /// An archive whose manifest carries an explicit `id` keeps it: the
+    /// publisher.name fallback applies only when `id` is absent, so a package
+    /// that names itself does not get renamed by the reporter.
+    #[test]
+    fn id_eksplisit_di_manifest_menang() {
+        let d = dir_uji("id-eksplisit");
+        let z = d.join("id-eksplisit.zext");
+        let man = json!({
+            "id": "penerbit-lain.paket-uji",
+            "name": "paket-uji",
+            "publisher": "acme",
+            "version": "1.0.0",
+            "contributes": { "languages": [{ "id": "go", "cmLang": "go" }] }
+        })
+        .to_string();
+        tulis_zext(&z, &[(MANIFEST_NATIVE, man.as_str())]);
+
+        let dst = d.join("isi");
+        unzip_zext(&z, &dst).unwrap();
+        let m = read_manifest(&turun_ke_akar(&dst)).unwrap();
+        assert_eq!(m.id, "penerbit-lain.paket-uji");
+        let p = pengaruh_paket(&d.join("isi"), &m);
+        assert!(p.ringkasan.iter().any(|r| r == "1 language"), "{:?}", p.ringkasan);
+    }
+
+    /// Nothing may land outside the destination folder, whatever the archive
+    /// claims its entry name is.
+    #[test]
+    fn unzip_tidak_pernah_menulis_di_luar_folder_tujuan() {
+        let d = dir_uji("escape");
+        let z = d.join("jahat.zext");
+        let f = std::fs::File::create(&z).unwrap();
+        let mut w = zip::ZipWriter::new(f);
+        let opsi = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        if w.start_file("../keluar.txt", opsi).is_ok() {
+            let _ = w.write_all(b"x");
+        }
+        let _ = w.finish();
+
+        let dst = d.join("isi");
+        assert!(
+            unzip_zext(&z, &dst).is_err(),
+            "an archive carrying ../ must be refused"
+        );
+        assert!(!d.join("keluar.txt").exists(), "nothing may escape {dst:?}");
     }
 }

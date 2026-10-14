@@ -72,14 +72,162 @@ export function bolehTulis(): boolean {
 }
 
 /**
- * Subagents never get an approval card, so a disk write from one would land
- * silently. Unless the run is explicitly unattended (`auto`), hand the write
- * back to the main agent, which CAN ask. `editor_write` is not gated: it only
- * changes a buffer and the user still saves by hand.
+ * Tulis DISK dari subagent ditolak hanya kalau setelan izinnya mati.
+ *
+ * Dulu tulis disk ditahan sampai mode persetujuan `auto`, karena subagent tidak
+ * punya kartu persetujuan untuk dimintai izin. Akibatnya user yang SUDAH
+ * menyalakan "Let sub-agents write" tetap melihat subagentnya cuma membaca -
+ * sakelar di layar dan gerbang di kode bercerita beda. Sekarang sakelar itu
+ * sendiri yang memutuskan; yang tetap butuh `auto` hanya perintah shell yang
+ * bisa menghapus/menimpa berkas (lihat `putusanTulis`), sebab kerusakannya
+ * tidak bisa ditinjau setelah terjadi.
+ * `editor_write` tidak lewat sini: ia hanya mengubah buffer, bukan disk.
  */
 export function tulisDiskDilarang(namaTool: string): boolean {
   if (!TOOL_DISK_TULIS.has(namaTool)) return false;
-  return useAi.getState().approvalMode !== 'auto';
+  return !bolehTulis();
+}
+
+/**
+ * Keadaan izin tulis subagent apa adanya - dibaca UI, prompt, dan gerbang.
+ *
+ * SATU gerbang untuk berkas: `allowWrite` (baris "Let sub-agents write" di
+ * Chat Settings -> Sub-agents). Menyalakannya berarti user memang meminta
+ * subagentnya BEKERJA, jadi tulis disknya langsung dijalankan - dulu ia masih
+ * ditahan sampai mode persetujuan `auto`, dan itu membuat sakelar di layar
+ * tidak ada gunanya ("sudah dinyalakan, subagentnya tetap cuma membaca").
+ *
+ * `persetujuanAuto` tetap dilaporkan karena masih dipakai untuk satu hal:
+ * perintah shell yang bisa menghapus/menimpa berkas. Itu tidak bisa ditinjau
+ * setelah terjadi dan subagent tidak punya kartu persetujuan, jadi ia tetap
+ * butuh mode `auto`.
+ */
+export interface KemampuanTulis {
+  /** `settings.subagent.allowWrite` - gerbang untuk semua tulis berkas. */
+  setelan: boolean;
+
+  /** `ai.approvalMode === 'auto'` - gerbang untuk perintah shell yang merusak. */
+  persetujuanAuto: boolean;
+
+  /** Setelan menyala: kelas tulis terbuka (buffer editor, bukan selalu disk). */
+  bisaTulis: boolean;
+
+  /** Setelan menyala: tulisan berkas memang akan dijalankan. */
+  bisaTulisDisk: boolean;
+}
+
+export function kemampuanTulis(): KemampuanTulis {
+  const setelan = bolehTulis();
+  const persetujuanAuto = useAi.getState().approvalMode === 'auto';
+  return { setelan, persetujuanAuto, bisaTulis: setelan, bisaTulisDisk: setelan };
+}
+
+/** Gerbang mana yang menutup, supaya UI bisa menerjemahkan sebabnya. */
+export type AlasanTolakTulis = 'setelan-mati' | 'perlu-persetujuan';
+
+export interface PutusanTulis {
+  boleh: boolean;
+  alasan: AlasanTolakTulis | null;
+
+  /** Pesan yang dikirim balik ke model. Menyebut gerbangnya, bukan "error". */
+  pesan: string;
+}
+
+/**
+ * Satu tempat yang memutuskan tulisan subagent: boleh, atau ditolak karena apa.
+ *
+ * Dipanggil DUA kali di loop (gelombang dan satu-agent) dan dipakai juga oleh
+ * `promptSub`, supaya prompt dan gerbangnya tidak bisa lagi berbeda cerita.
+ * Sebelumnya keputusan ini hidup sebagai tiga string berbeda di dua tempat, dan
+ * prompt peran `kerja` menjanjikan "You may change files" walaupun `allowWrite`
+ * mati - akibatnya subagent membakar langkah mencoba menulis, ditolak setiap
+ * kali, lalu melapor seolah pekerjaannya beres. Kalimat penolakan lama pun
+ * hanya bilang "refused" tanpa menyebut gerbang mana yang menutup, jadi tidak
+ * ada cara bagi siapa pun untuk tahu bahwa ada setelan yang bisa dinyalakan.
+ *
+ * `bahayaShell` ikut di sini walau namanya bukan tool tulis: `rm -rf` menghapus
+ * berkas user tanpa pernah menyentuh `write_file`, jadi perintah shell yang
+ * merusak diperlakukan sebagai tulis disk. Sebelumnya ia hanya diperiksa saat
+ * `allowWrite` mati, artinya menyalakan "izinkan subagent menulis berkas" diam-diam
+ * sekaligus mengizinkan subagent menghapus berkas - izin yang tidak pernah
+ * diminta dan tidak pernah diberitahukan.
+ */
+export function putusanTulis(
+  namaTool: string,
+  opts: { bahayaShell?: boolean } = {},
+): PutusanTulis {
+  const k = kemampuanTulis();
+  const tulisTool = TOOL_TULIS.has(namaTool);
+
+  if (!k.setelan && (tulisTool || opts.bahayaShell)) {
+    return {
+      boleh: false,
+      alasan: 'setelan-mati',
+      pesan: opts.bahayaShell
+        ? '(refused: the command that can delete or overwrite files was NOT run - subagents are ' +
+          'read-only in this session (Chat Settings → Sub-agents → "Let sub-agents write" is off). ' +
+          'Nothing was deleted. Describe the command in your report and let the main agent run it.)'
+        : `(refused: ${namaTool} was NOT run - subagents are read-only in this session (Chat Settings → ` +
+          'Sub-agents → "Let sub-agents write" is off), so no file was written. Report the exact change ' +
+          '(file and lines) and the main agent will apply it.)',
+    };
+  }
+
+  /*
+   * Satu-satunya yang masih butuh mode persetujuan Auto: perintah shell yang
+   * bisa menghapus/menimpa berkas. Ia tidak bisa ditinjau setelah terjadi, dan
+   * subagent tidak punya kartu persetujuan untuk dimintai izin. Tuls BERKAS
+   * tidak lagi lewat sini - setelan "Let sub-agents write" sudah jadi izinnya.
+   */
+  if (opts.bahayaShell || tulisDiskDilarang(namaTool)) {
+    return {
+      boleh: false,
+      alasan: 'perlu-persetujuan',
+      pesan: opts.bahayaShell
+        ? '(refused: the command that can delete or overwrite files was NOT run - it needs the ' +
+          "user's approval, which a subagent cannot ask for (approval mode is not Auto). Nothing " +
+          'was deleted. Describe the command and let the main agent run it.)'
+        : `(refused: ${namaTool} was NOT run - file writing is off for subagents in this session. ` +
+          'Report what you want changed and let the main agent apply it.)',
+    };
+  }
+
+  return { boleh: true, alasan: null, pesan: '' };
+}
+
+/**
+ * Baris izin tulis untuk ringkasan yang dibaca agen utama dan ditampilkan di panel.
+ *
+ * Ada karena keadaannya tidak bisa ditebak dari hasilnya. Ringkasan yang hanya
+ * memuat temuan membuat "subagent sudah menulis berkasnya" jadi kesimpulan yang
+ * wajar - padahal saat gerbangnya mati tidak ada satu berkas pun yang tersentuh,
+ * dan seluruh pekerjaan tulisnya berhenti di laporan. Kalimat ini menyatakan
+ * keadaannya lebih dulu, termasuk berapa percobaan tulis yang ditolak, supaya
+ * agen utama menerapkan sendiri perubahan yang dilaporkan alih-alih menganggapnya
+ * sudah selesai.
+ */
+export function catatanTulis(
+  agents: { nama: string; tulisDitolak?: number; fileDitulis?: string[] }[],
+): string {
+  const k = kemampuanTulis();
+  const ditolak = agents.reduce((n, a) => n + (a.tulisDitolak ?? 0), 0);
+  const ditulis = [...new Set(agents.flatMap((a) => a.fileDitulis ?? []))];
+
+  if (!k.bisaTulisDisk) {
+    const sebab =
+      'subagents are read-only in this session (Chat Settings → Sub-agents → "Let sub-agents write" is off)';
+    return (
+      `## WRITE PERMISSION: OFF\nNo file was written by any agent below - ${sebab}. ` +
+      (ditolak ? `${ditolak} write attempt(s) were refused. ` : '') +
+      'Do not report these results as files already changed: apply the changes yourself, or turn the ' +
+      'setting on for another run.'
+    );
+  }
+
+  return (
+    `## WRITE PERMISSION: ON\nSubagents may write files in this session. ` +
+    (ditulis.length ? `Files written: ${ditulis.join(', ')}.` : 'No file was written.')
+  );
 }
 
 export const MAX_SUB_STEPS = 15;
@@ -102,6 +250,14 @@ export interface SubStep {
   hasil?: string;
   ok?: boolean;
 
+  /**
+   * true saat langkah ini DITOLAK gerbang izin tulis - bukan gagal karena
+   * error. Dibedakan supaya UI bisa menyebutnya apa adanya ("ditolak: subagent
+   * read-only") dan tidak tertukar dengan kegagalan tool biasa, yang artinya
+   * jauh berbeda bagi pembaca.
+   */
+  ditolakTulis?: boolean;
+
   teks?: string;
   at: number;
 }
@@ -114,7 +270,7 @@ export interface SubAgent {
   peran: PeranId;
 
   /**
-   * Set when this worker came from Settings → Subagents rather than from the
+   * Set when this worker came from Chat Settings → Sub-agents rather than from the
    * shipped role list. `peran` still names the nearest built-in role, because
    * the panel, the icon set and the tool gate are all keyed on it — but the
    * persona, the tool allowlist and the model are the user's, and those are what
@@ -153,6 +309,15 @@ export interface SubAgent {
   verdict: 'terbukti' | 'sebagian' | 'tanpa-bukti';
   /** Files this agent actually wrote, from its own tool calls. */
   fileDitulis: string[];
+
+  /**
+   * Berapa kali tulisan agent ini ditolak gerbang izin.
+   *
+   * Bukan hiasan: ringkasan yang dikirim ke agen utama memakainya untuk
+   * menyatakan bahwa berkasnya TIDAK ditulis, sehingga klaim subagent yang
+   * mengaku sudah menulis tidak lolos begitu saja ke kesimpulan agen utama.
+   */
+  tulisDitolak: number;
   /** Nesting depth: 0 for a top-level batch, higher inside `subagent_run`. */
   kedalaman: number;
 
@@ -347,16 +512,14 @@ function pathDitulis(namaTool: string, args: Record<string, unknown>): string | 
  * The dangerous-command check only fires for these, so a missing name here
  * means a destructive command from a subagent is never caught. `bash_run` and
  * `bash_background` are the built-in shells; the MCP `sh` tool sends a command
- * to the user's terminal. MCP tools reach the model prefixed, so both prefix
- * forms and the bare `sh` are accepted - a session resumed from disk can still
- * carry either prefix.
+ * terminal. MCP tools reach the model prefixed, so the prefixed form and the
+ * bare `sh` are both accepted.
  */
 function isToolShell(namaTool: string): boolean {
   return (
     namaTool === 'bash_run' ||
     namaTool === 'bash_background' ||
     namaTool === 'mcp__zephyr__sh' ||
-    namaTool === 'mcp__tedi__sh' ||
     namaTool === 'sh'
   );
 }
@@ -421,13 +584,29 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
   const custom = customId ? bacaDaftar().find((d) => d.id === customId) ?? null : null;
   const p = custom ? null : infoPeran(peran);
   const inggris = (useStore.getState().settings.general.uiLang || 'en') !== 'id';
-  const tulis = p?.butuhTulis
+  /*
+   * Kalimat izin tulis diambil dari GERBANGNYA, bukan dari perannya saja.
+   *
+   * Dulu kalimatnya hanya melihat `p.butuhTulis`: peran `kerja` selalu diberi
+   * tahu "You may change files" walau `allowWrite` mati dan tool tulisnya tidak
+   * pernah ditawarkan. Subagent lalu menghabiskan langkah mencoba menulis,
+   * ditolak di setiap percobaan, dan tetap melapor. Sekarang aturannya sama
+   * dengan yang dipakai `putusanTulis`, jadi prompt tidak menjanjikan apa pun
+   * yang akan ditolak gerbangnya sendiri.
+   */
+  const kt = kemampuanTulis();
+  const mintaTulis = p?.butuhTulis ?? false;
+  const tulis = !kt.setelan
     ? inggris
-      ? 'You may change files within the scope of your task only.'
-      : 'You may edit files, but only within the scope of your task.'
-    : inggris
-      ? 'Do not write any file (write_file/edit/multi_edit/delete_file are rejected).'
-      : 'Do not write any file (write_file/edit/multi_edit/delete_file are refused).';
+      ? 'READ-ONLY SESSION: you cannot write files. write_file/edit/multi_edit/delete_file are not offered and would be refused; anything that deletes or overwrites is refused too. Read, search, run read-only commands, and in your report say exactly what should change and where.'
+      : 'SESI HANYA-BACA: kamu tidak bisa menulis berkas. write_file/edit/multi_edit/delete_file tidak ditawarkan dan akan ditolak; perintah yang menghapus atau menimpa juga ditolak. Baca, cari, jalankan perintah hanya-baca, lalu di laporanmu sebutkan persis apa yang harus diubah dan di mana.'
+    : !mintaTulis
+      ? inggris
+        ? 'Do not write any file: this role only reads. Report what should change instead.'
+        : 'Jangan menulis berkas apa pun: peran ini hanya membaca. Laporkan apa yang perlu diubah.'
+      : inggris
+          ? 'You may change files within the scope of your task only.'
+          : 'You may edit files, but only within the scope of your task.';
   const baris = inggris
     ? [
         'You are a SUBAGENT in a parallel task.',
@@ -558,6 +737,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
               : 'Subagent batch model setting.',
         verdict: 'tanpa-bukti' as const,
         fileDitulis: [],
+        tulisDitolak: 0,
         kedalaman: opts?.kedalaman ?? 0,
         delegasiId: opts?.delegasiId ?? 'batch-0',
         inputTokens: null,
@@ -626,9 +806,15 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             ? `${a.nTool} tool steps, some failed — check`
             : 'NO tool step succeeded — the result is unproven';
       const file = a.fileDitulis.length ? `\nFiles written: ${a.fileDitulis.join(', ')}` : '';
-      return `## ${a.nama} — ${statusTeks}\nTugas: ${a.tugas}\nBukti: ${bukti}${file}\n\n${isi}`;
+      // A refused write is not a plain failure: the agent wanted to change a
+      // file and the gate stopped it. Say which one it was.
+      const tolak = a.tulisDitolak ? `\nWrite attempts refused: ${a.tulisDitolak}` : '';
+      return `## ${a.nama} — ${statusTeks}\nTugas: ${a.tugas}\nBukti: ${bukti}${file}${tolak}\n\n${isi}`;
     });
-    const ringkasan = bagian.join('\n\n---\n\n');
+    // Izin tulis didahulukan: tanpa kalimat ini pembaca ringkasan (agen utama
+    // maupun user) tidak punya cara membedakan "sudah ditulis" dari "ditolak
+    // lalu dilaporkan", dan yang kedua mudah terbaca sebagai yang pertama.
+    const ringkasan = [catatanTulis(akhir), ...bagian].join('\n\n---\n\n');
 
     set({ sibuk: false, ringkasan });
 
@@ -853,25 +1039,21 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           }
           const argsObj = (tc.args ?? {}) as Record<string, unknown>;
           const perintahSub = String(argsObj.command ?? '');
-          const toolShell = isToolShell(tc.name);
-          const tulisTool = TOOL_TULIS.has(tc.name);
-          const shellBahaya = toolShell && isDestructive(perintahSub);
-          const dilarang = !bolehTulis() && (tulisTool || shellBahaya);
+          const shellBahaya = isToolShell(tc.name) && isDestructive(perintahSub);
+          /*
+           * Satu gerbang untuk kedua loop: alasan penolakannya dibawa ke langkah
+           * supaya UI bisa menyebut "ditolak izin", bukan "gagal" - dan supaya
+           * jumlah penolakan sampai ke ringkasan yang dibaca agen utama.
+           */
+          const putusan = putusanTulis(tc.name, { bahayaShell: shellBahaya });
           const fileTarget = pathDitulis(tc.name, argsObj);
           const konflik = fileTarget ? pemilikSaatIni(fileTarget) : null;
           const fileMilikLain = !!konflik && konflik !== id;
 
           let hasil: string;
           let ok = true;
-          if (dilarang) {
-            hasil = tulisTool
-              ? '(refused: a parallel subagent may not write files; turn on allowWrite in Settings → Subagents if that is wanted)'
-              : '(refused: destructive commands are not allowed for a parallel subagent)';
-            ok = false;
-          } else if (tulisDiskDilarang(tc.name)) {
-            hasil =
-              '(refused: writing to disk needs the user\'s approval, which a subagent cannot ask for. ' +
-              'Report what you want changed and let the main agent apply it.)';
+          if (!putusan.boleh) {
+            hasil = putusan.pesan;
             ok = false;
           } else if (fileMilikLain) {
             const pemilik = get().agents.find((a) => a.id === konflik);
@@ -901,6 +1083,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           catat((a) => ({
             ...a,
             nTool: a.nTool + 1,
+            tulisDitolak: putusan.alasan ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
             langkah: [
               ...a.langkah,
               {
@@ -909,6 +1092,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
                 args: JSON.stringify(argsObj).slice(0, 300),
                 hasil: hasil.slice(0, 2000),
                 ok,
+                ditolakTulis: !!putusan.alasan,
                 at: Date.now(),
               },
             ],
@@ -1114,11 +1298,9 @@ async function jalankanSatu(
         }
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
         const perintahSub = String(argsObj.command ?? '');
-        const toolShell = isToolShell(tc.name);
-
-        const tulisTool = TOOL_TULIS.has(tc.name);
-        const shellBahaya = toolShell && isDestructive(perintahSub);
-        const dilarang = !bolehTulis() && (tulisTool || shellBahaya);
+        const shellBahaya = isToolShell(tc.name) && isDestructive(perintahSub);
+        // Gerbang yang sama dengan loop gelombang - satu keputusan, dua tempat.
+        const putusan = putusanTulis(tc.name, { bahayaShell: shellBahaya });
         // Claim the file for this agent. A second agent handed the same file is
         // refused rather than allowed to overwrite the first agent's work.
         const fileTarget = pathDitulis(tc.name, argsObj);
@@ -1126,15 +1308,8 @@ async function jalankanSatu(
         const fileMilikLain = !!konflik && konflik !== agent.id;
         let hasil: string;
         let ok = true;
-        if (dilarang) {
-          hasil = tulisTool
-            ? '(refused: a parallel subagent may not write files; turn on allowWrite in Settings → Subagents if that is wanted)'
-            : '(refused: destructive commands are not allowed for a parallel subagent)';
-          ok = false;
-        } else if (tulisDiskDilarang(tc.name)) {
-          hasil =
-            '(refused: writing to disk needs the user\'s approval, which a subagent cannot ask for. ' +
-            'Report what you want changed and let the main agent apply it.)';
+        if (!putusan.boleh) {
+          hasil = putusan.pesan;
           ok = false;
         } else if (fileMilikLain) {
           const pemilik = get().agents.find((a) => a.id === konflik);
@@ -1163,9 +1338,14 @@ async function jalankanSatu(
           args: JSON.stringify(argsObj).slice(0, 300),
           hasil: hasil.slice(0, 2000),
           ok,
+          ditolakTulis: !!putusan.alasan,
           at: Date.now(),
         });
-        ubah((a) => ({ ...a, nTool: a.nTool + 1 }));
+        ubah((a) => ({
+          ...a,
+          nTool: a.nTool + 1,
+          tulisDitolak: putusan.alasan ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
+        }));
 
         history.push({
           role: 'tool',

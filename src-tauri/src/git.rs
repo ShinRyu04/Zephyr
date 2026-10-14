@@ -421,6 +421,18 @@ pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
     }
     let repo_root = root.stdout.trim().to_string();
 
+    /*
+     * BATAS PENELUSURAN (bug 2026-10-14 — badai "git permit was not granted
+     * within 90s"): workspace boleh berada DI DALAM repo yang lebih besar
+     * (kejadian nyata: sandbox `%TEMP%\zephyr-mcp-*` ternyata di dalam repo home
+     * `C:/Users/Zyrex` yang di-`git init` tanpa index). Tanpa pathspec,
+     * `--untracked-files=all` menelusuri SELURUH worktree repo itu: diukur
+     * 36,5 s dan keluaran 68 MB → melewati TIMEOUT git 30 s → izin git ditahan
+     * 30 s berkali-kali → penunggu ke-4 lewat `GIT_WAIT` 90 s → seluruh IPC mati.
+     * Pathspec `.` membatasi penelusuran ke workspace saja (0,3 s pada kasus
+     * yang sama) dan TIDAK mengubah hasil saat workspace = root repo
+     * (diverifikasi: 678 = 678 baris pada root repo Zephyr).
+     */
     let st = run_git_in(
         &dir,
         &[
@@ -429,6 +441,8 @@ pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
             "--branch",
             "--untracked-files=all",
             "-z",
+            "--",
+            ".",
         ],
         &[],
     )?;
@@ -517,12 +531,10 @@ pub fn git_commit(state: State<AppState>, message: String) -> ZResult<String> {
                 extra.push(format!("user.name={n}"));
                 extra.push(format!("user.email={e}"));
             }
-            _ => {
-                return Err(ZephyrError::Git(
-                    "git identity is not set up — fill in Name & Email in Settings → Source Control"
-                        .into(),
-                ))
-            }
+            _ => return Err(ZephyrError::Git(
+                "git identity is not set up — fill in Name & Email in Settings → Source Control"
+                    .into(),
+            )),
         }
     }
     git_extra(&state, &["commit", "-m", &msg], &extra)?;
@@ -805,6 +817,49 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
     Ok(out)
 }
 
+/**
+ * The diff of one file against HEAD — what the gutter needs.
+ *
+ * `git_diff` above compares the working tree to the INDEX, which is the right
+ * question for the Source Control panel: staging a file makes its diff empty,
+ * because the change has moved into the index. For a gutter the question is
+ * different — "what have I changed since the last commit" — and a file that has
+ * been staged still shows bars there, because the commit has not happened.
+ *
+ * `git diff HEAD -- <path>` answers exactly that: both staged and unstaged
+ * changes against the commit, which is what the bars are drawn from.
+ *
+ * Untracked files get the same synthetic new-file diff the panel uses, so a
+ * file that has just been created shows every line as added rather than as
+ * unchanged.
+ */
+#[tauri::command(async)]
+pub fn git_diff_head(state: State<AppState>, path: String) -> ZResult<String> {
+    let p = path.trim();
+    if p.is_empty() || p.starts_with('-') {
+        return Err(ZephyrError::InvalidInput("invalid path".into()));
+    }
+    let out = git(&state, &["diff", "HEAD", "--no-color", "--", p])?;
+
+    if out.contains("Binary files ") || out.contains("GIT binary patch") {
+        return Ok(binary_diff_note(&state, p, &out));
+    }
+    if !out.trim().is_empty() {
+        return Ok(out);
+    }
+
+    if let Some(root) = state.workspace_path() {
+        let full = root.join(p.replace('/', std::path::MAIN_SEPARATOR_STR));
+        if full.is_file() {
+            let is_untracked = git(&state, &["ls-files", "--error-unmatch", "--", p]).is_err();
+            if is_untracked {
+                return Ok(synth_new_file_diff(p, &full));
+            }
+        }
+    }
+    Ok(out)
+}
+
 fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
     let size = state
         .workspace_path()
@@ -828,9 +883,7 @@ fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
         s.push_str(&index_line);
         s.push('\n');
     }
-    s.push_str(&format!(
-        "Binary file ({ukuran}) — differences not shown\n"
-    ));
+    s.push_str(&format!("Binary file ({ukuran}) — differences not shown\n"));
     s
 }
 
@@ -854,10 +907,7 @@ fn synth_new_file_diff(rel: &str, full: &Path) -> String {
         s.push('\n');
     }
     if lines.len() > shown {
-        s.push_str(&format!(
-            "… {} more lines not shown\n",
-            lines.len() - shown
-        ));
+        s.push_str(&format!("… {} more lines not shown\n", lines.len() - shown));
     }
     s
 }
@@ -964,10 +1014,7 @@ pub struct GitBlameLine {
 #[tauri::command(async)]
 pub fn git_blame(state: State<AppState>, path: String) -> ZResult<Vec<GitBlameLine>> {
     let rel = path.replace('\\', "/");
-    let raw = git(
-        &state,
-        &["blame", "--line-porcelain", "--", &rel],
-    )?;
+    let raw = git(&state, &["blame", "--line-porcelain", "--", &rel])?;
 
     let mut out: Vec<GitBlameLine> = Vec::new();
     let mut line_no: u32 = 0;
@@ -1068,7 +1115,11 @@ pub fn git_conflict_take(state: State<AppState>, path: String, side: String) -> 
     let flag = match side.as_str() {
         "ours" => "--ours",
         "theirs" => "--theirs",
-        _ => return Err(ZephyrError::InvalidInput("side must be 'ours' or 'theirs'".into())),
+        _ => {
+            return Err(ZephyrError::InvalidInput(
+                "side must be 'ours' or 'theirs'".into(),
+            ))
+        }
     };
     git(&state, &["checkout", flag, "--", &rel])?;
     git(&state, &["add", "--", &rel])?;
@@ -1229,7 +1280,12 @@ pub fn parse_worktree_porcelain(raw: &str) -> Vec<GitWorktree> {
             }
             "branch" => {
                 if let Some(w) = cur.as_mut() {
-                    w.branch = Some(value.strip_prefix("refs/heads/").unwrap_or(value).to_string());
+                    w.branch = Some(
+                        value
+                            .strip_prefix("refs/heads/")
+                            .unwrap_or(value)
+                            .to_string(),
+                    );
                 }
             }
             "bare" => {
@@ -1331,7 +1387,10 @@ pub fn git_worktree_add(
             Some(f) if !f.trim().is_empty() => f,
             _ => "HEAD".to_string(),
         };
-        git(&state, &["worktree", "add", "-b", &branch, &target_str, &base])?;
+        git(
+            &state,
+            &["worktree", "add", "-b", &branch, &target_str, &base],
+        )?;
     } else {
         git(&state, &["worktree", "add", &target_str, &branch])?;
     }
@@ -1348,9 +1407,12 @@ pub fn git_worktree_remove(state: State<AppState>, path: String, force: bool) ->
     let target = PathBuf::from(path.trim());
     let target_norm = crate::paths::canonical_or_parent(&target);
 
-    let found = list
-        .iter()
-        .find(|w| crate::paths::is_same(&crate::paths::canonical_or_parent(Path::new(&w.path)), &target_norm));
+    let found = list.iter().find(|w| {
+        crate::paths::is_same(
+            &crate::paths::canonical_or_parent(Path::new(&w.path)),
+            &target_norm,
+        )
+    });
 
     if let Some(w) = found {
         if w.is_main {
@@ -1377,5 +1439,79 @@ pub fn git_worktree_prune(state: State<AppState>) -> ZResult<String> {
         Ok("(nothing to prune)".to_string())
     } else {
         Ok(combined.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests_batas_status {
+    /*
+     * Penjaga regresi bug 2026-10-14 (badai izin git): kalau workspace berada di
+     * dalam repo yang LEBIH BESAR, `git status --untracked-files=all` tanpa
+     * pathspec menelusuri seluruh worktree repo itu — pada kasus nyata (repo home
+     * `C:/Users/Zyrex`) 36,5 s / 68 MB, melewati TIMEOUT 30 s, dan izin git
+     * ditahan berulang sampai penunggu lain mati di 90 s. Pathspec `.` membatasi
+     * penelusuran ke workspace.
+     */
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    /// Repo uji: root berisi `big/` (3 berkas) + `ws/` (1 berkas).
+    fn siapkan() -> Option<(PathBuf, PathBuf)> {
+        if Command::new("git").arg("--version").output().is_err() {
+            return None; // git tidak ada di PATH — lewati
+        }
+        let root = std::env::temp_dir().join(format!("zephyr-uji-status-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("big")).ok()?;
+        fs::create_dir_all(root.join("ws")).ok()?;
+        for n in ["a", "b", "c"] {
+            fs::write(root.join("big").join(format!("{n}.txt")), "x").ok()?;
+        }
+        fs::write(root.join("ws").join("satu.txt"), "x").ok()?;
+        let init = Command::new("git")
+            .current_dir(&root)
+            .args(["init", "-q"])
+            .output()
+            .ok()?;
+        assert!(init.status.success(), "git init gagal di repo uji");
+        Some((root.clone(), root.join("ws")))
+    }
+
+    const ARGS: [&str; 5] = [
+        "status",
+        "--porcelain=v2",
+        "--branch",
+        "--untracked-files=all",
+        "-z",
+    ];
+
+    #[test]
+    fn pathspec_membatasi_status_ke_workspace() {
+        let Some((root, ws)) = siapkan() else { return };
+        let args = ARGS.to_vec();
+        let tanpa = run_git_in(&ws, &args, &[]).expect("status tanpa pathspec");
+        assert!(
+            tanpa.stdout.contains("big/a.txt"),
+            "tanpa pathspec harus melihat berkas di luar workspace"
+        );
+
+        let mut args_fix = args;
+        args_fix.push("--");
+        args_fix.push(".");
+        let dengan = run_git_in(&ws, &args_fix, &[]).expect("status dengan pathspec");
+        assert!(
+            dengan.stdout.contains("ws/satu.txt"),
+            "pathspec harus tetap melaporkan berkas di dalam workspace"
+        );
+        assert!(
+            !dengan.stdout.contains("big/"),
+            "pathspec harus memotong berkas di luar workspace"
+        );
+        assert!(
+            dengan.stdout.len() < tanpa.stdout.len(),
+            "keluaran berpathspec harus lebih kecil daripada tanpa"
+        );
+        let _ = fs::remove_dir_all(&root);
     }
 }

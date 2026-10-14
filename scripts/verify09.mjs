@@ -12,6 +12,7 @@
 // server tiruan, sehingga bukti mencakup ai_chat/ai-chunk/ai_cancel asli.
 
 import { spawn } from 'node:child_process';
+import { keluarBersih } from './lib-cdp.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,6 +20,15 @@ import WebSocket from 'ws';
 
 const PORT = process.argv[2] ?? '9223';
 const MOCK = 8098;
+
+/**
+ * Koneksi CDP yang sedang terbuka, supaya jalur galat bisa menutupnya.
+ *
+ * Tanpa ini, `main().catch` hanya menyetel process.exitCode: WebSocket-nya tetap
+ * terbuka, event loop tetap hidup, dan runner suite mencatat "timeout 480s"
+ * padahal penyebab aslinya sudah tercetak.
+ */
+let cdpTerbuka = null;
 
 /*
  * Cadangan berkas secrets.json.
@@ -58,7 +68,60 @@ function restoreSecrets() {
       fs.rmSync(SECRETS_CADANGAN, { force: true });
     }
   } catch {
-    /* biarkan 窶・cadangan masih ada di disk */
+    /* biarkan — cadangan masih ada di disk */
+  }
+}
+
+/*
+ * Cadangan berkas settings.json.
+ *
+ * Harness ini menulis baseUrl tiruan (http://127.0.0.1:8098) ke
+ * models.providers lewat applySettings. Dulu pemulihannya HANYA ada di dalam
+ * halaman, di langkah terakhir (V10). Begitu harness berhenti lebih awal —
+ * mis. V1 gagal — pemulihan itu tidak pernah jalan dan settings.json user
+ * TERTINGGAL menunjuk server yang sudah mati, sekaligus MENGHAPUS entri
+ * provider milik user (terbukti: provider `custom2`/`custom` hilang dan tiga
+ * provider menunjuk 127.0.0.1:8098, sehingga chat user rusak).
+ *
+ * Sisi Node karena itu mencadangkan berkasnya SEBELUM uji dan menulisnya
+ * kembali apa adanya di SEMUA jalur keluar: lulus, gagal di tengah, atau
+ * berhenti awal.
+ */
+const SETTINGS = path.join(
+  process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming'),
+  'zephyr',
+  'settings.json',
+);
+const SETTINGS_CADANGAN = path.join(
+  process.env.LOCALAPPDATA ?? os.tmpdir(),
+  'Temp',
+  `settings-verify09-${process.pid}.json`,
+);
+
+function backupSettings() {
+  try {
+    if (fs.existsSync(SETTINGS)) {
+      fs.copyFileSync(SETTINGS, SETTINGS_CADANGAN);
+      return true;
+    }
+  } catch {
+    /* lanjut tanpa cadangan */
+  }
+  return false;
+}
+
+function restoreSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_CADANGAN)) {
+      fs.copyFileSync(SETTINGS_CADANGAN, SETTINGS);
+      fs.rmSync(SETTINGS_CADANGAN, { force: true });
+      console.log('[verify09] settings.json dipulihkan ke keadaan sebelum uji');
+    }
+  } catch (e) {
+    console.error(
+      `[verify09] GAGAL memulihkan settings.json (cadangan masih ada di ${SETTINGS_CADANGAN}):`,
+      e.message,
+    );
   }
 }
 
@@ -143,12 +206,20 @@ class Cdp {
           T.getState().setVisible(true); window.__ZEPHYR_PANEL__.store.getState().focusTab('ai');
           await wait(260);
         };
-        /** Tunggu sampai streaming selesai (pending null). */
-        const tungguSelesai = async (ms = 25000) => {
+        /** Tunggu sampai streaming selesai.
+         *
+         *  Jalur AGEN menandai run dengan 'agentBusy', BUKAN 'pending'
+         *  ('pending' milik jalur chat yang kini pensiun). Menunggu 'pending'
+         *  saja langsung lolos di jalur agen, lalu uji membaca jawaban separuh
+         *  jalan - itu sebabnya V3 melaporkan jawaban "terpotong" dan V4 tidak
+         *  menemukan isi berkas di jawaban, padahal streamingnya berjalan
+         *  normal. Dua-duanya ditunggu, satu pun tidak boleh tertinggal.
+         */
+        const tungguSelesai = async (ms = 45000) => {
           const batas = Date.now() + ms;
-          while (AS().pending && Date.now() < batas) await wait(120);
-          await wait(220);
-          return !AS().pending;
+          while ((AS().agentBusy || AS().pending) && Date.now() < batas) await wait(150);
+          await wait(300);
+          return !(AS().agentBusy || AS().pending);
         };
         /** Kirim lewat UI seperti user: isi textarea lalu klik Kirim.
          *  Kalau masih ada request menggantung, batalkan dulu supaya tombol
@@ -156,7 +227,21 @@ class Cdp {
          *  PENTING: send() menyetel pending SETELAH await loadKeys(), jadi
          *  fungsi ini harus menunggu pending terpasang 窶・kalau tidak,
          *  tungguSelesai() langsung lolos dan kita membaca jawaban separuh. */
-        const kirim = async (teks) => {
+        const kirim = async (teks, sebelumKlik) => {
+          /*
+           * Run yang menggantung harus dibereskan DULU.
+           *
+           * Kalau agentBusy masih true (mis. run sebelumnya mati di tengah -
+           * mock-nya dimatikan saat probe streaming), komposer menampilkan
+           * Stop dan tombol Kirim TIDAK ada; seluruh blok uji lalu melempar
+           * "tombol Kirim tidak ada" tanpa menjelaskan apa pun. Batalkan run
+           * itu dan tunggu busy benar-benar turun sebelum mengetik.
+           */
+          if (AS().agentBusy) {
+            await AS().cancel?.();
+            const batasBusy = Date.now() + 20000;
+            while (AS().agentBusy && Date.now() < batasBusy) await wait(200);
+          }
           if (AS().pending) { await AS().cancel(); await wait(300); }
           // Toast lama masih tampil sampai 3.2s; kalau tidak dibersihkan,
           // pengiriman BERIKUTNYA salah dibaca sebagai "diblokir" dan
@@ -174,8 +259,39 @@ class Cdp {
           for (let i = 0; i < 12 && q('[data-testid="ai-toast"]'); i++) await wait(80);
           setNativeValue(q('[data-testid="ai-input"]'), teks);
           await wait(140);
-          const btn = q('[data-testid="ai-send"]');
-          if (!btn) throw new Error('tombol Kirim tidak ada (pending=' + AS().pending + ')');
+          /*
+           * Kait opsional SEBELUM klik Kirim.
+           *
+           * Uji "kotak bersih setelah kirim" harus membuktikan bahwa yang diuji
+           * bukan uji kosong: draft-nya harus benar-benar berisi teks uji saat
+           * tombol ditekan. Membacanya SESUDAH klik tidak bisa lagi - sejak
+           * perbaikan, draft pengirim memang langsung dikosongkan pada klik itu,
+           * jadi bacaan sesudah klik selalu kosong dan syaratnya mustahil
+           * dipenuhi walau aplikasinya benar.
+           */
+          if (sebelumKlik) sebelumKlik();
+          let btn = q('[data-testid="ai-send"]');
+          /*
+           * Tombol Kirim bisa belum ada tepat pada milidetik itu: panel AI
+           * di-mount ulang saat dock/tab berpindah, dan panel bisa sedang
+           * menampilkan keadaan lain sekejap. Dulu baris ini langsung melempar,
+           * dan karena runAsync menelan error-nya, satu tombol yang belum
+           * ter-render MEMATIKAN seluruh skrip - V5 lapor "tombol Kirim tidak
+           * ada" lalu V6-V11 tidak pernah dinilai sama sekali. Sekarang
+           * ditunggu singkat; kalau tetap tidak ada, pesannya menyebut apa yang
+           * sebenarnya ter-render supaya penyebabnya bisa dibaca dari log.
+           */
+          for (let i = 0; i < 20 && !btn; i++) { await wait(200); btn = q('[data-testid="ai-send"]'); }
+          if (!btn) throw new Error(
+            'tombol Kirim tidak ada'
+            + ' (pending=' + AS().pending
+            + ', agentBusy=' + AS().agentBusy
+            + ', inputAda=' + !!q('[data-testid="ai-input"]')
+            + ', panelAda=' + !!q('[data-testid="ai-panel"]')
+            + ', setTerbuka=' + !!q('.set-topbar')
+            + ', kaki=' + JSON.stringify((q('.ai-input-toolbar')?.textContent || '').replace(/\\s+/g, ' ').trim())
+            + ')'
+          );
           const jumlahSebelum = A.messages().length;
           btn.click();
           const batas = Date.now() + 6000;
@@ -188,6 +304,29 @@ class Cdp {
             await wait(80);
           }
           return false;
+        };
+        /**
+         * Paksa provider panel = target, dan PASTIKAN ia bertahan.
+         *
+         * applySettings hanya menulis state + menjadwalkan tulis ke berkas;
+         * sinkronProvider dipanggil dari jalur flush/antrian tulis (store.ts).
+         * Jadi panel bisa sempat (atau balik) memakai provider lama, mis. saat
+         * flush menulis-lalu-membaca berkas selagi patch baru masih tertunda -
+         * panel ikut bergerak ke provider yang tersimpan SEBELUMNYA. Akibatnya
+         * uji "kirim tanpa key" mengukur provider yang salah (pernah kejadian:
+         * provider tetap gemini, model ikut jadi claude-sonnet-4-5 karena
+         * findModel memakai angka katalog lintas provider, lalu tidak ada
+         * request anthropic sama sekali). Di sini target dipasang ULANG sambil
+         * dipantau sampai benar-benar bertahan.
+         */
+        const tungguProvider = async (target, ms = 6000) => {
+          const batas = Date.now() + ms;
+          for (;;) {
+            if (AS().provider === target) return true;
+            await S.getState().applySettings({ models: { activeProvider: target } });
+            await wait(250);
+            if (Date.now() > batas) return AS().provider === target;
+          }
         };
         /** Klik elemen setelah menunggu ia muncul 窶・panel AI baru ter-mount
          *  saat dock berpindah, jadi query langsung bisa mengenai null. */
@@ -243,7 +382,7 @@ const mockReset = () => fetch(`http://127.0.0.1:${MOCK}/__reset`);
  * disamakan - penjaga versi tetap bermakna: mock lama yang nyangkut di port
  * tetap ditolak, bukan diam-diam diuji.
  */
-const MOCK_VERSION = 6;
+const MOCK_VERSION = 7;
 
 async function ensureMock() {
   try {
@@ -276,6 +415,9 @@ async function ensureMock() {
 
 const main = async () => {
   backupSecrets();
+  // Provider user (baseUrl custom/custom2) juga harus kembali apa adanya,
+  // bukan hanya key-nya.
+  backupSettings();
   const mock = await ensureMock();
   await mockReset();
 
@@ -283,6 +425,7 @@ const main = async () => {
   const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   let cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+  cdpTerbuka = cdp;
   console.log(`# target: ${page.title}\n`);
 
   if ((await cdp.eval('typeof window.__ZEPHYR_AI__')) === 'undefined') {
@@ -369,10 +512,25 @@ const main = async () => {
       }
       const menu = q('[data-testid="ai-model-menu"]');
       // Tingkat PROVIDER: hanya provider ber-key yang ditawarkan.
-      const providerRows = qa('[data-provider-item]').map(el => ({
-        provider: el.dataset.provider,
-        nama: el.querySelector('.ai-mi-name')?.textContent ?? '',
+      /*
+       * Tingkat PROVIDER = tombol judul grup (data-group), bukan baris
+       * data-provider-item.
+       *
+       * Atribut itu sudah tidak ada di ModelSelector: provider kini digambar
+       * sebagai grup yang bisa dilipat (data-testid "<pfx>-model-grup-<id>",
+       * data-group "<id>", plus aria-expanded). Selector lama selalu
+       * mengembalikan 0 baris, jadi V1 gagal dengan "tidak ada provider ber-key"
+       * walaupun provider ber-key memang ada di menu.
+       *
+       * NB: JANGAN pakai backtick di komentar dalam blok halaman ini - bloknya
+       * sendiri berada di dalam template literal, backtick menutupnya lebih awal
+       * dan seluruh skrip mati dengan "missing ) after argument list".
+       */
+      const providerRows = qa('[data-group]').map(el => ({
+        provider: el.dataset.group,
+        nama: el.querySelector('.ai-model-group-nama')?.textContent ?? '',
         logo: el.querySelector('svg[aria-label]')?.getAttribute('aria-label') ?? null,
+        terbuka: el.getAttribute('aria-expanded') === 'true',
       }));
       // Masuk ke tingkat MODEL: pilih provider pertama yang punya key.
       // Only providers with a key are listed by design, so the opening
@@ -395,9 +553,24 @@ const main = async () => {
           jumlahProvider: providerRows.length,
         });
       }
-      await klik('[data-provider-item="' + pilihProvider + '"]');
-      await wait(300);
-      const items = qa('[data-model-item]').map(el => ({
+      /*
+       * Buka grup provider yang dipilih - HANYA kalau masih tertutup.
+       *
+       * Tombol judul grup adalah toggle: mengklik grup yang sudah terbuka justru
+       * melipatnya, dan uji ini lalu membaca nol model ("provider tanpa model")
+       * padahal modelnya ada. Grup provider aktif juga terbuka sejak awal.
+       */
+      {
+        const grupEl = q('[data-group="' + pilihProvider + '"]');
+        if (grupEl && grupEl.getAttribute('aria-expanded') === 'false') {
+          grupEl.click();
+          await wait(350);
+        }
+      }
+      // Hanya model milik provider yang dipilih: grup lain bisa ikut terbuka.
+      const items = qa('[data-model-item]')
+        .filter(el => el.dataset.provider === pilihProvider)
+        .map(el => ({
         model: el.dataset.modelItem,
         provider: el.dataset.provider,
         baseUrl: el.dataset.baseurl,
@@ -434,9 +607,31 @@ const main = async () => {
       });
     `),
   );
-  // Kalau blok di halaman mengembalikan {err}, tampilkan apa adanya 窶・
-  // tanpa ini kegagalan muncul sebagai TypeError yang tidak informatif.
-  if (v1.err) check('V1', false, `dropdown dua tingkat gagal di halaman: ${v1.err}`);
+  // Kalau blok di halaman mengembalikan {err}, tampilkan apa adanya — tanpa ini
+  // kegagalan muncul sebagai TypeError yang tidak informatif.
+  if (v1.err) {
+    check('V1', false, `dropdown dua tingkat gagal di halaman: ${v1.err} (provider ber-key: ${v1.jumlahProvider ?? 0})`);
+    /*
+     * Berhenti di sini, jangan lanjut.
+     *
+     * Sisa uji membaca v1.providerRows / v1.items; kalau blok di halaman menyerah
+     * lebih awal, field itu undefined dan baris berikutnya melempar TypeError
+     * yang MENUTUPI sebab aslinya (dulu: "Cannot read properties of undefined
+     * (reading 'length')" padahal masalahnya tidak ada provider ber-key).
+     */
+    const lulusAwal = results.filter((r) => r.ok).length;
+    console.log(`\n== ${lulusAwal}/${results.length} lulus ==`);
+    cdp.close();
+    if (mock) mock.kill();
+    restoreSettings();
+    restoreSecrets();
+    // `return` wajib: keluarBersih hanya menyetel exit code + menutup handle,
+    // jadi tanpa ini eksekusi LANJUT ke blok V2.. dan pecah dengan
+    // "Cannot read properties of undefined (reading 'length')" — pesan yang
+    // menyesatkan, karena sebab sebenarnya (tidak ada provider ber-key) sudah
+    // dicetak persis di baris sebelumnya.
+    return keluarBersih(1);
+  }
   const semuaAdaLogo = (v1.items ?? []).every((x) => x.logo && x.nama.length > 0);
   const providerAdaLogo = (v1.providerRows ?? []).every((x) => x.logo && x.nama.length > 0);
   check(
@@ -495,55 +690,76 @@ const main = async () => {
       await wait(350);
 
       /*
-       * Semua pembacaan badge dilakukan lewat q() yang segar, bukan variabel
-       * elemen yang disimpan 窶・React mengganti node-nya saat render ulang, dan
-       * referensi lama akan melaporkan nilai basi.
-       */
-      const bacaBadge = () => {
-        const el = q('[data-testid="ai-keystate"]');
-        return { haskey: el.dataset.haskey, kelas: el.className,
-                 warna: getComputedStyle(el).color };
-      };
-
-      /*
-       * Tombol "Isi API key" dibaca SEBELUM kirim.
+       * Yang dibaca di sini HANYA elemen yang benar-benar ada.
        *
-       * Setelah kirim diblokir, aiStore memindahkan provider aktif ke provider
-       * ber-key lain (mis. github milik user) supaya percakapan tetap bisa
-       * jalan 窶・provider itu punya key, jadi tombolnya memang hilang. Yang
-       * diuji adalah keadaan TANPA key, jadi tombolnya harus dibaca saat
-       * provider aktif masih yang tanpa key.
+       * Badge ai-keystate dan tombol ai-goto-settings sudah DIHAPUS dari UI
+       * bersama "fase 17 - full English UI" (commit 35d4d6b; lihat
+       * git log -S "ai-keystate" -- src/components - yang tersisa hanya
+       * kelasnya di ai.css). Pembacaan lama (el.dataset.haskey pada elemen yang
+       * tidak ada) melempar "Cannot read properties of null (reading 'dataset')"
+       * dan mematikan seluruh skrip sebelum satu pun kesimpulan tercetak.
+       *
+       * Penggantinya menguji hal yang sama lewat jalur yang masih nyata: kirim
+       * harus DITOLAK (pesan tidak bertambah, pending tidak nyala) dan
+       * penolakan itu harus TERLIHAT user lewat toast. Toast yang ada di DOM
+       * tapi tersembunyi (display none / opacity 0 / tinggi 0) tidak memberi
+       * tahu apa pun - itu gagal, bukan lulus.
        */
-      const adaTombolSettings = !!q('[data-testid="ai-goto-settings"]');
-      const sebelumKirim = bacaBadge();
+      const bacaToast = () => {
+        const el = q('[data-testid="ai-toast"]');
+        if (!el) return { ada: false, teks: '', tampil: false };
+        const cs = getComputedStyle(el);
+        return {
+          ada: true,
+          teks: el.textContent ?? '',
+          tampil:
+            cs.display !== 'none' &&
+            cs.visibility !== 'hidden' &&
+            Number(cs.opacity) > 0 &&
+            el.getBoundingClientRect().height > 0,
+        };
+      };
+      const pesanSebelum = A.messages().length;
+      const providerSebelum = AS().provider;
+      const providerBerKey = AS().keys.filter((k) => k.hasKey).map((k) => k.provider);
 
-      // Kirim lewat UI (isi textarea + Enter) supaya jalurnya sama dengan user.
       await kirim('halo tanpa key');
       await wait(900);
+      const t = bacaToast();
       return JSON.stringify({
-        haskey: sebelumKirim.haskey,
-        kelas: sebelumKirim.kelas,
-        warna: sebelumKirim.warna,
-        toast: q('[data-testid="ai-toast"]')?.textContent ?? '',
+        toast: t.teks,
+        toastAda: t.ada,
+        toastTampil: t.tampil,
+        pesanSebelum,
         pesan: A.messages().length,
         pending: AS().pending,
-        adaTombolSettings,
+        providerSebelum,
+        provider: AS().provider,
+        providerBerKey,
+        model: AS().model,
         errors: window.__ZEPHYR_ERRORS__.length,
       });
     `),
   );
+  /*
+   * Dua bentuk tolakan yang sah - keduanya penolakan ramah, bukan crash:
+   *   "No key for X - switched to Y, which has one"  (ada provider ber-key lain)
+   *   "Add an API key for X in Settings, or pick a provider that already has one"
+   */
+  const toastV2 = v2.toast ?? '';
+  const bentukPindah = /No key for .+ switched to .+, which has one/i.test(toastV2);
+  const bentukIsiKey = /Add an API key for .+ in Settings/i.test(toastV2);
   check(
     'V2',
-    v2.haskey === '0' &&
-      /is-warn/.test(v2.kelas) &&
-      // Pesannya dua bentuk: "belum ada key 窶・pindah ke X yang sudah kamu isi"
-      // (kalau ada provider ber-key) atau ajakan isi key kalau tidak ada.
-      /belum ada key|Isi API key/i.test(v2.toast) &&
-      v2.pesan === 0 &&
-      v2.pending === null &&
-      v2.adaTombolSettings &&
-      v2.errors === 0,
-    `tanpa key: badge oranye (${v2.warna}, ${v2.kelas.trim()}), tombol "Isi API key" ada, kirim diblokir toast "${v2.toast}", chat tetap 0 pesan, 0 console error`,
+    v2.toastAda &&
+      v2.toastTampil &&
+      (bentukPindah || bentukIsiKey) &&
+      v2.pesan === v2.pesanSebelum &&
+      !v2.pending &&
+      v2.errors === 0 &&
+      // Kalau pesannya bentuk "pindah", provider memang harus sudah pindah.
+      (!bentukPindah || v2.provider !== v2.providerSebelum),
+    `tanpa key: kirim ditolak (chat tetap ${v2.pesan} pesan, pending=${v2.pending}), toast tampil "${toastV2}", provider ${v2.providerSebelum} -> ${v2.provider} (ber-key: ${v2.providerBerKey.join(', ') || 'tidak ada'}), 0 console error`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V3: dengan key 竊・streaming kata per kata + markdown bold 笏笏笏笏笏笏笏笏笏
@@ -562,20 +778,28 @@ const main = async () => {
       await AS().loadKeys();
       await wait(250);
       /*
-       * URUTAN PENTING: setModel(modelId) hanya mengganti MODEL pada provider
-       * yang sedang aktif (findModel(id, provider) memakai provider aktif).
-       * Kalau provider aktif masih custom (freeText), model apa pun akan
-       * dipasang DI provider custom dan mock tidak pernah dipanggil 窶・uji ini
-       * dulu gagal dengan "adapter gemini dipanggil 0x". Jadi pindahkan
-       * provider LEBIH DULU, baru pilih modelnya.
+       * Jalur AGEN - satu-satunya jalur sejak mode chat pensiun.
+       *
+       * Di jalur ini mock akan meminta tool lebih dulu untuk prompt biasa, dan
+       * bubble assistant hanya berisi baris "Write TODO" + ringkasan langkah;
+       * di sana tidak ada teks model yang bertambah bertahap, sehingga V3 lama
+       * mengukur angka yang memang tidak pernah bergerak. Karena itu prompt
+       * memuat penanda TEXTONLY (mock v7): jawaban murni TEKS panjang, jeda
+       * 400 ms per token - jadi aliran kata-per-kata benar-benar terjadi dan
+       * bisa diukur.
        */
-      await A.store.getState().setProvider?.('gemini');
-      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
-      await wait(450);
-      await A.store.getState().setModel('gemini-3.8-flash');
-      await wait(450);
+      await tungguProvider('gemini');
+      await A.store.getState().setModel('gemini-2.0-flash', 'gemini');
+      await wait(400);
+      await tungguProvider('gemini');
       const providerKini = q('[data-testid="ai-model-btn"]').dataset.provider;
-      const badgeOk = q('[data-testid="ai-keystate"]').dataset.haskey;
+      /*
+       * Badge ai-keystate sudah tidak ada di UI (dihapus di 35d4d6b; yang
+       * tersisa hanya kelasnya di ai.css). Yang diukur sama dengan nilainya -
+       * "provider aktif punya key" - dibaca dari store, bukan dari elemen yang
+       * tidak ada lagi.
+       */
+      const badgeOk = AS().hasKey(AS().provider) ? '1' : '0';
 
       /*
        * Chat kosong dulu: jejak panjang teks mengukur pertumbuhan selama
@@ -586,46 +810,58 @@ const main = async () => {
       await wait(350);
 
       /*
-       * Paksa provider tepat SEBELUM kirim.
+       * Paksa provider + model tepat SEBELUM kirim.
        *
        * newChat() dan langkah sebelumnya bisa membuat aiStore memilih ulang
-       * provider dari daftar key (perilaku auto-switch aplikasi), jadi
-       * provider yang disetel di awal blok belum tentu masih berlaku saat
-       * tombol Kirim ditekan. Sama seperti di atas: provider dulu, model
-       * kemudian (setModel mengikuti provider aktif).
+       * provider dari daftar key (perilaku auto-switch aplikasi), jadi provider
+       * yang disetel di awal blok belum tentu masih berlaku saat tombol Kirim
+       * ditekan - dan kalau begitu, pesan uji berangkat ke provider lain dan
+       * mock tidak pernah dipanggil (V3 lalu merah padahal aplikasinya benar).
+       * memanggil tungguProvider('gemini') menunggu state-nya benar-benar
+       * bertahan, bukan cuma ditulis sekali (applySettings menulis state lalu
+       * MENJADWALKAN flush; sinkronProvider di store.ts bisa mengembalikannya).
        */
-      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
-      await wait(350);
-      await A.store.getState().setModel('gemini-3.8-flash');
+      await tungguProvider('gemini');
+      await A.store.getState().setModel('gemini-2.0-flash', 'gemini');
       await wait(400);
+      await tungguProvider('gemini');
       const providerSaatKirim = A.store.getState().provider;
 
-      await kirim('sapa saya SLOW');
-
-      // Ambil panjang teks beberapa kali selagi streaming (bukti bertahap).
+      /*
+       * Yang diukur adalah panjang teks bubble assistant TERAKHIR di DOM
+       * (.ai-msg.is-assistant .ai-body) - itulah yang tumbuh saat potongan
+       * demi potongan tiba. Membacanya dari state store juga bisa, tetapi DOM
+       * adalah yang benar-benar dilihat orang; selisih satu render di state
+       * justru membuat jejak terlihat rata padahal tampilannya mengalir.
+       */
+      const bodyAkhir = () => {
+        const arr = document.querySelectorAll('.ai-msg.is-assistant .ai-body');
+        return arr.length ? arr[arr.length - 1] : null;
+      };
       const jejak = [];
-      for (let i = 0; i < 10; i++) {
+      await kirim('TEXTONLY tolong tulis jawaban panjang');
+      for (let i = 0; i < 14; i++) {
         await wait(280);
-        const m = A.messages().find(x => x.role === 'assistant');
-        jejak.push({ n: (m?.content ?? '').length, streaming: !!m?.streaming,
-                     typing: !!q('[data-testid="ai-typing"]') });
+        const el = bodyAkhir();
+        jejak.push({
+          n: (el?.textContent ?? '').length,
+          cuplik: (el?.textContent ?? '').slice(0, 24),
+          typing: q('[data-testid="ai-typing"]') !== null,
+        });
       }
       await tungguSelesai();
-      const akhir = A.messages().find(x => x.role === 'assistant');
-
-      // Sekali lagi tanpa SLOW untuk menguji render markdown **bold**.
-      await kirim('sapa saya');
-      await tungguSelesai();
-      const msgs = A.messages();
-      const last = msgs[msgs.length - 1];
-      const bodyEl = q('[data-ai-body="' + last.id + '"]');
+      const akhir = [...A.messages()].reverse().find(x => x.role === 'assistant');
+      const elAkhir = bodyAkhir();
       return JSON.stringify({
         badgeOk, jejak, providerKini, providerSaatKirim,
         akhirTeks: akhir?.content ?? '',
+        // Ringkasan daftar pesan: membuktikan PEMBACAAN jejak menunjuk pesan
+        // yang benar, bukan sisa percakapan sebelumnya.
+        ringkas: A.messages().map((m) => m.role + ' #' + m.id.slice(-4) + ' n=' + (m.content ?? '').length),
         akhirStreaming: !!akhir?.streaming,
-        bold: bodyEl?.querySelector('strong')?.textContent ?? null,
-        html: bodyEl?.innerHTML.slice(0, 90) ?? '',
-        role: last.role,
+        bold: elAkhir?.querySelector('strong')?.textContent ?? null,
+        html: elAkhir?.innerHTML.slice(0, 90) ?? '',
+        role: akhir?.role ?? null,
         errors: window.__ZEPHYR_ERRORS__.length,
       });
     `),
@@ -640,12 +876,13 @@ const main = async () => {
       naik >= 3 &&
       adaTyping &&
       !v3.akhirStreaming &&
-      v3.akhirTeks.length > 20 &&
-      v3.bold === 'uji' &&
-      gemReq.length >= 2 &&
+      v3.akhirTeks.includes('Satu dua tiga empat') &&
+      v3.akhirTeks.includes('Selesai - teks saja') &&
+      v3.bold === 'teks' &&
+      gemReq.length >= 1 &&
       gemReq[0].headers.xGoog === 'MOCK-KEY-GEMINI-1234' &&
       v3.errors === 0,
-    `streaming bertahap: panjang teks naik ${naik}x (${v3.jejak.map((x) => x.n).join(', ')}), indikator "mengetik..." tampil; markdown <strong>=${JSON.stringify(v3.bold)}; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)`,
+    `streaming bertahap di jalur agen: panjang teks bubble naik ${naik}x (${v3.jejak.map((x) => x.n).join(', ')}), cuplikan "${v3.jejak[3]?.cuplik ?? ''}", pesan: ${v3.ringkas.join(' | ')}; indikator "mengetik..." tampil; akhir="${v3.akhirTeks.slice(0, 40)}"; markdown <strong>=${JSON.stringify(v3.bold)}; html="${v3.html}"; adapter gemini dipanggil ${gemReq.length}x dengan header x-goog-api-key (key benar sampai ke provider, tidak lewat frontend)` ,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V4: attach file aktif 竊・jawaban mengutip isinya 笏笏笏笏笏笏笏笏笏
@@ -654,14 +891,39 @@ const main = async () => {
       // Buat file aktif berisi penanda yang mudah dicek.
       s.newUntitled();
       await wait(400);
+      /*
+       * Jalur AGEN (bukan chat - mode itu sudah pensiun, setAgentMode('chat')
+       * kini dikoersi ke 'agent'). Blok lampiran berkas aktif dulu hanya ada di
+       * cabang chat send(), jadi di mode agen setelan "Send active file to
+       * agent" tidak berpengaruh sama sekali dan chip lampiran tak pernah
+       * muncul; sejak perbaikan, jalur agen memakai blok yang sama. Uji ini
+       * sekarang membuktikan itu di jalur yang benar-benar dipakai orang.
+       *
+       * Prompt memuat ECHOFILE (mock mengutip blok berkas terlampir) DAN
+       * TEXTONLY (mock tidak minta tool), jadi bubble assistant berisi kutipan
+       * isi berkas - bukan baris "Write TODO" + ringkasan langkah.
+       */
       const tab = S.getState().tabs[S.getState().tabs.length - 1];
       S.getState().updateTabContent(tab.id, 'ZEPHYR-ATTACH-MARKER-42\\nbaris kedua file uji');
       await wait(250);
       AS().setAttachActive(true);
       await wait(150);
-      const tombolOn = q('[data-testid="ai-attach"]').getAttribute('aria-pressed');
+      /*
+       * Tombol ai-attach SUDAH TIDAK ADA di UI.
+       *
+       * Tidak ada satu pun komponen yang memanggil setAttachActive lagi;
+       * lampiran file aktif kini diatur lewat Settings -> agents.attachActiveFile
+       * (aiStore membaca setelan itu saat init) dan yang tersisa di komposer
+       * hanyalah chip di bubble (ChatMessage: ai-attach-chip). Membaca
+       * q('[data-testid="ai-attach"]') mengembalikan null lalu melempar
+       * "Cannot read properties of null (reading 'getAttribute')" dan mematikan
+       * skrip sebelum V4/V5 sempat dinilai. Perilaku yang diuji tetap sama dan
+       * tetap diukur: file aktif ikut terkirim, kelihatan dari chip di bubble
+       * dan dari jawaban yang mengutip isi berkasnya.
+       */
+      const tombolOn = 'dihapus-dari-ui';
 
-      await kirim('ringkas file ini ECHOFILE');
+      await kirim('ringkas file ini ECHOFILE TEXTONLY');
       await tungguSelesai();
 
       const msgs = A.messages();
@@ -681,13 +943,15 @@ const main = async () => {
   const reqAttach = [...logV4].reverse().find((e) => e.kind === 'gemini');
   check(
     'V4',
-    v4.tombolOn === 'true' &&
-      !!v4.attached &&
+    // tombolOn dibuang: tombol ai-attach sudah tidak ada di UI (lihat catatan
+    // di blok V4). Sisa syaratnya justru bukti yang lebih kuat - prompt memuat
+    // isi berkas DAN jawaban mengutipnya.
+    !!v4.attached &&
       v4.jawaban.includes('ZEPHYR-ATTACH-MARKER-42') &&
-      reqAttach.promptHead.includes('konteks kerja aktif') &&
+      reqAttach.promptHead.includes('active working context') &&
       reqAttach.promptHead.includes(v4.namaTab) &&
       v4.chip.includes(v4.namaTab),
-    `lampiran terkirim: prompt memuat path "${v4.attached.path}" + instruksi konteks; jawaban mengutip isi file ("窶ｦ${v4.jawaban.slice(-30).trim()}"); chip di bubble = "${v4.chip}"`,
+    `lampiran terkirim: prompt memuat path "${v4.attached?.path ?? '(tidak ada lampiran)'}" + instruksi konteks ("Treat this file as the active working context"); jawaban mengutip isi file ("..."${v4.jawaban.slice(-30).trim()}"); chip di bubble = "${v4.chip}"`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V5: ganti ke Claude 竊・adapter anthropic; tanpa key = tolak ramah 笏笏笏笏笏笏笏笏笏
@@ -696,30 +960,69 @@ const main = async () => {
       /*
        * 1) tanpa key anthropic -> penolakan ramah, bukan crash.
        *
-       * Provider dipindahkan LEBIH DULU, baru model dipilih: setModel()
-       * mengikuti provider yang sedang aktif, jadi memanggilnya saat provider
-       * masih gemini hanya mengganti model di gemini.
+       * Provider dipindahkan LEBIH DULU, baru model dipilih: setModel() tanpa
+       * argumen kedua mengikuti provider yang sedang aktif, jadi memanggilnya
+       * saat provider masih gemini hanya mengganti model di gemini.
        */
       await X.setKey('anthropic', '');
       await AS().loadKeys();
       await wait(220);
-      await S.getState().applySettings({ models: { activeProvider: 'anthropic' } });
-      await wait(350);
-      await A.store.getState().setModel('claude-sonnet-4-5');
+      /*
+       * Provider dipaksa + dipastikan BERTAHAN sebelum model dipilih (lihat
+       * tungguProvider). Dulu applySettings diikuti langsung setModel, dan
+       * panel bisa masih/balik ke provider lama - uji lalu mengukur provider
+       * yang salah dan gagal bukan karena aplikasinya.
+       */
+      await tungguProvider('anthropic');
+      await A.store.getState().setModel('claude-sonnet-4-5', 'anthropic');
       await wait(450);
-      const badgeTanpaKey = q('[data-testid="ai-keystate"]').dataset.haskey;
+      // setModel juga menulis activeProvider ke settings; pastikan tidak
+      // tergeser lagi sebelum prasyarat dicatat.
+      await tungguProvider('anthropic');
+      /*
+       * Prasyarat dicatat sebelum kirim.
+       *
+       * Uji ini mengandaikan provider yang aktif benar-benar anthropic TANPA key.
+       * Kalau tidak, "kirim" jalan lewat provider lain yang punya key (mock
+       * gemini), tidak ada penolakan, tidak ada request anthropic - dan yang
+       * gagal bukan aplikasinya, melainkan prasyarat ujinya. Tanpa catatan ini
+       * hasilnya cuma "toast kosong" tanpa sebab.
+       */
+      const provSebelumKirim =
+        AS().provider + '/' + AS().model + '/' + (AS().hasKey(AS().provider) ? 'ada-key' : 'tanpa-key');
+      // Badge ai-keystate sudah tidak ada di UI (35d4d6b): nilai yang sama
+      // dibaca dari store - provider aktif punya key atau tidak.
+      const badgeTanpaKey = AS().hasKey(AS().provider) ? '1' : '0';
       await kirim('halo claude');
-      await wait(800);
-      const toastTanpaKey = q('[data-testid="ai-toast"]')?.textContent ?? '';
+      /*
+       * Toast dipantau berulang, bukan sekali baca.
+       *
+       * Percobaan sebelumnya membaca satu kali di 800ms dan mendapat string
+       * kosong, padahal V2 - tombol dan jalur yang sama - mendapat toast berisi
+       * "No key for Google Gemini...". Satu bacaan tidak bisa membedakan "toast
+       * tidak pernah muncul" dari "toast muncul lebih lambat atau sudah hilang",
+       * jadi jejaknya direkam seluruhnya: kalau semua sampel kosong, barulah
+       * benar-benar tidak ada penolakan yang terlihat oleh user.
+       */
+      const jejakToast = [];
+      for (let i = 0; i < 6; i++) {
+        await wait(250);
+        jejakToast.push((q('[data-testid="ai-toast"]')?.textContent ?? '').slice(0, 60));
+      }
+      const toastTanpaKey = jejakToast.find((t) => t.length > 0) ?? '';
+      const providerSaatTolak = AS().provider;
       const pesanSebelum = A.messages().length;
       // 2) dengan key -> adapter anthropic (x-api-key + /v1/messages) jalan
       await X.setKey('anthropic', 'MOCK-KEY-ANTHROPIC-9876');
       await AS().loadKeys();
       await wait(200);
-      await S.getState().applySettings({ models: { activeProvider: 'anthropic' } });
-      await wait(300);
-      await A.store.getState().setModel('claude-sonnet-4-5');
+      // Sama seperti kaki pertama: provider dipastikan bertahan, dan model
+      // disebut dengan provider-nya supaya findModel tidak mencocokkan silang
+      // ke provider yang sedang aktif.
+      await tungguProvider('anthropic');
+      await A.store.getState().setModel('claude-sonnet-4-5', 'anthropic');
       await wait(350);
+      await tungguProvider('anthropic');
       await kirim('halo claude');
       await tungguSelesai();
       const bot = A.messages().filter(m => m.role === 'assistant').pop();
@@ -727,38 +1030,65 @@ const main = async () => {
       // 3) uji error ramah: provider jawab 401
       await kirim('coba ERR401');
       await tungguSelesai();
-      const err = A.messages().filter(m => m.error).pop();
+      /*
+       * Jalur agen menulis kegagalan provider ke ISI pesan
+       * ("Agent stopped: Provider: API key salah/kadaluarsa (401) ..."), bukan
+       * ke field msg.error - field itu dipakai jalur chat yang kini pensiun.
+       * Membaca m.error saja membuat V5 selalu melaporkan error kosong padahal
+       * pesan ramahnya benar-benar tampil di bubble. Dua-duanya dibaca.
+       */
+      const msgsSetelah401 = A.messages();
+      const err = msgsSetelah401.filter(m => m.error || /Agent stopped/i.test(m.content ?? '')).pop();
+      const errTeks = err?.error ?? err?.content ?? '';
 
       await X.setKey('anthropic', '');
       await AS().loadKeys();
       return JSON.stringify({
-        badgeTanpaKey, toastTanpaKey, pesanSebelum,
+        badgeTanpaKey, toastTanpaKey, pesanSebelum, jejakToast, providerSaatTolak,
+        provSebelumKirim,
         jawaban: bot?.content ?? '',
         model: bot?.model ?? null,
-        error: err?.error ?? null,
+        error: errTeks,
         errUi: q('[data-testid="ai-error"]')?.textContent ?? '',
       });
     `),
   );
   const logV5 = await mockLog();
   const anth = logV5.filter((e) => e.kind === 'anthropic');
+  /*
+   * Permintaan yang diperiksa adalah yang MEMBAWA pesan uji ini.
+   *
+   * Versi sebelumnya memakai anth[0] dan melaporkan max_tokens=undefined,
+   * padahal adapter Rust selalu menyetelnya (adapters/anthropic.rs:135). Artinya
+   * entri pertama bukan percakapan yang diuji - bisa panggilan lain (mis. judul
+   * sesi) atau sisa permintaan langkah sebelumnya. Memilih entri lewat isi
+   * pesannya membuat uji mengukur request yang benar-benar dibuatnya.
+   */
+  const anthUtama =
+    anth.find((e) => JSON.stringify(e.body ?? {}).includes('halo claude')) ?? anth[0];
+  const anthRingkas = anth.map(
+    (e) =>
+      (e.body && e.body.max_tokens ? 'max=' + e.body.max_tokens : 'tanpa-max') +
+      '/' +
+      (e.promptHead ?? '').slice(0, 16).replace(/\s+/g, ' '),
+  );
   check(
     'V5',
     v5.badgeTanpaKey === '0' &&
-      // Pesan bisa berbentuk "Isi API key X" atau "X belum ada key 窶・pindah
+      // Pesan bisa berbentuk "Isi API key X" atau "X belum ada key - pindah
       // ke Y" (kalau ada provider lain yang sudah ber-key). Keduanya sama-sama
       // menandakan penolakan ramah, bukan crash.
       /Anthropic/i.test(v5.toastTanpaKey) &&
       /key/i.test(v5.toastTanpaKey) &&
       anth.length >= 1 &&
-      anth[0].headers.xApiKey === 'MOCK-KEY-ANTHROPIC-9876' &&
-      anth[0].headers.anthropicVersion === '2023-06-01' &&
-      anth[0].body.max_tokens > 0 &&
+      anthUtama.headers.xApiKey === 'MOCK-KEY-ANTHROPIC-9876' &&
+      anthUtama.headers.anthropicVersion === '2023-06-01' &&
+      anthUtama.body.max_tokens > 0 &&
       v5.jawaban.includes('uji') &&
       v5.model === 'claude-sonnet-4-5' &&
       /401/.test(v5.error ?? '') &&
       /API key salah/i.test(v5.error ?? ''),
-    `tanpa key: toast "${v5.toastTanpaKey}"; dengan key: POST /v1/messages dengan x-api-key + anthropic-version + max_tokens=${anth[0]?.body.max_tokens} 竊・jawaban tampil; HTTP 401 jadi pesan ramah "${(v5.error ?? '').slice(0, 60)}窶ｦ"`,
+    `tanpa key: provider sebelum kirim = ${v5.provSebelumKirim} (badge ${v5.badgeTanpaKey}) -> toast "${v5.toastTanpaKey}" (jejak: ${JSON.stringify(v5.jejakToast)}, provider sesudah ${v5.providerSaatTolak}, chat ${v5.pesanSebelum} pesan); dengan key: POST /v1/messages dengan header ${JSON.stringify(anthUtama?.headers ?? {})} + max_tokens=${anthUtama?.body?.max_tokens} -> jawaban "${(v5.jawaban ?? '').slice(0, 30)}" model ${v5.model}; permintaan anthropic: ${anthRingkas.join(' | ') || '(tidak ada)'}; HTTP 401 jadi pesan ramah "${(v5.error ?? '').slice(0, 60)}..."`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V6: Jalankan di Terminal + konfirmasi perintah destruktif 笏笏笏笏笏笏笏笏笏
@@ -770,11 +1100,35 @@ const main = async () => {
       await wait(200);
       await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
       await wait(300);
-      await A.store.getState().setModel('gemini-3.6-flash');
+      /*
+       * Model disebut BERSAMA provider-nya, dan provider ditunggu dulu.
+       *
+       * Versi sebelumnya memanggil setModel('gemini-3.6-flash') tanpa provider:
+       * id itu tidak ada lagi di katalog, findModel tidak menemukan apa pun, dan
+       * provider aktif tetap provider sebelumnya (anthropic, sisa V5) sehingga
+       * permintaan V6 tidak pernah sampai ke mock gemini - jawabannya tidak
+       * datang, tombol "Run in Terminal" tidak pernah muncul, dan uji melempar
+       * "elemen tidak muncul" yang tidak menjelaskan sebabnya.
+       */
+      await tungguProvider('gemini');
+      await A.store.getState().setModel('gemini-2.0-flash', 'gemini');
       await wait(450);
+      await tungguProvider('gemini');
 
       // 1) jawaban dengan fenced bash -> tombol muncul
-      await kirim('kasih perintah BASHCMD');
+      /*
+       * Prompt memakai TEXTONLY.
+       *
+       * Di jalur agen, jawaban ber-fenced bash dari model langsung diterjemahkan
+       * jadi TOOL CALL run_command lalu dieksekusi; pesan assistant terakhir
+       * bukan lagi teks berisi blok bash berpagar, melainkan baris ringkasan aplikasi
+       * ("Selesai - 1 langkah dijalankan"), sehingga lastCommand null dan tombol
+       * "Jalankan di Terminal" tidak pernah muncul - harness lalu mati dengan
+       * "elemen tidak muncul" sebelum V7-V11 dinilai. TEXTONLY memaksa mock
+       * menjawab teks murni (tanpa tool call), persis kasus yang UI ini layani:
+       * model menulis perintah di jawaban, user yang memutuskan menjalankannya.
+       */
+      await kirim('kasih perintah BASHCMD TEXTONLY');
       await tungguSelesai();
       const tombolBar = !!q('[data-testid="ai-run-last"]');
       const tombolBlok = !!q('[data-testid="ai-run-code"]');
@@ -793,7 +1147,7 @@ const main = async () => {
       const toastKirim = q('[data-testid="ai-toast"]')?.textContent ?? '';
 
       // 2) perintah destruktif -> dialog konfirmasi, TIDAK langsung jalan
-      await kirim('hapus dist RMCMD');
+      await kirim('hapus dist RMCMD TEXTONLY');
       await tungguSelesai();
       const cmdDestruktif = A.command(A.messages().filter(m => m.role === 'assistant').pop().content);
       await klik('[data-testid="ai-run-last"]');
@@ -822,50 +1176,61 @@ const main = async () => {
     v6.tombolBar &&
       v6.tombolBlok &&
       v6.adaOutput &&
-      /dikirim ke terminal/i.test(v6.toastKirim) &&
+      /dikirim ke terminal|sent to the terminal/i.test(v6.toastKirim) &&
       v6.dialog &&
       v6.isiDialog.includes('rm -rf dist') &&
       !v6.dialogSetelahBatal &&
       v6.rmTidakJalan &&
       v6.destruktifTerdeteksi === true &&
       v6.amanTidakTerdeteksi === false,
-    `tombol "Jalankan di Terminal" muncul (action bar + blok kode); klik 竊・shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi`,
+    `tombol "Jalankan di Terminal" muncul (bar: ${v6.tombolBar}, blok: ${v6.tombolBlok}); klik -> shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; toast kirim = "${v6.toastKirim}"; perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi (dialog=${v6.dialog}, isiDialog="${v6.isiDialog}", dialogSetelahBatal=${v6.dialogSetelahBatal}, rmTidakJalan=${v6.rmTidakJalan}, deteksi: destruktif=${v6.destruktifTerdeteksi}, aman=${v6.amanTidakTerdeteksi}, pane=${v6.paneId})`,
   );
 
-  // 笏笏笏笏笏笏笏笏笏 V7: cancel streaming benar-benar berhenti 笏笏笏笏笏笏笏笏笏
-  const v7 = JSON.parse(
-    await cdp.runAsync(`
-      await kirim('hitung SLOW');
-      await wait(1400);
-      const adaStop = !!q('[data-testid="ai-stop"]');
-      const pendingSebelum = AS().pending;
-      const sebelum = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
-      await klik('[data-testid="ai-stop"]');
-      await wait(300);
-      const tepatSetelah = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
-      // tunggu jauh lebih lama dari jeda token (400ms): kalau stream benar
-      // berhenti, panjang teks TIDAK boleh bertambah lagi
-      await wait(3500);
-      const jauhSetelah = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
-      const m = A.messages().filter(x => x.role === 'assistant').pop();
-      return JSON.stringify({
-        adaStop, pendingSebelum, sebelum, tepatSetelah, jauhSetelah,
-        pendingSesudah: AS().pending,
-        streaming: !!m.streaming,
-        adaTombolKirim: !!q('[data-testid="ai-send"]'),
-      });
-    `),
-  );
+  // 笏笏笏笏笏笏笏笏笏 V7: cancel streaming benar-benar berhenti 笏笏笏笏笏笏笏笏笏
+    const v7 = JSON.parse(
+      await cdp.runAsync(`
+        /*
+         * TEXTONLY: tanpa itu mock MEMINTA tool call lebih dulu dan run masuk
+         * keadaan menunggu persetujuan -> agentBusy false, komposer menampilkan
+         * Kirim (bukan Stop), dan tombol ai-stop tidak pernah ada. TEXTONLY
+         * membuat run benar-benar streaming teks, jadi cancel bisa diukur:
+         * panjang bubble harus berhenti bertambah.
+         *
+         * Klik stop dibuat tidak melempar (tombol?.) - kalau tombol tidak ada,
+         * V8-V11 tetap dinilai; adaStop membuktikan keadaannya.
+         */
+        await kirim('hitung SLOW TEXTONLY');
+        await wait(1400);
+        const tombolStop = q('[data-testid="ai-stop"]');
+        const adaStop = !!tombolStop;
+        const busySebelum = AS().agentBusy;
+        const sebelum = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
+        tombolStop?.click();
+        await wait(300);
+        const tepatSetelah = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
+        // tunggu jauh lebih lama dari jeda token (400ms): kalau stream benar
+        // berhenti, panjang teks TIDAK boleh bertambah lagi
+        await wait(3500);
+        const jauhSetelah = (A.messages().filter(m => m.role === 'assistant').pop()?.content ?? '').length;
+        const m = A.messages().filter(x => x.role === 'assistant').pop();
+        return JSON.stringify({
+          adaStop, busySebelum, sebelum, tepatSetelah, jauhSetelah,
+          busySesudah: AS().agentBusy,
+          streaming: !!m.streaming,
+          adaTombolKirim: !!q('[data-testid="ai-send"]'),
+        });
+      `),
+    );
   check(
     'V7',
     v7.adaStop &&
-      v7.pendingSebelum !== null &&
+      v7.busySebelum === true &&
       v7.sebelum > 0 &&
       v7.jauhSetelah === v7.tepatSetelah &&
-      v7.pendingSesudah === null &&
+      v7.busySesudah === false &&
       !v7.streaming &&
       v7.adaTombolKirim,
-    `Stop: panjang teks ${v7.sebelum} 竊・${v7.tepatSetelah} saat dibatalkan 竊・tetap ${v7.jauhSetelah} setelah 3.5s (stream mati, bukan cuma UI); pending kembali null, tombol Kirim balik`,
+    `Stop: panjang teks ${v7.sebelum} -> ${v7.tepatSetelah} saat dibatalkan -> tetap ${v7.jauhSetelah} setelah 3.5s (stream mati, bukan cuma UI); agentBusy ${v7.busySebelum} -> ${v7.busySesudah}, tombol Kirim balik`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V8: batas 200 pesan + chat baru bersih 笏笏笏笏笏笏笏笏笏
@@ -941,6 +1306,7 @@ const main = async () => {
   const targets2 = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
   const page2 = targets2.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
   cdp = await Cdp.connect(page2.webSocketDebuggerUrl);
+  cdpTerbuka = cdp;
   for (let i = 0; i < 40; i++) {
     if ((await cdp.eval('typeof window.__ZEPHYR_AI__')) !== 'undefined') break;
     await sleep(300);
@@ -970,6 +1336,75 @@ const main = async () => {
       !v9.adaStreamingNyangkut &&
       v9.pending === null,
     `setelah reload halaman: ${v9.sesi} sesi & ${v9.pesan} pesan kembali dari localStorage (judul "${v9.judul}", penanda ${tandaRestore} ada), ${v9.bubbleDom} bubble ter-render, tidak ada pesan yang nyangkut status "streaming"`,
+  );
+
+  // ───────── V11: kotak input bersih setelah kirim (draf per permukaan) ─────────
+  const v11 = JSON.parse(
+    await cdp.runAsync(`
+      /*
+       * Bug yang dilaporkan user: setelah kirim chat, teks masih tertinggal di
+       * kotak input.
+       *
+       * Sebabnya draft disimpan per permukaan (drafts[composerId]) dan jalur
+       * kirim tidak membersihkan draft milik pengirimnya: 'drafts: text ? s.drafts
+       * : {}' - composer SELALU mengirim teksnya, jadi cabang itu yang terpakai
+       * dan draft-nya utuh. Uji ini mengukur yang dilihat user: ketik lewat UI
+       * (bukan setDraft langsung, supaya jalur onChange ikut teruji) -> klik
+       * Kirim -> kotak harus kosong.
+       *
+       * Sekalian diuji aturan yang paling mudah rusak saat memperbaikinya:
+       * draft permukaan LAIN tidak boleh ikut terhapus, karena user bisa sedang
+       * mengetik di sana. Perbaikan yang salah (kembali ke 'drafts: {}')
+       * menggagalkan syarat ini.
+       */
+      await bukaAi();
+      await X.setKey('gemini', 'MOCK-KEY-GEMINI-1234');
+      await AS().loadKeys();
+      await S.getState().applySettings({ models: { activeProvider: 'gemini' } });
+      await wait(300);
+      // Mode chat sudah pensiun (setAgentMode('chat') dikoersi ke 'agent'),
+      // jadi tidak dipanggil lagi di sini - dikomentari supaya tidak ada yang
+      // mengira uji ini masih bergantung padanya.
+      await A.store.getState().setModel('gemini-2.0-flash', 'gemini');
+      await wait(350);
+      // Provider dipastikan BERTAHAN: kalau panel bergeser, jalur kirim yang
+      // teruji bukan yang dimaksud dan toast "tanpa key" bisa muncul.
+      await tungguProvider('gemini');
+
+      AS().setDraft('JANGAN DIHAPUS - draf permukaan lain', 'permukaan-lain');
+      await wait(150);
+      const teksUji = 'draf ini harus hilang setelah kirim';
+      /*
+       * Draft pengirim dibaca TEPAT SEBELUM tombol Kirim ditekan (kait
+       * sebelumKlik). Sesudah klik, kotak memang sudah kosong - itu yang
+       * diperbaiki - jadi membaca di situ tidak bisa membedakan "aplikasi
+       * membersihkan draft" dari "uji tidak pernah mengetik apa pun".
+       */
+      let drafSebelumKlik = '';
+      await kirim(teksUji, () => {
+        drafSebelumKlik = AS().draftOf('');
+      });
+      const drafSaatKirim = drafSebelumKlik;
+      await tungguSelesai();
+      const pesanTerkirim = A.messages().filter(m => m.role === 'user').pop()?.content ?? '';
+      const kotak = q('[data-testid="ai-input"]');
+      return JSON.stringify({
+        drafSaatKirim,
+        pesanTerkirim,
+        draftUtama: AS().draftOf(''),
+        isiKotak: kotak ? kotak.value : '(kotak tidak ada)',
+        draftLain: AS().draftOf('permukaan-lain'),
+      });
+    `),
+  );
+  check(
+    'V11',
+    v11.drafSaatKirim === 'draf ini harus hilang setelah kirim' &&
+      v11.pesanTerkirim.includes('draf ini harus hilang') &&
+      v11.draftUtama === '' &&
+      v11.isiKotak === '' &&
+      v11.draftLain === 'JANGAN DIHAPUS - draf permukaan lain',
+    `setelah kirim: draft permukaan pengirim "${v11.drafSaatKirim}" (saat kirim) -> "${v11.draftUtama}", isi kotak input = "${v11.isiKotak}" (pesan terkirim: "${v11.pesanTerkirim.slice(0, 40)}"); draft permukaan lain tetap "${v11.draftLain}"`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V10: RAM + tanpa console error + bersih 笏笏笏笏笏笏笏笏笏
@@ -1027,19 +1462,38 @@ const main = async () => {
     `RAM proses dengan panel AI + chat = ${mb} MB (< 500 MB); console error: ${v10.errors.length === 0 ? 'tidak ada' : JSON.stringify(v10.errors)}; key uji (gemini/anthropic) dihapus, key user tetap: ${JSON.stringify(v10.keySisa)}, chat dikosongkan`,
   );
 
+  // Berkas dikembalikan DULU, baru halaman disuruh membacanya lagi: kalau
+  // urutannya dibalik, memori aplikasi tetap memegang baseUrl mock.
+  restoreSettings();
+  restoreSecrets();
+  try {
+    await cdp.runAsync(`(window.__ZEPHYR_SET__.reloadSettings ?? (async () => true))()`);
+  } catch {
+    /* halaman mungkin sudah reload/mati: berkasnya sudah benar di disk */
+  }
   cdp.close();
   if (mock) mock.kill();
-  restoreSecrets();
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
-  if (lulus !== results.length) process.exitCode = 1;
+  // Keluar eksplisit: menyetel process.exitCode saja tidak cukup - ada handle
+  // (WebSocket CDP) yang tetap hidup, jadi runner suite menunggu 8 menit lalu
+  // mencatat "timeout" meski semua uji sudah selesai.
+  keluarBersih(lulus === results.length ? 0 : 1);
 };
 
 main().catch((e) => {
-  // Key user dikembalikan walau harness gagal di tengah jalan.
+  // Key DAN provider user dikembalikan walau harness gagal di tengah jalan.
+  restoreSettings();
   restoreSecrets();
   console.error('verify09 error:', e.message ?? e);
-  process.exitCode = 2;
+  // Tutup CDP-nya, kalau tidak proses ini menggantung sampai runner membunuhnya
+  // dan sebab kegagalan aslinya tenggelam jadi "timeout".
+  try {
+    cdpTerbuka?.close();
+  } catch {
+    /* sudah tertutup atau gagal ditutup: tetap harus keluar */
+  }
+  keluarBersih(2);
 });
 

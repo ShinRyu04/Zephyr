@@ -19,6 +19,10 @@
 //   berisi "ERR401"  -> jawab HTTP 401 (uji pesan error ramah)
 //   berisi "TOOLCALL:<nama>" -> balas SATU tool call ke tool itu (uji agent
 //                        loop + tool baru: skill_list/skill_view/memory_write)
+//   berisi "TEXTONLY" -> jawaban TEKS panjang, jeda 400ms/token, dan TIDAK
+//                        minta tool walau definisi tool ikut terkirim (uji
+//                        streaming jawaban teks di jalur agen, pasca pensiun
+//                        mode chat)
 // Selain itu: jawaban default dengan **bold** untuk uji markdown.
 
 import http from 'node:http';
@@ -27,7 +31,7 @@ const PORT = Number(process.argv[2] ?? 8098);
 /** Dinaikkan tiap kali protokol/perilaku mock berubah. Harness menolak
  *  server versi lama yang masih nyangkut di port (sudah kena sekali:
  *  mock lama tanpa alt=sse membuat V3..V5 gagal padahal app benar). */
-const VERSION = 6;
+const VERSION = 7;
 const log = [];
 
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
@@ -50,6 +54,15 @@ const TOOL_ARGS = {
   cron_create: { name: 'uji-cron', command: 'echo ZEPHYR-CRON-OK', every_minutes: 30 },
   cron_list: {},
   cron_delete: { id: 'job-uji' },
+  write_file: {
+    // Jalur bisa ditimpa dari prompt dengan `WRITEPATH:<jalur>` (lihat
+    // toolCallDariPrompt) supaya uji tulis-subagent bisa menunjuk berkas
+    // berbeda per run: run pertama harus menghasilkan berkas, run kontrol
+    // (setelan izin mati) TIDAK boleh - kalau jalurnya sama, sisa run pertama
+    // terbaca sebagai bukti run kontrol menulis.
+    path: 'uji-subagent-tulis.txt',
+    content: 'ZEPHYR-SUBAGENT-TULIS-OK',
+  },
 };
 
 /** Kalau prompt memuat TOOLCALL:<nama>, kembalikan spesifikasinya. */
@@ -68,7 +81,13 @@ function toolCallDariPrompt(prompt) {
    * yang butuh argumen khusus; tool tanpa argumen (inspect, state, read_file)
    * sah dipanggil dengan {}.
    */
-  return { nama, args: TOOL_ARGS[nama] ?? {} };
+  const args = { ...(TOOL_ARGS[nama] ?? {}) };
+
+  /* Jalur tulis bisa ditentukan uji lewat prompt (`WRITEPATH:<jalur>`). */
+  const wp = /WRITEPATH:(\S+)/.exec(prompt);
+  if (wp) args.path = wp[1];
+
+  return { nama, args };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -95,6 +114,22 @@ function buildReply(prompt) {
   }
   if (prompt.includes('SLOW')) {
     return 'satu dua tiga empat lima enam tujuh delapan sembilan sepuluh sebelas dua-belas tiga-belas empat-belas lima-belas';
+  }
+  if (prompt.includes('TEXTONLY')) {
+    /*
+     * Jawaban teks panjang TANPA tool call, walaupun permintaannya membawa
+     * definisi tool. Diperlukan sejak mode chat pensiun: di jalur agen mock
+     * selalu membalas tool call lebih dulu (todo_write), sehingga bubble
+     * assistant hanya berisi baris "Write TODO" + ringkasan - tidak ada teks
+     * model yang bisa dipakai membuktikan jawaban datang BERTAHAP. Dengan
+     * TEXTONLY jawabannya murni teks, jadi pertumbuhan tiap potongan bisa
+     * diukur lagi.
+     */
+    return [
+      'Baik, ini jawaban bertahap untuk uji streaming.',
+      'Satu dua tiga empat **teks** lima.',
+      'Selesai - teks saja, tanpa tool.',
+    ].join(' ');
   }
   return 'Halo, ini jawaban **uji** dari Zephyr.';
 }
@@ -254,7 +289,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   const reply = buildReply(prompt);
-  const slow = prompt.includes('SLOW');
+  const slow = prompt.includes('SLOW') || prompt.includes('TEXTONLY');
   const gap = slow ? 400 : 45;
   // Hanya minta tool SEKALI: kalau hasil tool sudah ada di riwayat, balas
   // teks biasa supaya loop agent berhenti (bukan berputar sampai batas).
@@ -281,11 +316,16 @@ const server = http.createServer(async (req, res) => {
   // Tool yang dipilih: `todo_write` (aman, tidak mengubah file). Argumennya
   // dibuat dari tugas user supaya hasilnya bisa dibedakan antar subagent.
   const adaTools = Array.isArray(entry.body?.tools) && entry.body.tools.length > 0;
+  /*
+   * TEXTONLY: jangan minta tool walau definisinya ikut terkirim. Dipakai uji
+   * streaming jawaban teks di jalur agen - lihat catatan di buildReply().
+   */
+  const teksSaja = prompt.includes('TEXTONLY');
   // PENTING: `sudahPakaiTool` mengalahkan segalanya. Kalau hasil tool sudah ada
   // di riwayat, balas TEKS — bukan tool call lagi. Tanpa penjagaan ini agent
   // loop berputar sampai batas langkah karena mock terus meminta tool yang sama
   // (gejala: subagent "melewati batas 6 langkah" lalu gagal).
-  const toolCallAkhir = sudahPakaiTool
+  const toolCallAkhir = sudahPakaiTool || teksSaja
     ? null
     : (toolCall ??
       (adaTools

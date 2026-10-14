@@ -123,6 +123,24 @@ mod tests {
     }
 
     #[test]
+    fn subagent_allow_write_default_mati() {
+        let d = crate::settings::default_settings();
+        let sub = d.get("subagent").expect("seksi subagent hilang dari default");
+        let aw = sub
+            .get("allowWrite")
+            .expect("kunci subagent.allowWrite hilang dari default");
+
+        /*
+         * Bawaan HARUS false, dan ini dijaga tes - bukan cuma ditulis sekali.
+         * Kalau bawaannya terbalik jadi true, subagent yang dijalankan agen
+         * utama bisa mengubah berkas user tanpa pernah ada yang menyalakan
+         * izinnya; itu perubahan perilaku yang harus terlihat sebagai tes merah,
+         * bukan sebagai kejutan di mesin user.
+         */
+        assert_eq!(aw.as_bool(), Some(false), "subagent.allowWrite harus false secara bawaan");
+    }
+
+    #[test]
     fn ignore_list_menutup_folder_berat() {
         for d in ["node_modules", ".git", "target", "dist", "venv", ".next"] {
             assert!(
@@ -345,7 +363,10 @@ mod tests {
         // With a base URL it uses it verbatim - and never OpenAI.
         let url = endpoint_for_test("custom", Some("https://modelrouter.id/v1")).unwrap();
         assert_eq!(url, "https://modelrouter.id/v1/models");
-        assert!(!url.contains("openai"), "custom tidak boleh jatuh ke OpenAI: {url}");
+        assert!(
+            !url.contains("openai"),
+            "custom tidak boleh jatuh ke OpenAI: {url}"
+        );
 
         // Trailing slash must not double up.
         let url = endpoint_for_test("custom", Some("https://router.local/v1/")).unwrap();
@@ -363,18 +384,161 @@ mod tests {
         assert!(!lokal.contains("openai"), "{lokal}");
 
         // Known providers keep their own defaults.
-        assert!(endpoint_for_test("deepseek", None).unwrap().contains("api.deepseek.com"));
-        assert!(endpoint_for_test("xai", None).unwrap().contains("api.x.ai"));
-        assert!(endpoint_for_test("lmstudio", None).unwrap().contains("127.0.0.1:1234"));
+        assert!(endpoint_for_test("deepseek", None)
+            .unwrap()
+            .contains("api.deepseek.com"));
+        assert!(endpoint_for_test("lmstudio", None)
+            .unwrap()
+            .contains("127.0.0.1:1234"));
+
+        /*
+         * The `xai` arm was removed with the provider. Dropping the arm is not
+         * enough on its own: an unknown id falls through to the OpenAI default
+         * by NAME only for `openai` itself, so `xai` must now be REFUSED when
+         * no base URL is given. Asserting the refusal is what stops a leftover
+         * key from silently being pointed at a host nobody chose.
+         */
+        assert!(
+            endpoint_for_test("xai", None).is_err(),
+            "`xai` sudah dibuang, jadi tanpa base URL ia harus ditolak"
+        );
 
         // An unknown provider with no URL is refused, not silently sent to
         // OpenAI - that is the whole point of removing the catch-all arm.
         let aneh = endpoint_for_test("provider-yang-tidak-dikenal", None);
-        assert!(aneh.is_err(), "provider tak dikenal harus ditolak: {aneh:?}");
+        assert!(
+            aneh.is_err(),
+            "provider tak dikenal harus ditolak: {aneh:?}"
+        );
 
         // ...but an unknown provider WITH a URL is honoured (OpenAI-compatible).
         let url = endpoint_for_test("provider-aneh", Some("https://contoh.test/v1")).unwrap();
         assert_eq!(url, "https://contoh.test/v1/models");
+    }
+
+    /*
+     * Regresi: `local` menunjuk port Ollama, dan server lokal tidak butuh key.
+     *
+     * Dua bug yang saling menutupi. Pertama, port bawaannya 4096 (server
+     * opencode), sehingga Ollama yang jelas-jelas jalan tidak pernah ditemukan.
+     * Kedua, `list_models` menolak lebih dulu karena tidak ada API key -
+     * padahal server loopback memang tidak mengautentikasi, jadi key itu tidak
+     * akan pernah dipakai. Hasilnya `Refresh` pada provider `local` selalu
+     * gagal dengan "No API key for local yet" tanpa pernah menghubungi server.
+     */
+    #[test]
+    fn local_menunjuk_port_ollama() {
+        use crate::secrets::endpoint_for_test;
+
+        let l = endpoint_for_test("local", None).unwrap();
+        assert!(
+            l.contains("127.0.0.1:11434"),
+            "local harus menunjuk port Ollama (11434), dapat: {l}"
+        );
+        assert!(
+            !l.contains("4096"),
+            "port opencode sudah bukan bawaan `local`: {l}"
+        );
+    }
+
+    /// Alamat loopback dikenali dalam bentuk-bentuk yang benar-benar dipakai.
+    #[test]
+    fn loopback_dikenali_dan_host_jauh_tidak() {
+        use crate::secrets::endpoint_is_loopback_for_test as lb;
+
+        for alamat in [
+            "http://127.0.0.1:11434/v1/models",
+            "http://localhost:1234/v1/models",
+            "http://127.0.0.1:4096/v1/models",
+            "https://127.0.0.1/v1/models",
+            "http://[::1]:11434/v1/models",
+            "http://127.0.0.1/v1/models",
+        ] {
+            assert!(lb(alamat), "{alamat} harus dikenali sebagai loopback");
+        }
+
+        for alamat in [
+            "https://api.openai.com/v1/models",
+            "https://modelrouter.id/v1/models",
+            "https://api.deepseek.com/v1/models",
+            // Jangan tertipu oleh host yang hanya MENGANDUNG "localhost".
+            "https://localhost.evil.test/v1/models",
+            "https://notlocalhost/v1/models",
+            // 127.0.0.2 bukan loopback yang dimaksud di sini.
+            "https://127.0.0.2:11434/v1/models",
+            "",
+            "bukan-url",
+        ] {
+            assert!(!lb(alamat), "{alamat} TIDAK boleh dianggap loopback");
+        }
+    }
+
+    /*
+     * Regresi: `strip_unc` harus membatalkan `long_path` PERSIS.
+     *
+     * Bentuk verbatim UNC adalah `\\?\UNC\server\share`. Versi lama hanya
+     * membuang `\\?\`, sehingga sisanya `UNC\server\share` — path RELATIF,
+     * karena `\\` yang membuatnya UNC ikut terbuang bersama prefix. Akibatnya
+     * workspace di network share diresolusi terhadap cwd proses, bukan share-nya.
+     */
+    #[test]
+    fn strip_unc_membatalkan_unc_verbatim() {
+        use std::path::Path;
+        use std::path::PathBuf;
+
+        let verbatim = Path::new(r"\\?\UNC\server\share\dir");
+        let hasil = crate::paths::strip_unc(verbatim);
+        assert_eq!(
+            hasil,
+            PathBuf::from(r"\\server\share\dir"),
+            "UNC verbatim harus jadi UNC biasa, bukan path relatif"
+        );
+        assert!(hasil.is_absolute(), "hasilnya harus absolut: {hasil:?}");
+
+        // Bentuk drive tidak terpengaruh.
+        assert_eq!(
+            crate::paths::strip_unc(Path::new(r"\\?\C:\ws\a.rs")),
+            PathBuf::from(r"C:\ws\a.rs")
+        );
+
+        // Path tanpa prefix dikembalikan apa adanya.
+        assert_eq!(
+            crate::paths::strip_unc(Path::new(r"C:\ws\a.rs")),
+            PathBuf::from(r"C:\ws\a.rs")
+        );
+
+        // Bolak-balik: long_path lalu strip_unc harus kembali ke asalnya.
+        let asli = Path::new(r"\\server\share\proyek");
+        let bolak_balik = crate::paths::strip_unc(&crate::paths::long_path(asli));
+        assert_eq!(bolak_balik, asli.to_path_buf());
+    }
+
+    /*
+     * Regresi: userinfo tidak boleh membuat host jauh terbaca sebagai loopback.
+     *
+     * `http://localhost:8080@evil.test/v1` punya authority
+     * `localhost:8080@evil.test`; membelahnya di `:` menghasilkan `localhost`,
+     * sehingga URL-nya diklasifikasi loopback padahal requestnya menuju
+     * evil.test — dan key kosong lalu diterima untuk host itu.
+     */
+    #[test]
+    fn loopback_menolak_userinfo() {
+        use crate::secrets::endpoint_is_loopback_for_test as lb;
+
+        assert!(
+            !lb("http://localhost:8080@evil.test/v1/models"),
+            "userinfo tidak boleh menyamarkan host jauh sebagai loopback"
+        );
+        assert!(
+            !lb("http://127.0.0.1:1@evil.test/v1/models"),
+            "idem untuk bentuk IP"
+        );
+        assert!(
+            !lb("http://user:pass@evil.test/v1/models"),
+            "user:pass biasa juga bukan loopback"
+        );
+        // Yang benar tetap dikenali.
+        assert!(lb("http://user:pass@127.0.0.1:11434/v1/models"), "loopback asli tetap lolos");
     }
 
     #[test]
@@ -415,5 +579,54 @@ mod tests {
         assert!(!crate::paths::is_drive_root(Path::new(r"C:\Users")));
         assert!(!crate::paths::is_drive_root(Path::new(r"D:\Zephyr")));
         assert!(!crate::paths::is_drive_root(Path::new(r"C:\Users\a\b")));
+    }
+
+    /*
+     * The two counters must stay independent.
+     *
+     * They answer different questions — "which watcher run is this" (whose bump
+     * KILLS the watcher) versus "has the tree changed" (whose bump invalidates
+     * a cache). Sharing one counter was the first version of the Quick Open
+     * index, and it would have ended the file watcher the first time a file
+     * changed: the next flush would see its own generation no longer matching
+     * the stop flag and break out of the loop.
+     */
+    #[test]
+    fn generasi_pohon_terpisah_dari_generasi_watcher() {
+        use crate::app_state::AppState;
+        let st = AppState::new();
+
+        let watch_awal = st.watch_generation();
+        let tree_awal = st.tree_generation();
+
+        /* Bumping the tree counter must NOT move the watcher counter. */
+        st.bump_tree_generation();
+        assert_eq!(
+            st.watch_generation(),
+            watch_awal,
+            "bump pohon tidak boleh menghentikan watcher"
+        );
+        assert_eq!(st.tree_generation(), tree_awal + 1, "pohon naik satu");
+
+        /* And stopping the watcher must NOT invalidate a tree cache. */
+        let tree_sebelum_stop = st.tree_generation();
+        st.stop_watcher();
+        assert_eq!(
+            st.tree_generation(),
+            tree_sebelum_stop,
+            "stop_watcher tidak boleh membuang cache pohon"
+        );
+        assert!(st.watch_generation() > watch_awal, "watcher naik saat dihentikan");
+    }
+
+    /// The handle the watcher thread gets points at the same counter.
+    #[test]
+    fn pegangan_tree_counter_menunjuk_counter_yang_sama() {
+        use crate::app_state::AppState;
+        use std::sync::atomic::Ordering;
+        let st = AppState::new();
+        let handle = st.tree_counter();
+        handle.fetch_add(1, Ordering::Relaxed);
+        assert_eq!(st.tree_generation(), 1, "handle dan accessor berbagi counter");
     }
 }

@@ -5,7 +5,7 @@ import {
   type CompletionResult,
   type CompletionSource,
 } from '@codemirror/autocomplete';
-import { Compartment, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { RangeSetBuilder, StateEffect, StateField, Text, type Extension } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -15,6 +15,7 @@ import {
   type Panel,
 } from '@codemirror/view';
 import { useLsp } from './lspStore';
+import { kunciPath } from './pathKey';
 import { fsRead } from './commands';
 import { COMPLETION_KIND, SYMBOL_KIND, hoverText, pathToUri, uriToPath } from './lsp';
 import { keCompletion, konteksDari, useSnip } from './snippetStore';
@@ -33,8 +34,6 @@ export function lspToOffset(view: EditorView, pos: { line: number; character: nu
   return Math.min(line.from + Math.max(pos.character, 0), line.to);
 }
 
-export const squiggleCompartment = new Compartment();
-
 const MARK = {
   error: Decoration.mark({ class: 'cm-zdiag cm-zdiag-error' }),
   warning: Decoration.mark({ class: 'cm-zdiag cm-zdiag-warning' }),
@@ -42,8 +41,7 @@ const MARK = {
   hint: Decoration.mark({ class: 'cm-zdiag cm-zdiag-hint' }),
 };
 
-export function squiggleFor(list: Diagnostic[], view: EditorView): DecorationSet {
-  const doc = view.state.doc;
+export function squiggleFor(list: Diagnostic[], doc: Text): DecorationSet {
   const b = new RangeSetBuilder<Decoration>();
   
   const rentang: { from: number; to: number; sev: Diagnostic['severity'] }[] = [];
@@ -61,6 +59,38 @@ export function squiggleFor(list: Diagnostic[], view: EditorView): DecorationSet
   rentang.sort((a, z) => a.from - z.from || a.to - z.to);
   for (const r of rentang) b.add(r.from, r.to, MARK[r.sev]);
   return b.finish();
+}
+
+const setSquiggle = StateEffect.define<Diagnostic[]>();
+
+/**
+ * Squiggles live in a state field, not in a reconfigured compartment.
+ *
+ * A compartment holds the value it was given, and `EditorView.decorations.of(set)`
+ * hands over a set that was already built from ONE document. The moment that set
+ * meets a different document - a file opened over the old one, an extension
+ * install that remounts the editor - CodeMirror diffs it against the current
+ * document and maps positions that no longer fit, which throws
+ * `RangeError: Position N is out of range for changeset of length 0` and takes
+ * the whole editor down with it.
+ *
+ * A field cannot get into that state: the old set is remapped through every
+ * change, and a fresh set is only ever built from `tr.state.doc`, the document
+ * the pair actually belongs to.
+ */
+export const squiggleField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) if (e.is(setSquiggle)) deco = squiggleFor(e.value, tr.state.doc);
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+/** Pusatkan daftar diagnostik ke field squiggle (satu transaksi bersama gutter & lens). */
+export function setSquiggleEffect(list: Diagnostic[]) {
+  return setSquiggle.of(list);
 }
 
 export function lspCompletionSource(path: string) {
@@ -372,6 +402,113 @@ export async function lspDocumentSymbols(path: string) {
   return Array.isArray(res) ? res : [];
 }
 
+/* ── Call hierarchy ───────────────────────────────────────────────────────
+ *
+ * "Who calls this, and what does this call" — the one navigation question the
+ * rest of the LSP surface cannot answer. `references` finds call sites but not
+ * the enclosing function, so answering it by hand means reading each hit's
+ * surroundings; `definition` goes the other way. A server that implements this
+ * answers it in one round trip.
+ *
+ * The protocol is three steps, not one:
+ *
+ *   1. `prepareCallHierarchy` at a position -> the item(s) under the cursor
+ *   2. `callHierarchy/incomingCalls` on an item -> its callers
+ *   3. `callHierarchy/outgoingCalls` on an item -> its callees
+ *
+ * Steps 2 and 3 take the ITEM from step 1, not a position, and the item must be
+ * passed back verbatim — a server may key its internal state on the `data`
+ * field it put there. So the raw item is kept and sent unmodified.
+ */
+
+export interface CallItem {
+  name: string;
+  kind: string;
+  /** `file`, `line` (1-based), `column` (1-based) of the item's own location. */
+  file: string;
+  line: number;
+  column: number;
+  detail?: string;
+  /** The call sites inside the CALLER that reach the callee. */
+  fromRanges?: { line: number; column: number }[];
+  /** Kept so the item can be sent back unmodified. */
+  raw: unknown;
+}
+
+function keCallItem(raw: Record<string, unknown>, bawaan?: string): CallItem | null {
+  const uri = String(raw.uri ?? '');
+  const range = raw.range as { start?: { line?: number; character?: number } } | undefined;
+  const start = range?.start;
+  if (!uri || !start || typeof start.line !== 'number') return null;
+  return {
+    name: String(raw.name ?? '(tanpa nama)'),
+    kind: SYMBOL_KIND[Number(raw.kind ?? 0)] ?? 'function',
+    file: uriToPath(uri),
+    line: start.line + 1,
+    column: (start.character ?? 0) + 1,
+    detail: raw.detail ? String(raw.detail) : bawaan,
+    raw,
+  };
+}
+
+/** Step 1: what is under the cursor, as call-hierarchy items. */
+export async function lspPrepareCallHierarchy(
+  path: string,
+  view: EditorView,
+  pos: number,
+): Promise<CallItem[]> {
+  const res = await useLsp.getState().req(path, 'textDocument/prepareCallHierarchy', {
+    textDocument: { uri: pathToUri(path) },
+    position: offsetToLsp(view, pos),
+  });
+  if (!Array.isArray(res)) return [];
+  return res
+    .map((r) => keCallItem(r as Record<string, unknown>))
+    .filter((x): x is CallItem => x !== null);
+}
+
+/**
+ * Steps 2 and 3.
+ *
+ * `arah` picks the method; the response shape differs by direction, which is
+ * why the two are unpacked separately rather than by a shared mapper. Incoming
+ * items carry `from` (the caller) plus `fromRanges` (where inside the caller
+ * the call sits); outgoing carry `to` (the callee) plus `fromRanges` (where
+ * inside THIS function the call sits).
+ */
+export async function lspCallHierarchy(
+  path: string,
+  item: CallItem,
+  arah: 'incoming' | 'outgoing',
+): Promise<CallItem[]> {
+  const metode =
+    arah === 'incoming' ? 'callHierarchy/incomingCalls' : 'callHierarchy/outgoingCalls';
+  const res = await useLsp.getState().req(path, metode, { item: item.raw });
+  if (!Array.isArray(res)) return [];
+
+  const keluar: CallItem[] = [];
+  for (const raw of res as Record<string, unknown>[]) {
+    const isi = (arah === 'incoming' ? raw.from : raw.to) as Record<string, unknown> | undefined;
+    if (!isi) continue;
+    const dasar = keCallItem(isi);
+    if (!dasar) continue;
+
+    /*
+     * The ranges are where the CALL is written, in the OTHER file. They are
+     * what makes the result navigable: a caller with three call sites should
+     * jump to the one you picked, not to the top of the function.
+     */
+    const ranges = Array.isArray(raw.fromRanges)
+      ? (raw.fromRanges as { start?: { line?: number; character?: number } }[])
+          .filter((r) => r.start && typeof r.start.line === 'number')
+          .map((r) => ({ line: (r.start as { line: number }).line + 1, column: (r.start?.character ?? 0) + 1 }))
+      : [];
+
+    keluar.push({ ...dasar, fromRanges: ranges.length ? ranges : undefined });
+  }
+  return keluar;
+}
+
 export interface TextEditLsp {
   range: { start: { line: number; character: number }; end: { line: number; character: number } };
   newText: string;
@@ -396,6 +533,122 @@ export async function lspFormat(path: string, view: EditorView, tabSize: number,
   });
   const edits = Array.isArray(res) ? (res as TextEditLsp[]) : [];
   return applyEdits(view, edits);
+}
+
+/**
+ * Apply a `WorkspaceEdit` to one open buffer, counting the edits that landed.
+ *
+ * Lifted out of `LspOverlay`, which had this inline. It is needed in two places
+ * now — the code-action menu and fix-all-on-save — and two copies of an
+ * "apply these ranges in reverse order" routine is exactly the kind of
+ * duplication where one copy gets the sort direction wrong and silently
+ * corrupts the buffer.
+ *
+ * Edits aimed at OTHER files are ignored, not applied: this editor has one
+ * buffer per view, and the caller (`fixAllOnSave`) is formatting the file it is
+ * about to write. A multi-file edit is reported by its count so the caller can
+ * say so rather than pretending nothing happened.
+ */
+export function applyWorkspaceEdit(
+  view: EditorView,
+  path: string,
+  edit: Record<string, unknown> | undefined,
+  /** Called for edits that target a different file. */
+  onLain?: (path: string, edits: TextEditLsp[]) => void,
+): number {
+  if (!edit) return 0;
+  let diterapkan = 0;
+
+  const changes = edit.changes as Record<string, TextEditLsp[]> | undefined;
+  if (changes) {
+    for (const [uri, edits] of Object.entries(changes)) {
+      if (!Array.isArray(edits)) continue;
+      const f = uriToPath(uri);
+      if (kunciPath(f) === kunciPath(path)) diterapkan += applyEdits(view, edits);
+      else onLain?.(f, edits);
+    }
+  }
+
+  const dc = edit.documentChanges as unknown[] | undefined;
+  if (Array.isArray(dc)) {
+    for (const d of dc) {
+      const o = d as Record<string, unknown>;
+      const uri = (o.textDocument as Record<string, unknown> | undefined)?.uri as string | undefined;
+      const edits = o.edits as TextEditLsp[] | undefined;
+      if (!uri || !Array.isArray(edits)) continue;
+      const f = uriToPath(uri);
+      if (kunciPath(f) === kunciPath(path)) diterapkan += applyEdits(view, edits);
+      else onLain?.(f, edits);
+    }
+  }
+
+  return diterapkan;
+}
+
+/**
+ * Run the language server's "fix everything" action for this file.
+ *
+ * `source.fixAll` is the LSP's own name for "apply all safe automated fixes"
+ * (ESLint, tsserver, gopls all implement it). It is requested over the whole
+ * document with the CURRENT diagnostics attached, because most servers select
+ * which fixes to offer from that context — asking with an empty list makes
+ * ESLint answer with nothing at all.
+ *
+ * The `only` filter is deliberate. Without it the server may return every
+ * action that happens to overlap the range, including refactors that are not
+ * safe to run unattended on save. `only` is the protocol's own way of saying
+ * "just the fixes".
+ *
+ * Returns the number of edits applied, and whether the server offered anything
+ * at all — the caller needs to tell "nothing to fix" from "no such capability".
+ */
+export async function lspFixAll(
+  path: string,
+  view: EditorView,
+  diags: { line: number; column: number; endLine?: number; endColumn?: number; severity: string; message: string; source: string }[],
+): Promise<{ diterapkan: number; ditawarkan: number; lain: string[] }> {
+  const res = await useLsp.getState().req(path, 'textDocument/codeAction', {
+    textDocument: { uri: pathToUri(path) },
+    range: {
+      start: { line: 0, character: 0 },
+      end: offsetToLsp(view, view.state.doc.length),
+    },
+    context: {
+      only: ['source.fixAll'],
+      diagnostics: diags.map((d) => ({
+        range: {
+          start: { line: d.line - 1, character: d.column - 1 },
+          end: { line: (d.endLine ?? d.line) - 1, character: (d.endColumn ?? d.column) - 1 },
+        },
+        /*
+         * LSP distinguishes Information (3) from Hint (4), and `problemsStore`
+         * carries both — `severityFromLsp` maps 4 to `'hint'`. Collapsing them
+         * here sent a Hint back to the server as Information, so the value the
+         * server emitted did not survive the round trip.
+         */
+        severity:
+          d.severity === 'error' ? 1 : d.severity === 'warning' ? 2 : d.severity === 'info' ? 3 : 4,
+        message: d.message,
+        source: d.source,
+      })),
+    },
+  });
+
+  const daftar = Array.isArray(res) ? (res as Record<string, unknown>[]) : [];
+  /* Fix-all is a whole-file action, so the FIRST one is the whole-file one.
+     Applying every returned action would run overlapping edits from different
+     fixes over the same ranges. */
+  const aksi = daftar.find((a) => {
+    const kind = String(a.kind ?? '');
+    return kind === 'source.fixAll' || kind.startsWith('source.fixAll.');
+  }) ?? daftar[0];
+
+  const lain: string[] = [];
+  const diterapkan = applyWorkspaceEdit(view, path, aksi?.edit as Record<string, unknown> | undefined, (f) =>
+    lain.push(f),
+  );
+
+  return { diterapkan, ditawarkan: daftar.length, lain };
 }
 
 export async function lspRename(path: string, view: EditorView, pos: number, baru: string) {
@@ -437,7 +690,14 @@ export async function lspCodeActions(path: string, view: EditorView, from: numbe
           start: { line: d.line - 1, character: d.column - 1 },
           end: { line: (d.endLine ?? d.line) - 1, character: (d.endColumn ?? d.column) - 1 },
         },
-        severity: d.severity === 'error' ? 1 : d.severity === 'warning' ? 2 : 3,
+        /*
+         * LSP distinguishes Information (3) from Hint (4), and `problemsStore`
+         * carries both — `severityFromLsp` maps 4 to `'hint'`. Collapsing them
+         * here sent a Hint back to the server as Information, so the value the
+         * server emitted did not survive the round trip.
+         */
+        severity:
+          d.severity === 'error' ? 1 : d.severity === 'warning' ? 2 : d.severity === 'info' ? 3 : 4,
         message: d.message,
         source: d.source,
       })),

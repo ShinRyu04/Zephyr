@@ -23,8 +23,9 @@
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  width: min(560px, calc(100vw - 48px));
-  max-height: min(460px, calc(100vh - 140px));
+  width: min(720px, calc(100vw - 48px));
+  min-height: min(330px, calc(100vh - 100px));
+  max-height: min(560px, calc(100vh - 100px));
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -183,11 +184,17 @@
   border-radius: 4px;
 }
 
+/* Empty states should read as intentional resting states, not stray helper text. */
 .nt-kosong {
-  margin: 0;
-  padding: 20px 8px;
+  margin: auto;
+  width: min(100%, 420px);
+  padding: 30px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-3) 45%, transparent);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.6;
   text-align: center;
 }
 
@@ -399,6 +406,23 @@
 .nt-btn-bersih:hover {
   color: var(--fg0);
   border-color: var(--text-muted);
+}
+
+@media (max-width: 560px) {
+  .nt-panel {
+    width: calc(100vw - 20px);
+    min-height: min(300px, calc(100vh - 80px));
+    max-height: calc(100vh - 80px);
+  }
+
+  .nt-add {
+    flex-wrap: wrap;
+  }
+
+  .nt-in-nama,
+  .nt-in-cmd {
+    flex: 1 1 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

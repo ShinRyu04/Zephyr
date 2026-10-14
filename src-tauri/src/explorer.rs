@@ -135,6 +135,13 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
     state.stop_watcher();
     let generation = state.next_watch_generation();
     let stop_flag = state.watch_stop_flag();
+    /*
+     * A handle on the TREE counter, for bumping from the watcher thread.
+     *
+     * Separate from the stop flag on purpose — see `AppState::tree_generation`.
+     * Bumping the stop counter to mean "the tree changed" would end the watcher.
+     */
+    let tree_counter = state.tree_counter();
 
     std::thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
@@ -208,6 +215,22 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
                     {
                         return;
                     }
+                    /*
+                     * Bump so caches keyed on the generation are invalidated.
+                     *
+                     * The counter was already being READ here — the loop exits
+                     * when it no longer matches its own generation — but it was
+                     * never INCREMENTED, so it meant "which watcher run is this"
+                     * and not "has the tree changed since you last looked". The
+                     * Quick Open index needs the second meaning: without the
+                     * bump it would serve a stale file list for the rest of the
+                     * session, because nothing else tells it the tree moved.
+                     *
+                     * Bumped per FLUSH, not per event: a `git checkout` emits
+                     * thousands of events, and invalidating per event would be
+                     * thousands of discarded caches for one logical change.
+                     */
+                    tree_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
                 last_flush = Instant::now();
             }
@@ -246,7 +269,7 @@ pub struct SearchResult {
     pub truncated: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickFile {
     pub path: String,
@@ -299,6 +322,27 @@ pub fn list_workspace_files(
         .workspace_path()
         .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
 
+    /*
+     * Served from the index when it is still valid.
+     *
+     * Two things invalidate it: a different workspace root, and a generation
+     * bump from the file watcher. The watcher already reports every create,
+     * delete and rename — reusing that counter means the index cannot go stale
+     * without the app already knowing.
+     *
+     * The lock is taken, the answer cloned, and the lock dropped before the
+     * walk below — holding it across a filesystem walk would block every other
+     * reader of the index for the whole scan.
+     */
+    {
+        let idx = state.file_index.read().unwrap_or_else(|e| e.into_inner());
+        if let Some(ix) = idx.as_ref() {
+            if ix.root == ws && ix.generation == state.tree_generation() {
+                return Ok(ix.files.clone());
+            }
+        }
+    }
+
     let mut files: Vec<PathBuf> = Vec::new();
     collect_files(&ws, &mut files, 0);
 
@@ -327,7 +371,33 @@ pub fn list_workspace_files(
 
     out.sort_by(|a, b| a.rel.to_lowercase().cmp(&b.rel.to_lowercase()));
     let _ = truncated;
+
+    /* Store it for the next call. Written after the sort so a cached answer is
+       byte-identical to a fresh one — a cache that returns a different ORDER
+       than the uncached path is a source of "the list moved" bugs. */
+    {
+        let mut idx = state.file_index.write().unwrap_or_else(|e| e.into_inner());
+        *idx = Some(crate::app_state::FileIndex {
+            root: ws,
+            generation: state.tree_generation(),
+            files: out.clone(),
+        });
+    }
     Ok(out)
+}
+
+/// Drop the Quick Open index.
+///
+/// Called when the workspace changes, so the next `list_workspace_files` cannot
+/// answer for the previous tree. The generation check already catches this, but
+/// clearing on the event that CAUSED it means no window exists where a wrong
+/// answer is one generation away.
+#[tauri::command(async)]
+pub fn workspace_file_index_clear(state: State<AppState>) -> ZResult<bool> {
+    let mut idx = state.file_index.write().unwrap_or_else(|e| e.into_inner());
+    let ada = idx.is_some();
+    *idx = None;
+    Ok(ada)
 }
 
 #[tauri::command(async)]

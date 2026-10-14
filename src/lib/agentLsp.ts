@@ -164,6 +164,89 @@ export async function lspReferencesTool(
   }
 }
 
+/**
+ * Call hierarchy: who calls this, and what this calls.
+ *
+ * The one navigation question `references` cannot answer. `references` returns
+ * call SITES — a list of positions — and the reader still has to work out which
+ * function each site lives inside. Call hierarchy returns the enclosing
+ * FUNCTION, already named, with the call sites inside it. That is the shape of
+ * the question "who calls this", and it is one round trip instead of N.
+ *
+ * Both directions are returned in one call so the agent does not have to decide
+ * which it wants before knowing if either exists.
+ */
+export async function lspCallHierarchyTool(
+  path: string,
+  pos: Posisi,
+): Promise<
+  | { ok: true; simbol: string; pemanggil: LokasiLsp[]; dipanggil: LokasiLsp[] }
+  | { ok: false; pesan: string }
+> {
+  if (!adaServer(path)) return { ok: false, pesan: pesanTanpaServer(path) };
+  try {
+    const { lspPrepareCallHierarchy, lspCallHierarchy } = await import('./lspCm');
+    const { getActiveView } = await import('./editorRegistry');
+
+    /*
+     * `prepareCallHierarchy` takes a POSITION, so a view is needed to convert
+     * one to an LSP offset. The agent may ask about a file that is not open;
+     * in that case the offset is computed from the raw text by character
+     * counting, which is exactly what a server expects — LSP positions are
+     * UTF-16 code units from the start of the line.
+     */
+    const view = getActiveView();
+    let offset = 0;
+    if (view && view.state.doc.length > 0) {
+      const baris = view.state.doc.line(Math.min(Math.max(1, pos.line), view.state.doc.lines));
+      offset = baris.from + (pos.column - 1);
+    } else {
+      const res = await fsRead(path);
+      const baris = String(res.content ?? '').split('\n');
+      for (let i = 0; i < Math.min(pos.line - 1, baris.length); i += 1) offset += baris[i].length + 1;
+      offset += pos.column - 1;
+    }
+
+    const item = await lspPrepareCallHierarchy(path, view as never, offset);
+    if (item.length === 0) {
+      return {
+        ok: false,
+        pesan:
+          'Language server tidak menemukan fungsi di posisi itu. Call hierarchy hanya berlaku untuk fungsi/metode - ' +
+          'pastikan baris dan kolom menunjuk ke NAMA fungsi, bukan ke isinya.',
+      };
+    }
+
+    const utama = item[0];
+    const [masuk, keluar] = await Promise.all([
+      lspCallHierarchy(path, utama, 'incoming'),
+      lspCallHierarchy(path, utama, 'outgoing'),
+    ]);
+
+    const ke = async (daftar: typeof masuk): Promise<LokasiLsp[]> => {
+      const hasil: LokasiLsp[] = [];
+      for (const c of daftar.slice(0, 60)) {
+        hasil.push({
+          file: c.file,
+          line: c.line,
+          column: c.column,
+          teks: c.detail || c.name,
+        });
+      }
+      return hasil;
+    };
+
+    return {
+      ok: true,
+      simbol: utama.detail ? `${utama.name} - ${utama.detail}` : utama.name,
+      pemanggil: await ke(masuk),
+      dipanggil: await ke(keluar),
+    };
+  } catch (e) {
+    return { ok: false, pesan: `Language server gagal menjawab: ${String(e)}` };
+  }
+}
+
 /** Hover text: the type signature and doc comment, as the editor would show. */
 export async function lspHoverTool(
   path: string,

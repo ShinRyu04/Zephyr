@@ -13,6 +13,7 @@
  * Tanpa 3, uji hanya membuktikan "ada elemen", bukan "isinya benar".
  */
 import fs from 'node:fs';
+import path from 'node:path';
 
 const BERKAS = 'D:/Talos/__uji-diff__.txt';
 
@@ -20,13 +21,30 @@ const BERKAS = 'D:/Talos/__uji-diff__.txt';
 const AWAL = ['alfa', 'bravo', 'charlie', 'delta'].join('\n') + '\n';
 const BARU = ['alfa', 'bravo diubah', 'delta', 'echo baru'].join('\n') + '\n';
 
+/*
+ * PRASYARAT: folder fixture harus ada. Dulu skrip ini langsung menulis dan
+ * meninggalkan ENOENT mentah ("D:/Talos" tidak ada di mesin ini), yang terbaca
+ * seperti harness rusak padahal aplikasinya belum pernah diuji. Fixture TIDAK
+ * dibuat di tempat lain: mengarang fixture di luar repo adalah pekerjaan lain.
+ */
+if (!fs.existsSync(path.dirname(BERKAS))) {
+  console.log(`TIDAK BERLAKU: folder fixture ${path.dirname(BERKAS)} tidak ada, jadi berkas uji ${BERKAS} tidak bisa dibuat.`);
+  process.exit(2);
+}
+
 fs.writeFileSync(BERKAS, AWAL);
 
-const list = await (await fetch('http://127.0.0.1:9223/json/list')).json();
+let list;
+try {
+  list = await (await fetch('http://127.0.0.1:9223/json/list')).json();
+} catch (e) {
+  console.log(`TIDAK BERLAKU: app tidak hidup di port 9223 (${String(e).split('\n')[0]}).`);
+  process.exit(2);
+}
 const page = list.find((t) => t.type === 'page' && /zephyr|5173/i.test(t.title + t.url));
 if (!page) {
-  console.log('Zephyr tidak ketemu');
-  process.exit(1);
+  console.log('TIDAK BERLAKU: halaman Zephyr tidak ketemu di port 9223 (uji ini butuh app hidup).');
+  process.exit(2);
 }
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 let id = 0;

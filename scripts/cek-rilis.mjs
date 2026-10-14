@@ -71,11 +71,26 @@ await cdp.eval(`(() => {
 })()`);
 await tidur(900);
 
-/* Baru picker-nya. */
-await cdp.eval(`(() => {
-  const b = document.querySelector('[data-testid="ai-toolgate"]');
-  if (b) b.click();
-  return 'klik';
+/* Baru picker-nya (jalur UI nyata: menu "..." -> Chat Settings -> nav Tools ->
+   "Open tool sets…" (cset-tools); entri menu "Tool Sets" (ai-open-toolsets) dan
+   tombol lama 'ai-toolgate' sudah dihapus dari UI). */
+await cdp.eval(`(async () => {
+  if (document.querySelector('[data-testid="toolgate"]')) return 'sudah terbuka';
+  const more = document.querySelector('[data-testid="ai-more"]');
+  if (!more) return 'tidak ada tombol ...';
+  more.click();
+  await new Promise((r) => setTimeout(r, 300));
+  const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
+  if (!cs) return 'menu ... tanpa item Chat Settings';
+  cs.click();
+  await new Promise((r) => setTimeout(r, 500));
+  document.querySelector('[data-testid="cset-nav-tools"]')?.click();
+  await new Promise((r) => setTimeout(r, 400));
+  const tombol = document.querySelector('[data-testid="cset-tools"]');
+  if (!tombol) return 'Chat Settings tanpa tombol cset-tools';
+  tombol.click();
+  await new Promise((r) => setTimeout(r, 600));
+  return document.querySelector('[data-testid="toolgate"]') ? 'terbuka' : 'gagal buka';
 })()`);
 await tidur(700);
 const tools = await cdp.eval(`JSON.stringify((() => {

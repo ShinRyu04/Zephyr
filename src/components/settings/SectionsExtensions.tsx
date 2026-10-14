@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
 import { useT, useTf, tx } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
@@ -265,6 +265,100 @@ export function ExtensionsSection() {
           </div>
         ))}
       </div>
+      <RegistrySources />
     </Section>
+  );
+}
+
+/* ── Registry sources ──────────────────────────────────────────────────── */
+
+/**
+ * The list of indexes the marketplace reads.
+ *
+ * Was a single URL in `settings.json` with no UI at all — so the only way to add
+ * a private index was to hand-edit the file, and doing so REMOVED the public one,
+ * because the field was a replacement rather than an addition.
+ *
+ * The bundled index is always read and is listed first as a fact rather than a
+ * row: it cannot be removed, and offering a delete button for something that
+ * cannot be deleted is a control that lies.
+ */
+function RegistrySources() {
+  const tr = useT();
+  const urls = useStore((s) => s.settings.extensions?.registryUrls ?? []) as string[];
+  const apply = useStore((s) => s.applySettings);
+  const [baru, setBaru] = useState('');
+
+  const https = baru.trim().startsWith('https://');
+  const kosong = baru.trim() === '';
+  const kembar = urls.includes(baru.trim());
+
+  const ubah = (v: string[]) => void apply({ extensions: { registryUrls: v } } as never);
+
+  return (
+    <div className="ext-registry" data-testid="ext-registry">
+      <h3 className="set-note">{tr('settings.registrySources')}</h3>
+      <p className="set-hint">
+        {tr('Extra indexes the marketplace reads, on top of the bundled one. https:// only — an index is installed from, so an unencrypted one can be rewritten in transit.')}
+      </p>
+
+      <div className="ext-reg-row" data-testid="ext-reg-bundled">
+        <code className="ext-reg-url">bundled</code>
+        <span className="set-hint">{tr('Always read, cannot be removed.')}</span>
+      </div>
+
+      {urls.map((u, i) => (
+        <div className="ext-reg-row" key={u} data-testid={`ext-reg-${i}`}>
+          <code className="ext-reg-url" title={u}>
+            {u}
+          </code>
+          <button
+            className="btn btn-sm btn-danger"
+            data-testid={`ext-reg-del-${i}`}
+            aria-label={`${tr('remove')} ${u}`}
+            onClick={() => ubah(urls.filter((x) => x !== u))}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+
+      <div className="ext-reg-row">
+        <input
+          className="input input-sm"
+          data-testid="ext-reg-input"
+          placeholder="https://example.com/index.json"
+          value={baru}
+          onChange={(e) => setBaru(e.target.value)}
+        />
+        <button
+          className="btn btn-sm"
+          data-testid="ext-reg-add"
+          disabled={kosong || !https || kembar}
+          onClick={() => {
+            ubah([...urls, baru.trim()]);
+            setBaru('');
+          }}
+        >
+          {tr('Add')}
+        </button>
+      </div>
+
+      {/*
+        * The reason a URL is refused, shown at the field rather than as a toast.
+        * A disabled button with no explanation is the most common way a form
+        * wastes a reader's time — they retype the same thing and it stays dead.
+        */}
+      {!kosong && !https && (
+        <p className="set-hint is-bahaya" data-testid="ext-reg-bad">
+          {tr('Must start with https://')}
+        </p>
+      )}
+      {kembar && (
+        <p className="set-hint is-bahaya" data-testid="ext-reg-dup">
+          {tr('That index is already in the list.')}
+        </p>
+      )}
+    </div>
   );
 }

@@ -253,8 +253,7 @@ pub fn ssh_connect(
 
     let ssh = find_ssh().ok_or_else(|| {
         ZephyrError::NotFound(
-            "OpenSSH Client not found — install it via Settings (Windows optional feature)"
-                .into(),
+            "OpenSSH Client not found — install it via Settings (Windows optional feature)".into(),
         )
     })?;
 

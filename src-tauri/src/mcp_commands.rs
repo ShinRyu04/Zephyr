@@ -107,11 +107,7 @@ pub fn mcp_write_custom_cli(
     let cfg = crate::mcp_config::load_or_init(&state);
     let port = state.mcp_port().unwrap_or(cfg.port);
     Ok(crate::mcp_config::write_custom_cli(
-        path,
-        format,
-        key,
-        port,
-        &cfg.token,
+        path, format, key, port, &cfg.token,
     ))
 }
 
@@ -136,6 +132,36 @@ pub fn mcp_client_call(
     crate::mcp_client::call_by_server(&state, &server, &tool, arguments)
 }
 
+/// Prompts the server offers. See `mcp_client::list_prompts` for why the
+/// tools-only client was incomplete.
+#[tauri::command(async)]
+pub fn mcp_client_prompts(url: String, token: String) -> ZResult<Vec<crate::mcp_client::McpPromptSpec>> {
+    crate::mcp_client::list_prompts(&url, &token)
+}
+
+/// Expand one prompt into messages, through the named server.
+///
+/// Resolves the server by id first, like `mcp_client_call`, so the frontend
+/// never has to hold a URL and token itself — the token stays in Rust.
+#[tauri::command(async)]
+pub fn mcp_client_prompt_get(
+    state: State<AppState>,
+    server: String,
+    name: String,
+    args: Option<Value>,
+) -> ZResult<Value> {
+    let id = server.trim();
+    let daftar = crate::mcp_client::list_servers(&state);
+    let s = daftar
+        .iter()
+        .find(|s| s.id == id)
+        .or_else(|| daftar.iter().find(|s| s.label.eq_ignore_ascii_case(id)))
+        .ok_or_else(|| {
+            crate::errors::ZephyrError::NotFound(format!("server MCP '{id}' tidak terdaftar"))
+        })?;
+    crate::mcp_client::get_prompt(&s.url, &s.token, &name, args.unwrap_or_else(|| json!({})))
+}
+
 #[tauri::command(async)]
 pub fn mcp_client_save(
     app: AppHandle,
@@ -149,10 +175,6 @@ pub fn mcp_client_save(
 }
 
 #[tauri::command(async)]
-pub fn mcp_client_remove(
-    app: AppHandle,
-    state: State<AppState>,
-    id: String,
-) -> ZResult<bool> {
+pub fn mcp_client_remove(app: AppHandle, state: State<AppState>, id: String) -> ZResult<bool> {
     crate::mcp_client::remove_server(&app, &state, &id)
 }

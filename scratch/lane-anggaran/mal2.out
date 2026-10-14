@@ -1,0 +1,31 @@
+=== UJI MALFORMED ARGS — agen tidak boleh mati karena argumen cacat ===
+kode yang dibaca: src-tauri/src/adapters/openai.rs (tangga perbaikan, 626-) + src/lib/aiStore.ts (gerbang retry)
+lapis eksekusi: tidak dijalankan (--tanpa-cargo)
+
+LULUS  A1-tangga-rust — parse_argumen_tool di openai.rs:626 memuat 4 langkah perbaikan (buang_pagar_json, loloskan_kontrol, buang_koma_ujung, ambil_objek_terluar) sebelum menyerah; kalimat galat produksi berasal dari sumber: 'tool call "NAMA" returned malformed JSON arguments'
+LULUS  A2-tanpa-eksekusi-setengah-jadi — openai.rs memakai '?' pada parse_argumen_tool dan 'return Err(...)' di dalam loop tool_calls: satu argumen cacat membatalkan SELURUH respons (tool_calls kosong), jadi tidak ada panggilan yang lolos dengan argumen setengah jadi
+LULUS  A3-tapak-kendali-ts — aiStore.ts memuat gerbang retry: retryLimit = truncated ? 2 : 1 (baris 6188) dan bolehRetry mensyaratkan res.toolCalls.length === 0 (baris 6176)
+LULUS  A4-aturan-ts — aturan malformed dibaca dari aiStore.ts:2151 (5 literal: returned malformed json arguments | arguments must be a json object | is missing arguments | is missing a function name | terpotong karena batas token); terpotong: terpotong karena batas token; pengecualian provider: 10 literal
+LULUS  M1-kutip-ganjil — kutip ganjil di dalam string — 'tool call "write_file" returned malformed JSON arguments' → malformed=true (harus true), terpotong=false (harus false), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M2-terpotong-batas-token — JSON terpotong karena batas token keluaran — 'tool call "write_file" terpotong karena batas token keluaran tercapai — naikkan max tokens model (isi berkas besar dikirim sebagai argumen tool)' → malformed=true (harus true), terpotong=true (harus true), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M3-terpotong-tanpa-flag — JSON terpotong tapi stream tidak melaporkan batas token — 'tool call "write_file" returned malformed JSON arguments' → malformed=true (harus true), terpotong=false (harus false), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M4-json-dalam-string — argumen dobel-encode (JSON di dalam string) — perbaikan/kosong: tidak ada kalimat galat dibuat (argumen dobel-encode (JSON di dalam string))
+LULUS  M5-pagar-markdown — argumen dibungkus pagar markdown ```json — perbaikan/kosong: tidak ada kalimat galat dibuat (argumen dibungkus pagar markdown ```json)
+LULUS  M6-koma-ujung — koma menggantung di ujung objek — perbaikan/kosong: tidak ada kalimat galat dibuat (koma menggantung di ujung objek)
+LULUS  M7-newline-mentah — newline mentah di dalam string — perbaikan/kosong: tidak ada kalimat galat dibuat (newline mentah di dalam string)
+LULUS  M8-argumen-kosong — arguments kosong ("") - bukan JSON rusak — perbaikan/kosong: tidak ada kalimat galat dibuat (arguments kosong ("") - bukan JSON rusak)
+LULUS  M9-tipe-salah-array — arguments berupa array, bukan objek — 'tool call "write_file" arguments must be a JSON object' → malformed=true (harus true), terpotong=false (harus false), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M10-tanpa-arguments — field arguments tidak ada — perbaikan/kosong: tidak ada kalimat galat dibuat (field arguments tidak ada)
+LULUS  M11-tanpa-nama-fungsi — nama fungsi kosong — 'tool call #0 is missing a function name' → malformed=true (harus true), terpotong=false (harus false), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M12-argumen-ganda — dua panggilan: #0 sah, #1 cacat — 'tool call "write_file" returned malformed JSON arguments' → malformed=true (harus true), terpotong=false (harus false), menyebut nama tool/index=true (harus true), ada potongan argumen salah=false
+LULUS  M13-provider-429 — bukan cacat argumen: provider 429 — '429 Too Many Requests: rate limit exceeded' → jalur malformed=false (harus false), provider retryable=true (harus true): galat provider tidak boleh salah masuk ke jalur argumen, dan sebaliknya
+LULUS  M14-argumen-valid — argumen sah (kontrol) — perbaikan/kosong: tidak ada kalimat galat dibuat (argumen sah (kontrol))
+LULUS  M15-cakupan — 14 bentuk cacat diuji di lapis TS (kutip ganjil, terpotong, dobel-encode, pagar, koma ujung, newline, kosong, array, tanpa arguments, tanpa nama, ganda, provider 429, kontrol sah); gagal=0
+LULUS  M17-pesan-ke-model — pesan-lanjutan (ID) (aiStore.ts:6341): res.error=true [jendela -100/+60], potongan argumen=true (lewat res.error -> cuplik_argumen); entri langkah (ID) (aiStore.ts:6331): res.error=true [jendela -40/+200], potongan argumen=true (lewat res.error -> cuplik_argumen); koreksiArgumenTool (EN) (aiStore.ts:6134): res.error=true [jendela -100/+60], potongan argumen=true (lewat res.error -> cuplik_argumen) → nama tool sampai ke model lewat res.error pada 3/3 situs, potongan argumen mentah pada 3/3 situs
+LULUS  M18-tanpa-eksekusi — blok pemulihan aiStore.ts:6322 memuat 'continue;' di 1068 char sebelum ada panggilan tool; pemanggil tool SEBELUM continue=0; sesudahnya=0 (jalur normal, bukan jalur rusak)
+LULUS  M19-determinisme — digest jalan 1 = jalan 2 = 82de12706bade619…; tanpa jaringan, tanpa app, tanpa CDP
+
+TEMUAN B1-cargo — lapis eksekusi Rust dilewati atas permintaan (--tanpa-cargo); bukti tangga Rust tidak diambil pada jalan ini.
+TEMUAN M16-potongan-argumen — 4/14 kalimat galat menyebut NAMA tool tetapi TIDAK memuat potongan argumen yang salah (M2-terpotong-batas-token, M9-tipe-salah-array, M11-tanpa-nama-fungsi, M13-provider-429). Di openai.rs, `raw_args` hanya dipakai di baris 238, 247, 607 - semuanya untuk parsing, bukan untuk laporan. Usulan: lihat docs/LAPORAN-BEBAN-DAN-MALFORMED.md (patch openai.rs ~633).
+
+RINGKASAN: LULUS=22 GAGAL=0 TEMUAN=2 dari 14 bentuk cacat (9 ms)

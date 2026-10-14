@@ -319,8 +319,8 @@ pub fn tulis_skill(
     );
     let file = dir.join("SKILL.md");
     /* SKILL.md ditulis atomik: berkas ini adalah isi skill-nya, dan versi yang
-       tinggal separuh akan terbaca sebagai skill yang rusak - bukan skill yang
-       gagal dibuat. */
+    tinggal separuh akan terbaca sebagai skill yang rusak - bukan skill yang
+    gagal dibuat. */
     crate::tulis_aman::tulis_atomik_teks(&file, &teks)?;
     Ok(file.to_string_lossy().to_string())
 }

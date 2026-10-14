@@ -18,6 +18,15 @@ export default function FileIkon({
 }) {
   const ikon = folder ? ikonFolder(nama) : ikonFile(nama);
 
+  // A glyph contributed by an installed icon pack, drawn in place of the SVG.
+  if (ikon.glyph) {
+    return (
+      <span className="ai-fikon ai-fikon-glif" data-ikon={ikon.id} style={{ color: ikon.color }} aria-hidden="true">
+        {ikon.glyph}
+      </span>
+    );
+  }
+
   if (!ikon.svg) {
     // No icon in the theme for this type: an empty box keeps the column width
     // so the labels below stay aligned.

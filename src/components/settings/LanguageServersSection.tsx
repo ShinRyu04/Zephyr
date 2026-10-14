@@ -2,8 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
-import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, type LspServerDef, type LspSettings } from '../../lib/lsp';
+import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, effectiveSpec, type LspServerDef, type LspSettings } from '../../lib/lsp';
+import { lspPasang, lspResep } from '../../lib/commands';
 import { Section, Toggle } from './SettingsControls';
+
+/*
+ * The backend's report for one in-app install (`lsp_pasang`).
+ *
+ * `keluar` is npm's exit code (null when npm had to be killed at the timeout)
+ * and `log` its last lines of output; `exe` is the binary actually found in the
+ * app's slot afterwards. A missing `exe` with an exit code of 0 is still a
+ * failed install, which is why `ok` is a separate field rather than something
+ * the dialog derives.
+ */
+type LaporanPasang = {
+  ok: boolean;
+  slot?: string;
+  paket?: string[];
+  keluar?: number | null;
+  exe?: string | null;
+  log?: string;
+};
 
 /*
  * Language Servers, grouped by language, with a live status dot per server.
@@ -147,6 +166,46 @@ export default function LanguageServersSection() {
 
   /* The row whose install dialog is open. `null` means no dialog. */
   const [dialogPasang, setDialogPasang] = useState<LspServerDef | null>(null);
+
+  /*
+   * Which servers this build can fetch by itself.
+   *
+   * Asked of the backend (`lsp_resep`), not derived from a list here: the
+   * question "can Zephyr install this one?" is answered by whether an installer
+   * recipe exists, and the backend owns the recipes. A server that needs rustup,
+   * the Go toolchain or a JDK is deliberately absent from this answer, so its row
+   * keeps the text-only hint instead of a button that could never work.
+   */
+  const [resepApp, setResepApp] = useState<string[]>([]);
+  useEffect(() => {
+    let hidup = true;
+    void lspResep()
+      .then((r) => {
+        if (hidup) setResepApp(Array.isArray(r) ? r : []);
+      })
+      .catch(() => {
+        /* No recipes is the safe reading: every row falls back to showing the
+         * command, so a broken backend cannot hide the manual path. */
+        if (hidup) setResepApp([]);
+      });
+    return () => {
+      hidup = false;
+    };
+  }, []);
+
+  /*
+   * Install one server from inside the app, then re-probe so the row's tick
+   * reflects what landed on disk rather than what we hoped for.
+   *
+   * The backend's report is handed back verbatim: on failure it carries npm's
+   * exit code and its last lines of output, which is the difference between
+   * "install failed" and knowing why.
+   */
+  const pasangLewatApp = async (def: LspServerDef): Promise<LaporanPasang> => {
+    const hasil = await lspPasang(effectiveSpec(def, useLsp.getState().settings()));
+    await probeAll();
+    return hasil as LaporanPasang;
+  };
 
   /*
    * Probe once when the page opens.
@@ -294,8 +353,14 @@ export default function LanguageServersSection() {
                       AND NOT FOUND, and never for a custom command: telling
                       someone how to install a tool they replaced on purpose is
                       noise, and it would be wrong advice. */}
+                  {/* The hint says what to run. The probe's own message says
+                      WHERE Zephyr looked and missed - the second half is what
+                      turns "install it and it still says not found" into
+                      something the user can act on, so it rides along as the
+                      tooltip on the same row rather than as a new sentence that
+                      would need translating ten times. */}
                   {st === 'hilang' && !kustom && (
-                    <span className="lsp-install">
+                    <span className="lsp-install" title={probe[s.id]?.error ?? undefined}>
                       {tr('Install')}: <code>{s.install}</code>
                     </span>
                   )}
@@ -415,6 +480,8 @@ export default function LanguageServersSection() {
           tr={tr}
           sedang={sedangPeriksa !== null}
           kiniSiap={terpasang(dialogPasang.id)}
+          bisaPasang={resepApp.includes(dialogPasang.id)}
+          onPasang={() => pasangLewatApp(dialogPasang)}
           onPeriksa={() => void periksaUlang(dialogPasang.id)}
           onTutup={() => setDialogPasang(null)}
         />
@@ -440,19 +507,43 @@ export default function LanguageServersSection() {
 function DialogPasang({
   server,
   onPeriksa,
+  onPasang,
   onTutup,
   sedang,
   kiniSiap,
+  bisaPasang,
   tr,
 }: {
   server: LspServerDef;
   onPeriksa: () => void;
+  onPasang: () => Promise<LaporanPasang>;
   onTutup: () => void;
   sedang: boolean;
   kiniSiap: boolean;
+  bisaPasang: boolean;
   tr: (s: string) => string;
 }) {
   const [tersalin, setTersalin] = useState(false);
+
+  /* The in-app install run: idle, working, or finished with the backend's own
+   * report. Kept here because the overlay covers the row behind it - an outcome
+   * shown only on the row would be invisible. */
+  const [jalanPasang, setJalanPasang] = useState(false);
+  const [laporan, setLaporan] = useState<LaporanPasang | null>(null);
+
+  const pasangSekarang = async () => {
+    setJalanPasang(true);
+    setLaporan(null);
+    try {
+      setLaporan(await onPasang());
+    } catch (e) {
+      /* A rejected invoke still has to say something, and the text comes from
+       * the backend ("npm is not installed", "no automatic install for ..."). */
+      setLaporan({ ok: false, keluar: null, log: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setJalanPasang(false);
+    }
+  };
 
   /* The dialog stays open after a successful re-check so the outcome is
    * visible; closing it on success would make the button look like it did
@@ -495,6 +586,22 @@ function DialogPasang({
           {tr('Zephyr could not find')} <code>{server.cmd[0]}</code> {tr('on your PATH. Install it, then check again to enable this server.')}
         </p>
 
+        {bisaPasang && (
+          <div className="lsp-dialog-pasang-blok">
+            <button
+              className="btn"
+              data-testid="lsp-dialog-install"
+              disabled={jalanPasang || sedang}
+              onClick={() => void pasangSekarang()}
+            >
+              {jalanPasang ? tr('Installing...') : tr('Install with Zephyr')}
+            </button>
+            <p className="lsp-dialog-catatan">
+              {tr("Zephyr installs it with npm into Zephyr's own folder. No PATH changes.")}
+            </p>
+          </div>
+        )}
+
         <div className="lsp-dialog-perintah">
           <pre>{server.install}</pre>
           <button
@@ -517,12 +624,47 @@ function DialogPasang({
           </button>
         </div>
 
+        {!bisaPasang && (
+          <p className="lsp-dialog-catatan" data-testid="lsp-dialog-manual">
+            {tr('Zephyr cannot install this one automatically - run the command above yourself.')}
+          </p>
+        )}
+
         {/* The outcome of the last re-check, in words. The row behind this
             dialog also shows it, but the dialog covers the row. */}
         {kiniSiap && (
           <p className="lsp-dialog-ok" data-testid="lsp-dialog-ok">
             {tr('Found it. Switch this server on to use it.')}
           </p>
+        )}
+
+        {/* The outcome of an in-app install. On failure this carries npm's own
+            words, so "it did not work" is never all the user gets. */}
+        {laporan && (
+          <div className="lsp-dialog-hasil" data-testid="lsp-dialog-hasil">
+            <p
+              className={laporan.ok ? 'lsp-dialog-ok' : 'lsp-dialog-gagal'}
+              data-testid={laporan.ok ? 'lsp-dialog-pasang-ok' : 'lsp-dialog-pasang-gagal'}
+            >
+              {laporan.ok
+                ? tr('Found it. Switch this server on to use it.')
+                : `${tr('Install failed')}${
+                    laporan.keluar === null || laporan.keluar === undefined
+                      ? ''
+                      : ` (npm exit ${laporan.keluar})`
+                  }`}
+            </p>
+            {laporan.slot && (
+              <p className="lsp-dialog-catatan" data-testid="lsp-dialog-slot">
+                {laporan.slot}
+              </p>
+            )}
+            {!laporan.ok && laporan.log ? (
+              <pre className="lsp-dialog-log" data-testid="lsp-dialog-log">
+                {laporan.log.slice(-1200)}
+              </pre>
+            ) : null}
+          </div>
         )}
 
         <div className="lsp-dialog-aksi">

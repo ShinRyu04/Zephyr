@@ -51,7 +51,6 @@ const PETA: Record<string, AksiInfo> = {
   bash_kill: { label: 'Stop process', jenis: 'jalan', ikon: 'terminal' },
 
   /* Network */
-  fetch: { label: 'Fetch', jenis: 'baca', ikon: 'doc' },
 
   /* Sub-agents */
   run_subagent: { label: 'Subagent', jenis: 'lain', ikon: 'robot' },
@@ -110,10 +109,8 @@ const PETA: Record<string, AksiInfo> = {
  * resolve to the same entry instead of one of them landing on the generic row.
  *
  * `AWALAN_MCP` dan `POLA_AWALAN_MCP` datang dari katalog, bukan ditulis ulang
- * di sini. `POLA_AWALAN_MCP` sengaja masih menerima awalan yang sudah
- * dipensiunkan: giliran yang dilanjutkan dari sesi tersimpan membawa awalan
- * lama, dan kalau awalan itu tidak dilepas, baris aksi justru menampilkan
- * nama lama ke layar.
+ * di sini. Satu-satunya awalan yang sah adalah `mcp__zephyr__`; `namaPolos`
+ * melepasnya supaya baris aksi tidak pernah menampilkan awalan internal.
  */
 
 /*

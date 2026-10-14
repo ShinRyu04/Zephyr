@@ -75,8 +75,8 @@ fn tulis_mentah(state: &AppState, bagian: &str, teks: &str) -> ZResult<()> {
         std::fs::create_dir_all(dir)?;
     }
     /* Ditulis atomik: catatan pengguna adalah hasil kerja mereka, dan berkas
-       catatan yang tinggal separuh karena proses mati di tengah penulisan berarti
-       isinya hilang seluruhnya - bukan hanya baris terakhir. */
+    catatan yang tinggal separuh karena proses mati di tengah penulisan berarti
+    isinya hilang seluruhnya - bukan hanya baris terakhir. */
     crate::tulis_aman::tulis_atomik_teks(&p, &(teks.trim().to_string() + "\n"))?;
     Ok(())
 }

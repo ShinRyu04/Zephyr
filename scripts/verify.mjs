@@ -10,7 +10,9 @@
 // WebView2 dengan "Promise was collected". Karena itu semua kerja async
 // dijalankan lewat runAsync(): promise disimpan di window lalu di-poll.
 
+import fs from 'node:fs';
 import WebSocket from 'ws';
+import { keluarBersih } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -117,8 +119,51 @@ const check = (id, ok, detail) => {
   console.log(`${ok ? 'LULUS' : 'GAGAL'}  ${id.padEnd(18)} ${detail}`);
 };
 
-const TESTDIR = String.raw`D:\Zephyr\testfiles`;
+const TESTDIR = String.raw`D:\\Zephyr\\testfiles`;
 const p = (name) => `${TESTDIR}\\${name}`;
+
+/*
+ * Badan kanonik sample.tsx.
+ *
+ * Uji dirty->simpan (V2) MENYISIPKAN satu baris marker ke berkas ini setiap
+ * run, dan dulu tidak pernah dibersihkan: fixture git-nya menggelembung jadi
+ * puluhan baris komentar, sehingga uji highlight (V1, syarat >=3 warna token)
+ * mengukur tumpukan marker run lama, bukan kode - dan gagal terus walau
+ * produknya sehat. Badan ini ditulis ulang di awal run, lalu dipulihkan di
+ * akhir, jadi uji selalu mengukur fixture yang sama dan berkas yang di-track
+ * git tidak ikut kotor.
+ *
+ * CRLF mengikuti berkas aslinya di disk.
+ */
+const BADAN_TSX = [
+  '// Berkas uji fase 03 - cek syntax highlight TSX.',
+  "import { useState } from 'react';",
+  '',
+  'interface Props {',
+  '  title: string;',
+  '  count?: number;',
+  '}',
+  '',
+  'export default function Demo({ title, count = 0 }: Props) {',
+  '  const [n, setN] = useState<number>(count);',
+  "  const label = `${title}: ${n}`;",
+  '',
+  '  // komentar: angka, string, keyword, tipe harus berwarna beda',
+  '  const items = [1, 2, 3].map((x) => x * 2);',
+  '',
+  '  return (',
+  '    <div className="demo" onClick={() => setN(n + 1)}>',
+  '      <h1>{label}</h1>',
+  '      <ul>',
+  '        {items.map((it) => (',
+  '          <li key={it}>{it}</li>',
+  '        ))}',
+  '      </ul>',
+  '    </div>',
+  '  );',
+  '}',
+  '',
+].join('\r\n');
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -146,6 +191,19 @@ const main = async () => {
     return 'reset';
   })()`);
   await sleep(300);
+
+  /*
+   * Pulihkan fixture sample.tsx SEBELUM uji apa pun.
+   *
+   * Setiap run menyisipkan marker ZEPHYR_VERIFY_* ke berkas ini lalu
+   * menyimpannya (uji V2), dan berkasnya tidak pernah dibersihkan: fixture
+   * yang di-track git menggelembung jadi puluhan baris komentar. Uji
+   * highlight V1 (syarat >=3 warna token) lalu mengukur tumpukan marker,
+   * bukan kode - satu warna saja - dan gagal terus seolah produknya rusak.
+   * Menulis ulang badan kanonik di awal membuat tiap run mengukur isi yang
+   * sama, apa pun sisa run sebelumnya.
+   */
+  fs.writeFileSync(p('sample.tsx'), BADAN_TSX, 'utf8');
 
   // ───────── fase 02: shell ─────────
   const sh = JSON.parse(
@@ -184,9 +242,18 @@ const main = async () => {
   check('F03-V0', sh.emptyState, 'empty state tampil saat tanpa tab');
 
   // klik tiap ikon (1..5 lalu 0 — klik ikon aktif menutup sidebar)
-  // Catatan: judul per view TIDAK seragam — explorer pakai .explorer-title
-  // (header fase 29, root tunggal tanpa section header), view lain pakai
-  // .side-title. Baca keduanya.
+  // Catatan: judul per view TIDAK seragam dan tiap refactor menambah kelas baru:
+  // explorer pakai .explorer-title (header fase 29, root tunggal tanpa section
+  // header), search/outline/debug pakai .side-title, scm pakai .scm-title, dan
+  // view extensions TIDAK punya elemen judul sama sekali — header-nya adalah
+  // kotak pencarian .xv-search (placeholder-nya yang jadi identitas view itu).
+  // Membaca satu kelas saja membuat view yang judulnya kosong dihitung sebagai
+  // "(kosong)" dan uji ini gagal padahal UI-nya benar.
+  const bacaJudul = `(() => document.querySelector('.explorer-title')?.textContent
+      ?? document.querySelector('.side-title')?.textContent
+      ?? document.querySelector('.scm-title')?.textContent
+      ?? document.querySelector('.xv-head .xv-search')?.getAttribute('placeholder')
+      ?? '(kosong)')()`;
   const seen = [];
   for (const i of [1, 2, 3, 4, 5, 0]) {
     await cdp.eval(
@@ -196,9 +263,7 @@ const main = async () => {
     seen.push(
       JSON.parse(
         await cdp.eval(`JSON.stringify({
-          title: document.querySelector('.explorer-title')?.textContent
-              ?? document.querySelector('.side-title')?.textContent
-              ?? '(kosong)',
+          title: ${bacaJudul},
           activity: window.__ZEPHYR__.getState().activity,
           visible: window.__ZEPHYR__.getState().sidebarVisible,
         })`),
@@ -243,9 +308,15 @@ const main = async () => {
     ['sample.json', 'json'],
   ]) {
     await cdp.runAsync(`await s.openPath(${JSON.stringify(p(file))}); return 'opened';`);
-    await sleep(750);
-    const info = JSON.parse(
-      await cdp.eval(`(() => {
+    /*
+     * Grammar highlight dimuat malas per bahasa; pada app yang baru reload,
+     * bahasa PERTAMA yang diuji masih dingin sehingga warnanya muncul belakangan.
+     * Sleep tetap membuat uji ini gagal karena alasan di luar produknya, jadi
+     * warnanya di-poll sampai muncul, dengan batas waktu.
+     */
+    const bacaInfo = async () =>
+      JSON.parse(
+        await cdp.eval(`(() => {
         const t = window.__ZEPHYR__.getState().tabs.find(x => x.name === ${JSON.stringify(file)});
         const colors = new Set();
         document.querySelectorAll('.cm-line span').forEach(el => colors.add(getComputedStyle(el).color));
@@ -256,7 +327,13 @@ const main = async () => {
           gutter: document.querySelectorAll('.cm-gutterElement').length,
         });
       })()`),
-    );
+      );
+    let info = await bacaInfo();
+    const batasWarna = Date.now() + 12000;
+    while (info.colors < 3 && Date.now() < batasWarna) {
+      await sleep(400);
+      info = await bacaInfo();
+    }
     check(
       `F03-V1-${file}`,
       info.lang === lang && info.colors >= 3 && info.len > 0 && info.gutter > 0,
@@ -265,9 +342,22 @@ const main = async () => {
   }
 
   // ───────── V7: multi tab ─────────
+  /*
+   * Lima berkas dibuka dengan `preview: false`, dan itu WAJIB.
+   *
+   * `openPath` default-nya membuka sebagai tab PREVIEW (satu tab sementara yang
+   * ditimpa oleh berkas berikutnya - semantik yang sama dengan klik-satu di
+   * palette, lihat `paletteStore` yang mengirim `preview: !sekali`). Karena itu
+   * lima kali `openPath(p)` tanpa opsi meninggalkan SATU tab saja, yaitu berkas
+   * terakhir; uji ini dulu menuntut 5 dan karena itu selalu gagal, lalu langkah
+   * berikutnya CRASH di `tabs.find(...).id` karena sample.py sudah tidak ada.
+   * Yang diuji di sini adalah "lima berkas jadi lima tab", jadi tab-nya harus
+   * dibuka seperti user yang benar-benar ingin berkasnya tetap terbuka.
+   */
   await cdp.runAsync(`
-    await s.openPath(${JSON.stringify(p('sample-bom.txt'))});
-    await window.__ZEPHYR__.getState().openPath(${JSON.stringify(p('sample-ansi.txt'))});
+    for (const f of ${JSON.stringify(['sample.tsx', 'sample.py', 'sample.json', 'sample-bom.txt', 'sample-ansi.txt'])}) {
+      await window.__ZEPHYR__.getState().openPath(${JSON.stringify(TESTDIR)} + '\\\\' + f, { preview: false });
+    }
     return 'ok';
   `);
   await sleep(600);
@@ -281,17 +371,25 @@ const main = async () => {
   check(
     'F03-V7a',
     tabs.store === 5 && tabs.dom === 5,
-    `${tabs.store} tab: ${tabs.names.join(', ')}`,
+    `${tabs.store} tab (store) / ${tabs.dom} tab (DOM): ${tabs.names.join(', ')}`,
   );
 
   // pindah antar tab: konten editor ikut berubah
   const switching = [];
   for (const name of ['sample.py', 'sample.json', 'sample.tsx']) {
-    await cdp.eval(`(() => {
+    const ditemukan = await cdp.eval(`(() => {
       const s = window.__ZEPHYR__.getState();
-      s.setActiveTab(s.tabs.find(t => t.name === ${JSON.stringify(name)}).id);
+      const t = s.tabs.find(x => x.name === ${JSON.stringify(name)});
+      // Jangan melempar di sini: tab yang hilang adalah hasil uji yang GAGAL,
+      // bukan alasan untuk membatalkan sisa berkas uji ini dengan TypeError.
+      if (!t) return 'tidak-ada';
+      s.setActiveTab(t.id);
       return 'ok';
     })()`);
+    if (ditemukan !== 'ok') {
+      switching.push({ activeTabName: `(tab ${name} tidak ada)`, firstLine: '', lang: '' });
+      continue;
+    }
     await sleep(450);
     switching.push(
       JSON.parse(
@@ -568,13 +666,19 @@ const main = async () => {
   const dropped = await cdp.runAsync(
     `
     const before = s.tabs.length;
-    // Simulasikan handler drop yang sama seperti onDragDropEvent di App.tsx
-    await s.openPath(${JSON.stringify(p('drop-test.txt'))});
+    /*
+     * Simulate the drop handler exactly as App.tsx runs it: a drag-and-drop is
+     * a deliberate open, so it passes preview: false. Omitting that flag here
+     * would test a preview open instead, and five deliberate opens would look
+     * like one reused slot (see the note in the V7 block above).
+     */
+    await s.openPath(${JSON.stringify(p('drop-test.txt'))}, { preview: false });
     const after = window.__ZEPHYR__.getState();
     return JSON.stringify({
       before, after: after.tabs.length,
       opened: after.tabs.some(t => t.name === 'drop-test.txt'),
       lang: after.tabs.find(t => t.name === 'drop-test.txt')?.lang,
+      tetapPreview: after.tabs.filter(t => t.preview).map(t => t.name),
     });
   `,
   );
@@ -582,7 +686,7 @@ const main = async () => {
   check(
     'F03-V9',
     dp.opened && dp.after === dp.before + 1,
-    `openPath (jalur yang dipakai handler drop): ${dp.before}->${dp.after} tab, lang=${dp.lang}`,
+    `openPath (jalur yang dipakai handler drop): ${dp.before}->${dp.after} tab, lang=${dp.lang}, sisa_preview=[${dp.tetapPreview}]`,
   );
 
   // ───────── V8: session tersimpan ─────────
@@ -603,13 +707,19 @@ const main = async () => {
   const errs = JSON.parse(await cdp.eval('JSON.stringify(window.__ZEPHYR_ERRORS__ ?? [])'));
   check('F03-V10', errs.length === 0, errs.length ? errs.join(' | ') : 'tidak ada console error');
 
+  // Fixture dikembalikan seperti semula supaya berkas yang di-track git
+  // tidak kotor karena marker run ini.
+  fs.writeFileSync(p('sample.tsx'), BADAN_TSX, 'utf8');
+
   cdp.close();
 
   const fail = results.filter((r) => !r.ok);
   console.log(`\n== ${results.length - fail.length}/${results.length} lulus ==`);
   if (fail.length) {
     console.log('GAGAL: ' + fail.map((f) => f.id).join(', '));
-    process.exit(1);
+    // keluarBersih, bukan process.exit: kalau tidak, daftar kegagalan di atas
+    // bisa hilang saat stdout dialihkan ke berkas (runner suite).
+    keluarBersih(1);
   }
 };
 
@@ -623,5 +733,5 @@ main().catch((e) => {
         ? e.stack
         : JSON.stringify(e, Object.getOwnPropertyNames(e ?? {}), 2);
   console.error('verify error:', detail);
-  process.exit(2);
+  keluarBersih(2);
 });

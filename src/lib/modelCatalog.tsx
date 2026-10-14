@@ -111,27 +111,25 @@ export const PROVIDERS: ProviderInfo[] = [
                                                 { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1/V3.2)', note: 'reasoning, older version', ctx: 128_000, maxOut: 8192 },
                                               ],
       },
-            {
-              id: 'xai',
-              label: 'xAI (Grok)',
-              baseUrl: 'https://api.x.ai/v1',
-              envKey: 'XAI_API_KEY',
-              logo: 'xai',
-              models: [
-                { id: 'grok-4.6', label: 'Grok 4.6', note: 'terbaru, coding & agent', ctx: 500_000, maxOut: 131_072 },
-                { id: 'grok-4.5', label: 'Grok 4.5', note: 'coding & agent', ctx: 500_000, maxOut: 131_072 },
-                { id: 'grok-4.3', label: 'Grok 4.3', note: 'flagship, reasoning', ctx: 1_000_000, maxOut: 131_072 },
-                { id: 'grok-4.20-0309-reasoning', label: 'Grok 4.20 Reasoning', note: 'reasoning dalam', ctx: 1_000_000, maxOut: 131_072 },
-                { id: 'grok-4.20-0309-non-reasoning', label: 'Grok 4.20 Non-Reasoning', note: 'cepat', ctx: 1_000_000, maxOut: 131_072 },
-                { id: 'grok-4.20-multi-agent-0309', label: 'Grok 4.20 Multi-Agent', note: 'orkestrasi agent', ctx: 1_000_000, maxOut: 131_072 },
-                { id: 'grok-build-0.1', label: 'Grok Build 0.1', note: 'khusus coding', ctx: 256_000, maxOut: 131_072 },
-                { id: 'grok-4', label: 'Grok 4', note: 'generasi 4', ctx: 1_000_000, maxOut: 131_072 },
-              ],
-            },
+      /* `xai` used to sit here. It was removed at the user's request: the
+         models it listed are served through the OpenAI-compatible gateways
+         this build already reaches via `custom`, so keeping a dedicated
+         entry only added a provider that needed its own key to do the same
+         thing. A saved `xai` key in secrets.json is simply ignored now — it
+         is never read, and nothing was written over it. */
+            /*
+             * `local` sits directly under the hosted providers on purpose.
+             *
+             * It used to be last, below `xai`, which put a loopback entry at
+             * the bottom of a list of cloud services. The order here is the
+             * order the picker renders, and a local model is the one a user
+             * reaches for when they have already decided not to use a hosted
+             * one — it should not be the hardest to find.
+             */
       {
         id: 'local',
-        label: 'Lokal (opencode / loopback)',
-        baseUrl: 'http://127.0.0.1:4096/v1',
+        label: 'Lokal (server OpenAI-compatible)',
+        baseUrl: 'http://127.0.0.1:11434/v1',
         envKey: 'OPENAI_API_KEY',
         logo: 'opencode',
         freeText: true,
@@ -145,6 +143,25 @@ export const PROVIDERS: ProviderInfo[] = [
         logo: 'generic',
         freeText: true,
         models: [{ id: 'custom-model', label: 'Type a model name', note: 'bebas, sesuaikan provider', maxOut: 4096 }],
+      },
+      /*
+       * A SECOND custom slot, for users who drive two gateways at once.
+       *
+       * The id MUST differ from `custom`. Ids are not labels: the id is the key
+       * an API key is stored under (`secrets.rs` → `map.insert(p, …)`) and the
+       * value `models.activeProvider` holds. Two entries sharing an id would
+       * overwrite each other's key, only one would survive in
+       * `PROVIDER_BY_ID`, and `activeProvider: 'custom'` would name both. The
+       * label may repeat; the id may not.
+       */
+      {
+        id: 'custom2',
+        label: 'Custom 2 (OpenAI-compatible)',
+        baseUrl: '',
+        envKey: 'OPENAI_API_KEY',
+        logo: 'generic',
+        freeText: true,
+        models: [{ id: 'custom2-model', label: 'Type a model name', note: 'gateway kedua, bebas', maxOut: 4096 }],
       },
     ];
 
@@ -265,9 +282,11 @@ export const MODEL_FALLBACK: readonly {
  *
  * Tebakan dari NAMA model lebih baik daripada satu angka tetap: nama model
  * membawa keluarga dan generasinya, dan keluarga itulah yang menentukan
- * ceiling. Yang tidak dikenali tetap dapat angka konservatif 4096 - salah tebak
- * ke arah kecil hanya memperpendek jawaban, sedangkan salah tebak ke arah besar
- * bisa ditolak provider.
+ * ceiling. Yang tidak dikenali tetap dapat angka konservatif (16k) - salah
+ * tebak ke arah kecil hanya memperpendek jawaban, sedangkan salah tebak ke arah
+ * besar bisa ditolak provider. 16k, bukan 4096, karena `write_file` mengirim
+ * isi berkas sebagai argumen tool: 4096 memotong penulisan satu berkas HTML di
+ * tengah dan membuat langkah agent gagal ("malformed JSON arguments").
  */
 export function maxOutBawaan(modelId: string): number {
   const s = modelId.toLowerCase();
@@ -278,9 +297,25 @@ export function maxOutBawaan(modelId: string): number {
   if (/(?:^|[^0-9])v?[4-9](?:\.[0-9]+)?(?:[^0-9]|$)/.test(s) || /pro|max|ultra/.test(s)) {
     return 32768;
   }
+  /*
+   * Gateway "combo"/VIP routes (mis. ModelRouter `mr-vip` = "MR VIP Fast Combo",
+   * konteks 1M). Namanya tidak membawa nomor generasi, jadi tanpa arm ini ia
+   * jatuh ke 4096 — dan `write_file` mengirim ISI berkas sebagai argumen tool,
+   * sehingga menulis satu berkas HTML melewati 4096 token, argumen JSON-nya
+   * terpotong di tengah ("malformed JSON arguments"), dan langkah agent gagal.
+   * Route combo ini mewakili model frontier, jadi 32k adalah ceiling yang benar.
+   */
+  if (/\bvip\b|combo/.test(s)) return 32768;
   if (/flash|lite|mini|turbo|haiku/.test(s)) return 16384;
   if (/o[1-9]|gpt-[5-9]/.test(s)) return 32768;
-  return 4096;
+  /*
+   * Baseline. 4096 dulu dipakai sebagai "aman", tapi itu justru memotong
+   * argumen `write_file` untuk model gateway modern yang tidak cocok pola di
+   * atas (mis. `space-bunny`, `godmode`, `muse-spark`) — semuanya sanggup jauh
+   * lebih besar. 16k menutup penulisan berkas yang wajar tanpa melampaui
+   * kapasitas gateway kompatibel-OpenAI mana pun yang sudah terbukti dipakai.
+   */
+  return 16384;
 }
 
 export function findModel(modelId: string, providerId?: string): ModelDef {

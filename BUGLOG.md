@@ -204,3 +204,70 @@ Ditambah satu temuan Rust yang nyata: **ConPTY tidak meng-EOF pipe master saat
 shell keluar**, jadi `child.wait()` di thread emit tidak pernah tercapai dan
 `pty-exit` tak pernah terkirim. Perbaikannya thread `wait` terpisah yang
 mengisi slot exit code + menyetel `alive=false` (lihat #8).
+
+---
+
+## Sesi audit Zed + verifikasi hook (Okt 2026)
+
+Audit 116 fitur Zed terhadap kode Zephyr, lalu 20 temuan kandidat diuji
+adversarial. **14 terkonfirmasi, 6 terbantah.** Semua 14 diperbaiki.
+
+Commit: `7a39756` (basis), perubahan sesi ini belum di-commit.
+
+### Bug yang ditemukan verifikasi hook dari UI NYATA
+
+| # | Gejala | Akar | Fix | Verifikasi |
+|---|--------|------|-----|------------|
+| 1 | Setiap hook yang perintahnya memuat tanda kutip GAGAL: path berspasi, `node -e "..."`, one-liner PowerShell — mayoritas hook sungguhan. Terbaca seolah perintah pembaca yang salah | `hooks.rs` memanggil `cmd.exe` dengan `.arg("/C").arg(baris)`. Quoting CRT dan quoting `cmd` tidak menyusun; flag `/s` tidak ada sehingga `cmd` mem-parse ulang di bawah aturannya sendiri dan merusak path berkutip | `raw_arg("/d /s /c \"{baris}\"")` — bentuk yang SAMA dengan `agent_exec.rs` | `scripts/uji-hook-hidup.mjs` 8/8 lewat UI nyata. Sebelum: tanpa kutip exit 0, dengan kutip exit 1 |
+
+### Bug yang ditemukan review adversarial (semuanya bug yang gua tulis sesi ini)
+
+| # | Gejala | Akar | Fix |
+|---|--------|------|-----|
+| 2 | 9 setting editor baru TIDAK PERNAH aktif. `codeFolding: true` tetap membuat folding MATI | Kunci ditambahkan hanya ke `DEFAULT_SETTINGS` (types.ts), tidak ke `default_settings()` (`settings.rs`). `get_settings` menggabungkan default Rust + settings.json, dan frontend tidak pernah mengisi `editor.*` | Daftarkan di DUA tempat. **Pelajaran: setiap kunci editor baru wajib ada di keduanya** |
+| 3 | `test_model_connection` mengirim header `Authorization: Bearer ` KOSONG. Server ketat balas 400 = false negative persis yang fitur loopback coba hilangkan | `list_models` sudah dijaga, `test_model_connection` tidak | Guard yang sama di keduanya |
+| 4 | Preview tab bisa DIBUANG bersama ketikan yang belum tersimpan | Promosi preview menumpang tulisan konten yang di-debounce 300ms, jadi dalam jendela itu tab masih `preview:true, unsaved:false` | Promosikan seketika di `updateListener`, bukan menunggu debounce |
+| 5 | `strip_unc` mengubah path network share jadi path RELATIF | Hanya membuang `\?\`; bentuk UNC verbatim `\?\UNC\server\share` jadi `UNC\server\share` (relative) | Tambah arm UNC, membatalkan `long_path` persis |
+| 6 | Kolom tengah: breadcrumb indentasi ke lebar berbeda dari teksnya | `--cm-centered` di-set di `.cm-body`, padahal `.cm-breadcrumbs` itu SAUDARA-nya bukan anak | Pindahkan ke `.cm-wrap` yang mewarisi ke keduanya |
+| 7 | Toggle "diagnostics lens" tidak berefek sampai ada diagnostik baru | `editorSettings.diagLens` dibaca di body effect tapi tidak ada di dep array | Tambah ke dep array |
+| 8 | Gutter nomor baris pindah ke KANAN penanda diagnostik | Urutan array extension = urutan visual; `nomorComp` ditaruh setelah `diagCompartment` | Pindahkan ke atas |
+| 9 | `scrollPastEnd` sama sekali tidak berfungsi | Memakai `EditorView.scrollMargins`, yang hanya dibaca saat scroll-into-view — tidak pernah ditambahkan ke tinggi konten | Pakai `scrollPastEnd()` bawaan |
+| 10 | `endpoint_is_loopback` salah klasifikasi `http://localhost:8080@evil.test` sebagai loopback | Membelah authority di `:` tanpa membuang userinfo lebih dulu | `rsplit('@')` dulu |
+| 11 | `saveTab` menampilkan "Save failed: Cannot read properties of undefined" | `as Tab` cast menyembunyikan `undefined` saat tab ditutup di tengah `await` LSP | Guard `if (!sesudahFormat) return false` |
+| 12 | `lspFixAll` memetakan severity `hint` ke 3 (Information) | Nilai yang diterima (4) tidak bertahan di round-trip | Petakan `hint` → 4 |
+| 13 | Label provider `local` yang di-rename meninggalkan 10 kunci i18n yatim | `i18n-extra.ts` memakai teks sumber sebagai kunci persis | Pindahkan kuncinya |
+
+### Bug yang ditemukan sambil mengerjakan fitur
+
+| # | Gejala | Akar | Fix |
+|---|--------|------|-----|
+| 14 | Cache indeks Quick Open akan MATI tanpa jejak setelah berkas pertama berubah | Penanda cache memakai `watch_generation`, yang berarti "watcher run yang mana" — `stop_watcher` menaikkannya untuk MEMBUNUH thread. Menaikkannya untuk "pohon berubah" mengakhiri watcher | Counter terpisah `tree_generation`. 2 tes Rust mengunci isolasinya |
+| 15 | Cache indeks tidak akan pernah invalidate | Watcher MEMBACA generation (kapan berhenti) tapi tidak pernah MENAIKKANNYA | Bump per flush |
+| 16 | `editor.formatDocument` menghasilkan output berbeda dari save | Manual hanya jalan LSP; save jalan LSP + formatter eksternal | Keduanya lewat `formatTab` |
+| 17 | Prompt ghost text SELALU bilang `File: file` | Atribut `data-path` tidak pernah di-set di host editor | Set atributnya |
+| 18 | Blame inline (dan git bars) tidak refresh setelah commit dari panel SCM | Effect di-key hanya pada `tab.unsaved`, yang tidak berubah oleh commit — berkasnya tidak disunting dan tidak kotor | Tambah dep `headHash = useGit(s => s.log[0]?.hash7)`. `refreshAll` jalan setelah tiap operasi git, jadi HEAD melacak perubahan riwayat (commit/checkout/pull/rebase). Selector mengembalikan PRIMITIF (jebakan zustand). Dipakai di effect blame DAN git-gutter |
+
+### Temuan arsitektur (bukan bug, tapi celah nyata)
+
+| # | Temuan | Fix |
+|---|--------|-----|
+| 19 | Agent TIDAK BISA memanggil server MCP yang didaftarkan pembaca. `AGENT_TOOLS` array statis, jadi server luar tak terlihat model. Pembaca lihat "12 tool tersedia", model tak bisa panggil satu pun | `src/lib/mcpTools.ts` — registry dinamis, nama `mcp__<server>__<tool>`, spec SELALU dikirim (tidak di balik `tool_search`) |
+| 20 | MCP client hanya bicara setengah protokol: `tools/*`, tanpa `prompts/*` | `list_prompts` + `get_prompt` di Rust, dan `testServer` melaporkan KETIADAAN prompt secara eksplisit |
+
+### Belum diperbaiki, dengan alasan
+
+| # | Item | Alasan |
+|---|------|--------|
+| — | Isolasi worktree untuk subagent paralel | `MAX_PARALLEL=4` subagent jalan di pohon kerja yang SAMA. Perbaikannya butuh menggeser cwd per-subagent, dan `useStore.workspace` bersifat global — menggantinya akan menggeser editor pembaca. Butuh perubahan arsitektur (L) |
+| — | Multibuffer, agent sandbox OS-level, in-memory worktree, ACP client | Masing-masing XL, di luar cakupan sesi ini |
+
+### Jebakan proses yang sudah kena
+
+- **`cargo build --lib` TIDAK me-link ulang `zephyr.exe`.** Dua kali gua salah
+  simpulkan "perbaikan tidak bekerja" padahal binary yang jalan masih lama.
+  Harus `cargo build` penuh, dan app harus dimatikan dulu (file terkunci).
+- **`git checkout <berkas>` memulihkan SELURUH berkas ke HEAD.** Dipakai untuk
+  membatalkan satu suntingan, malah menghapus 40 kunci i18n yang sah.
+- **Instance store terpisah lewat `import()` dari CDP.** `import('/src/lib/x.ts')`
+  membuat instance modul yang BERBEDA dari yang dipakai app. Bukti harus lewat
+  `window.__ZEPHYR_*__` atau UI nyata, bukan `import()`.

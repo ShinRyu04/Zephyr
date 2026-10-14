@@ -137,7 +137,30 @@
   background: var(--surface-3);
 }
 
-/* The count, so a tab that is empty says so before it is opened. */
+/* Rebalance narrow sidebar tabs: labels may truncate, but counts stay visible. */
+.xv-tabs {
+  gap: 2px;
+  min-width: 0;
+}
+
+.xv-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 4px;
+  padding-inline: 5px;
+  font-size: 10.5px;
+}
+
+.xv-tab:not(.is-active) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xv-tab.is-active {
+  flex: 1.2 1 0;
+  overflow: hidden;
+}
+
 .xv-tab-jumlah {
   padding: 0 4px;
   font-size: 9px;
@@ -208,6 +231,44 @@
 .xv-note {
   color: var(--text-muted);
 }
+
+/* ── laporan loader: apa yang kebaca, apa yang dibuang ── */
+
+.xv-ringkas {
+  margin: 6px 8px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+  flex: 0 0 auto;
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.xv-ringkas-judul {
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.xv-ringkas-baris {
+  color: var(--text-muted);
+}
+.xv-ringkas-gagal,
+.xv-ringkas-skip {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--danger);
+}
+.xv-ringkas-skip {
+  color: var(--warning);
+}
+.xv-ringkas-gagal li,
+.xv-ringkas-skip li {
+  margin: 1px 0;
+}
+
 
 .xv-list {
   flex: 1 1 auto;
@@ -576,4 +637,39 @@
   background: var(--surface-2);
   border-left: 2px solid var(--warning);
   border-radius: 0 4px 4px 0;
+}
+
+/* ── Registry sources ─────────────────────────────────────────────────────
+ *
+ * One row per index, with the bundled entry first and visually quieter — it is
+ * a fact about the marketplace, not something the reader configured, and it has
+ * no delete button because it cannot be removed.
+ */
+.ext-registry {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ext-reg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.ext-reg-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The bundled row is dimmed: it is context, not a setting. */
+.ext-reg-row[data-testid='ext-reg-bundled'] .ext-reg-url {
+  color: var(--text-muted);
 }

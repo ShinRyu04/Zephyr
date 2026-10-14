@@ -95,12 +95,12 @@ pub fn prepare_tools(
     }
 }
 
-pub fn parse_tool_response(provider: &str, v: &Value) -> AiToolResult {
+pub fn parse_tool_response(provider: &str, v: &Value) -> Result<AiToolResult, String> {
     let mut hasil = match provider {
-        "anthropic" => anthropic::parse_tool_response(v),
-        "gemini" => gemini::parse_tool_response(v),
+        "anthropic" => Ok(anthropic::parse_tool_response(v)),
+        "gemini" => Ok(gemini::parse_tool_response(v)),
         _ => openai::parse_tool_response(v),
-    };
+    }?;
     if hasil.tool_calls.is_empty() {
         let xml = xml_tools::parse_teks(&hasil.content);
         if !xml.is_empty() {
@@ -109,7 +109,7 @@ pub fn parse_tool_response(provider: &str, v: &Value) -> AiToolResult {
             hasil.done = false;
         }
     }
-    hasil
+    Ok(hasil)
 }
 
 pub fn prepare_tools_stream(
@@ -184,18 +184,18 @@ impl StreamAcc {
         }
     }
 
-    pub fn finish(self) -> (String, Vec<ToolCall>) {
+    pub fn finish(self) -> Result<(String, Vec<ToolCall>), String> {
         let (content, calls) = match self {
-            StreamAcc::Anthropic(a) => a.finish(),
-            StreamAcc::Gemini(a) => a.finish(),
+            StreamAcc::Anthropic(a) => Ok(a.finish()),
+            StreamAcc::Gemini(a) => Ok(a.finish()),
             StreamAcc::Openai(a) => a.finish(),
-        };
+        }?;
         if calls.is_empty() {
             let xml = xml_tools::parse_teks(&content);
             if !xml.is_empty() {
-                return (xml_tools::bersihkan_teks(&content), xml);
+                return Ok((xml_tools::bersihkan_teks(&content), xml));
             }
         }
-        (content, calls)
+        Ok((content, calls))
     }
 }

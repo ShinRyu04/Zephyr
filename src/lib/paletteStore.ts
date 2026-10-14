@@ -145,9 +145,17 @@ interface PaletteActions {
   setIndex: (i: number) => void;
   
   accept: (i?: number) => Promise<void>;
-  
+
+  /**
+   * Run one item, optionally as a ONE-SHOT.
+   *
+   * `sekali` (true) runs it without recording it as recently used — the
+   * ephemeral entry. See the implementation for why the two are separated.
+   */
+  acceptItem: (item: PaletteItem, sekali?: boolean) => Promise<void>;
+
   items: () => PaletteItem[];
-  runCommandById: (id: string) => Promise<void>;
+  runCommandById: (id: string, sekali?: boolean) => Promise<void>;
 }
 
 export type PaletteStore = PaletteState & PaletteActions;
@@ -255,25 +263,53 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     const items = get().items();
     const item = items[i ?? get().index];
     if (!item) return;
+    return get().acceptItem(item, false);
+  },
 
+  /**
+   * Run an item, optionally as a ONE-SHOT.
+   *
+   * A one-shot runs the command but is not recorded as recently used.
+   *
+   * WHY this matters: the `recent` list is the palette's memory of what the
+   * reader reaches for. Every run enters it, and `items()` scores recent
+   * entries higher — so a command run once from curiosity outranks one used
+   * daily until it ages out. For a handful of runs that is noise; for a task
+   * that fires the same command repeatedly (`tasks.run` while iterating on a
+   * build, a formatter, an MCP tool) it pushes the genuinely-used commands off
+   * the top of the list entirely.
+   *
+   * Splitting "run it" from "remember that I ran it" is what the reference
+   * editors do with their ephemeral palette entries, and it needs no new UI:
+   * Ctrl/Cmd+Enter is the one-shot, plain Enter is the ordinary run.
+   */
+  acceptItem: async (item, sekali) => {
     if (get().mode === 'file') {
       set({ open: false, query: '' });
       const s = useStore.getState();
       s.setSettingsOpen(false);
-      await s.openPath(item.id);
+      /*
+       * A file opened from the palette is browsed past as often as it is
+       * settled on, and it comes from the same Ctrl+P list that a tree click
+       * does — so it takes the same preview slot rather than pinning. Unless
+       * it was a one-shot, which is the reader saying "just show me".
+       */
+      await s.openPath(item.id, { preview: !sekali });
       return;
     }
     set({ open: false, query: '' });
-    await get().runCommandById(item.id);
+    await get().runCommandById(item.id, sekali);
   },
 
-  runCommandById: async (id) => {
+  runCommandById: async (id, sekali) => {
     const m = await muatRegistry();
     const c: CommandDef | undefined = m.findCommand(id);
     if (!c) return;
-    const recent = [id, ...get().recent.filter((x) => x !== id)].slice(0, MAX_RECENT);
-    set({ recent, lastRun: { id, at: Date.now() } });
-    saveRecent(recent);
+    if (!sekali) {
+      const recent = [id, ...get().recent.filter((x) => x !== id)].slice(0, MAX_RECENT);
+      set({ recent, lastRun: { id, at: Date.now() } });
+      saveRecent(recent);
+    }
     try {
       await c.run();
     } catch (e) {
