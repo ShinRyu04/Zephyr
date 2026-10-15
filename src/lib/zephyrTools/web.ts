@@ -413,7 +413,7 @@ export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'web_search',
-      description: 'Search the web through DuckDuckGo HTML and return a list of links with their snippets.',
+      description: 'Search the web through Zephyr built-in engines (Brave first, DuckDuckGo as fallback) and return result links with their titles. It does not return snippets - follow a promising link with web_fetch.',
       parameters: {
         type: 'object',
         properties: {
@@ -431,26 +431,29 @@ export const TOOL_WEB: AgentTool[] = [
       if (kb.izinIsiWeb !== true) {
         return '(web_search ditolak: izin-isi-web-mati - nyalakan izin isi web di Settings §security)';
       }
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
-      const html = await cmd.webFetch(url, 25000);
-      const hasil: string[] = [];
-      const re = /<a[^>]+class="result__snippet"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-      let m: RegExpExecArray | null;
-      let count = 0;
-      while ((m = re.exec(html)) !== null && count < 8) {
-        const link = m[1].replace(/.*uddg=([^&]+).*/, (_, u) => decodeURIComponent(u));
-        const snippet = m[2].replace(/<[^>]+>/g, '').trim();
-        hasil.push(`- ${link}\n  ${snippet}`);
-        count++;
+      /* Pencarian lewat perintah Rust `web_search` (`src-tauri/src/web.rs`),
+         BUKAN merangkai URL pencari sendiri lalu dilewatkan `webFetch`.
+         Rust sudah punya tangga mesin (Brave dulu, DuckDuckGo cadangan) dan
+         parser berbasis anchor yang tidak bergantung pada nama kelas CSS yang
+         berubah antar-deploy.
+         Versi lama merangkai `html.duckduckgo.com` sendiri: satu host saja
+         diblokir jaringan pengguna, tool ini mati total sebelum menghasilkan
+         satu baris - dan host itu memang diblokir di sebagian jaringan
+         Indonesia (sertifikatnya dicokok penyedia, jadi TLS gagal). Tangga
+         mesin di sisi Rust membuat pencarian tetap jalan lewat mesin lain. */
+      let daftar: cmd.HasilCari[];
+      try {
+        daftar = await cmd.webSearch(q, 8);
+      } catch (e) {
+        return `Pencarian web gagal: ${e instanceof Error ? e.message : String(e)}`;
       }
-      if (!hasil.length) {
-        const reTitle = /<a[^>]+class="result__url"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-        while ((m = reTitle.exec(html)) !== null && count < 8) {
-          const link = m[1].replace(/.*uddg=([^&]+).*/, (_, u) => decodeURIComponent(u));
-          hasil.push(`- ${link}`);
-          count++;
-        }
-      }
+      /* `judul` dari mesin sering multi-baris (Brave menyelipkan remah navigasi
+         di dalam teks anchor yang sama). Dipedekan jadi satu baris supaya satu
+         hasil selalu dua baris dan mudah dipindai model. */
+      const satuBaris = (t: string) => t.replace(/\s+/g, ' ').trim();
+      const hasil = daftar
+        .slice(0, 8)
+        .map((r) => `- ${r.url}\n  ${satuBaris(r.judul) || r.url}`);
       return hasil.length
         ? `Search results for "${q}":\n\n${hasil.join('\n\n')}`
         : `No web search results for "${q}".`;

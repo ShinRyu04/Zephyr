@@ -158,6 +158,32 @@ pub fn default_settings() -> Value {
 
         "allowCommands": [],
 
+        // ------------------------------------------------------------------
+        // KEBIJAKAN ISI WEB (`zeph-buka-jaringan-lokal`) - SEMUA default AMAN.
+        //
+        // Lima setelan ini dibaca `src/lib/zephyrTools/kebijakanIsiWeb.ts`
+        // (`kebijakanDariSetelan`) dan `src-tauri/src/web.rs`. Setiap kunci
+        // WAJIB ada di sini juga, bukan hanya di `DEFAULT_SETTINGS` (types.ts):
+        // `get_settings` men-deep-merge default Rust ini dengan settings.json,
+        // dan pembaca kebijakan membaca field yang TIDAK ADA sebagai default
+        // AMAN (fail-closed) - jadi kunci yang lupa didaftarkan di sini hanya
+        // membuat fitur "tidak pernah menyala", bukan membuka apa pun.
+        //
+        //   izinIsiWeb        : opt-in isi web. MATI = nol permintaan jaringan.
+        //   allowlistWeb      : daftar host yang boleh. Kosong = tolak semua.
+        //   izinJaringanLokal : opt-in jaringan lokal. MATI = loopback/privat/
+        //                       link-local/CGNAT dan `*.local` ditolak.
+        //   portWeb           : port sah di luar 80/443 (80/443 selalu sah).
+        //   hopRedirect       : plafon hop redirect (keras: 10).
+        //
+        // `169.254.169.254` (metadata cloud) TETAP ditolak walau
+        // `izinJaringanLokal` menyala - bukan setelan, tapi aturan tetap.
+        "izinIsiWeb": false,
+        "allowlistWeb": [],
+        "izinJaringanLokal": false,
+        "portWeb": [80, 443],
+        "hopRedirect": 5,
+
         "subagent": {
             "maxParallel": 4,
             "maxSteps": 15,

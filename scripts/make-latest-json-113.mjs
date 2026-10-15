@@ -38,13 +38,16 @@ for (const relative of requiredAssets) {
 }
 
 const langs = ['en', 'id', 'ja', 'ko', 'zh', 'es', 'fr', 'de', 'pt', 'ar'];
-const notes = Object.fromEntries(langs.map((lang) => {
-  const file = path.join(dir, 'notes', `RELEASE_NOTES_v${version}.${lang}.md`);
+// Tauri's updater wants `notes` as ONE string (lihat release/1.1.12/latest.json),
+// jadi sepuluh berkas tetap diverifikasi ada+berisi, tapi yang dikirim teks en.
+const notesTerjemahan = Object.fromEntries(langs.map((lang) => {
+  const file = path.join(dir, 'notes', `RELEASE_NOTES_${version}.${lang}.md`);
   if (!existsSync(file)) throw new Error(`Missing ${lang} release notes: ${file}`);
   const contents = readFileSync(file, 'utf8').trim();
   if (!contents) throw new Error(`Empty ${lang} release notes: ${file}`);
   return [lang, contents];
 }));
+const notes = notesTerjemahan.en;
 
 function signature(relative) {
   const value = readFileSync(path.join(dir, relative), 'utf8').trim();
@@ -77,6 +80,6 @@ writeFileSync(temporary, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 renameSync(temporary, output);
 console.log(`latest.json : ${output}`);
 console.log(`version     : ${version}`);
-console.log(`notes       : ${Object.keys(notes).join(', ')} (${Object.keys(notes).length})`);
+console.log(`notes       : ${langs.join(', ')} (${langs.length} berkas; yang dikirim teks en)`);
 console.log('windows     : release NSIS signature validated');
 console.log('linux       : release AppImage signature validated');

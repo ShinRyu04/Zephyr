@@ -110,3 +110,15 @@ ZEPHYR-UJI-COBA.txt
 testfiles/zephyr-v18-tab-*
 testfiles/zephyr-th-*
 testfiles/zephyr-cp-*
+
+# Rahasia: JANGAN PERNAH dilacak. Repo ini publik (github.com/ShinRyu04/Zephyr),
+# sekali `git add -A` jalan maka kunci ini ikut ter-commit dan ter-push.
+Api key MR.txt
+.kunci-terkunci
+*.key
+*.key.pub
+signing-key.txt
+secrets.json
+
+# Catatan kerja pribadi (bukan bagian produk)
+TODO-BELUM-SELESAI.txt

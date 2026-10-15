@@ -27,7 +27,7 @@
       "bedaIsi": true
     },
     "bebanNolIdentik": true,
-    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks"
+    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / 841ead6a570703ad (190 berkas, 6258 entri); cara memeriksa dari app: zephyr_self bagian=indeks"
   },
   "cache": {
     "sebelumBersih": 0,
@@ -78,9 +78,9 @@
     "referensiBundel": []
   },
   "determinisme": {
-    "shaB": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
-    "shaB2": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
-    "shaBK": "c90194d04c907d1bc764e58b2f8d6c1a0fb72cba67302070df44edecc6545376",
+    "shaB": "70fbede04d725a1f7856550ff1076469f97e44838cc18a9b1a48d4bf041b84a4",
+    "shaB2": "70fbede04d725a1f7856550ff1076469f97e44838cc18a9b1a48d4bf041b84a4",
+    "shaBK": "70fbede04d725a1f7856550ff1076469f97e44838cc18a9b1a48d4bf041b84a4",
     "identik": true,
     "tanpaFolderUser": true
   },
@@ -88,10 +88,10 @@
     "indeks": "1.1.13",
     "paket": "1.1.13",
     "tauri": "1.1.13",
-    "hashBundel": "edcf2edbdfe7127e",
-    "hashSumberNyata": "edcf2edbdfe7127e",
+    "hashBundel": "841ead6a570703ad",
+    "hashSumberNyata": "841ead6a570703ad",
     "checkExit": 0,
-    "checkPesan": "sinkron: zephyrFakta.ts 9843 byte + zephyrIndeks.ts 1060231 byte (6253 entri; bridge=1, dokumen=176, ekstensi=17, kode=429, label=3023, layar=1991, menu=122, panel=22, perintah=179, pintasan=66, port=4, seksi=31, setelan=124, tool=68)."
+    "checkPesan": "sinkron: zephyrFakta.ts 9843 byte + zephyrIndeks.ts 1060902 byte (6258 entri; bridge=1, dokumen=176, ekstensi=17, kode=429, label=3023, layar=1991, menu=122, panel=22, perintah=179, pintasan=66, port=4, seksi=31, setelan=129, tool=68)."
   },
   "basi": {
     "segarKepala": {
@@ -139,19 +139,19 @@
     "basiAdaPeringatan": true,
     "basiVersiAdaBasi": true,
     "segarVersiAdaBasi": true,
-    "barisKemutakhiranBasi": "Kemutakhiran indeks: BASI - indeks dibuat untuk versi 1.1.13, aplikasi berjalan 9.9.9 - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
-    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / edcf2edbdfe7127e (190 berkas, 6253 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
+    "barisKemutakhiranBasi": "Kemutakhiran indeks: BASI - indeks dibuat untuk versi 1.1.13, aplikasi berjalan 9.9.9 - cap 1.1.13 / 841ead6a570703ad (190 berkas, 6258 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
+    "barisKemutakhiranSegar": "Kemutakhiran indeks: segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI) - cap 1.1.13 / 841ead6a570703ad (190 berkas, 6258 entri); cara memeriksa dari app: zephyr_self bagian=indeks",
     "basiHashRuntimeAda": true
   },
   "blokLapis2": {
     "menyebutHash": true,
     "menyebutBasi": false,
-    "contoh": "# Zephyr knowledge index - excerpt injected automatically for THIS turn\nIndex 6253 entries, app 1.1.13, source hash edcf2edbdfe7127e | categories: bridge 1, dokumen 176, ekstensi 17, kode 429, label 3023, layar 1991, menu 122, panel 22, perintah 179, pintasan 66, port 4, seksi 31, setelan 124, tool 68\nThese entries come from Zephyr's own sources, so they outrank anything you remember about Zephyr."
+    "contoh": "# Zephyr knowledge index - excerpt injected automatically for THIS turn\nIndex 6258 entries, app 1.1.13, source hash 841ead6a570703ad | categories: bridge 1, dokumen 176, ekstensi 17, kode 429, label 3023, layar 1991, menu 122, panel 22, perintah 179, pintasan 66, port 4, seksi 31, setelan 129, tool 68\nThese entries come from Zephyr's own sources, so they outrank anything you remember about Zephyr."
   },
   "cakupan": {
     "N": 14,
     "total": 14,
-    "entri": 6253,
+    "entri": 6258,
     "rincian": [
       {
         "kategori": "bridge",
@@ -203,7 +203,7 @@
       },
       {
         "kategori": "setelan",
-        "jumlah": 124
+        "jumlah": 129
       },
       {
         "kategori": "tool",

@@ -86,7 +86,7 @@ try {
   // `tauri build` tanpa --debug selalu menulis target/release. Gunakan argv
   // terpisah agar config tidak dapat menyuntikkan flag atau perintah shell.
   const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  execFileSync(npx, ['tauri', 'build', '--config', config], { stdio: 'inherit', env });
+  execFileSync(npx, ['tauri', 'build', '--config', config], { stdio: 'inherit', env, shell: true });
 } finally {
   kembalikan();
   scanArtefak();

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "verify": "node scripts/verify.mjs",
+    "verify:pengetahuan-angka": "node scripts/uji-pengetahuan-angka.mjs",
     "verify:update": "node scripts/verify-update.mjs",
     "verify:04": "node scripts/verify04.mjs",
     "verify:05": "node scripts/verify05.mjs",
@@ -39,7 +40,7 @@
     "verify:tema-banding": "node scripts/banding-tema.mjs",
     "verify:tema-mode": "node scripts/uji-t6-tema-mode.mjs",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/gen-fakta-zephyr.mjs --check && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

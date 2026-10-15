@@ -531,81 +531,46 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'write_file',
   'edit',
   'multi_edit',
-  'replace_in_files',
   'delete_file',
+  /*
+   * `move_file` / `copy_file` ikut karena PROMPT menyebut namanya (baris route
+   * file: "delete_file/move_file/copy_file instead of shell rm/del/mv/cp").
+   * Selama ini keduanya diroute tapi TIDAK dikirim - pelanggaran aturan di
+   * atas. Akibatnya model membaca "jangan pakai rm/cp, pakai move_file" lalu
+   * tidak bisa memanggilnya dan balik ke `rm`/`cp` di shell persis seperti yang
+   * ingin dicegah aturan itu. Menyambungnya menutup celah itu tanpa menambah
+   * jumlah: dua ini menggantikan perintah shell yang sebelumnya dipakai.
+   *
+   * Jangan menyebut nama tool di komentar ini sebagai fakta teks prompt -
+   * salin dari prompt saat ini (grep "delete_file/" di systemPrompt.ts).
+   */
+  'move_file',
+  'copy_file',
   'list_directory',
-  'create_directory',
   'grep',
   'glob',
   'bash_run',
-  /*
-   * Long-running commands.
-   *
-   * `bash_run` blocks until the command exits, so a dev server or a watch task
-   * either times out or holds the whole agent loop. The background pair is what
-   * makes those expressible at all, and an agent that cannot reach it has no way
-   * to start something that does not finish — which is a common enough need to
-   * justify the cost of two more specs on every request.
-   */
-  'bash_background',
-  'bash_logs',
   'todo_write',
-  /*
-   * Code intelligence.
-   *
-   * `lsp_definition` saja yang ikut setiap permintaan.
-   *
-   * Awalnya kelima `lsp_*` dikirim, dan itu pemborosan yang mahal: skemanya
-   * ~500 karakter masing-masing, jadi lima tool itu menambah ~2,5 KB di SETIAP
-   * langkah - untuk kemampuan yang jarang dipakai. `lsp_definition` adalah
-   * satu-satunya yang benar-benar sulit ditiru: menemukan definisi sebuah simbol
-   * tanpa language server berarti menebak nama berkas lalu grep di sana.
-   *
-   * `lsp_symbols`, `lsp_references`, `lsp_hover`, `lsp_diagnostics`, dan
-   * `lsp_call_hierarchy` tetap TERPASANG dan tetap AKTIF - hanya tidak dikirim
-   * setiap kali. Model menemukannya lewat `tool_search` ("cari simbol", "error
-   * language server", "siapa yang memanggil") lalu memanggilnya lewat
-   * `tool_call`. Tidak ada yang hilang, hanya satu langkah lebih jauh untuk
-   * yang memang jarang dipakai.
-   *
-   * `grep` dan `glob` tetap selalu dikirim: berkas yang bahasanya tidak punya
-   * language server tetap harus bisa dicari.
-   */
-  'lsp_definition',
-  /*
-   * Self-inspection (`zephyr_self`).
-   *
-   * Blok fakta inti menyebut tool ini NAMANYA sebagai pintu ke lapis kedua
-   * (indeks `zephyrIndeks.ts`), dan aturan prompt berbunyi "cari dulu sebelum
-   * menyebut setelan, pintasan, atau tool yang tidak tertulis di blok inti".
-   * Aturannya sama dengan browser/web di bawah: apa pun yang di-route prompt
-   * WAJIB ikut dikirim setiap permintaan. Kalau tidak, model membaca pintunya
-   * di prompt tapi tidak bisa memanggilnya tanpa `tool_search` lebih dulu -
-   * dan pertanyaan "ada setelan X?" berhenti jadi "kurang tahu".
-   *
-   * Read-only, dan tetap jalan tanpa folder user terbuka.
-   */
-  'zephyr_self',
-  'skill_view',
   'think',
   'ask_user',
-  'run_subagent',
   /*
-   * The plural form.
-   *
-   * `run_subagent` takes one prompt; a task that decomposes into several
-   * independent parts is the normal case, and hiding the parallel version behind
-   * a search means the model runs them one at a time instead — slower and more
-   * expensive than the thing the search was saving.
+   * `zephyr_self` bukan pilihan gaya, tapi kewajiban: blok larangan di
+   * `systemPrompt.ts:850` / `:862` menyebut tool ini dengan nama - "jangan
+   * menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas +
+   * `zephyr_self`". Kalau tool-nya tidak ikut dikirim, prompt menyuruh model
+   * memanggil tool yang tidak ada di gudangnya, dan aturan anti-mengarang itu
+   * justru gagal tepat pada kasus yang ingin dicegah. Read-only, dan tetap
+   * jalan walau tidak ada folder yang terbuka.
    */
-  'run_subagents',
+  'zephyr_self',
   'tool_search',
   'tool_call',
-  /*
-   * Browser/web.
+  /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
-   * dan ambil halaman sebagai teks.
+   * dan ambil halaman sebagai teks. Ketiganya juga disebut nama di prompt
+   * ("buka URL -> browser_open", "baca halaman -> browser_read/web_fetch"), jadi
+   * wajib ikut dikirim.
    *
    * Dua yang DILEPAS dari daftar ini:
    *

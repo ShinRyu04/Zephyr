@@ -46,11 +46,13 @@ Catatan: kerusakan CSS itu **sudah ada di worktree sebelum** sesi ini (file bers
 
 ---
 
-## B. Tool AI (68 tool / hanya 26 dikirim per request)
+## B. Tool AI (68 tool / hanya 20 dikirim per request)
 
-Konteks (dihitung 2026-10-14 dari `src/lib/zephyrTools/catalog.ts` → `TOOL_COUNTS`): BUILT-IN 54 (43 bawaan + 11 web) + MCP 14 = **68**; nyala 63, mati 5. Yang dikirim tiap request hanya **26** (`TOOL_DIKIRIM_SELALU`, `catalog.ts:529`); 42 sisanya on-demand via `tool_search` + `tool_call`. Arsitektur sudah benar → **jangan hapus/gabung tool**.
+Konteks (dihitung ulang 2026-10-15 lewat `node scripts/audit-katalog-tool.mjs`): BUILT-IN 54 (43 bawaan + 11 web) + MCP 14 = **68**; nyala 63, mati 5. Yang dikirim tiap request hanya **20** (`TOOL_DIKIRIM_SELALU`, `catalog.ts:529`); 48 sisanya on-demand via `tool_search` + `tool_call`. Arsitektur sudah benar → **tool TIDAK boleh dihapus permanen**.
 
-> **Riwayat angka.** Dulu di sini tertulis BUILT-IN 52 (41+11) + MCP 14 = **66** dan "hanya **25** dikirim" (sebelum `zephyr_kode` masuk katalog) → sekarang **68** / **26**. Dokumen lain bertanggal lebih tua yang menyebut 66/67/25 adalah potret hari itu, bukan keadaan sekarang.
+> **Yang dimaksud "jangan hapus/gabung tool".** Kalimat ini sempat terbaca sebagai larangan memangkas daftar kirim, padahal masalah yang ditemui 2026-10-15 adalah **kebalikannya**: 26 skema per request membebani payload. Keputusan Ryu (**Opsi A**, 2026-10-15) karena itu adalah **menunda** 6 tool dari `TOOL_DIKIRIM_SELALU` ke `tool_search` — `skill_view`, `lsp_definition`, `run_subagents`, `bash_background`, `calculator`, `notes_read` (26 − 6 = 20), sambil `move_file` + `copy_file` disambungkan agar ikut dikirim. **Nol tool dihapus permanen**, `zephyr_self` tetap wajib ikut dikirim, dan penundaan itu otomatis (model menemukannya lewat `tool_search`, lalu wajib meneruskannya lewat `tool_call`). Jadi larangannya: **jangan menghapus tool dari katalog** — memangkas *daftar kirim* justru memangkas latensi dan ukuran payload, dan sudah terbukti bekerja.
+
+> **Riwayat angka.** Dulu di sini tertulis BUILT-IN 52 (41+11) + MCP 14 = **66** dan "hanya **25** dikirim" (sebelum `zephyr_kode` masuk katalog) → **68** / **26** (2026-10-14) → **68** / **20** (Opsi A, 2026-10-15; diverifikasi `audit-katalog-tool.mjs` exit 0 + `npx tsc --noEmit` 0). Dokumen lain bertanggal lebih tua yang menyebut 66/67/25/26 adalah potret hari itu, bukan keadaan sekarang.
 
 | # | Item | Prioritas | Catatan |
 |---|------|-----------|---------|
