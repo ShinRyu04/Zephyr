@@ -22,7 +22,7 @@ import { useToolGate, TOOL_TULIS, TOOL_AKTIF_AWAL } from './toolGate';
 import { TOOL_DIKIRIM_SELALU } from './zephyrTools/catalog';
 import { AWALAN_MCP, POLA_AWALAN_MCP } from './zephyrTools/awalan';
 import { mcpExternalSpecs, pecahNamaMcp } from './mcpTools';
-import { asZephyrError, fsRead, fsStat } from './commands';
+import { asZephyrError, fsRead, fsStat, fsRealpath } from './commands';
 import { useStore } from './store';
 
 export { TOOL_TULIS };
@@ -100,14 +100,13 @@ export const AGENT_TOOLS: AgentTool[] = [
  * ada pemasangan dengan akar kosong. Idempoten per akar - kalau workspace
  * berganti, jembatannya dipasang ulang untuk akar yang baru.
  *
- * CATATAN JUJUR - `realpath`: backend belum punya perintah `fs_realpath`
- * (`src-tauri/src/fs_utils.rs` hanya fs_read/fs_write/fs_exists/fs_stat/
- * fs_create_file/fs_create_dir/fs_delete/fs_rename), jadi yang dipakai adalah
- * bentuk identitas. Yang HILANG karena itu: penolakan symlink/junction yang
- * menunjuk KELUAR repo. Pagar leksikal (`..`, jalur absolut, UNC, byte kontrol,
- * berkas rahasia) tetap hidup penuh karena diperiksa MURNI sebelum jembatan
- * disentuh sama sekali. Sisa kerjanya ada di `docs/USULAN-BACA-KODE-SAMBUNG.md`
- * dan pengujian symlink-nya BUTUH APP hidup.
+ * `realpath` memakai perintah Rust `fs_realpath` yang SUNGGUHAN (bukan bentuk
+ * identitas). Sebelumnya jembatan ini menyuntikkan `async (p) => p` dengan
+ * catatan bahwa `fs_realpath` belum ada - catatan itu sudah tidak benar:
+ * `fs_utils::fs_realpath` ada dan terdaftar di `lib.rs`. Bentuk identitas
+ * berarti symlink/junction yang menunjuk KELUAR repo tidak pernah ditolak di
+ * lapisan ini; pagar leksikal (`..`, jalur absolut, UNC, byte kontrol, berkas
+ * rahasia) tetap hidup penuh karena diperiksa MURNI sebelum jembatan disentuh.
  */
 let _jembatanKodeAkar: string | null = null;
 
@@ -132,7 +131,16 @@ export function pasangJembatanBacaKodeDariWorkspace(): boolean {
         const s = await fsStat(p);
         return { size: Number(s?.size ?? 0), isDir: !!s?.isDir };
       },
-      realpath: async (p) => p,
+      /*
+       * Realpath SUNGGUHAN, bukan identitas.
+       *
+       * `fs_realpath` menyelesaikan symlink/junction lalu menolak jalur yang
+       * mendarat di luar akar workspace. Tanpa ini, sebuah tautan di dalam repo
+       * bisa membuat pembaca kode menembus keluar akar tanpa satu pun penolakan.
+       * Kegagalannya dibiarkan naik sebagai error: pemanggil memperlakukannya
+       * sebagai "jalur tidak bisa diverifikasi", bukan sebagai jalur yang aman.
+       */
+      realpath: async (p) => fsRealpath(p),
     },
   });
   _jembatanKodeAkar = akar;
