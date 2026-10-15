@@ -250,3 +250,89 @@ $ npm run tauri:dev
 
 Usulan agar bagian live bisa jalan **tanpa manusia** ada di
 `docs/USULAN-PANE-DAN-KURS.md`.
+
+---
+
+## 6. Hasil verifikasi ulang — 15 Oktober 2026 (WIB)
+
+Verifier: subagent verifikasi (CDP `127.0.0.1:9223`). `src/**` **tidak diubah
+sama sekali** oleh sesi ini.
+
+### 6.1 Jalur L1–L4 (harness statis + mandiri) — LULUS
+
+```
+$ node scripts/uji-pane-kurs-rencana.mjs     # workdir D:/Zephyr
+… K19 LEWAT (BUTUH APP)  jalur LIVE: agen nyata membuka pane, mengambil data, menulis hasil
+== 18/19 lulus ==
+```
+
+18 lulus, 1 lewat (K19). Yang berubah dari run sebelumnya: 14 titik rujukan
+`baris:` pada blok `REFCANA` disesuaikan dengan posisi src terkini
+(`web.ts`, `mcp.ts`, `builtins.ts` ikut bergerak karena ada pengeditan lain di
+cabang ini). Hanya **baris** yang diperbarui, teks `harus:` — yaitu isi yang
+diuji — tidak disentuh.
+
+### 6.2 Gerbang host `izinIsiWeb` / `allowlistWeb` — TERBUKTI DIPAKAI
+
+Diset lewat jalur resmi applySettings via CDP (`window.__ZEPHYR_SET__.set`),
+bukan dengan menyunting berkas:
+
+- `izinIsiWeb: true`
+- `allowlistWeb`: 25 host (github + youtube; google + googleapis/gstatic;
+  worldbank; exchangerate.host; er-api; frankfurter; exchangeratesapi;
+  bi.go.id; bing/duckduckgo — semuanya domain yang dibutuhkan run ini)
+
+Nilainya ikut tertulis ke `%APPDATA%\zephyr\settings.json` dan sengaja
+**tidak ditampilkan** di laporan ini. Bahwa gerbangnya benar-benar bekerja di
+jalur LIVE terbukti dari hasil run: `browser_open` + `browser_read` berjalan dan
+K9 lulus pada **kedua** percobaan — host tidak ditolak gerbang.
+
+### 6.3 Jalur LIVE `node scripts/uji-kurs-dollar.mjs` — BELUM LULUS (2 percobaan)
+
+| run | waktu (WIB) | hasil | K1 | K2 | K3 | K4 | K5–K8 | K9 |
+|-----|-------------|-------|----|----|----|----|-------|----|
+| 1 | 15 Okt 20:37 | **5/9** | ✓ 282s / 17 langkah | ✓ | ✓ maks 1 pane | ✓ 1 id (`pane-mv9l3uj0-2`) | ✗ | ✓ |
+| 2 | 15 Okt 20:46 | **4/9** | ✗ BATAS WAKTU 642s / 50 langkah | ✓ | ✓ maks 1 pane | ✓ 1 id (`pane-mv9lglju-2`) | ✗ | ✓ |
+
+Yang **lulus** di kedua run: jalur pane — hanya satu pane browser, id yang sama
+dipakai ulang, tidak ada error provider, dan `browser_read` sukses (gerbang
+allowlist lolos). Yang **gagal**: `D:\Testing\kurs-dollar.md` tidak pernah
+tertulis sehingga K5 (berkas ADA), K6 (≥15 tahun 1998–2026), K7 (≥10 angka
+kurs) dan K8 (sumber disebut) gugur.
+
+### 6.4 Alasan kegagalan (hambatan nyata — tidak dipaksa)
+
+1. **Bot wall Google.** Balasan terakhir run 1:
+   *"Hasil Google tadi kena halaman 'unusual traffic' lagi — jawaban kurs tidak
+   terbaca di sana."* Sumber pertama yang diminta tugas tidak terbaca.
+2. **Argumen tool rusak di jalur provider.** Run 1 dihentikan framework dengan
+   `tool call "bash_run" returned malformed JSON arguments` (2 langkah tercatat
+   `(argumen rusak)`); run 2 mencatat satu langkah `tool_call` gagal.
+3. **Run 2 macet.** Setelah langkah terakhir tidak ada kemajuan selama 4 menit
+   → dihentikan sebagai `BATAS WAKTU` sebelum sempat menulis berkas.
+4. Ketiganya di luar gerbang izin: allowlist sudah mengizinkan semua host yang
+   dibutuhkan run, dan halaman memang terbaca sampai Google menolak.
+
+### 6.5 Kesimpulan
+
+- **Jalur pane (L1–L4 rencana): LULUS 18/19.**
+- **Jalur pane LIVE: LULUS** — satu pane dipakai ulang, `browser_read` sukses,
+  gerbang host lolos (K3, K4, K9).
+- **Tugas nyata USD→IDR lewat app: BELUM LULUS** (5/9 lalu 4/9) karena bot wall
+  Google + argumen tool yang rusak, bukan karena allowlist.
+- **K19 tetap `BUTUH APP`** dan belum bisa dinyatakan lulus penuh.
+
+### 6.6 Catatan lingkungan & berkas yang disentuh
+
+- App + Vite dev sempat mati di tengah sesi (CDP `:9223` dan `:5173` ikut
+  hilang); diluncurkan ulang: `npx vite --port 5173` lalu
+  `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223 zephyr.exe`.
+- Dua kegagalan balapan diperbaiki **di harness, bukan di src**:
+  `uji-kurs-dollar.mjs` sekarang memanggil `tungguBridge` sebelum snapshot
+  pertama (dulu `__ZEPHYR_AI__ is undefined` saat halaman baru selesai reload
+  HMR) dan menunggu berjangka kalau `agentBusy` masih nyangkut (dulu langsung
+  exit 2), plus menjalankan harness dengan `UJI_LOG=<path>` supaya laporan tidak
+  dimakan terminal.
+- Berkas berubah sesi ini: `docs/LAPORAN-PANE-DAN-KURS.md` (bagian ini),
+  `scripts/uji-pane-kurs-rencana.mjs` (baris rujukan), `scripts/uji-kurs-dollar.mjs`
+  (tungguBridge + tunggu busy). `src/**` tidak disentuh.

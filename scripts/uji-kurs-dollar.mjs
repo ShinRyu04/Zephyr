@@ -19,7 +19,7 @@
  *
  *   node scripts/uji-kurs-dollar.mjs 9223 [D:/Testing] [pane]
  */
-import { Cdp, reporter } from './lib-cdp.mjs';
+import { Cdp, reporter, tungguBridge } from './lib-cdp.mjs';
 import fs from 'fs';
 import path from 'path';
 
@@ -34,13 +34,28 @@ try { fs.rmSync(berkasHasil); } catch { /* belum ada */ }
 
 const { cdp } = await Cdp.attach(PORT, ['Zephyr', 'Zephyr — Code Editor', 'localhost']);
 
+/* Bridge dev terpasang beberapa saat setelah halaman selesai memuat (dan
+   halaman bisa saja baru selesai reload HMR karena berkas src disunting).
+   Tanpa tunggu di sini, snapshot pertama meledak jadi
+   "__ZEPHYR_AI__ is undefined" - kegagalan balapan, bukan masalah app. */
+for (const b of ['__ZEPHYR__', '__ZEPHYR_AI__', '__ZEPHYR_TERM__']) await tungguBridge(cdp, b);
+
 const awal = await cdp.json(`return JSON.stringify((() => {
   const A = window.__ZEPHYR_AI__.store.getState();
   return { busy: A.agentBusy, model: A.model, provider: A.provider, ws: window.__ZEPHYR__.getState().workspace };
 })())`);
 console.log(`     agen: ${awal.provider}/${awal.model} ws=${awal.ws} busy=${awal.busy}`);
+/* Run lama yang proses Node-nya dibunuh di tengah jalan meninggalkan
+   `agentBusy` nyangkut di app - harness lalu menolak jalan selamanya. Tunggu
+   berjangka supaya sisa run benar-benar selesai (hard limit app 15 menit),
+   bukan langsung menyerah pada angka busy pertama. */
+for (let i = 0; awal.busy && i < 30; i++) {
+  await new Promise((s) => setTimeout(s, 20000));
+  const kini = await cdp.json(`return JSON.stringify({ busy: !!window.__ZEPHYR_AI__.store.getState().agentBusy })`).catch(() => null);
+  awal.busy = kini ? kini.busy : awal.busy;
+}
 if (awal.busy) {
-  console.log('     BERHENTI: agen masih sibuk.');
+  console.log('     BERHENTI: agen masih sibuk setelah menunggu.');
   await cdp.close();
   process.exit(2);
 }
