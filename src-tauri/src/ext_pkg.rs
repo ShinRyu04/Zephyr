@@ -93,6 +93,36 @@ pub struct ContribIconTheme {
     pub path: String,
 }
 
+/// One `contributes.debuggers` / `contributes.debugAdapters` entry.
+///
+/// VS Code's key is `debuggers`; `debugAdapters` is accepted as well so
+/// Zephyr's own manifests can say the same thing in the vocabulary the panel
+/// uses. Both shapes carry the same fields here.
+///
+/// `type` is the field that matters: it is the string a `launch.json`
+/// configuration names in its own `type`, and the only key Zephyr's debug
+/// registry is looked up by (`dap::adapter_bawaan`). `program`/`runtime` are
+/// carried because they are what an adapter would have to be launched with —
+/// nothing reads them yet, and saying so is the point of the report.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContribDebugger {
+    #[serde(rename = "type", default)]
+    pub tipe: String,
+
+    #[serde(default)]
+    pub label: String,
+
+    #[serde(default)]
+    pub program: String,
+
+    #[serde(default)]
+    pub runtime: String,
+
+    #[serde(default)]
+    pub languages: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Contributes {
@@ -101,6 +131,14 @@ pub struct Contributes {
     pub snippets: Vec<ContribSnippet>,
     pub languages: Vec<ContribLanguage>,
     pub icon_themes: Vec<ContribIconTheme>,
+
+    /// `contributes.debuggers` + `contributes.debugAdapters`, in that order.
+    ///
+    /// Kept on the manifest (not only in the install report) so the extension
+    /// panel can list the adapters a package ships, and so the field survives
+    /// the round trip through `serde` instead of being dropped at the parse
+    /// step — which is what made this contribution invisible.
+    pub debug_adapters: Vec<ContribDebugger>,
 
     pub commands: Vec<super::extensions::ExtCommand>,
 }
@@ -324,6 +362,45 @@ fn parse_contributes(ext_id: &str, v: &Value, dir: &Path) -> Contributes {
             label: sf(i, "label"),
             path,
         });
+    }
+
+    /*
+     * Debug adapters.
+     *
+     * Two keys, because two vocabularies say the same thing: VS Code packages
+     * declare `contributes.debuggers`, Zephyr's own manifests can declare
+     * `contributes.debugAdapters` (the name the panel uses). Both are read into
+     * one list so the report and the panel never have to know which key a
+     * package happened to use.
+     *
+     * An entry with neither `type` nor `label` names nothing, so it is dropped
+     * here — the report cannot say anything useful about it, and keeping it
+     * would only inflate the count.
+     */
+    for kunci in ["debuggers", "debugAdapters"] {
+        for d in arr(v, "contributes", kunci) {
+            let tipe = sf(d, "type");
+            let label = sf(d, "label");
+            if tipe.is_empty() && label.is_empty() {
+                continue;
+            }
+            c.debug_adapters.push(ContribDebugger {
+                tipe,
+                label,
+                program: sf(d, "program"),
+                runtime: sf(d, "runtime"),
+                languages: d
+                    .get("languages")
+                    .and_then(|l| l.as_array())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            });
+        }
     }
 
     c.commands = crate::extensions::parse_commands_pub(ext_id, v, Some(dir));
@@ -856,10 +933,101 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
     }
 
     /*
+     * Debug adapters: `contributes.debuggers` (VS Code) and
+     * `contributes.debugAdapters` (Zephyr's own spelling of the same thing).
+     *
+     * The honest answer today is "detected, not started", and it has a reason
+     * worth writing down rather than a bare "unsupported":
+     *
+     * Zephyr DOES speak DAP — `dap.rs` runs a real adapter over stdio or TCP —
+     * but its registry is FIXED: `dap::adapter_bawaan` answers for exactly two
+     * types, `node` (the bundled js-debug) and `python` (debugpy on PATH), and
+     * `dap_start` builds the command line from `spec_node`/`spec_python`. No
+     * code path reads `program`/`runtime` out of a manifest, so an adapter a
+     * package ships is never spawned, no matter how complete the entry is.
+     * Claiming otherwise would be the same lie the panel was built to stop.
+     *
+     * Two shapes get two different reasons, because they are different
+     * situations for the user:
+     *
+     *   - the `type` is one the built-in registry already answers for
+     *     (`node`, `python`, ...): launch.json of that type already works, and
+     *     it works through the adapter Zephyr ships, not through this package.
+     *   - the `type` is anything else: nothing here can run it.
+     */
+    let mut n_dap_dideklarasikan = 0usize;
+    if let Some(obj) = m.raw.get("contributes").and_then(|x| x.as_object()) {
+        for kunci in ["debuggers", "debugAdapters"] {
+            n_dap_dideklarasikan += match obj.get(kunci) {
+                Some(Value::Array(a)) => a.len(),
+                Some(Value::Object(o)) => o.len(),
+                _ => 0,
+            };
+        }
+    }
+    for d in &c.debug_adapters {
+        let label = if d.label.trim().is_empty() {
+            d.tipe.clone()
+        } else {
+            d.label.clone()
+        };
+        let tipe = if d.tipe.trim().is_empty() {
+            "(no type)".to_string()
+        } else {
+            d.tipe.trim().to_string()
+        };
+
+        /* What the package would have to be launched with, and whether that
+           file is even there. Same evidence standard as the theme/snippet
+           checks above: read the package, do not assume. */
+        let biner = if d.program.trim().is_empty() {
+            if d.runtime.trim().is_empty() {
+                "it declares no program to run".to_string()
+            } else {
+                format!(
+                    "it declares runtime \"{}\" and no program, and neither is read",
+                    d.runtime
+                )
+            }
+        } else if resolve_in_ext(dir, &d.program).is_ok() {
+            format!("the adapter program {} is in the package", d.program)
+        } else {
+            format!(
+                "the declared adapter program {} is not in the package",
+                d.program
+            )
+        };
+
+        let detail = match crate::dap::adapter_bawaan(&d.tipe) {
+            Some(bawaan) => format!(
+                "type \"{tipe}\" is already served by the built-in {bawaan} adapter Zephyr ships (dap.rs), so launch.json of that type works — but through that adapter, not through this package: {biner}, and an adapter from a package is never started"
+            ),
+            None => format!(
+                "type \"{tipe}\" is not in Zephyr's debug registry, which is fixed (node, python — dap.rs): {biner}, and no code path reads program/runtime from a manifest, so this adapter is detected but never run"
+            ),
+        };
+        p.diabaikan.push(ki("debugAdapter", &label, detail));
+    }
+    /* Entries the parser dropped because they name neither a type nor a
+       label. They are still declared, so they are still counted — silently
+       losing them is what this whole report exists to prevent. */
+    let n_dap_tak_bernama = n_dap_dideklarasikan.saturating_sub(c.debug_adapters.len());
+    if n_dap_tak_bernama > 0 {
+        p.diabaikan.push(ki(
+            "debugAdapter",
+            &format!("contributes.debuggers ({n_dap_tak_bernama})"),
+            format!(
+                "{} name neither a \"type\" nor a \"label\", so there is nothing to look up in the debug registry",
+                jumlah_nama(n_dap_tak_bernama, "1 entry", "entries")
+            ),
+        ));
+    }
+
+    /*
      * Everything else in `contributes`.
      *
      * A VS Code manifest can declare menus, views, configuration, task
-     * definitions, debuggers, TextMate grammars. Zephyr consumes none of them,
+     * definitions, TextMate grammars. Zephyr consumes none of them,
      * and the old behaviour was to parse the block, drop the unknown keys, and
      * say nothing. Keys are reported in sorted order so the refusal message for
      * the same package is always the same text.
@@ -875,6 +1043,10 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                     Value::Array(a) => a.len(),
                     _ => 1,
                 };
+                continue;
+            }
+            /* Reported above, per entry, with the reason. */
+            if k == "debuggers" || k == "debugAdapters" {
                 continue;
             }
             if KONTRIB_DIDUKUNG.contains(&k.as_str()) {
@@ -1440,11 +1612,53 @@ pub fn ext_dir_of(state: &AppState, id: &str) -> Option<PathBuf> {
     if d.is_dir() {
         return Some(d);
     }
-    read_installed(state)
+    let dari_tercatat = read_installed(state)
         .into_iter()
         .find(|x| x.id == id)
         .map(|x| PathBuf::from(x.path))
+        .filter(|p| p.is_dir());
+    if dari_tercatat.is_some() {
+        return dari_tercatat;
+    }
+
+    /*
+     * Folder whose name is not the id.
+     *
+     * `extensions_manifests` finds a package by reading every folder under the
+     * extensions directory, so a package whose FOLDER is named differently from
+     * its manifest `id` still appears in the list, enabled. Every command that
+     * then reads a contribution by id - `extensions_read_contrib`,
+     * `extensions_read_main`, `extensions_read_files`, all of which go through
+     * here - looked only at `extensions/<id>` and at `installed.json`, and
+     * neither names that folder. The package was listed and its snippets were
+     * never read: `not found: extension <id>` on every read, which is what a
+     * package like `zephyr-uji.uji30-snippets` (folder `uji30-snippets`) hit.
+     *
+     * The scan reads each candidate's manifest to compare the real id, so a
+     * folder is only accepted when it actually declares this id - guessing from
+     * the folder name would hand back the wrong package.
+     */
+    let dir_ext = crate::extensions::extensions_dir(state);
+    let mut kandidat: Vec<PathBuf> = std::fs::read_dir(&dir_ext)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
         .filter(|p| p.is_dir())
+        .filter(|p| {
+            !p.file_name()
+                .map(|n| n.to_string_lossy().starts_with('.'))
+                .unwrap_or(false)
+        })
+        .collect();
+    kandidat.sort();
+    for p in kandidat {
+        if let Ok(m) = read_manifest(&p) {
+            if m.id == id {
+                return Some(p);
+            }
+        }
+    }
+    None
 }
 
 #[tauri::command]
@@ -2165,6 +2379,215 @@ mod tests_pengaruh {
             p.diabaikan
         );
         assert!(tolak_paket(&m, &p).is_none());
+    }
+
+    /// A package that ships a debug adapter used to be invisible: `debuggers`
+    /// was in the "unknown keys" bucket and was reported as a bare
+    /// "contributes.debuggers — no support yet" line, with the adapter's own
+    /// `type` never looked at. Now each entry is named and judged against the
+    /// debug registry that actually exists (`dap::adapter_bawaan`), and the
+    /// reason says WHY it is not started: the registry is fixed, so an adapter
+    /// from a package is never spawned.
+    #[test]
+    fn adapter_debug_dilaporkan_dengan_alasan_yang_nyata() {
+        let d = dir_uji("debuggers");
+        tulis(&d, "themes/mix.json", &json!({ "colors": { "ui.bg": "#101010" } }).to_string());
+        /* The adapter the package claims to ship. It is really there, so the
+           reason cannot be "the file is missing" — the reason has to be the
+           one that is actually true. */
+        tulis(&d, "debug/my-adapter.js", "module.exports = {};");
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "dap-pack",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": {
+                    "themes": [{ "label": "Mixed Dark", "path": "./themes/mix.json" }],
+                    "debuggers": [
+                        {
+                            "type": "acme-dap",
+                            "label": "Acme Debugger",
+                            "program": "./debug/my-adapter.js",
+                            "languages": ["acme"]
+                        },
+                        { "type": "node", "label": "Acme Node" }
+                    ]
+                }
+            }),
+        );
+
+        /* The theme alone makes it installable: a debug adapter is not counted
+           as something Zephyr can apply, because nothing starts it. */
+        assert!(
+            p.didukung.iter().any(|i| i.kind == "theme"),
+            "{:?}",
+            p.didukung
+        );
+        assert!(
+            !p.didukung.iter().any(|i| i.kind == "debugAdapter"),
+            "an adapter that is never started must not be counted as applied: {:?}",
+            p.didukung
+        );
+
+        let entri: Vec<&KontribItem> = p
+            .diabaikan
+            .iter()
+            .filter(|i| i.kind == "debugAdapter")
+            .collect();
+        assert_eq!(entri.len(), 2, "one line per declared adapter: {:?}", p.diabaikan);
+
+        /* The generic "unknown key" line must be gone: this key is understood
+           now, so it is reported by name, not as an unsupported block. */
+        assert!(
+            !p.diabaikan
+                .iter()
+                .any(|i| i.kind == "debuggers" || i.label == "contributes.debuggers"),
+            "debuggers is no longer an unknown key: {:?}",
+            p.diabaikan
+        );
+
+        let acme = entri
+            .iter()
+            .find(|i| i.label == "Acme Debugger")
+            .expect("the labelled adapter");
+        assert!(acme.detail.contains("acme-dap"), "{}", acme.detail);
+        assert!(
+            acme.detail.contains("is not in Zephyr's debug registry"),
+            "an unknown type must say so: {}",
+            acme.detail
+        );
+        assert!(
+            acme.detail.contains("debug/my-adapter.js is in the package"),
+            "the report reads the package instead of guessing: {}",
+            acme.detail
+        );
+        assert!(
+            acme.detail.contains("never run"),
+            "the reason has to be that it is not started: {}",
+            acme.detail
+        );
+
+        let node = entri
+            .iter()
+            .find(|i| i.label == "Acme Node")
+            .expect("the entry with a known type");
+        assert!(
+            node.detail.contains("built-in node adapter"),
+            "a type the registry already answers for must say so: {}",
+            node.detail
+        );
+        assert!(
+            node.detail.contains("not through this package"),
+            "and must not let the package claim it: {}",
+            node.detail
+        );
+
+        /* The refusal message (when the package has nothing else) carries the
+           same reasons, so "nothing to install" is never silent about why. */
+        let (m2, p2) = muat(
+            &dir_uji("debuggers-saja"),
+            &json!({
+                "name": "dap-only",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": { "debuggers": [{ "type": "acme-dap", "label": "Only DAP" }] }
+            }),
+        );
+        let tolak = tolak_paket(&m2, &p2).expect("a package that only ships an adapter changes nothing here");
+        assert!(tolak.contains("Only DAP"), "{tolak}");
+        assert!(tolak.contains("debugAdapter"), "{tolak}");
+        assert!(!m2.contributes.debug_adapters.is_empty());
+    }
+
+    /// `debugAdapters` is Zephyr's own spelling of the same contribution, and
+    /// both keys land in one list — so a manifest written either way shows up
+    /// in the panel instead of only the VS Code one.
+    #[test]
+    fn debug_adapters_dan_debuggers_mendarat_di_satu_daftar() {
+        let d = dir_uji("debug-adapters-kunci");
+        tulis(&d, "themes/t.json", &json!({ "colors": { "ui.bg": "#101010" } }).to_string());
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "both-keys",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": {
+                    "themes": [{ "label": "T", "path": "./themes/t.json" }],
+                    "debuggers": [{ "type": "vscode-style", "label": "VS Code Style" }],
+                    "debugAdapters": [
+                        { "type": "zephyr-style", "label": "Zephyr Style", "runtime": "node" }
+                    ]
+                }
+            }),
+        );
+
+        assert_eq!(
+            m.contributes.debug_adapters.len(),
+            2,
+            "both keys are read: {:?}",
+            m.contributes.debug_adapters
+        );
+        assert_eq!(m.contributes.debug_adapters[0].tipe, "vscode-style");
+        assert_eq!(m.contributes.debug_adapters[1].tipe, "zephyr-style");
+        assert_eq!(m.contributes.debug_adapters[1].runtime, "node");
+
+        let entri: Vec<&KontribItem> = p
+            .diabaikan
+            .iter()
+            .filter(|i| i.kind == "debugAdapter")
+            .collect();
+        assert_eq!(entri.len(), 2, "{:?}", p.diabaikan);
+        assert!(
+            entri.iter().any(|i| i.detail.contains("runtime \"node\"")),
+            "a declared runtime with no program is reported as such: {:?}",
+            entri
+        );
+    }
+
+    /// An entry that names neither a type nor a label is dropped from the list
+    /// (there is nothing to look up) but is still COUNTED, so a manifest can
+    /// never declare something the panel is silent about.
+    #[test]
+    fn entri_debugger_tanpa_nama_tetap_dihitung() {
+        let d = dir_uji("debugger-tanpa-nama");
+        tulis(&d, "themes/t.json", &json!({ "colors": { "ui.bg": "#101010" } }).to_string());
+
+        let (m, p) = muat(
+            &d,
+            &json!({
+                "name": "nameless",
+                "publisher": "acme",
+                "version": "1.0.0",
+                "contributes": {
+                    "themes": [{ "label": "T", "path": "./themes/t.json" }],
+                    "debuggers": [{ "program": "./x.js" }, { "type": "acme-dap", "label": "Named" }]
+                }
+            }),
+        );
+
+        assert_eq!(m.contributes.debug_adapters.len(), 1, "one entry names something");
+        let entri: Vec<&KontribItem> = p
+            .diabaikan
+            .iter()
+            .filter(|i| i.kind == "debugAdapter")
+            .collect();
+        assert_eq!(
+            entri.len(),
+            2,
+            "the nameless entry is reported too: {:?}",
+            p.diabaikan
+        );
+        assert!(
+            entri
+                .iter()
+                .any(|i| i.detail.contains("name neither a \"type\" nor a \"label\"")),
+            "{:?}",
+            entri
+        );
     }
 }
 

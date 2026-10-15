@@ -370,6 +370,8 @@ export interface ContributesPaket {
     cmLang?: string;
     grammars?: unknown[];
   }[];
+  debuggers?: { type?: string; label?: string; program?: string; runtime?: string }[];
+  debugAdapters?: { type?: string; label?: string; program?: string; runtime?: string }[];
   commands?: { command?: string; title?: string }[];
 }
 
@@ -579,6 +581,29 @@ export function laporanBuktiPerubahan(m: ManifestPaket, baca: Baca): LaporanBukt
   if (grammar.length > 0) {
     out.diabaikan.push(
       ki('grammar', 'grammars', `${jumlahNama(grammar.length, '1 TextMate grammar', 'TextMate grammars')} - Zephyr has no TextMate engine, so highlighting stays with the built-in languages`),
+    );
+  }
+
+  /* Debug adapter: deklaratif juga, dan Zephyr memang bicara DAP (`dap.rs`) -
+     tetapi registry adapter-nya tetap (node, python) dan tidak ada jalur kode
+     yang membaca program/runtime dari manifest. Jadi ini dilaporkan sebagai
+     diabaikan dengan sebab yang nyata, bukan dihitung sebagai bukti - dan
+     BUKAN "unsupported", karena protokolnya ada. Cermin dari blok yang sama di
+     `ext_pkg.rs::pengaruh_paket`. */
+  const dap = [
+    ...daftar(cc.debuggers),
+    ...daftar(cc.debugAdapters),
+  ];
+  if (dap.length > 0) {
+    const nama = dap
+      .map((d) => (d.label ?? '').trim() || (d.type ?? '').trim() || '(unnamed)')
+      .join(', ');
+    out.diabaikan.push(
+      ki(
+        'debugAdapter',
+        'debuggers',
+        `${jumlahNama(dap.length, '1 debug adapter', 'debug adapters')} (${nama}) - detected but not started: Zephyr's adapter registry is fixed (node, python - dap.rs) and no code path reads program/runtime from a manifest, so an adapter from a package is never launched`,
+      ),
     );
   }
 

@@ -1007,8 +1007,15 @@ export const mcpCliStatus = () => invoke<CliStatus[]>('mcp_cli_status');
 
 export const mcpClientList = () => invoke<McpServer[]>('mcp_client_list');
 
-export const mcpClientTools = (url: string, token: string) =>
-  invoke<McpToolSpec[]>('mcp_client_tools', { url, token });
+/**
+ * Daftar tool sebuah server MCP.
+ *
+ * `server` (id) lebih diutamakan: server stdio tidak punya URL sama sekali -
+ * mereka dijalankan sebagai proses - jadi memanggilnya dengan url saja selalu
+ * gagal. `url`/`token` tetap ada untuk server http ad-hoc yang belum tersimpan.
+ */
+export const mcpClientTools = (server: string, url: string, token: string) =>
+  invoke<McpToolSpec[]>('mcp_client_tools', { server, url, token });
 
 export const mcpClientCall = (server: string, tool: string, args?: Record<string, unknown>) =>
   invoke<unknown>('mcp_client_call', { server, tool, args: args ?? {} });

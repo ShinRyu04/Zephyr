@@ -641,6 +641,22 @@ export interface ContribIconTheme {
   path: string;
 }
 
+/**
+ * One `contributes.debuggers` / `contributes.debugAdapters` entry.
+ *
+ * `type` is the string a `launch.json` configuration names, and the only key
+ * Zephyr's debug registry is looked up by (`dap::adapter_bawaan` in
+ * `src-tauri/src/dap.rs`). The rest is carried so the panel can name the
+ * adapter and say what it would need to be started with.
+ */
+export interface ContribDebugger {
+  type: string;
+  label: string;
+  program: string;
+  runtime: string;
+  languages: string[];
+}
+
 export interface ContribGrammar {
   language: string;
   scopeName: string;
@@ -654,6 +670,17 @@ export interface ExtContributes {
   languages: ContribLanguage[];
   iconThemes: ContribIconTheme[];
   commands: ExtCommand[];
+
+  /*
+   * Debug adapters are listed here because VS Code extensions declare them,
+   * and the panel has a category for them. Zephyr DOES speak DAP (`dap.rs`),
+   * but its adapter registry is fixed — node (js-debug) and python (debugpy) —
+   * and nothing reads `program`/`runtime` out of a manifest, so an adapter a
+   * package ships is detected and reported, never started. Kept on the
+   * manifest so the field survives re-serialise and the panel can show it
+   * instead of the contribution vanishing at parse time.
+   */
+  debugAdapters?: ContribDebugger[];
 
   /*
    * TextMate grammars are listed here because VS Code extensions contain them,

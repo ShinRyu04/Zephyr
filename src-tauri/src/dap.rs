@@ -289,12 +289,45 @@ fn cari_python(_state: &AppState) -> Option<PathBuf> {
     None
 }
 
-pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
+/// Which built-in adapter serves a debug `type`, or `None`.
+///
+/// One match for two callers: `spec_untuk` (what can be started) and
+/// `adapter_bawaan` (what the extension report is allowed to claim). Written
+/// once so the answer the debugger gives and the answer the report gives can
+/// never drift apart — the report used to carry its own copy of the list.
+///
+/// `tipe_untuk_adapter` below also knows `chrome`/`msedge`, but those are only
+/// used to NAME the adapter in the `initialize` request; `spec_untuk` has never
+/// accepted them as a configuration type, and this refactor does not change
+/// that (a separate, pre-existing gap — see `tipe_untuk_adapter`).
+fn bawaan_untuk(tipe: &str) -> Option<&'static str> {
     match tipe {
-        "node" | "pwa-node" | "node-terminal" | "pwa-chrome" => Ok(spec_node(state)),
-        "python" | "debugpy" => Ok(spec_python(state)),
-        lain => Err(ZephyrError::InvalidInput(format!(
-            "debug type \"{lain}\" is not supported yet (v1: node, python)"
+        "node" | "pwa-node" | "node-terminal" | "pwa-chrome" => Some("node"),
+        "python" | "debugpy" => Some("python"),
+        _ => None,
+    }
+}
+
+/// The built-in adapter that serves a debug `type`, or `None`.
+///
+/// Exposed for the extension report (`ext_pkg::pengaruh_paket`): a package that
+/// declares `contributes.debuggers` is judged against the registry that
+/// actually exists here, instead of against a second list kept in the report.
+/// The registry is fixed — node (js-debug) and python (debugpy) — and nothing
+/// in it is read from a package manifest.
+pub fn adapter_bawaan(tipe: &str) -> Option<&'static str> {
+    bawaan_untuk(tipe)
+}
+
+pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
+    match bawaan_untuk(tipe) {
+        Some("node") => Ok(spec_node(state)),
+        Some("python") => Ok(spec_python(state)),
+        Some(lain) => Err(ZephyrError::Internal(format!(
+            "built-in adapter \"{lain}\" has no spec"
+        ))),
+        None => Err(ZephyrError::InvalidInput(format!(
+            "debug type \"{tipe}\" is not supported yet (v1: node, python)"
         ))),
     }
 }
@@ -1302,6 +1335,23 @@ mod tests {
                 matches!(t, "node" | "pwa-node" | "node-terminal"),
                 "alias {t} harus dikenal"
             );
+        }
+    }
+
+    /// `adapter_bawaan` is the answer the extension report uses, and
+    /// `spec_untuk` is the answer the debugger uses. They must agree on every
+    /// type, or a package would be judged against a registry that does not
+    /// match the one that starts adapters.
+    #[test]
+    fn adapter_bawaan_sepakat_dengan_registry_yang_dipakai_dap_start() {
+        for t in ["node", "pwa-node", "node-terminal", "pwa-chrome"] {
+            assert_eq!(adapter_bawaan(t), Some("node"), "{t}");
+        }
+        for t in ["python", "debugpy"] {
+            assert_eq!(adapter_bawaan(t), Some("python"), "{t}");
+        }
+        for t in ["", "acme-dap", "chrome", "msedge", "ruby", "go"] {
+            assert_eq!(adapter_bawaan(t), None, "{t} harus di luar registry");
         }
     }
 }

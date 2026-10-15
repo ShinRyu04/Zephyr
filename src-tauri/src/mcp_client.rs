@@ -123,7 +123,24 @@ fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
     let mut req = agent()
         .post(alamat)
         .header("Content-Type", "application/json")
-        .header("Accept", "application/json");
+        /*
+         * `Accept` menyebut KEDUA tipe, bukan hanya application/json.
+         *
+         * Spesifikasi MCP (transport "streamable HTTP") mewajibkan klien
+         * menerima `application/json` DAN `text/event-stream`, dan server yang
+         * taat - Context7, DeepWiki, GitHub - MENOLAK permintaan yang hanya
+         * menyebut JSON dengan 406 Not Acceptable. Jawabannya:
+         *
+         *   Not Acceptable: Client must accept both application/json and
+         *   text/event-stream
+         *
+         * Akibatnya SELURUH server MCP http yang dipasang dari katalog gagal
+         * dibaca tool-nya - dan gagalnya berbentuk 406, bukan daftar kosong,
+         * sehingga terbaca seperti server yang rusak, bukan klien yang salah
+         * minta. Menyebut kedua tipe di sini membuat server menjawab, dan
+         * `parse_jawaban` di bawah yang mengurus bentuk balasannya.
+         */
+        .header("Accept", "application/json, text/event-stream");
     let bersih = token.trim();
     if !bersih.is_empty() {
         req = req.header("Authorization", &format!("Bearer {bersih}"));
@@ -143,8 +160,7 @@ fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
         )));
     }
 
-    let v: Value = serde_json::from_str(&raw)
-        .map_err(|e| ZephyrError::Mcp(format!("jawaban server MCP bukan JSON: {e}")))?;
+    let v = parse_jawaban(&raw)?;
     if let Some(err) = v.get("error") {
         let pesan = err
             .get("message")
@@ -155,6 +171,57 @@ fn rpc(url: &str, token: &str, method: &str, params: Value) -> ZResult<Value> {
     }
     Ok(v.get("result").cloned().unwrap_or(Value::Null))
 }
+
+/**
+ * Baca jawaban server MCP, JSON langsung ATAU terbungkus SSE.
+ *
+ * Server "streamable HTTP" boleh menjawab dengan satu objek JSON, atau dengan
+ * aliran `text/event-stream` yang isinya baris `data: {…}`. Keduanya sah, dan
+ * server yang sama boleh memilih bentuk berbeda per metode - jadi klien yang
+ * hanya paham satu bentuk akan tampak "server rusak" pada metode tertentu saja.
+ *
+ * Balasan SSE dicoba dua cara: seluruh baris `data:` digabung lebih dulu
+ * (satu event yang dipecah beberapa baris), lalu tiap baris dicoba sendiri
+ * (beberapa event dalam satu balasan). Yang pertama berhasil dipakai.
+ */
+fn parse_jawaban(raw: &str) -> ZResult<Value> {
+    let teks = raw.trim();
+    if teks.is_empty() {
+        return Err(ZephyrError::Mcp("server MCP menjawab kosong".into()));
+    }
+    if teks.starts_with('{') || teks.starts_with('[') {
+        return serde_json::from_str(teks)
+            .map_err(|e| ZephyrError::Mcp(format!("jawaban server MCP bukan JSON: {e}")));
+    }
+
+    let mut data: Vec<String> = Vec::new();
+    for baris in teks.lines() {
+        if let Some(sisa) = baris.trim_start().strip_prefix("data:") {
+            let s = sisa.trim();
+            if !s.is_empty() {
+                data.push(s.to_string());
+            }
+        }
+    }
+    if data.is_empty() {
+        return Err(ZephyrError::Mcp(format!(
+            "jawaban server MCP tidak dikenali: {}",
+            teks.chars().take(200).collect::<String>()
+        )));
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(&data.join("")) {
+        return Ok(v);
+    }
+    for baris in &data {
+        if let Ok(v) = serde_json::from_str::<Value>(baris) {
+            return Ok(v);
+        }
+    }
+    Err(ZephyrError::Mcp(
+        "jawaban SSE server MCP bukan JSON".into(),
+    ))
+}
+
 
 pub fn list_tools(url: &str, token: &str) -> ZResult<Vec<McpToolSpec>> {
     let result = rpc(url, token, "tools/list", json!({}))?;
@@ -249,13 +316,26 @@ pub fn get_prompt(url: &str, token: &str, name: &str, args: Value) -> ZResult<Va
     )
 }
 
-pub fn call_by_server(state: &AppState, server: &str, tool: &str, args: Value) -> ZResult<Value> {
-    let id = server.trim();
+/**
+ * Cari server MCP terdaftar berdasarkan id atau label.
+ *
+ * Diekspos supaya jalur LAIN (mis. `mcp_client_tools`) memakai pencarian yang
+ * sama dengan `call_by_server` - dua cara mencari server adalah dua tempat yang
+ * bisa berbeda pendapat soal server mana yang dimaksud.
+ */
+pub fn cari_server(state: &AppState, id: &str) -> Option<McpServer> {
+    let id = id.trim();
     let daftar = servers_of(state);
-    let s = daftar
+    daftar
         .iter()
         .find(|s| s.id == id)
         .or_else(|| daftar.iter().find(|s| s.label.eq_ignore_ascii_case(id)))
+        .cloned()
+}
+
+pub fn call_by_server(state: &AppState, server: &str, tool: &str, args: Value) -> ZResult<Value> {
+    let id = server.trim();
+    let s = cari_server(state, id)
         .ok_or_else(|| ZephyrError::NotFound(format!("server MCP '{id}' tidak terdaftar")))?;
     if s.stdio() {
         return crate::mcp_stdio::call_tool(

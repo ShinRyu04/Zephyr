@@ -673,3 +673,50 @@
 .ext-reg-row[data-testid='ext-reg-bundled'] .ext-reg-url {
   color: var(--text-muted);
 }
+
+/* ── Katalog MCP server (tab "MCP Servers") ───────────────────────────────
+ *
+ * Kartunya memakai kerangka `.xc` yang sama dengan kartu ekstensi, jadi yang
+ * ditambahkan di sini hanya bagian yang KHAS server MCP: baris perintah dan
+ * catatan.
+ *
+ * `.xc-desc` secara bawaan `white-space: nowrap` + ellipsis - benar untuk satu
+ * baris deskripsi, salah untuk baris perintah: `npx -y @brave/brave-search-mcp-server`
+ * akan terpotong persis di bagian yang paling perlu dibaca (paket apa yang
+ * dijalankan). Keduanya di bawah ini membungkus, dan perintahnya memakai font
+ * monospace supaya bisa dibedakan dari prosa.
+ */
+.xc-mcp-perintah {
+  display: block;
+  padding: 2px 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Catatan syarat: dibungkus, dan ditarik sedikit lebih terang daripada
+   perintahnya karena ini peringatan, bukan rincian teknis. */
+.xc-mcp-catatan {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* Kategori MCP lebih panjang daripada kategori ekstensi ("Documentation"),
+   jadi batas 12ch milik `.xc-cat-badge` dilonggarkan di sini. */
+article[data-mcp-card] .xc-cat-badge {
+  max-width: 16ch;
+}
+
+/* Penanda "sudah terpasang" DIBUANG bersama pemakaiannya: kartu MCP yang
+   terpasang kini menampilkan tombol Uninstall, bukan teks "Installed" yang
+   tidak bisa ditekan. Aturan `.xc-mcp-sudah` dihapus karena tidak ada lagi
+   elemen yang memakainya. */

@@ -3812,6 +3812,42 @@ const AR: Dict = {
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };
 
+/**
+ * English text -> the Indonesian key it is the translation of.
+ *
+ * `EN` is the only block that maps Indonesian key -> English text, so reading
+ * it backwards turns an English call site into the Indonesian key the rest of
+ * the dictionaries are filed under. `translate()` consults this when a key is
+ * not found directly, which is what stops `tr('Stop')` from rendering English
+ * in the Indonesian interface.
+ *
+ * Built lazily and cached: the dictionaries are only complete after
+ * `muatKamusTambahan()` has resolved, and building this on every `tr()` would
+ * walk ~2700 entries per render. `EXTRA` is read once per build and the cache is
+ * thrown away when the extra dictionary arrives, so the index always covers both
+ * files.
+ */
+let indeksInggris: Map<string, string> | null = null;
+let indeksDariExtra: Record<string, Dict> | null = null;
+
+function enKeId(): Map<string, string> {
+  if (indeksInggris && indeksDariExtra === EXTRA) return indeksInggris;
+  const m = new Map<string, string>();
+  /*
+   * EN from i18n.ts first, then i18n-extra.ts, so the earlier (hand-written)
+   * entries win and the index is stable no matter which file added a key last.
+   */
+  for (const sumber of [EN, EXTRA.en ?? {}]) {
+    for (const [k, v] of Object.entries(sumber)) {
+      if (!v || v === k) continue;
+      if (!m.has(v)) m.set(v, k);
+    }
+  }
+  indeksInggris = m;
+  indeksDariExtra = EXTRA;
+  return m;
+}
+
 export const UI_LANGS: { value: string; label: string }[] = [
   { value: 'id', label: 'Indonesia' },
   { value: 'en', label: 'English' },
@@ -3919,6 +3955,62 @@ export function translate(lang: string, key: string): string {
   // ES/… translation was already available - that was the cause of "switch language and it is still English
   // Inggris".
   const own = EXTRA[lang]?.[key] ?? DICTS[lang]?.[key];
+
+  /*
+   * An IDENTITY entry is a placeholder, not a translation.
+   *
+   * The Indonesian block is full of `'Stop': 'Stop'`, `'History': 'History'`,
+   * `'Run': 'Run'` - 1588 of its 2400 entries in i18n-extra.ts are the key
+   * repeated. They exist because the generator that wrote that block filed every
+   * English string under itself. For `lang === 'id'` such an entry says nothing
+   * ("the Indonesian for 'Stop' is 'Stop'"), and returning it early is what kept
+   * the real Indonesian - `'Matikan'`, `'Riwayat'`, `'Jalankan'` - from being
+   * found through the English index below. So for Indonesian an identity entry is
+   * treated as "no entry" and the lookup continues; for every other language it
+   * is a legitimate answer and is returned as before.
+   */
+  const identitas = own !== undefined && own === key;
+  if (own !== undefined && !(lang === 'id' && identitas)) return own;
+
+  /*
+   * The same string, called by its ENGLISH text.
+   *
+   * The dictionaries are keyed on the Indonesian text (`'Matikan'`, `'Riwayat'`,
+   * `'Sembunyikan panel AI'`), but plenty of call sites pass the English text
+   * (`tr('Stop')`, `tr('History')`, `tr('Hide AI panel')`). Those keys are not
+   * in the dictionary under that spelling, so the lookup fell all the way
+   * through to the last resort and `translate()` returned the English text
+   * unchanged - the Indonesian interface rendered "Stop" and "History" while
+   * `tr('Matikan')` right next to it rendered correctly. That is the mixed
+   * language the user reported, and it is a lookup failure, not missing data:
+   * the Indonesian entry for those strings was already in the dictionary, filed
+   * under its Indonesian key.
+   *
+   * `EN` is the one block that maps Indonesian key -> English text, so it is
+   * also the reverse index: English text -> Indonesian key. Translating THAT
+   * key gives every language the same answer as the Indonesian call site, with
+   * no second copy of any string.
+   *
+   * Built lazily and cached - this runs on every `tr()` in every render, and
+   * walking ~2700 entries per lookup would be a real cost.
+   */
+  const lewatInggris = enKeId().get(key);
+  if (lewatInggris !== undefined && lewatInggris !== key) {
+    const v = EXTRA[lang]?.[lewatInggris] ?? DICTS[lang]?.[lewatInggris];
+    if (v !== undefined) {
+      /*
+       * For Indonesian the Indonesian KEY is itself the text (`'Matikan'`), so
+       * a value that is only the English placeholder we started from
+       * (`'Sembunyikan panel AI' => 'Hide AI panel'`) is skipped in favour of the
+       * key. A symbolic key (`'nav.settings'`) keeps its value, because there the
+       * value is the readable text and the key is not.
+       */
+      if (lang === 'id' && v === key) return lewatInggris;
+      return v;
+    }
+    if (lang === 'id') return lewatInggris;
+  }
+
   if (own !== undefined) return own;
   const src = SRC[key];
   if (src !== undefined) return lang === 'id' ? key : src;
