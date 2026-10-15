@@ -237,6 +237,36 @@ export function ringkasUkuran<T extends { role: string; content?: unknown; image
    * together with the tool results that follow it, and a tool result whose call
    * is gone is removed too.
    */
+  /*
+   * POTONG EKOR LEBIH DULU, sebelum membuang riwayat dari depan.
+   *
+   * `while (ukuran() > cap)` di bawah membuang unit dari DEPAN sampai muat.
+   * Akibatnya blok pemotongan ekor (yang duduk di akhir fungsi) tidak pernah
+   * menyala: begitu kendali sampai ke sana, `ukuran() <= cap` sudah terpenuhi -
+   * dan yang dibayar untuk itu adalah riwayat yang lenyap dari awal percakapan.
+   *
+   * Urutannya dibalik karena kerugiannya tidak setara. Memotong ekor kehilangan
+   * sebagian isi SATU hasil terakhir, dan model diberi tahu berapa yang tidak
+   * ikut lewat catatan di badan pesannya. Membuang unit dari depan kehilangan
+   * seluruh langkah beserta hasil tool-nya, tanpa satu pun catatan yang terlihat
+   * model - jadi ia bisa menjawab seolah ingat sesuatu yang sudah tidak dikirim.
+   */
+  if (ukuran() > cap && clone.length > 0) {
+    const idx = clone.length - 1;
+    const terakhir = clone[idx];
+    const isiEkor = typeof terakhir.content === 'string' ? terakhir.content : '';
+    const MIN_EKOR = 400;
+    if (isiEkor.length > MIN_EKOR) {
+      const lebih = ukuran() - cap;
+      const target = Math.max(MIN_EKOR, isiEkor.length - Math.max(0, lebih) - 240);
+      const simpan = Math.min(target, isiEkor.length - 1);
+      clone[idx] = {
+        ...terakhir,
+        content: `${isiEkor.slice(0, simpan)}\n\n[isi dipotong agar request tidak melebihi batas gateway: ${isiEkor.length} karakter, hanya ${simpan} pertama yang dikirim]`,
+      } as T;
+    }
+  }
+
   while (ukuran() > cap && clone.length > 2) {
     const pertama = clone[0];
     if (pertama?.role === 'tool') {
@@ -306,8 +336,27 @@ export function ringkasUkuran<T extends { role: string; content?: unknown; image
     const terakhir = clone[idx];
     const isi = typeof terakhir.content === 'string' ? terakhir.content : '';
     const MIN = 400;
+    /*
+     * `simpan` HARUS benar-benar lebih pendek dari `isi`.
+     *
+     * Versi lama menghitung `max(MIN, isi.length - kelebihan - 240)`. Ketika
+     * pesan terakhir JAUH lebih besar daripada kelebihannya (kasus yang paling
+     * sering: cap pesan-saja sudah cukup, yang lewat cuma batas payload),
+     * `kelebihan` kecil sehingga hasilnya sama dengan `isi.length` - pesannya
+     * dikirim UTUH sambil tetap memasang catatan "dipotong". Yang dibaca model
+     * jadi salah dua kali: ia tidak tahu ada yang hilang, dan catatannya
+     * mengklaim ada pemotongan yang tidak terjadi.
+     *
+     * Lantai MIN sekarang juga jadi PLAFON: kalau pesan aslinya di atas MIN,
+     * yang dikirim tidak boleh lebih dari `isi.length - 1` supaya pemotongan
+     * dan catatannya sama-sama benar. Pesan yang memang lebih pendek dari MIN
+     * dibiarkan utuh - memotong 300 karakter jadi 299 hanya menyulitkan model
+     * tanpa menghemat apa pun.
+     */
     if (isi.length > MIN) {
-      const simpan = Math.max(MIN, isi.length - (ukuran() - cap) - 240);
+      const lebih = ukuran() - cap;
+      const target = Math.max(MIN, isi.length - Math.max(0, lebih) - 240);
+      const simpan = Math.min(target, isi.length - 1);
       clone[idx] = {
         ...terakhir,
         content: `${isi.slice(0, simpan)}\n\n[isi dipotong agar request tidak melebihi batas gateway: ${isi.length} karakter, hanya ${simpan} pertama yang dikirim]`,
