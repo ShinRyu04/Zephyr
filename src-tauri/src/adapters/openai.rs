@@ -593,6 +593,57 @@ fn ambil_objek_terluar(s: &str) -> Option<&str> {
 }
 
 /**
+ * Bentuk argumen yang rusak karena DUA objek JSON ditumpuk berurutan.
+ *
+ * Kasus nyata (provider fusion, 2026-10-15): model menulis lebih dari satu
+ * panggilan di dalam SATU field `arguments`, jadi isinya menjadi dua objek
+ * yang berdampingan - objek pertama lengkap, lalu objek kedua menempel
+ * langsung di belakangnya tanpa pemisah.
+ *
+ * `serde_json::from_str` menolaknya (`trailing characters`), lalu run mati
+ * dengan "returned malformed JSON arguments" - berkali-kali dalam satu run
+ * (11 dari 56 langkah pada run itu), yang di UI terbaca sebagai deretan merah.
+ *
+ * Yang diambil adalah objek PERTAMA yang lengkap: itu panggilan yang paling
+ * mungkin dimaksud, dan ia valid sebagaimana ditulis. Sisa teks setelahnya
+ * DIBUANG, bukan digabung - menggabungkan dua objek bisa menghasilkan argumen
+ * yang tidak pernah ditulis model (kunci bertabrakan, nilai saling menimpa),
+ * dan tool yang jalan dengan argumen karangan lebih buruk daripada satu
+ * panggilan yang jelas. Sisa itu tidak hilang percuma: pemanggil tetap
+ * melaporkan cuplikan mentahnya kalau parse pertama ini pun gagal.
+ *
+ * Kurung kurawik dihitung dengan kedalaman, MENGHORMATI string dan escape,
+ * supaya nilai yang mengandung kurung tutup tidak memotong objek di tengah.
+ */
+fn ambil_objek_pertama_utuh(s: &str) -> Option<&str> {
+    let mulai = s.find('{')?;
+    let mut dalam_string = false;
+    let mut lolos = false;
+    let mut dalam = 0i32;
+    for (offset, ch) in s[mulai..].char_indices() {
+        if lolos {
+            lolos = false;
+            continue;
+        }
+        match ch {
+            '\\' if dalam_string => lolos = true,
+            '"' => dalam_string = !dalam_string,
+            '{' if !dalam_string => dalam += 1,
+            '}' if !dalam_string => {
+                dalam -= 1;
+                if dalam == 0 {
+                    let akhir = mulai + offset + ch.len_utf8();
+                    let calon = &s[mulai..akhir];
+                    return serde_json::from_str::<Value>(calon).ok().map(|_| calon);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/**
  * Parse a tool call's arguments, undoing the lexical damage above first.
  *
  * The order is cheapest-first: as-is, control characters escaped, trailing
@@ -665,6 +716,17 @@ fn parse_argumen_tool(raw: &str, truncated: bool, name: &str) -> Result<Value, S
             if let Ok(v) = serde_json::from_str::<Value>(&tekar) {
                 return Ok(v);
             }
+        }
+    }
+    /* Kandidat penyelamat lain: DUA objek (atau lebih) ditumpuk berurutan di
+       dalam satu field `arguments`. Model yang menulis beberapa panggilan pada
+       satu giliran kadang menggabungkannya jadi satu string -
+       `{...}{...}` - dan `from_str` menolak ekor itu sebagai *trailing
+       characters*. Ambil objek PERTAMA yang lengkap, seperti dijelaskan di
+       `ambil_objek_pertama_utuh`. */
+    if let Some(pertama) = ambil_objek_pertama_utuh(bersih) {
+        if let Ok(v) = serde_json::from_str::<Value>(pertama) {
+            return Ok(v);
         }
     }
     if truncated {
@@ -889,6 +951,52 @@ mod tests {
         let hasil = parse_tool_response(&response).expect("kurung sibuk harus jadi kurawik");
         assert_eq!(hasil.tool_calls[0].args["path"], "a.txt");
         assert_eq!(hasil.tool_calls[0].args["tags"], json!(["x", "y"]));
+    }
+
+    #[test]
+    fn repairs_stacked_objects_in_tool_arguments() {
+        /* Kasus nyata (provider fusion): model menulis DUA panggilan di dalam
+           satu field `arguments`, jadi isinya `{...}{...}`. `from_str` menolak
+           ekornya sebagai trailing characters dan run mati dengan "malformed
+           JSON arguments" - berulang kali dalam satu run. Yang benar: pakai
+           objek PERTAMA yang lengkap, karena itulah panggilan yang dimaksud. */
+        let args = r#"{"pattern": "_arsip/**/*", "root": "D:/Testing"}{"pattern": "**/_kurs*"}"#;
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": { "name": "glob", "arguments": args }
+                    }]
+                }
+            }]
+        });
+
+        let hasil = parse_tool_response(&response).expect("objek pertama harus diambil");
+        assert_eq!(hasil.tool_calls[0].args["pattern"], "_arsip/**/*");
+        assert_eq!(hasil.tool_calls[0].args["root"], "D:/Testing");
+    }
+
+    #[test]
+    fn keeps_braces_inside_strings_whole_when_unstacking() {
+        /* Kedalaman kurung dihitung menghormati string: `}` di dalam nilai
+           tidak boleh mengakhiri objek lebih awal, atau argumennya terpotong
+           di tengah dan berkas yang benar jadi rusak. */
+        let args = r#"{"path": "a}b.txt", "content": "x"}{"path": "lain.txt"}"#;
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": { "name": "write_file", "arguments": args }
+                    }]
+                }
+            }]
+        });
+
+        let hasil = parse_tool_response(&response).expect("kurung dalam string harus utuh");
+        assert_eq!(hasil.tool_calls[0].args["path"], "a}b.txt");
+        assert_eq!(hasil.tool_calls[0].args["content"], "x");
     }
 
     #[test]
