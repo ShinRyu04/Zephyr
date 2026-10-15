@@ -4,7 +4,7 @@ import { KATALOG_BUNDLED, type KatalogItem } from './extCatalog';
 import { muatSemuaEkstensi, ringkasanLoader, type LoaderRingkasan } from './extLoader';
 import type { ExtInstallHasil, ExtKontribItem, ExtManifestStatus, ExtPengaruh } from './types';
 
-export type ExtTab = 'installed' | 'recommended' | 'marketplace';
+export type ExtTab = 'installed' | 'recommended' | 'marketplace' | 'mcp';
 
 /**
  * The header Rust puts on a refusal for a package with nothing the app can use
@@ -387,6 +387,14 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
         (it) => cocok(it, q) && (!kategori || it.categories.includes(kategori)),
       );
     }
+    /*
+     * Tab 'mcp' punya daftarnya sendiri (katalog server, `katalogMcpServer.ts`),
+     * bukan hasil turunan katalog ekstensi. Tanpa cabang ini ia jatuh ke cabang
+     * "Installed" di bawah dan menampilkan paket yang SUDAH terpasang - daftar
+     * yang salah untuk sebuah tab yang isinya justru hal yang belum dipasang.
+     */
+    if (tab === 'mcp') return [];
+
     if (tab === 'recommended') {
       return get().rekomendasi().filter((it) => cocok(it, q));
     }

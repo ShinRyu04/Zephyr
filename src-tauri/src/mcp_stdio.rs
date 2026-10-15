@@ -77,6 +77,50 @@ fn kunci(id: &str) -> String {
 }
 
 /**
+ * Bangun perintah untuk server stdio, dengan satu penyesuaian Windows.
+ *
+ * Di Windows, `npx` (dan `uvx`, `pnpm`, `yarn`, `gradlew`) BUKAN program yang
+ * bisa dieksekusi: yang ada di disk adalah skrip batch `npx.cmd`. `CreateProcess`
+ * - yang dipakai `Command::new` - hanya menambahkan akhiran `.exe` saat mencari,
+ * jadi `Command::new("npx")` gagal dengan:
+ *
+ *     gagal menjalankan server MCP 'npx': program not found
+ *
+ * Itu persis yang terjadi pada SELURUH server MCP yang dipasang dari katalog,
+ * karena semuanya memakai `npx -y <paket>`. Tanpa cabang ini, transport stdio
+ * hanya bekerja kalau pemakai menulis `npx.cmd` sendiri - dan kartu katalog
+ * menulis `npx`.
+ *
+ * Skrip batch juga tidak bisa dijalankan langsung oleh `CreateProcess`; ia
+ * harus lewat `cmd.exe`. Karena itu perintah tanpa akhiran dijalankan sebagai
+ * `cmd /C <perintah> <args>`, bentuk yang sama dipakai npm saat memanggil
+ * skrip sendiri. Nama yang sudah berakhiran (`.exe`, `.cmd`, `.bat`) atau
+ * berupa jalur absolut dibiarkan apa adanya: pemakai yang menulisnya sudah tahu
+ * apa yang ia maksud, dan membungkusnya dua kali hanya menambah lapisan yang
+ * bisa salah.
+ *
+ * Cabang ini `#[cfg(windows)]` supaya perilaku di Linux/macOS - tempat `npx`
+ * memang executable - tidak berubah sama sekali.
+ */
+#[cfg(windows)]
+fn perintah_untuk(nama: &str) -> Command {
+    let polos = !nama.contains('/')
+        && !nama.contains('\\')
+        && !nama.contains('.');
+    if polos {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C").arg(nama);
+        return cmd;
+    }
+    Command::new(nama)
+}
+
+#[cfg(not(windows))]
+fn perintah_untuk(nama: &str) -> Command {
+    Command::new(nama)
+}
+
+/**
  * Pastikan ada proses hidup untuk server ini; kembalikan kunci petanya.
  *
  * Server yang sudah mati (prosesnya keluar karena crash atau `exit`) TIDAK
@@ -111,7 +155,7 @@ fn pastikan_hidup(id: &str, perintah: &str, args: &[String], cwd: Option<&str>) 
         ));
     }
 
-    let mut cmd = Command::new(nama);
+    let mut cmd = perintah_untuk(nama);
     cmd.args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

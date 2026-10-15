@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import {
   useExt19,
   setBahasaWorkspace,
-  type ExtKabar,
   type ExtTab,
 } from '../../lib/extensionsStore19';
 import { KATALOG_BUNDLED, type KatalogItem } from '../../lib/extCatalog';
@@ -17,6 +16,15 @@ import { useRef, useState } from 'react';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT, useTf } from '../../lib/i18n';
 import { grammarTersedia, type LoaderRingkasan } from '../../lib/extLoader';
+import {
+  barisJalan,
+  bisaDipasang,
+  cariMcp,
+  kategoriMcp,
+  KATALOG_MCP_SERVER,
+  type KatalogMcpEntry,
+} from '../../lib/katalogMcpServer';
+import { useMcp } from '../../lib/mcpStore';
 
 /*
  * Penilai grammar untuk catatan bahasa: fungsi yang SAMA dengan yang dipakai
@@ -40,6 +48,7 @@ const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
   recommended: 'Recommended',
   marketplace: 'Marketplace',
+  mcp: 'MCP Servers',
 };
 
 function formatUnduhan(n: number): string {
@@ -186,6 +195,28 @@ function IkonExt({ item, logoUrl }: { item: KatalogItem; logoUrl?: string }) {
           strokeLinejoin="round"
         />
       )}
+      {warna === 'dap' && (
+        <>
+          {/* The debug "play with a bug" mark: a rounded body with legs. */}
+          <rect
+            x="4.6"
+            y="5.4"
+            width="6.8"
+            height="7"
+            rx="3.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <path
+            d="M4.6 8.2H2.4M11.4 8.2h2.2M4.6 11H2.6M11.4 11h2M6.4 5.4L5 3.6M9.6 5.4L11 3.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </>
+      )}
       {warna === 'lain' && (
         <rect
           x="2.8"
@@ -199,102 +230,6 @@ function IkonExt({ item, logoUrl }: { item: KatalogItem; logoUrl?: string }) {
         />
       )}
     </svg>
-  );
-}
-
-/*
- * The result of the last install or delete.
- *
- * "Installed" used to be the whole message, and it was a claim with no evidence
- * behind it: a package whose theme carried only `tokenColors`, or whose only
- * contribution was a list of commands nothing registers, installed, appeared in
- * the list as Installed, and left the window exactly as it was. The report
- * below comes from Rust reading the files the package ships, so it states what
- * changed with counts, and names every contribution it could not apply with the
- * reason. A refusal gets its own shape: not an error (the package is fine, it
- * simply does nothing here), and nothing was written to disk.
- */
-function KabarPaket({ kabar }: { kabar: ExtKabar }) {
-  const tutupKabar = useExt19((s) => s.tutupKabar);
-  const judul =
-    kabar.jenis === 'pasang'
-      ? `Installed: ${kabar.judul}`
-      : kabar.jenis === 'hapus'
-        ? `Deleted: ${kabar.judul}`
-        : `Not installed: ${kabar.judul}`;
-
-  const BATAS = 12;
-
-  return (
-    <div
-      className={`xv-kabar is-${kabar.jenis}`}
-      data-testid="ext-kabar"
-      data-jenis={kabar.jenis}
-      role="status"
-    >
-      <div className="xv-kabar-head">
-        <strong className="xv-kabar-judul" data-testid="ext-kabar-judul">
-          {judul}
-        </strong>
-        <button className="btn btn-sm" data-testid="ext-kabar-close" onClick={tutupKabar}>
-          Close
-        </button>
-      </div>
-
-      {kabar.jenis === 'tolak' ? (
-        <>
-          <p className="xv-kabar-baris">
-            Refused before anything was written to disk: no contribution in this package is
-            something Zephyr can apply yet, so installing it would have left the window unchanged.
-          </p>
-          <pre className="xv-kabar-pesan" data-testid="ext-kabar-pesan">
-            {kabar.pesan}
-          </pre>
-        </>
-      ) : (
-        <>
-          <div className="xv-kabar-baris" data-testid="ext-kabar-ringkasan">
-            {kabar.ringkasan.length === 0 ? (
-              <span data-testid="ext-kabar-tanpa-efek">
-                Nothing in this package can be applied here - the window is unchanged.
-              </span>
-            ) : (
-              <>
-                <b>{kabar.jenis === 'hapus' ? 'Taken away' : 'What changed'}:</b>{' '}
-                {kabar.ringkasan.join(' \u00b7 ')}
-              </>
-            )}
-          </div>
-
-          {kabar.jenis === 'hapus' && (
-            <div className="xv-kabar-baris">
-              The folder is gone from disk and the entry is gone from installed.json, so the window
-              is back to what it was before this package.
-            </div>
-          )}
-
-          {kabar.diabaikan.length > 0 && (
-            <ul className="xv-kabar-skip" data-testid="ext-kabar-diabaikan">
-              {kabar.diabaikan.slice(0, BATAS).map((i, n) => (
-                <li key={`${i.kind}-${n}`}>
-                  <b>{i.kind}</b> ({i.label}): {i.detail}
-                </li>
-              ))}
-              {kabar.diabaikan.length > BATAS && (
-                <li>+{kabar.diabaikan.length - BATAS} more ignored entries</li>
-              )}
-            </ul>
-          )}
-
-          {kabar.jenis === 'pasang' && (
-            <p className="xv-kabar-baris">
-              The counts are read from the files the package ships. Whether Zephyr could apply them
-              is in the loader report just below.
-            </p>
-          )}
-        </>
-      )}
-    </div>
   );
 }
 
@@ -319,6 +254,26 @@ const JENIS_KATA: Record<string, string> = {
   keymap: 'keys',
   language: 'language',
   script: 'script',
+  debugAdapter: 'debug adapter',
+};
+
+/*
+ * Mirror of `bawaan_untuk` in `src-tauri/src/dap.rs`: which built-in adapter
+ * answers for a debug `type`. Only the `type` string matters — that is the key
+ * a launch.json configuration uses and the key the registry is looked up by.
+ *
+ * It is a mirror and not a second opinion: `dap.rs` has the test
+ * `adapter_bawaan_sepakat_dengan_registry_yang_dipakai_dap_start`, which holds
+ * this list still, so the panel cannot claim a type is served when the debugger
+ * would refuse it (or the other way round).
+ */
+const DAP_BAWAAN: Record<string, string> = {
+  node: 'node',
+  'pwa-node': 'node',
+  'node-terminal': 'node',
+  'pwa-chrome': 'node',
+  python: 'python',
+  debugpy: 'python',
 };
 
 function ExtensionCard({
@@ -531,6 +486,233 @@ function ExtensionCard({
   );
 }
 
+/*
+ * Satu entri katalog MCP sebagai kartu.
+ *
+ * Bentuknya sengaja mengikuti kartu ekstensi di atasnya (logo, nama, tag,
+ * deskripsi, tombol aksi) supaya rak ini terbaca sebagai bagian dari panel yang
+ * sama, bukan panel lain yang kebetulan menempel.
+ *
+ * Dua hal yang tidak ada di kartu ekstensi tapi wajib di sini:
+ *
+ *  - TRANSPORT ditampilkan apa adanya. "http" dan "stdio" bukan jargon untuk
+ *    dihias: http berarti server sudah hidup di suatu URL dan Zephyr hanya
+ *    menghubunginya, stdio berarti Zephyr yang menjalankan perintahnya di
+ *    mesin ini. Pembaca berhak tahu mana yang terjadi sebelum menekan Install.
+ *
+ *  - BARIS JALAN diperlihatkan utuh (url atau `npx -y paket`). Tombol "Install"
+ *    yang menyembunyikan perintah yang akan dijalankan meminta kepercayaan
+ *    tanpa bukti; baris ini yang menjadikannya bisa diperiksa.
+ */
+function McpServerCard({
+  entri,
+  terpasang,
+  sibuk,
+  onInstall,
+  onUninstall,
+}: {
+  entri: KatalogMcpEntry;
+  terpasang: boolean;
+  sibuk: boolean;
+  onInstall: (e: KatalogMcpEntry) => void;
+  onUninstall: (e: KatalogMcpEntry) => void;
+}) {
+  const tr = useT();
+  const tf = useTf();
+  const bolehPasang = bisaDipasang(entri);
+
+  return (
+    <article
+      className="xc"
+      data-mcp-card={entri.id}
+      data-mcp-transport={entri.transport}
+      data-mcp-terpasang={terpasang ? '1' : '0'}
+    >
+      <span className="xc-logo" aria-hidden="true">
+        {entri.transport === 'http' ? '⇄' : '⌘'}
+      </span>
+
+      <div className="xc-body">
+        <span className="xc-nama">
+          <span className="xc-nama-txt">{entri.nama}</span>
+          {terpasang && <span className="xc-tag">INSTALLED</span>}
+          {entri.butuhToken && <span className="xc-tag is-err">needs token</span>}
+          {!bolehPasang && <span className="xc-tag is-err">butuh transport stdio</span>}
+          <span className="xc-pub-badge">{entri.publisher}</span>
+          <span className="xc-cat-badge">{entri.kategori}</span>
+          <span className="xc-ver-badge" data-mcp-transport-badge={entri.transport}>
+            • {entri.transport}
+          </span>
+          {typeof entri.unduhan === 'number' && entri.unduhan > 0 && (
+            <span className="xc-ver-badge" title={tr('Weekly npm downloads')}>
+              • {formatUnduhan(entri.unduhan)}↓
+            </span>
+          )}
+        </span>
+
+        <span className="xc-desc">{tr(entri.deskripsi)}</span>
+
+        <code className="xc-desc xc-mcp-perintah" data-testid={`xc-mcp-jalan-${entri.id}`}>
+          {barisJalan(entri)}
+        </code>
+
+        {entri.catatan && (
+          <span className="xc-desc xc-mcp-catatan" data-testid={`xc-mcp-catatan-${entri.id}`}>
+            {tr(entri.catatan)}
+          </span>
+        )}
+      </div>
+
+      <div className="xc-aksi">
+        {terpasang ? (
+          <button
+            className="btn btn-sm"
+            data-testid={`xc-uninstall-${entri.id}`}
+            disabled={sibuk}
+            title={tr('Remove this server from Zephyr')}
+            onClick={() => onUninstall(entri)}
+          >
+            {tr('Uninstall')}
+          </button>
+        ) : (
+          <button
+            className="btn btn-sm btn-primary"
+            data-testid={`xc-mcp-install-${entri.id}`}
+            disabled={!bolehPasang || sibuk}
+            title={
+              bolehPasang
+                ? entri.transport === 'stdio'
+                  ? tf('Zephyr will run {cmd} on this machine', { cmd: entri.command })
+                  : tr('Add this server to Zephyr')
+                : tr('The stdio transport is not wired up yet — see the note below the list.')
+            }
+            onClick={() => onInstall(entri)}
+          >
+            {bolehPasang ? tr('Install') : tr('Unavailable')}
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+/*
+ * Panel tab "MCP Servers": daftar server MCP populer yang bisa dipasang.
+ *
+ * Daftar terpasang dibaca dari `useMcp.servers` - sumber yang SAMA dengan yang
+ * dipakai panel Setelan. Tidak ada daftar salinan di sini, jadi memasang dari
+ * sini dan memasang dari Setelan menghasilkan satu keadaan yang sama, bukan dua
+ * yang bisa berbeda diam-diam.
+ */
+function McpCatalog({ onUninstall }: { onUninstall: (e: KatalogMcpEntry) => void }) {
+  const tr = useT();
+  const q = useExt19((s) => s.q);
+  const servers = useMcp((s) => s.servers);
+  const saveServer = useMcp((s) => s.saveServer);
+  const mcpError = useMcp((s) => s.mcpError);
+  const [kategori, setKategori] = useState('');
+  const [sibuk, setSibuk] = useState<string | null>(null);
+
+  /*
+   * Baca ulang daftar server yang terpasang saat tab ini dibuka.
+   *
+   * `useMcp.init()` - yang jalan sekali saat aplikasi menyala - hanya
+   * menyegarkan status dan daftar CLI, BUKAN `servers`. Tanpa panggilan ini,
+   * membuka aplikasi lalu langsung ke tab "MCP Servers" akan menampilkan
+   * server yang sudah terpasang sebagai belum terpasang: kartunya menawarkan
+   * Install untuk sesuatu yang sudah ada di settings.json. Keadaan yang salah
+   * seperti itu lebih buruk daripada daftar yang kosong, karena ia mengajak
+   * user mengulang pemasangan yang sudah berhasil.
+   *
+   * `refreshServers` adalah aksi yang SUDAH ada - yang sama dipakai panel
+   * Setelan; tidak ada API baru di sini.
+   */
+  useEffect(() => {
+    void useMcp.getState().refreshServers();
+  }, []);
+
+  const idTerpasang = new Set(servers.map((s) => s.id));
+  const daftar = cariMcp(q, kategori || undefined);
+  const kategoriSemua = kategoriMcp();
+
+  /*
+   * Jalur pasang, sadar transport.
+   *
+   * Entri http menyimpan url; entri stdio menyimpan command + args, yang
+   * dijalankan Zephyr sendiri lewat `mcp_stdio.rs`. Keduanya lewat
+   * `useMcp.saveServer` - satu jalur simpan untuk kedua transport, bukan jalur
+   * kedua yang harus dijaga agar sama.
+   *
+   * Cabangnya mengikuti `TRANSPORT_STDIO_TERSAMBUNG`, bukan `transport === 'http'`
+   * yang ditulis langsung: kalau rantai stdio dicabut lagi, tombolnya mati
+   * dengan sendirinya alih-alih memasang server yang tidak akan pernah jalan.
+   * Ini juga yang membuat ketiga nilai (flag, bisaDipasang, dan handler ini)
+   * tidak bisa berbeda diam-diam.
+   */
+  const pasang = async (e: KatalogMcpEntry) => {
+    if (!bisaDipasang(e)) return;
+    setSibuk(e.id);
+    if (e.transport === 'stdio') {
+      await saveServer({
+        id: e.id,
+        label: e.nama,
+        url: '',
+        token: '',
+        command: e.command,
+        args: e.args,
+      });
+    } else {
+      await saveServer({ id: e.id, label: e.nama, url: e.url, token: '' });
+    }
+    setSibuk(null);
+  };
+
+  return (
+    <>
+      {mcpError && (
+        <p className="xv-err" data-testid="ext-mcp-err" role="alert">
+          {mcpError}
+        </p>
+      )}
+
+      <div className="xv-filter" data-testid="ext-mcp-filter">
+        <label htmlFor="ext-mcp-kat">Category</label>
+        <select
+          id="ext-mcp-kat"
+          value={kategori}
+          onChange={(e) => setKategori(e.target.value)}
+          data-testid="ext-mcp-filter-select"
+        >
+          <option value="">All</option>
+          {kategoriSemua.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="xv-list" data-testid="ext-mcp-cards">
+        {daftar.map((e) => (
+          <McpServerCard
+            key={e.id}
+            entri={e}
+            terpasang={idTerpasang.has(e.id)}
+            sibuk={sibuk === e.id}
+            onInstall={(x) => void pasang(x)}
+            onUninstall={onUninstall}
+          />
+        ))}
+        {daftar.length === 0 && (
+          <p className="xv-note" data-testid="ext-mcp-kosong">
+            {tr('No MCP server matches')} “{q}”.
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function Details({ id }: { id: string }) {
   const tr = useT();
   const st = useExt19((s) => s.manifests.find((m) => m.manifest?.id === id) ?? null);
@@ -561,6 +743,7 @@ function Details({ id }: { id: string }) {
     ['Snippets', c?.snippets.map((x) => x.language) ?? []],
     ['Languages', c?.languages.map((x) => `${x.label} (.${x.extensions.join(', .')})`) ?? []],
     ['Icon Themes', c?.iconThemes.map((x) => x.label) ?? []],
+    ['Debug Adapters', (c?.debugAdapters ?? []).map((d) => (d.label ? `${d.label} (${d.type})` : d.type))],
     ['Commands', c?.commands.map((x) => x.title) ?? []],
   ];
 
@@ -646,6 +829,51 @@ function Details({ id }: { id: string }) {
                     <span className="xd-contrib-isi">{n.teks}</span>
                   </div>
                 ))}
+              </div>
+            </>
+          )}
+
+          {/*
+            * Debug Adapters get their own section, not just a row in the
+            * Contributions list.
+            *
+            * A row reading "Acme Debugger (acme-dap)" looks exactly like a row
+            * that works. It does not: Zephyr's debug registry is fixed
+            * (`dap::adapter_bawaan` — node and python only) and no code path
+            * reads `program`/`runtime` out of a manifest, so an adapter from a
+            * package is never started. The status line below says which of the
+            * two situations this is, so the panel never implies a working
+            * debugger that is not there.
+            */}
+          {(c?.debugAdapters?.length ?? 0) > 0 && (
+            <>
+              <h4 className="xd-h4">Debug Adapters</h4>
+              <div className="xd-contribs" data-testid="ext-debug-adapters">
+                {c!.debugAdapters!.map((d, n) => {
+                  const bawaan = DAP_BAWAAN[d.type?.trim().toLowerCase() ?? ''];
+                  const asal = d.program
+                    ? `${d.program}${d.runtime ? ` (runtime ${d.runtime})` : ''}`
+                    : d.runtime
+                      ? `runtime ${d.runtime}, no program`
+                      : 'no program declared';
+                  return (
+                    <div
+                      key={`${d.type}-${n}`}
+                      className="xd-contrib"
+                      data-dap={d.type}
+                      data-dap-bawaan={bawaan ?? '0'}
+                    >
+                      <span className="xd-contrib-nama">{d.label || d.type}</span>
+                      <span className="xd-contrib-isi">
+                        type <code>{d.type}</code> · {asal} ·{' '}
+                        {bawaan
+                          ? `not started: type "${d.type}" is served by Zephyr's built-in ${bawaan} adapter, not by this package.`
+                          : `not started: type "${d.type}" is not in Zephyr's fixed debug registry (node, python), and an adapter from a package is never launched.`}
+                        {d.languages.length > 0 ? ` Languages: ${d.languages.join(', ')}.` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -777,8 +1005,6 @@ export default function ExtensionsView() {
   const tab = useExt19((s) => s.tab);
   const loading = useExt19((s) => s.loading);
   const err = useExt19((s) => s.err);
-  const info = useExt19((s) => s.info);
-  const kabar = useExt19((s) => s.kabar);
   const perluReload = useExt19((s) => s.perluReload);
   const detailFor = useExt19((s) => s.detailFor);
   const remoteUrl = useExt19((s) => s.remoteUrl);
@@ -798,22 +1024,22 @@ export default function ExtensionsView() {
   const [menuAksi, setMenuAksi] = useState(false);
   const btnAksi = useRef<HTMLButtonElement | null>(null);
 
-  const [uninstallTarget, setUninstallTarget] = useState<KatalogItem | null>(null);
+  /*
+   * Satu dialog hapus untuk DUA rak.
+   *
+   * Kartu ekstensi dan kartu server MCP sama-sama menawarkan Uninstall, dan
+   * keduanya memakai dialog ini - bukan dua dialog yang harus dijaga agar
+   * sama bunyinya. `jenis` yang membedakan: `ext` menghapus folder paket,
+   * `mcp` menghapus entri dari settings.json.
+   */
+  const [uninstallTarget, setUninstallTarget] = useState<
+    { jenis: 'ext'; item: KatalogItem } | { jenis: 'mcp'; id: string; nama: string } | null
+  >(null);
   const [sibukUninstall, setSibukUninstall] = useState(false);
   const uninstallTrapRef = useFocusTrap<HTMLDivElement>({
     aktif: !!uninstallTarget,
     onEscape: () => setUninstallTarget(null),
   });
-
-  /*
-   * What the delete is about to take away, read from the status of the package
-   * while it is still on disk. A delete that silently reverts a theme leaves
-   * the user guessing what changed, so the confirmation names it, and the report
-   * after the delete repeats what was removed.
-   */
-  const pengaruhHapus = useExt19((s) =>
-    uninstallTarget ? (s.sudahTerpasang(uninstallTarget.id)?.pengaruh ?? null) : null
-  );
 
   const workspace = useStore((s) => s.workspace);
   const anakRoot = useExplorer((s) => (workspace ? s.children[workspace] : undefined));
@@ -887,6 +1113,7 @@ export default function ExtensionsView() {
     installed: jmlManifest,
     recommended: useExt19.getState().rekomendasi.length,
     marketplace: remoteBersih.length,
+    mcp: KATALOG_MCP_SERVER.length,
   };
 
   void q;
@@ -976,7 +1203,6 @@ export default function ExtensionsView() {
 
     {perluReload && (
         <div className="xv-reload" data-testid="ext-reload-bar" role="status">
-          <span>{tr('Theme/keymap/language changes take effect after reload.')}</span>
           <button className="btn btn-sm btn-primary" data-testid="ext-reload" onClick={reloadWindow}>
             Reload
           </button>
@@ -988,15 +1214,13 @@ export default function ExtensionsView() {
           {err}
         </p>
       )}
-      {info && !err && (
-        <p className="xv-info" data-testid="ext-info" role="status">
-          {info}
-        </p>
-      )}
-
-      {kabar && <KabarPaket kabar={kabar} />}
-
-      <RingkasLoader ringkasan={ringkasan} />
+      {/*
+        * The loader report is about EXTENSION packages — how many themes,
+        * languages and snippets the loader took. On the MCP tab it would sit
+        * directly under a list of MCP servers and read as a report about them,
+        * which it is not. Hidden there rather than shown in the wrong place.
+        */}
+      {tab !== 'mcp' && <RingkasLoader ringkasan={ringkasan} />}
 
       {/*
         * The bundled catalog lives in this tab, so an empty registry is no
@@ -1038,24 +1262,34 @@ export default function ExtensionsView() {
         </div>
       )}
 
-      <div className="xv-list" data-testid="ext-cards">
-        {loading && daftar.length === 0 && <p className="xv-note">Loading…</p>}
-        {daftar.map((it) => (
-          <ExtensionCard key={it.id} item={it} onUninstall={setUninstallTarget} />
-        ))}
-        {!loading && daftar.length === 0 && tab !== 'marketplace' && (
-          <p className="xv-note" data-testid="ext-kosong">
-            Nothing matches “{q}”.
-          </p>
-        )}
-        {!loading && daftar.length === 0 && tab === 'marketplace' && remote && (
-          <p className="xv-note" data-testid="ext-market-empty">
-            {tersembunyiRuntime > 0
-              ? `Showing manifest-only extensions. ${tersembunyiRuntime} extensions are hidden because they need an external runtime (Python/Java/Node/Docker) that Zephyr v1 does not support.`
-              : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .zext/folder.`}
-          </p>
-        )}
-      </div>
+      {tab === 'mcp' ? (
+        <McpCatalog
+          onUninstall={(e) => setUninstallTarget({ jenis: 'mcp', id: e.id, nama: e.nama })}
+        />
+      ) : (
+        <div className="xv-list" data-testid="ext-cards">
+          {loading && daftar.length === 0 && <p className="xv-note">Loading…</p>}
+          {daftar.map((it) => (
+            <ExtensionCard
+              key={it.id}
+              item={it}
+              onUninstall={(x) => setUninstallTarget({ jenis: 'ext', item: x })}
+            />
+          ))}
+          {!loading && daftar.length === 0 && tab !== 'marketplace' && (
+            <p className="xv-note" data-testid="ext-kosong">
+              Nothing matches “{q}”.
+            </p>
+          )}
+          {!loading && daftar.length === 0 && tab === 'marketplace' && remote && (
+            <p className="xv-note" data-testid="ext-market-empty">
+              {tersembunyiRuntime > 0
+                ? `Showing manifest-only extensions. ${tersembunyiRuntime} extensions are hidden because they need an external runtime (Python/Java/Node/Docker) that Zephyr v1 does not support.`
+                : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .zext/folder.`}
+            </p>
+          )}
+        </div>
+      )}
 
       {uninstallTarget && (
         <div
@@ -1074,17 +1308,10 @@ export default function ExtensionsView() {
             aria-labelledby="ext-uninstall-title"
           >
             <h2 className="modal-title" id="ext-uninstall-title" data-testid="ext-uninstall-title">
-              Delete {uninstallTarget.name}?
+              {uninstallTarget.jenis === 'mcp'
+                ? `Delete ${uninstallTarget.nama}?`
+                : `Delete ${uninstallTarget.item.name}?`}
             </h2>
-            <p className="modal-body" data-testid="ext-uninstall-body">
-              {tr('The extension folder will be deleted PERMANENTLY (cannot be undone).')}
-            </p>
-            {pengaruhHapus && pengaruhHapus.ringkasan.length > 0 && (
-              <p className="modal-body" data-testid="ext-uninstall-pengaruh">
-                This takes away: {pengaruhHapus.ringkasan.join(' \u00b7 ')}. The window goes back to
-                what it was before this package.
-              </p>
-            )}
             <div className="modal-actions">
               <button
                 className="btn btn-danger"
@@ -1092,7 +1319,11 @@ export default function ExtensionsView() {
                 disabled={sibukUninstall}
                 onClick={async () => {
                   setSibukUninstall(true);
-                  await useExt19.getState().uninstall(uninstallTarget.id);
+                  if (uninstallTarget.jenis === 'mcp') {
+                    await useMcp.getState().removeServer(uninstallTarget.id);
+                  } else {
+                    await useExt19.getState().uninstall(uninstallTarget.item.id);
+                  }
                   setSibukUninstall(false);
                   setUninstallTarget(null);
                 }}

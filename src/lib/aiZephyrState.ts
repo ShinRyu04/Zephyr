@@ -123,7 +123,7 @@ export interface LspKeadaan {
  * menyebut sebabnya.
  */
 export interface KontribusiMasuk {
-  /** themes | keymaps | snippets | languages | iconThemes | commands | grammars */
+  /** themes | keymaps | snippets | languages | iconThemes | commands | grammars | debugAdapters */
   jenis: string;
   diminta: number;
   dipakai: number;
@@ -219,11 +219,22 @@ export interface SumberKeadaan {
  *   R9 sisanya                           -> ok (bisaDipakai)
  */
 
-const URUT_KONTRIBUSI = ['themes', 'snippets', 'iconThemes', 'keymaps', 'languages', 'commands', 'grammars'];
+const URUT_KONTRIBUSI = ['themes', 'snippets', 'iconThemes', 'keymaps', 'languages', 'commands', 'grammars', 'debugAdapters'];
 
-/** Jenis kontribusi yang Zephyr memang belum punya mesinnya. */
+/**
+ * Jenis kontribusi yang Zephyr memang belum punya mesinnya.
+ *
+ * `debugAdapters` masuk daftar ini dengan sebab yang lebih tepat daripada
+ * "belum ada mesinnya": protokolnya ADA (`dap.rs` bicara DAP sungguhan), yang
+ * belum ada adalah registry adapter yang bisa diperluas paket - registry-nya
+ * tetap (node, python) dan tidak ada jalur kode yang membaca program/runtime
+ * dari manifest. Kalimat di bawah harus mencerminkan itu, bukan menyebut
+ * "unsupported".
+ */
 const JENIS_TAK_DIDUKUNG: Record<string, string> = {
   grammars: 'Zephyr belum punya mesin TextMate - penyorotan warna tetap memakai bahasa bawaan',
+  debugAdapters:
+    'adapter terdeteksi, belum dijalankan: registry adapter Zephyr tetap (node, python) dan tidak ada jalur kode yang membaca program/runtime dari manifest',
 };
 
 const urutTeks = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -628,6 +639,9 @@ const FOLDER_KATALOG: Record<string, string> = {
   icons: 'iconThemes',
   commands: 'commands',
   grammars: 'grammars',
+  debugadapters: 'debugAdapters',
+  debuggers: 'debugAdapters',
+  'debug adapters': 'debugAdapters',
 };
 
 const kategoriKeJenis = (kategori: string[]): string[] =>
@@ -892,6 +906,22 @@ export async function kumpulkanDariApp(): Promise<PotretKeadaan> {
           diminta: grammars.length,
           dipakai: 0,
           alasanDilewati: alasanFitur('grammars'),
+        });
+        /*
+         * Debug adapter: `diminta` dari manifest, `dipakai: 0` selalu - dan itu
+         * BUKAN placeholder. Tidak ada jalur kode yang menjalankan adapter dari
+         * paket (`dap.rs` membangun command line dari spec_node/spec_python),
+         * jadi angka nolnya adalah kenyataan yang harus terlihat, bukan angka
+         * yang belum diisi. Sebabnya dibaca dari loader (`extLoader.ts`
+         * memasukkannya ke `tidakDidukung`); kalau loader belum jalan, kalimat
+         * cadangan di JENIS_TAK_DIDUKUNG yang menjawab.
+         */
+        const dapAdapter = c.debugAdapters ?? [];
+        tambah({
+          jenis: 'debugAdapters',
+          diminta: dapAdapter.length,
+          dipakai: 0,
+          alasanDilewati: alasanFitur('debugAdapters'),
         });
 
         const katalogItem = katalog.get(m.id);

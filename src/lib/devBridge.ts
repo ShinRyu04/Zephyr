@@ -1521,7 +1521,7 @@ export function installDevBridge(): void {
     uninstall: (id: string) => useExt19.getState().uninstall(id),
     setEnabled: (id: string, on: boolean) => useExt19.getState().setEnabled(id, on),
     setQ: (q: string) => useExt19.getState().setQ(q),
-    setTab: (t: 'installed' | 'recommended' | 'marketplace') => useExt19.getState().setTab(t),
+    setTab: (t: 'installed' | 'recommended' | 'marketplace' | 'mcp') => useExt19.getState().setTab(t),
     setDetail: (id: string | null) => useExt19.getState().setDetail(id),
     setRemoteUrl: (url: string) => useExt19.setState({ remoteUrl: url }),
     muatRemote: () => useExt19.getState().muatRemote(),
