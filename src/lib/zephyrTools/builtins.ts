@@ -94,6 +94,68 @@ function jagaTulis(...paths: string[]): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Invarian baca-sebelum-sunting                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Berkas yang sudah dibaca agen di sesi ini, beserta ukuran isinya saat dibaca.
+ *
+ * Kenapa ini ada: `multi_edit` mencocokkan teks lama PERSIS. Kalau model
+ * menyunting dari ingatan - atau dari isi berkas yang berubah sejak ia
+ * membacanya - `old_string` tidak akan ketemu, atau (lebih buruk) ketemu di
+ * tempat yang salah. Keduanya sudah terjadi di run nyata dan terbaca sebagai
+ * "alat rusak", padahal alatnya bekerja persis seperti yang diminta: teksnya
+ * memang tidak ada lagi.
+ *
+ * Ukuran disimpan supaya invariannya tidak terlalu ketat: berkas yang berubah
+ * SETELAH dibaca (mis. tab editor disimpan user) membuat suntingan berikutnya
+ * ditolak dengan pesan yang menyuruh membaca ulang - itu memang yang benar,
+ * karena teks lama yang dipegang model sudah tidak menggambarkan isi berkas.
+ *
+ * Kuncinya path apa adanya (dinormalkan ringan), bukan path absolut: resolver
+ * path ada di backend Rust dan boleh berbeda antar platform; yang penting
+ * konsisten antara `read_file` dan `multi_edit` dalam satu sesi.
+ */
+const berkasDibaca = new Map<string, number>();
+
+function kunciBerkas(path: string): string {
+  return path.trim().replace(/\\/g, '/').replace(/\/\.\//g, '/');
+}
+
+/** Catat bahwa berkas ini baru dibaca, beserta ukuran isinya. */
+function tandaiDibaca(path: string, isi: string): void {
+  berkasDibaca.set(kunciBerkas(path), isi.length);
+}
+
+/**
+ * Tolak sunting buta.
+ *
+ * Pesannya sengaja MENYEBUT alatnya (`read_file`) dan berkasnya: model yang
+ * ditolak tanpa jalan keluar akan mencoba bentuk lain - dan bentuk lain itu
+ * adalah `write_file`, yang menimpa seluruh berkas. Jalan keluar yang benar
+ * adalah membaca dulu, jadi itu yang ditulis.
+ */
+function jagaSudahDibaca(path: string, isiSekarang: string): void {
+  const kunci = kunciBerkas(path);
+  const tercatat = berkasDibaca.get(kunci);
+  if (tercatat === undefined) {
+    throw new Error(
+      `ERROR: ${path} belum dibaca di sesi ini, jadi suntingan tidak dijalankan. ` +
+        `Panggil read_file pada berkas itu dulu, lalu ulangi suntingan dengan teks yang kamu lihat di sana. ` +
+        'Menyunting dari ingatan menghasilkan penggantian yang salah atau tidak ketemu sama sekali.',
+    );
+  }
+  if (tercatat !== isiSekarang.length) {
+    /* Isi berubah sejak dibaca: teks lama yang dipegang model sudah basi. */
+    throw new Error(
+      `ERROR: ${path} berubah setelah terakhir dibaca (${tercatat} -> ${isiSekarang.length} karakter), ` +
+        'jadi teks lama yang kamu pegang mungkin sudah tidak ada lagi. ' +
+        'Panggil read_file sekali lagi untuk melihat isi terbarunya, lalu ulangi suntingan.',
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Batas dan pemotongan                                               */
 /* ------------------------------------------------------------------ */
 
@@ -594,6 +656,10 @@ export const TOOL_BAWAAN: AgentTool[] = [
       }
       jagaBaca(path);
       const isi = await bacaBerkas(path, bacaAngka(a.offset), bacaAngka(a.limit), bacaBool(a.fromDisk));
+      /* Pembacaan PENUH yang mencatat invarian baca-sebelum-sunting. Potongan
+         (offset/limit) tidak dicatat: model yang hanya melihat 50 baris tidak
+         boleh dianggap tahu seluruh isi berkas. */
+      if (a.offset === undefined && a.limit === undefined) tandaiDibaca(path, isi);
       /* Sebuah berkas besar TINGGAL di riwayat dan ditagih tiap giliran; yang
          dikirim cukup kepala plus path untuk membaca sisanya kalau perlu. */
       return arsipkan(isi, path.split(/[\\/]/).pop() || 'berkas');
@@ -896,6 +962,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
       if (!daftar.length) throw new Error('ERROR: edits kosong.');
 
       let kerja = await bacaLengkap(path);
+      jagaSudahDibaca(path, kerja);
       /* Disalin sebelum diubah: diff dihitung terhadap isi SEBELUM semua
          penggantian, bukan terhadap keadaan setengah jalan. */
       const isiAwal = kerja;
@@ -933,6 +1000,10 @@ export const TOOL_BAWAAN: AgentTool[] = [
       }
 
       await tulis(path, kerja);
+      /* Segarkan catatan: berkas yang baru saja ditulis sama dengan yang baru
+         saja dibaca - suntingan berikutnya di sesi yang sama tidak perlu
+         membaca ulang. */
+      tandaiDibaca(path, kerja);
       const diff = buatDiff(path, isiAwal, kerja);
       return (
         `Diterapkan ${daftar.length} penggantian di ${path}.\n` +
