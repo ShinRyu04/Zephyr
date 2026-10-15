@@ -149,7 +149,22 @@ const hasil = await cdp.json(
     await new Promise((r) => setTimeout(r, 2000));
   }
   const s = A.getState();
-  return { ok: false, ms: Date.now() - t0, langkah: (s.agentSteps || []).length, nama: (s.agentSteps || []).map((x) => x.name), jejak, balasan: 'BATAS WAKTU' };
+  const stepsT = (s.agentSteps || []).filter((x) => x.kind === 'tool' || x.name);
+  const namaT = stepsT.map((x) => x.name);
+  const todosT = s.agentTodos || [];
+  /*
+   * Jalur timeout HARUS membawa bukti yang sama dengan jalur sukses. Dulu
+   * objek ini cuma {ok:false,...} tanpa browserBaca, sehingga K9 selalu
+   * "tidak ada" walau browser_read sudah sukses berkali-kali - kegagalan
+   * palsu yang menutupi bukti nyata jalur pane.
+   */
+  return {
+    ok: false, ms: Date.now() - t0, langkah: stepsT.length, nama: namaT,
+    gagal: stepsT.filter((x) => x.ok === false || x.error).map((x) => x.name),
+    browserBaca: stepsT.filter((x) => String(x.name).startsWith('browser') && x.ok !== false).map((x) => x.name),
+    todoTotal: todosT.length, todoDone: todosT.filter((t) => t.status === 'done').length,
+    error: null, jejak, balasan: 'BATAS WAKTU',
+  };
 })())`,
   (MENIT * 60000) + 60000,
 );
