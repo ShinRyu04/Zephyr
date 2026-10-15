@@ -1041,6 +1041,10 @@ export const mcpClientSave = (opts: {
   label: string;
   url: string;
   token: string;
+  /** Transport stdio: perintah + argumen + cwd (opsional). */
+  command?: string;
+  args?: string[];
+  cwd?: string;
 }) => invoke<McpServer>('mcp_client_save', opts);
 
 export const mcpClientRemove = (id: string) => invoke<boolean>('mcp_client_remove', { id });
