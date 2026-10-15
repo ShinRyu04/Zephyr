@@ -103,23 +103,25 @@ function pesanGalat(e: unknown): string {
  * menyebut host mana yang kurang dan apa jalan keluarnya.
  *
  * Teks di sini menyebut keduanya: host persisnya, dan langkah berikutnya
- * (minta user menambahkannya ke `allowlistWeb`). Petunjuk `izinIsiWeb` juga
- * diralih karena versi lama menunjuk ke panel Settings yang tidak pernah ada -
- * grep seluruh src/components tidak menemukan UI untuk izin/allowlist isi web.
+ * (minta user menambahkannya lewat Chat Settings > Konten web). Petunjuk
+ * `izinIsiWeb` juga diralih karena versi lama menunjuk ke panel Settings yang
+ * tidak pernah ada — UI untuk izin/allowlist isi web baru dipasang di halaman
+ * Chat Settings (section "Konten web"), jadi teks di sini mengarahkannya ke
+ * sana, bukan ke penyuntingan settings.json.
  */
 function pesanTolakGerbang(alasan: string): string {
   if (alasan.startsWith('izin-isi-web-mati')) {
     return (
       alasan +
       ' - the web-content permission is OFF, so every web/browser tool is closed. ' +
-      'The user must turn it on (settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
+      'The user must turn it on (Chat Settings > Konten web, settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
     );
   }
   if (alasan.startsWith('host-luar-allowlist:')) {
     const host = alasan.slice('host-luar-allowlist:'.length);
     return (
       alasan +
-      ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb; edited in settings.json, there is no settings UI for it yet). ` +
+      ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb; edited in Chat Settings > Konten web). ` +
       'Tell the user the exact host and ask whether to add it. Do NOT retry and do NOT try another web tool - ' +
       'web_fetch, browser_read, browser_nav and download use this same gate and fail the same way. ' +
       'If the task allows another already-allowed source, use that instead and say so.'
