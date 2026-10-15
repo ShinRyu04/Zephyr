@@ -67,18 +67,27 @@ export interface ToolCatalogEntry {
 /* ------------------------------------------------------------------ */
 
 const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
-  /* Files - 8 */
+  /* Files - 7.
+     DIPANGKAS: `create_directory` dibuang. `write_file` sudah membuat folder
+     induk yang belum ada saat menulis berkas - jadi folder kosong adalah
+     satu-satunya kasus yang tersisa, dan itu kasus yang jarang serta bisa
+     dicapai lewat berkas penanda. Dua tool yang sama-sama "membuat sesuatu di
+     disk" hanya menambah pilihan yang harus ditebak model. */
   ['read_file', 'Files', 'read', false, 'Baca berkas dari disk, atau buffer editor yang belum tersimpan'],
   ['list_directory', 'Files', 'read', false, 'Daftar isi sebuah folder'],
-  ['write_file', 'Files', 'fsWrite', true, 'Tulis berkas ke disk, atau buat berkas baru'],
-  ['create_directory', 'Files', 'fsWrite', true, 'Buat folder, termasuk folder induk yang belum ada'],
+  ['write_file', 'Files', 'fsWrite', true, 'Tulis berkas ke disk, atau buat berkas baru (folder induk dibuat otomatis)'],
   ['move_file', 'Files', 'fsWrite', true, 'Pindahkan atau ganti nama berkas/folder'],
   ['copy_file', 'Files', 'fsWrite', true, 'Salin berkas atau folder'],
   ['delete_file', 'Files', 'fsWrite', true, 'Hapus berkas atau folder'],
   ['replace_in_files', 'Files', 'fsWrite', true, 'Ganti teks atau pola di banyak berkas sekaligus'],
 
-  /* Edit - 2 */
-  ['edit', 'Edit', 'fsWrite', true, 'Ubah sebagian isi berkas: cari teks lama, ganti teks baru'],
+  /* Edit - 1.
+     `multi_edit` satu-satunya rumah "ganti teks di berkas". Kembarannya
+     (`edit`, satu penggantian per panggilan) DIBUANG pada pemangkasan ke 40:
+     dua tool dengan kemampuan yang sama membuat model harus memilih di antara
+     keduanya, dan pilihan yang salah adalah sumber kegagalan yang nyata -
+     prompt sendiri sudah menyuruh `multi_edit` "untuk ganti kecil maupun
+     banyak baris", jadi `edit` tidak punya pekerjaan yang tersisa. */
   ['multi_edit', 'Edit', 'fsWrite', true, 'Beberapa penggantian pada satu berkas dalam satu langkah'],
 
   /* Search - 3 */
@@ -103,12 +112,14 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
      `appWrite` termasuk kelas tulis di `toolGate.ts`. */
   ['ingat', 'Memori', 'appWrite', false, 'Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)'],
 
-  /* Shell - 5 */
-  ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai'],
-  ['bash_background', 'Shell', 'exec', true, 'Jalankan proses lama (server, watcher) di latar belakang'],
-  ['bash_logs', 'Shell', 'read', false, 'Baca keluaran proses latar belakang'],
-  ['bash_list', 'Shell', 'read', false, 'Daftar proses latar belakang yang hidup'],
-  ['bash_kill', 'Shell', 'exec', true, 'Hentikan proses latar belakang'],
+  /* Shell - 3.
+     DIPANGKAS dari 5. `bash_background`/`bash_logs`/`bash_list`/`bash_kill`
+     semuanya satu kemampuan yang sama - "jalankan sesuatu yang lama lalu lihat
+     hasilnya" - dan agen di run nyata selalu sampai ke `bash_run` lebih dulu.
+     `bash_run` sudah menerima perintah latar (`&`, `start`, `--watch`) lewat
+     shell-nya sendiri; jadi satu pintu cukup, dan tiga nama tambahan itu hanya
+     menambah pilihan yang harus ditebak model. */
+  ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai (termasuk perintah latar)'],
 
   /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
@@ -146,14 +157,20 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
    */
   ['skill_view', 'Skills', 'read', false, 'Baca isi skill yang terdaftar, atau daftar skillnya'],
 
-  /* Notes - 2 */
-  ['notes_read', 'Tasks & Notes', 'read', false, 'Baca catatan dan todo milik user'],
+  /* Notes - 1.
+     DIPANGKAS: `notes_read` dibuang, `notes_write` tetap. Alasannya
+     `notes_write` satu-satunya yang punya efek yang tidak bisa dicapai cara
+     lain; membaca catatan bisa dilakukan lewat `read_file` (berkasnya ada di
+     data dir aplikasi) atau `ingat` (memori lintas sesi), jadi `notes_read`
+     adalah pintu kedua ke data yang sama. */
   ['notes_write', 'Tasks & Notes', 'appWrite', true, 'Ubah catatan atau todo milik user'],
 
-  /* Schedule - 3 */
-  ['schedule_command', 'Schedules', 'appWrite', true, 'Jadwalkan perintah untuk dijalankan nanti'],
-  ['list_schedules', 'Schedules', 'read', false, 'Daftar perintah yang terjadwal'],
-  ['cancel_schedule', 'Schedules', 'appWrite', true, 'Batalkan perintah terjadwal'],
+  /* Schedule - 1.
+     DIPANGKAS dari 3: satu tool beraksi (`schedule_command` dengan
+     action: list|add|cancel) menggantikan tiga nama terpisah. Tiga tool untuk
+     satu kemampuan adalah tiga pilihan yang harus ditebak model, padahal
+     tindakannya jelas dari kata kerja di argumennya. */
+  ['schedule_command', 'Schedules', 'appWrite', true, 'Jadwalkan, daftar, atau batalkan perintah terjadwal (action: list|add|cancel)'],
 
   /* Bridge progressive disclosure: mencari & memanggil tool yang tidak dikirim setiap saat. */
   ['tool_search', 'Penalaran', 'read', false, 'Cari tool yang tidak ada di daftar utama (web, browser, SSH, MCP, jadwal)'],
@@ -164,6 +181,10 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
 /* MCP - nama polos diambil dari tabel handler mcpServer.       */
 /* ------------------------------------------------------------------ */
 
+/* Blok MCP - jembatan ke 13 tool kendali jendela (handler di `mcp.ts`).
+   DIPANGKAS: `state` dibuang karena `inspect` sudah mengembalikan ringkasan
+   keadaan jendela (`what: 'window'`); dua pintu ke data yang sama hanya
+   menambah pilihan yang harus ditebak model. */
 const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
   ['inspect', 'inspect', 'read', false, 'Periksa command, pane, tab, workspace, atau setelan yang tersedia'],
   ['run_command', 'control', 'exec', true, 'Jalankan sebuah command aplikasi berdasarkan id-nya'],
@@ -172,7 +193,6 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
   ['set_setting', 'control', 'appWrite', true, 'Ubah satu preferensi aplikasi'],
   ['extension', 'control', 'appWrite', true, 'Lihat, aktifkan, atau nonaktifkan ekstensi'],
   ['ssh', 'control', 'exec', true, 'Buka atau pakai koneksi SSH tersimpan'],
-  ['state', 'inspect', 'read', false, 'Cuplikan keadaan jendela: tab, pane, fokus'],
   ['read', 'inspect', 'read', false, 'Baca satu permukaan: terminal, buffer editor, atau DOM'],
   ['sh', 'terminal', 'exec', true, 'Jalankan perintah di pane terminal milik user'],
   ['wait_for_terminal', 'terminal', 'read', false, 'Tunggu terminal selesai atau memunculkan teks tertentu'],

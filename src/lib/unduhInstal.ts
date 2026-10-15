@@ -305,6 +305,20 @@ export function hitung(v: unknown, kunci: string): number {
 }
 
 /**
+ * Pintasan yang benar-benar dikandung berkas keymap.
+ *
+ * `muatKeymap` (src/lib/extLoader.ts) menerima DUA bentuk: array polos, dan
+ * objek yang membungkusnya di `keybindings`. Mirror Rust (`hitung_binding`) —
+ * dulu hanya bentuk terbungkus yang dihitung, jadi keymap ber-array polos
+ * (termasuk keempat keymap bawaan) dilaporkan "declares 0 key bindings" dan
+ * ditolak di gerbang.
+ */
+export function hitungBinding(v: unknown): number {
+  if (Array.isArray(v)) return v.length;
+  return hitung(v, 'keybindings');
+}
+
+/**
  * Ikon yang benar-benar BISA DIGAMBAR pemuat Zephyr. `muatIconTheme`
  * (src/lib/extLoader.ts) membaca `raw.icons ?? raw` dan hanya menggambar entri
  * yang punya `glyph`, jadi berkas gaya VS Code (`iconDefinitions`) bisa berisi
@@ -512,7 +526,8 @@ export function laporanBuktiPerubahan(m: ManifestPaket, baca: Baca): LaporanBukt
     out.ringkasan.push(jumlahNama(out.snippet.jumlahSnippet, '1 snippet pack', 'snippet packs'));
   }
 
-  /* Keymap: jumlah pintasan yang benar-benar dikandung berkasnya. */
+  /* Keymap: jumlah pintasan yang benar-benar dikandung berkasnya, dalam kedua
+     bentuk yang diterima pemuat (array polos atau pembungkus `keybindings`). */
   for (const k of daftar(cc.keymaps)) {
     const label = (k.label ?? '').trim() || k.path || 'keymap';
     const v = bacaJson(baca, k.path);
@@ -520,7 +535,7 @@ export function laporanBuktiPerubahan(m: ManifestPaket, baca: Baca): LaporanBukt
       out.diabaikan.push(ki('keymap', label, `${k.path} is missing, oversized, or not JSON - no key bindings are added`));
       continue;
     }
-    const n = hitung(v, 'keybindings');
+    const n = hitungBinding(v);
     if (n === 0) {
       out.diabaikan.push(ki('keymap', label, `${k.path} declares 0 key bindings`));
     } else {

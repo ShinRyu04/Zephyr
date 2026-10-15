@@ -18,9 +18,6 @@ export type AlatId =
   | 'list_directory'
   | 'grep'
   | 'glob'
-  | 'bash_logs'
-  | 'bash_list'
-  | 'notes_read'
   | 'web_fetch';
 
 export interface AlatInfo {
@@ -40,9 +37,6 @@ export const ALAT: AlatInfo[] = [
   { id: 'list_directory', label: 'List a folder', hint: 'List the contents of a folder', ikon: '☰' },
   { id: 'grep', label: 'Search text', hint: 'Search file contents across the workspace', ikon: '⌘' },
   { id: 'glob', label: 'Find files', hint: 'Find files by name or path pattern', ikon: '▭' },
-  { id: 'bash_logs', label: 'Read a log', hint: 'Read the output of a background process', ikon: '≡' },
-  { id: 'bash_list', label: 'List processes', hint: 'List background processes and their exit codes', ikon: '⚠' },
-  { id: 'notes_read', label: 'Read memory', hint: 'Notes that persist across sessions', ikon: '◈' },
   { id: 'web_fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
 ];
 

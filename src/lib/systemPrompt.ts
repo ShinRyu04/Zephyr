@@ -432,22 +432,12 @@ export function namaBahasa(kode: string): string {
  * jadi jaring terakhirnya).
  */
 const KATA_ID_KUAT = new Set([
-  'yang', 'tidak', 'dengan', 'untuk', 'karena', 'karna', 'adalah', 'sudah', 'udah',
-  'belum', 'bisa', 'tolong', 'mengapa', 'bagaimana', 'gimana', 'kenapa', 'kalau',
-  'kalo', 'supaya', 'agar', 'jangan', 'masih', 'hanya', 'saya', 'kamu', 'aku',
-  'mereka', 'kita', 'harus', 'bikin', 'buatkan', 'banget', 'yg', 'tdk', 'gak',
-  'nggak', 'engga', 'enggak', 'aja', 'sih', 'dong', 'kok', 'gitu', 'begini',
-  'kayak', 'biar', 'pake', 'pakai', 'ubah', 'berkas', 'setelan', 'pengaturan',
-  'fitur', 'pintasan', 'tampilan', 'lanjut', 'sip', 'mantap', 'bagus', 'keren',
-  'semua', 'beres', 'selesai', 'coba', 'lihat', 'liat', 'dimana', 'kemana',
+  'yang', 'tidak', 'dengan', 'untuk', 'karena', 'karna', 'adalah', 'sudah', 'udah', 'belum', 'bisa', 'tolong', 'mengapa', 'bagaimana', 'gimana', 'kenapa', 'kalau', 'kalo', 'supaya', 'agar', 'jangan', 'masih', 'hanya', 'saya', 'kamu', 'aku', 'mereka', 'kita', 'harus', 'bikin', 'buatkan', 'banget', 'yg', 'tdk', 'gak', 'nggak', 'engga', 'enggak', 'aja', 'sih', 'dong', 'kok', 'gitu', 'begini', 'kayak', 'biar', 'pake', 'pakai', 'ubah', 'berkas', 'setelan', 'pengaturan', 'fitur', 'pintasan', 'tampilan', 'lanjut', 'sip', 'mantap', 'bagus', 'keren', 'semua', 'beres', 'selesai', 'coba', 'lihat', 'liat', 'dimana', 'kemana',
 ]);
 
 const KATA_ID = new Set([
   ...KATA_ID_KUAT,
-  'dan', 'atau', 'juga', 'saja', 'tapi', 'jika', 'bila', 'dari', 'ke', 'di',
-  'pada', 'ini', 'itu', 'apa', 'apakah', 'dia', 'dapat', 'tak', 'mau', 'ingin',
-  'perlu', 'hilang', 'sekarang', 'nanti', 'tadi', 'bener', 'kayaknya', 'siapa',
-  'kapan', 'sama', 'juga', 'ganti', 'tambah', 'hapus', 'deh', 'kan', 'lah',
+  'dan', 'atau', 'juga', 'saja', 'tapi', 'jika', 'bila', 'dari', 'ke', 'di', 'pada', 'ini', 'itu', 'apa', 'apakah', 'dia', 'dapat', 'tak', 'mau', 'ingin', 'perlu', 'hilang', 'sekarang', 'nanti', 'tadi', 'bener', 'kayaknya', 'siapa', 'kapan', 'sama', 'juga', 'ganti', 'tambah', 'hapus', 'deh', 'kan', 'lah',
   /*
    * Tambahan dari gate `scripts/uji-bahasa-jawaban.mjs` (LAPIS A2): pesan
    * Indonesia PENDEK yang dulu terbaca `null` - "cek panel output ya",
@@ -475,14 +465,7 @@ const KATA_ID = new Set([
 /** Stopword Inggris yang paling khas. Ambang 2 kata, supaya satu kata serapan
  *  yang kebetulan sama tidak cukup untuk menyimpulkan "ini bahasa Inggris". */
 const KATA_EN = new Set([
-  'the', 'is', 'are', 'was', 'were', 'you', 'your', 'yours', 'what', 'why',
-  'how', 'when', 'where', 'which', 'and', 'or', 'not', 'can', 'could', 'should',
-  'would', 'please', 'need', 'want', 'make', 'makes', 'fix', 'add', 'remove',
-  'show', 'with', 'for', 'this', 'that', 'these', 'those', 'it', 'do', 'does',
-  'did', 'have', 'has', 'had', 'from', 'but', 'if', 'then', 'than', 'there',
-  'here', 'all', 'any', 'some', 'to', 'of', 'in', 'on', 'at', 'by', 'me', 'my',
-  'we', 'us', 'they', 'them', 'he', 'she', 'be', 'been', 'will', 'just',
-  'about', 'into', 'only', 'also', 'because', 'while', 'after', 'before',
+  'the', 'is', 'are', 'was', 'were', 'you', 'your', 'yours', 'what', 'why', 'how', 'when', 'where', 'which', 'and', 'or', 'not', 'can', 'could', 'should', 'would', 'please', 'need', 'want', 'make', 'makes', 'fix', 'add', 'remove', 'show', 'with', 'for', 'this', 'that', 'these', 'those', 'it', 'do', 'does', 'did', 'have', 'has', 'had', 'from', 'but', 'if', 'then', 'than', 'there', 'here', 'all', 'any', 'some', 'to', 'of', 'in', 'on', 'at', 'by', 'me', 'my', 'we', 'us', 'they', 'them', 'he', 'she', 'be', 'been', 'will', 'just', 'about', 'into', 'only', 'also', 'because', 'while', 'after', 'before',
 ]);
 
 /** Skrip non-Latin yang menentukan bahasanya tanpa perlu daftar kata. */
