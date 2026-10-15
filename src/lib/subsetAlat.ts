@@ -35,10 +35,10 @@ import { TOOL_CATALOG } from './zephyrTools/catalog';
  *
  * Sengaja didaftar dengan awalan + daftar nama: awalan menangkap tool pane yang
  * ditambahkan nanti, daftar nama menangkap tool jaringan yang tidak berpane
- * (`system_browser_open`).
+ * (`web_fetch`/`web_search`).
  */
 const AWALAN_WEB = ['browser_'];
-const NAMA_WEB = ['system_browser_open', 'web_fetch', 'web_search'];
+const NAMA_WEB = ['web_fetch', 'web_search'];
 
 export function butuhAlatWeb(nama: string): boolean {
   if (NAMA_WEB.includes(nama)) return true;

@@ -57,8 +57,8 @@ const info = typeof d === 'string' ? JSON.parse(d) : d;
 /*
  * T1 DULU `info.total === 54`. Angka kaku itu hanya mendeteksi bahwa ada tool
  * baru, bukan mendeteksi keadaan rusak - dan hanya jadi kegagalan palsu setiap
- * kali katalog bertambah (terbukti: 54 -> 56 saat `think` dan `calculator`
- * masuk). Yang dijaga di sini adalah katalog benar-benar terbaca.
+ * kali katalog bertambah (terbukti: angka itu naik-turun tiap kali katalog
+ * berubah). Yang dijaga di sini adalah katalog benar-benar terbaca.
  */
 r.check('T1', info.total > 0, `${info.total} tool di katalog`);
 r.check('T2', info.kosong.length === 0, `${info.kosong.length} deskripsi kosong` + (info.kosong.length ? ` :: ${info.kosong.join(', ')}` : ''));

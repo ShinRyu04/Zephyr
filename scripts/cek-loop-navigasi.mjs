@@ -49,7 +49,7 @@ for (const [teks, harap, catatan] of KASUS) {
 }
 
 /* Store harus benar-benar menerima saran perintah, bukan hanya punya tipenya. */
-console.log('\n== suggest_command menyimpan saran ==');
+console.log('\n== kartu saran perintah menyimpan saran ==');
 const saran = await cdp.json(`return JSON.stringify(await (async () => {
   const { useAi } = await import('/src/lib/aiStore.ts');
   useAi.getState().setCommandSuggestion({ command: 'npm run build', alasan: 'membangun rilis' });

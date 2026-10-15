@@ -14,7 +14,7 @@
  *
  * Angka-angkanya TIDAK dipatok di sini. Versi lama mematok 26/14/40/51 dan
  * harus disunting setiap kali satu tool ditambahkan - dan pada akhirnya ia
- * menolak keadaan yang benar: menambah `suggest_command` gagal di sini padahal
+ * menolak keadaan yang benar: menambah satu tool baru gagal di sini padahal
  * katalognya sehat. Yang diperiksa sekarang adalah HUBUNGAN antar-angka itu,
  * yang tetap benar berapa pun jumlah toolnya.
  *
@@ -46,8 +46,8 @@ const NAME_BUILDERS = ['src/lib/zephyrTools/catalog.ts', 'src/lib/zephyrTools/mc
    tangan: daftar ini mewakili keputusan produk, bukan turunan kode. */
 const WEB_NAMA = [
   'web_search', 'web_fetch', 'browser_open', 'browser_read', 'browser_click',
-  'browser_type', 'browser_nav', 'browser_list', 'browser_close',
-  'browser_download_url', 'system_browser_open',
+  'browser_type', 'browser_list', 'browser_close',
+  'browser_download_url',
 ];
 
 let lulus = 0;
@@ -193,7 +193,7 @@ const nama = katalog.names;
 /* ------------------------------------------------------------------ */
 
 console.log('\n== 1. Jumlah ==');
-periksa('11 tool web/browser', katalog.counts.web === 11, { dapat: katalog.counts.web });
+periksa('9 tool web/browser', katalog.counts.web === 9, { dapat: katalog.counts.web });
 periksa('inti = bawaan + MCP', katalog.counts.inti === katalog.counts.builtin + katalog.counts.mcp, {
   inti: katalog.counts.inti,
   bawaan: katalog.counts.builtin,

@@ -435,11 +435,10 @@ const ATURAN = [
 ];
 
 /* Label berbasis NAMA tool — hanya untuk tool murni/penalaran yang memang
- * TIDAK menyentuh batas sistem (mis. `think` mengembalikan teks penalaran).
+ * TIDAK menyentuh batas sistem (mis. `tool_search` mengembalikan daftar nama).
  * Dipakai supaya tool murni tidak salah dianggap "tanpa kapabilitas". */
 const ATURAN_NAMA = {
-  think: 'penalaran:catat',
-  calculator: 'hitung:ekspresi',
+  tool_search: 'penalaran:cari',
 };
 
 /* ===================================================================== */
@@ -607,7 +606,7 @@ function parseTool() {
            * Badan EKSPRESI tanpa kurawal: `run: async (a) => hitungAman(...)`.
            * Blok berakhir di `name:` tool BERIKUTNYA. Tanpa cabang ini,
            * `indexOf('{', iArrow)` menemukan kurawal milik tool BERIKUTNYA dan
-           * blok satu tool menelan blok tool lain (calculator menelan ask_user).
+           * blok satu tool menelan blok tool lain (satu menelan yang lain).
            */
           RE_NAMA_CARI.lastIndex = iRun;
           const n = RE_NAMA_CARI.exec(teks);

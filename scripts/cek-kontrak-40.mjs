@@ -15,20 +15,20 @@ const { cdp } = await Cdp.attach(PORT);
 
 const WEB = [
   'web_search', 'web_fetch', 'browser_open', 'browser_read', 'browser_click',
-  'browser_type', 'browser_nav', 'browser_list', 'browser_close',
-  'browser_download_url', 'system_browser_open',
+  'browser_type', 'browser_list', 'browser_close',
+  'browser_download_url',
 ];
 
 /*
  * Kontrak web: BUKAN "semua mati", tapi daftar-MATI eksplisit (lihat
- * tool-web-dan-penjelasan-ai.md). Lima tool berbahaya mati default; tool web
+ * tool-web-dan-penjelasan-ai.md). Empat tool berbahaya mati default; tool web
  * yang lain bisa dipakai sejak lahir. Harness lama memeriksa "tidak ada tool
  * web yang menyala" dan menolak desain itu - daftar nyala membuat tool baru
  * lahir mati, dan itu sumber kegagalan diam-diam yang nyata.
  */
 const WEB_MATI = [
   'browser_click', 'browser_type', 'browser_download_url',
-  'browser_close', 'system_browser_open',
+  'browser_close',
 ];
 
 const hasil = await cdp.json(`return JSON.stringify(await (async () => {
@@ -66,7 +66,7 @@ const cek = (nama, syarat, rincian) => {
  *
  * Dulu berkas ini memeriksa `=== 51` dan `=== 40`, dan dua baris itu harus
  * disunting SETIAP kali satu tool ditambahkan - dan cara itu sudah membuat
- * berkas ini menolak keadaan yang benar: menambah `suggest_command` gagal di
+ * berkas ini menolak keadaan yang benar: menambah satu tool baru gagal di
  * sini walau katalognya sehat. Yang diperiksa sekarang adalah HUBUNGANNYA:
  * tool inti hanyalah tool non-web, jadi keduanya tidak bisa berbeda pendapat.
  */
@@ -91,7 +91,7 @@ cek('inti di katalog = inti di sekat', hasil.inti === jumlah.intiDariKatalog, {
   dapat: hasil.inti,
   harap: jumlah.intiDariKatalog,
 });
-cek('43 tool inti AKTIF', hasil.intiKurang.length === 0, { kurang: hasil.intiKurang });
+cek('semua tool inti AKTIF', hasil.intiKurang.length === 0, { kurang: hasil.intiKurang });
 cek('tool web daftar-MATI tidak menyala', hasil.webMatiAktif.length === 0, { bocor: hasil.webMatiAktif });
 cek('popover subagents sudah hilang', hasil.popoverSubagents === false);
 

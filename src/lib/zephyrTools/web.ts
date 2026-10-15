@@ -10,7 +10,6 @@
  * Sesuai instruksi, seluruh kemampuan web & browser ini TIDAK DIHAPUS dan
  * dipertahankan utuh, terpisah dari 40 tool inti.
  */
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTerminal } from '../terminalStore';
 import { useStore } from '../store';
 import { periksaTulis } from '../agentGuard';
@@ -123,7 +122,7 @@ function pesanTolakGerbang(alasan: string): string {
       alasan +
       ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb; edited in Chat Settings > Konten web). ` +
       'Tell the user the exact host and ask whether to add it. Do NOT retry and do NOT try another web tool - ' +
-      'web_fetch, browser_read, browser_nav and download use this same gate and fail the same way. ' +
+      'web_fetch, browser_read and download use this same gate and fail the same way. ' +
       'If the task allows another already-allowed source, use that instead and say so.'
     );
   }
@@ -635,7 +634,7 @@ export const TOOL_WEB: AgentTool[] = [
             `Browser pane ${paneLama} is still the active pane, but its webview did not start answering ` +
             `within 15s (${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Do NOT open another pane - ` +
             'keep using this pane id. Make sure the terminal/browser panel is visible on screen, then retry ' +
-            'with browser_nav (action: goto) on the same pane.'
+            'by retrying browser_open with the same URL on the same pane.'
           );
         }
       }
@@ -668,7 +667,7 @@ export const TOOL_WEB: AgentTool[] = [
             `Browser pane ${paneId} opened with URL: ${url}, but the page did not finish loading within 15s ` +
             `(${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Keep THIS pane id - do not open another pane. ` +
             'Ask the user to show the terminal/browser panel if it is hidden, then retry with browser_read or ' +
-            'browser_nav on the same pane; web_fetch is only for a static copy.'
+            'browser_read on the same pane; web_fetch is only for a static copy.'
           );
     },
   },
@@ -763,80 +762,6 @@ export const TOOL_WEB: AgentTool[] = [
     },
   },
 
-  {
-    spec: {
-      name: 'browser_nav',
-      description: 'Navigate the browser pane: back, forward, reload, or change URL.',
-      parameters: {
-        type: 'object',
-        properties: {
-          action: { type: 'string', enum: ['back', 'forward', 'reload', 'goto'] },
-          url: { type: 'string', description: 'Target URL for the "goto" action.' },
-        },
-        required: ['action'],
-      },
-    },
-    run: async (a) => {
-      const act = wajib(a, 'action');
-      const id = paneBrowserId();
-      if (!id) throw new Error('No browser pane is active.');
-      const t = useTerminal.getState();
-
-      /*
-       * `goto` membuang dan membuat ulang pane; `back`/`forward`/`reload`
-       * memakai perintah webview yang sudah ada.
-       *
-       * Sebelum ini ketiga aksi terakhir tidak melakukan apa pun - handler-nya
-       * mengembalikan `Navigasi browser ${act} dijalankan.` tanpa menyentuh
-       * webview sama sekali, jadi model melaporkan keberhasilan atas halaman
-       * yang tidak bergerak. Itu kesalahan yang paling menyesatkan di sini:
-       * hasilnya benar, aksinya tidak ada.
-       *
-       * `back`/`forward`/`reload` tidak bisa lewat jalur buang-dan-buat ulang
-       * karena halaman baru tidak punya riwayat - membuat ulang URL yang sama
-       * justru MENGHAPUS riwayat yang jadi tujuan `back`. Jadi ketiganya
-       * dikirim sebagai perintah ke webview yang hidup.
-       */
-      if (act === 'goto') {
-        const tujuan = String(a.url ?? '');
-        if (!tujuan) throw new Error('action "goto" requires "url".');
-        /* Gerbang yang SAMA seperti browser_open: navigasi pane tidak boleh
-           menjadi jalan belakang untuk memuat host di luar daftar. */
-        const gerbangGoto = gerbangIsiKonten(tujuan, kebijakan());
-        if (!gerbangGoto.ok) return `(browser_nav goto ditolak: ${pesanTolakGerbang(gerbangGoto.alasan)})`;
-        if (await pakaiUlangPane(id, tujuan)) {
-          return `Browser pane ${id} navigated to ${tujuan} (same pane reused).`;
-        }
-        /*
-         * Keluar dari pane lalu buka baru: itu satu-satunya jalur yang benar-
-         * benar memuat halaman.
-         *
-         * `setPaneUrl` hanya menulis state, sedangkan child webview sudah
-         * hidup dengan URL lama di dalam proses WebView2 - jadi mengubah state
-         * menghasilkan pane yang MENGKLAIM halaman baru sementara isinya masih
-         * halaman lama. Menutup dulu memaksa webview dibuang, dan pembukaan
-         * berikutnya membuatnya dengan URL yang benar.
-         */
-        await t.closePane(id);
-        const paneId = await t.addPane('browser', { url: tujuan });
-        if (!paneId) {
-          return `Failed to navigate to ${tujuan}: ${useTerminal.getState().toast ?? 'pane limit reached'}.`;
-        }
-        return `Browser pane ${paneId} navigated to ${tujuan}.`;
-      }
-
-      /*
-       * `browserPaneNav` meneruskan aksinya apa adanya ke Rust, dan Rust yang
-       * memutuskan artinya - jadi ketiga nama di bawah harus sama persis dengan
-       * yang dikenali perintah `browser_pane_nav`.
-       */
-      const SAH = new Set(['back', 'forward', 'reload']);
-      if (!SAH.has(act)) throw new Error(`action tidak dikenal: ${act}`);
-
-      await cmd.browserPaneNav(id, act);
-      return `Browser pane ${id}: ${act} executed.`;
-    },
-  },
 
   {
     spec: {
@@ -916,29 +841,6 @@ export const TOOL_WEB: AgentTool[] = [
       await (await import('../checkpoint')).catat(dest);
       await cmd.fsWrite(dest, konten, undefined, undefined, { allowMissing: true });
       return `File from ${url} downloaded successfully to ${dest} (${ukuran} bytes).`;
-    },
-  },
-
-  {
-    spec: {
-      name: 'system_browser_open',
-      description: 'Open a URL in the user operating system default external browser.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: 'The URL to open.' },
-        },
-        required: ['url'],
-      },
-    },
-    run: async (a) => {
-      const url = wajib(a, 'url');
-      /* URL yang keluar ke browser sistem lewat gerbang yang sama: ini tetap
-         URL pilihan agen, dan membukanya adalah tindakan atas nama pengguna. */
-      const gerbang = gerbangIsiKonten(url, kebijakan());
-      if (!gerbang.ok) return `(system_browser_open ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
-      await openUrl(url);
-      return `URL opened in the external system browser: ${url}`;
     },
   },
 ];

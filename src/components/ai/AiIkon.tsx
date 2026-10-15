@@ -510,7 +510,7 @@ export default function AiIkon({ name, size = 15 }: Props) {
     /*
      * A globe with a meridian: work happening on a web page, not in a shell.
      *
-     * Dibuat untuk memisahkan `browser_open` / `browser_click` / `browser_nav`
+     * Dibuat untuk memisahkan `browser_open` / `browser_click` / `browser_read`
      * dari terminal. Ketiganya dulu digambar sebagai `>_`, dan seorang pembaca
      * yang melihat deretan `>_` wajar menyimpulkan agennya menjalankan perintah
      * shell - padahal ia sedang membuka halaman web.
@@ -526,7 +526,7 @@ export default function AiIkon({ name, size = 15 }: Props) {
     /*
      * A head with two eyes and antennae: work handed to another agent.
      *
-     * Menggantikan `puzzle` untuk run_subagent/run_subagents. Puzzle berarti
+     * Menggantikan `puzzle` untuk run_subagent. Puzzle berarti
      * "sesuatu yang perlu dipecahkan", bukan "pekerjaan yang diserahkan" - dan
      * tool yang memanggil agen lain memang bukan teka-teki, ia delegasi.
      */

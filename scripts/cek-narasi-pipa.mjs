@@ -101,15 +101,16 @@ const mulai = Date.now();
  *                    sampai lima kali. Terlihat sebagai "0 giliran" padahal
  *                    tool call-nya datang.
  *
- * `calculator` adalah pilihan yang benar di antara tool katalog:
+ * `list_directory` adalah pilihan yang benar di antara tool katalog:
  *   - namanya ada di katalog, jadi tidak ditolak sebagai "unknown tool name"
- *   - deterministik dan tidak menyentuh berkas atau jaringan
- *   - tidak butuh izin, jadi ia benar-benar JALAN tanpa meminta persetujuan
+ *   - hanya membaca daftar isi, tidak menulis atau menghubungi jaringan
+ *   - tidak butuh izin dan tidak punya argumen wajib, jadi ia benar-benar
+ *     JALAN tanpa meminta persetujuan
  *
  * Dengan begitu yang diukur memang teks narasinya - bukan kegagalan argumen,
  * bukan tool yang dimatikan gate, bukan dialog izin yang menggantung.
  */
-await ev(`(() => { void window.__ZEPHYR_AI__.store.getState().send('NARASI TOOLCALL:calculator tolong cek', []); return true; })()`);
+await ev(`(() => { void window.__ZEPHYR_AI__.store.getState().send('NARASI TOOLCALL:list_directory tolong cek', []); return true; })()`);
 
 /* Tunggu run selesai, mengikuti busy - bukan tenggat waktu. */
 let akhir = null;
