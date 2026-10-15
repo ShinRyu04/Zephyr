@@ -69,11 +69,11 @@ const T = uji.subsetTugas;
 const A = uji.subsetAlat;
 const C = uji.catalog;
 
-/* Basis ukur audit (docs/AUDIT-KATALOG-TOOL.md): 26 tool "dikirim selalu".
+/* Basis ukur audit (docs/AUDIT-KATALOG-TOOL.md): tool "dikirim selalu".
    Inilah yang benar-benar dikirim app per giliran; angka audit 17/23/23/20/23/23
    diukur pada basis ini - karena itu "sebelum" di harness memakai basis yang sama. */
 const AKTIF = [...new Set([...C.TOOL_DIKIRIM_SELALU])];
-/* Basis kedua (informasional): 62 tool aktif-default, yaitu gate user dibuka lebar. */
+/* Basis kedua (informasional): tool aktif-default, yaitu gate user dibuka lebar. */
 const AKTIF_PENUH = [...new Set([...C.TOOL_BAWAAN_AKTIF, ...C.TOOL_WEB_AKTIF_AWAL])];
 
 const KASUS = [
@@ -105,11 +105,11 @@ const KASUS = [
   [
     'kurs+pane(regresi)',
     [
-      'Pakai browser pane di dalam aplikasi ini (tool browser_open / browser_read / browser_nav) untuk mencari di Google:',
+      'Pakai browser pane di dalam aplikasi ini (tool browser_open / browser_read) untuk mencari di Google:',
       'kurs 1 dollar Amerika ke rupiah hari ini.',
       '',
       'ATURAN PANE - penting: pakai SATU pane browser saja. Jangan buka pane browser baru setiap kali membuka halaman;',
-      'navigasi halaman berikutnya di pane yang sudah ada (browser_open akan memakai ulang pane yang ada, atau browser_nav goto).',
+      'navigasi halaman berikutnya di pane yang sudah ada (browser_open akan memakai ulang pane yang ada).',
       'Pane baru hanya kalau saya minta membandingkan dua halaman berdampingan.',
       '',
       'Setelah kurs hari ini ketemu, susun daftar kurs 1 USD ke IDR per tahun dari 1998 sampai 2026',
@@ -164,7 +164,7 @@ for (const [nama, tugas] of KASUS) {
   if (intiDipangkas.length) masalah.push(`tool inti dipangkas tanpa kembar: ${intiDipangkas.join(', ')}`);
   if (ruteHilang.length) masalah.push(`nama di-route prompt dipangkas saat kelas web: ${ruteHilang.join(', ')}`);
   if (!sesudah.every((n) => AKTIF.includes(n))) masalah.push('ada tool di luar daftar aktif');
-  if (sesudah.some((n) => !AKTIF_PENUH.includes(n))) masalah.push('ada tool di luar daftar aktif penuh (62)');
+  if (sesudah.some((n) => !AKTIF_PENUH.includes(n))) masalah.push('ada tool di luar daftar aktif penuh');
   /* jalur penemuan tool wajib ada supaya yang dipangkas tetap terjangkau */
   if (!sesudah.includes('tool_search') || !sesudah.includes('tool_call'))
     masalah.push('jalur tool_search/tool_call tidak ada');
@@ -212,14 +212,16 @@ if (T.TOOL_INTI_TUGAS.length < 8) cek.push('daftar tool inti terlalu pendek');
 for (const wajib of ['read_file', 'write_file', 'grep', 'glob', 'bash_run', 'todo_write', 'tool_search', 'tool_call'])
   if (!T.TOOL_INTI_TUGAS.includes(wajib)) cek.push(`tool inti wajib tidak ada: ${wajib}`);
 /* Hasil pemangkasan berbasis data run nyata (153 langkah, 10 nama 0 pemakaian)
-   harus TETAP terpangkas - jangan dikembalikan diam-diam. */
-const DIPANGKAS_DATA = ['edit', 'delete_file', 'move_file', 'copy_file', 'list_directory', 'think', 'ask_user'];
+   harus TETAP terpangkas - jangan dikembalikan diam-diam. Dua dari sepuluh nama
+   (`think`, `ask_user`) kini sudah dihapus total dari katalog, jadi tidak lagi
+   diperiksa di sini. */
+const DIPANGKAS_DATA = ['edit', 'delete_file', 'move_file', 'copy_file', 'list_directory'];
 for (const n of DIPANGKAS_DATA)
   if (AKTIF.includes(n)) cek.push(`tool 0-pemakaian sudah dikembalikan ke TOOL_DIKIRIM_SELALU: ${n}`);
 /* Kembar tidak boleh dikirim bertiga/berdua sekaligus. */
 const kembar = [
   ['ganti-teks-berkas', ['edit', 'multi_edit', 'replace_in_files']],
-  ['delegasi-agen', ['run_subagent', 'run_subagents']],
+  ['delegasi-agen', ['run_subagent']],
 ];
 for (const [nama, grup] of kembar) {
   for (const k of KASUS) {

@@ -296,8 +296,8 @@ const MD_JAWABAN: Components = {
  * line keeps the transcript about the work, not the bookkeeping.
  *
  * Deliberately NARROW: only passive reads. `bash_run` is exec (it can change
- * the world), edits/writes carry diffs the reader must see, `ask_user` and
- * subagents are decisions - none of those fold. A tool that has a diff, failed,
+ * the world), edits/writes carry diffs the reader must see, asking the user
+ * and subagents are decisions - none of those fold. A tool that has a diff, failed,
  * or is the newest in flight never joins a group either (see the grouping
  * function), so a broken step is never hidden inside a summary.
  */

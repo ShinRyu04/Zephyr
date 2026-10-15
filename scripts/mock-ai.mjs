@@ -37,7 +37,6 @@ const log = [];
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
 const TOOL_ARGS = {
   skill_list: {},
-  calculator: { expression: '2+2' },
   skill_view: { name: 'godmode' },
   skill_write: {
     name: 'uji-skill',

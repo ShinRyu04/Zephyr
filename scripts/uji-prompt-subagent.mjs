@@ -80,7 +80,7 @@ if (typeof teks !== 'string') {
     console.log(`  ${ok ? 'LULUS' : 'GAGAL'}  ${nama}`);
     if (ok) lulus++;
     if (!ok) {
-      const i = teks.indexOf('run_subagents');
+      const i = teks.indexOf('run_subagent');
       console.log('         kutipan:', teks.slice(Math.max(0, i - 120), i + 240).replace(/\s+/g, ' '));
     }
   }

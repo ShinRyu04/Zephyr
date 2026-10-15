@@ -22,7 +22,6 @@
  * untuk satu kemampuan yang sama:
  *
  *   `edit` | `multi_edit` | `replace_in_files`  -> sama-sama "ganti teks berkas"
- *   `run_subagent` | `run_subagents`            -> sama-sama "menyerahkan ke agen"
  *
  * ## Aturan yang dipatuhi modul ini
  *
@@ -64,9 +63,8 @@ export const BATAS_TOOL_TUGAS = 20;
  * Tool INTI - selalu ikut, tidak pernah dipangkas.
  *
  * Ini kontrak syarat (2): baca/tulis berkas, cari (grep/glob), jalankan shell,
- * rencana (`todo_write`), bernalar (`think`), tanya user (`ask_user`), dan JALUR
- * PENEMUAN tool (`tool_search`/`tool_call`). Tanpa dua yang terakhir,
- * "dipangkas" berarti "hilang".
+ * rencana (`todo_write`), dan JALUR PENEMUAN tool (`tool_search`/`tool_call`).
+ * Tanpa keduanya, "dipangkas" berarti "hilang".
  */
 export const TOOL_INTI_TUGAS: readonly string[] = [
   'read_file',
@@ -126,14 +124,10 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   bash_kill: ['shell-latar'],
   /* rencana, penalaran, jalur tool */
   todo_write: ['rencana-tugas'],
-  think: ['bernalar'],
-  ask_user: ['tanya-user'],
-  calculator: ['hitung'],
   tool_search: ['temukan-tool'],
   tool_call: ['panggil-tool'],
-  /* DUA rumah untuk satu kemampuan: delegasi agen */
+  /* satu rumah untuk kemampuan delegasi agen */
   run_subagent: ['delegasi-agen'],
-  run_subagents: ['delegasi-agen'],
   /* kode & app */
   lsp_definition: ['navigasi-kode'],
   lsp_symbols: ['navigasi-kode'],
@@ -152,14 +146,12 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   web_search: ['web-cari'],
   web_fetch: ['web-ambil-url'],
   browser_open: ['panel-kendali'],
-  browser_nav: ['panel-kendali'],
   browser_read: ['baca-panel'],
   browser_list: ['panel-kendali'],
   browser_close: ['panel-kendali'],
   browser_click: ['panel-kendali'],
   browser_type: ['panel-kendali'],
   browser_download_url: ['panel-kendali'],
-  system_browser_open: ['panel-kendali'],
   /* app lain */
   ingat: ['memori'],
   notes_read: ['catatan-user'],
@@ -167,9 +159,6 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   schedule_command: ['jadwal'],
   list_schedules: ['jadwal'],
   cancel_schedule: ['jadwal'],
-  suggest_command: ['saran-perintah'],
-  get_terminal_output: ['terminal-user'],
-  open_preview: ['pratinjau'],
   /* MCP Zephyr: kendali app */
   mcp__zephyr__inspect: ['kendali-app'],
   mcp__zephyr__run_command: ['kendali-app'],
@@ -341,10 +330,6 @@ const KELUARGA_DASAR: readonly string[] = [
   'jalankan-shell',
   'shell-latar',
   'rencana-tugas',
-  /* `bernalar` (think) dan `tanya-user` (ask_user) DIHAPUS dari dasar: keduanya
-     0 kali terpanggil pada 153 langkah tool run nyata (lihat catatan pemangkasan
-     di catalog.ts). Tool-nya masih di katalog dan masih bisa dipanggil lewat
-     `tool_search` -> `tool_call`. */
   'temukan-tool',
   'panggil-tool',
   'introspeksi-app',
@@ -403,14 +388,12 @@ const RUMAH: Record<string, readonly string[]> = {
   'jalankan-shell': ['bash_run'],
   'shell-latar': ['bash_background', 'bash_logs', 'bash_list', 'bash_kill'],
   'rencana-tugas': ['todo_write'],
-  bernalar: ['think'],
-  'tanya-user': ['ask_user'],
   'temukan-tool': ['tool_search'],
   'panggil-tool': ['tool_call'],
   'introspeksi-app': ['zephyr_self'],
   'muat-skill': ['skill_view'],
   'navigasi-kode': ['lsp_definition', 'lsp_symbols', 'lsp_references', 'lsp_diagnostics', 'zephyr_kode'],
-  'delegasi-agen': ['run_subagent', 'run_subagents'],
+  'delegasi-agen': ['run_subagent'],
   'hapus-berkas': ['delete_file'],
   'ganti-teks-berkas': ['edit', 'multi_edit', 'replace_in_files'],
   /* pindah + salin digabung satu rumah: keduanya juga terjangkau `bash_run` (mv/cp) */
@@ -423,14 +406,12 @@ const RUMAH: Record<string, readonly string[]> = {
   /* panel: semua aksi panel satu keluarga, rumah dipilih dari kata kunci tugas */
   'panel-kendali': [
     'browser_open',
-    'browser_nav',
     'browser_read',
     'browser_list',
     'browser_click',
     'browser_type',
     'browser_close',
     'browser_download_url',
-    'system_browser_open',
   ],
 };
 
@@ -450,12 +431,9 @@ export function rumahGantiTeks(kelas: readonly KelasTugas[]): { pilih: string; c
   return { pilih: 'edit', cadangan: ['multi_edit', 'replace_in_files'] };
 }
 
-/** Rumah `delegasi-agen`: tugas paralel (banyak berkas) cocok dengan bentuk jamak. */
-export function rumahDelegasi(kelas: readonly KelasTugas[]): { pilih: string; cadangan: string[] } {
-  const paralel = kelas.includes('tulis-banyak') || kelas.includes('repo-wide');
-  return paralel
-    ? { pilih: 'run_subagents', cadangan: ['run_subagent'] }
-    : { pilih: 'run_subagent', cadangan: ['run_subagents'] };
+/** Rumah `delegasi-agen`: satu-satunya rumahnya kini `run_subagent`. */
+export function rumahDelegasi(_kelas: readonly KelasTugas[]): { pilih: string; cadangan: string[] } {
+  return { pilih: 'run_subagent', cadangan: [] };
 }
 
 /** Rumah `panel-kendali`: aksi yang disebut tugas lebih dulu menang. */
@@ -467,7 +445,6 @@ export function rumahPanel(teks: string): { pilih: string; cadangan: string[] } 
     [/\b(daftar|list|tab|tabel|riwayat)\b/i, 'browser_list'],
     [/\b(tutup|close)\b/i, 'browser_close'],
     [/\b(unduh|download|simpan halaman)\b/i, 'browser_download_url'],
-    [/\b(browser sistem|browser bawaan|buka di luar)\b/i, 'system_browser_open'],
     [/\b(buka|open|navigasi|kunjungi|halaman|url|link|tautan|panel|preview|pratinjau)\b/i, 'browser_open'],
   ];
   const semua = RUMAH['panel-kendali'] ?? [];
@@ -491,15 +468,8 @@ function tambahanKelas(kelas: readonly KelasTugas[]): string[] {
   if (kelas.includes('baca')) {
     push('list_directory');
     push('bash_logs');
-    /* `zephyr_kode` sengaja ditaruh SEBELUM `lsp_diagnostics`: keduanya satu
-       keluarga (`navigasi-kode`), jadi kalau jatahnya habis di titik ini yang
-       keluar hanya `lsp_diagnostics` - dan keluarga itu tetap terjangkau lewat
-       `zephyr_kode` sendiri. Menaruhnya SESUDAH `calculator` akan mendorong
-       `calculator` (`hitung`) keluar lebih dulu, dan itu kemampuan yang benar-
-       benar hilang. */
     push('zephyr_kode');
     push('lsp_diagnostics');
-    push('calculator');
   }
   if (kelas.includes('tulis') || kelas.includes('perbaiki')) {
     push('create_directory');
@@ -527,20 +497,17 @@ function tambahanKelas(kelas: readonly KelasTugas[]): string[] {
     push('bash_kill');
   }
   if (kelas.includes('web') || kelas.includes('panel')) {
-    push('browser_nav');
     push('web_search');
     push('browser_list');
   }
   if (kelas.includes('git')) {
     push('bash_kill');
     push('bash_list');
-    push('suggest_command');
   }
   if (kelas.includes('app')) {
     push('mcp__zephyr__state');
     push('mcp__zephyr__inspect');
     push('mcp__zephyr__read');
-    push('open_preview');
   }
   if (kelas.includes('jadwal')) {
     push('schedule_command');
@@ -680,7 +647,7 @@ export function jejakPemilihan(
      * `rumahPanel` bisa memilih `browser_read` (keluarganya `baca-panel`) untuk
      * `panel-kendali`: alat itu sudah ada di daftar dari giliran `baca-panel`,
      * jadi `tambah()` diam kembali - `tertutup` tak pernah mencatat
-     * `panel-kendali` dan `browser_open`/`browser_nav` gugur padahal prompt
+     * `panel-kendali` dan `browser_open` gugur padahal prompt
      * menyebut namanya (systemPrompt.ts:651 "panggil browser_open").
      * Keluarga kemudian dilaporkan hilang oleh `keluargaHilang`. Tercatat dulu:
      * kehilangan itu nyata pada teks tugas uji-kurs-dollar.mjs.

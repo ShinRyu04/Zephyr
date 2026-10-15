@@ -20,7 +20,7 @@ const { cdp } = await Cdp.attach(PORT);
 cdp.snapshot = null;
 
 /*
- * Sekat tool dibuka untuk kelima tool yang diuji di sini.
+ * Sekat tool dibuka untuk keempat tool yang diuji di sini.
  *
  * Harness ini MEMANGGIL tool lewat bridge dev. Tanpa membuka sekatnya, ujinya
  * lulus saat dijalankan sendiri tapi gagal saat dijalankan setelah harness
@@ -30,7 +30,7 @@ cdp.snapshot = null;
 await cdp.json(`return JSON.stringify(await (async () => {
   const m = await import(String.fromCharCode(47)+'src'+String.fromCharCode(47)+'lib'+String.fromCharCode(47)+'toolGate.ts');
   const g = m.useToolGate.getState();
-  for (const t of ['ask_user', 'clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode']) {
+  for (const t of ['clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode']) {
     if (!g.aktif.has(t)) g.balik(t);
   }
   await new Promise((res) => setTimeout(res, 200));
@@ -41,7 +41,7 @@ const ada = await cdp.json(`return JSON.stringify((() => {
   const t = window.__ZEPHYR_TOOLS__;
   if (!t) return { ada: false };
   const nama = t.nama();
-  const cari = ['ask_user', 'clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode'];
+  const cari = ['clipboard_read', 'clipboard_write', 'screenshot_ui', 'plan_mode'];
   return { ada: true, jumlah: nama.length, ketemu: cari.filter((x) => nama.includes(x)), hilang: cari.filter((x) => !nama.includes(x)) };
 })())`);
 
@@ -52,7 +52,7 @@ if (!ada.ada) {
   process.exit(lulus === total ? 0 : 1);
 }
 
-r.check('T0', ada.hilang.length === 0, `kelima tool terdaftar (total ${ada.jumlah} tool)${ada.hilang.length ? `; hilang: ${ada.hilang.join(', ')}` : ''}`);
+r.check('T0', ada.hilang.length === 0, `keempat tool terdaftar (total ${ada.jumlah} tool)${ada.hilang.length ? `; hilang: ${ada.hilang.join(', ')}` : ''}`);
 
 /* ---- T1: clipboard bolak-balik ---- */
 

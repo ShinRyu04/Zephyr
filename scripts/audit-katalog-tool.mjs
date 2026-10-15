@@ -349,7 +349,7 @@ const dobelNyata = KANDIDAT_DOBEL.filter(([, a, b]) => [...namaRust].some((r) =>
 /* ================================================================== */
 
 const promptTs = adaBerkas('src/lib/systemPrompt.ts') ? baca('src/lib/systemPrompt.ts') : '';
-const IDENT = /^[a-z]+_[a-z0-9_]+$/; /* hanya nama ber-underscore - hindari kata umum ('edit','think','read') */
+const IDENT = /^[a-z]+_[a-z0-9_]+$/; /* hanya nama ber-underscore - hindari kata umum ('edit','copy','read') */
 const diRoutePrompt = KATALOG.filter(
   (t) => t.source !== 'mcp' && IDENT.test(t.name) && new RegExp(`\\b${t.name}\\b`).test(promptTs),
 ).map((t) => t.name);

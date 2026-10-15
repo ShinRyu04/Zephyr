@@ -68,17 +68,17 @@ const e34 = await uji('E34', `
 r.check('E3', e34.readNonWeb.length > 0, `${e34.readNonWeb.length} tool baca non-web terdaftar`);
 r.check('E4', e34.webRead.length > 0, `${e34.webRead.length} tool baca web terdaftar (dulu lolos dari semua penjaga)`);
 
-/* E1/E2 - alat buka yang diakui: browser_open dan system_browser_open. */
+/* E1/E2 - alat buka yang diakui: browser_open (satu-satunya jalur buka). */
 const e12 = await uji('E12', `
   const { TOOL_CATALOG } = await import('/src/lib/zephyrTools/catalog.ts');
   const nama = TOOL_CATALOG.map((t) => t.name);
   return {
-    adaSistem: nama.includes('system_browser_open'),
+    adaSistem: !nama.includes('system_browser_open'),
     adaBrowser: nama.includes('browser_open'),
   };
 `);
 r.check('E1', e12.adaBrowser, 'browser_open terpasang (memicu penanda halaman terbuka)');
-r.check('E2', e12.adaSistem, 'system_browser_open terpasang (kini diperlakukan sama, bukan dihitung muter)');
+r.check('E2', e12.adaSistem, 'system_browser_open sudah tidak ada di katalog (digantikan browser_open)');
 
 const { lulus, total } = r.selesai();
 await cdp.close();

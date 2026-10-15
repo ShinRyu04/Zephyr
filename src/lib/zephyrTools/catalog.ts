@@ -110,9 +110,8 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['bash_list', 'Shell', 'read', false, 'Daftar proses latar belakang yang hidup'],
   ['bash_kill', 'Shell', 'exec', true, 'Hentikan proses latar belakang'],
 
-  /* Sub-agents - 2 */
+  /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
-  ['run_subagents', 'Sub-agents', 'exec', true, 'Jalankan beberapa subagent paralel'],
 
   /* Tasks - 1 */
   ['todo_write', 'Tasks & Notes', 'appWrite', true, 'Ganti daftar tugas agen untuk tugas ini'],
@@ -156,15 +155,6 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
   ['list_schedules', 'Schedules', 'read', false, 'Daftar perintah yang terjadwal'],
   ['cancel_schedule', 'Schedules', 'appWrite', true, 'Batalkan perintah terjadwal'],
 
-  /* Terminal - 3 */
-  ['suggest_command', 'Terminal', 'appWrite', true, 'Sarankan satu perintah shell sebagai kartu - user yang menjalankannya'],
-  ['get_terminal_output', 'Terminal', 'read', false, 'Baca potongan terakhir scrollback terminal aktif'],
-  ['open_preview', 'Terminal', 'appWrite', true, 'Buka pratinjau localhost di pane browser'],
-
-  /* Penalaran - 3. `ask_user` bertanya ke user, tidak mengubah apa pun; diklasifikasikan read. */
-  ['think', 'Penalaran', 'read', false, 'Catat penalaran selangkah sebelum bertindak'],
-  ['calculator', 'Penalaran', 'read', false, 'Hitung ekspresi aritmetika secara deterministik'],
-  ['ask_user', 'Penalaran', 'read', false, 'Tanya user saat keputusan benar-benar ambigu, lalu tunggu jawabannya'],
   /* Bridge progressive disclosure: mencari & memanggil tool yang tidak dikirim setiap saat. */
   ['tool_search', 'Penalaran', 'read', false, 'Cari tool yang tidak ada di daftar utama (web, browser, SSH, MCP, jadwal)'],
   ['tool_call', 'Penalaran', 'exec', true, 'Panggil tool yang ditemukan lewat tool_search'],
@@ -210,7 +200,7 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
  *
  * Yang menyala sejak awal hanyalah yang sekedar MENAMPILKAN atau MEMBACA.
  * Yang tetap mati adalah yang bertindak: klik, ketik, unduh ke disk, menutup
- * pane, dan membuka browser sistem. Nama-namanya TIDAK ditulis di sini karena
+ * pane. Nama-namanya TIDAK ditulis di sini karena
  * keduanya turunan: `WEB_MATI` menyebut yang mati, `TOOL_WEB_AKTIF_AWAL`
  * menghitung sisanya. Daftar nama di prosa pernah tertinggal dari kodenya -
  * `browser_list` sudah nyala di sekat tapi tidak ada di daftar komentar ini.
@@ -230,11 +220,9 @@ const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
   ['browser_read', 'Browser', 'read', false, 'Baca isi halaman di pane browser'],
   ['browser_click', 'Browser', 'netWrite', true, 'Klik elemen di pane browser'],
   ['browser_type', 'Browser', 'netWrite', true, 'Isi kolom di pane browser lalu tekan Enter'],
-  ['browser_nav', 'Browser', 'net', false, 'Maju, mundur, muat ulang, atau pindah URL'],
   ['browser_list', 'Browser', 'read', false, 'Daftar pane browser yang terbuka'],
   ['browser_close', 'Browser', 'appWrite', true, 'Tutup pane browser'],
   ['browser_download_url', 'Browser', 'netWrite', true, 'Unduh URL langsung ke berkas di workspace'],
-  ['system_browser_open', 'Browser', 'net', false, 'Buka URL di browser sistem'],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -340,7 +328,6 @@ export const TOOL_BAWAAN_AKTIF: readonly string[] = TOOL_CATALOG.filter(
  *   browser_click, browser_type   - bertindak atas nama user di halaman web
  *   browser_download_url          - menulis berkas dari internet ke disk
  *   browser_close                 - menutup pane yang mungkin sedang dibaca
- *   system_browser_open           - melempar keluar ke browser sistem
  *
  * `web_search` dan `web_fetch` TIDAK di sini meski efeknya `net`: keduanya
  * cuma mengirim permintaan GET dan mengembalikan teks. Ia mengirim data ke
@@ -352,7 +339,6 @@ const WEB_MATI: readonly string[] = [
   'browser_type',
   'browser_download_url',
   'browser_close',
-  'system_browser_open',
 ];
 
 /**
@@ -422,7 +408,7 @@ export function periksaKatalog(): string[] {
   }
 
   /*
-   * Kelima tool web/browser yang punya efek tulis WAJIB minta izin.
+   * Keempat tool web/browser yang punya efek tulis WAJIB minta izin.
    *
    * Browser bisa mengirim data ke luar - mengklik tombol kirim di halaman
    * adalah POST yang nyata - jadi memperlakukannya sebagai pembaca biasa akan
@@ -533,12 +519,14 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
  *   web_fetch 36 | browser_open 22 | tool_search 22 | browser_read 17 | todo_write 14
  *   tool_call 14 (4 gagal) | read_file 10 (2 gagal) | bash_run 7 | glob 3 | zephyr_self 2
  * dan NOL pemakaian untuk: edit, delete_file, move_file, copy_file, list_directory,
- * think, ask_user. Tujuh nama terakhir DIHAPUS dari daftar ini supaya gudang yang
- * dikirim tidak penuh tool mati. KELUARGA NYA TETAP ADA di `subsetTugas.ts`, jadi
- * tugas yang butuh hapus/pindah/salin tetap mendapat satu rumahnya lewat jalur
- * keluarga; dan semua nama yang dibuang masih bisa dipanggil lewat
- * `tool_search` -> `tool_call` (jalur yang selalu dikirim). Tool-nya juga tidak
- * dihapus dari `TOOL_CATALOG`.
+ * think, ask_user. Tujuh nama itu DIHAPUS dari daftar ini supaya gudang yang
+ * dikirim tidak penuh tool mati. `think` dan `ask_user` lalu dihapus TOTAL dari
+ * katalog (bersama 7 tool gaguna lainnya); sisanya tetap ada di `TOOL_CATALOG`.
+ * KELUARGA NYA TETAP ADA di `subsetTugas.ts`, jadi tugas yang butuh
+ * hapus/pindah/salin tetap mendapat satu rumahnya lewat jalur keluarga (tool
+ * yang sudah dihapus ditendang keluar oleh filter `boleh()`), dan nama yang
+ * dibuang dari daftar ini masih bisa dipanggil lewat `tool_search` ->
+ * `tool_call` (jalur yang selalu dikirim).
  *
  * Batas yang tidak boleh dilanggar: SEMUA nama yang diroute prompt harus ikut
  * dikirim. Setiap perubahan daftar ini wajib disertai hapus-pasang rute prompt di
@@ -580,14 +568,14 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    *   `browser_nav` - maju/mundur/reload. Semua yang dibutuhkannya bisa
    *     dicapai lewat `browser_open` dengan URL yang dituju; model yang butuh
    *     mundur bisa membuka URL sebelumnya. Skemanya tidak sebanding dengan
-   *     frekuensinya.
+   *     frekuensinya. Tool-nya sendiri kini DIHAPUS dari katalog.
    *
    *   `web_search` - paling sering menyeret model ke jalan samping. Kalau
    *     halaman bisa dibuka langsung di pane, mencari dulu hanya menambah
    *     langkah; kalau tidak bisa, `web_fetch` dengan URL yang sudah diketahui
    *     lebih langsung.
    *
-   * Keduanya tetap terpasang dan tetap aktif, hanya diakses lewat
+   * `web_search` tetap terpasang dan tetap aktif, hanya diakses lewat
    * `tool_search` -> `tool_call`.
    */
   'browser_open',

@@ -89,8 +89,8 @@ const EXPR = `(async () => {
     }
   }
 
-  const HARUS_NYALA = ['browser_open','browser_read','browser_nav','browser_list','web_fetch','web_search'];
-  const HARUS_MATI  = ['browser_click','browser_type','browser_close','browser_download_url','system_browser_open'];
+  const HARUS_NYALA = ['browser_open','browser_read','browser_list','web_fetch','web_search'];
+  const HARUS_MATI  = ['browser_click','browser_type','browser_close','browser_download_url'];
   return JSON.stringify({
     totalRegistry: semua.length,
     hasilJalan,

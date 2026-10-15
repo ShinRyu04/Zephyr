@@ -161,7 +161,7 @@ function subset(a, b) {
  *   3. dan entah (a) semua aksi di enum-nya tidak punya cabang nyata sama sekali,
  *      atau (b) handler-nya mengembalikan kalimat klaim sukses ("selesai",
  *      "berhasil", "dicatat", "dijalankan", ...).
- * Tool murni (think/calculator/tool_search) TIDAK kena karena punya kapabilitas.
+ * Tool murni (tool_search/tool_call) TIDAK kena karena punya kapabilitas.
  */
 function klasifikasiStub(t) {
   if (t.adaBatasSistem || t.capabilities.length) return null;
