@@ -90,6 +90,36 @@ const KASUS = [
   ['jadwal', 'Buat jadwal pengingat tiap jam untuk cek status build'],
   ['memori', 'Ingat preferensi saya: selalu pakai pnpm, jangan npm'],
   ['panel', 'Buka panel preview lalu ambil screenshot halaman itu'],
+  /* 1 regresi: teks tugas ASLI `scripts/uji-kurs-dollar.mjs`, ditemukan 2026-10-15.
+     Kunci kalimatnya: "sumber yang kamu bisa baca" + "baca" lain membuat
+     `rumahPanel()` menjatuhkan pilihan pada `browser_read` untuk keluarga
+     `panel-kendali`. `browser_read` sudah terkirim dari giliran `baca-panel`
+     (keluarganya `baca-panel`), jadi `tambah()` diam kembali, `tertutup` tak
+     pernah mencatat `panel-kendali`, dan `browser_open` - nama yang justru
+     DISEBUT prompt (systemPrompt.ts:651 "panggil browser_open") - gugur dari
+     daftar kirim. Akibatnya run asli membakar 9 langkah `tool_search` cuma
+     buat menemukan tool yang harusnya sudah ada. Kasus lama tidak pernah
+     memicunya karena tidak ada teks yang mengandung kata "baca" sambil butuh
+     pane. Kalau kasus ini GAGAL lagi, penyebabnya ada di `rumahPanel()` /
+     filter rumah `jejakPemilihan`. */
+  [
+    'kurs+pane(regresi)',
+    [
+      'Pakai browser pane di dalam aplikasi ini (tool browser_open / browser_read / browser_nav) untuk mencari di Google:',
+      'kurs 1 dollar Amerika ke rupiah hari ini.',
+      '',
+      'ATURAN PANE - penting: pakai SATU pane browser saja. Jangan buka pane browser baru setiap kali membuka halaman;',
+      'navigasi halaman berikutnya di pane yang sudah ada (browser_open akan memakai ulang pane yang ada, atau browser_nav goto).',
+      'Pane baru hanya kalau saya minta membandingkan dua halaman berdampingan.',
+      '',
+      'Setelah kurs hari ini ketemu, susun daftar kurs 1 USD ke IDR per tahun dari 1998 sampai 2026',
+      '(pakai sumber yang kamu bisa baca: Google, Bank Indonesia, atau data kurs historis).',
+      '',
+      'Simpan hasilnya di berkas `kurs-dollar.md` di workspace ini: tabel dengan kolom Tahun | Kurs 1 USD (IDR) | Sumber,',
+      'lalu satu paragraf singkat sumber datanya. Kalau ada tahun yang datanya tidak kamu temukan, tulis "tidak ditemukan" di baris itu -',
+      'jangan mengarang angka.',
+    ].join('\n'),
+  ],
 ];
 
 /*

@@ -675,7 +675,19 @@ export function jejakPemilihan(
       const p = rumahPanel(teks);
       urutanRumah = [p.pilih, ...p.cadangan];
     }
-    const tersedia = urutanRumah.filter((n) => boleh(n, aktif, adaFolder));
+    /*
+     * Kandidat rumah harus BENAR-BENAR milik keluarga ini. Tanpa syarat ini
+     * `rumahPanel` bisa memilih `browser_read` (keluarganya `baca-panel`) untuk
+     * `panel-kendali`: alat itu sudah ada di daftar dari giliran `baca-panel`,
+     * jadi `tambah()` diam kembali - `tertutup` tak pernah mencatat
+     * `panel-kendali` dan `browser_open`/`browser_nav` gugur padahal prompt
+     * menyebut namanya (systemPrompt.ts:651 "panggil browser_open").
+     * Keluarga kemudian dilaporkan hilang oleh `keluargaHilang`. Tercatat dulu:
+     * kehilangan itu nyata pada teks tugas uji-kurs-dollar.mjs.
+     */
+    const tersedia = urutanRumah.filter(
+      (n) => boleh(n, aktif, adaFolder) && keluargaTool(n).includes(fam),
+    );
     if (tersedia.length === 0) {
       keluargaTanpaRumah.push(fam);
       continue;
