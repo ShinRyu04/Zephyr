@@ -1551,6 +1551,22 @@ export interface Settings {
     pendingNotes: string;
     seenAnnouncements: string[];
   };
+
+  /*
+   * Pagar isi web — dipakai SEMUA tool web (browser_open, browser_read,
+   * web_fetch, browser_nav, download) lewat `kebijakanDariSetelan` di
+   * `zephyrTools/kebijakanIsiWeb.ts`, yang membaca keduanya dari objek settings
+   * ini apa adanya.
+   *
+   * Keduanya opsional dan FAIL-CLOSED: tidak ada = izin mati dan allowlist
+   * kosong (tolak semua), sama dengan default di `settings.rs default_settings()`.
+   * `allowlistWeb` berisi HOST tanpa skema ("example.com", bukan
+   * "https://example.com"); sebuah entri juga membuka subdomainnya
+   * (`hostDiAllowlist` mencocokkan suffix). Disunting dari Chat Settings >
+   * Konten web, bukan dari settings.json.
+   */
+  izinIsiWeb?: boolean;
+  allowlistWeb?: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
