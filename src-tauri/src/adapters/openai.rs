@@ -729,10 +729,22 @@ fn parse_argumen_tool(raw: &str, truncated: bool, name: &str) -> Result<Value, S
             return Ok(v);
         }
     }
+    /*
+     * Kedua jalur galat menyertakan CUPLIKAN argumen, bukan hanya nama tool.
+     *
+     * Tanpa cuplikan, pembaca (dan model pada giliran berikutnya) hanya tahu
+     * bahwa sebuah panggilan gagal, bukan bagian mana yang rusak: apakah objeknya
+     * terpotong di tengah, kutipnya ganjil, atau ada dua objek bertumpuk. Jalur
+     * `malformed` sudah membawanya sejak awal; jalur `truncated` TIDAK - dan
+     * justru jalur itulah yang paling sering muncul pada berkas besar, tempat
+     * model paling perlu tahu di mana ia berhenti.
+     */
     if truncated {
         return Err(format!(
             "tool call \"{name}\" terpotong karena batas token keluaran tercapai — \
-             naikkan max tokens model (isi berkas besar dikirim sebagai argumen tool)"
+             naikkan max tokens model (isi berkas besar dikirim sebagai argumen tool); \
+             awal argumen yang terkirim: {}",
+            cuplik_argumen(raw)
         ));
     }
     Err(format!(
