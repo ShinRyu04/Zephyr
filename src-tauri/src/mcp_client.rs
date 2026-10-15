@@ -7,10 +7,70 @@ use serde_json::{json, Value};
 pub struct McpServer {
     pub id: String,
     pub label: String,
+
+    /// URL server yang SUDAH hidup (transport http).
+    #[serde(default)]
     pub url: String,
 
     #[serde(default)]
     pub token: String,
+
+    /// Perintah yang dijalankan Zephyr sendiri (transport stdio).
+    ///
+    /// Server MCP dari katalog hampir semuanya didistribusikan begini -
+    /// `npx -y @modelcontextprotocol/server-x` - dan bicara lewat stdin/stdout,
+    /// bukan lewat URL. Tanpa dua field ini, entri katalog hanya bisa disimpan
+    /// dan tidak pernah benar-benar dipakai.
+    #[serde(default)]
+    pub command: String,
+
+    #[serde(default)]
+    pub args: Vec<String>,
+
+    /// Direktori kerja perintah (opsional; kosong = direktori app).
+    #[serde(default)]
+    pub cwd: String,
+}
+
+impl McpServer {
+    /// Server stdio: punya perintah, tidak butuh URL.
+    pub fn stdio(&self) -> bool {
+        !self.command.trim().is_empty()
+    }
+
+    /// Server ini punya salah satu transport yang bisa dipakai.
+    pub fn bisa_dipakai(&self) -> bool {
+        self.stdio() || !self.url.trim().is_empty()
+    }
+}
+
+/**
+ * Petakan satu entri `tools` dari server MCP ke spec Zephyr.
+ *
+ * Dipakai dua transport (http di berkas ini, stdio di `mcp_stdio.rs`) supaya
+ * bentuk spec-nya tidak bisa berbeda antar transport - dulu pemetaan ini hidup
+ * di dalam `list_tools` http saja, dan menyalinnya untuk stdio berarti dua
+ * tempat yang harus diubah bersamaan setiap kali bentuk MCP berubah.
+ */
+pub fn spec_dari_json(t: &Value) -> Option<McpToolSpec> {
+    let name = t.get("name").and_then(|n| n.as_str())?.to_string();
+    if name.is_empty() {
+        return None;
+    }
+    Some(McpToolSpec {
+        name,
+        description: t
+            .get("description")
+            .and_then(|d| d.as_str())
+            .unwrap_or("")
+            .to_string(),
+        schema: t
+            .get("inputSchema")
+            .or_else(|| t.get("input_schema"))
+            .or_else(|| t.get("schema"))
+            .cloned()
+            .unwrap_or_else(|| json!({ "type": "object", "properties": {} })),
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -29,7 +89,7 @@ fn servers_of(state: &AppState) -> Vec<McpServer> {
         .map(|arr| {
             arr.iter()
                 .filter_map(|v| serde_json::from_value::<McpServer>(v.clone()).ok())
-                .filter(|s| !s.url.trim().is_empty())
+                .filter(|s| s.bisa_dipakai())
                 .collect()
         })
         .unwrap_or_default()
@@ -103,28 +163,7 @@ pub fn list_tools(url: &str, token: &str) -> ZResult<Vec<McpToolSpec>> {
         .and_then(|t| t.as_array())
         .cloned()
         .unwrap_or_default();
-    Ok(arr
-        .iter()
-        .map(|t| McpToolSpec {
-            name: t
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("")
-                .to_string(),
-            description: t
-                .get("description")
-                .and_then(|d| d.as_str())
-                .unwrap_or("")
-                .to_string(),
-            schema: t
-                .get("inputSchema")
-                .or_else(|| t.get("input_schema"))
-                .or_else(|| t.get("schema"))
-                .cloned()
-                .unwrap_or_else(|| json!({ "type": "object", "properties": {} })),
-        })
-        .filter(|t| !t.name.is_empty())
-        .collect())
+    Ok(arr.iter().filter_map(spec_dari_json).collect())
 }
 
 pub fn call_tool(url: &str, token: &str, tool: &str, args: Value) -> ZResult<Value> {
@@ -218,6 +257,16 @@ pub fn call_by_server(state: &AppState, server: &str, tool: &str, args: Value) -
         .find(|s| s.id == id)
         .or_else(|| daftar.iter().find(|s| s.label.eq_ignore_ascii_case(id)))
         .ok_or_else(|| ZephyrError::NotFound(format!("server MCP '{id}' tidak terdaftar")))?;
+    if s.stdio() {
+        return crate::mcp_stdio::call_tool(
+            &s.id,
+            &s.command,
+            &s.args,
+            Some(s.cwd.as_str()),
+            tool,
+            args,
+        );
+    }
     call_tool(&s.url, &s.token, tool, args)
 }
 
@@ -228,24 +277,40 @@ pub fn save_server(
     label: String,
     url: String,
     token: String,
+    command: String,
+    args: Vec<String>,
+    cwd: String,
 ) -> ZResult<McpServer> {
     let alamat = url.trim().to_string();
-    if alamat.is_empty() {
-        return Err(ZephyrError::InvalidInput("url wajib diisi".into()));
+    let perintah = command.trim().to_string();
+    /* Salah satu transport harus ada. Dulu URL wajib; sekarang tidak, karena
+       server stdio tidak punya URL - yang wajib adalah BISA DIPAKAI. */
+    if alamat.is_empty() && perintah.is_empty() {
+        return Err(ZephyrError::InvalidInput(
+            "server MCP butuh url atau command".into(),
+        ));
     }
+    let judul = if label.trim().is_empty() {
+        if !perintah.is_empty() {
+            perintah.clone()
+        } else {
+            alamat.clone()
+        }
+    } else {
+        label.trim().to_string()
+    };
     let server = McpServer {
         id: if id.trim().is_empty() {
             new_id()
         } else {
             id.trim().to_string()
         },
-        label: if label.trim().is_empty() {
-            alamat.clone()
-        } else {
-            label.trim().to_string()
-        },
+        label: judul,
         url: alamat,
         token: token.trim().to_string(),
+        command: perintah,
+        args,
+        cwd: cwd.trim().to_string(),
     };
 
     let mut daftar = servers_of(state);
