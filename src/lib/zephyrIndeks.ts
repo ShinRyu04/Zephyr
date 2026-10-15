@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.14 · hash sumber: 395bfff797b3d6a9
+ * Versi app: 1.1.14 · hash sumber: 72adc8c1f8ceca59
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '395bfff797b3d6a9' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '72adc8c1f8ceca59' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -592,7 +592,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/explorer/SearchPanel.tsx","411 baris · tanpa ekspor"],
   ["kode","src/components/explorer/TimelineView.tsx","227 baris · tanpa ekspor"],
   ["kode","src/components/extensions/ExtApprovalModal.tsx","68 baris · tanpa ekspor"],
-  ["kode","src/components/extensions/ExtensionsView.tsx","1366 baris · tanpa ekspor"],
+  ["kode","src/components/extensions/ExtensionsView.tsx","1367 baris · tanpa ekspor"],
   ["kode","src/components/extensions/bahasaTerpasang.ts","156 baris · bahasaTerpasang.ts - catatan jujur untuk kontribusi bahasa SEBUAH PAKET · ekspor: CatatanBahasa, BarisGrammar, CekGrammar, catatanBahasaTerpasang, bahasaTanpaEfek"],
   ["kode","src/components/notifications/NotificationCenter.tsx","158 baris · ekspor: NotifBell"],
   ["kode","src/components/notifications/Toast.tsx","115 baris · tanpa ekspor"],

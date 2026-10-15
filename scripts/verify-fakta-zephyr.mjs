@@ -149,7 +149,7 @@ periksa('"models" tidak lagi diklaim halaman Settings / seksi Chat Settings', ((
     !/not Settings pages at all any more/.test(fakta)
   );
 })());
-periksa('seksi Chat Settings ada', /Chat Settings .*sections: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced/.test(fakta));
+periksa('seksi Chat Settings ada', /Chat Settings .*sections: Mode, Agent, Context, Sub-agents, Tools, Konten web, Rules, Models, Appearance, Session, Advanced/.test(fakta));
 periksa('pintasan Command Palette Ctrl+Shift+P ada', /Ctrl\+Shift\+P = Command Palette/.test(fakta));
 periksa('aturan anti-ngarang ada di blok', /## Never invent/.test(fakta) && /never invent|not in this block/i.test(fakta));
 
@@ -157,7 +157,7 @@ console.log('\n5. fakta cwd shell cocok dengan kode');
 const builtins = baca('src/lib/zephyrTools/builtins.ts');
 periksa('akarCwd() ada di builtins.ts', /function akarCwd\(\)/.test(builtins));
 periksa('bash_run memakai akarCwd()', /agentExec\(aman, bacaAngka\(a\.timeout\), akarCwd\(\) \?\? undefined\)/.test(builtins));
-periksa('bash_background memakai akarCwd()', /cwd: akarCwd\(\) \?\? undefined,/.test(builtins));
+periksa('shell memakai akarCwd()', /akarCwd\(\) \?\? undefined/.test(builtins));
 periksa('akarCwd() mendahulukan path tab yang aktif', /t\.id === s\.activeTabId/.test(builtins) && /return s\.workspace;/.test(builtins));
 periksa('tool yang butuh folder tidak lagi menuntut workspace', !/Minta user membuka folder dulu \(File -> Open Folder\)/.test(builtins));
 periksa('blok fakta menyebut aturan cwd shell', /start in the folder of the file that is open/.test(fakta));
