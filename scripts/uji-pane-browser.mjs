@@ -512,7 +512,7 @@ uji('C23 navigasi goto lewat gerbang yang sama (nav)', () => {
   if (!b) return { ok: false, info: 'BUTUH: ' + PANE_RS + ' tidak terbaca' };
   const nav = cariBaris(b, /pub fn browser_pane_nav\(/);
   const seg = potongan(b, nav, 70);
-  const adaGerbang = /crate::web::periksa_url_pane\(/.test(seg);
+  const adaGerbang = /crate::web::periksa_url_pane(_dengan)?\(/.test(seg);
   const parseLama = /\.parse\(\)/.test(seg);
   return {
     ok: nav > 0 && adaGerbang && !parseLama,
@@ -523,10 +523,10 @@ uji('C23 navigasi goto lewat gerbang yang sama (nav)', () => {
 uji('C24 on_navigation -> boleh_navigasi -> periksa_url_pane terpasang', () => {
   const b = isiBerkasBerbagi(PANE_RS);
   if (!b) return { ok: false, info: 'BUTUH: ' + PANE_RS + ' tidak terbaca' };
-  const pasang = cariBaris(b, /\.on_navigation\(boleh_navigasi\)/);
-  const fnBaris = cariBaris(b, /fn boleh_navigasi\(/);
+  const pasang = cariBaris(b, /\.on_navigation\(.*boleh_navigasi(_dengan)?\(/);
+  const fnBaris = cariBaris(b, /fn boleh_navigasi(_dengan)?\(/);
   const isiFn = potongan(b, fnBaris, 4);
-  const memakaiGerbang = /crate::web::periksa_url_pane\(url\.as_str\(\)\)\.is_ok\(\)/.test(isiFn);
+  const memakaiGerbang = /crate::web::periksa_url_pane(_dengan)?\(url\.as_str\(\)[^)]*\)\.is_ok\(\)/.test(isiFn);
   return {
     ok: pasang > 0 && fnBaris > 0 && memakaiGerbang,
     info: `on_navigation@${pasang} boleh_navigasi@${fnBaris} ->periksa_url_pane.is_ok()=${memakaiGerbang}`,
@@ -550,10 +550,10 @@ uji('C26 redirect: max_redirects(0) + langkah_redirect tiap hop + hop dihitung',
   const b = isiBerkasBerbagi(WEB_RS);
   if (!b) return { ok: false, info: 'BUTUH: ' + WEB_RS + ' tidak terbaca' };
   const nol = cariBaris(b, /max_redirects\(0\)/);
-  const perHop = cariBaris(b, /langkah_redirect\(&sekarang, &lokasi, hop\)/);
+  const perHop = cariBaris(b, /langkah_redirect(_dengan)?\(&sekarang, &lokasi, hop/);
   const tambah = cariBaris(b, /hop \+= 1;/);
-  const batasDiFn = /hop_selesai >= BATAS_HOP_REDIRECT/.test(
-    potongan(b, cariBaris(b, /pub fn langkah_redirect/), 14)
+  const batasDiFn = /hop_selesai >= /.test(
+    potongan(b, cariBaris(b, /pub fn langkah_redirect_dengan/), 14)
   );
   return {
     ok: nol > 0 && perHop > 0 && tambah > 0 && batasDiFn,
@@ -708,10 +708,10 @@ const temuan_ = (berkas, nomor, ada, pesan) => temuan.push({ berkas, baris: nomo
     const L = (re) => barisDari(paneRs, re);
     const lGerbang = L(/let tujuan = crate::web::periksa_url_pane/);
     temuan_('src-tauri/src/browser_pane.rs', lGerbang, lGerbang > 0, lGerbang > 0 ? 'TERTAMBAL: open() lewat gerbang crate::web::periksa_url_pane (bukan cek awalan string) — dipanggil SEBELUM webview dibuat' : 'CELAH: open() kembali memakai cek awalan string');
-    const lOnNav = L(/\.on_navigation\(boleh_navigasi\)/);
-    temuan_('src-tauri/src/browser_pane.rs', lOnNav, lOnNav > 0, lOnNav > 0 ? 'TERTAMBAL: on_navigation -> boleh_navigasi -> periksa_url_pane menahan navigasi hasil eval (penegakan runtime BUTUH APP)' : 'MENUNGGU: webview tanpa on_navigation');
+    const lOnNav = L(/\.on_navigation\(.*boleh_navigasi(_dengan)?\(/);
+    temuan_('src-tauri/src/browser_pane.rs', lOnNav, lOnNav > 0, lOnNav > 0 ? 'TERTAMBAL: on_navigation -> boleh_navigasi -> periksa_url_pane menahan ' : 'MENUNGGU: webview tanpa on_navigation');
     const lNav = L(/pub fn browser_pane_nav\(/);
-    const gerbangDiNav = /crate::web::periksa_url_pane\(/.test(
+    const gerbangDiNav = /crate::web::periksa_url_pane(_dengan)?\(/.test(
       (paneRs.slice(lNav - 1, lNav + 69) || []).join('\n')
     );
     temuan_('src-tauri/src/browser_pane.rs', lNav, gerbangDiNav, gerbangDiNav ? 'TERTAMBAL: goto di nav lewat periksa_url_pane (back/forward/reload tidak membawa URL baru)' : 'CELAH: goto di nav tanpa gerbang');

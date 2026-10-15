@@ -424,7 +424,7 @@ pub async fn format_text(
     #[cfg(not(windows))]
     let mut perintah = {
         let mut c = crate::proc::tokio_cmd("sh");
-        c.arg("-c").arg(cmd_teks);
+        c.arg("-c").arg(&cmd_teks);
         c
     };
 

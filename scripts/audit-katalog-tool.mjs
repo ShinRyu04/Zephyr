@@ -356,6 +356,41 @@ const diRoutePrompt = KATALOG.filter(
 const jebakan = diRoutePrompt.filter((n) => !DIKIRIM_SELALU.includes(n)).sort();
 const mcpDiDikirim = MCP.filter((t) => DIKIRIM_SELALU.includes(t.name)).length;
 
+/* Sebutan PROSA: nama tool yang memang sengaja ditulis di prompt sebagai kalimat
+   deklaratif (menyuruh model MENCARI lewat tool_search), BUKAN ajakan memakainya.
+   Regex kata per-boundary di atas tak bisa membedakan keduanya, jadi daftar ini
+   yang memisahkan - dan tiap entri WAJIB membawa bukti kutipannya sendiri.
+   Kalau kalimat di systemPrompt.ts berubah, KEBENARAN di bawah ikut gagal dan audit
+   menyuruh memperbarui daftar, bukan diam-diam menganggapnya basi. */
+const SEBUTAN_PROSA = {
+  replace_in_files: {
+    bukti: [
+      'systemPrompt.ts EN: "language-server tools and replace_in_files are deferred, not gone"',
+      'systemPrompt.ts ID: "tool language-server dan replace_in_files ditunda, bukan dihapus"',
+    ],
+  },
+};
+const sebutanProsa = diRoutePrompt.filter((n) => SEBUTAN_PROSA[n] && !DIKIRIM_SELALU.includes(n));
+const jebakanNyata = jebakan.filter((n) => !SEBUTAN_PROSA[n]);
+
+/* Kontrol: tiap entri prosa BENAR-BENAR ada di prompt, dan tiap kalimat buktinya
+   ikut ditemukan. Tanpa ini daftar bisa jadi basi tanpa suara. */
+const ujiProsa = Object.entries(SEBUTAN_PROSA).map(([nama, info]) => {
+  const bs = String.fromCharCode(92);
+  const adaDiPrompt = new RegExp(bs + 'b' + nama + bs + 'b').test(promptTs);
+  const kutipan = info.bukti.map((b) => {
+    const tanda = b.match(/"(.+)"$/);
+    return { teks: b, ketemu: tanda ? promptTs.includes(tanda[1]) : true };
+  });
+  return { nama, adaDiPrompt, kutipan };
+});
+for (const u of ujiProsa) {
+  if (!u.adaDiPrompt) masalah.push(`daftar sebutan-prosa: ${u.nama} sudah TIDAK ada di systemPrompt.ts - hapus atau perbarui entri`);
+  for (const k of u.kutipan) {
+    if (!k.ketemu) masalah.push(`daftar sebutan-prosa: kutipan bukti ${u.nama} tak lagi cocok -> ${k.teks}`);
+  }
+}
+
 /* ================================================================== */
 /* F. Operasi BERKAS: ada vs bolong                                  */
 /* ================================================================== */
@@ -376,10 +411,20 @@ const VERIF = [
     op: 'ganti nama / pindah berkas',
     ada: punya('move_file'),
     rumah: 'move_file (builtin)',
-    usul: 'cukup parameter - ADA, tapi TIDAK ikut dikirim tiap giliran (lihat bagian F)',
+    usul: DIKIRIM_SELALU.includes('move_file')
+      ? 'cukup parameter - sudah tertutup (ikut dikirim tiap giliran)'
+      : 'cukup parameter - ADA, tapi TIDAK ikut dikirim tiap giliran (lihat bagian F)',
     alasan: 'ganti nama = move dalam folder yang sama',
   },
-  { op: 'salin berkas/folder', ada: punya('copy_file'), rumah: 'copy_file (builtin)', usul: 'cukup parameter - ADA, tapi TIDAK ikut dikirim (lihat bagian F)', alasan: '-' },
+  {
+    op: 'salin berkas/folder',
+    ada: punya('copy_file'),
+    rumah: 'copy_file (builtin)',
+    usul: DIKIRIM_SELALU.includes('copy_file')
+      ? 'cukup parameter - sudah tertutup (ikut dikirim)'
+      : 'cukup parameter - ADA, tapi TIDAK ikut dikirim (lihat bagian F)',
+    alasan: '-',
+  },
   {
     op: 'cari-dan-ganti LINTAS BERKAS yang SADAR KODE (rename simbol / refactor)',
     ada: lspRenameAda,
@@ -460,13 +505,26 @@ console.log(`\n  total kemampuan ber-rumah-ganda terdeteksi: ${dobelNyata.length
 garis('F. JEBAKAN: di-ROUTE prompt tapi TIDAK ikut dikirim');
 console.log('aturan katalog: "apa pun yang di-route prompt WAJIB ikut dikirim" (catalog.ts:519-520).');
 console.log(`tool ber-underscore di-route prompt tapi TIDAK di DIKIRIM_SELALU: ${jebakan.length}`);
-for (const n of jebakan) {
+console.log(`  - sebutan PROSA yang disengaja (bukan pelanggaran): ${sebutanProsa.length}`);
+for (const n of sebutanProsa) {
+  console.log(`      * ${n.padEnd(22)} (dicari lewat tool_search - kalimat deklaratif)`);
+  for (const k of SEBUTAN_PROSA[n].bukti) console.log(`        bukti: ${k}`);
+}
+console.log(`  - JEBAKAN NYATA (harus 0): ${jebakanNyata.length}`);
+for (const n of jebakanNyata) {
   const t = KATALOG.find((x) => x.name === n);
-  console.log(`  - ${n.padEnd(22)} ${t ? t.description.slice(0, 60) : ''}`);
+  console.log(`      ! ${n.padEnd(22)} ${t ? t.description.slice(0, 60) : ''}`);
 }
 console.log(`tool MCP-JS di DIKIRIM_SELALU: ${mcpDiDikirim} dari ${MCP.length}`);
-console.log('  -> prompt me-route alias MCP (pane/sh/ssh/inspect/state/read) tapi NOL MCP dikirim');
-if (jebakan.length) peringatan.push(`${jebakan.length} tool di-route prompt tapi tak dikirim: ${jebakan.join(', ')}`);
+console.log('  -> BUKAN jebakan. Ketidakhadiran MCP di daftar ini memang disengaja');
+console.log('     (baca komentar di catalog.ts:509-511): model menemukan tool MCP lewat');
+console.log('     tool_search, dan per tugas MCP masuk lewat subsetTugas (keluarga');
+console.log('     "kendali-app"). Perhitungan jebakan di atas juga menyaring source !== mcp,');
+console.log('     jadi skrip ini TIDAK memeriksa apakah prompt merutekan alias MCP.');
+console.log('  -> Sebutan-prosa dijaga kontrol KEBENARAN: kalau kalimat buktinya hilang dari');
+console.log('     systemPrompt.ts, audit GAGAL dan menyuruh memperbarui daftar - jadi jebakan');
+console.log('     baru tidak bisa sembunyi di balik label "false positive".');
+if (jebakanNyata.length) peringatan.push(`${jebakanNyata.length} tool di-route prompt tapi tak dikirim: ${jebakanNyata.join(', ')}`);
 
 garis('G. OPERASI BERKAS: ada vs BOLONG');
 for (const v of VERIF) {

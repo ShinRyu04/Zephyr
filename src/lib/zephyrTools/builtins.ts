@@ -249,8 +249,9 @@ export function wajib(args: Record<string, unknown>, nama: string): string {
  *
  * Ini bukan teori. Dengan daftar inti yang dipangkas, `tool_search("cari di
  * internet")` TIDAK menemukan `web_search` (deskripsinya "Search the web
- * through DuckDuckGo"), dan `tool_search("maju mundur muat ulang")` TIDAK
- * menemukan `browser_nav` ("Navigate the browser pane: back, forward, reload").
+ * through Zephyr built-in engines ..."), dan `tool_search("maju mundur muat
+ * ulang")` TIDAK menemukan `browser_nav` ("Navigate the browser pane: back,
+ * forward, reload").
  * Padahal keduanya sudah dilepas dari daftar yang dikirim setiap request, jadi
  * tidak ada jalan lain menuju tool itu.
  *
@@ -328,9 +329,14 @@ async function cariToolTerdefer(
   /*
    * Exclude what is ALREADY SENT, not what the catalog calls "core". Those are
    * different sets: TOOL_INTI is the 43 tools installable by default, but only
-   * TOOL_DIKIRIM_SELALU (17) ride every request. Filtering by TOOL_INTI hid
+   * TOOL_DIKIRIM_SELALU ride every request. Filtering by TOOL_INTI hid
    * every default-on-but-deferred tool - schedule, notes, background bash -
    * from search, so the model could not find them at all.
+   *
+   * Jumlahnya sengaja TIDAK ditulis tangan di sini. Komentar lama menyebut
+   * angka tetap sementara daftarnya sudah berubah, dan angka yang basi
+   * di komentar membodohi pembaca berikutnya lebih parah daripada tidak ada
+   * angka sama sekali. Kalau perlu jumlahnya, baca `TOOL_DIKIRIM_SELALU.length`.
    */
   const dikirim = new Set<string>(TOOL_DIKIRIM_SELALU);
   const bridge = new Set(['tool_search', 'tool_call']);

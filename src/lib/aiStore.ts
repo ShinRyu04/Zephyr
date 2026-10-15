@@ -1,19 +1,42 @@
 import { create } from 'zustand';
 import { subagentOnChunk } from './subagentStore';
 import {
+  HYDRA_ID_PREFIX,
+  bacaPengaturan,
+  hydraAmbil,
+  hydraCatat,
+  hydraLihat,
+  hydraLupakan,
+  hydraSiapkan,
+  jalankanHydra,
+  rencanaHydra,
+  type HydraLapor,
+  type HydraTerakhir,
+} from './hydraFusion';
+import {
   mengulangDominan,
   mengulangPelarian,
   REPETITION_LOOP_INTERRUPTED,
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
-import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
+import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID, PROVIDERS, providerSiap } from './modelCatalog';
 import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
 import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type LoopState } from './loopJadwal';
 import { activeSelection } from './editorRegistry';
 import { useAiDebug } from './aiDebugStore';
 import { useToolGate, TOOL_DISK_TULIS } from './toolGate';
+import {
+  alatRencanaPertama,
+  catatAlatTerakhir,
+  gerbangRencanaSiap,
+  tugasBerat,
+} from './subsetAlat';
+/* LAMA-a1 (subset tool <= 20 per giliran) + LAMA-a4 (paksa todo di tugas berat).
+   Modulnya murni dan tidak mengubah apa pun sampai dipanggil dari sini. */
+import { pilihToolTugas, wajibTodo } from './subsetTugas';
+import { evaluasiUntukPanggilan } from './toolRules';
 import {
   agentToolSpecs,
   jalankanAgentTool,
@@ -25,6 +48,7 @@ import {
 import {
   perkiraanKonteks,
   batasAutoCompact,
+  AUTO_COMPACT_AT,
   AUTO_COMPACT_KEEP,
   AUTO_COMPACT_COOLDOWN_STEPS,
   ringkasUkuran,
@@ -39,6 +63,67 @@ import { agentStopMessage, type AgentFailureCategory, type AgentStopReason } fro
 // Re-exported so existing importers keep working; agentStop.ts is the one
 // definition. Two copies of this union would drift the moment one is widened.
 export type { AgentFailureCategory } from './agentStop';
+
+/*
+ * BUG-ANGGARAN-PESAN - kalimat yang ditempel SETELAH pemotongan.
+ *
+ * Tiga kalimat disisipkan ke daftar pesan setelah `ringkasRiwayat()` selesai
+ * bekerja (status pekerjaan, gerbang rencana, koreksi argumen), jadi ukurannya
+ * tidak pernah ikut dihitung cap. Sebelum ini panjangnya tak terbatas: pada
+ * beban 44 giliran satu catatan status saja mencapai 2.023 char dan payload
+ * yang benar-benar dikirim melewati PAYLOAD_MAX_CHARS di SETIAP giliran.
+ *
+ * Dua konstanta menutupnya:
+ *   - KALIMAT_PASCA_POTONG_CHARS: envelope yang DISISIHKAN di `capUntukPesan`
+ *     supaya kalimat-kalimat ini punya ruangnya sendiri, bukan memakan ruang
+ *     riwayat tanpa tercatat;
+ *   - CATATAN_MAKS_CHARS: batas keras satu catatan, dijaga `potongCatatan`.
+ */
+export const KALIMAT_PASCA_POTONG_CHARS = 3_000;
+/*
+ * 240, bukan 1.200 seperti usulan awal dokumen. Dengan beban 44 giliran (baca
+ * ~6 KB per giliran) blok tetap saja sudah 23.793 char dari anggaran 40.000,
+ * dan katalog tool menahan 14.844 char di kabel - sisa untuk SELURUH percakapan
+ * tinggal ~1.363 char, yang sudah dipakai pesan terakhir hasil potong (~505
+ * char) plus pembungkusnya. Headroom terukur untuk catatan cuma ~366 char.
+ * Menyetel 1.200 membuat payload tetap lewat batas (terukur 40.975 char); 240
+ * adalah nilai bulat terbesar yang muat dengan margin. Menaikkannya menuntut
+ * anggaran model dinaikkan / system prompt & katalog tool dikuruskan - itu
+ * keputusan pemilik, bukan sesuatu yang boleh disembunyikan di sini.
+ */
+export const CATATAN_MAKS_CHARS = 240;
+
+/**
+ * Potong satu catatan pasca-pemotongan agar tidak melebihi anggaran pesan.
+ *
+ * Dipotong pada batas baris bila memungkinkan supaya item rencana tidak
+ * terbelah di tengah; ekornya diganti penanda yang menyebut ukuran aslinya,
+ * jadi model (dan pembaca log) tahu ada yang disembunyikan - bukan pemotongan
+ * diam-diam.
+ */
+export function potongCatatan(teks: string, maks = CATATAN_MAKS_CHARS): string {
+  if (teks.length <= maks) return teks;
+  const penanda = `\n[...catatan dipotong: ${teks.length} -> ${maks} char]`;
+  const jatah = Math.max(0, maks - penanda.length);
+  const kasar = teks.slice(0, jatah);
+  const batasBaris = kasar.lastIndexOf('\n');
+  const isi = batasBaris > jatah / 2 ? kasar.slice(0, batasBaris) : kasar;
+  return `${isi}${penanda}`;
+}
+
+/*
+ * LANE ANTREAN-LIVE (item C) - pesan yang diketik SEMENTARA agen bekerja.
+ *
+ * Dua modul murni yang sudah ada dan sudah diuji dipakai APA ADANYA di sini; tidak
+ * ada aturan antrean atau aturan penyusunan giliran yang disalin ke berkas ini:
+ *   * `antreanPesan.ts`  - keputusan masuk/penuh/terlalu panjang, dan pengambilan
+ *                          kepala antrean saat giliran selesai;
+ *   * `suntikKonteks.ts` - susunan giliran (konteks -> riwayat -> antrean -> tugas
+ *                          -> permintaan), sensor rahasia, blok wajib utuh, plus
+ *                          titik sisip `sisipKeDepanEkor`.
+ */
+import { giliranSelesaiPanel, rencanaMasukSaatSibuk } from './antreanPesan';
+import { giliranAntreanKeRiwayat, sisipKeDepanEkor } from './suntikKonteks';
 
 /*
  * Read-only tools, derived from the catalog instead of typed out by hand.
@@ -110,6 +195,95 @@ const posisiAntrian = (arr: AntrianPesan[], idx: number | string): number => {
 const cocokAntrian = (a: AntrianPesan, i: number, idx: number | string) =>
   typeof idx === 'string' ? a.id === idx : i === idx;
 
+/* ── LANE ANTREAN-LIVE (item C): giliran berikutnya dari antrean pesan ────── */
+
+/**
+ * Kepala pesan yang diketik SEMENTARA run berjalan.
+ *
+ * Dipertahankan dari jalur lama apa adanya: tanpa kalimat ini model memperlakukan
+ * pesan yang datang di tengah pekerjaan sebagai permintaan baru yang menunggu run
+ * kelar - persis kelakuan yang item C keluhkan.
+ */
+const KEPALA_PESAN_SEMENTARA =
+  'Pesan dari pengguna SEMENTARA kamu bekerja - baca SEKARANG, jangan tunggu run selesai:';
+
+/**
+ * Suntikkan giliran dari antrean pesan ke `history` yang SEDANG berjalan.
+ *
+ * Dipanggil di awal tiap langkah, di titik yang sudah dipakai jalur lama: di situ
+ * `history` berakhir dengan hasil tool langkah sebelumnya, dan satu giliran `user`
+ * SESUDAH hasil tool tidak membelah pasangan assistant<->tool (yang memicu 400).
+ *
+ * Seluruh keputusannya DISERAHKAN ke modul murni yang sudah diuji: siapa yang
+ * diproses dari `antreanPesan.giliranSelesaiPanel` (kepala antrean LANGSUNG
+ * diproses, sisanya tetap menunggu), susunannya dari `suntikKonteks` (urutan
+ * konteks -> riwayat -> antrean -> tugas -> permintaan, rahasia disensor, blok
+ * wajib tidak pernah dipotong), titik sisipnya `sisipKeDepanEkor`. Tidak ada aturan
+ * antrean atau penyusunan yang disalin ke berkas ini.
+ *
+ * `konteks`/`riwayat` sengaja TIDAK diisi: keduanya sudah ada di `history`
+ * (konteks workspace dimuat jalurnya sendiri), jadi yang disuntikkan di sini hanya
+ * pekerjaan yang BELUM selesai - pesan mengantre, tugas, dan permintaan giliran ini.
+ * Menyuntik ulang riwayat akan menggandakan percakapan.
+ */
+function suntikGiliranAntrean(
+  antri: readonly AntrianPesan[],
+  history: AgentMsg[],
+  todos: ReadonlyArray<{ content: string; status: string }>,
+): { kepala: string | null; ringkas: string } {
+  const giliran = giliranSelesaiPanel(antri, { sibuk: true });
+  if (!giliran.langsungDiproses) {
+    return { kepala: null, ringkas: giliran.laporan };
+  }
+  const kepala = giliran.langsungDiproses;
+  const adaTeks = kepala.teks.trim().length > 0;
+  const susunan = giliranAntreanKeRiwayat({
+    langsungDiproses: { id: kepala.id, teks: kepala.teks, images: kepala.images },
+    antrean: giliran.keadaan,
+    tugasBelumSelesai: tugasBelumSelesaiRiwayat(history, todos),
+    konteks: null,
+    riwayat: [],
+  });
+  const blok: AgentMsg[] = susunan.blok.map((p, i) => ({
+    role: p.peran,
+    content: i === 0 ? `${KEPALA_PESAN_SEMENTARA}\n${p.teks}` : p.teks,
+  }));
+  /*
+   * Catatan gambar dipertahankan dari jalur lama apa adanya: gambar yang ditempel
+   * pada pesan mengantre tidak ikut dikirim ke tengah run (`history` hanya membawa
+   * teks), dan model harus tahu itu supaya tidak mengaku sudah melihatnya.
+   *
+   * Dua jalur, karena `susunGiliran` tidak membuat blok dari permintaan tanpa teks
+   * (dan itu benar - blok kosong tidak ada gunanya): kalau baris antrean itu hanya
+   * berisi gambar, catatannya berdiri sendiri; kalau ada teks, catatannya menempel
+   * di blok permintaan yang jadi giliran ini.
+   */
+  const jumlahGambar = kepala.images.length;
+  if (!adaTeks && jumlahGambar > 0) {
+    blok.push({
+      role: 'user',
+      content:
+        `${KEPALA_PESAN_SEMENTARA}\n(gambar yang ditempel pada pesan selagi kamu bekerja TIDAK ` +
+        'diteruskan ke tengah run; sebut di ringkasan akhir kalau gambar itu masih perlu dilihat.)',
+    });
+  } else if (jumlahGambar > 0 && blok.length > 0) {
+    const terakhir = blok.length - 1;
+    blok[terakhir] = {
+      ...blok[terakhir],
+      content:
+        `${blok[terakhir].content}\n\n(${jumlahGambar} gambar terlampir TIDAK diteruskan ke tengah ` +
+        'run; sebut di ringkasan akhir kalau gambar itu masih perlu dilihat.)',
+    };
+  }
+  if (blok.length === 0) {
+    return { kepala: null, ringkas: susunan.ringkas };
+  }
+  const baru = sisipKeDepanEkor(history, blok, (m) => m.role === 'tool');
+  history.length = 0;
+  for (const m of baru) history.push(m);
+  return { kepala: adaTeks ? kepala.teks : '(baris antrean tanpa teks - hanya gambar)', ringkas: susunan.ringkas };
+}
+
 // Old session titles from versions before the UI was standardised to English — mapped
 // back when loaded so already-saved history also shows up in English.
 const JUDUL_LAMA = new Set(['Chat baru', 'New Chat', 'Neuer Chat', 'Nueva conversación']);
@@ -147,7 +321,96 @@ export const HISTORY_KEEP_STEPS = 6;
  */
 export const HISTORY_TOOL_CHARS = 500;
 
-import { systemPromptFor, identityReminder, aturanProyek } from './systemPrompt';
+/*
+ * How much of the clipped budget goes to the END of a long tool result.
+ *
+ * The tail is not a nicety. A build or test log puts its verdict at the bottom
+ * — `error: could not compile`, the `N failed` summary, the stack trace — while
+ * the head is boilerplate ("Compiling zephyr v1.1", warning banners, the
+ * command echo). Keeping only the first 500 characters therefore handed the
+ * model the one part of a failing run that never says what failed, and it
+ * concluded from a listing that had lost its conclusion.
+ *
+ * 40% is enough for a compiler error block plus its surrounding context, and
+ * leaves 60% for the head where the command and early warnings live.
+ */
+export const HISTORY_TOOL_TAIL_RATIO = 0.4;
+
+/**
+ * Clip a long tool result for the archived history, keeping BOTH ends.
+ *
+ * Head-only clipping silently drops the conclusion of any log-shaped result,
+ * which is the failure this exists to prevent. The middle is what gets dropped:
+ * for a build log that is the least informative part, and for a file dump the
+ * head plus tail still shows the shape and the ending.
+ *
+ * The note says what was lost and how to get it back, so a model that really
+ * needs the middle re-runs the tool or reads the file with offset/limit rather
+ * than guessing from an incomplete listing.
+ */
+export function potongHasilRiwayat(isi: string, batas: number = HISTORY_TOOL_CHARS): string {
+  if (isi.length <= batas) return isi;
+  const ekor = Math.floor(batas * HISTORY_TOOL_TAIL_RATIO);
+  const kepala = batas - ekor;
+  const hilang = isi.length - kepala - ekor;
+  return (
+    `${isi.slice(0, kepala)}\n` +
+    `[… ${hilang} characters in the middle are not sent: this is the head and the tail of the result]\n` +
+    `${isi.slice(isi.length - ekor)}`
+  );
+}
+
+import { systemPromptFor, identityReminder, aturanProyek, konteksMemoriProyek } from './systemPrompt';
+import { kumpulkanDariApp, setPotretKeadaan } from './aiZephyrState';
+import { muatLengkap as muatMemoriSesi } from './aiMemori';
+
+/*
+ * Segarkan potret keadaan runtime SEBELUM prompt dirakit (ai-tahu-100-2 /
+ * ext-sadar).
+ *
+ * `systemPromptFor` sinkron, sedangkan membaca store yang benar-benar dipakai
+ * UI (manifest ekstensi lewat perintah Tauri, status LSP, port MCP, updater)
+ * butuh async - dan perintah Tauri yang menggantung tidak boleh menahan sebuah
+ * giliran. Karena itu pengumpulannya ditempelkan ke `Promise.all` yang sudah
+ * ada di kedua titik perakitan prompt, bukan dijadikan async di dalam perakit
+ * prompt.
+ *
+ * Batas 2,5 detik: potret yang tidak selesai tepat waktu dianggap tidak ada dan
+ * giliran tetap jalan dengan blok cadangan. Kegagalan di sini tidak pernah
+ * menjatuhkan giliran - blok keadaan bukan syarat sebuah giliran bisa dikirim.
+ */
+const POTRET_BATAS_MS = 2500;
+
+async function segarkanPotretKeadaan(): Promise<void> {
+  try {
+    const batas = new Promise<null>((r) => setTimeout(() => r(null), POTRET_BATAS_MS));
+    setPotretKeadaan(await Promise.race([kumpulkanDariApp(), batas]));
+  } catch {
+    setPotretKeadaan(null);
+  }
+  /*
+   * Memori lintas sesi (ai-ingat-sesi) dimuat di titik yang SAMA.
+   *
+   * Kedua titik perakitan prompt sudah `await` fungsi ini, jadi menempelkan
+   * pemuatan memori di sini tidak menambah titik async baru - dan blok memori
+   * di systemPromptFor() tetap sinkron membaca cache. Batas 2,5 detik yang sama
+   * berlaku: memori yang lambat/gagal bukan alasan sebuah giliran batal.
+   */
+  try {
+    const batasMemori = new Promise<null>((r) => setTimeout(() => r(null), POTRET_BATAS_MS));
+    await Promise.race([muatMemoriSesi(), batasMemori]);
+  } catch {
+    /* gagal dengan lembut: blok memori hanya kosong, giliran tetap jalan */
+  }
+}
+
+/*
+ * Ambang "sudah cukup membaca, sekarang menulis" dipakai di footer status
+ * (lihat `statusPekerjaan`). Angkanya sengaja hidup di `agentDorong` - di sana
+ * ia bisa diuji di Node tanpa menjalankan agen, dan satu tempat berarti tidak
+ * ada dua ambang yang berbeda untuk gejala yang sama.
+ */
+import { BATAS_TULIS_PAKSA } from './agentDorong';
 
 import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
@@ -247,6 +510,17 @@ const BATAS_AKSI_INGAT = 2;
 export const BATAS_BROWSER_MUTER = 3;
 /* Consecutive read-only steps that teach nothing before the run is ended. */
 const BATAS_TANPA_KEMAJUAN = 4;
+/*
+ * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
+ * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai. Cukup
+ * besar untuk menuntaskan rencana besar (toko online = 40+ berkas, kadang
+ * perlu baca-pulihkan-konteks di antara penulisan setelah auto-compact), tapi
+ * berbatas supaya model yang benar-benar mandek tidak membuat loop berputar
+ * sampai MAX_AGENT_STEPS. Dinaikkan dari 8: pada tugas besar, satu run bisa
+ * dipadatkan beberapa kali, dan tiap pemadatan wajar diikuti beberapa bacaan
+ * pemulihan konteks - 8 terlalu cepat habis dan run berhenti di tengah.
+ */
+const BATAS_LANJUT_TANPA_TOOL = 20;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -325,6 +599,8 @@ export interface HasilMuterBrowser {
   muter: number;
   /** True saat langkah ini sudah menjadi muter dan run harus dihentikan. */
   berhenti: boolean;
+  /** Sidik jari langkah browser terakhir yang tercatat, untuk panggilan berikutnya. */
+  sidik: string[];
 }
 
 function urlBrowserDinormalisasi(nama: string, args: Record<string, unknown>): string {
@@ -335,26 +611,72 @@ function urlBrowserDinormalisasi(nama: string, args: Record<string, unknown>): s
     .replace(/\/+$/, '');
 }
 
+/** Sidik jari satu panggilan browser: nama tool + argumennya. */
+function sidikBrowser(nama: string, args: Record<string, unknown>): string {
+  let isi = '';
+  try {
+    isi = JSON.stringify(args ?? {});
+  } catch {
+    isi = '?';
+  }
+  return `${nama} ${isi}`;
+}
+
+/**
+ * Hitung panggilan browser yang MUTER (berputar) tanpa kemajuan.
+ *
+ * Kenapa berbasis sidik jari, bukan "ada halaman terbuka lalu panggilan browser
+ * apa pun":
+ *
+ * Aturan lama menganggap SETIAP panggilan browser/web setelah satu halaman
+ * terbuka sebagai putaran, kecuali `browser_open` dengan URL baru. Untuk tugas
+ * riset itu salah potong: model membuka Google, membacanya, mem-fetch satu
+ * tautan, lalu membaca pane lagi - tiga langkah yang masing-masing membawa
+ * informasi baru - dan tepat pada langkah ketiga run-nya dibunuh dengan pesan
+ * "a page is already open ... made no progress". Pekerjaan riset memang berupa
+ * banyak bacaan berurutan; yang tidak berguna adalah bacaan yang SAMA PERSIS
+ * diulang.
+ *
+ * Jadi yang dihitung sekarang hanya pengulangan dalam jendela pendek: sidik jari
+ * panggilan disimpan sampai `BATAS_JENDELA_SIDIK` langkah terakhir, dan sebuah
+ * panggilan yang sidik jarinya sudah ada di jendela itu dianggap mengulang.
+ * Panggilan dengan argumen berbeda - halaman lain, tautan lain, elemen lain -
+ * selalu dihitung kemajuan dan mengosongkan penghitung.
+ */
+export const BATAS_JENDELA_SIDIK = 6;
+
 export function cekMuterBrowser(
   terbuka: boolean,
   muter: number,
   urlSudahTerbuka: readonly string[],
   nama: string,
   args: Record<string, unknown>,
+  sidikSebelumnya: readonly string[] = [],
 ): HasilMuterBrowser {
+  const sidikLama = [...sidikSebelumnya];
   /* Sebelum ada halaman, atau untuk tool yang bukan browser: bukan muter, dan
      penghitung tidak boleh disentuh. */
-  if (!terbuka || !TOOL_BROWSER.has(nama)) return { muter, berhenti: false };
+  if (!terbuka || !TOOL_BROWSER.has(nama)) {
+    return { muter, berhenti: false, sidik: sidikLama };
+  }
 
   const url = urlBrowserDinormalisasi(nama, args);
   if (url && !urlSudahTerbuka.includes(url)) {
     /* Halaman yang belum pernah dibuka: ini kemajuan sungguhan, termasuk
        ketika dipanggil lewat browser_close lalu browser_open lagi. */
-    return { muter: 0, berhenti: false };
+    return { muter: 0, berhenti: false, sidik: [] };
+  }
+
+  const sidik = sidikBrowser(nama, args);
+  if (!sidikLama.includes(sidik)) {
+    /* Panggilan ini belum pernah dilakukan dalam jendela pendek: model sedang
+       melihat sesuatu yang lain, dan itu kemajuan. */
+    const jendela = [...sidikLama, sidik].slice(-BATAS_JENDELA_SIDIK);
+    return { muter: 0, berhenti: false, sidik: jendela };
   }
 
   const berikut = muter + 1;
-  return { muter: berikut, berhenti: berikut >= BATAS_BROWSER_MUTER };
+  return { muter: berikut, berhenti: berikut >= BATAS_BROWSER_MUTER, sidik: sidikLama };
 }
 
 export interface HasilCatatAksi {
@@ -433,6 +755,21 @@ export function catatAksiBerulang(peta: Map<string, number>, name: string, args:
  */
 const agenAksiBerulang = new Map<string, number>();
 
+/**
+ * Partial text a failed agent attempt produced, kept aside when a retry clears
+ * the bubble.
+ *
+ * The retry re-sends the same prompt and answers from scratch, so the old text
+ * MUST leave the message or the two attempts interleave into a stutter. Keeping
+ * a copy means the work is not simply lost: it is available for the run report
+ * and for diagnosis, which is what was missing when a heavy run appeared to
+ * destroy its own output on every hiccup.
+ *
+ * Keyed by the assistant message id, so concurrent runs cannot collide, and
+ * cleared when the run finishes.
+ */
+const catatanPercobaanGagal = new Map<string, string>();
+
 /** Clear the per-run tool cache. Called at both start and end of sendAgent. */
 export function resetAgentToolCache(): void {
   agentToolCache.clear();
@@ -502,8 +839,8 @@ function konteksEditor(): string {
    */
   baris.push(
     workspace
-      ? `- Active workspace: ${workspace.replace(/\\/g, '/')}`
-      : '- Active workspace: none open (no workspace folder is open - ask the user to open one instead of assuming a path)',
+      ? `- Active workspace: ${workspace.replace(/\\/g, '/')} (the folder that is open: relative paths resolve against it, but it is not a boundary - a path the user names is used as given and a task living elsewhere is done there)`
+      : '- Active workspace: none open (that is fine - chat, questions and absolute paths all work without one; do NOT ask the user to open a folder)',
   );
   const semuaTab = s.tabs ?? [];
   const tabAktif = semuaTab.find((t) => t.id === s.activeTabId);
@@ -749,14 +1086,14 @@ export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CH
   const ringkas = lama.map((m) => {
     const tanpaGambar = m.images?.length ? { ...m, images: undefined } : m;
     if (m.role === 'tool') {
-      const isi = String(m.content ?? '');
-      return {
-        ...tanpaGambar,
-        content:
-          isi.length > HISTORY_TOOL_CHARS
-            ? `${isi.slice(0, HISTORY_TOOL_CHARS)}\n[… result truncated, ${isi.length - HISTORY_TOOL_CHARS} more characters are not sent]`
-            : isi,
-      };
+      /*
+       * Head AND tail, not head alone. A clipped build or test log kept only
+       * its first 500 characters — the compile banner and the command echo —
+       * and dropped the `error:` block and the `N failed` line at the bottom,
+       * which is the entire reason the model asked for the output. See
+       * `potongHasilRiwayat` for why the middle is what gets discarded.
+       */
+      return { ...tanpaGambar, content: potongHasilRiwayat(String(m.content ?? '')) };
     }
     if (m.role === 'assistant') {
       const teks = String(m.content ?? '');
@@ -817,6 +1154,38 @@ export function bentukWireRiwayat(history: AgentMsg[]): AgentMsg[] {
   const lain = history.filter((m) => m.role !== 'system');
   const hasil: AgentMsg[] = [];
   for (const m of lain) {
+    /*
+     * Two user messages in a row are MERGED into one.
+     *
+     * A strict OpenAI-compatible gateway rejects `system -> user -> user` with
+     * 400 invalid_request — measured against modelrouter.id with a real run:
+     * the request died on step 3 with the roles printed as
+     * `system -> user -> user -> assistant -> tool -> assistant -> tool`.
+     *
+     * The sequence is REACHABLE without anyone doing anything odd. A turn whose
+     * reply never arrived — a transient network failure, a cancel, a provider
+     * that closed the stream with no text — leaves a user message with no
+     * assistant after it. The reader then types another message, and from that
+     * point EVERY request carries `user -> user` and 400s. The conversation is
+     * permanently stuck and nothing on screen says why.
+     *
+     * Merging is what a correct client does: the two messages are one turn from
+     * the model's point of view, and joining them with a blank line keeps both
+     * intact rather than dropping either.
+     */
+    const sebelum = hasil[hasil.length - 1];
+    if (m.role === 'user' && sebelum?.role === 'user') {
+      const a = String(sebelum.content ?? '').trimEnd();
+      const b = String(m.content ?? '').trim();
+      hasil[hasil.length - 1] = {
+        ...sebelum,
+        content: a && b ? `${a}\n\n${b}` : a || b,
+        /* Images from either side survive: whichever message carried them, the
+           merged turn is the one the model is being asked about. */
+        images: m.images?.length ? m.images : sebelum.images,
+      };
+      continue;
+    }
     if (m.role !== 'assistant') {
       hasil.push(m);
       continue;
@@ -871,11 +1240,42 @@ export function bentukWireRiwayat(history: AgentMsg[]): AgentMsg[] {
    * `system -> user -> assistant(x2) -> tool` - dua tool call, satu hasil.
    */
   const bersih: AgentMsg[] = [];
+  /*
+   * Pasangan assistant↔tool harus memakai id yang COCOK dan UNIK.
+   *
+   * Merapikan urutan peran saja tidak cukup. Payload nyata yang ditolak gateway
+   * dengan 400 permanen berbentuk sah secara urutan
+   * (`assistant(tc) -> tool -> assistant(tc) -> tool`) tetapi id-nya rusak:
+   *
+   *   assistant tool_calls=[id A]      ← minta A
+   *   tool      tool_call_id=B         ← id TIDAK cocok (B, bukan A)
+   *   assistant tool_calls=[id A]      ← id A DIPAKAI LAGI (duplikat)
+   *   tool      tool_call_id=A
+   *
+   * Ini terjadi saat run dibatalkan di tengah tool-call: langkah yang
+   * setengah jadi meninggalkan id yang tidak sinkron, lalu ikut tersimpan ke
+   * riwayat sehingga SETIAP request berikutnya 400. Gateway OpenAI-compatible
+   * mewajibkan `tool_call_id` sebuah pesan tool sama dengan id tool_call pada
+   * assistant tepat sebelumnya, dan setiap id tool_call unik dalam satu request.
+   *
+   * Jadi di sini id dipasangkan ulang BERDASARKAN POSISI dan ditulis ulang jadi
+   * unik: call ke-i sebuah assistant dipasangkan dengan hasil tool ke-i, dan
+   * keduanya diberi id baru yang sama. Dengan begitu id acak/duplikat/tak cocok
+   * dari model atau dari pembatalan tidak pernah lolos ke provider.
+   */
+  let idPasangan = 0;
+  const idBerikut = () => `zc_${(idPasangan++).toString(36)}`;
+  let idToolMenunggu: string[] = [];
   for (const m of hasil) {
     if (m.role === 'tool') {
-      const pemanggil = bersih[bersih.length - 1];
-      if (!pemanggil || pemanggil.role !== 'assistant' || !pemanggil.toolCalls?.length) continue;
-      bersih.push(m);
+      /* Sah selama assistant terbaru yang punya tool call masih menyisakan id
+         yang belum dipasangkan. TIDAK boleh memakai kedekatan dengan entri
+         sebelumnya: pada assistant dengan BANYAK tool call, hasil tool kedua
+         berdampingan dengan hasil tool pertama, bukan dengan assistant-nya —
+         `idToolMenunggu` itulah penanda yang benar. */
+      const idCocok = idToolMenunggu.shift();
+      if (!idCocok) continue;
+      bersih.push({ ...m, toolCallId: idCocok });
       continue;
     }
     if (m.role === 'assistant' && m.toolCalls?.length) {
@@ -892,11 +1292,18 @@ export function bentukWireRiwayat(history: AgentMsg[]): AgentMsg[] {
       if (dipakai.length === 0) {
         /* Tidak ada satu pun hasil tool: kirim teksnya saja, tanpa tool call. */
         if ((m.content ?? '').trim()) bersih.push({ ...m, toolCalls: undefined });
+        idToolMenunggu = [];
         continue;
       }
-      bersih.push({ ...m, toolCalls: dipakai });
+      /* Beri id baru yang unik untuk tiap pasangan, dan simpan untuk pesan
+         tool yang mengikutinya supaya dua sisi memakai id yang sama. */
+      const idBaru = dipakai.map(() => idBerikut());
+      const dipakaiBerid = dipakai.map((tc, i) => ({ ...tc, id: idBaru[i] }));
+      idToolMenunggu = [...idBaru];
+      bersih.push({ ...m, toolCalls: dipakaiBerid });
       continue;
     }
+    idToolMenunggu = [];
     bersih.push(m);
   }
   return [...system, ...bersih];
@@ -1004,7 +1411,148 @@ export async function padatkanRiwayat(
     },
     ...baru,
   ];
-  return { history: baruHistory, sebelum, sesudah: perkiraanKonteks(baruHistory), diringkas: lama.length };
+  /*
+   * Pemadatan yang membuat konteks LEBIH BESAR bukan pemadatan.
+   *
+   * Terukur, bukan dugaan: pada run uji 15 pesan (4.547 token) diringkas jadi
+   * satu blok 4.677 token - modelnya menulis ringkasan yang lebih panjang
+   * daripada bahan yang digantikannya. Aplikasi tetap membuang riwayat aslinya,
+   * jadi yang terjadi: satu panggilan model terbuang, riwayat hilang, dan
+   * konteks TIDAK menyusut. Kalau pembacanya menurunkan ambang pemadatan
+   * (setting "window"), kondisi ini gampang tercapai - riwayat kecil, ringkasan
+   * besar - dan hasilnya pemadatan berulang yang tidak pernah menolong.
+   *
+   * Karena itu hasilnya diukur sesudah ringkasan jadi, dan kalau tidak ada yang
+   * dihemat, pemadatan dibatalkan seperti kegagalan lain (return null):
+   * pemanggilnya tidak menyentuh riwayat, dan cooldown akan mencoba lagi nanti
+   * saat riwayatnya memang sudah besar.
+   */
+  const sesudah = perkiraanKonteks(baruHistory);
+  if (sesudah >= sebelum) return null;
+  return { history: baruHistory, sebelum, sesudah, diringkas: lama.length };
+}
+
+/* ------------------------------------------------------------------ */
+/* D: berkas konteks pekerjaan, dikelola aplikasi                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * `.zephyr-context.md` dulu hanya hidup di prompt: model disuruh MEMBUATNYA
+ * sendiri di langkah pertama. Itu bergantung pada model menurut - dan pada run
+ * yang gagal membuatnya di langkah 1, catatan yang seharusnya menyelamatkan
+ * konteks justru tidak pernah ada. Padahal isinya seluruhnya fakta yang sudah
+ * dipegang aplikasi: tugas, rencana, berkas yang ditulis, dan hasil run.
+ *
+ * Jadi aplikasi yang menulisnya: kerangka dibuat sebelum langkah pertama
+ * (sekali saja - run berikutnya MEMPERBARUI berkas yang sama, tidak menumpuk
+ * kerangka baru), dan bagian hasilnya ditulis di jalur keluar run. Model tetap
+ * bebas menambah bagiannya sendiri; yang dijamin di sini adalah kerangkanya
+ * ada, dan isinya tidak pernah kosong.
+ */
+const NAMA_KONTEKS_KERJA = '.zephyr-context.md';
+const JUDUL_KONTEKS_BERKAS = '## Berkas dibuat / diubah';
+const JUDUL_KONTEKS_HASIL = '## Hasil run';
+
+/** Jalur berkas konteks di dalam workspace (null kalau tidak ada workspace). */
+export function jalurKonteksKerja(workspace: string | null): string | null {
+  if (!workspace) return null;
+  const ws = workspace.replace(/\\/g, '/').replace(/\/+$/, '');
+  return `${ws}/${NAMA_KONTEKS_KERJA}`;
+}
+
+/** Kerangka awal. Bagian hasil sengaja diberi penanda supaya bisa diisi nanti. */
+function kerangkaKonteks(tugas: string): string {
+  const ringkas = tugas.replace(/\s+/g, ' ').trim().slice(0, 400);
+  return (
+    `# Konteks pekerjaan (dikelola otomatis oleh Zephyr)\n\n` +
+    `Berkas ini dibuat dan diperbarui oleh APLIKASI, bukan oleh model. Model boleh\n` +
+    `menambah catatannya sendiri; bagian yang ditulis aplikasi akan ditimpa ulang\n` +
+    `pada run berikutnya.\n\n` +
+    `## Tugas terakhir\n${ringkas || '- (belum ada)'}\n\n` +
+    `## Rencana\n- (diisi agen lewat todo_write)\n\n` +
+    `${JUDUL_KONTEKS_BERKAS}\n- (belum ada)\n\n` +
+    `${JUDUL_KONTEKS_HASIL}\n- (belum ada)\n`
+  );
+}
+
+/** Pastikan berkas konteks ada sebelum run pertama menulis apa pun. */
+export async function siapkanKonteksKerja(
+  workspace: string | null,
+  tugas: string,
+): Promise<string | null> {
+  const jalur = jalurKonteksKerja(workspace);
+  if (!jalur) return null;
+  let ada = false;
+  try {
+    ada = await cmd.fsExists(jalur);
+  } catch {
+    /* Kalau pertanyaannya sendiri gagal dijawab, jangan menebak: menulis di
+       atas berkas yang mungkin sudah berisi catatan penting lebih buruk
+       daripada melewatinya. */
+    return null;
+  }
+  if (ada) return jalur;
+  try {
+    await cmd.fsWrite(jalur, kerangkaKonteks(tugas), undefined, undefined, { allowMissing: true });
+  } catch {
+    return null;
+  }
+  return jalur;
+}
+
+/** Ganti isi satu bagian (`## Judul` s/d judul berikutnya) tanpa menyentuh sisanya. */
+function gantiBagian(isi: string, judul: string, baru: string): string {
+  const i = isi.indexOf(judul);
+  if (i < 0) return `${isi.trimEnd()}\n\n${baru}`;
+  const j = isi.indexOf('\n## ', i + judul.length);
+  const akhir = j < 0 ? isi.length : j + 1;
+  return isi.slice(0, i) + baru + isi.slice(akhir);
+}
+
+/** Tulis hasil run ke `.zephyr-context.md` (dipanggil di jalur keluar run). */
+export async function catatHasilKonteks(
+  workspace: string | null,
+  opts: {
+    tugas: string;
+    langkah: number;
+    kategori: string | null;
+    berkas: string[];
+    todos: { content: string; status: string }[];
+  },
+): Promise<void> {
+  const jalur = jalurKonteksKerja(workspace);
+  if (!jalur) return;
+  if (opts.langkah === 0 && opts.berkas.length === 0) return;
+  let isi = '';
+  try {
+    const baca = await cmd.fsRead(jalur);
+    isi = baca.content ?? '';
+  } catch {
+    return;
+  }
+  if (!isi) return;
+  const daftar =
+    opts.berkas.length > 0 ? opts.berkas.map((b) => `- \`${b}\``).join('\n') : '- (tidak ada berkas baru)';
+  const rencana =
+    opts.todos.length > 0
+      ? opts.todos.map((t) => `- [${t.status === 'done' ? 'x' : t.status === 'in_progress' ? '~' : ' '}] ${t.content}`).join('\n')
+      : '- (tidak ada rencana)';
+  const bagianBerkas = `${JUDUL_KONTEKS_BERKAS}\n${daftar}\n`;
+  const bagianHasil =
+    `${JUDUL_KONTEKS_HASIL}\n` +
+    `- Tugas: ${opts.tugas.replace(/\s+/g, ' ').trim().slice(0, 200)}\n` +
+    `- Status: ${opts.kategori ? `berhenti (${opts.kategori})` : 'selesai'}\n` +
+    `- Langkah terpakai: ${opts.langkah}\n` +
+    `- Waktu: ${new Date().toISOString()}\n` +
+    `\n#### Rencana saat run berakhir\n${rencana}\n`;
+  const baru = gantiBagian(gantiBagian(isi, JUDUL_KONTEKS_BERKAS, bagianBerkas), JUDUL_KONTEKS_HASIL, bagianHasil);
+  if (baru === isi) return;
+  try {
+    await cmd.fsWrite(jalur, baru, undefined, undefined, { wasExisting: true });
+  } catch {
+    /* Catatan konteks adalah kemudahan, bukan hasil kerja: kegagalannya tidak
+       boleh mengubah status run yang sudah benar. */
+  }
 }
 
 let seq = 0;
@@ -1012,7 +1560,11 @@ const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
 // Multi-file tasks commonly need more than 60 tool turns. Keep a finite
 // safety cap, but do not stop a healthy agent halfway through a normal task.
-export const MAX_AGENT_STEPS = 120;
+// 200: a full website or app scaffold (6-12 files, each written then verified
+// once) runs 80-140 steps once wasteful re-reads are counted as no-progress;
+// 120 cut those off mid-build. The no-progress guard, not this ceiling, is what
+// stops a genuinely looping run, so a higher cap only helps real work finish.
+export const MAX_AGENT_STEPS = 200;
 
 /**
  * Classify only explicit URL navigation requests. A URL is required, as is a
@@ -1157,7 +1709,125 @@ export interface AgentTodo {
   id?: string;
 }
 
-export const MAX_TODOS = 20;
+/*
+ * Batas jumlah tugas yang diterima dalam satu tulisan.
+ *
+ * Angkanya dulu 20, dan itu memotong daftar panjang DIAM-DIAM: uji langsung
+ * dengan 68 tugas menghasilkan laporan "20 tugas" sementara 48 baris hilang
+ * tanpa satu pun pesan - persis pengurangan kerja senyap yang dilarang.
+ * Rencana kerja nyata (mis. plan bertahap di dokumen proyek) jauh di atas 20
+ * langkah, jadi batasnya juga jauh di atas kebutuhan wajar.
+ *
+ * Batas tetap ada sebagai pengaman kalau model mengirim daftar tak masuk akal,
+ * tapi setiap pemotongan WAJIB terdengar: jumlah entri yang dibuang dicatat di
+ * `dipangkasTodo` dan dibaca tool `todo_write` supaya peringatannya sampai ke
+ * pengguna dan ke model, bukan cuma menguap.
+ */
+export const MAX_TODOS = 200;
+
+/** Entri yang dibuang karena batas di atas pada panggilan terakhir. */
+let dipangkasTodo = 0;
+export const todoTerpangkas = () => dipangkasTodo;
+
+/*
+ * Tool yang benar-benar mengubah isi disk.
+ *
+ * Sengaja BUKAN `TOOL_PENULIS`: himpunan itu juga memuat `bash_run`,
+ * `todo_write`, dan tool browser - yang justru dipakai untuk memeriksa. Kalau
+ * ikut masuk, catatan "berkas yang sudah kamu tulis" akan berbohong kepada
+ * model dan bukannya menghentikan pembacaan berulang.
+ */
+const TOOL_TULIS_BERKAS = new Set([
+  'write_file',
+  'edit',
+  'multi_edit',
+  'replace_in_files',
+  'create_directory',
+  'copy_file',
+  'move_file',
+  'delete_file',
+]);
+
+/** Tool yang jelas-jelas tidak mengubah apa pun. */
+const TOOL_HANYA_BACA = new Set([
+  'read_file',
+  'list_directory',
+  'glob',
+  'grep',
+  'search_files',
+  'read_terminal',
+]);
+
+/**
+ * Perintah shell yang isinya MEMBACA saja.
+ *
+ * Layak dihitung: pada run nyata model yang kehilangan konteks berkas beralih
+ * ke `bash_run` dengan `powershell -c "[IO.File]::ReadAllText(...)"` atau
+ * `Select-String` untuk melihat isi berkas - tercatat 13 kali dalam satu run
+ * enam berkas. Kalau perintah seperti itu tidak dihitung sebagai bacaan,
+ * penghitung "sudah berapa langkah hanya membaca" berhenti di nol dan tidak
+ * pernah menyodok.
+ */
+const SHELL_BACA =
+  /(\bget-content\b|\breadalltext\b|\bselect-string\b|\bfindstr\b|\bget-childitem\b|\bcat\b|\btype\s|\bdir\s|\bls\s)/i;
+
+function bacaLewatShell(cmd: string): boolean {
+  return SHELL_BACA.test(cmd) && !/(>|>>|\bset-content\b|\bout-file\b|\bnew-item\b|\bremove-item\b|\bdel\s)/i.test(cmd);
+}
+
+/** Path dari argumen tool. `args` disimpan sebagai JSON string di langkah. */
+function pathDariArgumen(args: string | undefined): string {
+  const t = String(args ?? '');
+  if (!t) return '';
+  try {
+    const o = JSON.parse(t) as Record<string, unknown>;
+    const p = o.path ?? o.file ?? o.file_path ?? o.target ?? o.from ?? o.to;
+    if (typeof p === 'string' && p.trim()) return p.trim();
+  } catch {
+    /* Argumen yang bukan JSON: dicoba lewat pola di bawah. */
+  }
+  const m = /"(?:path|file|file_path|target|from|to)"\s*:\s*"([^"]+)"/.exec(t);
+  return m ? m[1].trim() : '';
+}
+
+/**
+ * Berkas yang sudah ditulis/diubah pada giliran ini, urut kejadian dan unik.
+ *
+ * Inilah jawaban untuk loop termahal pada tugas besar: hasil tool yang lama
+ * dipangkas menjadi 500 karakter (`potongHasilRiwayat`) dan `toolCalls` langkah
+ * lama dibuang dari wire, jadi model kehilangan catatan apa yang pernah
+ * ditulisnya. Tanpa daftar ini, satu-satunya cara ia tahu isi sebuah berkas
+ * adalah membacanya lagi - dan itulah yang mengubah tugas 40 berkas menjadi 40
+ * pembacaan berulang sementara rencananya tidak pernah selesai.
+ */
+export function berkasDitulisGiliran(steps: AgentStep[]): string[] {
+  const urut: string[] = [];
+  const ada = new Set<string>();
+  for (const s of steps) {
+    if (s.kind !== 'tool' || s.ok === false) continue;
+    if (!TOOL_TULIS_BERKAS.has(String(s.name ?? ''))) continue;
+    const p = pathDariArgumen(s.args);
+    if (!p || ada.has(p)) continue;
+    ada.add(p);
+    urut.push(p);
+  }
+  return urut;
+}
+
+/** Berapa langkah tool TERAKHIR yang berturut-turut hanya membaca. */
+export function ekorHanyaBaca(steps: AgentStep[], maks = 20): number {
+  const tool = steps.filter((s) => s.kind === 'tool');
+  let n = 0;
+  for (let i = tool.length - 1; i >= 0 && n < maks; i--) {
+    const nama = String(tool[i].name ?? '');
+    const baca =
+      TOOL_HANYA_BACA.has(nama) ||
+      (nama === 'bash_run' && bacaLewatShell(String(tool[i].args ?? '')));
+    if (!baca) break;
+    n++;
+  }
+  return n;
+}
 
 export function statusPekerjaan(
   todos: AgentTodo[],
@@ -1189,6 +1859,55 @@ export function statusPekerjaan(
       baris.push(
         `## Warning: ${gagal.length} of the last steps FAILED. ` +
           'Do not repeat the same approach — try something different or explain the blocker.',
+      );
+    }
+  }
+
+  /*
+   * Kerja-log: berkas yang SUDAH jadi, ditulis ulang di setiap langkah.
+   *
+   * Ini bagian yang membuat tugas panjang bisa diselesaikan. Riwayat yang
+   * dikirim ke provider memangkas hasil tool lama jadi 500 karakter dan
+   * membuang `toolCalls` langkah lama, jadi setelah beberapa langkah model
+   * benar-benar tidak lagi memegang isi berkas yang ia tulis sendiri. Yang
+   * dilakukannya lalu: membacanya lagi - berulang - sampai batas langkah habis.
+   * Daftar ini murah (satu baris per berkas) dan memberi tahu dua hal yang
+   * mahal dipulihkan: berkas apa yang sudah ada, dan bahwa isinya tidak perlu
+   * diverifikasi ulang.
+   */
+  const ditulis = berkasDitulisGiliran(steps);
+  if (ditulis.length) {
+    baris.push(
+      `## Berkas yang SUDAH kamu tulis di giliran ini (${ditulis.length}) - jangan dibaca ulang untuk memastikan isinya`,
+    );
+    for (const p of ditulis.slice(-40)) baris.push(`- ${p}`);
+  }
+
+  /*
+   * Sodokan "berhenti membaca".
+   *
+   * Dibandingkan dengan penjaga tanpa-kemajuan di loop agen, penghitung ini
+   * mengukur hal yang berbeda: penjaga itu menghitung langkah yang tidak
+   * mengubah apa pun, sedangkan membaca berkas yang belum pernah dibaca tetap
+   * dianggap nol di sana walaupun model sudah berputar-putar. Di sini yang
+   * dihitung hanyalah ekor langkah: kalau sepuluh langkah terakhir semuanya
+   * membaca, tidak ada informasi baru yang bisa didapat dari langkah kesebelas.
+   */
+  const bacaEkor = ekorHanyaBaca(steps);
+  if (bacaEkor >= BATAS_TULIS_PAKSA) {
+    if (ditulis.length > 0) {
+      baris.push(
+        `## Berhenti membaca: ${bacaEkor} langkah terakhir tidak mengubah apa pun.`,
+        'Berkas di daftar atas sudah ada di disk persis seperti yang kamu kirim - isinya tidak perlu',
+        'diverifikasi lagi dengan membacanya. Tulis berkas BERIKUTNYA sekarang (`write_file`, satu berkas',
+        'penuh per panggilan), atau tandai item rencananya `done` lewat `todo_write` lalu kerjakan item',
+        'berikutnya.',
+      );
+    } else if (todos.length > 0) {
+      baris.push(
+        `## Berhenti membaca: ${bacaEkor} langkah terakhir hanya membaca dan belum ada berkas yang ditulis.`,
+        'Rencananya sudah kamu susun sendiri, jadi bahan sudah cukup. Kerjakan item pertamanya sekarang',
+        'dengan `write_file`.',
       );
     }
   }
@@ -1281,6 +2000,26 @@ function gagalKirimToast(pesan: string): false {
  */
 let autoCompactStep = -AUTO_COMPACT_COOLDOWN_STEPS;
 
+/**
+ * Jejak pemadatan konteks - INSTRUMENTASI untuk harness, bukan perilaku app.
+ *
+ * A(ii) tidak bisa diverifikasi dari berkas di disk: kalau tugas asli hilang
+ * setelah pemadatan, run biasanya tetap menulis sesuatu sebelum tersesat, jadi
+ * "ada berkas" bukan bukti. Yang perlu dibuktikan adalah isi riwayat yang
+ * benar-benar dikirim SESUDAH pemadatan: apakah kalimat permintaan user masih
+ * ada di sana. Karena itu tiap pemadatan mencatat ringkasannya di sini, dan
+ * harness membacanya lewat bridge `__ZEPHYR_AI__.jejakPemadatan`.
+ */
+export const jejakPemadatan: Array<{
+  langkah: number;
+  sebelum: number;
+  sesudah: number;
+  diringkas: number;
+  tugasDisuntik: boolean;
+  tugasAsli: string;
+  sisaTodo: number;
+}> = [];
+
 /** Reset the compaction cooldown at the start of a fresh agent run. */
 export function resetAutoCompact() {
   autoCompactStep = -AUTO_COMPACT_COOLDOWN_STEPS;
@@ -1318,11 +2057,19 @@ const AGENT_IDLE_MS = 360_000;
  *     watchdog diam tidak pernah menembak karena setiap byte dianggap tanda
  *     sehat. Yang akhirnya menghentikan run hanya batas keras 15 menit.
  *
- * Batasnya sengaja jauh lebih pendek dari 15 menit tetapi tetap lega: provider
- * yang sedang menalar berat (reasoning panjang sebelum tool call) memang bisa
- * diam beberapa menit, jadi memotong di 60 detik akan membunuh kerja yang sehat.
+ * Batasnya harus cukup lega untuk kerja berat yang SEHAT, karena satu-satunya
+ * cara timer ini menyala adalah dengan mematikan langkah yang sedang berjalan.
+ * 120 detik terbukti terlalu pendek: model frontier yang menalar panjang sebelum
+ * tool call, atau yang menyusun argumen `write_file` besar, benar-benar bisa
+ * tidak mengirim token baru selama beberapa menit. Setiap kali itu terjadi,
+ * langkah sehat dibunuh dan user melihat tugas berat "terpotong" tanpa sebab.
+ *
+ * 300 detik diselaraskan dengan `RECEIVE_IDLE_TIMEOUT_SECS` Rust: transport
+ * sudah menyerah lebih dulu pada koneksi yang benar-benar mati, jadi timer ini
+ * tidak perlu ikut memotong dan cukup menjadi jaring untuk stream yang hidup
+ * tapi tidak lagi berguna.
  */
-const AGENT_NO_PROGRESS_MS = 120_000;
+const AGENT_NO_PROGRESS_MS = 300_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
 let agentNoProgress: ReturnType<typeof setTimeout> | null = null;
 
@@ -1378,6 +2125,7 @@ function agentHardLimitArm() {
       useAi.setState({
         agentBusy: false,
   agentBusys: { '': false },
+  pendings: { '': null },
         pending: null,
         agentConfirm: null,
   agentTanya: null,
@@ -1406,8 +2154,17 @@ function isRetryableAgentToolResponseError(error: string): boolean {
     text.includes('returned malformed json arguments') ||
     text.includes('arguments must be a json object') ||
     text.includes('is missing arguments') ||
-    text.includes('is missing a function name')
+    text.includes('is missing a function name') ||
+    /* A tool call cut off at the output-token ceiling: the arguments are
+       incomplete JSON, not wrong JSON. Retryable, and the retry raises the
+       budget (see `naikkanTokenTerpotong`) so the same file fits next time. */
+    text.includes('terpotong karena batas token')
   );
+}
+
+/** Whether a tool-response error was caused by hitting the output-token ceiling. */
+function isTruncatedToolResponseError(error: string): boolean {
+  return error.toLowerCase().includes('terpotong karena batas token');
 }
 
 /** Only errors from the provider request itself are eligible for agent retry. */
@@ -1428,6 +2185,22 @@ function isRetryableAgentProviderError(error: string): boolean {
   ) return false;
   if (/\b(?:408|429|500|502|503|504)\b/.test(text)) return true;
   if (/timeout|timed out|receive response|tidak menjawab|batas waktu/.test(text)) return true;
+  /*
+   * A broken stream is retryable, and it was NOT being recognised as one.
+   *
+   * Rust reports a mid-body disconnect as "stream terputus: …" and a garbled
+   * frame as "invalid stream response: …". Neither matched any pattern above, so
+   * both fell through to the connection test below - which they also fail,
+   * because the wording says nothing about a connection. The result was the
+   * worst possible combination: the one failure that heavy work hits most often
+   * was classified as permanent and killed the run on the spot, with no retry
+   * and no wait-recover.
+   *
+   * These are transport faults by definition - the handshake succeeded and the
+   * body died mid-flight - so the same history is worth re-sending.
+   */
+  if (/stream terputus|invalid stream response|stream ended before completion/.test(text))
+    return true;
   return /connection|connect|network|econn|enotfound|reset by peer|broken pipe|dns/.test(text);
 }
 
@@ -1460,15 +2233,21 @@ function labelRetryAgent(error: string): string {
 /*
  * Wait-recover ladder for a provider that is retryable-down (429/5xx).
  *
- * Shortened from [15s, 30s, 60s] (~105s) to a ~26s total. The long ladder made
- * a transient gateway hiccup look like the app had frozen: the user stared at
- * "waiting for provider" for over a minute. opencode/Hermes recover in a few
- * seconds and treat a longer outage as an error the user should see (and can
- * act on by switching model), rather than a silence. The behaviour is the same
- * - retry on the same step, then fall back to another model - just without the
- * minute-long dead wait.
+ * The tension is real and both ends were tried. [15s, 30s, 60s] (~105s, the
+ * original) made a transient hiccup look like a freeze: the reader watched
+ * "waiting for provider" for over a minute. Cutting it to ~26s fixed that but
+ * broke the other case - a gateway that needs a moment to breathe after a 429
+ * was abandoned before it recovered, and a heavy run then died on a hiccup it
+ * would have survived.
+ *
+ * The ladder is now ~38s across three visible steps. That is long enough for a
+ * rate-limited gateway to come back, and short enough that the reader is never
+ * staring at nothing: each step prints its number, its wait, and the total, with
+ * Stop available throughout (see `tungguProviderPulihAgent`). After the ladder
+ * the model falls back rather than dying, so a still-busy provider costs a model
+ * switch rather than the run.
  */
-const TUNGGU_PULIH_DELAYS = [3000, 8000, 15000] as const;
+const TUNGGU_PULIH_DELAYS = [4000, 12000, 22000] as const;
 
 async function tungguProviderPulihAgent(
   setProgress: (p: { agentPhase: 'thinking'; agentCurrentTool: string | null }) => void,
@@ -1521,7 +2300,7 @@ function agentWatchdogArm() {
     // If no step is waiting (e.g. it hung outside the loop),
     // force the agent status released so the UI and subagents are not locked.
     if (!r) {
-      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
+      useAi.setState({ agentBusy: false, agentBusys: { '': false }, pendings: { '': null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
     }
   }, AGENT_IDLE_MS);
 }
@@ -1557,7 +2336,7 @@ function agentNoProgressArm() {
         `${Math.round(AGENT_NO_PROGRESS_MS / 1000)} detik. Langkah dihentikan.`,
     });
     if (!r) {
-      useAi.setState({ agentBusy: false, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
+      useAi.setState({ agentBusy: false, agentBusys: { '': false }, pendings: { '': null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
     }
   }, AGENT_NO_PROGRESS_MS);
 }
@@ -1796,6 +2575,21 @@ interface AiState {
   pending: string | null;
 
   /*
+   * HydraFusion, chat side.
+   *
+   * `hydraTahap` is the stage running RIGHT NOW (which model, which of the
+   * plan's requests, and why) — it is what keeps a three-request route from
+   * looking like a hung app. `hydraTerakhir` survives the run so the UI can
+   * still answer "which model actually wrote this, and why that one" after the
+   * answer has landed.
+   *
+   * Both are null unless the feature is on and a run is in flight; a plain
+   * single-model turn never touches them.
+   */
+  hydraTahap: HydraLapor | null;
+  hydraTerakhir: HydraTerakhir | null;
+
+  /*
    * The run state, keyed by WHICH composer is running — same keys as `drafts`
    * and `activeIds`.
    *
@@ -2000,7 +2794,18 @@ interface AiActions {
   loadKeys: () => Promise<void>;
   hasKey: (provider?: string) => boolean;
 
-  setModel: (modelId: string) => Promise<void>;
+  /**
+   * `providerId` = provider whose group the click came from, when there is one.
+   *
+   * A model row lives inside a provider group, and clicking it means "use THIS
+   * model from THIS provider". Without the argument the resolution fell back to
+   * the provider that happened to be active: pick Gemini's `gemini-3.8-flash`
+   * while Anthropic is active and the model string changed while the provider
+   * stayed `anthropic` - the composer read "Anthropic - gemini-3.8-flash" and
+   * the request then went to Anthropic's endpoint. The group is what the user
+   * clicked, so the group is what the model must be resolved against.
+   */
+  setModel: (modelId: string, providerId?: string) => Promise<void>;
   /**
    * Align the AI panel's provider/model with settings.models.activeProvider.
    *
@@ -2068,6 +2873,21 @@ interface AiActions {
   jawabTanya: (jawaban: string | null) => void;
 
   setAgentTodos: (list: unknown[]) => number;
+
+  /**
+   * Kosongkan daftar tugas - TERMASUK yang tidak disebut lagi.
+   *
+   * Tidak bisa lewat `setAgentTodos([])`: fungsi itu sengaja menambal-balik
+   * tugas yang tidak ikut disebut, supaya update parsial dari model tidak
+   * menghapus pekerjaan yang sedang jalan. Akibatnya tombol "Clear all tasks"
+   * di panel dulu tidak melakukan apa pun - daftarnya tetap penuh, dan satu-
+   * satunya cara mengosongkan adalah reload. Penghapusan harus eksplisit, dan
+   * inilah jalur eksplisitnya.
+   */
+  kosongkanTodos: () => void;
+
+  /** Buang hanya tugas yang sudah selesai. Jalur eksplisit yang sama. */
+  buangTodosSelesai: () => void;
 
   /** Tampilkan kartu saran perintah. Tidak menjalankan apa pun. */
   setCommandSuggestion: (s: { command: string; alasan?: string } | null) => void;
@@ -2193,15 +3013,17 @@ function persist(state: AiState) {
 
 const boot = loadSessions();
 
-/** Last agent mode the user picked, kept across sessions. */
+/**
+ * What a turn DOES: an agent run. Kept as a stored field for older sessions,
+ * but no longer a choice.
+ *
+ * Chat mode was removed at the reader's request (2026-10-13): the AI has tools,
+ * reads files and runs commands, so "answer only" was a second dispatch path
+ * that behaved like a different product. A stored 'chat' now boots as 'agent';
+ * the run mode (Interactive / Plan / Autopilot) is what the reader picks.
+ */
 function bootAgentMode(): 'chat' | 'agent' {
-  try {
-    // New sessions start in Agent mode so a prompt can actually inspect and
-    // change the project. Users can still switch to Chat from the composer.
-    return localStorage.getItem('zephyr.ai.mode') === 'chat' ? 'chat' : 'agent';
-  } catch {
-    return 'agent';
-  }
+  return 'agent';
 }
 
 /** Last run mode (Interactive / Plan / Autopilot), kept across sessions. */
@@ -2384,6 +3206,8 @@ export const useAi = create<AiStore>((set0, get) => {
   model: 'custom-model',
   provider: 'custom',
   pending: null,
+  hydraTahap: null,
+  hydraTerakhir: null,
   pendings: { '': null },
   antrian: [],
   antrians: { '': [] },
@@ -2557,7 +3381,7 @@ export const useAi = create<AiStore>((set0, get) => {
     }
   },
 
-  setModel: async (modelId) => {
+  setModel: async (modelId, providerId) => {
     /*
      * Persistence choke point. `custom-model` / `local-default` are catalogue
      * rows that mean "type a name", not models the router serves; letting a
@@ -2572,7 +3396,7 @@ export const useAi = create<AiStore>((set0, get) => {
       return;
     }
 
-    const def = findModel(modelId, get().provider);
+    const def = findModel(modelId, providerId ?? get().provider);
     set({ model: def.id, provider: def.provider, modelMenuOpen: false });
 
     set((s) => ({
@@ -2830,7 +3654,14 @@ export const useAi = create<AiStore>((set0, get) => {
     clearDraftImages: () => set({ draftImages: [] }),
     setToast: (v) => set({ toast: v }),
   setConfirmCmd: (v) => set({ confirmCmd: v }),
-  setAgentMode: (m) => {
+  /*
+   * Coerced on purpose: 'chat' is retired, so a caller asking for it gets an
+   * agent run instead of resurrecting a path the UI no longer offers. The
+   * action stays (older callers and the Settings row still call it) and still
+   * writes the localStorage key, so a stale tab reading it stays coherent.
+   */
+  setAgentMode: (_m) => {
+    const m: 'chat' | 'agent' = 'agent';
     set({ agentMode: m });
     try {
       localStorage.setItem('zephyr.ai.mode', m);
@@ -2897,8 +3728,18 @@ export const useAi = create<AiStore>((set0, get) => {
 
     const sebelum = get().agentTodos;
     const bersih: AgentTodo[] = [];
-    for (const raw of Array.isArray(list) ? list : []) {
-      if (bersih.length >= MAX_TODOS) break;
+    dipangkasTodo = 0;
+    const masukan = Array.isArray(list) ? list : [];
+    let iMasuk = -1;
+    for (const raw of masukan) {
+      iMasuk++;
+      if (bersih.length >= MAX_TODOS) {
+        /* Sisa entri dibuang, tapi jumlahnya DICATAT supaya bisa dilaporkan -
+           lihat catatan di MAX_TODOS. Pemotongan tanpa laporan adalah gagal
+           senyap, bukan pengaman. */
+        dipangkasTodo = masukan.length - iMasuk;
+        break;
+      }
       const o = raw as { id?: unknown; content?: unknown; status?: unknown };
 
       /*
@@ -3059,6 +3900,15 @@ export const useAi = create<AiStore>((set0, get) => {
     const adaBaruSelesai = [...lSesudah].some(([content, n]) => (lSebelum.get(content) ?? 0) < n);
     if (adaBaruSelesai) agenAksiBerulang.clear();
     return bersih.length;
+  },
+
+  kosongkanTodos: () => {
+    set({ agentTodos: [] });
+    persist(get());
+  },
+  buangTodosSelesai: () => {
+    set((s) => ({ agentTodos: s.agentTodos.filter((t) => t.status !== 'done') }));
+    persist(get());
   },
 
   setReasoningEffort: (e) => {
@@ -3341,9 +4191,62 @@ export const useAi = create<AiStore>((set0, get) => {
       lines.push(m.content, '');
     }
     const md = lines.join('\n');
+
+    /*
+     * Written to a FILE as well as the clipboard.
+     *
+     * The clipboard is useful for pasting into a chat box; a file is what
+     * attaches a session to a pull request, a bug report or a commit message —
+     * and those are the reasons anyone exports a thread. Clipboard-only meant
+     * the reader had to paste into an editor and save by hand, which is the
+     * step the command exists to remove.
+     *
+     * The file lands in the workspace so it is inside the path guard, and a
+     * name collision gets a counter rather than overwriting an earlier export —
+     * two sessions can share a title, and silently replacing the first export
+     * would lose the thing the reader asked to keep.
+     */
+    const ws = useStore.getState().workspace;
+    let disimpan = '';
+    if (ws) {
+      try {
+        const aman = s.title
+          .replace(/[^a-zA-Z0-9 _-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-')
+          .slice(0, 60) || 'chat';
+        const dir = `${ws.replace(/\\/g, '/')}/.zephyr/exports`;
+        await cmd.fsCreateDir(dir).catch(() => undefined);
+        let target = `${dir}/${aman}.md`;
+        /* Bounded probe: a reader is not going to export the same title 100
+           times, and an unbounded loop on a failing stat would hang the send. */
+        for (let n = 2; n < 100; n += 1) {
+          const ada = await cmd.fsExists(target).catch(() => false);
+          if (!ada) break;
+          target = `${dir}/${aman}-${n}.md`;
+        }
+        await cmd.fsWrite(target, md, undefined, undefined, { allowMissing: true });
+        /*
+         * And tell the turn's checkpoint, so an export the agent performed is
+         * undone by "put back what this turn changed" like any other file it
+         * wrote. A reader who asks the agent to export and then regrets the
+         * turn should not be left with the file behind.
+         */
+        void import('./checkpoint').then((m) => m.catat(target));
+        disimpan = target;
+      } catch {
+        /* A failed file write must not lose the export: the clipboard copy
+           below still runs, and the toast says which happened. */
+      }
+    }
+
     const { clipboardWrite } = await import('./clipboard');
     await clipboardWrite(md);
-    set({ toast: tf('Chat exported ({n} characters) - copied to the clipboard', { n: md.length }) });
+    set({
+      toast: disimpan
+        ? tf('Chat exported ({n} characters) to {f}', { n: md.length, f: disimpan })
+        : tf('Chat exported ({n} characters) - copied to the clipboard', { n: md.length }),
+    });
   },
 
 /*
@@ -3555,8 +4458,61 @@ export const useAi = create<AiStore>((set0, get) => {
          * a second pass leaves it alone - but the queued row would then show the
          * paragraph instead of the command, and the two paths would drift.
          */
-        set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
-        set({ drafts: {}, draftImages: [], toast: tx('Added to the queue') });
+        /*
+         * LANE ANTREAN-LIVE (item C). Keputusan masuk/penuh/terlalu-panjang TIDAK
+         * ditebak di sini: `rencanaMasukSaatSibuk` (src/lib/antreanPesan.ts) yang
+         * memutuskan, dengan aturan yang sama dengan 18 uji di
+         * scripts/uji-antrean-pesan.mjs. Tiga akibatnya, semuanya disengaja:
+         *   * pesan kosong / terlalu panjang -> DITOLAK dengan sebab yang bisa
+         *     dibaca, dan draft TIDAK dikosongkan supaya user bisa langsung
+         *     memperbaikinya (dulu: apa pun yang diketik "berhasil" diantrekan);
+         *   * antrean penuh (20 pesan) -> pesan TERLAMA dibuang dan pesan BARU
+         *     tetap masuk, dengan pemberitahuan (dulu: tak ada batas sama sekali);
+         *   * barisnya ditulis ke `antrians[composerId]` - daftar yang dirender
+         *     panel - dan dicerminkan ke `antrian` untuk permukaan utama, sama
+         *     seperti aksi antrean lain. Jadi pesan yang diketik selagi sibuk
+         *     SEKARANG terlihat di daftar antrean panel (dulu hanya masuk daftar
+         *     datar yang tidak dirender).
+         */
+        const kunciAntrean = composerId || COMPOSER_AKTIF;
+        const barisAntrean: AntrianPesan = { id: idAntrian(), teks: diketik, images: imgs };
+        /*
+         * Baris TANPA teks (hanya gambar yang ditempel) tetap lewat jalur lama:
+         * `kirim()` di antreanPesan.ts menolak pesan kosong, sedangkan panel
+         * menerima baris bergambar. Menolaknya di sini akan menghilangkan gambar
+         * yang sudah ditempel user - keluhan yang justru sedang diperbaiki - jadi
+         * aturan antrean hanya berlaku untuk baris berteks.
+         */
+        if (diketik.trim().length === 0) {
+          set((s) => ({ antrian: [...s.antrian, barisAntrean] }));
+          set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
+          return true;
+        }
+        const keputusan = rencanaMasukSaatSibuk(get().antrians[kunciAntrean] ?? [], diketik, imgs);
+        if (!keputusan.ok || !keputusan.item) {
+          // Draft sengaja TIDAK dikosongkan: user harus bisa memperbaiki teksnya.
+          set({ toast: keputusan.pesan ?? tx('Message could not be queued') });
+          return false;
+        }
+        const penuh = keputusan.buangIndeks !== null;
+        set((s) => {
+          const sekarang = (s.antrians[kunciAntrean] ?? []).slice();
+          if (keputusan.buangIndeks !== null) sekarang.splice(keputusan.buangIndeks, 1);
+          const sesudah = [...sekarang, { ...barisAntrean, teks: keputusan.item!.teks }];
+          return {
+            antrians: { ...s.antrians, [kunciAntrean]: sesudah },
+            ...(kunciAntrean === '' ? { antrian: sesudah } : {}),
+          };
+        });
+        set((s) => ({
+          drafts: { ...s.drafts, [composerId]: '' },
+          draftImages: [],
+          toast: penuh
+            ? tf('Queue full ({n}): the oldest queued message was dropped, yours is in', {
+                n: keputusan.keadaan.batas,
+              })
+            : tx('Added to the queue'),
+        }));
         return true;
       }
       return get().sendAgent(raw, imgs, tampil, composerId);
@@ -3564,7 +4520,7 @@ export const useAi = create<AiStore>((set0, get) => {
     if (get().pending) {
       // Same rule in chat mode: queue it rather than dropping the text.
       set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
-      set({ drafts: {}, draftImages: [], toast: tx('Added to the queue') });
+      set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
       return true;
     }
 
@@ -3594,7 +4550,7 @@ export const useAi = create<AiStore>((set0, get) => {
         return false;
       }
       set({
-        toast: tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
+        toast: tf('Add an API key for {name} in AI Models, or pick a provider that already has one', { name: label }),
       });
       return false;
     }
@@ -3699,38 +4655,74 @@ export const useAi = create<AiStore>((set0, get) => {
     };
 
     const prev = get().activeSession()?.messages ?? [];
-        const history: AiMessage[] = prev
-              .filter((m) => !m.error && (m.content.trim() || m.images?.length || m.image))
-              .map((m) => {
-                const banyak = m.images?.length ? m.images : m.image ? [m.image] : [];
-                return {
-                  role: m.role,
-                  content: m.content,
-                  ...(banyak.length ? { images: banyak } : {}),
-                  /*
-                   * Echo the turn's reasoning back to the provider.
-                   *
-                   * Anthropic validates the signature against the thinking block,
-                   * so the two travel together; the OpenAI-compatible gateways
-                   * take `reasoning_content` on the assistant turn and ignore the
-                   * signature field. Non-empty only — an empty string is not the
-                   * same as absent, and some routers reject that form.
-                   */
-                  ...(m.reasoning ? { reasoning: m.reasoning } : {}),
-                  ...(m.reasoningSignature ? { reasoningSignature: m.reasoningSignature } : {}),
-                };
-              });
+    const mentah: AgentMsg[] = prev
+      .filter((m) => !m.error && (m.content.trim() || m.images?.length || m.image))
+      .map((m) => {
+        const banyak = m.images?.length ? m.images : m.image ? [m.image] : [];
+        return {
+          role: m.role,
+          content: m.content,
+          ...(banyak.length ? { images: banyak } : {}),
+          /*
+           * Echo the turn's reasoning back to the provider.
+           *
+           * Anthropic validates the signature against the thinking block,
+           * so the two travel together; the OpenAI-compatible gateways
+           * take `reasoning_content` on the assistant turn and ignore the
+           * signature field. Non-empty only — an empty string is not the
+           * same as absent, and some routers reject that form.
+           */
+          ...(m.reasoning ? { reasoning: m.reasoning } : {}),
+          ...(m.reasoningSignature ? { reasoningSignature: m.reasoningSignature } : {}),
+        } as AgentMsg;
+      });
+
+    /*
+     * The chat path needs the SAME shape repair the agent path gets.
+     *
+     * It did not have it, and that left the `user -> user` bug alive on this
+     * path after it had been fixed on the agent path. Both paths draw from the
+     * same session messages, and a turn whose reply never arrived — a network
+     * failure, a cancel, a provider that closed the stream with no text — leaves
+     * a user message with no assistant after it. The reader types again, and
+     * from that point EVERY chat request carries `user -> user` and is refused
+     * with 400, permanently, with nothing on screen explaining why.
+     *
+     * `bentukWireRiwayat` merges consecutive user turns, drops empty assistant
+     * turns, and rewrites assistant↔tool pairing. Trimming runs after it, then
+     * the repair runs once more, because trimming can break a pairing it did not
+     * create (the same order the agent path uses).
+     */
+    const dirApi = bentukWireRiwayat(mentah);
+    const history: AiMessage[] = bentukWireRiwayat(ringkasUkuran(dirApi)) as AiMessage[];
 
     const bhsJawab = useStore.getState().settings.models.answerLang ?? 'follow';
     const gayaJawab = useStore.getState().settings.models.answerStyle ?? 'short';
     {
 
-      const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
+      const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek(), segarkanPotretKeadaan()]);
 
       const ai = get();
+      /*
+       * `content` (pesan user giliran ini) diteruskan sebagai argumen terakhir
+       * `kueri`. Dua blok prompt dibangun darinya dan keduanya HARUS ada di
+       * setiap giliran:
+       *
+       *   - blok bahasa: aturan bahasa yang mengikat giliran ini, dipasang di
+       *     paling atas prompt oleh `systemPromptFor` sendiri; tanpa teks user
+       *     ia tidak bisa tahu bahasa apa yang dipakai, dan jawaban kembali
+       *     menyimpang ke Inggris (materi prompt mayoritas Inggris);
+       *   - blok indeks: potongan indeks pengetahuan Zephyr yang cocok dengan
+       *     kata-kata user, disuntik OTOMATIS. Ini yang menghapus ketergantungan
+       *     pada model yang ingat memanggil tool `zephyr_self`.
+       *
+       * Yang diteruskan `content`, BUKAN `payloadContent`: lampiran (isi tab yang
+       * sedang terbuka) bisa mencapai ATTACH_LIMIT dan akan menenggelamkan kata
+       * kunci pesan user, sehingga indeks tidak menemukan apa pun.
+       */
       history.unshift({
         role: 'system',
-        content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider, gayaJawab),
+        content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider, gayaJawab, content),
       });
       /*
        * Plan mode: tell the agent to think before it touches anything.
@@ -3755,9 +4747,17 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     if (ragContext) history.push({ role: 'user', content: ragContext });
+            /*
+             * `content` diteruskan juga ke `identityReminder`, yang menempelkan
+             * satu baris bahasa di UJUNG pesan user ("Answer in Indonesian - the
+             * message above is written in it."). Blok bahasa di prompt sistem
+             * berjarak ribuan token dari jawaban; perintah di ujung pesan user
+             * adalah teks terakhir yang dibaca model sebelum mulai menulis, jadi
+             * pasangan ini yang menahan jawaban tetap satu bahasa dengan user.
+             */
             history.push({
               role: 'user',
-              content: payloadContent + identityReminder(get().model),
+              content: payloadContent + identityReminder(get().model, content),
               ...(imgs.length ? { images: imgs } : {}),
             });
 
@@ -3791,7 +4791,19 @@ export const useAi = create<AiStore>((set0, get) => {
             }
           : x,
       ),
-      drafts: text ? s.drafts : {},
+      /*
+       * Draft dihapus untuk PERMUKAAN YANG MENGIRIM, bukan seluruh peta.
+       *
+       * Sebelumnya: `drafts: text ? s.drafts : {}`. Composer selalu mengirim
+       * `text` (isinya draft permukaan itu), jadi cabang `text` yang terpakai
+       * dan draft-nya TIDAK PERNAH dibersihkan - kotak input tetap berisi teks
+       * yang baru dikirim, dan itu terlihat user. Cabang `{}` hanya terpakai
+       * kalau send() dipanggil tanpa teks (mis. drain antrian), lalu ia justru
+       * menghapus draft SEMUA permukaan, termasuk yang tidak mengirim.
+       * Sekarang satu aturan untuk keduanya: yang mengirim dibersihkan, yang
+       * lain dibiarkan.
+       */
+      drafts: { ...s.drafts, [composerId]: '' },
       draftImages: [],
       pending: reqId,
       toast: null,
@@ -3814,6 +4826,121 @@ export const useAi = create<AiStore>((set0, get) => {
 
     const def = findModel(get().model, get().provider);
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
+
+    /*
+     * ── HydraFusion: the plan, not the picker, chooses the model ─────────────
+     *
+     * WHY it sits HERE: this is the last point before the request goes out, and
+     * everything the plan needs — the assembled `history`, the resolved catalog
+     * entry, the provider config — is already local. Above this line the same
+     * turn runs with the reader's own model, so switching the setting off
+     * restores the old path byte for byte.
+     *
+     * The route is decided from the text alone (`rencanaHydra` is pure), then
+     * executed pass by pass. Every pass reports its stage before it starts, so
+     * a three-request critique-revision shows what it is doing instead of going
+     * quiet and then printing a finished answer.
+     */
+    const hydraSet = bacaPengaturan(useStore.getState().settings.hydrafusion);
+    if (hydraSet.enabled) {
+      /* Candidates are the providers that are actually usable right now — a key
+         AND an endpoint. Offering a rung that cannot be reached would turn an
+         escalation into an instant failure. */
+      const kandidat = PROVIDERS.flatMap((p) => {
+        const ready = providerSiap(p, get().hasKey(p.id), useStore.getState().settings.models.providers);
+        return ready ? p.models.map((m) => ({ ...m, provider: p.id, available: true })) : [];
+      });
+      const rencana = rencanaHydra({
+        teks: content,
+        kandidat,
+        cadangan: { provider: def.provider, model: def.id },
+        pengaturan: hydraSet,
+      });
+      /*
+       * Only a ONE-request plan streams straight into the bubble. Any other pass
+       * may still be overruled by a later one, and a transcript that flickers
+       * through draft, critique and revision is worse than a stage strip — so
+       * those are buffered and the winner is handed over in one piece.
+       */
+      const live = rencana.langkah.length === 1;
+      const hasil = await jalankanHydra(rencana, ringkasUkuran(history), {
+        id: (n) => (live ? reqId : `${HYDRA_ID_PREFIX}${rencana.jalur}-${n}`),
+        lapor: (l) => set({ hydraTahap: l }),
+        batalkan: () => cancelled.has(reqId) || get().pending !== reqId,
+        kirim: async (langkah, pesan, id) => {
+          hydraSiapkan(id, live);
+          try {
+            const p = useStore.getState().settings.models.providers[langkah.provider] ?? {};
+            await cmd.aiChat({
+              id,
+              provider: langkah.provider,
+              model: langkah.model,
+              messages: pesan,
+              baseUrl: p.baseUrl || undefined,
+              maxTokens: findModel(langkah.model, langkah.provider).maxOut ?? 2048,
+              effort: get().reasoningEffort ?? undefined,
+              sessionId: get().activeSession()?.id,
+            });
+            /*
+             * `aiChat` resolves when the backend is done WRITING - which is not
+             * the moment its frames reach us: the invoke result and the
+             * 'ai-chunk' events are two independent deliveries, so a slow
+             * answer can still be in flight right here. Reading the buffer
+             * straight away, and even a 3 s cap, turned exactly that into
+             * 'empty answer': a healthy pass reported as a failure while the
+             * reader watched the answer arrive. Wait for the terminal frame
+             * instead - stopping early if the pass is gone (cancelled), if an
+             * error frame landed, or if its bubble already stopped streaming.
+             * The deadline exists only so a provider that never closes its
+             * stream cannot pin the turn forever.
+             */
+            const tenggat = Date.now() + 60000;
+            while (Date.now() < tenggat) {
+              const b = hydraLihat(id);
+              if (!b || b.selesai || b.err) break;
+              const pesan = get().activeSession()?.messages.find((x) => x.id === id);
+              if (pesan && pesan.streaming === false) break;
+              await new Promise((r) => setTimeout(r, 25));
+            }
+            return hydraAmbil(id);
+          } catch (e) {
+            const msg = cmd.asZephyrError(e).message;
+            hydraLupakan(id);
+            return { teks: '', err: msg };
+          }
+        },
+      });
+
+      const akhir = hasil.dipakai[hasil.dipakai.length - 1];
+      set({
+        hydraTahap: null,
+        hydraTerakhir: {
+          jalur: hasil.jalur,
+          tingkat: rencana.tingkat,
+          kategori: rencana.kategori,
+          provider: akhir?.provider ?? def.provider,
+          model: akhir?.model ?? def.id,
+          alasan: rencana.alasan,
+          request: hasil.request,
+          berhenti: hasil.berhenti,
+          catatanTahap: hasil.catatanTahap,
+          eskalasi: hasil.eskalasi,
+        },
+      });
+      if (live) {
+        /* The stream already filled the bubble and closed it; only a failure
+           still needs reporting, exactly as the single-model path does below. */
+        if (hasil.err) {
+          get().onChunk({ id: reqId, err: hasil.err });
+          get().onChunk({ id: reqId, done: true });
+        }
+      } else {
+        if (hasil.teks) get().onChunk({ id: reqId, text: hasil.teks });
+        if (hasil.err) get().onChunk({ id: reqId, err: hasil.err });
+        get().onChunk({ id: reqId, done: true });
+      }
+      return true;
+    }
 
     /*
      * Chat mode retries a failed request, exactly like the agent does.
@@ -3920,6 +5047,38 @@ export const useAi = create<AiStore>((set0, get) => {
       set({ lastTruncated: null });
     }
 
+    /*
+     * Lampiran berkas aktif ikut jalur AGEN.
+     *
+     * Settings -> agents.attachActiveFile ('Send active file to agent') di
+     * janjikan tepat di sini: agent yang dikirimi berkas yang sedang terbuka.
+     * Blok serupa sudah lama ada di cabang chat send(), tetapi cabang itu kini
+     * mati (mode chat pensiun) - tanpa salinan di sini, mengaktifkan setelan
+     * itu tidak lagi berpengaruh sama sekali pada panel AI, dan chip lampiran
+     * di bubble tidak pernah muncul. Perilakunya sengaja dibuat sama persis
+     * dengan cabang chat: yang dikirim ke model adalah perluasan payload,
+     * sedangkan bubble tetap menampilkan teks yang di ketik orang.
+     */
+    let payloadAgen = content;
+    let attachedAgen: ChatMsg['attached'];
+    if (get().attachActive) {
+      const stA = useStore.getState();
+      const tabA = stA.tabs.find((t) => t.id === stA.activeTabId);
+      if (tabA) {
+        const fullA = tabA.content ?? '';
+        const truncatedA = fullA.length > ATTACH_LIMIT;
+        const bodyA = truncatedA ? fullA.slice(0, ATTACH_LIMIT) : fullA;
+        attachedAgen = { path: tabA.path ?? tabA.name, bytes: bodyA.length, truncated: truncatedA };
+        payloadAgen =
+          `${content}\n\n---\n` +
+          `Treat this file as the active working context.\n` +
+          `File: ${tabA.path ?? tabA.name}${truncatedA ? ' (first 12KB truncated)' : ''}\n` +
+          '```\n' +
+          bodyA +
+          '\n```';
+      }
+    }
+
     await get().loadKeys();
     if (!get().hasKey()) {
       const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
@@ -3931,7 +5090,7 @@ export const useAi = create<AiStore>((set0, get) => {
         return gagalKirimToast(tf('No key for {from} - switched to {to}, which has one', { from: label, to: labelPindah }));
       }
       return gagalKirimToast(
-        tf('Add an API key for {name} in Settings, or pick a provider that already has one', { name: label }),
+        tf('Add an API key for {name} in AI Models, or pick a provider that already has one', { name: label }),
       );
     }
 
@@ -3959,6 +5118,7 @@ export const useAi = create<AiStore>((set0, get) => {
        */
       content: tampilBubble ?? content,
       at: Date.now(),
+      attached: attachedAgen,
       images: agentImages.length > 0 ? agentImages : undefined,
       image: agentImages[0],
     };
@@ -3990,7 +5150,9 @@ export const useAi = create<AiStore>((set0, get) => {
             }
           : x,
       ),
-      drafts: {},
+      // Permukaan yang mengirim saja yang dikosongkan - lihat catatan di
+      // jalur chat di atas. Permukaan lain bisa sedang berisi ketikan user.
+      drafts: { ...s.drafts, [composerId]: '' },
       draftImages: [],
       toast: null,
       agentSteps: [],
@@ -4010,6 +5172,16 @@ export const useAi = create<AiStore>((set0, get) => {
       agentResume: null,
       commandSuggestion: null,
     }));
+    /*
+     * Open this turn's file checkpoint.
+     *
+     * After the state that marks the run as started, so the write path sees a
+     * checkpoint in progress for exactly the window the turn is running. The
+     * write path itself only reports "this file is about to change" — it does
+     * not need to know the conversation or the message, which is what keeps
+     * `tulis` a two-line function.
+     */
+    void import('./checkpoint').then((m) => m.mulaiTurn(composerId, botMsg.id));
     resetAgentToolCache();
     persist(get());
     agentBatal = false;
@@ -4092,23 +5264,35 @@ export const useAi = create<AiStore>((set0, get) => {
       // Context assembly is outside the provider loop, but a failed context
       // lookup must still leave the agent in a clean, runnable state.
       try {
-        const [ekstra, aturan] = await Promise.all([konteksAgent(), aturanProyek()]);
+        const [ekstra, aturan, memori] = await Promise.all([konteksAgent(), aturanProyek(), konteksMemoriProyek(), segarkanPotretKeadaan()]);
         const ai = get();
+        /* Memori proyek `.zephyr-context.md` disatukan dengan aturan sebagai
+           konteks berdiri: ia rencana + status lintas-sesi, bukan instruksi
+           sekali pakai. Ditaruh setelah aturan supaya terbaca sebagai "di mana
+           kita sekarang", bukan "aturannya apa". */
+        const aturanGabung = memori ? `${aturan}\n\n${memori}`.trim() : aturan;
         history.unshift({
           role: 'system',
-          content: systemPromptFor(bhsJawab, ekstra, aturan, ai.model, ai.provider, gayaJawab),
+          /*
+           * Jalur agen memakai argumen `kueri` yang SAMA dengan jalur chat:
+           * pesan user giliran ini (`content`), bukan teks lampiran. Dari sini
+           * `systemPromptFor` menaruh blok bahasa giliran ini di kepala prompt
+           * dan menyuntik potongan indeks Zephyr yang cocok - jalur otomatis yang
+           * tidak bergantung pada model memanggil `zephyr_self`.
+           */
+          content: systemPromptFor(bhsJawab, ekstra, aturanGabung, ai.model, ai.provider, gayaJawab, content),
         });
       } catch {
         history.unshift({
           role: 'system',
-          content: systemPromptFor(bhsJawab, '', '', get().model, get().provider, gayaJawab),
+          content: systemPromptFor(bhsJawab, '', '', get().model, get().provider, gayaJawab, content),
         });
       }
     }
 
     history.push({
       role: 'user',
-      content: content + identityReminder(get().model),
+      content: payloadAgen + identityReminder(get().model, content),
       ...(agentImages.length ? { images: agentImages } : {}),
     });
 
@@ -4154,8 +5338,36 @@ export const useAi = create<AiStore>((set0, get) => {
        a close/open/read cycle resets both counters every round and runs to
        MAX_AGENT_STEPS. See cekMuterBrowser. */
     const urlBrowserTerbuka: string[] = [];
+    /* Sidik jari beberapa panggilan browser TERAKHIR. Yang dihitung muter hanya
+       pengulangan di jendela ini - bukan setiap bacaan setelah halaman terbuka
+       (lihat cekMuterBrowser). */
+    let browserSidikTerakhir: string[] = [];
     /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
     let langkahTanpaKemajuan = 0;
+    /*
+     * Berkas yang DITULIS agen pada giliran ini.
+     *
+     * Membaca ulang atau mencari di dalam berkas yang baru saja kamu tulis
+     * sendiri bukan kemajuan - isinya adalah keluaranmu sendiri, sudah kamu
+     * ketahui. Model mr-vip terbukti menghabiskan 116 dari 120 langkah dengan
+     * read_file/grep/Select-String pada tiga berkas yang baru ia tulis, sementara
+     * tiga berkas lain di rencananya tak pernah dibuat. Jejak berkas-tertulis ini
+     * membuat guard tanpa-kemajuan menghitung pemeriksaan sia-sia itu sebagai
+     * diam, sehingga sodokan "lanjut menulis" bisa menembak.
+     */
+    const berkasDitulisGiliran = new Set<string>();
+    const normalPath = (p: unknown): string =>
+      String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
+    const sebutBerkasTertulis = (args: Record<string, unknown>): string | null => {
+      const p = args?.path ?? args?.file ?? args?.target;
+      return typeof p === 'string' && p.trim() ? normalPath(p) : null;
+    };
+    /*
+     * Berapa kali berturut-turut model berhenti memanggil tool PADAHAL rencana
+     * (todo) belum selesai, dan disodok untuk lanjut. Dibatasi supaya model yang
+     * benar-benar mandek tidak membuat loop berputar sampai MAX_AGENT_STEPS.
+     */
+    let lanjutTanpaTool = 0;
     /*
      * Whether the guard has already given the model its one reminder.
      *
@@ -4168,6 +5380,41 @@ export const useAi = create<AiStore>((set0, get) => {
      * makes no progress on the next step.
      */
     let sudahDiberiPeringatanTanpaKemajuan = false;
+    /*
+     * Peringatan sekali untuk guard treadmill BROWSER.
+     *
+     * Sama alasannya dengan peringatan di atas: guard ini dulu langsung
+     * MEMBUNUH run. Itu salah untuk tugas riset - agen yang sudah mengumpulkan
+     * datanya (mis. seri kurs dari satu API) lalu mengulang-ulang membaca
+     * halaman yang sama akan mati SEBELUM menulis apa pun, jadi pengguna
+     * menerima kekosongan padahal datanya sudah lengkap di riwayat. Sekarang
+     * peringatan pertama menyuruh BERHENTI membaca lalu MENULIS, dan run baru
+     * dihentikan paksa kalau setelah peringatan itu tetap tidak ada kemajuan.
+     */
+    let sudahDiberiPeringatanBrowserMuter = false;
+    /*
+     * A(i)/A(iv): keadaan yang hanya perlu dihitung SEKALI per run.
+     *
+     * Tugasnya dibekukan di sini, bukan dibaca ulang tiap langkah: yang
+     * menentukan subset alat adalah permintaan user, dan itu tidak berubah di
+     * tengah run. `beratRun` memutuskan gerbang rencana; lihat `subsetAlat.ts`
+     * untuk batasnya.
+     */
+    const tugasRun = content;
+    /*
+     * LAMA-a4: tugas berat WAJIB merancang lebih dulu. `tugasBerat` (heuristik
+     * lama di `subsetAlat`) menuntut teksnya panjang/berdaftar/majemuk; kata
+     * perintah tunggal yang jelas berat - "perbaiki bug di src/lib/a.ts",
+     * "migrasi berkas config" - lolos dari situ dan langsung menulis tanpa
+     * rencana. `wajibTodo` menutup celah itu dengan daftar kata yang bisa
+     * dibaca (`KATA_BERAT`), dan hasilnya adalah OR: tugas yang dulu berat
+     * tetap berat, tidak ada yang jadi lebih ringan.
+     */
+    const beratRun = tugasBerat(tugasRun) || wajibTodo(tugasRun);
+    /* D: kerangka `.zephyr-context.md` dibuat SEBELUM langkah pertama, jadi
+       catatan konteks tidak lagi bergantung pada model ingat membuatnya. */
+    const wsRun = useStore.getState().workspace;
+    await siapkanKonteksKerja(wsRun, tugasRun);
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
@@ -4191,6 +5438,95 @@ export const useAi = create<AiStore>((set0, get) => {
         agentWatchdogArm();
         agentNoProgressArm();
         agentHardLimitArm();
+
+        /*
+         * C: pesan yang diketik SEMENTARA run berjalan.
+         *
+         * Composer sudah menerima pesan itu sejak lama - ia diparkir di
+         * `antrian` - tetapi antrian baru dibaca setelah run SELESAI, jadi
+         * "tunggu dulu" adalah satu-satunya jawaban yang mungkin. Pada run
+         * berat 20 menit artinya praktis tidak bisa mengetik apa pun.
+         *
+         * Di sini antrian diambil di AWAL setiap langkah: pesannya muncul di
+         * transkrip supaya yang mengetik melihatnya benar-benar masuk, dan
+         * diteruskan ke model sebagai giliran user biasa - jadi koreksi yang
+         * datang di menit kedua masih terpakai, bukan menunggu run kelar.
+         *
+         * Kenapa di awal langkah, bukan di tengah: pada titik ini `history`
+         * berakhir dengan hasil tool langkah sebelumnya, dan giliran user
+         * SETELAH hasil tool aman bagi provider. Kebalikannya - user
+         * diselipkan di antara `assistant` yang meminta tool dan hasil
+         * tool-nya - yang memicu 400 (lihat catatan `catatanStatus`).
+         */
+        {
+          const kunciComposer = COMPOSER_AKTIF;
+          const antriComposer = get().antrians[kunciComposer] ?? [];
+          /*
+           * Satu baris bisa ada di DUA daftar sekaligus: aksi antrean lain (dan
+           * jalur pesan-selagi-sibuk di `send`) mencerminkan daftar per-composer ke
+           * `antrian` untuk permukaan utama, jadi referensi objeknya sama. Tanpa
+           * penyaringan di sini satu pesan bisa disuntikkan dua kali ke riwayat yang
+           * sama. Disaring lewat identitas objek, karena itulah yang sama persis
+           * saat dicerminkan.
+           */
+          const dipakai = new Set<AntrianPesan>();
+          const antri: AntrianPesan[] = [];
+          for (const a of [...get().antrian, ...antriComposer]) {
+            if (dipakai.has(a)) continue;
+            dipakai.add(a);
+            antri.push(a);
+          }
+          if (antri.length > 0) {
+            set((s) => ({
+              antrian: [],
+              antrians: { ...s.antrians, [kunciComposer]: [] },
+            }));
+            for (const a of antri) {
+              const gambar = a.images && a.images.length > 0 ? a.images : undefined;
+              set((s) => ({
+                sessions: s.sessions.map((x) =>
+                  x.id === sessionId
+                    ? {
+                        ...x,
+                        messages: [
+                          ...x.messages,
+                          {
+                            id: nextId('m'),
+                            role: 'user' as const,
+                            content: a.teks,
+                            at: Date.now(),
+                            images: gambar,
+                          },
+                        ].slice(-MAX_MSGS),
+                      }
+                    : x,
+                ),
+              }));
+            }
+            /*
+             * LANE ANTREAN-LIVE (item C): yang masuk `history` di sini bukan teks
+             * apa adanya, melainkan GILIRAN yang disusun `suntikKonteks.ts`
+             * (`giliranAntreanKeRiwayat` -> `susunGiliran`): antrean -> tugas ->
+             * permintaan, urutannya tetap konteks -> riwayat -> antrean -> tugas ->
+             * permintaan, rahasia disensor, dan blok wajib (pekerjaan yang belum
+             * selesai) tidak pernah dipotong. Siapa yang diproses diambil dari
+             * `antreanPesan.giliranSelesaiPanel` (kepala antrean LANGSUNG diproses,
+             * sisanya tetap menunggu) - aturan yang sama yang diuji
+             * `scripts/uji-antrean-pesan.mjs`, tidak disalin ke berkas ini.
+             *
+             * Transkrip di atas tetap memuat SETIAP pesan apa adanya, satu kali;
+             * giliran ini menambahkan pekerjaan yang belum selesai, bukan salinan
+             * percakapan (konteks/riwayat sudah ada di `history`).
+             */
+            const giliran = suntikGiliranAntrean(antri, history, get().agentTodos);
+            if (giliran.kepala === null) {
+              // Hanya mungkin kalau baris antrean tidak punya teks sama sekali, dan
+              // itu memang bisa terjadi pada baris bergambar. Dilaporkan, bukan
+              // didiamkan: pesan yang hilang tanpa jejak itu keluhan aslinya.
+              set({ toast: tx('A queued row had no text, so no turn was injected from it') });
+            }
+          }
+        }
 
         /*
          * Approaching the step cap: ask for a hand-off instead of cutting off.
@@ -4223,8 +5559,28 @@ export const useAi = create<AiStore>((set0, get) => {
          * touched here.
          */
         {
-          const keluar = ringkasRiwayat(history);
-          const dipakai = perkiraanKonteks(keluar);
+          /*
+           * Measure the REAL history, not the trimmed one.
+           *
+           * This used to read `perkiraanKonteks(ringkasRiwayat(history))`, and
+           * that made automatic compaction unreachable. `ringkasRiwayat` caps the
+           * list at `PAYLOAD_MAX_CHARS` (40k characters, ~10k tokens), while the
+           * threshold below is a fraction of the MODEL's window — hundreds of
+           * thousands of tokens. A trimmed figure can never reach a figure that
+           * many times larger, so the condition stayed false no matter how long
+           * the run got and compaction never fired once.
+           *
+           * The consequence lands exactly on heavy work: the conversation grows
+           * until the request is truncated by `ringkasRiwayat` instead, which
+           * silently drops the earliest messages — including the original task —
+           * and the run either loses the thread or dies at the step limit. That
+           * is the "long jobs just stop" symptom.
+           *
+           * Compaction must therefore look at what the conversation has actually
+           * accumulated. Trimming stays where it is: it is a transport guard for
+           * THIS request, not a substitute for summarising the history.
+           */
+          const dipakai = perkiraanKonteks(history);
           /* The reader's own window wins over the percentage: someone who set
              120k means 120k, not 80% of whatever model is selected. */
           const batas = batasAutoCompact(def.id);
@@ -4242,6 +5598,98 @@ export const useAi = create<AiStore>((set0, get) => {
               autoCompactStep = langkah;
               history.length = 0;
               history.push(...hasil.history);
+              /*
+               * Suntik ulang RENCANA setelah ringkasan - inilah yang bikin
+               * opencode/Claude bisa kerja berat tanpa kehilangan arah.
+               *
+               * Auto-compact meringkas 191 pesan jadi satu blok. Model yang
+               * ringkasannya bagus pun bisa kehilangan daftar tugas KONKRET yang
+               * belum selesai, lalu "baca-baca" sampai guard no-progress
+               * mematikannya di tengah - persis yang terjadi pada run toko (16
+               * dari 40+ berkas, berhenti bukan karena error tapi karena lupa
+               * sisa rencananya). opencode menghindari ini dengan memori
+               * terstruktur (`.opencode-context.md`); padanan paling murah di
+               * sini adalah menegaskan ulang todo yang BELUM `done` sebagai satu
+               * pesan user tepat setelah ringkasan, supaya langkah berikutnya
+               * punya daftar kerja yang jelas, bukan sekadar prosa ringkasan.
+               */
+              const sisaTodoCompact = useAi
+                .getState()
+                .agentTodos.filter((t) => t.status !== 'done');
+              if (sisaTodoCompact.length > 0) {
+                const daftar = sisaTodoCompact
+                  .map((t) => `- [${t.status === 'in_progress' ? '~' : ' '}] ${t.content}`)
+                  .join('\n');
+                history.push({
+                  role: 'user',
+                  content:
+                    `Pengingat rencana (bertahan melewati pemadatan konteks). ` +
+                    `Masih ada ${sisaTodoCompact.length} tugas yang BELUM selesai:\n${daftar}\n\n` +
+                    `Lanjutkan mengerjakan tugas yang belum \`done\` ini satu per satu dengan menulis berkasnya ` +
+                    `LANGSUNG. Jangan mengulang pekerjaan yang sudah selesai, dan jangan hanya membaca-baca ` +
+                    `berkas yang sudah ada - kerjakan item berikutnya.`,
+                });
+              }
+              /*
+               * A(ii): TUGAS ASLINYA juga disuntik ulang, bukan hanya sisa todo.
+               *
+               * Pemadatan mengganti puluhan pesan awal dengan satu ringkasan
+               * buatan model - dan yang paling sering menguap dari ringkasan
+               * adalah kalimat permintaan user itu sendiri: syarat isi, nama
+               * berkas yang diminta, batasan ("jangan pakai framework"). Sisa
+               * todo menjaga URUTAN kerja; kalimat ini menjaga SYARATnya.
+               *
+               * Yang ditulis adalah teks permintaan apa adanya (dipangkas 800
+               * karakter), bukan ringkasan buatan aplikasi: menyaringnya di
+               * sini berarti menebak bagian mana yang penting, dan run yang
+               * kehilangan satu syarat halus akan menghasilkan berkas yang
+               * "sudah jadi" tapi salah.
+               */
+              history.push({
+                role: 'user',
+                content:
+                  `Tugas asli yang sedang dikerjakan (bertahan melewati pemadatan konteks):\n` +
+                  `${tugasRun.replace(/\s+/g, ' ').trim().slice(0, 800)}`,
+              });
+              /* Bukti untuk harness: apa yang BENAR-BENAR ada di riwayat sesudah
+                 pemadatan, bukan apa yang seharusnya ada. `tugasDisuntik` dicek
+                 dengan mencari cuplikan kalimat tugas di dalam `history` itu
+                 sendiri - kalau blok suntikan di atas suatu saat dipindah atau
+                 dibatalkan, jejak ini ikut berubah jadi false, bukan tetap
+                 melaporkan "berhasil". */
+              {
+                const cuplik = tugasRun.replace(/\s+/g, ' ').trim().slice(0, 60);
+                jejakPemadatan.push({
+                  langkah,
+                  sebelum: hasil.sebelum,
+                  sesudah: hasil.sesudah,
+                  diringkas: hasil.diringkas,
+                  tugasDisuntik: history.some((m) => String(m.content ?? '').includes(cuplik)),
+                  tugasAsli: cuplik,
+                  sisaTodo: sisaTodoCompact.length,
+                });
+              }
+              /*
+               * `langkahRiwayat` MUST be dropped in step with `history`.
+               *
+               * The wire body is built by walking `history` for POSITION and
+               * `langkahRiwayat` for CONTENT (they are zipped by assistant
+               * count - see the `pesanMentah` loop). Compaction removes messages
+               * from `history`, so the two lists stop describing the same
+               * conversation: the Nth assistant in `history` no longer matches
+               * the Nth entry in `langkahRiwayat`, and each step then carries
+               * another step's tool calls and reasoning.
+               *
+               * The result is a request whose tool calls do not line up with
+               * their results - 400, permanently, on a conversation that was
+               * working a moment earlier. It only ever appeared on LONG runs,
+               * because that is the only time compaction fires.
+               *
+               * Clearing it is correct rather than merely safe: every step in
+               * `langkahRiwayat` belongs to messages the summary just replaced,
+               * and steps from here on are appended fresh as the run proceeds.
+               */
+              langkahRiwayat.length = 0;
               const hemat = Math.max(0, hasil.sebelum - hasil.sesudah);
               const notis: ChatMsg = {
                 id: nextId('m'),
@@ -4267,6 +5715,73 @@ export const useAi = create<AiStore>((set0, get) => {
                 }),
               }));
               persist(get());
+            } else {
+              /*
+               * Jaring pengaman LAMA-a2 - TANPA panggilan model.
+               *
+               * `padatkanRiwayat` mengembalikan null ketika panggilan modelnya
+               * GAGAL (jaringan, kuota, provider menolak) maupun ketika tidak ada
+               * bahan. Sebelum ini riwayat dibiarkan utuh apa adanya, dan siklus
+               * berikutnya mencoba lagi - sambil tetap di atas ambang. Yang
+               * menutup celah itu bukan percobaan berikutnya, melainkan
+               * `ringkasRiwayat` (pemangkas transport, jalan SESUDAH blok ini):
+               * ia memotong pesan paling AWAL, jadi tugas asli dan sisa rencana
+               * bisa hilang tanpa ada yang menyadarinya.
+               *
+               * `padatkanRiwayatMurni` tidak butuh model, jadi ia selalu bisa
+               * jalan. Ia membatalkan dirinya kalau hasilnya tidak lebih kecil
+               * (`dipadatkan: false`), jadi percobaan ini tidak pernah
+               * memperburuk keadaan - dan item tugas yang belum selesai DIJAMIN
+               * ada: dikutip verbatim di catatan DAN dikirim lagi sebagai pesan
+               * penjaga di depan ekor riwayat.
+               */
+              const murni = padatkanRiwayatMurni(history, {
+                todos: useAi.getState().agentTodos,
+                batasToken: batas,
+              });
+              if (murni.dipadatkan) {
+                autoCompactStep = langkah;
+                history.length = 0;
+                history.push(...murni.history);
+                /* Sama alasannya dengan jalur model di atas: `langkahRiwayat`
+                   zipped dengan `history` lewat jumlah asisten, jadi ia harus
+                   dikosongkan bersamaan. */
+                langkahRiwayat.length = 0;
+                const hemat = Math.max(0, murni.sebelum - murni.sesudah);
+                const notis: ChatMsg = {
+                  id: nextId('m'),
+                  role: 'assistant',
+                  content:
+                    `[Konteks dipadatkan otomatis (tanpa model): ${murni.diringkas} pesan lama diringkas menjadi satu catatan, ` +
+                    `±${hemat.toLocaleString('id-ID')} token dibebaskan, ${murni.tugasBelum.length} tugas belum selesai dipertahankan. ` +
+                    `Jika butuh detailnya, jalankan ulang tool terkait.]`,
+                  at: Date.now(),
+                };
+                set((s) => ({
+                  toast: tf('Context auto-compacted (tanpa model): {n} messages summarized', { n: murni.diringkas }),
+                  sessions: s.sessions.map((x) => {
+                    if (x.id !== sessionId) return x;
+                    const idx = x.messages.findIndex((m) => m.id === botMsg.id);
+                    const at = idx >= 0 ? idx : x.messages.length;
+                    const msgs = [...x.messages.slice(0, at), notis, ...x.messages.slice(at)];
+                    return { ...x, messages: msgs.slice(-MAX_MSGS) };
+                  }),
+                }));
+                {
+                  const cuplik = (murni.tugasBelum[0] ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+                  jejakPemadatan.push({
+                    langkah,
+                    sebelum: murni.sebelum,
+                    sesudah: murni.sesudah,
+                    diringkas: murni.diringkas,
+                    tugasDisuntik:
+                      cuplik.length > 0 && history.some((m) => String(m.content ?? '').includes(cuplik)),
+                    tugasAsli: cuplik,
+                    sisaTodo: murni.tugasBelum.length,
+                  });
+                }
+                persist(get());
+              }
             }
             /*
              * No fallback to the stub here: if `padatkanRiwayat` returns null
@@ -4304,6 +5819,15 @@ export const useAi = create<AiStore>((set0, get) => {
         let faseTungguPulih = 0;
         let koreksiArgumenTool = false;
         /*
+         * Extra output-token headroom for THIS step, added when a tool call was
+         * cut off at the ceiling. A write of a big file is sent as a tool
+         * argument, so one modest `maxOut` can truncate it; retrying with the
+         * same budget would truncate again. Bumping it only for the retrying
+         * step (not the whole run) keeps normal steps cheap while letting the
+         * one oversized write through.
+         */
+        let tokenTambahan = 0;
+        /*
          * Active model definition for this step, mutable so a provider failure
          * can switch to a fallback model without losing the run.
          */
@@ -4330,12 +5854,45 @@ export const useAi = create<AiStore>((set0, get) => {
              * this on the happy path would erase the answer of a step that had
              * legitimately produced text before the provider hiccuped.
              */
+            /*
+             * The dead attempt's partial text is REMOVED from the bubble, not
+             * thrown away.
+             *
+             * Clearing is required - the retry re-sends the same prompt and the
+             * provider answers from the start, so surviving text would be
+             * duplicated into a stutter ("HaiHai"). But deleting it outright
+             * loses work the reader already saw, and on a long answer that read
+             * as the reply being cut off and replaced. On a heavy run that
+             * retries more than once it looked like the app kept destroying its
+             * own output.
+             *
+             * Keeping it aside costs nothing: the reader still sees the answer
+             * that lands, and the discarded attempt is available for diagnosis
+             * instead of vanishing.
+             */
             if (retry > 0) {
+              const terbuang = useAi.getState().sessions
+                .find((x) => x.id === sessionId)
+                ?.messages.find((m) => m.id === botMsg.id)?.content;
+              if (terbuang && terbuang.trim()) {
+                catatanPercobaanGagal.set(botMsg.id, terbuang);
+              }
+              /*
+               * Kosongkan JUGA `error`, bukan hanya `content`.
+               *
+               * Chunk `err` yang retryable (grep argumen rusak, stream terputus)
+               * menyetel `m.error` lewat terapkanChunkKeState sebelum retry ini
+               * berjalan. Kalau hanya `content` yang dibersihkan, chip merah dari
+               * percobaan yang GAGAL tetap menempel sepanjang percobaan baru yang
+               * SUKSES - persis "merah nyangkut padahal sudah pulih". Percobaan
+               * baru menulis jawabannya dari nol, jadi error lama tidak lagi
+               * berlaku dan harus ikut dihapus di sini.
+               */
               set((s) => ({
                 sessions: s.sessions.map((sess) => ({
                   ...sess,
                   messages: sess.messages.map((m) =>
-                    m.id === botMsg.id ? { ...m, content: '' } : m,
+                    m.id === botMsg.id ? { ...m, content: '', error: undefined } : m,
                   ),
                 })),
               }));
@@ -4361,7 +5918,52 @@ export const useAi = create<AiStore>((set0, get) => {
             activeAgentAttempt = attemptId;
             activeAgentUiId = botMsg.id;
             agentStepResolve = resolve;
-            const toolSpecs = agentToolSpecs({ alat: [...useToolGate.getState().aktif] });
+            /*
+             * A(i) subset per tugas + A(iv) gerbang rencana di langkah pertama.
+             *
+             * Rincian klasifikasinya ada di `subsetAlat.ts` (predikat murni,
+             * bisa diuji di Node). Yang diputuskan di sini hanya bagian yang
+             * butuh keadaan run: langkah ke-berapa, dan apakah rencana sudah
+             * ada. Gerbang hanya menyala pada langkah PERTAMA tugas berat yang
+             * rencananya masih kosong - setelah rencana ada, daftar alat penuh
+             * kembali seperti biasa.
+             */
+            const alatAktif = [...useToolGate.getState().aktif];
+            /*
+             * Tanpa folder terbuka, tool ber-scope folder tidak dikirim sama
+             * sekali: ia pasti ditolak backend, dan penolakan itu memakan
+             * langkah run (lihat `ALAT_BUTUH_FOLDER`). Chat atau tanya-jawab
+             * biasa tetap jalan penuh tanpa workspace.
+             */
+            const adaFolderRun = useStore.getState().workspace !== null;
+            const gerbangRencana =
+              langkah === 0 &&
+              beratRun &&
+              get().agentTodos.length === 0 &&
+              gerbangRencanaSiap(alatAktif, adaFolderRun);
+            const alatKirim = gerbangRencana
+              ? alatRencanaPertama(alatAktif, adaFolderRun)
+              : /* LAMA-a1: subset per kelas tugas, selalu <= 20 tool.
+                   `pilihToolTugas` memakai aturan yang sama dengan
+                   `alatUntukTugas` untuk memutuskan apa yang boleh dibuang
+                   (menulis? jaringan? ada folder?), lalu memangkas KEMBAR -
+                   `edit` vs `multi_edit` vs `replace_in_files`,
+                   `run_subagent` vs `run_subagents` - supaya himpunan dasar 17
+                   tool tidak berubah jadi 23-26. Yang dipangkas TIDAK hilang:
+                   `tool_search`/`tool_call` selalu ikut, jadi satu langkah lebih
+                   jauh. Bukti kesetaraan kemampuan: scripts/cek-subset-tugas.mjs
+                   (keluarga kemampuan sesudah wajib superset sebelum). */
+                pilihToolTugas(tugasRun, alatAktif, adaFolderRun);
+            catatAlatTerakhir(
+              tugasRun,
+              langkah,
+              beratRun,
+              gerbangRencana,
+              alatAktif,
+              alatKirim,
+              adaFolderRun,
+            );
+            const toolSpecs = agentToolSpecs({ alat: alatKirim });
             /*
              * The tool list rides in every request but is not part of the
              * message history, so a cap measured on messages alone lets the
@@ -4372,7 +5974,38 @@ export const useAi = create<AiStore>((set0, get) => {
              * that quietly goes stale.
              */
             const reserveTools = ukuranPayload([toolSpecs]) + 2048;
-            const capUntukPesan = Math.max(20_000, PAYLOAD_MAX_CHARS - reserveTools);
+            /*
+             * Anggaran riwayat harus menyisihkan BLOK TETAP yang selalu ikut
+             * terkirim, bukan cuma katalog tool.
+             *
+             * `ukuranPayload(pesan)` mengukur PESAN saja, dan pesan itu memuat
+             * system prompt plus seluruh riwayat. `capUntukPesan` lama hanya
+             * mengurangi katalog tool (`reserveTools`), jadi ia mengandaikan
+             * sisa `PAYLOAD_MAX_CHARS - reserveTools` tersedia untuk riwayat.
+             * Padahal blok tetap - system prompt + kalimat pasca-potong yang
+             * ditempel setelah pemotongan - sudah memakan hampir seluruhnya.
+             * Bukti pada beban 44 giliran: blok tetap 23.793 char SUDAH MELEBIHI
+             * cap 23.251 char, jadi cap tak pernah tercapai dan yang dikorbankan
+             * selalu riwayat, sementara payload di kabel tetap lewat batas.
+             *
+             * Karena itu blok tetap dikurangkan lebih dulu: `reserveTools`
+             * menutup katalog tool (bentuk kabel `tools: toolSpecs`), `biayaTetap`
+             * menutup system prompt + envelope kalimat pasca-potong. Kalau
+             * sisanya tak cukup untuk riwayat bermakna, itu tanda anggaran model
+             * memang TERLALU KECIL untuk sistemnya - dan itu dicatat, bukan
+             * disembunyikan dengan diam-diam mengirim payload di atas batas.
+             */
+            const biayaTetap =
+              ukuranPayload(history.filter((m) => m.role === 'system')) + KALIMAT_PASCA_POTONG_CHARS;
+            const sisaRiwayat = PAYLOAD_MAX_CHARS - reserveTools - biayaTetap;
+            if (sisaRiwayat < 20_000) {
+              console.warn(
+                `[aiStore] anggaran riwayat cuma ${sisaRiwayat} char ` +
+                  `(PAYLOAD_MAX_CHARS=${PAYLOAD_MAX_CHARS} - reserveTools=${reserveTools} - biayaTetap=${biayaTetap}); ` +
+                  'blok tetap (system prompt + kalimat pasca-potong) sudah memakan hampir seluruh anggaran model',
+              );
+            }
+            const capUntukPesan = Math.max(20_000, sisaRiwayat);
             /*
              * Build the request from the STEP list, not from `history`.
              *
@@ -4452,11 +6085,13 @@ export const useAi = create<AiStore>((set0, get) => {
              * dan pasangan assistant/tool tetap bersebelahan.
              */
             {
-              const catatanStatus = statusPekerjaan(
-                get().agentTodos,
-                get().agentSteps,
-                langkah + 1,
-                MAX_AGENT_STEPS,
+              const catatanStatus = potongCatatan(
+                statusPekerjaan(
+                  get().agentTodos,
+                  get().agentSteps,
+                  langkah + 1,
+                  MAX_AGENT_STEPS,
+                ),
               );
               const terakhir = pesan[pesan.length - 1];
               if (terakhir && terakhir.role !== 'assistant') {
@@ -4468,13 +6103,39 @@ export const useAi = create<AiStore>((set0, get) => {
                 pesan.push({ role: 'user', content: catatanStatus });
               }
             }
+            if (gerbangRencana) {
+              /*
+               * Gerbang alat tanpa kalimat penjelas adalah jebakan: model
+               * mencoba `write_file` yang tidak ada di daftar, gagal, lalu
+               * menghabiskan langkah untuk menebak kenapa. Kalimat ini
+               * menyebut apa yang harus dilakukan SEKARANG dan kenapa alat
+               * tulis belum ada.
+               */
+              pesan.push({
+                role: 'user',
+                content: potongCatatan(
+                  'Langkah pertama tugas ini: susun rencananya dulu. Panggil `todo_write` SEKARANG dengan daftar ' +
+                    'tugas yang konkret (satu item = satu berkas atau satu langkah nyata yang bisa diperiksa). ' +
+                    'Tool penulisan berkas baru muncul di langkah berikutnya, jadi jangan mencoba menulis dulu.',
+                ),
+              });
+            }
             if (koreksiArgumenTool) {
-               pesan.push({
-                 role: 'user',
-                 content:
-                   'The previous response had invalid tool-call arguments, so no tool was run. Retry with complete, valid JSON object arguments.',
-               });
-             }
+              /*
+               * Sebut NAMA tool + POTONGAN argumen yang salah lewat `res.error`
+               * (openai.rs kini mencetak cuplikan `raw_args` di kalimat malformed).
+               * Tanpa itu model cuma tahu ada argumen cacat, bukan panggilan mana
+               * dan bagian mana yang rusak. Dibungkus `potongCatatan` agar tetap
+               * di dalam envelope pasca-potong.
+               */
+              pesan.push({
+                role: 'user',
+                content: potongCatatan(
+                  `${res.error}. The previous response had invalid tool-call arguments, so no tool was run. ` +
+                    'Retry with complete, valid JSON object arguments.',
+                ),
+              });
+            }
              cmd
               .aiToolChatStream({
                 id: attemptId,
@@ -4483,7 +6144,7 @@ export const useAi = create<AiStore>((set0, get) => {
                 messages: pesan,
                 tools: toolSpecs,
                 baseUrl: activeCfg.baseUrl || undefined,
-                maxTokens: activeDef.maxOut ?? 2048,
+                maxTokens: (activeDef.maxOut ?? 2048) + tokenTambahan,
                 effort: get().reasoningEffort ?? undefined,
                 /* Same session id on every step of this run, so the provider
                    keeps one cache for the conversation instead of treating each
@@ -4518,8 +6179,14 @@ export const useAi = create<AiStore>((set0, get) => {
               isRetryableAgentProviderError(res.error));
           const retryableToolResponse =
             !!res.error && isRetryableAgentToolResponseError(res.error);
+          /*
+           * A plain malformed-args retry gets one shot (asking again rarely
+           * helps twice). A TRUNCATED call gets two: each retry doubles the
+           * output budget, so a very large write that overflows even the first
+           * bump still has a second, larger attempt before the run gives up.
+           */
           const retryLimit = retryableToolResponse
-            ? 1
+            ? (isTruncatedToolResponseError(res.error ?? '') ? 2 : 1)
             : AGENT_PROVIDER_RETRY_DELAYS.length;
           if (!bolehRetry || retry >= retryLimit) {
             /*
@@ -4591,11 +6258,23 @@ export const useAi = create<AiStore>((set0, get) => {
             break;
           }
 
-          koreksiArgumenTool = retryableToolResponse;
+          koreksiArgumenTool = retryableToolResponse && !isTruncatedToolResponseError(res.error ?? '');
+          /*
+           * A truncated tool call is not a "write valid JSON" problem — the
+           * JSON was fine, it just didn't fit. So instead of nagging the model,
+           * give the retrying step real headroom (double the budget, capped) so
+           * the same oversized write completes.
+           */
+          if (retryableToolResponse && isTruncatedToolResponseError(res.error ?? '')) {
+            const dasar = (activeDef.maxOut ?? 2048) + tokenTambahan;
+            tokenTambahan = Math.min(dasar * 2, 128000) - (activeDef.maxOut ?? 2048);
+          }
           const retryNumber = retry + 1;
           get().setAgentProgress({
             agentPhase: 'thinking',
-            agentCurrentTool: retryableToolResponse
+            agentCurrentTool: isTruncatedToolResponseError(res.error ?? '')
+              ? 'Keluaran terpotong di batas token — mengulang dengan batas lebih besar'
+              : retryableToolResponse
               ? 'Meminta ulang respons karena argumen tool tidak valid'
               : `Mencoba lagi (${retryNumber}/2) karena ${labelRetryAgent(res.error!)}`,
             agentStepIndex: langkah + 1,
@@ -4605,11 +6284,68 @@ export const useAi = create<AiStore>((set0, get) => {
           // the next attempt. Images are scoped to the successful tool step,
           // never to the provider retry boundary.
           clearGambarMenunggu();
-          if (!(await tungguRetryAgent(AGENT_PROVIDER_RETRY_DELAYS[retry]))) break;
+          /*
+           * A tool-response retry (malformed or truncated args) re-asks the
+           * provider immediately — there is nothing to wait out, the previous
+           * answer was complete, just unusable. Only a transient PROVIDER error
+           * (429/5xx) uses the backoff ladder, whose two delays are indexed by
+           * `retry` (0,1). Reading that array for a tool-response retry would be
+           * out of bounds past the first.
+           */
+          if (!retryableToolResponse) {
+            if (!(await tungguRetryAgent(AGENT_PROVIDER_RETRY_DELAYS[retry]))) break;
+          }
           if (agentBatal) break;
         }
         if (res.cancelled || agentBatal) break;
-        if (res.error) throw new Error(res.error);
+        if (res.error) {
+          /*
+           * Argumen tool rusak JANGAN membunuh seluruh run.
+           *
+           * `res.error` di sini sudah melewati ladder retry di atas. Untuk
+           * error PROVIDER (429/5xx/koneksi) melempar memang benar - langkahnya
+           * tak bisa diselesaikan. Tapi untuk error RESPONS-TOOL (model menulis
+           * JSON argumen yang rusak untuk SATU panggilan, mis. grep) melempar
+           * terlalu kejam: terbukti di run Kopi Senja, model sudah menulis 3
+           * berkas dengan sukses lalu satu panggilan grep ber-JSON rusak
+           * mematikan SELURUH giliran - persis "merah lalu berhenti padahal
+           * belum selesai". opencode tidak mati di sini; ia memperlakukan
+           * panggilan rusak sebagai satu langkah yang gagal lalu lanjut.
+           *
+           * Jadi: kalau errornya respons-tool DAN sudah ada kerja nyata
+           * (minimal satu langkah berlalu), catat sebagai hasil tool yang gagal,
+           * sodok model untuk membetulkan panggilannya, dan TERUSKAN loop.
+           * History tetap valid karena tidak ada assistant tool-call yang
+           * tergantung tanpa hasil - respons yang rusak tak pernah menghasilkan
+           * tool call. Error provider sejati tetap dilempar seperti dulu.
+           */
+          const responsToolRusak = isRetryableAgentToolResponseError(res.error);
+          if (responsToolRusak && langkah > 0) {
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(argumen rusak)',
+                  args: '{}',
+                  result: `Panggilan tool terakhir ber-JSON argumen rusak dan tidak dijalankan: ${res.error}`,
+                  ok: false,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            history.push({
+              role: 'user',
+              content:
+                `Rincian dari provider: ${res.error}. ` +
+                'Panggilan tool terakhirmu punya JSON argumen yang tidak valid, jadi tidak ada tool yang berjalan. ' +
+                'Jangan ulangi panggilan yang sama. Tulis ulang panggilan itu dengan objek JSON argumen yang lengkap dan valid, ' +
+                'atau kalau tidak diperlukan, lanjutkan ke langkah berikutnya dari rencanamu.',
+            });
+            continue;
+          }
+          throw new Error(res.error);
+        }
 
         /*
          * Teks yang sudah dikatakan model di langkah SEBELUMNYA tidak boleh
@@ -4714,7 +6450,66 @@ export const useAi = create<AiStore>((set0, get) => {
           },
           tampil: res.content,
         });
-        if (callsToDispatch.length === 0) break;
+        if (callsToDispatch.length === 0) {
+          /*
+           * Model berhenti memanggil tool. Itu BELUM TENTU selesai.
+           *
+           * Inilah penyebab "cuma bikin index.html lalu berhenti" yang
+           * dilaporkan: model menulis satu berkas, lalu mengirim satu giliran
+           * berisi teks saja (tanpa tool call) - sering sekadar "oke, lanjut ke
+           * berikutnya" - dan loop lama langsung `break`, mengakhiri run padahal
+           * rencananya (todo_write) masih punya banyak item `pending`. opencode
+           * dan Hermes tidak berhenti di sini: selama masih ada tugas yang belum
+           * beres, mereka menyodok model untuk meneruskan.
+           *
+           * Aturannya: kalau ada todo yang BELUM `done`, jangan akhiri. Tempel
+           * satu pesan user yang menagih lanjutan dan putar loop sekali lagi.
+           * Dibatasi `BATAS_LANJUT_TANPA_TOOL` kali berturut-turut supaya model
+           * yang benar-benar tidak mau lanjut (atau salah paham) tidak membuat
+           * loop berputar sampai batas langkah - setelah itu dibiarkan selesai
+           * dengan jujur, membawa apa pun yang sudah dikerjakannya.
+           *
+           * Tanpa todo, tidak ada penanda sisa pekerjaan yang bisa dipercaya,
+           * jadi perilaku lama dipertahankan: satu giliran tanpa tool call =
+           * selesai.
+           */
+          const sisaTodo = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
+          if (sisaTodo.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL && !agentBatal) {
+            lanjutTanpaTool += 1;
+            const daftar = sisaTodo
+              .map((t) => `- [${t.status === 'in_progress' ? '~' : ' '}] ${t.content}`)
+              .join('\n');
+            history.push({
+              role: 'user',
+              content:
+                `Rencanamu belum selesai. Masih ada ${sisaTodo.length} tugas yang belum \`done\`:\n` +
+                `${daftar}\n\n` +
+                'Lanjutkan SEKARANG dengan memanggil tool untuk mengerjakan tugas berikutnya — ' +
+                'jangan berhenti dan jangan hanya menjelaskan. Kalau sebuah tugas memang sudah ' +
+                'selesai, tandai `done` lewat todo_write. Kalau SEMUA sudah benar-benar selesai, ' +
+                'jalankan verifikasi akhir lalu tulis laporan penutup.',
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(lanjut)',
+                  args: '{}',
+                  result: `Model berhenti padahal ${sisaTodo.length} tugas belum selesai; diminta meneruskan.`,
+                  ok: true,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            continue;
+          }
+          break;
+        }
+        /* Giliran yang memanggil tool berarti model masih bekerja: setel ulang
+           penghitung sodokan supaya jeda berpikir yang wajar tidak menghabiskan
+           jatah lanjutan. */
+        lanjutTanpaTool = 0;
 
         /*
          * Start eligible calls together; dispatch below preserves order and all gates.
@@ -4877,9 +6672,37 @@ export const useAi = create<AiStore>((set0, get) => {
                Membuka ulang halaman yang sama tidak lagi dihitung kemajuan,
                dan `browser_close` tidak lagi bisa mereset apa pun karena ia
                masuk lewat fungsi yang sama. */
-            const Putaran = cekMuterBrowser(halamanTerbuka, browserMuter, urlBrowserTerbuka, tc.name, argsObj);
+            const Putaran = cekMuterBrowser(
+              halamanTerbuka,
+              browserMuter,
+              urlBrowserTerbuka,
+              tc.name,
+              argsObj,
+              browserSidikTerakhir,
+            );
             browserMuter = Putaran.muter;
+            browserSidikTerakhir = Putaran.sidik;
             if (Putaran.berhenti) {
+              const sodokBrowser =
+                `Peringatan: satu halaman SUDAH terbuka dan ${browserMuter} langkah browser berikutnya tidak ` +
+                'menambah apa pun - isinya sudah ada di layar dan di riwayat. JANGAN membaca halaman itu lagi dan ' +
+                'jangan mencoba alat pengambilan lain untuk halaman yang sama: pakai data yang SUDAH kamu punya, ' +
+                'tulis hasilnya ke berkas hasil SEKARANG (write_file), lalu tutup dengan ringkasan singkat. ' +
+                'Hanya kalau memang ada satu halaman LAIN yang belum pernah dibuka dan benar-benar diperlukan, ' +
+                'buka url itu sekali lewat browser_open.';
+              if (!sudahDiberiPeringatanBrowserMuter) {
+                sudahDiberiPeringatanBrowserMuter = true;
+                browserMuter = 0;
+                browserSidikTerakhir = [];
+                history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: sodokBrowser });
+                set((s) => ({
+                  agentSteps: [
+                    ...s.agentSteps,
+                    { kind: 'tool', name: tc.name, args: JSON.stringify(argsObj), result: sodokBrowser.slice(0, 400), ok: false, at: Date.now() },
+                  ],
+                }));
+                continue;
+              }
               akhir =
                 `Stopped: a page is already open, and ${browserMuter} further browser steps ` +
                 'made no progress. Report what is on screen and stop; do not inspect it again.';
@@ -4918,6 +6741,49 @@ export const useAi = create<AiStore>((set0, get) => {
            */
           if (TOOL_PENULIS.has(tc.name)) {
             langkahTanpaKemajuan = 0;
+            /*
+             * Menulis adalah KEMAJUAN NYATA, jadi watchdog aksi-berulang lupa
+             * apa yang sudah dilihatnya - persis seperti ketika sebuah todo
+             * mencapai `done` (lihat setAgentTodos).
+             *
+             * Tanpa ini sebuah run yang sehat bisa mati. Bukti dari run NADA:
+             * model menulis berkas, lalu `list_directory` untuk memverifikasi,
+             * tulis lagi, list lagi - enam kali verifikasi di sepanjang
+             * giliran yang benar-benar menulis berkas. Peta sidik jari
+             * menghitung keenam `list_directory` identik itu secara kumulatif
+             * (ia hanya di-reset saat todo `done`, dan mr-vip tidak selalu
+             * memelihara todo), menyentuh BATAS_BACA_SAMA, lalu MEMBUNUH run
+             * padahal setiap pembacaan dipisahkan oleh tulisan nyata di antara-
+             * nya. Itu treadmill palsu: verifikasi berulang di sela kerja yang
+             * produktif, bukan loop yang mandek. Sebuah tulisan membuktikan
+             * pembacaan itu bukan kemacetan, jadi hitungannya dilupakan.
+             */
+            agenAksiBerulang.clear();
+            sudahDiberiPeringatanTanpaKemajuan = false;
+            /*
+             * Cache hasil tool read dibuang begitu sesuatu di disk berubah.
+             *
+             * Ini bug akar yang terpisah dan lebih merusak. `agentToolCache`
+             * menyimpan hasil read-only (`list_directory`, `read_file`, `glob`)
+             * dengan TTL tak terhingga dan hanya dibersihkan di AWAL dan AKHIR
+             * seluruh run - tidak pernah saat sebuah tulisan terjadi di tengah.
+             * Jadi setelah model menulis `jelajah.html` lalu me-`list_directory`
+             * folder yang sama, ia menerima DAFTAR LAMA dari sebelum tulisan -
+             * berkas barunya tampak hilang. Model menyimpulkan tulisannya gagal,
+             * menulis lagi, me-list lagi (cache yang sama, masih hilang), dan
+             * begitu seterusnya sampai watchdog aksi-berulang mematikan run.
+             * Itulah `list_directory {"depth":"2","path":"D:/Testing/nada"}`
+             * yang berhenti setelah enam panggilan identik.
+             *
+             * Sebuah tulisan membuat setiap pembacaan folder/berkas yang
+             * tersimpan jadi basi, jadi cache dikosongkan. Panggilan read
+             * berikutnya menyentuh disk sungguhan dan melihat tulisan tadi.
+             */
+            agentToolCache.clear();
+            /* Catat berkas yang baru ditulis supaya pembacaan/pencarian ulang
+               atasnya di langkah berikutnya terhitung sebagai bukan-kemajuan. */
+            const ditulis = sebutBerkasTertulis(argsObj);
+            if (ditulis) berkasDitulisGiliran.add(ditulis);
           } else if (TOOL_BACA_SET.has(tc.name) || TOOL_NET_SET.has(tc.name)) {
             /*
              * A read - of disk or of the web - is real work, not idleness.
@@ -4930,7 +6796,18 @@ export const useAi = create<AiStore>((set0, get) => {
              * gathers what it needs before it writes; only a run that reads
              * the SAME thing repeatedly (the identical-action watchdog) is a
              * loop, and that guard still fires.
+             *
+             * SATU pengecualian: membaca kembali berkas yang BARU DITULIS pada
+             * giliran ini. Itu bukan mengumpulkan bahan - isinya keluaranmu
+             * sendiri - dan terbukti jadi cara mr-vip memboroskan 116 dari 120
+             * langkah (read_file/grep pada berkas yang baru ia tulis) sampai
+             * rencananya tak pernah tuntas. Pembacaan seperti itu dihitung
+             * sebagai diam, jadi guard tanpa-kemajuan menyodoknya kembali menulis.
              */
+            const sasaran = sebutBerkasTertulis(argsObj);
+            if (sasaran && berkasDitulisGiliran.has(sasaran)) {
+              langkahTanpaKemajuan += 1;
+            }
           } else {
             /*
              * Anything else is a passive step: it neither changed anything nor
@@ -4975,12 +6852,38 @@ export const useAi = create<AiStore>((set0, get) => {
            * `auto` (the explicit opt-in to unattended work). `editor_write` is
            * not in TOOL_DISK_TULIS on purpose: it only touches the buffer.
            */
-          const perluSetuju =
+          const perluSetujuDasar =
             (namaShell &&
               !diizinkan &&
               (get().approvalMode === 'ask' ||
                 (get().approvalMode !== 'auto' && isDestructive(perintah)))) ||
             (tulisDisk && get().approvalMode !== 'auto' && !izinTool);
+
+          /*
+           * Per-tool rules are consulted BEFORE the mode, and can only make the
+           * decision more permissive or more restrictive — never bypass the two
+           * hard blocks above.
+           *
+           * `deny` and `allow` are absolute: they override `approvalMode` in
+           * both directions, which is the whole point of having them (a rule
+           * that only ever added confirmations would be a slower way of writing
+           * `ask`). A call with NO matching rule keeps exactly the behaviour it
+           * had before this existed.
+           *
+           * The `readOnlyBlok` check runs first and is not overridable: a rule
+           * saying `allow bash_run` in read-only mode must NOT permit a write.
+           * Read-only is a promise about the session, and a single regex was
+           * not written with that promise in mind.
+           */
+          const aturan = useStore.getState().settings.agents?.toolRules;
+          const hasilAturan = evaluasiUntukPanggilan(aturan, { name: tc.name, args: argsObj });
+          const aturanBlok = hasilAturan.rule !== null && hasilAturan.action === 'deny';
+          const perluSetuju =
+            hasilAturan.rule !== null && hasilAturan.action === 'allow'
+              ? false
+              : hasilAturan.rule !== null && hasilAturan.action === 'confirm'
+                ? true
+                : perluSetujuDasar;
 
           let hasil: string;
           let ok = true;
@@ -4989,6 +6892,9 @@ export const useAi = create<AiStore>((set0, get) => {
             ok = false;
           } else if (readOnlyBlok) {
             hasil = `(refused: read-only mode does not allow ${tc.name})`;
+            ok = false;
+          } else if (aturanBlok) {
+            hasil = `(ditahan: aturan izin menolak ${tc.name} — ${hasilAturan.rule?.note || hasilAturan.rule?.match || 'cocok'})`;
             ok = false;
           } else if (perluSetuju) {
             get().setAgentProgress({ agentPhase: 'waiting-confirmation', agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
@@ -5038,7 +6944,31 @@ export const useAi = create<AiStore>((set0, get) => {
               ` explain the blocker to the user.`;
           }
 
-          if (agentBatal) break;
+          /*
+           * A cancelled run must NOT leave an assistant turn whose tool calls
+           * have no results.
+           *
+           * `break` here used to skip the `history.push({role:'tool', …})` that
+           * follows, while the assistant turn carrying `toolCalls` had already
+           * been pushed before the tools ran. The history then ended with a tool
+           * call nothing answers — the exact shape an OpenAI-compatible gateway
+           * refuses with 400, on every request that comes after. Pressing Stop
+           * mid-tool was enough to poison the rest of the conversation, and the
+           * reader saw a permanent error with no way back.
+           *
+           * Answering the remaining calls with a cancellation result keeps the
+           * pairing intact. The model reads it as "this tool never ran", which is
+           * true, and the conversation stays usable instead of dying.
+           */
+          if (agentBatal) {
+            history.push({
+              role: 'tool',
+              toolCallId: tc.id,
+              name: tc.name,
+              content: '(dibatalkan sebelum tool ini selesai dijalankan)',
+            });
+            break;
+          }
           if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) {
             halamanTerbuka = true;
             /*
@@ -5331,6 +7261,52 @@ export const useAi = create<AiStore>((set0, get) => {
             `Stopped: ${langkahTanpaKemajuan} steps in a row only read things and changed nothing. ` +
             'Everything needed to answer is already collected. Report findings to the user ' +
             'now instead of reading further.';
+          /*
+           * JANGAN matikan run kalau rencana belum selesai.
+           *
+           * Guard no-progress ini ada untuk menghentikan agen yang membaca
+           * berkasnya sendiri tanpa henti. Tapi pada TUGAS BESAR ia jadi
+           * bumerang: setelah auto-compact, model wajar membaca beberapa berkas
+           * untuk memulihkan konteks sebelum menulis berkas berikutnya - dan
+           * empat bacaan beruntun langsung kena guard. Itulah yang menghentikan
+           * run toko di 16 dari 40+ berkas: BUKAN mandek, cuma sedang
+           * mengumpulkan konteks di antara penulisan. opencode/Claude tidak
+           * punya rem sekasar ini pada tugas yang jelas belum selesai.
+           *
+           * Jadi: kalau masih ada todo yang belum `done` DAN jatah sodokan belum
+           * habis, perlakukan sama seperti "model berhenti padahal rencana belum
+           * selesai" - tegaskan ulang sisa tugas dan SODOK untuk lanjut menulis,
+           * jangan bunuh. Hanya kalau tidak ada todo tersisa (atau sodokan sudah
+           * habis) guard benar-benar mengakhiri.
+           */
+          {
+            const sisaTodoGuard = useAi
+              .getState()
+              .agentTodos.filter((t) => t.status !== 'done');
+            if (sisaTodoGuard.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL) {
+              lanjutTanpaTool += 1;
+              langkahTanpaKemajuan = 0;
+              const daftar = sisaTodoGuard
+                .map((t) => `- [${t.status === 'in_progress' ? '~' : ' '}] ${t.content}`)
+                .join('\n');
+              history.push({
+                role: 'user',
+                content:
+                  `Berhenti membaca. Rencanamu BELUM selesai - masih ada ${sisaTodoGuard.length} tugas:\n` +
+                  `${daftar}\n\n` +
+                  `Kerjakan tugas berikutnya SEKARANG dengan menulis berkasnya langsung (write_file/edit). ` +
+                  `Jangan membaca ulang berkas yang sudah ada. Kalau sebuah tugas memang sudah selesai, ` +
+                  `tandai \`done\` lewat todo_write.`,
+              });
+              set((s) => ({
+                agentSteps: [
+                  ...s.agentSteps,
+                  { kind: 'tool', name: '(lanjut)', args: '{}', result: `Membaca tanpa kemajuan, tapi ${sisaTodoGuard.length} tugas belum selesai; diminta lanjut menulis.`, ok: true, at: Date.now() },
+                ],
+              }));
+              continue;
+            }
+          }
           set((s) => ({
             agentSteps: [
               ...s.agentSteps,
@@ -5450,6 +7426,22 @@ export const useAi = create<AiStore>((set0, get) => {
       }
     }
 
+    /*
+     * D: tutup catatan konteks pekerjaan (jalur keluar run).
+     *
+     * Ditulis di SATU tempat - jalur keluar bersama ini - supaya catatan yang
+     * ditinggalkan sama baiknya apakah run selesai sendiri, kena guard, atau
+     * providernya gagal. Kegagalan menulis diabaikan di dalam; lihat
+     * `catatHasilKonteks`.
+     */
+    await catatHasilKonteks(wsRun, {
+      tugas: tugasRun,
+      langkah,
+      kategori: agentFailure ? agentFailure.category : null,
+      berkas: [...berkasDitulisGiliran],
+      todos: get().agentTodos,
+    });
+
     // This is the single agent exit cleanup path. It also clears approval state
     // when an exit happens before a tool can answer its confirmation promise.
     /* Flush before the exit `set()` below: it computes the bubble's final text
@@ -5479,6 +7471,7 @@ export const useAi = create<AiStore>((set0, get) => {
     cancelledAttempts.clear();
     agentConfirmResolve = null;
     finishAgentToolCache();
+    catatanPercobaanGagal.clear();
     agentBatal = false;
     set((s) => ({
       agentBusy: false,
@@ -5618,8 +7611,20 @@ export const useAi = create<AiStore>((set0, get) => {
                    * `(no answer)` marker, so the chip is the only place the
                    * reason can appear - and it must, because a run that ends
                    * with no explanation is indistinguishable from a hang.
+                   *
+                   * `error` DITULIS EKSPLISIT, bukan ditambahkan bersyarat di
+                   * atas `...m`. Ini perbaikan untuk "merah nyangkut setelah
+                   * pulih": sebuah chunk `err` yang retryable (mis. grep dengan
+                   * argumen rusak) menyetel `m.error` lewat terapkanChunkKeState
+                   * di tengah run. Agent lalu me-retry, pulih, dan menyelesaikan
+                   * tugasnya - tapi versi lama hanya MENAMBAH error kalau ada
+                   * `finalError` baru, sehingga error lama yang dibawa `...m`
+                   * tidak pernah dihapus. Hasilnya: run sukses (semua berkas
+                   * jadi, server jalan) tapi bubble tetap merah "grep malformed".
+                   * Menuliskannya eksplisit berarti run yang pulih membersihkan
+                   * chip itu; hanya kegagalan nyata tanpa teks yang menyalakannya.
                    */
-                  ...(finalError && !tampil ? { error: finalError } : {}),
+                  error: finalError && !tampil ? finalError : undefined,
                 };
               }),
             }
@@ -5627,6 +7632,37 @@ export const useAi = create<AiStore>((set0, get) => {
       ),
     }));
     persist(get());
+
+    /*
+     * Close the turn's checkpoint and attach it to the message it belongs to.
+     *
+     * Attached to the MESSAGE rather than kept in a store field, because the
+     * button that restores it lives on that turn's row — a single "last
+     * checkpoint" field would move to the newest turn the moment another one
+     * ran, leaving the reader unable to undo an earlier one they were still
+     * looking at.
+     *
+     * A turn that changed no files produces null, and null means no button:
+     * offering "restore" on a read-only turn would be offering an action that
+     * does nothing.
+     */
+    void import('./checkpoint').then((m) => {
+      const cp = m.tutupCheckpoint();
+      if (!cp) return;
+      set((s) => ({
+        sessions: s.sessions.map((x) =>
+          x.id === sessionId
+            ? {
+                ...x,
+                messages: x.messages.map((msg) =>
+                  msg.id === botMsg.id ? { ...msg, checkpoint: cp } : msg,
+                ),
+              }
+            : x,
+        ),
+      }));
+      persist(get());
+    });
 
     /*
      * Lifecycle: the run is over, so `session-end` hooks fire.
@@ -5664,6 +7700,40 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     /*
+     * Tell the reader the run is over, if they are not looking at it.
+     *
+     * An agent run is exactly the kind of work people start and then leave:
+     * "read these twelve files and write the report", "run the tests and fix
+     * what fails". Waiting in front of it is wasted attention, and the thing
+     * that makes leaving possible is a signal when it finishes.
+     *
+     * Only when the window is NOT focused. Notifying a reader who is watching
+     * the answer appear is noise, and noise is what makes people turn
+     * notifications off — after which the one that mattered is missed too.
+     *
+     * Cancelled runs say nothing: the reader stopped it deliberately, so they
+     * already know, and a "finished" banner for work they killed would be a lie.
+     * Failures DO notify, because a run that died while they were away is the
+     * case where knowing soonest matters most.
+     */
+    if (!runWasCancelled) {
+      const fokus = typeof document !== 'undefined' && document.hasFocus();
+      if (!fokus) {
+        void import('./notificationStore').then((m) => {
+          const judul = agentFailure ? tx('Agent run failed') : tx('Agent run finished');
+          const isi = agentFailure
+            ? String(agentFailure.message).split('\n')[0].slice(0, 120)
+            : (akhir || '').trim().split('\n')[0].slice(0, 120) || tx('No summary was produced.');
+          if (agentFailure) {
+            m.notifyError(judul, { detail: isi, source: 'AI' });
+          } else {
+            m.notifyInfo(judul, { detail: isi, source: 'AI' });
+          }
+        });
+      }
+    }
+
+    /*
      * Read the answer aloud, if the user asked for that.
      *
      * Placed HERE, after `streaming: false`, and not at the start: speaking text
@@ -5688,6 +7758,30 @@ export const useAi = create<AiStore>((set0, get) => {
       const next = daftar[0];
       if (next && !(get().agentBusys[COMPOSER_AKTIF] ?? false)) {
         void get().kirimAntrian(0, COMPOSER_AKTIF);
+      } else if (!next && !(get().agentBusys[COMPOSER_AKTIF] ?? false) && get().antrian.length > 0) {
+        /*
+         * LANE ANTREAN-LIVE (item C): pesan yang diketik SESUDAH drain langkah
+         * terakhir tidak pernah lewat drain mana pun. Jalur lama membiarkannya
+         * duduk di `antrian` sampai user mengirim lagi - persis keluhan "harus
+         * nunggu run kelar". Aturan `antreanPesan.ts` berlaku juga di sini: begitu
+         * giliran selesai, kepala antrean LANGSUNG diproses.
+         *
+         * Jadi sisa itu dipindahkan ke antrean permukaan yang baru selesai, lalu
+         * kepalanya dikirim lewat `kirimAntrian` - jalur kirim yang sudah ada,
+         * bukan jalur kedua - dan sisanya tetap menunggu dengan urutan utuh.
+         */
+        const selesai = giliranSelesaiPanel(get().antrian, { sibuk: true });
+        if (selesai.langsungDiproses) {
+          const pindah = get().antrian;
+          set((s) => {
+            const sesudah = [...(s.antrians[COMPOSER_AKTIF] ?? []), ...pindah];
+            return {
+              antrians: { ...s.antrians, [COMPOSER_AKTIF]: sesudah },
+              ...(COMPOSER_AKTIF === '' ? { antrian: sesudah } : { antrian: [] }),
+            };
+          });
+          void get().kirimAntrian(0, COMPOSER_AKTIF);
+        }
       }
     } else {
       /*
@@ -5814,6 +7908,15 @@ export const useAi = create<AiStore>((set0, get) => {
     if (subagentOnChunk(c)) return;
 
     /*
+     * HydraFusion passes first, for the same reason the subagent bridge does:
+     * an orchestrated run owns its own request ids. A buffered pass is consumed
+     * here (its text is the draft, or the critique — neither belongs in the
+     * bubble); a LIVE pass is recorded and then falls through, which is how a
+     * single-request plan still streams token by token.
+     */
+    if (hydraCatat(c)) return;
+
+    /*
      * Drop the duplicate delta some providers send for every token.
      *
      * THE BUG THIS FIXES: some OpenAI-compatible gateways (the custom router
@@ -5899,6 +8002,29 @@ export const useAi = create<AiStore>((set0, get) => {
     const terminalFrame = !!(c.toolDone || c.done || c.err);
     const lepaskanLangkahDitelan = (sebab: string) => {
       if (!terminalFrame || !agentStepResolve) return;
+      /*
+       * HANYA lepaskan langkah yang menunggu kalau frame penutup ini memang
+       * MILIKNYA (c.id === attempt). Ini perbaikan untuk penghentian merah
+       * palsu pada kerja berat.
+       *
+       * `agentStepResolve` selalu milik percobaan yang AKTIF sekarang. Ketiga
+       * penjaga di bawah menelan frame dari percobaan yang BUKAN aktif:
+       *   - retiredAgentAttempts.has(c.id): percobaan lama yang sudah pensiun,
+       *   - c.id !== attempt: percobaan asing,
+       *   - cancelledAttempts.has(c.id): percobaan yang dibatalkan.
+       * Pada run berat dengan beberapa retry, frame penutup yang TERLAMBAT dari
+       * percobaan lama kerap tiba justru ketika langkah BARU sedang streaming.
+       * Versi lama melepaskan langkah baru itu dengan error "percobaan sudah
+       * pensiun" - mematikan langkah sehat di tengah jalan. Itulah "merah terus"
+       * yang dilaporkan: makin banyak langkah/retry (persis ciri kerja berat),
+       * makin besar peluang frame basi mendarat saat langkah lain menunggu.
+       *
+       * Pengecualian yang benar: setelah user menekan Stop, percobaan AKTIF
+       * sendiri masuk retired+cancelled (lihat `cancel`), jadi c.id === attempt
+       * dan melepaskannya memang yang diinginkan. Syarat c.id === attempt
+       * menangkap tepat kasus itu dan menolak frame dari percobaan lain.
+       */
+      if (c.id !== attempt) return;
       const r = agentStepResolve;
       agentStepResolve = null;
       agentWatchdogDisarm();
@@ -6123,6 +8249,17 @@ export const useAi = create<AiStore>((set0, get) => {
         const periksa = mengulangPelarian(akumulasi);
         if (periksa.ya) {
           useAiDebug.getState().selesai(c.id, 'error', 0, periksa.alasan);
+          /*
+           * The discarded answer is kept aside before the bubble is replaced.
+           *
+           * Overwriting is deliberate and stays - replaying repeated bytes seeds
+           * the loop into the NEXT request, so the text must not go back to the
+           * provider. But discarding it entirely meant a reader whose long answer
+           * tripped this guard saw their work replaced by a one-line notice with
+           * nothing to check it against. Keeping a copy makes the claim
+           * verifiable: if the guard was wrong, the text is right there.
+           */
+          catatanPercobaanGagal.set(c.id, akumulasi);
           set((s) => ({
             sessions: s.sessions.map((sess) => ({
               ...sess,
@@ -6147,6 +8284,7 @@ export const useAi = create<AiStore>((set0, get) => {
         const periksa = mengulangDominan(akumulasi);
         useAiDebug.getState().selesai(c.id, 'error', 0, periksa.alasan);
         hapusTeksAkumulasi(c.id);
+        catatanPercobaanGagal.set(c.id, akumulasi);
         set((s) => ({
           sessions: s.sessions.map((sess) => ({
             ...sess,
@@ -6376,6 +8514,12 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
   const frames = c.reasoningFrames ?? (c.reasoning && !c.done ? [String(c.reasoning)] : []);
   useAi.setState((s) => {
     /*
+     * Dihitung sekali, di luar objek: frame TERMINAL-lah yang menghapus
+     * `pending`, dan frame itu juga yang harus mencerminkan penghapusan itu ke
+     * `pendings[composerId]` - lihat catatan pada kunci itu di bawah.
+     */
+    const sisaPending = c.done || c.err ? (s.pending === c.id ? null : s.pending) : s.pending;
+    /*
      * Fold the reasoning frames ONCE, outside the message map, and keep the
      * running text so the global `reasoningText` counter uses the same
      * cumulative-aware result as the message body. Joining the raw frames here
@@ -6475,7 +8619,19 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
           return m;
         }),
       })),
-      pending: c.done || c.err ? (s.pending === c.id ? null : s.pending) : s.pending,
+      pending: sisaPending,
+
+      /*
+       * Dicerminkan di sini karena setter ini MENTAH: `onChunk` berjalan per
+       * token dan sengaja melewati pembungkus `mirrorRun`, sehingga salinan
+       * per-permukaan `pendings[composerId]` dulu tertinggal memegang id
+       * request yang sudah selesai. Setiap pembaca peta per-permukaan lalu
+       * melihat "sibuk" selamanya setelah satu turn - strip status tetap
+       * 'Thinking' dan peluncuran berikutnya ditolak sebagai run yang masih
+       * jalan. Hanya frame terminal yang mengubah nilai ini, jadi hanya frame
+       * terminal yang membayar salinannya.
+       */
+      ...(c.done || c.err ? { pendings: { ...s.pendings, [COMPOSER_AKTIF]: sisaPending } } : {}),
 
       reasoningText: reasoningHasil ? (s.reasoningText ?? '') + reasoningHasil : s.reasoningText,
     };
@@ -6544,3 +8700,431 @@ function periksaSedangMengulang(teks: string): boolean {
   if (teks.length < AMBANG_TENGAH) return false;
   return mengulangDominan(teks).ya;
 }
+
+/* ------------------------------------------------------------------ */
+/* LAMA-a2: pemadatan riwayat MURNI (tanpa panggilan model)            */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Kenapa ada varian MURNI di samping `padatkanRiwayat` yang sudah ada.
+ *
+ * `padatkanRiwayat` memanggil model untuk menulis ringkasan. Itu pintar, tapi
+ * punya tiga sifat yang membuatnya tidak selalu bisa diandalkan - dan riwayat
+ * yang MENDEKATI ambang tidak selalu punya waktu untuk satu panggilan model lagi:
+ *
+ *   1. Ia bisa GAGAL (catch -> null): jaringan, kuota, provider menolak. Saat
+ *      gagal, riwayat dibiarkan utuh dan siklus berikutnya mencoba lagi - sambil
+ *      tetap di atas ambang.
+ *   2. Ia bisa membatalkan dirinya (`sesudah >= sebelum`): ringkasan model lebih
+ *      panjang dari bahannya. Kejadian nyata, terukur di komentar di bawah ini.
+ *   3. Ia tidak menjamin APA yang bertahan. Prompt-nya MEMINTA agar pekerjaan
+ *      yang belum selesai dipertahankan, tetapi yang mengerjakan itu model:
+ *      daftar tugas yang setengah jalan bisa hilang tanpa ada yang menyadarinya.
+ *
+ * Fungsi di bawah ini menutup ketiganya dengan sifat yang berlawanan: tanpanya
+ * tidak ada model, tanpa jaringan, dan jaminannya diperiksa mesin - item tugas
+ * yang belum selesai TIDAK PERNAH dibuang, ia dikutip ulang verbatim di catatan
+ * DAN dikirim sebagai pesan terpisah di depan ekor riwayat.
+ *
+ * Ambang dan rasio (angka yang sama ditulis di docs/ANAK-AGEN-PERILAKU.md):
+ *
+ *   - Ambang padat  : AMBANG_PADAT_RASIO = AUTO_COMPACT_AT = 0,80 dari JENDELA
+ *                     KONTEKS model, dan satuannya TOKEN - satuan yang sama dengan
+ *                     meter konteks (`perkiraanKonteks`). Untuk model yang tidak
+ *                     dikenal `jendelaKonteks` memakai 128.000 token
+ *                     -> AMBANG_PADAT_TOKEN = 102.400 token.
+ *                     Di atas ambang ini pemadatan perlu jalan.
+ *                     (Jangan menghitung ambang dari PAYLOAD_MAX_CHARS: itu
+ *                     KARAKTER 40.000 -> 32.000, sedangkan `perkiraanKonteks`
+ *                     mengembalikan token; pemadatan jadi praktis tidak pernah
+ *                     menyala karena 32.000 token baru tercapai di ~128.000
+ *                     karakter. Pemanggil yang tahu modelnya boleh menurunkan
+ *                     ambang lewat `batasToken`.)
+ *   - Ekor utuh     : PADAT_SIMPAN_EKOR = AUTO_COMPACT_KEEP = 6 pesan terakhir
+ *                     (dan tiap pesan di depan ekor yang lebih tua digemukkan
+ *                     2x lipat ekor ini untuk dipadatkan, sama seperti
+ *                     `ringkasRiwayat`).
+ *   - Rasio ringkas : RASIO_RINGKAS_TARGET = 0,50 -> catatan ringkasan + kutipan
+ *                     tugas/berkas harus <= 50% perkiraan token bahan yang
+ *                     digantikan. Kalau ternyata TIDAK mengecil, pemadatan
+ *                     murni membatalkan dirinya (`dipadatkan: false`) dan
+ *                     riwayat asli dikembalikan - persis sikap `padatkanRiwayat`.
+ */
+
+/** Rasio ambang terhadap JENDELA KONTEKS model (0,80) - dipinjam dari contextBudget. */
+export const AMBANG_PADAT_RASIO: number = AUTO_COMPACT_AT;
+
+/**
+ * Ambang: pemadatan perlu jalan bila perkiraan konteks melewati rasio ini.
+ *
+ * Satuannya TOKEN, sama seperti `perkiraanKonteks` dan `batasAutoCompact(model)`.
+ * Default memakai jendela model tak dikenal (128.000 token, `jendelaKonteks`) -
+ * jadi ambang default = 102.400 token, dan pemanggil yang tahu modelnya sebaiknya
+ * mengirim `batasAutoCompact(modelId)` sebagai `batasToken`.
+ */
+export const AMBANG_PADAT_TOKEN: number = Math.round(128_000 * AMBANG_PADAT_RASIO);
+
+/** Jumlah pesan terakhir yang selalu dikirim utuh. */
+export const PADAT_SIMPAN_EKOR: number = AUTO_COMPACT_KEEP;
+
+/** Target: hasil pemadatan <= rasio ini dari bahan yang digantikannya. */
+export const RASIO_RINGKAS_TARGET = 0.5;
+
+/** Batas jumlah butir keputusan / berkas / panjang kutipan di catatan. */
+export const PADAT_BATAS_KEPUTUSAN = 12;
+export const PADAT_BATAS_BERKAS = 20;
+export const PADAT_BATAS_POTONGAN = 220;
+export const PADAT_BATAS_BARIS_USER = 6;
+
+export interface ItemTugasBelum {
+  content: string;
+  status: string;
+}
+
+export interface HasilPadatMurni {
+  /** Riwayat untuk dikirim. Sama dengan masukan bila `dipadatkan: false`. */
+  history: AgentMsg[];
+  dipadatkan: boolean;
+  /** Kenapa dipadatkan / kenapa tidak - dibaca manusia & harness. */
+  alasan: string;
+  /** Perkiraan token sebelum & sesudah. */
+  sebelum: number;
+  sesudah: number;
+  /** Jumlah pesan lama yang digantikan catatan. */
+  diringkas: number;
+  keputusan: string[];
+  /** WAJIB: semua item tugas yang belum selesai, apa adanya. */
+  tugasBelum: string[];
+  berkas: string[];
+  catatan: string;
+  /** Jejak langkah keputusan, satu baris per pemeriksaan. */
+  jejak: string[];
+}
+
+const STATUS_SELESAI = new Set(['done', 'completed', 'complete', 'selesai']);
+
+function belumSelesai(status: string): boolean {
+  return !STATUS_SELESAI.has(String(status ?? '').toLowerCase());
+}
+
+function rapi(teks: string, batas: number = PADAT_BATAS_POTONGAN): string {
+  const t = String(teks ?? '').replace(/\s+/g, ' ').trim();
+  return t.length > batas ? `${t.slice(0, batas)}…` : t;
+}
+
+/** Tool yang argumennya menyebut path - sumber "berkas yang sedang digarap". */
+const ALAT_BERKAS = new Set([
+  'read_file',
+  'write_file',
+  'edit',
+  'multi_edit',
+  'replace_in_files',
+  'delete_file',
+  'move_file',
+  'copy_file',
+  'create_directory',
+]);
+
+const KUNCI_PATH = ['path', 'file_path', 'paths', 'files', 'old_path', 'new_path', 'target', 'from', 'to'];
+
+/** Path yang disebut di argumen tool call. */
+export function pathDariArgs(args: Record<string, unknown> | undefined): string[] {
+  if (!args) return [];
+  const hasil: string[] = [];
+  for (const k of KUNCI_PATH) {
+    const v = args[k];
+    if (typeof v === 'string') hasil.push(v);
+    else if (Array.isArray(v)) for (const x of v) if (typeof x === 'string') hasil.push(x);
+  }
+  return hasil.filter((p) => p.length > 1 && !/^https?:/i.test(p));
+}
+
+const POLA_PATH =
+  /(?:[A-Za-z]:)?[\w.@-]*(?:\/[\w.@-]+)+\.\w{1,5}|[\w-]+\.(?:ts|tsx|js|jsx|mjs|cjs|rs|json|md|css|html|yml|yaml|toml|py|sh|ps1|txt|csv)\b/g;
+
+/** Path yang disebut di dalam teks bebas (prosa asisten, log shell, catatan). */
+export function pathDariTeks(teks: string): string[] {
+  const hasil: string[] = [];
+  const cocok = String(teks ?? '').match(POLA_PATH);
+  if (!cocok) return hasil;
+  for (const x of cocok) {
+    const p = x.replace(/^\.\//, '');
+    if (p.length > 2 && !p.startsWith('//') && !/^v?\d+\.\d+\.\d+$/.test(p)) hasil.push(p);
+  }
+  return hasil;
+}
+
+/**
+ * TUGAS YANG BELUM SELESAI - inti jaminan LAMA-a2.
+ *
+ * Sumber, dari yang paling otoritatif:
+ *   1. `todos` yang diberikan pemanggil (state `agentTodos` di store).
+ *   2. Argumen `todo_write` di riwayat (rencana yang pernah ditulis model).
+ *   3. Baris kotak centang di transkrip: `- [ ] ...`, `- [~] ...` (yang `[x]`
+ *      dilewati karena sudah selesai).
+ *
+ * Tidak ada batas jumlah: membatasi daftar ini berarti membuang pekerjaan yang
+ * belum selesai, dan itu justru yang dilarang.
+ */
+export function tugasBelumSelesaiRiwayat(
+  history: readonly AgentMsg[],
+  todos?: ReadonlyArray<ItemTugasBelum>,
+): string[] {
+  const hasil: string[] = [];
+  const lihat = (isi: string) => {
+    const t = rapi(isi, 300);
+    if (t && !hasil.includes(t)) hasil.push(t);
+  };
+
+  for (const t of todos ?? []) {
+    if (belumSelesai(t.status)) lihat(t.content);
+  }
+
+  for (const m of history) {
+    for (const c of m.toolCalls ?? []) {
+      if (c.name !== 'todo_write') continue;
+      const list = ((c.args ?? {}) as Record<string, unknown>).todos;
+      if (!Array.isArray(list)) continue;
+      for (const it of list) {
+        const item = (it ?? {}) as Record<string, unknown>;
+        if (belumSelesai(String(item.status ?? 'pending'))) lihat(String(item.content ?? ''));
+      }
+    }
+  }
+
+  for (const m of history) {
+    const teks = String(m.content ?? '');
+    if (!teks.includes('[')) continue;
+    for (const baris of teks.split('\n')) {
+      const k = /^\s*[-*]\s*\[([ ~xX])\]\s*(.+?)\s*$/.exec(baris);
+      if (!k) continue;
+      if (k[1].toLowerCase() === 'x') continue;
+      lihat(k[2]);
+    }
+  }
+
+  return hasil;
+}
+
+/**
+ * Berkas yang paling terakhir disentuh - "berkas yang sedang digarap".
+ *
+ * Dua sumber: argumen tool berkas (paling akurat) dan path yang disebut di teks.
+ * Urutan kemunculan dipertahankan dengan asas "sebutan terakhir menang", lalu
+ * `batas` item TERAKHIR yang dikembalikan: yang paling akhir disentuh biasanya
+ * yang paling relevan untuk melanjutkan.
+ */
+export function berkasDisentuhRiwayat(history: readonly AgentMsg[], batas: number = PADAT_BATAS_BERKAS): string[] {
+  const urut: string[] = [];
+  const ambil = (p: string) => {
+    const b = p.trim();
+    if (!b) return;
+    const i = urut.indexOf(b);
+    if (i >= 0) urut.splice(i, 1);
+    urut.push(b);
+  };
+  for (const m of history) {
+    for (const c of m.toolCalls ?? []) {
+      if (!ALAT_BERKAS.has(c.name)) continue;
+      for (const p of pathDariArgs((c.args ?? {}) as Record<string, unknown>)) ambil(p);
+    }
+  }
+  for (const m of history) {
+    if (m.role === 'system') continue;
+    for (const p of pathDariTeks(String(m.content ?? ''))) ambil(p);
+  }
+  return urut.length > batas ? urut.slice(urut.length - batas) : urut;
+}
+
+const POLA_KEPUTUSAN =
+  /\b(keputusan|diputuskan|disepakati|sepakat|dipilih|pilih|karena|sebab|dilarang|jangan|wajib|harus|rencana|strategi|root cause|penyebab|kesimpulan|catatan penting|syarat)\b/i;
+
+/**
+ * KEPUTUSAN PENTING yang tidak boleh dibongkar ulang.
+ *
+ * Tujuan awal user selalu ikut (kalimat pertama pesan user pertama): itu keputusan
+ * paling mahal untuk hilang. Sisanya baris-baris asisten yang memuat penanda
+ * keputusan; yang diambil adalah yang PALING BARU, karena keputusan lama yang
+ * sudah digantikan tidak perlu dibawa lagi.
+ */
+export function keputusanPentingRiwayat(
+  history: readonly AgentMsg[],
+  batas: number = PADAT_BATAS_KEPUTUSAN,
+): string[] {
+  const tujuan: string[] = [];
+  const lain: string[] = [];
+  const tambah = (daftar: string[], isi: string) => {
+    const t = rapi(isi.replace(/^\s*(?:[-*#>]|\d+[.)])\s*/, ''));
+    if (t.length >= 20 && !tujuan.includes(t) && !lain.includes(t)) daftar.push(t);
+  };
+  const userPertama = history.find((m) => m.role === 'user' && String(m.content ?? '').trim().length > 0);
+  if (userPertama) tambah(tujuan, String(userPertama.content).split('\n')[0]);
+  for (const m of history) {
+    if (m.role !== 'assistant') continue;
+    for (const baris of String(m.content ?? '').split('\n')) {
+      if (POLA_KEPUTUSAN.test(baris)) tambah(lain, baris);
+    }
+  }
+  const sisa = Math.max(0, batas - tujuan.length);
+  return [...tujuan, ...lain.slice(lain.length > sisa ? lain.length - sisa : 0)];
+}
+
+/**
+ * Catatan ringkasan. Tugas belum selesai dan berkas yang digarap DITULIS DI SINI
+ * sebagai teks - jadi meski ada lapis lain yang memangkas pesan, isinya tetap ada
+ * di dalam pesan ringkasan itu sendiri.
+ */
+export function catatanPadatMurni(input: {
+  diringkas: number;
+  keputusan: string[];
+  tugasBelum: string[];
+  berkas: string[];
+}): string {
+  const baris: string[] = [];
+  baris.push(
+    `[RINGKASAN RIWAYAT (murni, tanpa panggilan model): ${input.diringkas} pesan lama diringkas ` +
+      `supaya percakapan tetap cepat. Kerjakan dari ringkasan ini. Kalau butuh detail yang tidak ada ` +
+      `di sini, ULANGI tool yang bersangkutan - jangan mengarang isinya.]`,
+  );
+  if (input.keputusan.length) {
+    baris.push('', 'KEPUTUSAN PENTING (jangan dibongkar ulang):');
+    for (const k of input.keputusan) baris.push(`- ${k}`);
+  }
+  if (input.tugasBelum.length) {
+    baris.push('', 'TUGAS BELUM SELESAI (WAJIB diteruskan, jangan dihapus, jangan diklaim selesai):');
+    for (const t of input.tugasBelum) baris.push(`- [ ] ${t}`);
+  }
+  if (input.berkas.length) {
+    baris.push('', 'BERKAS YANG SEDANG DIGARAP (yang paling akhir disebut di bawah):');
+    for (const f of input.berkas) baris.push(`- ${f}`);
+  }
+  return baris.join('\n');
+}
+
+/** Perlu dipadatkan sekarang? (murni: hanya melihat perkiraan konteks) */
+export function perluPadatRiwayatMurni(
+  history: readonly AgentMsg[],
+  batasToken: number = AMBANG_PADAT_TOKEN,
+): boolean {
+  return perkiraanKonteks([...history]) > batasToken;
+}
+
+/**
+ * Padatkan riwayat TANPA panggilan model.
+ *
+ * Jaminan yang dipegang fungsi ini, dalam urutan kepentingan:
+ *   1. Item tugas yang belum selesai tidak pernah hilang (dikutip di catatan DAN
+ *      dikirim sebagai pesan tersendiri).
+ *   2. Pemadatan yang tidak mengecil dibatalkan; riwayat asli dikembalikan.
+ *   3. Riwayat `system` selalu utuh dan tetap di depan.
+ *   4. Deterministik: masukan sama -> hasil sama, tanpa jam/jaringan/acak.
+ */
+export function padatkanRiwayatMurni(
+  history: readonly AgentMsg[],
+  opts: { todos?: ReadonlyArray<ItemTugasBelum>; paksa?: boolean; batasToken?: number } = {},
+): HasilPadatMurni {
+  const batasToken = opts.batasToken ?? AMBANG_PADAT_TOKEN;
+  const asli = [...history];
+  const sebelum = perkiraanKonteks(asli);
+  const keputusan = keputusanPentingRiwayat(asli);
+  const tugasBelum = tugasBelumSelesaiRiwayat(asli, opts.todos);
+  const berkas = berkasDisentuhRiwayat(asli);
+  const jejak: string[] = [
+    `ambang: perkiraan=${sebelum} token; batas=${batasToken} token; paksa=${opts.paksa === true}; ekorUtuh=${PADAT_SIMPAN_EKOR}`,
+    `ditemukan: keputusan=${keputusan.length} tugasBelum=${tugasBelum.length} berkas=${berkas.length}`,
+  ];
+  const hasil: HasilPadatMurni = {
+    history: asli,
+    dipadatkan: false,
+    alasan: '',
+    sebelum,
+    sesudah: sebelum,
+    diringkas: 0,
+    keputusan,
+    tugasBelum,
+    berkas,
+    catatan: '',
+    jejak,
+  };
+
+  if (opts.paksa !== true && sebelum <= batasToken) {
+    hasil.alasan = `riwayat masih di bawah ambang (${sebelum} <= ${batasToken} token): tidak dipadatkan`;
+    jejak.push(hasil.alasan);
+    return hasil;
+  }
+
+  const system = asli.filter((m) => m.role === 'system');
+  const sisanya = asli.filter((m) => m.role !== 'system');
+  if (sisanya.length <= PADAT_SIMPAN_EKOR) {
+    hasil.alasan = `hanya ${sisanya.length} pesan non-system <= ekor utuh (${PADAT_SIMPAN_EKOR}): tidak ada bahan`;
+    jejak.push(hasil.alasan);
+    return hasil;
+  }
+
+  const batas = Math.max(0, sisanya.length - PADAT_SIMPAN_EKOR * 2);
+  const lama = sisanya.slice(0, batas);
+  const baru = sisanya.slice(batas);
+  if (lama.length === 0) {
+    hasil.alasan = 'tidak ada pesan lama yang bisa diringkas setelah menyisakan ekor utuh';
+    jejak.push(hasil.alasan);
+    return hasil;
+  }
+
+  const ringkasLama: AgentMsg[] = lama.map((m) => {
+    const tanpaGambar = m.images?.length ? { ...m, images: undefined } : m;
+    if (m.role === 'tool') return { ...tanpaGambar, content: potongHasilRiwayat(String(m.content ?? '')) };
+    if (m.role === 'assistant') {
+      const teks = String(m.content ?? '');
+      return {
+        ...tanpaGambar,
+        content: teks.length > HISTORY_TOOL_CHARS ? `${teks.slice(0, HISTORY_TOOL_CHARS)}…` : teks,
+        toolCalls: undefined,
+      };
+    }
+    return tanpaGambar;
+  });
+  const utuh = baru.map((m, i, arr) =>
+    i < arr.length - 1 && m.images?.length ? { ...m, images: undefined } : m,
+  );
+
+  const catatan = catatanPadatMurni({ diringkas: lama.length, keputusan, tugasBelum, berkas });
+  const pesanCatatan: AgentMsg = { role: 'user', content: catatan };
+  /* Pesan penjaga: kutipan tugas belum selesai ditaruh SENDIRI di depan ekor. */
+  const penjaga: AgentMsg[] = tugasBelum.length
+    ? [
+        {
+          role: 'user',
+          content:
+            `[TUGAS BELUM SELESAI - diteruskan dari riwayat yang diringkas. JANGAN diklaim selesai; ` +
+            `kerjakan satu per satu.]\n` +
+            tugasBelum.map((t) => `- [ ] ${t}`).join('\n'),
+        },
+      ]
+    : [];
+
+  const gabungan: AgentMsg[] = [...system, pesanCatatan, ...penjaga, ...ringkasLama, ...utuh];
+  const sesudah = perkiraanKonteks(gabungan);
+  jejak.push(`catatan=${catatan.length} karakter; pesanRingkas=${ringkasLama.length}; penjagaTugas=${penjaga.length}`);
+  jejak.push(`ukuran: sebelum=${sebelum} sesudah=${sesudah} target=${Math.round(sebelum * RASIO_RINGKAS_TARGET)}`);
+
+  if (sesudah >= sebelum) {
+    /* Sama seperti `padatkanRiwayat`: pemadatan yang tidak mengecil bukan
+       pemadatan. Riwayat asli dikembalikan utuh - termasuk tugas belum selesai. */
+    hasil.alasan = `dibatalkan: hasil (${sesudah}) tidak lebih kecil dari aslinya (${sebelum})`;
+    hasil.sesudah = sesudah;
+    jejak.push(hasil.alasan);
+    return hasil;
+  }
+
+  hasil.history = gabungan;
+  hasil.dipadatkan = true;
+  hasil.sesudah = sesudah;
+  hasil.diringkas = lama.length;
+  hasil.catatan = catatan;
+  hasil.alasan =
+    `${lama.length} pesan lama diringkas; ${sebelum} -> ${sesudah} token ` +
+    `(tugas belum selesai yang dipertahankan: ${tugasBelum.length})`;
+  jejak.push(hasil.alasan);
+  return hasil;
+}
+
