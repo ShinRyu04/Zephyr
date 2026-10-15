@@ -4524,6 +4524,780 @@ var init_window = __esm({
   }
 });
 
+// src/lib/agentGuard.ts
+function bentukBanding(p) {
+  let s = p.replace(/\\/g, "/");
+  s = s.replace(/^\/\/\?\//, "/");
+  s = s.replace(/^[a-zA-Z]:/, "");
+  s = s.split("/").map((seg) => {
+    const colon3 = seg.indexOf(":");
+    return colon3 === -1 ? seg : seg.slice(0, colon3);
+  }).join("/");
+  s = s.split("/").map((seg) => seg.replace(/[.\s]+$/, "")).join("/");
+  s = s.replace(/\/{2,}/g, "/");
+  s = s.toLowerCase();
+  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
+  return s;
+}
+function basename(p) {
+  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+function diDalamTerproteksi(cmp, dir) {
+  return `${cmp}/`.includes(`${dir}/`);
+}
+function sebut(dir) {
+  return dir.replace(/^\//, "");
+}
+function periksaBaca(path2) {
+  if (typeof path2 !== "string" || path2.length === 0) {
+    return { ok: false, alasan: "ditolak: jalur kosong." };
+  }
+  if (/[\x00-\x1f]/.test(path2)) {
+    return { ok: false, alasan: "ditolak: jalur memuat byte kontrol." };
+  }
+  const nama = basename(path2);
+  for (const re2 of POLA_RAHASIA) {
+    if (re2.test(nama)) {
+      return {
+        ok: false,
+        alasan: `ditolak: "${nama}" cocok dengan pola berkas rahasia.`
+      };
+    }
+  }
+  const cmp = bentukBanding(path2);
+  for (const dir of DIR_TERPROTEKSI) {
+    if (diDalamTerproteksi(cmp, dir)) {
+      return {
+        ok: false,
+        alasan: `ditolak: jalur berada di direktori terproteksi (${sebut(dir)}).`
+      };
+    }
+  }
+  return { ok: true };
+}
+function periksaTulis(path2) {
+  const baca2 = periksaBaca(path2);
+  if (!baca2.ok) return baca2;
+  const cmp = bentukBanding(path2);
+  const cmpAwalan = cmp.startsWith("/") ? cmp : `/${cmp}`;
+  for (const awalan of AWALAN_TOLAK_TULIS) {
+    if (cmpAwalan.startsWith(awalan) || `${cmpAwalan}/`.startsWith(awalan)) {
+      return {
+        ok: false,
+        alasan: `ditolak: menulis di bawah "${awalan.replace(/\/$/, "")}" tidak diizinkan.`
+      };
+    }
+  }
+  return { ok: true };
+}
+function kutipTimpang(c2) {
+  let s = c2.replace(/\\["']/g, "xx");
+  for (let i = 0; i < 4; i++) {
+    const sebelum = s;
+    s = s.replace(/"[^"]*"/g, "").replace(/'[^']*'/g, "");
+    if (s === sebelum) break;
+  }
+  return /["']/.test(s);
+}
+function periksaPerintahShell(command3) {
+  const c2 = command3.trim();
+  if (c2.length === 0) {
+    return { ok: false, alasan: "ditolak: perintah kosong." };
+  }
+  if (/[\x00-\x1f]/.test(c2)) {
+    return {
+      ok: false,
+      alasan: "ditolak: perintah memuat karakter kontrol (termasuk CR/LF). Perintah harus satu baris."
+    };
+  }
+  if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]/.test(c2)) {
+    return {
+      ok: false,
+      alasan: "ditolak: perintah memuat karakter override bidi Unicode."
+    };
+  }
+  if (kutipTimpang(c2)) {
+    return {
+      ok: false,
+      alasan: "ditolak: kutip tidak berpasangan (tokenisasi ambigu) - fail-closed. Tutup kutipnya atau hapus; perintah dengan kutip tak seimbang tidak bisa dibuktikan aman."
+    };
+  }
+  for (const pola of PERINTAH_BERBAHAYA) {
+    if (pola.test(c2)) {
+      return {
+        ok: false,
+        alasan: `ditolak oleh pembatas keamanan: cocok dengan ${pola}. Kalau memang perlu, jalankan sendiri di terminal.`
+      };
+    }
+  }
+  return { ok: true };
+}
+var POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, PERINTAH_BERBAHAYA;
+var init_agentGuard = __esm({
+  "src/lib/agentGuard.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    POLA_RAHASIA = [
+      /^\.env(\..+)?(?:[.\s:]|$)/i,
+      /^.*\.pem(?:[.\s:]|$)/i,
+      /^.*\.key(?:[.\s:]|$)/i,
+      /^.*\.p12(?:[.\s:]|$)/i,
+      /^.*\.pfx(?:[.\s:]|$)/i,
+      /^.*\.asc(?:[.\s:]|$)/i,
+      /^.*\.gpg(?:[.\s:]|$)/i,
+      /^.*\.keystore(?:[.\s:]|$)/i,
+      /^.*\.jks(?:[.\s:]|$)/i,
+      /^id_(rsa|dsa|ecdsa|ed25519)([._-].*)?(?:[.\s:]|$)/i,
+      /^known_hosts(?:[.\s:]|$)/i,
+      /^authorized_keys(?:[.\s:]|$)/i,
+      /^htpasswd(?:[.\s:]|$)/i,
+      /^\.netrc(?:[.\s:]|$)/i,
+      /^_netrc(?:[.\s:]|$)/i,
+      /^credentials(?:[.\s:]|$)/i,
+      /^\.pgpass(?:[.\s:]|$)/i,
+      /^\.npmrc(?:[.\s:]|$)/i,
+      /^\.pypirc(?:[.\s:]|$)/i,
+      /^secrets?\.(json|ya?ml|toml|env)(?:[.\s:]|$)/i,
+      /^service[-_]?account.*\.json(?:[.\s:]|$)/i,
+      /^\.git-credentials(?:[.\s:]|$)/i
+    ];
+    DIR_TERPROTEKSI = [
+      "/.ssh",
+      "/.gnupg",
+      "/.aws",
+      "/.azure",
+      "/.kube",
+      "/.docker",
+      "/.config/gh",
+      "/.config/git",
+      "/.config/gcloud",
+      "/.config/op",
+      "/.git",
+      "/.terraform.d",
+      "/library/keychains",
+      "/library/cookies",
+      "/etc",
+      "/private/etc",
+      "/proc",
+      "/sys",
+      "/var/db",
+      "/var/root",
+      "/private/var/db",
+      "/private/var/root",
+      "/appdata/roaming/microsoft/credentials",
+      "/appdata/local/microsoft/credentials",
+      "/appdata/roaming/gcloud"
+    ];
+    AWALAN_TOLAK_TULIS = [
+      "/etc/",
+      "/var/db/",
+      "/var/root/",
+      "/system/",
+      "/library/keychains/",
+      "/library/launchagents/",
+      "/library/launchdaemons/",
+      "/private/etc/",
+      "/private/var/db/",
+      "/usr/bin/",
+      "/usr/sbin/",
+      "/usr/local/bin/",
+      "/bin/",
+      "/sbin/",
+      "/boot/",
+      "/windows/",
+      "/program files/",
+      "/program files (x86)/",
+      "/programdata/"
+    ];
+    PERINTAH_BERBAHAYA = [
+      /\b(shutdown|Stop-Computer|Restart-Computer)\b/i,
+      /\bFormat-Volume\b/i,
+      /\bRemove-Item\b[^\n]*\b-Credential\b/i,
+      // rm -rf / dengan varian kutip / --no-preserve-root
+      /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+(['"]?\/\**['"]?\s*($|;|&|\|))/i,
+      // rm -rf ~ / $HOME
+      /\brm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+(['"]?(~(\/[^\s'"]*)?|\$\{?HOME\}?(\/[^\s'"]*)?)['"]?)(\s|$|;|&|\|)/i,
+      /--no-preserve-root/i,
+      // dd ke perangkat blok mentah
+      /\bdd\b[^|]*\bof=\/dev\/(disk|sd|nvme|hd)/i,
+      // format disk
+      /\b(mkfs(\.[a-z0-9]+)?|fdisk|parted)\b/i,
+      /\bdiskutil\s+erase/i,
+      // fork bomb
+      /:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/,
+      // curl | sh
+      /\b(curl|wget)\b[^|;&]*\|\s*(sudo\s+|doas\s+)?(ba|z|k|d|fi|c)?sh\b/i,
+      // PowerShell: terenkode base64 (-enc/-EncodedCommand/-ec; `-e` alias resmi -> payload opak, fail-closed)
+      /\b(powershell|pwsh)\b[^\n]*\s-(encodedcommand|enc|ec|e)\b/i,
+      // PowerShell: iex / Invoke-Expression yang dijalankan dari unduhan (dua arah)
+      /\b(iex|invoke-expression)\b[^\n]*\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient|new-object)\b/i,
+      /\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient)\b[^\n]*\b(iex|invoke-expression)\b/i,
+      /* ---------------- BAGIAN B: pola baru (ditambahkan di AKHIR) ----------------
+       * Diletakkan setelah pola lama supaya (1) nomor baris pola lama tidak bergeser
+       * - harness cek-izin-terminal menjejaki baris pola apa adanya - dan (2) pola
+       * umum di sini tidak menyamarkan pola spesifik di atas. Keputusan & bukti:
+       * docs/LAPORAN-IZIN-TERMINAL-BAGIAN-B.md. */
+      // (b) rm -rf ke direktori SISTEM absolut - padanan Unix dari /etc.
+      //     `/etc` saja tidak tertangkap pola akar di atas (akar = tepat `/`).
+      /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+['"]?\/(etc|usr|bin|sbin|boot|lib|lib64|var|sys|proc|dev|root)(\/[^\s'"]*)?['"]?(\s|$|;|&|\|)/i,
+      // (b) Remove-Item rekursif/paksa ke AKAR drive (C:\ atau C:/) - padanan
+      //     Windows dari `rm -rf /`. Dua lookahead supaya urutan argumen bebas.
+      /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/]{1,2}(?=\s|$|['"]|;|&|\|))[^\n]*/i,
+      // (b) Remove-Item rekursif/paksa ke direktori SISTEM Windows.
+      /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/](windows|program files(?: \(x86\))?|programdata|system32|winsxs)\b)[^\n]*/i,
+      // (e) fork bomb BERNAMA (POSIX): bomb(){ bomb|bomb& };bomb
+      /\b([a-zA-Z_]\w*)\s*\(\s*\)\s*\{\s*\1\s*\|\s*\1\s*&\s*\}\s*;\s*\1/i,
+      // (e) fork bomb PowerShell: proses/job baru di dalam loop TAK BERUJUNG
+      /\bwhile\s*\(\s*(\$?true|1)\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
+      /\bfor\s*\(\s*;\s*;\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
+      // (d) Invoke-Expression / iex = eval; argumennya tak bisa diverifikasi saat
+      //     persetujuan -> tolak apa pun bentuknya (fail-closed). Diletakkan SETELAH
+      //     pola unduh-jalankan supaya jejak pola spesifik tetap terpakai.
+      /\b(iex|invoke-expression)\b/i,
+      // (d) here-string PowerShell (@"..."@ / @'...'@): wadah teks multi-baris untuk
+      //     menyelundupkan skrip melewati pandangan satu-baris.
+      /@(['"])\s*[^\n]*\1@/
+    ];
+  }
+});
+
+// src/lib/konteksRepo.ts
+function normalJalur(p) {
+  let s = String(p ?? "").replace(/\\/g, "/");
+  s = s.replace(/^\.\//, "");
+  s = s.replace(/\/{2,}/g, "/");
+  s = s.replace(/^\/+/, "");
+  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
+  return s;
+}
+function basename2(p) {
+  const i = p.lastIndexOf("/");
+  return i >= 0 ? p.slice(i + 1) : p;
+}
+function alasanBlokirRahasia(rel, akar2 = "") {
+  const p = normalJalur(rel);
+  if (!p) return "jalur-terlarang";
+  const mentah = String(rel ?? "").replace(/\\/g, "/");
+  if (mentah.startsWith("/") || /^[A-Za-z]:\//.test(mentah)) return "jalur-terlarang";
+  if (p === ".." || p.startsWith("../") || p.split("/").includes("..")) return "jalur-terlarang";
+  if (/%2e|%2f|%5c/i.test(p)) return "jalur-terlarang";
+  const nama = basename2(p);
+  for (const re2 of POLA_RAHASIA_EFEKTIF) {
+    if (re2.test(nama)) return "rahasia-nama";
+  }
+  const relCmp = bentukBanding(p);
+  const cmpAkar = akar2 ? bentukBanding(normalJalur(akar2)) : "";
+  for (const dir of DIR_TERPROTEKSI) {
+    const d3 = bentukBanding(dir);
+    if (!d3) continue;
+    if (d3.includes("/.")) {
+      if (`/${relCmp}/`.includes(`${d3}/`)) return "rahasia-folder";
+      continue;
+    }
+    if (cmpAkar && (cmpAkar === d3 || cmpAkar.startsWith(`${d3}/`) || cmpAkar.endsWith(d3) || cmpAkar.includes(`${d3}/`))) {
+      return "rahasia-folder";
+    }
+  }
+  const gerbang = periksaBaca(p);
+  if (!gerbang.ok && !gerbang.alasan.includes("direktori terproteksi")) return "jalur-terlarang";
+  return null;
+}
+var BATAS_BYTE_TAMPIL, BATAS_UKURAN_BERKAS, BATAS_GITIGNORE_BYTE, POLA_RAHASIA_TAMBAHAN, POLA_RAHASIA_EFEKTIF, ABAIKAN_SEGMEN, HIMPUNAN_ABAIKAN;
+var init_konteksRepo = __esm({
+  "src/lib/konteksRepo.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_agentGuard();
+    init_agentGuard();
+    BATAS_BYTE_TAMPIL = 8 * 1024 * 1024;
+    BATAS_UKURAN_BERKAS = 1024 * 1024;
+    BATAS_GITIGNORE_BYTE = 64 * 1024;
+    POLA_RAHASIA_TAMBAHAN = [
+      /^.*\.(kdbx|ppk|age|ovpn|p8|tfstate|tfvars|mobileprovision)(?:[.\s:]|$)/i,
+      /^.*keychain(-db)?(?:[.\s:]|$)/i
+    ];
+    POLA_RAHASIA_EFEKTIF = [
+      ...POLA_RAHASIA,
+      ...POLA_RAHASIA_TAMBAHAN,
+      // Nama berkas yang rahasia tanpa melihat ekstensi. `.env` sudah ada di
+      // daftar bersama; yang di sini adalah bentuk yang tidak ditangkapnya.
+      /^(secrets?|credentials?|passwords?|tokens?)\.(json|ya?ml|toml|ini|cfg|conf|txt|xml|properties)(?:[.\s:]|$)/i,
+      /^(\.aws|\.dockercfg|\.gitconfig|\.git-credentials|\.node_repl_history)(?:[.\s:]|$)/i,
+      /^\.?htpasswd(?:[.\s:]|$)/i
+    ];
+    ABAIKAN_SEGMEN = [
+      "node_modules",
+      ".git",
+      ".hg",
+      ".svn",
+      "dist",
+      "build",
+      "target",
+      "out",
+      "obj",
+      ".next",
+      ".nuxt",
+      ".svelte-kit",
+      ".parcel-cache",
+      ".cache",
+      ".turbo",
+      ".vercel",
+      ".netlify",
+      "coverage",
+      "__pycache__",
+      ".mypy_cache",
+      ".pytest_cache",
+      ".ruff_cache",
+      ".tox",
+      "venv",
+      ".venv",
+      "vendor",
+      "Pods",
+      ".gradle",
+      ".idea",
+      ".vs",
+      ".dart_tool",
+      ".expo",
+      ".terraform",
+      ".yarn",
+      ".pnpm-store"
+    ];
+    HIMPUNAN_ABAIKAN = new Set(ABAIKAN_SEGMEN.map((s) => s.toLowerCase()));
+  }
+});
+
+// src/lib/bacaKode.ts
+function berekstensiTeks(p) {
+  const jalur = normalJalur(p);
+  const nama = jalur.slice(jalur.lastIndexOf("/") + 1);
+  if (NAMA_TEKS.includes(nama)) return true;
+  const titik = nama.lastIndexOf(".");
+  if (titik <= 0) return false;
+  return EKSTENSI_TEKS.includes(nama.slice(titik).toLowerCase());
+}
+function bolehDibacaKode(rel, akar2 = "") {
+  if (Array.isArray(rel)) {
+    return {
+      ok: false,
+      rel: "",
+      alasan: `hanya ${BATAS_BERKAS_PER_PANGGILAN} berkas per panggilan: kirim satu jalur string, bukan daftar.`
+    };
+  }
+  if (typeof rel !== "string" || rel.trim() === "") {
+    return { ok: false, rel: "", alasan: "berkas kosong: sebutkan jalur relatif dari akar repo Zephyr." };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(rel)) {
+    return { ok: false, rel: "", alasan: "jalur ditolak: memuat byte kontrol." };
+  }
+  const mentah = rel.replace(/\\/g, "/").trim();
+  if (mentah.startsWith("//")) {
+    return { ok: false, rel: "", alasan: `jalur UNC ditolak: ${rel}` };
+  }
+  if (mentah.startsWith("/") || /^[A-Za-z]:/.test(mentah)) {
+    return { ok: false, rel: "", alasan: `jalur absolut ditolak (harus relatif dari akar repo): ${rel}` };
+  }
+  const p = normalJalur(rel);
+  if (!p) {
+    return { ok: false, rel: "", alasan: "jalur ditolak: kosong sesudah dinormalkan." };
+  }
+  const blokir = alasanBlokirRahasia(rel, akar2);
+  if (blokir) {
+    return { ok: false, rel: p, alasan: `berkas ditolak (${blokir}): ${p}` };
+  }
+  const bagian = p.split("/");
+  for (let i = 1; i < bagian.length; i++) {
+    const prefiks = bagian.slice(0, i).join("/");
+    const blokirFolder = alasanBlokirRahasia(prefiks, akar2);
+    if (blokirFolder) {
+      return { ok: false, rel: p, alasan: `berkas ditolak (${blokirFolder} di folder ${prefiks}): ${p}` };
+    }
+  }
+  if (!berekstensiTeks(p)) {
+    return { ok: false, rel: p, alasan: `berkas ditolak: ${p} bukan berkas teks/kode yang boleh dibaca.` };
+  }
+  return { ok: true, rel: p, alasan: "" };
+}
+function pisahBaris(isi) {
+  const bagian = String(isi ?? "").split(/\r\n|\r|\n/);
+  if (bagian.length > 0 && bagian[bagian.length - 1] === "") bagian.pop();
+  return bagian;
+}
+function tagIsi(isi) {
+  let h = 2166136261;
+  for (let i = 0; i < isi.length; i++) {
+    h ^= isi.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+function apakahBiner(isi) {
+  if (isi.includes("\0")) return true;
+  if (isi.length < 200) return false;
+  let ganti = 0;
+  for (let i = 0; i < isi.length; i++) if (isi.charCodeAt(i) === 65533) ganti++;
+  return ganti / isi.length > 0.02;
+}
+function angkaTitik(n) {
+  const s = String(Math.trunc(Math.abs(n)));
+  let keluar = "";
+  for (let i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 === 0) keluar += ".";
+    keluar += s[i];
+  }
+  return n < 0 ? `-${keluar}` : keluar;
+}
+function cariDefinisiBaris(baris, simbol) {
+  const s = String(simbol ?? "").trim();
+  if (!s) return 0;
+  const esc = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pola = [
+    new RegExp(
+      `^\\s*(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:async\\s+)?(?:function|class|const|let|var|interface|type|enum|namespace)\\s+${esc}\\b`
+    ),
+    new RegExp(`^\\s*pub\\s+(?:async\\s+)?(?:fn|struct|enum|trait|impl|const|static|type|mod)\\s+${esc}\\b`),
+    new RegExp(`^\\s*(?:async\\s+)?fn\\s+${esc}\\b`),
+    new RegExp(`^\\s*(?:def|class)\\s+${esc}\\b`)
+  ];
+  for (const re2 of pola) {
+    for (let i = 0; i < baris.length; i++) if (re2.test(baris[i])) return i + 1;
+  }
+  const cadangan = new RegExp(`\\b${esc}\\b`);
+  for (let i = 0; i < baris.length; i++) {
+    const t2 = baris[i].trim();
+    if (t2.startsWith("//") || t2.startsWith("*") || t2.startsWith("/*")) continue;
+    if (cadangan.test(baris[i])) return i + 1;
+  }
+  return 0;
+}
+function formatBaris(nomor, lebar, teks) {
+  return `${String(nomor).padStart(lebar, "0")}| ${teks}`;
+}
+function bacaPotongan(isi, jalur, opsi = {}) {
+  const semua = pisahBaris(isi);
+  const total = semua.length;
+  const tag2 = tagIsi(isi);
+  const simbol = typeof opsi.simbol === "string" ? opsi.simbol.trim() : "";
+  if (total === 0) {
+    return { ok: false, alasan: `berkas kosong (0 baris): ${jalur}` };
+  }
+  if (apakahBiner(isi)) {
+    return { ok: false, alasan: `isi berkas bukan teks (ada byte NUL atau banjir U+FFFD): ${jalur}` };
+  }
+  const angka = (v2) => {
+    const n = Math.floor(Number(v2));
+    return Number.isFinite(n) ? n : 0;
+  };
+  let dari = angka(opsi.dari);
+  let sampai = angka(opsi.sampai);
+  let simbolBaris = 0;
+  if (simbol && dari <= 0) {
+    simbolBaris = cariDefinisiBaris(semua, simbol);
+    if (simbolBaris === 0) {
+      return { ok: false, alasan: `simbol "${simbol}" tidak ditemukan di ${jalur} (${angkaTitik(total)} baris).` };
+    }
+    dari = Math.max(1, simbolBaris - JENDELA_SEBELUM_SIMBOL);
+    sampai = Math.min(total, simbolBaris + JENDELA_SESUDAH_SIMBOL);
+  } else {
+    if (dari <= 0) dari = 1;
+    if (sampai <= 0) sampai = dari + BATAS_BARIS_POTONGAN - 1;
+  }
+  if (dari > total) {
+    return { ok: false, alasan: `baris ${angkaTitik(dari)} melebihi jumlah baris berkas ${jalur} (${angkaTitik(total)}).` };
+  }
+  let sebabPotong = "tidak";
+  if (sampai > total) {
+    sampai = total;
+    sebabPotong = "ujung-berkas";
+  }
+  if (sampai < dari) {
+    return { ok: false, alasan: `rentang terbalik: dari ${angkaTitik(dari)} sampai ${angkaTitik(sampai)}.` };
+  }
+  if (sampai - dari + 1 > BATAS_BARIS_POTONGAN) {
+    sampai = dari + BATAS_BARIS_POTONGAN - 1;
+    sebabPotong = "batas-baris";
+  }
+  const baris = [];
+  const nomor = [];
+  const dipangkas = [];
+  for (let n = dari; n <= sampai; n++) {
+    const t2 = semua[n - 1] ?? "";
+    if (t2.length > BATAS_KARAKTER_BARIS) {
+      dipangkas.push(n);
+      baris.push(`${t2.slice(0, BATAS_KARAKTER_BARIS - 1)}\u2026`);
+    } else {
+      baris.push(t2);
+    }
+    nomor.push(n);
+  }
+  const lebar = String(Math.max(total, 1)).length;
+  let panjang = 0;
+  for (const t2 of baris) panjang += formatBaris(0, lebar, t2).length + 1;
+  let dipotongKarakter = false;
+  while (panjang > BATAS_CHAR_POTONGAN && baris.length > 1) {
+    const t2 = baris.pop();
+    nomor.pop();
+    panjang -= formatBaris(0, lebar, t2).length + 1;
+    dipotongKarakter = true;
+  }
+  if (dipotongKarakter) {
+    sampai = nomor[nomor.length - 1];
+    sebabPotong = "batas-karakter";
+  }
+  return {
+    ok: true,
+    potongan: {
+      jalur,
+      dari,
+      sampai,
+      totalBaris: total,
+      baris,
+      nomor,
+      dipangkas,
+      sebabPotong,
+      simbolBaris,
+      simbol,
+      byte: isi.length,
+      tag: tag2
+    }
+  };
+}
+function rakitPotongan(p) {
+  const lebar = String(Math.max(p.totalBaris, 1)).length;
+  const kepala2 = [];
+  kepala2.push(
+    `[baca_kode v${BACA_KODE_VERSI}] ${p.jalur}:${p.dari}-${p.sampai} (${angkaTitik(p.baris.length)} dari ${angkaTitik(p.totalBaris)} baris; ${angkaTitik(p.byte)} B; tag ${p.tag}${p.simbolBaris > 0 ? `; simbol ${p.simbol}@${p.simbolBaris}` : ""})`
+  );
+  for (let i = 0; i < p.baris.length; i++) kepala2.push(formatBaris(p.nomor[i], lebar, p.baris[i]));
+  if (p.sebabPotong === "batas-baris") {
+    kepala2.push(`\u2026 potongan berhenti di baris ${angkaTitik(p.sampai)}: batas ${BATAS_BARIS_POTONGAN} baris/pembacaan.`);
+  } else if (p.sebabPotong === "batas-karakter") {
+    kepala2.push(
+      `\u2026 potongan berhenti di baris ${angkaTitik(p.sampai)}: batas ${angkaTitik(BATAS_CHAR_POTONGAN)} karakter/pembacaan.`
+    );
+  } else if (p.sebabPotong === "ujung-berkas") {
+    kepala2.push(`\u2026 berkas berakhir di baris ${angkaTitik(p.totalBaris)} (tidak dipotong).`);
+  }
+  if (p.dipangkas.length > 0) {
+    kepala2.push(`\u2026 ${p.dipangkas.length} baris dipangkas pada ${BATAS_KARAKTER_BARIS} karakter: ${p.dipangkas.join(", ")}.`);
+  }
+  return kepala2.join("\n");
+}
+function buatAnggaranBaca(batas = BATAS_BACAAN_SESI) {
+  const maks = Number.isFinite(batas) && batas > 0 ? Math.floor(batas) : BATAS_BACAAN_SESI;
+  let pakai = 0;
+  return {
+    pakai(jalur) {
+      if (pakai >= maks) {
+        return {
+          ok: false,
+          alasan: `anggaran pembacaan sesi habis: ${maks} pembacaan sudah dipakai (permintaan "${jalur}" tidak dibaca).`
+        };
+      }
+      pakai++;
+      return { ok: true, alasan: "" };
+    },
+    terpakai: () => pakai,
+    tersisa: () => Math.max(0, maks - pakai),
+    batas: () => maks
+  };
+}
+function rapikanJalurNyata(p) {
+  let s = String(p ?? "").replace(/\\/g, "/").replace(/^\/\/\?\//, "");
+  s = s.replace(/\/{2,}/g, "/");
+  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
+  return s;
+}
+function diDalamAkar(jalur, akar2) {
+  const j = rapikanJalurNyata(jalur).toLowerCase();
+  const a2 = rapikanJalurNyata(akar2).toLowerCase();
+  if (!j || !a2) return false;
+  return j === a2 || j.startsWith(`${a2}/`);
+}
+function isiDari(nilai2) {
+  if (typeof nilai2 === "string") return nilai2;
+  return String(nilai2?.content ?? "");
+}
+async function bacaBerkasKode(permintaan, jembatan, anggaran) {
+  const jejak = [];
+  const tolak = (alasan) => ({ ok: false, teks: `ditolak: ${alasan}`, alasan, jejak });
+  const periksa = bolehDibacaKode(permintaan?.berkas);
+  if (!periksa.ok) return tolak(periksa.alasan);
+  const rel = periksa.rel;
+  if (anggaran) {
+    const izin = anggaran.pakai(rel);
+    if (!izin.ok) return tolak(izin.alasan);
+  }
+  const cmd2 = jembatan?.cmd;
+  const akar2 = String(jembatan?.akar ?? "");
+  if (!cmd2 || typeof cmd2.fsRead !== "function" || typeof cmd2.fsStat !== "function" || typeof cmd2.realpath !== "function") {
+    return tolak("jembatan berkas belum lengkap (butuh fsRead + fsStat + realpath).");
+  }
+  if (!akar2) return tolak("akar repo belum dipasang.");
+  const akarKotor = akar2.replace(/\\/g, "/").replace(/\/+$/, "");
+  const berkasKotor = `${akarKotor}/${rel}`;
+  let akarNyata = "";
+  try {
+    jejak.push("realpath(akar)");
+    akarNyata = rapikanJalurNyata(await cmd2.realpath(akarKotor));
+  } catch {
+    return tolak(`akar repo tidak bisa dipastikan ada: ${rel} tidak dibaca.`);
+  }
+  if (!akarNyata) return tolak("akar repo tidak bisa dipastikan bentuk nyatanya.");
+  let berkasNyata = "";
+  try {
+    jejak.push(`realpath(${rel})`);
+    berkasNyata = rapikanJalurNyata(await cmd2.realpath(berkasKotor));
+  } catch {
+    return tolak(`berkas tidak ada: ${rel}`);
+  }
+  if (!berkasNyata) return tolak(`berkas tidak bisa dipastikan bentuk nyatanya: ${rel}`);
+  if (!diDalamAkar(berkasNyata, akarNyata)) {
+    return tolak(`berkas menunjuk KELUAR akar repo (tautan keluar repo): ${rel}`);
+  }
+  let stat;
+  try {
+    jejak.push("fsStat");
+    stat = await cmd2.fsStat(berkasKotor);
+  } catch {
+    return tolak(`berkas tidak bisa dibaca statistiknya: ${rel}`);
+  }
+  if (stat?.isDir) return tolak(`itu folder, bukan berkas: ${rel}`);
+  const ukuran = Number(stat?.size ?? 0);
+  if (ukuran > BATAS_BYTE_BERKAS) {
+    return tolak(
+      `berkas terlalu besar: ${rel} ${angkaTitik(ukuran)} B > batas ${angkaTitik(BATAS_BYTE_BERKAS)} B (${BATAS_BYTE_BERKAS / 1024} KiB).`
+    );
+  }
+  let isi = "";
+  try {
+    jejak.push("fsRead");
+    isi = isiDari(await cmd2.fsRead(berkasKotor));
+  } catch {
+    return tolak(`berkas gagal dibaca: ${rel}`);
+  }
+  if (apakahBiner(isi)) return { ...tolak(`isi bukan teks (byte NUL): ${rel}`), jejak };
+  const potong4 = bacaPotongan(isi, rel, { dari: permintaan.dari, sampai: permintaan.sampai, simbol: permintaan.simbol });
+  if (!potong4.ok) return { ...tolak(potong4.alasan), jejak };
+  const potongan = potong4.potongan;
+  return { ok: true, teks: rakitPotongan(potongan), alasan: "", potongan, jejak };
+}
+function pasangJembatanBacaKode(jembatan) {
+  JEMBATAN_SESI = jembatan;
+  ANGGARAN_SESI = buatAnggaranBaca();
+}
+function pasangRealpathBacaKode(fn) {
+  REALPATH_NYATA = typeof fn === "function" ? fn : null;
+}
+function jembatanBacaKode() {
+  return JEMBATAN_SESI;
+}
+async function realpathMenyelesaikanJalur(fn, akar2) {
+  const dasar = rapikanJalurNyata(akar2).replace(/\/+$/, "");
+  if (!dasar) return false;
+  const uji = `${dasar}/.`;
+  let hasil = "";
+  try {
+    hasil = String(await fn(uji));
+  } catch {
+    return false;
+  }
+  return hasil.length > 0 && rapikanJalurNyata(hasil) !== uji;
+}
+async function jembatanRealpathNyata(jem) {
+  const cmd2 = jem?.cmd;
+  if (!cmd2 || typeof cmd2.fsRead !== "function" || typeof cmd2.fsStat !== "function") return jem;
+  if (typeof cmd2.realpath !== "function") return jem;
+  if (REALPATH_NYATA) {
+    if (!await realpathMenyelesaikanJalur(REALPATH_NYATA, String(jem.akar ?? ""))) return null;
+    return { akar: jem.akar, cmd: { fsRead: cmd2.fsRead, fsStat: cmd2.fsStat, realpath: REALPATH_NYATA } };
+  }
+  if (await realpathMenyelesaikanJalur((p) => cmd2.realpath(p), String(jem.akar ?? ""))) return jem;
+  return null;
+}
+async function jalankanBacaKode(args = {}) {
+  const berkas = typeof args.berkas === "string" ? args.berkas : "";
+  const dari = args.dari === void 0 || args.dari === null ? void 0 : Number(args.dari);
+  const sampai = args.sampai === void 0 || args.sampai === null ? void 0 : Number(args.sampai);
+  const simbol = typeof args.simbol === "string" ? args.simbol : void 0;
+  if (!JEMBATAN_SESI) {
+    return "baca_kode belum tersambung: jembatan berkas belum dipasang. Tidak ada berkas yang dibaca.";
+  }
+  const efektif = await jembatanRealpathNyata(JEMBATAN_SESI);
+  if (!efektif) {
+    return "ditolak: realpath sungguhan belum tersedia (perintah `fs_realpath` tidak terpasang), jadi symlink/junction yang menunjuk keluar repo tidak bisa ditolak. Tidak ada berkas yang dibaca.";
+  }
+  const hasil = await bacaBerkasKode({ berkas, dari, sampai, simbol }, efektif, ANGGARAN_SESI);
+  return hasil.teks;
+}
+var BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, EKSTENSI_TEKS, NAMA_TEKS, SPEC_BACA_KODE, JEMBATAN_SESI, ANGGARAN_SESI, REALPATH_NYATA, TOOL_BACA_KODE;
+var init_bacaKode = __esm({
+  "src/lib/bacaKode.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_konteksRepo();
+    BACA_KODE_VERSI = 1;
+    BATAS_BARIS_POTONGAN = 120;
+    JENDELA_SEBELUM_SIMBOL = 6;
+    JENDELA_SESUDAH_SIMBOL = 40;
+    BATAS_BYTE_BERKAS = 512 * 1024;
+    BATAS_KARAKTER_BARIS = 400;
+    BATAS_CHAR_POTONGAN = 6e3;
+    BATAS_BACAAN_SESI = 12;
+    BATAS_BERKAS_PER_PANGGILAN = 1;
+    EKSTENSI_TEKS = [
+      ".ts",
+      ".tsx",
+      ".js",
+      ".jsx",
+      ".mjs",
+      ".cjs",
+      ".rs",
+      ".json",
+      ".jsonc",
+      ".toml",
+      ".yml",
+      ".yaml",
+      ".ini",
+      ".cfg",
+      ".conf",
+      ".md",
+      ".txt",
+      ".css",
+      ".scss",
+      ".html",
+      ".sql",
+      ".sh",
+      ".py"
+    ];
+    NAMA_TEKS = ["Dockerfile", "Makefile", "LICENSE", "NOTICE"];
+    SPEC_BACA_KODE = {
+      name: "zephyr_kode",
+      description: 'Baca ISI kode ZEPHYR SENDIRI sebagai potongan baris bernomor - jangan menebak isi berkas dari peta kode. Pakai ini untuk menjawab "cara kerja X": sebutkan `berkas` (jalur relatif dari akar repo Zephyr, mis. src/components/shell/ActivityBar.tsx) plus `dari`/`sampai` ATAU `simbol` (jendela di sekitar definisi simbol). Batas: 120 baris/pembacaan, berkas <= 512 KiB, 1 berkas/panggilan, 12 pembacaan/sesi. Hanya berkas teks di dalam repo; berkas rahasia (.env, *.key, *.pem) dan jalur di luar repo DITOLAK.',
+      parameters: {
+        type: "object",
+        properties: {
+          berkas: {
+            type: "string",
+            description: 'Jalur RELATIF dari akar repo Zephyr, mis. "src/lib/konteksRepo.ts". Jalur absolut dan ".." ditolak.'
+          },
+          dari: { type: ["number", "string"], description: "Baris awal (1-based, inklusif). Bawaan 1." },
+          sampai: { type: ["number", "string"], description: `Baris akhir (1-based, inklusif). Bawaan dari+${BATAS_BARIS_POTONGAN - 1}.` },
+          simbol: { type: "string", description: "Nama simbol; jendela diambil di sekitar definisinya kalau `dari` tidak diberikan." }
+        },
+        required: ["berkas"]
+      }
+    };
+    JEMBATAN_SESI = null;
+    ANGGARAN_SESI = buatAnggaranBaca();
+    REALPATH_NYATA = null;
+    TOOL_BACA_KODE = {
+      spec: SPEC_BACA_KODE,
+      run: jalankanBacaKode
+    };
+  }
+});
+
 // src/lib/rulesEngine.ts
 var rulesEngine_exports = {};
 __export(rulesEngine_exports, {
@@ -4887,244 +5661,6 @@ var init_rulesRuntime = __esm({
     tersusun = null;
     katalogTerakhir = null;
     aktif = false;
-  }
-});
-
-// src/lib/agentGuard.ts
-function bentukBanding(p) {
-  let s = p.replace(/\\/g, "/");
-  s = s.replace(/^\/\/\?\//, "/");
-  s = s.replace(/^[a-zA-Z]:/, "");
-  s = s.split("/").map((seg) => {
-    const colon3 = seg.indexOf(":");
-    return colon3 === -1 ? seg : seg.slice(0, colon3);
-  }).join("/");
-  s = s.split("/").map((seg) => seg.replace(/[.\s]+$/, "")).join("/");
-  s = s.replace(/\/{2,}/g, "/");
-  s = s.toLowerCase();
-  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
-  return s;
-}
-function basename(p) {
-  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
-  return i >= 0 ? p.slice(i + 1) : p;
-}
-function diDalamTerproteksi(cmp, dir) {
-  return `${cmp}/`.includes(`${dir}/`);
-}
-function sebut(dir) {
-  return dir.replace(/^\//, "");
-}
-function periksaBaca(path2) {
-  if (typeof path2 !== "string" || path2.length === 0) {
-    return { ok: false, alasan: "ditolak: jalur kosong." };
-  }
-  if (/[\x00-\x1f]/.test(path2)) {
-    return { ok: false, alasan: "ditolak: jalur memuat byte kontrol." };
-  }
-  const nama = basename(path2);
-  for (const re2 of POLA_RAHASIA) {
-    if (re2.test(nama)) {
-      return {
-        ok: false,
-        alasan: `ditolak: "${nama}" cocok dengan pola berkas rahasia.`
-      };
-    }
-  }
-  const cmp = bentukBanding(path2);
-  for (const dir of DIR_TERPROTEKSI) {
-    if (diDalamTerproteksi(cmp, dir)) {
-      return {
-        ok: false,
-        alasan: `ditolak: jalur berada di direktori terproteksi (${sebut(dir)}).`
-      };
-    }
-  }
-  return { ok: true };
-}
-function periksaTulis(path2) {
-  const baca2 = periksaBaca(path2);
-  if (!baca2.ok) return baca2;
-  const cmp = bentukBanding(path2);
-  const cmpAwalan = cmp.startsWith("/") ? cmp : `/${cmp}`;
-  for (const awalan of AWALAN_TOLAK_TULIS) {
-    if (cmpAwalan.startsWith(awalan) || `${cmpAwalan}/`.startsWith(awalan)) {
-      return {
-        ok: false,
-        alasan: `ditolak: menulis di bawah "${awalan.replace(/\/$/, "")}" tidak diizinkan.`
-      };
-    }
-  }
-  return { ok: true };
-}
-function kutipTimpang(c2) {
-  let s = c2.replace(/\\["']/g, "xx");
-  for (let i = 0; i < 4; i++) {
-    const sebelum = s;
-    s = s.replace(/"[^"]*"/g, "").replace(/'[^']*'/g, "");
-    if (s === sebelum) break;
-  }
-  return /["']/.test(s);
-}
-function periksaPerintahShell(command3) {
-  const c2 = command3.trim();
-  if (c2.length === 0) {
-    return { ok: false, alasan: "ditolak: perintah kosong." };
-  }
-  if (/[\x00-\x1f]/.test(c2)) {
-    return {
-      ok: false,
-      alasan: "ditolak: perintah memuat karakter kontrol (termasuk CR/LF). Perintah harus satu baris."
-    };
-  }
-  if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]/.test(c2)) {
-    return {
-      ok: false,
-      alasan: "ditolak: perintah memuat karakter override bidi Unicode."
-    };
-  }
-  if (kutipTimpang(c2)) {
-    return {
-      ok: false,
-      alasan: "ditolak: kutip tidak berpasangan (tokenisasi ambigu) - fail-closed. Tutup kutipnya atau hapus; perintah dengan kutip tak seimbang tidak bisa dibuktikan aman."
-    };
-  }
-  for (const pola of PERINTAH_BERBAHAYA) {
-    if (pola.test(c2)) {
-      return {
-        ok: false,
-        alasan: `ditolak oleh pembatas keamanan: cocok dengan ${pola}. Kalau memang perlu, jalankan sendiri di terminal.`
-      };
-    }
-  }
-  return { ok: true };
-}
-var POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, PERINTAH_BERBAHAYA;
-var init_agentGuard = __esm({
-  "src/lib/agentGuard.ts"() {
-    "use strict";
-    init_define_import_meta_env();
-    POLA_RAHASIA = [
-      /^\.env(\..+)?(?:[.\s:]|$)/i,
-      /^.*\.pem(?:[.\s:]|$)/i,
-      /^.*\.key(?:[.\s:]|$)/i,
-      /^.*\.p12(?:[.\s:]|$)/i,
-      /^.*\.pfx(?:[.\s:]|$)/i,
-      /^.*\.asc(?:[.\s:]|$)/i,
-      /^.*\.gpg(?:[.\s:]|$)/i,
-      /^.*\.keystore(?:[.\s:]|$)/i,
-      /^.*\.jks(?:[.\s:]|$)/i,
-      /^id_(rsa|dsa|ecdsa|ed25519)([._-].*)?(?:[.\s:]|$)/i,
-      /^known_hosts(?:[.\s:]|$)/i,
-      /^authorized_keys(?:[.\s:]|$)/i,
-      /^htpasswd(?:[.\s:]|$)/i,
-      /^\.netrc(?:[.\s:]|$)/i,
-      /^_netrc(?:[.\s:]|$)/i,
-      /^credentials(?:[.\s:]|$)/i,
-      /^\.pgpass(?:[.\s:]|$)/i,
-      /^\.npmrc(?:[.\s:]|$)/i,
-      /^\.pypirc(?:[.\s:]|$)/i,
-      /^secrets?\.(json|ya?ml|toml|env)(?:[.\s:]|$)/i,
-      /^service[-_]?account.*\.json(?:[.\s:]|$)/i,
-      /^\.git-credentials(?:[.\s:]|$)/i
-    ];
-    DIR_TERPROTEKSI = [
-      "/.ssh",
-      "/.gnupg",
-      "/.aws",
-      "/.azure",
-      "/.kube",
-      "/.docker",
-      "/.config/gh",
-      "/.config/git",
-      "/.config/gcloud",
-      "/.config/op",
-      "/.git",
-      "/.terraform.d",
-      "/library/keychains",
-      "/library/cookies",
-      "/etc",
-      "/private/etc",
-      "/proc",
-      "/sys",
-      "/var/db",
-      "/var/root",
-      "/private/var/db",
-      "/private/var/root",
-      "/appdata/roaming/microsoft/credentials",
-      "/appdata/local/microsoft/credentials",
-      "/appdata/roaming/gcloud"
-    ];
-    AWALAN_TOLAK_TULIS = [
-      "/etc/",
-      "/var/db/",
-      "/var/root/",
-      "/system/",
-      "/library/keychains/",
-      "/library/launchagents/",
-      "/library/launchdaemons/",
-      "/private/etc/",
-      "/private/var/db/",
-      "/usr/bin/",
-      "/usr/sbin/",
-      "/usr/local/bin/",
-      "/bin/",
-      "/sbin/",
-      "/boot/",
-      "/windows/",
-      "/program files/",
-      "/program files (x86)/",
-      "/programdata/"
-    ];
-    PERINTAH_BERBAHAYA = [
-      /\b(shutdown|Stop-Computer|Restart-Computer)\b/i,
-      /\bFormat-Volume\b/i,
-      /\bRemove-Item\b[^\n]*\b-Credential\b/i,
-      // rm -rf / dengan varian kutip / --no-preserve-root
-      /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+(['"]?\/\**['"]?\s*($|;|&|\|))/i,
-      // rm -rf ~ / $HOME
-      /\brm\s+-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*\s+(['"]?(~(\/[^\s'"]*)?|\$\{?HOME\}?(\/[^\s'"]*)?)['"]?)(\s|$|;|&|\|)/i,
-      /--no-preserve-root/i,
-      // dd ke perangkat blok mentah
-      /\bdd\b[^|]*\bof=\/dev\/(disk|sd|nvme|hd)/i,
-      // format disk
-      /\b(mkfs(\.[a-z0-9]+)?|fdisk|parted)\b/i,
-      /\bdiskutil\s+erase/i,
-      // fork bomb
-      /:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/,
-      // curl | sh
-      /\b(curl|wget)\b[^|;&]*\|\s*(sudo\s+|doas\s+)?(ba|z|k|d|fi|c)?sh\b/i,
-      // PowerShell: terenkode base64 (-enc/-EncodedCommand/-ec; `-e` alias resmi -> payload opak, fail-closed)
-      /\b(powershell|pwsh)\b[^\n]*\s-(encodedcommand|enc|ec|e)\b/i,
-      // PowerShell: iex / Invoke-Expression yang dijalankan dari unduhan (dua arah)
-      /\b(iex|invoke-expression)\b[^\n]*\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient|new-object)\b/i,
-      /\b(iwr|invoke-webrequest|downloadstring|downloadfile|net\.webclient)\b[^\n]*\b(iex|invoke-expression)\b/i,
-      /* ---------------- BAGIAN B: pola baru (ditambahkan di AKHIR) ----------------
-       * Diletakkan setelah pola lama supaya (1) nomor baris pola lama tidak bergeser
-       * - harness cek-izin-terminal menjejaki baris pola apa adanya - dan (2) pola
-       * umum di sini tidak menyamarkan pola spesifik di atas. Keputusan & bukti:
-       * docs/LAPORAN-IZIN-TERMINAL-BAGIAN-B.md. */
-      // (b) rm -rf ke direktori SISTEM absolut - padanan Unix dari /etc.
-      //     `/etc` saja tidak tertangkap pola akar di atas (akar = tepat `/`).
-      /\brm\s+((-[a-zA-Z]*[rf][a-zA-Z]*|--(recursive|force))\s+)+['"]?\/(etc|usr|bin|sbin|boot|lib|lib64|var|sys|proc|dev|root)(\/[^\s'"]*)?['"]?(\s|$|;|&|\|)/i,
-      // (b) Remove-Item rekursif/paksa ke AKAR drive (C:\ atau C:/) - padanan
-      //     Windows dari `rm -rf /`. Dua lookahead supaya urutan argumen bebas.
-      /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/]{1,2}(?=\s|$|['"]|;|&|\|))[^\n]*/i,
-      // (b) Remove-Item rekursif/paksa ke direktori SISTEM Windows.
-      /\b(remove-item|ri)\b(?=[^\n]*(-recurse|-force|-r\b|-f\b))(?=[^\n]*['"]?[a-z]:[\\/](windows|program files(?: \(x86\))?|programdata|system32|winsxs)\b)[^\n]*/i,
-      // (e) fork bomb BERNAMA (POSIX): bomb(){ bomb|bomb& };bomb
-      /\b([a-zA-Z_]\w*)\s*\(\s*\)\s*\{\s*\1\s*\|\s*\1\s*&\s*\}\s*;\s*\1/i,
-      // (e) fork bomb PowerShell: proses/job baru di dalam loop TAK BERUJUNG
-      /\bwhile\s*\(\s*(\$?true|1)\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
-      /\bfor\s*\(\s*;\s*;\s*\)\s*\{[^\n]*\b(start-process|start-job)\b/i,
-      // (d) Invoke-Expression / iex = eval; argumennya tak bisa diverifikasi saat
-      //     persetujuan -> tolak apa pun bentuknya (fail-closed). Diletakkan SETELAH
-      //     pola unduh-jalankan supaya jejak pola spesifik tetap terpakai.
-      /\b(iex|invoke-expression)\b/i,
-      // (d) here-string PowerShell (@"..."@ / @'...'@): wadah teks multi-baris untuk
-      //     menyelundupkan skrip melewati pandangan satu-baris.
-      /@(['"])\s*[^\n]*\1@/
-    ];
   }
 });
 
@@ -29659,81 +30195,46 @@ var init_catalog = __esm({
       "write_file",
       "edit",
       "multi_edit",
-      "replace_in_files",
       "delete_file",
+      /*
+       * `move_file` / `copy_file` ikut karena PROMPT menyebut namanya (baris route
+       * file: "delete_file/move_file/copy_file instead of shell rm/del/mv/cp").
+       * Selama ini keduanya diroute tapi TIDAK dikirim - pelanggaran aturan di
+       * atas. Akibatnya model membaca "jangan pakai rm/cp, pakai move_file" lalu
+       * tidak bisa memanggilnya dan balik ke `rm`/`cp` di shell persis seperti yang
+       * ingin dicegah aturan itu. Menyambungnya menutup celah itu tanpa menambah
+       * jumlah: dua ini menggantikan perintah shell yang sebelumnya dipakai.
+       *
+       * Jangan menyebut nama tool di komentar ini sebagai fakta teks prompt -
+       * salin dari prompt saat ini (grep "delete_file/" di systemPrompt.ts).
+       */
+      "move_file",
+      "copy_file",
       "list_directory",
-      "create_directory",
       "grep",
       "glob",
       "bash_run",
-      /*
-       * Long-running commands.
-       *
-       * `bash_run` blocks until the command exits, so a dev server or a watch task
-       * either times out or holds the whole agent loop. The background pair is what
-       * makes those expressible at all, and an agent that cannot reach it has no way
-       * to start something that does not finish — which is a common enough need to
-       * justify the cost of two more specs on every request.
-       */
-      "bash_background",
-      "bash_logs",
       "todo_write",
-      /*
-       * Code intelligence.
-       *
-       * `lsp_definition` saja yang ikut setiap permintaan.
-       *
-       * Awalnya kelima `lsp_*` dikirim, dan itu pemborosan yang mahal: skemanya
-       * ~500 karakter masing-masing, jadi lima tool itu menambah ~2,5 KB di SETIAP
-       * langkah - untuk kemampuan yang jarang dipakai. `lsp_definition` adalah
-       * satu-satunya yang benar-benar sulit ditiru: menemukan definisi sebuah simbol
-       * tanpa language server berarti menebak nama berkas lalu grep di sana.
-       *
-       * `lsp_symbols`, `lsp_references`, `lsp_hover`, `lsp_diagnostics`, dan
-       * `lsp_call_hierarchy` tetap TERPASANG dan tetap AKTIF - hanya tidak dikirim
-       * setiap kali. Model menemukannya lewat `tool_search` ("cari simbol", "error
-       * language server", "siapa yang memanggil") lalu memanggilnya lewat
-       * `tool_call`. Tidak ada yang hilang, hanya satu langkah lebih jauh untuk
-       * yang memang jarang dipakai.
-       *
-       * `grep` dan `glob` tetap selalu dikirim: berkas yang bahasanya tidak punya
-       * language server tetap harus bisa dicari.
-       */
-      "lsp_definition",
-      /*
-       * Self-inspection (`zephyr_self`).
-       *
-       * Blok fakta inti menyebut tool ini NAMANYA sebagai pintu ke lapis kedua
-       * (indeks `zephyrIndeks.ts`), dan aturan prompt berbunyi "cari dulu sebelum
-       * menyebut setelan, pintasan, atau tool yang tidak tertulis di blok inti".
-       * Aturannya sama dengan browser/web di bawah: apa pun yang di-route prompt
-       * WAJIB ikut dikirim setiap permintaan. Kalau tidak, model membaca pintunya
-       * di prompt tapi tidak bisa memanggilnya tanpa `tool_search` lebih dulu -
-       * dan pertanyaan "ada setelan X?" berhenti jadi "kurang tahu".
-       *
-       * Read-only, dan tetap jalan tanpa folder user terbuka.
-       */
-      "zephyr_self",
-      "skill_view",
       "think",
       "ask_user",
-      "run_subagent",
       /*
-       * The plural form.
-       *
-       * `run_subagent` takes one prompt; a task that decomposes into several
-       * independent parts is the normal case, and hiding the parallel version behind
-       * a search means the model runs them one at a time instead — slower and more
-       * expensive than the thing the search was saving.
+       * `zephyr_self` bukan pilihan gaya, tapi kewajiban: blok larangan di
+       * `systemPrompt.ts:850` / `:862` menyebut tool ini dengan nama - "jangan
+       * menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas +
+       * `zephyr_self`". Kalau tool-nya tidak ikut dikirim, prompt menyuruh model
+       * memanggil tool yang tidak ada di gudangnya, dan aturan anti-mengarang itu
+       * justru gagal tepat pada kasus yang ingin dicegah. Read-only, dan tetap
+       * jalan walau tidak ada folder yang terbuka.
        */
-      "run_subagents",
+      "zephyr_self",
       "tool_search",
       "tool_call",
-      /*
-       * Browser/web.
+      /* Browser/web.
        *
        * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
-       * dan ambil halaman sebagai teks.
+       * dan ambil halaman sebagai teks. Ketiganya juga disebut nama di prompt
+       * ("buka URL -> browser_open", "baca halaman -> browser_read/web_fetch"), jadi
+       * wajib ikut dikirim.
        *
        * Dua yang DILEPAS dari daftar ini:
        *
@@ -65404,17 +65905,212 @@ var init_terminalStore = __esm({
 // src/lib/zephyrIndeks.ts
 var zephyrIndeks_exports = {};
 __export(zephyrIndeks_exports, {
+  FAKTA_HASH_ALGO: () => FAKTA_HASH_ALGO,
+  FAKTA_HASH_BERKAS: () => FAKTA_HASH_BERKAS,
   FAKTA_INDEKS: () => FAKTA_INDEKS,
   FAKTA_KATEGORI: () => FAKTA_KATEGORI,
   FAKTA_VERSI: () => FAKTA_VERSI
 });
-var FAKTA_KATEGORI, FAKTA_VERSI, FAKTA_INDEKS;
+var FAKTA_KATEGORI, FAKTA_VERSI, FAKTA_HASH_BERKAS, FAKTA_HASH_ALGO, FAKTA_INDEKS;
 var init_zephyrIndeks = __esm({
   "src/lib/zephyrIndeks.ts"() {
     "use strict";
     init_define_import_meta_env();
     FAKTA_KATEGORI = ["bridge", "dokumen", "ekstensi", "kode", "label", "layar", "menu", "panel", "perintah", "pintasan", "port", "seksi", "setelan", "tool"];
-    FAKTA_VERSI = { aplikasi: "1.1.13", hashSumber: "f83cc022d0c620db" };
+    FAKTA_VERSI = { aplikasi: "1.1.13", hashSumber: "841ead6a570703ad" };
+    FAKTA_HASH_BERKAS = [
+      "package.json",
+      "src-tauri/tauri.conf.json",
+      "src-tauri/src/settings.rs",
+      "src-tauri/src/mcp_server.rs",
+      "src/lib/settingsStore.ts",
+      "src/lib/devBridge.ts",
+      "src/lib/i18n.ts",
+      "src/lib/i18n-src.ts",
+      "src/lib/i18n-extra.ts",
+      "src/lib/menu.ts",
+      "src/lib/panelStore.ts",
+      "src/lib/aiTabsStore.ts",
+      "src/components/shell/ActivityBar.tsx",
+      "src/components/settings/SettingsNav.tsx",
+      "src/components/ai/ChatSettingsPage.tsx",
+      "src/lib/commandRegistry.ts",
+      "src/lib/extCatalog.ts",
+      "src/lib/zephyrTools/catalog.ts",
+      "src/lib/zephyrTools/deskripsiTool.ts",
+      "vite.config.ts",
+      "src/components/settings/AiModelsModal.tsx",
+      "src/components/settings/SectionsAdvanced.tsx",
+      "src/lib/aiModelsStore.ts",
+      "src/lib/i18n.ts",
+      "src/components/ai/AiPanel.tsx",
+      "src/components/ai/ModelSelector.tsx",
+      "src/components/ai/ChatHeadActions.tsx",
+      "src/lib/commandRegistry.ts",
+      "src/AiWindow.tsx",
+      "src/App.tsx",
+      "src/components/a11y/LiveRegion.tsx",
+      "src/components/ai/AgentMap.tsx",
+      "src/components/ai/AgentMapPanel.tsx",
+      "src/components/ai/AiHost.tsx",
+      "src/components/ai/AiIkon.tsx",
+      "src/components/ai/AiPanel.tsx",
+      "src/components/ai/ChatHeadActions.tsx",
+      "src/components/ai/ChatMessage.tsx",
+      "src/components/ai/ChatSettingsPage.tsx",
+      "src/components/ai/ChatSettingsPopup.tsx",
+      "src/components/ai/ChatStamp.tsx",
+      "src/components/ai/ClearChatsDialog.tsx",
+      "src/components/ai/CliAgentBar.tsx",
+      "src/components/ai/CliChat.tsx",
+      "src/components/ai/CliSessionTab.tsx",
+      "src/components/ai/CliSlashPanel.tsx",
+      "src/components/ai/CliTimeline.tsx",
+      "src/components/ai/CliTodoFloat.tsx",
+      "src/components/ai/CmdIkon.tsx",
+      "src/components/ai/CodexChat.tsx",
+      "src/components/ai/CodexSettings.tsx",
+      "src/components/ai/ComposerStatusStack.tsx",
+      "src/components/ai/ComposerTip.tsx",
+      "src/components/ai/ContextMeter.tsx",
+      "src/components/ai/ContextRing.tsx",
+      "src/components/ai/DebugPanel.tsx",
+      "src/components/ai/DragonIcon.tsx",
+      "src/components/ai/EditorKunci.tsx",
+      "src/components/ai/FileIkon.tsx",
+      "src/components/ai/IkonAgen.tsx",
+      "src/components/ai/JobStrips.tsx",
+      "src/components/ai/Lightbox.tsx",
+      "src/components/ai/ModeMenu.tsx",
+      "src/components/ai/ModelMenu.tsx",
+      "src/components/ai/ModelSelector.tsx",
+      "src/components/ai/NotesPanel.tsx",
+      "src/components/ai/PanelTrail.tsx",
+      "src/components/ai/PanelWins.tsx",
+      "src/components/ai/PemilihAvatar.tsx",
+      "src/components/ai/ReasoningBlock.tsx",
+      "src/components/ai/RobotAvatar.tsx",
+      "src/components/ai/SessionsPanel.tsx",
+      "src/components/ai/StableText.tsx",
+      "src/components/ai/StatusArea.tsx",
+      "src/components/ai/SubAgentBar.tsx",
+      "src/components/ai/SubAgentInfo.tsx",
+      "src/components/ai/SubAgentPanel.tsx",
+      "src/components/ai/SubSummary.tsx",
+      "src/components/ai/ThinkingBar.tsx",
+      "src/components/ai/TodoPanel.tsx",
+      "src/components/ai/ToolGatePanel.tsx",
+      "src/components/ai/UpdateBtn.tsx",
+      "src/components/ai/claudeCodeUi.tsx",
+      "src/components/api/ApiClientView.tsx",
+      "src/components/debug/DebugToolbar.tsx",
+      "src/components/debug/DebugView.tsx",
+      "src/components/devenv/BrandIkon.tsx",
+      "src/components/devenv/DevEnvView.tsx",
+      "src/components/editor/Breadcrumbs.tsx",
+      "src/components/editor/CodeMirrorEditor.tsx",
+      "src/components/editor/EditorTabBar.tsx",
+      "src/components/editor/FileIcon.tsx",
+      "src/components/editor/FindBar.tsx",
+      "src/components/editor/ImagePreview.tsx",
+      "src/components/editor/InlineChat.tsx",
+      "src/components/editor/LspOverlay.tsx",
+      "src/components/editor/MarkdownPreview.tsx",
+      "src/components/editor/Minimap.tsx",
+      "src/components/editor/NotebookView.tsx",
+      "src/components/editor/ReadOnlyBanner.tsx",
+      "src/components/editor/StickyScroll.tsx",
+      "src/components/explorer/ContextMenu.tsx",
+      "src/components/explorer/DeleteConfirmDialog.tsx",
+      "src/components/explorer/ExplorerPanel.tsx",
+      "src/components/explorer/FileTree.tsx",
+      "src/components/explorer/OutlinePanel.tsx",
+      "src/components/explorer/SearchEditorView.tsx",
+      "src/components/explorer/SearchPanel.tsx",
+      "src/components/explorer/TimelineView.tsx",
+      "src/components/extensions/ExtApprovalModal.tsx",
+      "src/components/extensions/ExtensionsView.tsx",
+      "src/components/notifications/NotificationCenter.tsx",
+      "src/components/notifications/Toast.tsx",
+      "src/components/scm/ConflictEditor.tsx",
+      "src/components/scm/DiffViewer.tsx",
+      "src/components/scm/ScmConfirmDialog.tsx",
+      "src/components/scm/SourceControlPanel.tsx",
+      "src/components/settings/AccessibilitySection.tsx",
+      "src/components/settings/AgcSections.tsx",
+      "src/components/settings/AgcToolList.tsx",
+      "src/components/settings/AgentCustomModal.tsx",
+      "src/components/settings/AiModelsModal.tsx",
+      "src/components/settings/AlatIkon.tsx",
+      "src/components/settings/BrandLogos.tsx",
+      "src/components/settings/CapturePanel.tsx",
+      "src/components/settings/CommandPermissions.tsx",
+      "src/components/settings/DevEnvSettingsSection.tsx",
+      "src/components/settings/DevUpdateSection.tsx",
+      "src/components/settings/LanguageServersSection.tsx",
+      "src/components/settings/McpPanel.tsx",
+      "src/components/settings/MemoriPanel.tsx",
+      "src/components/settings/PersonaCard.tsx",
+      "src/components/settings/RulesSection.tsx",
+      "src/components/settings/SectionsAdvanced.tsx",
+      "src/components/settings/SectionsBasic.tsx",
+      "src/components/settings/SectionsDiag.tsx",
+      "src/components/settings/SectionsExtensions.tsx",
+      "src/components/settings/SectionsLsp.tsx",
+      "src/components/settings/SectionsMisc.tsx",
+      "src/components/settings/SecuritySection.tsx",
+      "src/components/settings/SettingsControls.tsx",
+      "src/components/settings/SettingsNav.tsx",
+      "src/components/settings/SettingsPage.tsx",
+      "src/components/settings/SubagentCustomModal.tsx",
+      "src/components/settings/TemaPratinjau.tsx",
+      "src/components/settings/TestsSection.tsx",
+      "src/components/settings/UpdatePanel.tsx",
+      "src/components/settings/changelogRender.tsx",
+      "src/components/sftp/SftpView.tsx",
+      "src/components/shell/ActivityBar.tsx",
+      "src/components/shell/CommandPalette.tsx",
+      "src/components/shell/ConfirmDialog.tsx",
+      "src/components/shell/CrashDialog.tsx",
+      "src/components/shell/DebugConsoleView.tsx",
+      "src/components/shell/DonateDialog.tsx",
+      "src/components/shell/ErrorBoundary.tsx",
+      "src/components/shell/GhMenu.tsx",
+      "src/components/shell/KeybindingsEditor.tsx",
+      "src/components/shell/LayoutMenu.tsx",
+      "src/components/shell/McpToast.tsx",
+      "src/components/shell/MenuBar.tsx",
+      "src/components/shell/OutputView.tsx",
+      "src/components/shell/Panel.tsx",
+      "src/components/shell/PanelTabStrip.tsx",
+      "src/components/shell/Popover.tsx",
+      "src/components/shell/PortsView.tsx",
+      "src/components/shell/ProblemsView.tsx",
+      "src/components/shell/SaveIssueDialog.tsx",
+      "src/components/shell/Sidebar.tsx",
+      "src/components/shell/SplitEditor.tsx",
+      "src/components/shell/StatusBar.tsx",
+      "src/components/shell/SubAgentView.tsx",
+      "src/components/shell/TerminalArea.tsx",
+      "src/components/shell/TerminalPanel.tsx",
+      "src/components/shell/TestsView.tsx",
+      "src/components/shell/Tip.tsx",
+      "src/components/shell/ToolsView.tsx",
+      "src/components/shell/UpdateBanner.tsx",
+      "src/components/shell/WindowControls.tsx",
+      "src/components/shell/ZephyrLogo.tsx",
+      "src/components/terminal/BrowserPane.tsx",
+      "src/components/terminal/PaneGrid.tsx",
+      "src/components/terminal/PaneIcons.tsx",
+      "src/components/terminal/TerminalTabs.tsx",
+      "src/components/terminal/XtermPane.tsx",
+      "src/components/workspace/RestrictedBanner.tsx",
+      "src/components/workspace/RootSection.tsx",
+      "src/components/workspace/TrustDialog.tsx",
+      "src/lib/modelCatalog.tsx",
+      "src/main.tsx"
+    ];
+    FAKTA_HASH_ALGO = 'sha1:hex[0:16] atas urutan (nama\0 isi\0); berkas hilang = "(tidak ada)"';
     FAKTA_INDEKS = [
       ["bridge", "window.__ZEPHYR_*__", "bridge dev untuk membaca store yang sama dengan UI: __ZEPHYR_A11Y__, __ZEPHYR_AGENT_EXTRAS__, __ZEPHYR_AI__, __ZEPHYR_BUG__, __ZEPHYR_CLIAGENT__, __ZEPHYR_CLICHAT__, __ZEPHYR_CLI__, __ZEPHYR_CMD__, __ZEPHYR_CM__, __ZEPHYR_CP__, __ZEPHYR_DBG__, __ZEPHYR_DEVENV__, __ZEPHYR_DIAG__, __ZEPHYR_ERRORS__, __ZEPHYR_EXT19__, __ZEPHYR_EXTRAS__, __ZEPHYR_EXT__, __ZEPHYR_EX__, __ZEPHYR_FLUSH__, __ZEPHYR_FS__, __ZEPHYR_GIT__, __ZEPHYR_HIST__, __ZEPHYR_KB__, __ZEPHYR_LAYOUT__, __ZEPHYR_LSP__, __ZEPHYR_MCP__, __ZEPHYR_MEMORI__, __ZEPHYR_MUTER__, __ZEPHYR_NOTIF__, __ZEPHYR_PANEL__, __ZEPHYR_PARALEL__, __ZEPHYR_PERAN__, __ZEPHYR_PERSONA__, __ZEPHYR_PLUGINS__, __ZEPHYR_PROMPT_LIB__, __ZEPHYR_PROMPT__, __ZEPHYR_PTY__, __ZEPHYR_REPEAT__, __ZEPHYR_REVEAL__, __ZEPHYR_RINGKAS_DEVENV__, __ZEPHYR_RIWAYAT__, __ZEPHYR_SECRETS__, __ZEPHYR_SETTINGS__, __ZEPHYR_SETUI__, __ZEPHYR_SET_PAUSED__, __ZEPHYR_SET__, __ZEPHYR_SHORTCUTS__, __ZEPHYR_SNIP__, __ZEPHYR_SRC__, __ZEPHYR_SUBSET__, __ZEPHYR_SUB__, __ZEPHYR_TASK__, __ZEPHYR_TERM__, __ZEPHYR_THEME__, __ZEPHYR_TODO__, __ZEPHYR_TOOLS__, __ZEPHYR_WAKTU__, __ZEPHYR_WIN__, __ZEPHYR_WS__"],
       ["dokumen", "AGENTS.md#1. Apa ini", "Zephyr adalah code editor desktop (Tauri 2 + React + TS) yang dibangun dari nol: ringan, lengkap, dengan terminal multi-pane (shell/private/ AI-agent), SSH, settings lengkap, Source Control, AI panel (multi-model dengan logo), dan **MCP server port 9222** sehingga AI CLI luar bisa mengontrol jendela."],
@@ -65613,7 +66309,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/adapters/anthropic.rs", "742 baris \xB7 ekspor: thinking_field, butuh_budget, prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
       ["kode", "src-tauri/src/adapters/gemini.rs", "355 baris \xB7 ekspor: prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
       ["kode", "src-tauri/src/adapters/mod.rs", "202 baris \xB7 ekspor: split_data_url, prepare, extract_delta, extract_reasoning, extract_usage, trim_base, prepare_tools, parse_tool_response, prepare_tools_stream, StreamAcc, new, feed, feed_reasoning, reasoning_parts, finish"],
-      ["kode", "src-tauri/src/adapters/openai.rs", "849 baris \xB7 ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
+      ["kode", "src-tauri/src/adapters/openai.rs", "872 baris \xB7 ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
       ["kode", "src-tauri/src/adapters/xml_tools.rs", "855 baris \xB7 ekspor: normalisasi_penanda, posisi_aman, mungkin_awal_tag, mengandung_tool_call, bersihkan_teks, parse_teks"],
       ["kode", "src-tauri/src/agent_exec.rs", "344 baris \xB7 ekspor: ExecResult, agent_exec"],
       ["kode", "src-tauri/src/agent_patch.rs", "126 baris \xB7 ekspor: PatchResult, file_patch"],
@@ -65623,7 +66319,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/app_state.rs", "905 baris \xB7 ekspor: AppState, FileIndex, PerfMark, McpRuntime, GitPermit, AiRequestGuard, new, uptime_ms, perf_mark, perf_marks, bump, counters, git_permit, ext_store_code, ext_code_len, mcp_set_runtime, mcp_take_runtime, mcp_port, mcp_requested_port, mcp_set_token, mcp_token, mcp_uptime_ms, mcp_register, mcp_set_ui_ready, mcp_ui_ready, mcp_resolve, mcp_forget, mcp_fail_pending, mcp_lock, ai_begin, ai_begin_guard, ai_cancel, pty_insert, pty_exists, pty_get, pty_remove, pty_list, pty_count, with_pty, render_paused_flag, \u2026(+31)"],
       ["kode", "src-tauri/src/bg_image.rs", "135 baris \xB7 ekspor: BgImage, bg_image_read"],
       ["kode", "src-tauri/src/browser.rs", "218 baris \xB7 ekspor: BrowserDownloadResult, browser_download_url, ProbeResult, browser_probe, decide"],
-      ["kode", "src-tauri/src/browser_pane.rs", "409 baris \xB7 // browser_pane.rs \u2014 a real child webview for the browser panel. \xB7 ekspor: PaneInfo, browser_pane_open, browser_pane_bounds, browser_pane_visible, browser_pane_close, browser_pane_nav, browser_pane_eval, browser_pane_info, browser_pane_cursor"],
+      ["kode", "src-tauri/src/browser_pane.rs", "593 baris \xB7 // browser_pane.rs \u2014 a real child webview for the browser panel. \xB7 ekspor: PaneInfo, browser_pane_open, browser_pane_bounds, browser_pane_visible, browser_pane_close, browser_pane_nav, browser_pane_eval, browser_pane_info, browser_pane_cursor"],
       ["kode", "src-tauri/src/cc_catalog.rs", "464 baris \xB7 //! Bundled Claude Code catalog: subagents + skills, and installing them into \xB7 ekspor: CatalogEntry, CatalogItem, cc_catalog_list, cc_catalog_body, cc_catalog_install, cc_catalog_uninstall, RemoteEntry, cc_repo_scan, cc_repo_install"],
       ["kode", "src-tauri/src/cc_plugins.rs", "302 baris \xB7 //! Browse, install and remove Claude Code plugins. \xB7 ekspor: CatalogPlugin, cc_plugins_catalog, cc_plugin_install, cc_plugin_uninstall, cc_plugin_marketplaces"],
       ["kode", "src-tauri/src/cli.rs", "578 baris \xB7 ekspor: ACCENT_PUB, DIM_PUB, RESET_PUB, Target, Args, pisah_posisi, ekspansi_path, absolutkan, parse, dir_penanda_wait, path_penanda_wait, cli_args_awal, cli_wait_selesai, cli_wait_buat, cli_wait_aktif, cli_teks, cli_parse, AttachConsole, GetStdHandle, GetFileType, ATTACH_PARENT_PROCESS, STD_OUTPUT_HANDLE, FILE_TYPE_CHAR, stdout_tty, tangani_help_version, banner, teks_help, teks_version, attach_console_pub, stdout_tty_pub"],
@@ -65632,7 +66328,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/cli_ext.rs", "390 baris \xB7 ekspor: Sub, parse_sub, portable_aktif, dir_data, teks_ext_help, daftar_terpasang, jalankan, ai_archive_tool_output, ai_read_tool_output"],
       ["kode", "src-tauri/src/credential.rs", "70 baris \xB7 ekspor: handle_cli, respond"],
       ["kode", "src-tauri/src/credentials.rs", "219 baris \xB7 //! Credential store for user-owned third-party accounts: database passwords, \xB7 ekspor: CredentialInfo, credentials_list, credentials_set, credentials_delete, credentials_get"],
-      ["kode", "src-tauri/src/cron.rs", "314 baris \xB7 ekspor: MAX_JOBS, CronJob, jatuh_tempo, epoch_sekarang, muat, tambah, hapus, set_aktif, tandai_jalan, mulai_timer, cron_list, cron_create, cron_delete, cron_toggle, cron_due, cron_mark_run"],
+      ["kode", "src-tauri/src/cron.rs", "754 baris \xB7 ekspor: MAX_JOBS, CronJob, StatusJadwal, jatuh_tempo, status, sesi_mulai, epoch_sekarang, muat, tambah, tambah_penuh, hapus, set_aktif, tandai_jalan, terlewat_belum_dilapor, lapor_terlewat, pesan_terlewat, mulai_timer, pulihkan_jadwal_terlewat, cron_list, cron_create, cron_delete, cron_toggle, cron_due, cron_mark_run"],
       ["kode", "src-tauri/src/dap.rs", "1308 baris \xB7 ekspor: DebugConfig, ekspansi_var, LaunchFile, InvalidEntry, dap_load, parse_launch, AdapterSpec, spec_untuk, tipe_untuk_adapter, dap_adapters, Sesi, DapRuntime, dap_start, SumberBreakpoint, dap_stop, dap_status, dap_kontrol, dap_threads, dap_stack, dap_scopes, dap_variables, dap_evaluate, dap_set_variable, dap_set_breakpoints, dap_loaded_sources"],
       ["kode", "src-tauri/src/database.rs", "303 baris \xB7 //! Database browser: read-only inspection of a local database. \xB7 ekspor: DbKolom, DbTabel, DbHasil, db_tables, db_columns, db_query, db_default_path"],
       ["kode", "src-tauri/src/dev_update.rs", "474 baris \xB7 //! Dev-only in-app update for the person building Zephyr. \xB7 ekspor: DevUpdateInfo, DevUpdateHasil, dev_update_info, dev_update_build, dev_update_apply, dev_update_log, dev_update_rollback"],
@@ -65644,18 +66340,18 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/explorer.rs", "610 baris \xB7 ekspor: DirNode, scan_dir, fs_watch, fs_unwatch, SearchHit, SearchResult, QuickFile, list_workspace_files, workspace_file_index_clear, search_files, replace_in_file, reveal_path, is_ignored_for_test, build_regex_for_test, scan_names_for_test"],
       ["kode", "src-tauri/src/ext_bundled.rs", "1663 baris \xB7 ekspor: extensions_write_bundled, extensions_bundled_ids, index_bundled"],
       ["kode", "src-tauri/src/ext_bundled_extra.rs", "542 baris \xB7 Extra bundled packages: icon themes, keymaps, snippets. \xB7 tanpa ekspor"],
-      ["kode", "src-tauri/src/ext_lang_icons.rs", "76 baris \xB7 ekspor: LOGO_URI"],
-      ["kode", "src-tauri/src/ext_pkg.rs", "2040 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, extensions_download_zext"],
+      ["kode", "src-tauri/src/ext_lang_icons.rs", "64 baris \xB7 ekspor: LOGO_URI"],
+      ["kode", "src-tauri/src/ext_pkg.rs", "2302 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, IZIN_UNDUH, izin_unduh, hash_sha256, normalisasi_hash, hash_cocok, \u2026(+1)"],
       ["kode", "src-tauri/src/ext_registry.rs", "385 baris \xB7 ekspor: IndexEntry, registry_file, registry_dir, parse_index_pub, ext_registry_list, ext_registry_save, ext_registry_read, ext_registry_installed, ext_registry_url_diizinkan"],
       ["kode", "src-tauri/src/extensions.rs", "547 baris \xB7 ekspor: MAX_MAIN_BYTES, ExtCommand, ExtensionInfo, ExtensionLoad, extensions_dir, parse_commands_pub, list_all, extensions_list, extensions_load, extensions_add, registry_lepas, extensions_remove, extensions_folder"],
-      ["kode", "src-tauri/src/fs_utils.rs", "496 baris \xB7 ekspor: BIG_FILE_BYTES, map_fs_err, ReadResult, StatResult, SessionTab, MAX_READ_BYTES, read_file_detect, write_file_encoded, fs_read, fs_write, fs_exists, fs_stat, fs_create_file, fs_create_dir, fs_delete, fs_rename, session_load, session_save, decode_for_test, encode_for_test, detect_le_for_test"],
+      ["kode", "src-tauri/src/fs_utils.rs", "1024 baris \xB7 ekspor: BIG_FILE_BYTES, map_fs_err, ReadResult, StatResult, SessionTab, MAX_READ_BYTES, read_file_detect, MAKS_TULIS_BYTE, periksa_ukuran_tulis, write_file_encoded, fs_read, fs_write, tulis_isi, fs_exists, fs_stat, realpath_dalam_akar, fs_realpath, fs_create_file, fs_create_dir, fs_delete, fs_rename, session_load, session_save, decode_for_test, encode_for_test, detect_le_for_test"],
       ["kode", "src-tauri/src/gambar.rs", "339 baris \xB7 ekspor: GambarData, baca_gambar, simpan_gambar_temp"],
       ["kode", "src-tauri/src/git.rs", "1518 baris \xB7 ekspor: GitChange, GitStatus, GitBranches, GitCommitInfo, GitUser, scrub_url_credentials, parse_status_v2, git_init, git_status, git_stage, git_unstage, git_commit, git_push, git_pull, git_fetch, git_branches, git_checkout, git_create_branch, git_delete_branch, git_diff, git_diff_head, git_discard, git_log, git_config_get_user, GitBlameLine, git_blame, GitStashEntry, git_stash_save, git_stash_list, git_stash_pop, git_stash_drop, git_rebase, git_conflict_take, ConflictHunk, git_conflict_read, git_rebase_interactive, git_rebase_continue, git_rebase_abort, git_rebase_status, GitWorktree, \u2026(+5)"],
       ["kode", "src-tauri/src/github.rs", "589 baris \xB7 ekspor: active_token, stored_user, stored_avatar, GhStatus, gh_status, GhUser, gh_set_pat, DeviceLogin, gh_login_device, gh_logout, GhTest, gh_test, try_refresh"],
       ["kode", "src-tauri/src/history.rs", "552 baris \xB7 ekspor: Snapshot, HistoryInfo, folder_untuk, tampak_biner, snapshot_internal, history_snapshot, history_list, history_read, history_clear, history_prune, history_stats"],
       ["kode", "src-tauri/src/hooks.rs", "476 baris \xB7 //! Hook execution: running the commands a reader configured at lifecycle points. \xB7 ekspor: HookRunResult, hook_run, FormatResult, format_text"],
       ["kode", "src-tauri/src/instructions.rs", "463 baris \xB7 //! Instructions: coding standards that apply to files matching a pattern. \xB7 ekspor: InstructionInfo, parse_instruction, instructions_list, instruction_read, instruction_write, instruction_delete, CatalogInstruction, instruction_catalog_list, instruction_catalog_body, instruction_install"],
-      ["kode", "src-tauri/src/lib.rs", "608 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
+      ["kode", "src-tauri/src/lib.rs", "617 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
       ["kode", "src-tauri/src/logging.rs", "439 baris \xB7 ekspor: LogSink, write_line, path, LogWriter, init, attach_app, log_file_path, LOG_TAIL_N_BAWAAN, LOG_TAIL_N_MAKS, LOG_TAIL_BYTES_BAWAAN, LOG_TAIL_BYTES_MAKS, LOG_TAIL_BYTES_MIN, baca_ekor, log_tail, panicked, last_panic, sink_for_test, max_bytes_for_test, keep_for_test"],
       ["kode", "src-tauri/src/lsp.rs", "1232 baris \xB7 ekspor: ServerSpec, id_punya_resep, lsp_start, path_to_uri, lsp_request, lsp_notify, lsp_stop, lsp_stop_all, LspInfo, lsp_status, lsp_reap, lsp_set_idle, lsp_resep, lsp_pasang, lsp_probe"],
       ["kode", "src-tauri/src/main.rs", "13 baris \xB7 tanpa ekspor"],
@@ -65669,13 +66365,14 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/proc.rs", "44 baris \xB7 ekspor: CREATE_NO_WINDOW, cmd, tokio_cmd"],
       ["kode", "src-tauri/src/pty.rs", "564 baris \xB7 ekspor: TailBuf, PtySession, info, terminate, tail_lines, PtyInfo, ShellInfo, list_shells, resolve_shell_for_test, pty_spawn, pty_write, pty_resize, pty_kill, pty_list, pty_tail, pty_set_paused, pty_interrupt"],
       ["kode", "src-tauri/src/rag.rs", "100 baris \xB7 ekspor: RagHit, rag_search"],
-      ["kode", "src-tauri/src/search.rs", "982 baris \xB7 ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, search_replace"],
+      ["kode", "src-tauri/src/search.rs", "1132 baris \xB7 ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, MAKS_BERKAS_GANTI, search_replace, ganti_lintas_berkas"],
       ["kode", "src-tauri/src/secrets.rs", "656 baris \xB7 ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, list_models, reset_settings, roundtrip_for_test, preview_for_test, endpoint_for_test"],
-      ["kode", "src-tauri/src/settings.rs", "783 baris \xB7 ekspor: AppInfo, RecentEntry, default_settings, deep_merge_um, read_json_um, take_broken_config, get_keybindings, set_keybindings, get_app_info, get_settings, set_settings, set_window_size, list_recents, push_recent, workspace_open, workspace_close, read_settings_value, patch_settings, patch_settings_no_emit, git_default_branch, git_identity, ram_peak, ram_last, ram_total_last, ram_total_peak, host_ram_total, host_cpu_count, host_os, spawn_ram_sampler, merge_for_test"],
+      ["kode", "src-tauri/src/settings.rs", "809 baris \xB7 ekspor: AppInfo, RecentEntry, default_settings, deep_merge_um, read_json_um, take_broken_config, get_keybindings, set_keybindings, get_app_info, get_settings, set_settings, set_window_size, list_recents, push_recent, workspace_open, workspace_close, read_settings_value, patch_settings, patch_settings_no_emit, git_default_branch, git_identity, ram_peak, ram_last, ram_total_last, ram_total_peak, host_ram_total, host_cpu_count, host_os, spawn_ram_sampler, merge_for_test"],
       ["kode", "src-tauri/src/sftp.rs", "418 baris \xB7 //! SFTP and port forwarding, driven by the OpenSSH client Windows already \xB7 ekspor: SftpEntry, SftpHostInfo, ssh_path, sftp_list, sftp_upload, sftp_download, sftp_tunnel_start, sftp_tunnel_stop, sftp_tunnel_list, sftp_available"],
       ["kode", "src-tauri/src/skills.rs", "477 baris \xB7 ekspor: SKILL_MAX_BYTES, SkillInfo, nama_valid, parse_frontmatter, daftar_skills, baca_skill, tulis_skill, hapus_skill, skills_list, skill_read, skill_write, skill_delete, ringkasan_untuk_prompt, agent_context"],
       ["kode", "src-tauri/src/snippets.rs", "640 baris \xB7 ekspor: Snippet, SnippetSet, FileRusak, path_user, snippets_load, snippets_user_file, snippets_user_list, snippets_builtin_langs"],
       ["kode", "src-tauri/src/ssh.rs", "311 baris \xB7 ekspor: SshConfig, SshHostView, ssh_list, ssh_add, ssh_update, ssh_delete, ssh_save_password, ssh_clear_password, ssh_connect, ssh_disconnect"],
+      ["kode", "src-tauri/src/tangkap_layar.rs", "1471 baris \xB7 Tangkap layar jendela \u2014 sisi Rust (item ZEPH-SCREENSHOT-TOOL / 151). \xB7 ekspor: NAMA_PERINTAH_TANGKAP, ArgumenTangkap, HasilTangkapLayar, gagal, bungkus, periksa_path_keluaran, path_bawaan, kodek_png_rgb, Hdc, Hbitmap, Hgdiobj, Rect, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_CXSCREEN, SM_CYSCREEN, BitmapRgb, rect_jendela, rect_layar, tangkap, jalankan_tangkap, window_capture"],
       ["kode", "src-tauri/src/tasks.rs", "1283 baris \xB7 ekspor: TaskOptions, TaskPresentation, BackgroundSpec, TaskDef, TasksFile, buang_komentar, GroupSpec, cari_tasks_file, tasks_load, Matcher, TaskProblem, tasks_matchers, tasks_match_line, TaskRun, TasksRuntime, tasks_run, tasks_wait, tasks_kill, tasks_runs, tasks_clear_runs, tasks_detect_port"],
       ["kode", "src-tauri/src/tests_ai.rs", "740 baris \xB7 tanpa ekspor"],
       ["kode", "src-tauri/src/tests_browser.rs", "85 baris \xB7 tanpa ekspor"],
@@ -65685,8 +66382,9 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/tests_mcp.rs", "255 baris \xB7 tanpa ekspor"],
       ["kode", "src-tauri/src/titlebar.rs", "73 baris \xB7 ekspor: USE_IMMERSIVE_DARK_MODE, BORDER_COLOR, CAPTION_COLOR, TEXT_COLOR, set, titlebar_theme"],
       ["kode", "src-tauri/src/tulis_aman.rs", "153 baris \xB7 Penulisan berkas yang aman terhadap crash. \xB7 ekspor: tulis_atomik, tulis_atomik_teks"],
-      ["kode", "src-tauri/src/web.rs", "417 baris \xB7 // web.rs \u2014 internet access for the agent: search the web and fetch page contents. \xB7 ekspor: validate_outbound_url, HasilCari, web_fetch, web_search"],
+      ["kode", "src-tauri/src/web.rs", "1103 baris \xB7 // web.rs \u2014 internet access for the agent: search the web and fetch page contents. \xB7 ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, PORT_SAH, IP_METADATA_V4, IP_METADATA_V6, batas_byte_dipakai, KebijakanJaringan, hop_dipakai, dari_setelan, port_dipakai, port_diizinkan, is_metadata, ip_terlarang_dengan, ip_terlarang, validate_outbound_url, validate_outbound_url_dengan, periksa_url_pane, periksa_url_pane_dengan, langkah_redirect, langkah_redirect_dengan, HasilCari, web_fetch, web_search"],
       ["kode", "src-tauri/src/workspace.rs", "770 baris \xB7 ekspor: Trust, boleh_eksekusi, Root, WorkspaceFile, FolderEntry, WorkspaceInfo, trust_untuk, ensure_trusted, ensure_trusted_path, baca_workspace_file, gabung_scope, workspace_info, workspace_set_trust, workspace_forget_trust, workspace_trust_list, workspace_add_root, workspace_remove_root, workspace_set_active_root, workspace_open_file, workspace_save_file, workspace_settings_efektif, workspace_settings_asal, workspace_set_settings, workspace_boleh_eksekusi"],
+      ["kode", "src-tauri/src/worktree.rs", "946 baris \xB7 worktree.rs - `git worktree` dari dalam Zephyr, versi yang TIDAK melempar. \xB7 ekspor: Hasil, worktree_list, worktree_add, worktree_remove"],
       ["kode", "src/AiWindow.tsx", "64 baris \xB7 tanpa ekspor"],
       ["kode", "src/App.tsx", "1654 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/a11y/LiveRegion.tsx", "38 baris \xB7 tanpa ekspor"],
@@ -65696,7 +66394,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/ai/AiIkon.tsx", "777 baris \xB7 Icon set for the AI panel header. \xB7 ekspor: NamaAiIkon"],
       ["kode", "src/components/ai/AiPanel.tsx", "2446 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/ChatHeadActions.tsx", "226 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/ChatMessage.tsx", "1016 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/ChatMessage.tsx", "1034 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/ChatSettingsPage.tsx", "1532 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/ChatSettingsPopup.tsx", "72 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/ChatStamp.tsx", "139 baris \xB7 ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
@@ -65748,7 +66446,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/devenv/BrandIkon.tsx", "130 baris \xB7 // Brand marks for the Dev Environment rows. \xB7 ekspor: BrandIkon, FolderLogo, CronLogo, TerminalLogo, ToolsLogo"],
       ["kode", "src/components/devenv/DevEnvView.tsx", "773 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/Breadcrumbs.tsx", "157 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/editor/CodeMirrorEditor.tsx", "1110 baris \xB7 ekspor: naikkanExtVersi"],
+      ["kode", "src/components/editor/CodeMirrorEditor.tsx", "1141 baris \xB7 ekspor: naikkanExtVersi"],
       ["kode", "src/components/editor/EditorTabBar.tsx", "134 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/FileIcon.tsx", "104 baris \xB7 ekspor: FolderIcon"],
       ["kode", "src/components/editor/FindBar.tsx", "299 baris \xB7 tanpa ekspor"],
@@ -65760,8 +66458,8 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/editor/NotebookView.tsx", "118 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/ReadOnlyBanner.tsx", "61 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/StickyScroll.tsx", "99 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/editor/dekorasiCopilot.ts", "382 baris \xB7 Dekorasi kode ala Copilot (item 182): sorot baris yang berubah + teks bayangan \xB7 ekspor: sorotField, dekorasiBarisUbah, KonteksUsulan, PenyediaUsulan, pasangPenyediaUsulan, penyediaAktif, usulanField, adaUsulan, usulanTeks, mintaUsulan, terimaUsulan, tolakUsulan, OpsiDekorasi, dekorasiCopilot"],
-      ["kode", "src/components/editor/dekorasiMurni.ts", "109 baris \xB7 Logika murni dekorasi editor (item 182). \xB7 ekspor: SOROT_MAX, kelasBaris, barisUnik, usulanLayak, potongBelakang"],
+      ["kode", "src/components/editor/dekorasiCopilot.ts", "411 baris \xB7 Dekorasi kode ala Copilot (item 182): sorot baris yang berubah + teks bayangan \xB7 ekspor: sorotField, dekorasiBarisUbah, KonteksUsulan, PenyediaUsulan, pasangPenyediaUsulan, penyediaAktif, usulanField, adaUsulan, usulanTeks, mintaUsulan, terimaUsulan, tolakUsulan, OpsiDekorasi, dekorasiCopilot"],
+      ["kode", "src/components/editor/dekorasiMurni.ts", "112 baris \xB7 Logika murni dekorasi editor (item 182). \xB7 ekspor: SOROT_MAX, kelasBaris, barisUnik, usulanLayak, potongBelakang"],
       ["kode", "src/components/explorer/ContextMenu.tsx", "94 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/DeleteConfirmDialog.tsx", "90 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/ExplorerPanel.tsx", "161 baris \xB7 tanpa ekspor"],
@@ -65771,11 +66469,12 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/explorer/SearchPanel.tsx", "411 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/TimelineView.tsx", "227 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/extensions/ExtApprovalModal.tsx", "68 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/extensions/ExtensionsView.tsx", "1012 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/extensions/ExtensionsView.tsx", "1118 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/extensions/bahasaTerpasang.ts", "156 baris \xB7 bahasaTerpasang.ts - catatan jujur untuk kontribusi bahasa SEBUAH PAKET \xB7 ekspor: CatatanBahasa, BarisGrammar, CekGrammar, catatanBahasaTerpasang, bahasaTanpaEfek"],
       ["kode", "src/components/notifications/NotificationCenter.tsx", "158 baris \xB7 ekspor: NotifBell"],
       ["kode", "src/components/notifications/Toast.tsx", "115 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/scm/ConflictEditor.tsx", "130 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/scm/DiffViewer.tsx", "118 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/scm/DiffViewer.tsx", "297 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/scm/ScmConfirmDialog.tsx", "112 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/scm/SourceControlPanel.tsx", "1154 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/AccessibilitySection.tsx", "116 baris \xB7 tanpa ekspor"],
@@ -65795,17 +66494,17 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/settings/PersonaCard.tsx", "348 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/RulesSection.tsx", "153 baris \xB7 Settings > Rules. \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/SectionsAdvanced.tsx", "1303 baris \xB7 ekspor: ShortcutsSection, ModelsSection, AgentsSection, SubagentSection, CustomSubagentsCard"],
-      ["kode", "src/components/settings/SectionsBasic.tsx", "1132 baris \xB7 ekspor: GeneralSection, EditorSection, ThemeSection"],
+      ["kode", "src/components/settings/SectionsBasic.tsx", "1219 baris \xB7 ekspor: GeneralSection, EditorSection, ThemeSection"],
       ["kode", "src/components/settings/SectionsDiag.tsx", "134 baris \xB7 ekspor: SelfTestPanel, ExportPanel, laporanUntukUji"],
       ["kode", "src/components/settings/SectionsExtensions.tsx", "365 baris \xB7 ekspor: ExtensionsSection"],
       ["kode", "src/components/settings/SectionsLsp.tsx", "15 baris \xB7 Kept: the file name. \xB7 tanpa ekspor"],
-      ["kode", "src/components/settings/SectionsMisc.tsx", "745 baris \xB7 ekspor: ScmSection, SshSection, AboutSection"],
+      ["kode", "src/components/settings/SectionsMisc.tsx", "738 baris \xB7 ekspor: ScmSection, SshSection, AboutSection"],
       ["kode", "src/components/settings/SecuritySection.tsx", "114 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/SettingsControls.tsx", "294 baris \xB7 ekspor: Row, Section, Toggle, NumberInput, Select, TextInput, Pills"],
       ["kode", "src/components/settings/SettingsNav.tsx", "293 baris \xB7 ekspor: NavIcon"],
       ["kode", "src/components/settings/SettingsPage.tsx", "90 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/SubagentCustomModal.tsx", "493 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/settings/TemaPratinjau.tsx", "184 baris \xB7 Pratinjau tema - SATU komponen, dipakai di dua tempat. \xB7 ekspor: TOKEN_SINTAKS, TokenSintaks, WARNA_UI, WarnaUi, UkuranPratinjau, PropsPratinjau, PratinjauTema"],
+      ["kode", "src/components/settings/TemaPratinjau.tsx", "257 baris \xB7 Pratinjau tema - SATU komponen, dipakai di dua tempat. \xB7 ekspor: TOKEN_SINTAKS, TokenSintaks, WARNA_UI, WarnaUi, GAYA_PRATINJAU, pasangGayaPratinjau, UkuranPratinjau, PropsPratinjau, PratinjauTema"],
       ["kode", "src/components/settings/TestsSection.tsx", "155 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/UpdatePanel.tsx", "136 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/changelogRender.tsx", "144 baris \xB7 ekspor: Changelog"],
@@ -65857,19 +66556,24 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/agentDorong.ts", "189 baris \xB7 Bentuk tugas tulis - pembaca BENTUK permintaan user, plus batas langkah. \xB7 ekspor: BentukTugas, pertanyaan, bentukTugas, permintaanMajemuk, BATAS_TULIS_PAKSA"],
       ["kode", "src/lib/agentDraft.ts", "251 baris \xB7 ekspor: DraftKind, DraftHasil, parseDraft, OpsiDraft, buatDraft"],
       ["kode", "src/lib/agentExtrasStore.ts", "213 baris \xB7 ekspor: HookEvent, Hook, HOOK_EVENTS, HOOK_EVENT_HIDUP, useAgentExtras"],
-      ["kode", "src/lib/agentGuard.ts", "297 baris \xB7 Penjaga sisi-agent: pola berkas rahasia, direktori terproteksi, dan \xB7 ekspor: bentukBanding, POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, HasilAman, periksaBaca, periksaTulis, periksaPerintahShell"],
+      ["kode", "src/lib/agentGuard.ts", "362 baris \xB7 Penjaga sisi-agent: pola berkas rahasia, direktori terproteksi, dan \xB7 ekspor: bentukBanding, POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, HasilAman, periksaBaca, periksaTulis, periksaPerintahShell"],
       ["kode", "src/lib/agentLsp.ts", "390 baris \xB7 ekspor: Posisi, LokasiLsp, SimbolLsp, adaServer, lspDefinitionTool, lspReferencesTool, lspCallHierarchyTool, lspHoverTool, lspDocumentSymbolsTool, lspWorkspaceSymbolsTool, lspDiagnosticsTool"],
       ["kode", "src/lib/agentStop.ts", "50 baris \xB7 Peta alasan berhentinya agent, terpisah dari store. \xB7 ekspor: AgentStopReason, AgentFailureCategory, agentStopMessage"],
-      ["kode", "src/lib/agentTools.ts", "240 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
+      ["kode", "src/lib/agentTools.ts", "313 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, pasangJembatanBacaKodeDariWorkspace, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
       ["kode", "src/lib/aiCliStore.ts", "979 baris \xB7 ekspor: CliTodo, CliPart, CliMsg, CliTask, CliSession, CliOpts, useAiCli, bindCliChatListener"],
       ["kode", "src/lib/aiDebugStore.ts", "107 baris \xB7 ekspor: ReqLog, LOG_MAKS, useAiDebug"],
       ["kode", "src/lib/aiMemori.ts", "983 baris \xB7 MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). \xB7 ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, \u2026(+12)"],
       ["kode", "src/lib/aiModelsStore.ts", "29 baris \xB7 ekspor: useAiModels"],
-      ["kode", "src/lib/aiStore.ts", "8319 baris \xB7 ekspor: AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, AgentTodo, MAX_TODOS, todoTerpangkas, \u2026(+13)"],
+      ["kode", "src/lib/aiStore.ts", "9180 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
       ["kode", "src/lib/aiTabsStore.ts", "113 baris \xB7 ekspor: CLI_TABS, AiTabId, useAiTabs"],
       ["kode", "src/lib/aiWindow.ts", "43 baris \xB7 ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
       ["kode", "src/lib/aiZephyrState.ts", "970 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
+      ["kode", "src/lib/alurVerifikasi.ts", "621 baris \xB7 alurVerifikasi.ts \u2014 aturan jalur yang memaksa agen Zeph memverifikasi \xB7 ekspor: JenisPeriksa, Nilai, StatusPutusan, BATAS_PERCOBAAN, PERINTAH_TETAP, POLA_PERINTAH_DINAMIS, perintahDiizinkan, PENANDA_GAGAL, normJalur, PermintaanPeriksa, periksaBerkas, PerintahRencana, Rencana, rencanaVerifikasi, nilaiKeluaran, berkasBermasalah, HasilJalankan, Ubah, NilaiPerintah, Putusan, putuskan, validasiLaporan, laporanAkhir"],
+      ["kode", "src/lib/analisGambar.ts", "723 baris \xB7 analisGambar.ts - the image (vision) path: how a picture gets IN, and how it \xB7 ekspor: MimeGambar, SumberGambar, KodeTolak, HasilGambar, GambarSiap, KandidatGambar, RingkasGambar, MIME_DIIZINKAN, ANALIS_MAKS_BYTE, ANALIS_MAKS_GAMBAR, ANALIS_SISI_MAKS, KUALITAS_TANGGA, SKALA_TANGGA, LangkahPerkecil, HasilUbah, PengubahGambar, OpsiBatas, normalisasiMime, mimeDiizinkan, mimeDariNama, hitungByteBase64, tebakMimeDariBase64, bangunDataUrl, uraiDataUrl, fmtByte, pemisah, bisaDiperkecil, siapkanGambar, gambarDariTempel, gambarDariBerkas, gambarDariLampiran, periksaJumlah, MasukanRencana, Rencana, rencanaPerkecil, perkecilGambar, terimaGambar, ringkasGambar, barisLog, sensorBase64, \u2026(+8)"],
       ["kode", "src/lib/announcements.ts", "71 baris \xB7 ekspor: cekPengumuman"],
+      ["kode", "src/lib/antreanPesan.ts", "527 baris \xB7 antreanPesan.ts \u2014 aturan ANTREAN PESAN sebagai fungsi murni. \xB7 ekspor: PesanAntrean, KeadaanAntrean, BATAS_ANTREAN, BATAS_TEKS, OpsiAntrean, buatAntrean, AlasanTolak, HasilKirim, kirim, giliranMulai, HasilGiliran, giliranSelesai, jumlah, kepala, ada, HasilBatal, batalkan, HasilKosongkan, kosongkan, HasilUrut, naikkan, turunkan, promosikan, ubah, ringkasTeks, BarisAntreanPanel, keadaanDariPanel, HasilKirimSibuk, kirimSaatSibuk, RencanaMasukSibuk, rencanaMasukSaatSibuk, HasilGiliranPanel, giliranSelesaiPanel"],
+      ["kode", "src/lib/autocompleteInline.ts", "207 baris \xB7 Autocomplete inline \u2014 perencana permintaan + pengatur laju (governor). \xB7 ekspor: JEDA_MS, BATAS_BYTE_PAYLOAD, BATAS_JENDELA_BARIS, BATAS_JENDELA_KARAKTER, PANJANG_MINIMUM_BARIS, bytePanjang, jendelaKonteks, PermintaanInline, OpsiPermintaan, bangunPermintaan, KeadaanInline, keadaanAwal, ketik, tiket, AlasanInline, KeputusanInline, putuskanKirim, mulaiKirim, selesaiKirim, setAktif"],
+      ["kode", "src/lib/bacaKode.ts", "847 baris \xB7 bacaKode - Zeph membaca ISI kode ZEPHYR SENDIRI sebagai POTONGAN BARIS. \xB7 ekspor: BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, KARAKTER_PER_TOKEN, EKSTENSI_TEKS, NAMA_TEKS, berekstensiTeks, HasilJalur, bolehDibacaKode, pisahBaris, tagIsi, apakahBiner, angkaTitik, OpsiPotong, PotonganKode, HasilPotong, cariDefinisiBaris, bacaPotongan, rakitPotongan, AnggaranBaca, buatAnggaranBaca, PerintahBacaKode, JembatanBacaKode, PermintaanBaca, HasilBaca, rapikanJalurNyata, diDalamAkar, bacaBerkasKode, SPEC_BACA_KODE, pasangJembatanBacaKode, pasangRealpathBacaKode, realpathBacaKode, resetAnggaranBaca, jembatanBacaKode, \u2026(+2)"],
       ["kode", "src/lib/breakpointGutter.ts", "80 baris \xB7 ekspor: bpCompartment, barisAktifCompartment, breakpointGutter, barisAktifExt"],
       ["kode", "src/lib/chatSettingsStore.ts", "90 baris \xB7 ekspor: ChatSeksi, useAiChatSettings"],
       ["kode", "src/lib/checkpoint.ts", "170 baris \xB7 Checkpoints \u2014 undoing everything one agent turn changed. \xB7 ekspor: BerkasCheckpoint, Checkpoint, mulaiTurn, catat, tutupCheckpoint, HasilRestore, pulihkanCheckpoint"],
@@ -65883,13 +66587,13 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/cmTheme.ts", "2 baris \xB7 tanpa ekspor"],
       ["kode", "src/lib/codexStore.ts", "233 baris \xB7 ekspor: ApprovalPolicy, WorkLocation, APPROVAL_POLICIES, WORK_LOCATIONS, CODEX_EFFORTS, CodexEffort, EFFORT_FROM_CONFIG, CODEX_EFFORT_LABELS, CODEX_MODELS, CodexSettings, useCodex"],
       ["kode", "src/lib/commandIds.ts", "30 baris \xB7 Leaf module: the id set of commands that exist. \xB7 ekspor: COMMAND_IDS, daftarkanCommandId, commandIdAda"],
-      ["kode", "src/lib/commandRegistry.ts", "2521 baris \xB7 ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
-      ["kode", "src/lib/commands.ts", "1580 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, fsRead, AgentExecResult, agentExec, \u2026(+316)"],
-      ["kode", "src/lib/contextBudget.ts", "401 baris \xB7 Context budget: one place for the token estimate and the window size. \xB7 ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
+      ["kode", "src/lib/commandRegistry.ts", "2545 baris \xB7 ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
+      ["kode", "src/lib/commands.ts", "1645 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, \u2026(+320)"],
+      ["kode", "src/lib/contextBudget.ts", "465 baris \xB7 Context budget: one place for the token estimate and the window size. \xB7 ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
       ["kode", "src/lib/cronRunner.ts", "158 baris \xB7 ekspor: pasangPendengarCron"],
       ["kode", "src/lib/debugInline.ts", "154 baris \xB7 Debugger inline values \u2014 the locals, shown at the line execution stopped on. \xB7 ekspor: VariabelDebug, debugInlineField, setNilaiEffect, clearNilaiEffect"],
       ["kode", "src/lib/debugStore.ts", "799 baris \xB7 ekspor: Breakpoint, StackFrame, Scope, Variable, WatchItem, ReplLine, DebugState, useDebug, bindDebugListeners, catatExceptionKeProblems"],
-      ["kode", "src/lib/devBridge.ts", "2241 baris \xB7 ekspor: installDevBridge"],
+      ["kode", "src/lib/devBridge.ts", "2316 baris \xB7 ekspor: installDevBridge"],
       ["kode", "src/lib/devenvStore.ts", "519 baris \xB7 ekspor: RuntimeId, StatusService, RUNTIME_INFO, RUNTIME_DAFTAR, SERVICE_DAFTAR, DEPLOY_DEFAULT, BarisService, BarisRuntime, useDevenv, ringkasDevenv"],
       ["kode", "src/lib/diagnosticsGutter.ts", "192 baris \xB7 ekspor: diagCompartment, lensField, setLensEffect, diagnosticsGutter"],
       ["kode", "src/lib/editorLayoutStore.ts", "153 baris \xB7 ekspor: EditorGroup, useLayout, rasioLebar"],
@@ -65909,24 +66613,29 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/fileIcons.ts", `103 baris \xB7 File-type icons for the composer's "@" picker, the editor gutter and the \xB7 ekspor: FileIkon, ikonFile, ikonFolder`],
       ["kode", "src/lib/fileRefs.ts", "142 baris \xB7 ekspor: FileRef, tokenAt, saringFile, muatFileWorkspace, lupakanFileWorkspace"],
       ["kode", "src/lib/formatters.ts", "113 baris \xB7 External formatters, chained on save. \xB7 ekspor: FormatterCmd, HasilFormat, berlaku, rangkaiFormat"],
-      ["kode", "src/lib/ghostText.ts", "410 baris \xB7 ekspor: lepasListenerGhost, buangGhost, ghostTextKeymap, ghostText, lepasGhost"],
+      ["kode", "src/lib/ghostPemasok.ts", "439 baris \xB7 ghostPemasok.ts \u2014 seam PENYEDIA saran inline (ghost text) untuk item 175. \xB7 ekspor: BATAS_PANJANG_SARAN, BATAS_KONTEKS_KARAKTER, BATAS_KONTEKS_BARIS, PANJANG_MINIMUM, PENANDA_RAHASIA, KunciKonteks, PermintaanSaran, UsulanInline, SaranMentah, PemasokSaran, potongKonteks, saringRahasia, potongSaran, bahasaNormal, PEMASOK_LOKAL, PEMASOK_MATI, setPemasokSaran, pemasokSaran, setGhostAktif, ghostAktif, aturUlangGhost, ambilSaran, KeadaanSaran, keadaanAwal, pasangSaran, HasilKeputusan, terimaSaran, tolakSaran"],
+      ["kode", "src/lib/ghostText.ts", "438 baris \xB7 ekspor: lepasListenerGhost, buangGhost, ghostTextKeymap, ghostText, lepasGhost"],
       ["kode", "src/lib/gitBars.ts", "193 baris \xB7 Git change bars in the gutter \u2014 added, modified and deleted lines. \xB7 ekspor: JenisBaris, BarisUbah, parseDiff, barsField, gitBarGutter, setBarsEffect"],
       ["kode", "src/lib/gitBlame.ts", "170 baris \xB7 Git blame, drawn at the end of each line. \xB7 ekspor: blameField, setBlameEffect"],
       ["kode", "src/lib/gitStore.ts", "659 baris \xB7 ekspor: ScmConfirm, DiffView, GitStore, useGit"],
       ["kode", "src/lib/historyStore.ts", "240 baris \xB7 ekspor: useHistory"],
       ["kode", "src/lib/hookRuntime.ts", "153 baris \xB7 ekspor: EVENT_AKTIF, HasilHook, jalankanHook, ringkasHook"],
+      ["kode", "src/lib/hunkUnified.ts", "684 baris \xB7 hunkUnified.ts \u2014 review diff PER POTONGAN (hunk): terima/tolak per hunk, lalu \xB7 ekspor: JenisBaris, StatusHunk, Sisi, PetaStatus, BarisHunk, HunkReview, BlokUnified, HasilUrai, BerkasReview, StatusBerkas, HasilTerap, HunkUnifiedError, uraiUnified, parseUnified, hunkUnified, hunkDariDuaTeks, diterimaDari, terapkanHunkDuaTeks, terapkanStatusDuaTeks, OpsiTerap, terapkanUnifiedKeIsi, terapkanStatusUnified, statusBerkas, statusSemuaBerkas, berkasSelesai, semuaBerkasSelesai, terapkanBerkas, hasilPerBerkas"],
       ["kode", "src/lib/hydraFusion.ts", "671 baris \xB7 HydraFusion \u2014 adaptive model orchestration for the MAIN chat. \xB7 ekspor: HydraTier, HydraJalur, HydraPeran, HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT, HYDRA_MAKS_ESKALASI, HYDRA_PENANDA_RAGU, HYDRA_ID_PREFIX, HydraPengaturan, HydraKandidat, HydraSinyal, HydraKlasifikasi, HydraLangkah, HydraRencana, HydraLapor, HydraHasil, HydraTerakhir, bacaPengaturan, parseTierRef, tingkatKandidat, usulTingkat, klasifikasiChat, HydraMasuk, rencanaHydra, pesanUntuk, bersihkanPenanda, deteksiGagal, HydraDeps, jalankanHydra, hydraSiapkan, hydraLupakan, hydraCatat, hydraLihat, hydraAmbil, hydraAktif"],
-      ["kode", "src/lib/i18n-extra.ts", "24000 baris \xB7 tanpa ekspor"],
+      ["kode", "src/lib/i18n-extra.ts", "24083 baris \xB7 tanpa ekspor"],
       ["kode", "src/lib/i18n-src.ts", "617 baris \xB7 ekspor: EN"],
       ["kode", "src/lib/i18n.ts", "4025 baris \xB7 ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
       ["kode", "src/lib/inlayHints.ts", "214 baris \xB7 Inlay hints \u2014 inferred types and parameter names, drawn inside the code. \xB7 ekspor: InlayHint, inlayField, setHintsEffect, clearHintsEffect, mintaInlayHints"],
       ["kode", "src/lib/instructionsStore.ts", "215 baris \xB7 ekspor: useInstructions, cocokPola"],
       ["kode", "src/lib/keybindingStore.ts", "191 baris \xB7 ekspor: CHORD_TIMEOUT_MS, useKb"],
-      ["kode", "src/lib/keybindings.ts", "329 baris \xB7 ekspor: Layer, WhenCtx, KeyBinding, normalizeChord, displayChord, DEFAULT_BINDINGS, UserBinding, mergeBindings, chordFor, prefixSet, resolveBinding, chordConflicts"],
+      ["kode", "src/lib/keybindings.ts", "562 baris \xB7 ekspor: Layer, WhenCtx, KeyBinding, normalizeChord, displayChord, DEFAULT_BINDINGS, UserBinding, mergeBindings, chordFor, prefixSet, resolveBinding, chordConflicts, ChordAlias, ChordEntry, LaporanChordKembar, HasilGabung, gabungChordKembar, tabelEfektif, entriChord, cariPintasan, resolveChord"],
       ["kode", "src/lib/keymapAlias.ts", "41 baris \xB7 Command-name translation for extension keymaps. \xB7 ekspor: ALIAS_PERINTAH, perintahKeymap, dialihkan"],
+      ["kode", "src/lib/konteksRepo.ts", "1341 baris \xB7 KONTEKS REPO - apa yang Zeph ketahui tentang folder yang SEDANG DIBUKA user. \xB7 ekspor: BATAS_PINDAI_BERKAS, BATAS_BERKAS_TAMPIL, BATAS_BYTE_TAMPIL, BATAS_UKURAN_BERKAS, BATAS_CHAR_RINGKASAN, BATAS_BARIS_STRUKTUR, BATAS_BAHASA, BATAS_GITIGNORE_BYTE, BATAS_STAT_BERKAS, KONTEKS_REPO_VERSI, BerkasRepo, EntriGitignore, MasukanKonteksRepo, BarisBerkas, RincianBahasa, BarisStruktur, StatKonteksRepo, KonteksRepo, JenisBlokir, POLA_RAHASIA_TAMBAHAN, POLA_RAHASIA_EFEKTIF, ABAIKAN_SEGMEN, normalJalur, bahasaDariJalur, ringkasByte, waktuUbahIso, diabaikanStruktur, alasanBlokirRahasia, AturanGitignore, susunAturanGitignore, diabaikanOlehGitignore, skorPrioritasBerkas, bangunKonteksRepo, PerintahKonteksRepo, OpsiSumberRepo, HasilPindai, pindaiKonteksRepo"],
+      ["kode", "src/lib/konteksZephyr.ts", "496 baris \xB7 konteksZephyr.ts \u2014 aturan berkas `.zephyr-context.md` sebagai fungsi murni. \xB7 ekspor: NAMA_KONTEKS, BATAS_BYTE, JUDUL_APLIKASI, JUDUL_AGEN, PENANDA_POTONG, DataKonteks, TemuanRahasia, HasilSaring, BERKAS_DIBLOKIR, ATURAN_RAHASIA, cariRahasia, redaksi, saring, berkasDiblokir, HasilJalur, diDalamAkar, jalurKonteks, BagianKonteks, pecahBagian, bagianAplikasi, RencanaTulis, OpsiRencana, rencanaTulis, HasilPotong, batasiUkuran"],
       ["kode", "src/lib/kutipPerintah.ts", "68 baris \xB7 kutipPerintah.ts - mengamankan perintah agen sebelum dikirim ke shell. \xB7 ekspor: kutipUrlDiPerintah"],
       ["kode", "src/lib/labelAksi.ts", "263 baris \xB7 ekspor: JenisAksi, AksiInfo, namaPolos, infoAksi, sasaranAksi, perintahAksi, KELAS_JENIS"],
       ["kode", "src/lib/labelI18n.ts", "39 baris \xB7 Translation of labels that come from data, not from JSX. \xB7 ekspor: labelTerjemah, useLabel"],
+      ["kode", "src/lib/labelPaket.ts", "118 baris \xB7 labelPaket.ts - label jujur untuk paket bahasa di katalog ekstensi. \xB7 ekspor: JenisLabelPaket, LabelPaket, LABEL_PAKET, labelPaket, daftarLabelPaket"],
       ["kode", "src/lib/lang.ts", "305 baris \xB7 ekspor: detectLang, extLangUntuk, labelBahasa, LANG_LABEL, loadLangExtension, extensiUntukFile"],
       ["kode", "src/lib/layoutStore.ts", "170 baris \xB7 ekspor: PosisiSidebar, KerapatanLayout, useLayoutCustom, BARIS_LAYOUT"],
       ["kode", "src/lib/loopJadwal.ts", "111 baris \xB7 `/loop <interval> <prompt>` \u2014 re-send a prompt to the agent on a fixed \xB7 ekspor: MIN_LOOP_MS, MAX_LOOP_MS, MAX_LOOP_RUNS, LoopState, parseInterval, formatInterval, menitSampai, LoopInfo, startLoop, stopLoop, loopRunning"],
@@ -65946,6 +66655,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/paletteStore.ts", "320 baris \xB7 ekspor: PaletteMode, PaletteItem, fuzzyMatch, PaletteStore, usePalette"],
       ["kode", "src/lib/panelStore.ts", "137 baris \xB7 ekspor: PanelTabId, PANEL_TABS, usePanel"],
       ["kode", "src/lib/pathKey.ts", "25 baris \xB7 Kunci pembanding path: garis miring diseragamkan, huruf jadi kecil. \xB7 ekspor: kunciPath, pathSama"],
+      ["kode", "src/lib/pembungkusBahasa.ts", "141 baris \xB7 PEMBUNGKUS BAHASA + ATURAN KLAIM NILAI (item 161, sisa item 138). \xB7 ekspor: ATURAN_NILAI_ID, ATURAN_NILAI_EN, blokKlaimNilai, blokPenutup, FaktaNilai, JenisPelanggaranNilai, PelanggaranNilai, periksaKlaimNilai"],
       ["kode", "src/lib/peranIcons.ts", "54 baris \xB7 ekspor: IKON_PERAN, IKON_KUSTOM, pathIkonPeran"],
       ["kode", "src/lib/personaStore.ts", "356 baris \xB7 ekspor: Persona, PERSONA_BAWAAN, usePersona, personaAktif, blokPersona"],
       ["kode", "src/lib/planMode.ts", "126 baris \xB7 Mode rencana: agen mengusulkan langkah, user menyetujui, BARU dikerjakan. \xB7 ekspor: Rencana, rencanaKeTeks, PILIHAN_RENCANA, JawabanRencana, tafsirJawaban, adaPerubahanBelumDisimpan"],
@@ -65955,6 +66665,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/projectContext.ts", "221 baris \xB7 ekspor: ringkasanProyek, resetRingkasanProyek"],
       ["kode", "src/lib/promptIcons.ts", "141 baris \xB7 ekspor: IKON_CMD, WARNA_CMD, warnaIkonCmd, pathIkonCmd"],
       ["kode", "src/lib/promptLibrary.ts", "359 baris \xB7 ekspor: PromptItem, IkonCmd, BUILTIN_PROMPTS, loadUserPrompts, saveUserPrompts, allPrompts, matchPrompts, matchSnippets, snippetTrigger, expandSnippet, expandPrompt, expandPromptBody"],
+      ["kode", "src/lib/providerTahan.ts", "914 baris \xB7 providerTahan.ts \u2014 the resilience layer for ONE provider turn. \xB7 ekspor: SebabPulih, AlasanBerhenti, Kandidat, PercobaanKandidat, VonisPulih, GalatProvider, BAWAAN_PROVIDER_TAHAN, JendelaKredensial, buatJendela, rapikanJendela, jatahJendela, isiJendela, LaporanTahan, RingkasGagal, HasilTahan, OpsiTahan, galatProvider, adalahGalatProvider, saringRahasia, vonisStatus, vonisGalat, bacaSetelahHeader, OpsiJeda, jedaKe, pesanTunggu, JENDELA_PROVIDER, pesanGagal, panggilTahan"],
       ["kode", "src/lib/repeatDetect.ts", "273 baris \xB7 Deteksi jawaban yang mengulang-ulang dirinya sendiri. \xB7 ekspor: MIN_FRAGMENT_LENGTH, STOP_PATH_MIN_CHARS, REPETITION_LOOP_INTERRUPTED, HasilDeteksi, mengulangDominan, mengulangPelarian"],
       ["kode", "src/lib/rulesCatalog.ts", "179 baris \xB7 The rules the write-time check runs. \xB7 ekspor: RULES_BAWAAN"],
       ["kode", "src/lib/rulesEngine.ts", "248 baris \xB7 A mechanical check that runs before text is written. \xB7 ekspor: Severity, Rule, Finding, RuleDef, compileRule, compileRules, checkText, shouldBlock, blockMessage, bahasaDariPath"],
@@ -65969,15 +66680,19 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/simpleDiff.ts", "162 baris \xB7 ekspor: DiffKind, DiffRow, barisDiff, ringkasDiff, Hunk, bagiHunk, terapkanHunk, semuaHunk"],
       ["kode", "src/lib/skillsStore.ts", "150 baris \xB7 ekspor: useSkills, skillsDi"],
       ["kode", "src/lib/snippetStore.ts", "386 baris \xB7 ekspor: KonteksVar, nilaiVariabel, parseBody, terjemahBody, konteksDari, keCompletion, sisipkanSnippet, useSnip"],
+      ["kode", "src/lib/sshArgv.ts", "597 baris \xB7 sshArgv \u2014 penyusun argumen MURNI untuk ssh / scp / sftp. \xB7 ekspor: ModeSsh, KebijakanHostKey, TargetSsh, OpsiSsh, JalurSsh, KodeGalatSsh, GalatSsh, PORT_MIN, PORT_MAX, TIMEOUT_MS_BAWAAN, TIMEOUT_MS_MIN, TIMEOUT_MS_MAX, SERVER_ALIVE_DETIK, SERVER_ALIVE_MAKS, OPSI_DILARANG, OPSI_DIIZINKAN, hostSah, userSah, portSah, kunciSah, fingerprintSah, berkasOpsiSah, validasiTarget, kutipNilaiOpsi, kutipTokenRujukan, teksPerintah, jagaArgv, susunArgv, susunJalur, susunArgvJalankan, susunArgvSkripMentah, susunArgvSalin, teksArgv, FIELD_TERLARANG_DI_TARGET, targetMembawaRahasia"],
+      ["kode", "src/lib/sshRedaksi.ts", "211 baris \xB7 sshRedaksi \u2014 penyaring rahasia untuk keluaran SSH dan catatan log. \xB7 ekspor: PENANDA, PENANDA_KUNCI_PRIVAT, AturanRedaksi, ATURAN_REDAKSI, DILARANG_LOG, BOLEH_LOG, sensorRahasia, namaAturanCocok, adaRahasia, sensorArgv, sensorUntukLog"],
       ["kode", "src/lib/store.ts", "1725 baris \xB7 ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
       ["kode", "src/lib/subagentCustom.ts", "364 baris \xB7 ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
       ["kode", "src/lib/subagentIcons.ts", "236 baris \xB7 The icon set for custom sub-agents. \xB7 ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
-      ["kode", "src/lib/subagentRoles.ts", "169 baris \xB7 ekspor: PeranId, PeranIkon, Peran, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix"],
+      ["kode", "src/lib/subagentRoles.ts", "334 baris \xB7 ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
       ["kode", "src/lib/subagentRouter.ts", "99 baris \xB7 ekspor: SubagentTaskCategory, SubagentModelSource, SubagentModelCandidate, RouteSubagentModelInput, RoutedSubagentModel, classifySubagentTask, capabilityScore, routeSubagentModel"],
       ["kode", "src/lib/subagentStore.ts", "1437 baris \xB7 ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
       ["kode", "src/lib/subsetAlat.ts", "244 baris \xB7 Subset alat per tugas - dan gerbang rencana pada langkah pertama. \xB7 ekspor: butuhAlatWeb, tugasButuhWeb, tugasBerat, TOOL_RENCANA_PERTAMA, alatRencanaPertama, gerbangRencanaSiap, ALAT_BUTUH_FOLDER, butuhFolder, TOOL_TULIS_BERKAS, alatUntukTugas, ALAT_TERAKHIR, catatAlatTerakhir"],
+      ["kode", "src/lib/subsetTugas.ts", "926 baris \xB7 Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). \xB7 ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
+      ["kode", "src/lib/suntikKonteks.ts", "581 baris \xB7 suntikKonteks.ts \u2014 menyusun SATU giliran agen dari tiga sumber. \xB7 ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
       ["kode", "src/lib/symbolTree.ts", "201 baris \xB7 ekspor: SimpulSimbol, ikonKind, labelKind, pohonSimbol, jalurKe, barisSticky, sebaya"],
-      ["kode", "src/lib/systemPrompt.ts", "1374 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
+      ["kode", "src/lib/systemPrompt.ts", "1431 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
       ["kode", "src/lib/systemPromptLanguages.ts", "457 baris \xB7 Translated prompt blocks for the UI languages other than English and \xB7 ekspor: BlokPromptSebagian, LANGS"],
       ["kode", "src/lib/tampilanStore.ts", "57 baris \xB7 ekspor: ModeTampilan, useTampilan, EXT_GAMBAR, apakahGambar, mimeGambar"],
       ["kode", "src/lib/tasksStore.ts", "572 baris \xB7 ekspor: isiKonteks, TaskState, channelUntuk, sumberUntuk, useTasks, bindTaskListeners"],
@@ -65985,10 +66700,11 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/terminalStore.ts", "545 baris \xB7 ekspor: TerminalStore, useTerminal, defaultStartCommand"],
       ["kode", "src/lib/testsStore.ts", "292 baris \xB7 ekspor: TestFramework, TestCounts, TestRunResult, useTests, hitungHasil"],
       ["kode", "src/lib/themeBuilder.ts", "133 baris \xB7 Theme Builder \u2014 reading the live palette, overriding it, and exporting it. \xB7 ekspor: TOKEN_WARNA, TokenWarna, OverrideTema, bacaPalet, hexBisa, terapkanOverride, hexKeRgba, overrideTerisi"],
-      ["kode", "src/lib/themes.ts", "318 baris \xB7 Tokens the Theme Builder may override. \xB7 ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
+      ["kode", "src/lib/themes.ts", "331 baris \xB7 Tokens the Theme Builder may override. \xB7 ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
       ["kode", "src/lib/toolGate.ts", "436 baris \xB7 Sekat tool untuk agen di dalam editor. \xB7 ekspor: ToolSection, SECTION_URUTAN, sectionOf, ToolGroup, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
       ["kode", "src/lib/toolRules.ts", "165 baris \xB7 Per-tool permission rules. \xB7 ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
       ["kode", "src/lib/types.ts", "1909 baris \xB7 ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, \u2026(+77)"],
+      ["kode", "src/lib/unduhInstal.ts", '657 baris \xB7 UNDUH-INSTAL - jalur "unduh -> periksa -> pasang" untuk paket EKSTENSI. \xB7 ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal'],
       ["kode", "src/lib/updaterStore.ts", "251 baris \xB7 ekspor: UpdateStatus, useUpdater, labelStatus"],
       ["kode", "src/lib/useAiChunkListener.ts", "33 baris \xB7 ekspor: useAiChunkListener"],
       ["kode", "src/lib/useAturanTersambung.ts", "76 baris \xB7 Wires the Rules SETTINGS to the Rules ENGINE. \xB7 ekspor: terapkanSetelanAturan, useAturanTersambung"],
@@ -65999,18 +66715,23 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/waktu.ts", "86 baris \xB7 Format durasi dan registry timer. \xB7 ekspor: mulaiTimer, waktuMulai, lupakanTimer, bersihkanTimer, formatElapsed, durasiMs"],
       ["kode", "src/lib/workspaceStore.ts", "295 baris \xB7 ekspor: useWs, bindWorkspaceListeners"],
       ["kode", "src/lib/xtermRegistry.ts", "237 baris \xB7 ekspor: TermHandle, fontAman, retheme, reSrMode, getHandle, ensureHandle, writeTo, flushQueue, clearTerm, disposeHandle, fitTerm, readBuffer, findRow, getSelection, selectLine, termSize, termOptionsTheme, activeIds"],
-      ["kode", "src/lib/zephyrCari.ts", "581 baris \xB7 Pencarian fakta tentang Zephyr dari indeks yang IKUT DIBUNDEL di aplikasi. \xB7 ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, CaraCocok, HasilFakta, pecahKueri, namaDalamKueri, kataTakDikenal, jumlahEntri, versiFakta, kategoriTersedia, cariFakta, hitungCocok, formatHasil, cariKode, BATAS_KARAKTER_SUNTIK, BATAS_HASIL_SUNTIK, kepalaSuntikanIndeks, petaIndeks, OpsiSuntikan, suntikanIndeks"],
+      ["kode", "src/lib/zephyrCari.ts", "691 baris \xB7 Pencarian fakta tentang Zephyr dari indeks yang IKUT DIBUNDEL di aplikasi. \xB7 ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, CaraCocok, HasilFakta, pecahKueri, namaDalamKueri, kataTakDikenal, jumlahEntri, versiFakta, capTersimpan, capBasi, kategoriTersedia, cariFakta, hitungCocok, formatHasil, cariKode, BATAS_KARAKTER_SUNTIK, BATAS_HASIL_SUNTIK, ukuranCacheSuntikSesi, bersihkanCacheSuntikSesi, kepalaSuntikanIndeks, petaIndeks, OpsiSuntikan, suntikanIndeks"],
+      ["kode", "src/lib/zephyrDokumen.ts", "512 baris \xB7 zephyrDokumen.ts - pencarian LOKAL atas isi dokumen Zephyr yang dibundel. \xB7 ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, BATAS_POTONGAN, BATAS_POTONGAN_BARU, BATAS_KATA_KUERI, BATAS_HASIL_SUNTIK, BATAS_KARAKTER_SUNTIK, BATAS_BARU_BAWAAN, CaraCocokDokumen, HasilDokumen, MetaDokumen, OpsiCariDokumen, rapikanBaris, potongPotongan, pecahKueri, barisTeksPertama, barisJudulBagian, cariDokumen, hitungCocok, kataTakDikenal, kataKunciDokumen, pertanyaanBaru, versiTeratas, apaYangBaru, jawabApaYangBaru, formatHasilDokumen, suntikanDokumen, daftarBerkas, metaBerkas, jumlahBerkas, jumlahBagian, versiDokumen, bundelKosong"],
+      ["kode", "src/lib/zephyrDokumenData.ts", "546 baris \xB7 BERKAS HASIL GENERATE - jangan disunting tangan. \xB7 ekspor: DokumenBagian, DokumenBerkas, DOKUMEN_VERSI, DOKUMEN_BERKAS, DOKUMEN_BAGIAN"],
       ["kode", "src/lib/zephyrRuntime.ts", "265 baris \xB7 Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. \xB7 ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
+      ["kode", "src/lib/zephyrTools/ambilWeb.ts", '736 baris \xB7 ambilWeb.ts \u2014 rumah satu-satunya untuk kemampuan "AMBIL-WEB" agen Zephyr. \xB7 ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb'],
       ["kode", "src/lib/zephyrTools/awalan.ts", "33 baris \xB7 Satu-satunya definisi awalan nama tool. \xB7 ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
-      ["kode", "src/lib/zephyrTools/builtins.ts", "2551 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
-      ["kode", "src/lib/zephyrTools/catalog.ts", "639 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
+      ["kode", "src/lib/zephyrTools/builtins.ts", "2565 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
+      ["kode", "src/lib/zephyrTools/catalog.ts", "611 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
       ["kode", "src/lib/zephyrTools/deskripsiTool.ts", "816 baris \xB7 ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
       ["kode", "src/lib/zephyrTools/deskripsiToolHook.ts", "35 baris \xB7 deskripsiToolHook.ts - versi HOOK dari deskripsi tool, sengaja dipisah. \xB7 ekspor: useDeskripsiTool"],
-      ["kode", "src/lib/zephyrTools/kendaliJendela.ts", "420 baris \xB7 Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. \xB7 ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar"],
-      ["kode", "src/lib/zephyrTools/mcp.ts", "597 baris \xB7 Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. \xB7 ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
-      ["kode", "src/lib/zephyrTools/web.ts", "752 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: TOOL_WEB"],
+      ["kode", "src/lib/zephyrTools/kebijakanIsiWeb.ts", "491 baris \xB7 KEBIJAKAN ISI WEB \u2014 satu tempat yang memutuskan apakah isi halaman dari \xB7 ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG, KebijakanIsiWeb, Keputusan, KeputusanUrl, HasilIsi, HasilSaring, Fetcher, KEBIJAKAN_TOLAK_SEMUA, kebijakanDariSetelan, normalisasiHost, isIpLiteral, isIpMetadata, isIpPrivat, isIpSelaluDilarang, isIpTerlarang, namaLokal, hostDiAllowlist, portSahBerlaku, hopBerlaku, periksaUrl, gerbangIsiKonten, ikutiRedirect, batasByteBerlaku, batasKarakterBerlaku, ukuranByte, batasiByte, potongKeluaran, saringKeModel, ambilIsiWeb"],
+      ["kode", "src/lib/zephyrTools/kendaliJendela.ts", "609 baris \xB7 Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. \xB7 ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, DOK_LAPORAN_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar, TARGET_TANGKAP, TargetTangkap, targetTangkapDikenal, periksaTargetTangkap, periksaPathTangkap, tangkapJendela"],
+      ["kode", "src/lib/zephyrTools/mcp.ts", "726 baris \xB7 Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. \xB7 ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
+      ["kode", "src/lib/zephyrTools/web.ts", "907 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+      ["kode", "src/lib/zephyrTools/worktree.ts", "279 baris \xB7 worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. \xB7 ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
       ["kode", "src/lib/zephyrTools/zephyrIngat.ts", "207 baris \xB7 `ingat` - memori lintas sesi milik Zeph AI sendiri. \xB7 ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
-      ["kode", "src/lib/zephyrTools/zephyrSelf.ts", "603 baris \xB7 zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. \xB7 ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
+      ["kode", "src/lib/zephyrTools/zephyrSelf.ts", "676 baris \xB7 zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. \xB7 ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
       ["kode", "src/main.tsx", "51 baris \xB7 tanpa ekspor"],
       ["kode", "src/styles/editor-themes.ts", "160 baris \xB7 ekspor: warnaToken, zephyrHighlight, editorTheme, EDITOR_THEME_IDS"],
       ["kode", "src/vite-env.d.ts", '2 baris \xB7 /// <reference types="vite/client" /> \xB7 tanpa ekspor'],
@@ -66124,7 +66845,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Add from file\u2026", "label antarmuka \xB7 EN: Add from file\u2026 \xB7 ID: Add from file\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Add host", "label antarmuka \xB7 EN: Add host \xB7 ID: Add host \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Add one in Settings, Dev Environment.", "label antarmuka \xB7 EN: Add one in Settings, Dev Environment. \xB7 ID: Add one in Settings, Dev Environment. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Add to queue", "label antarmuka \xB7 ID: Tambahkan ke antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Add to queue", "label antarmuka \xB7 EN: Add to queue \xB7 ID: Tambahkan ke antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Added to the queue", "label antarmuka \xB7 EN: Added to the queue \xB7 ID: Ditambahkan ke antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Agent", "label antarmuka \xB7 EN: Agent \xB7 ID: Agen \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Agent CLI", "label antarmuka \xB7 EN: CLI agents \xB7 ID: Agent CLI \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66181,7 +66902,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Atas", "label antarmuka \xB7 EN: Top \xB7 ID: Atas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Attach", "label antarmuka \xB7 EN: Attach \xB7 ID: Lampirkan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Attached {name}", "label antarmuka \xB7 EN: Attached {name} \xB7 ID: Terlampir {name} \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Aturan", "label antarmuka \xB7 ID: Aturan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Aturan", "label antarmuka \xB7 EN: Rules \xB7 ID: Aturan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Aturan tambahan", "label antarmuka \xB7 EN: Extra rules \xB7 ID: Aturan tambahan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Aturan yang selalu berlaku untuk persona ini. Kosongkan kalau tidak ada.", "label antarmuka \xB7 EN: Rules that always apply to this persona. Leave empty if there are none. \xB7 ID: Aturan yang selalu berlaku untuk persona ini. Kosongkan kalau tidak ada. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Audit", "label antarmuka \xB7 EN: Audit \xB7 ID: Audit \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66257,7 +66978,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Biaya adalah estimasi, bukan tagihan resmi provider.", "label antarmuka \xB7 EN: Cost is an estimate, not an official provider invoice. \xB7 ID: Biaya adalah estimasi, bukan tagihan resmi provider. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Bind", "label antarmuka \xB7 EN: Bind \xB7 ID: Ikat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Blame inline, riwayat baris, dan graf commit", "label antarmuka \xB7 EN: Inline blame, line history, and the commit graph"],
-      ["label", "Blame is not available for this file", "label antarmuka \xB7 ID: Blame is not available for this file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Blame is not available for this file", "label antarmuka \xB7 EN: Blame is not available for this file \xB7 ID: Blame is not available for this file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Blame tidak tersedia untuk file ini", "label antarmuka \xB7 EN: Blame is not available for this file \xB7 ID: Blame tidak tersedia untuk file ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Blank lines kept above and below the cursor while scrolling.", "label antarmuka \xB7 EN: Blank lines kept above and below the cursor while scrolling. \xB7 ID: Baris kosong yang disisakan di atas dan bawah kursor saat menggulir. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Block", "label antarmuka \xB7 EN: Block \xB7 ID: Blokir \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66406,7 +67127,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Clear the queue", "label antarmuka \xB7 EN: Clear the queue \xB7 ID: Kosongkan antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Clear {n} done", "label antarmuka \xB7 EN: Clear {n} done \xB7 ID: Hapus {n} selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Click", "label antarmuka \xB7 EN: Click \xB7 ID: Click \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Click = open the agent in the bottom terminal panel.", "label antarmuka \xB7 ID: Click = open the agent in the bottom terminal panel. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Click = open the agent in the bottom terminal panel.", "label antarmuka \xB7 EN: Click = open the agent in the bottom terminal panel. \xB7 ID: Click = open the agent in the bottom terminal panel. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut.", "label antarmuka \xB7 EN: Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut. \xB7 ID: Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Click copy for its install command, then run it in the terminal.", "label antarmuka \xB7 EN: Click copy for its install command, then run it in the terminal. \xB7 ID: Click copy for its install command, then run it in the terminal. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Click the editor gutter to set a breakpoint.", "label antarmuka \xB7 EN: Click the editor gutter to set a breakpoint. \xB7 ID: Click the editor gutter to set a breakpoint. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66422,7 +67143,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Close pane", "label antarmuka \xB7 EN: Close pane"],
       ["label", "Close preview", "label antarmuka \xB7 EN: Close preview \xB7 ID: Close preview \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Close quick chat", "label antarmuka \xB7 EN: Close quick chat \xB7 ID: Close quick chat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Close tab", "label antarmuka \xB7 ID: Close tab \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Close tab", "label antarmuka \xB7 EN: Close tab \xB7 ID: Close tab \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Close terminal tab", "label antarmuka \xB7 EN: Close terminal tab \xB7 ID: Close terminal tab \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Close workspace", "label antarmuka \xB7 EN: Close workspace \xB7 ID: Close workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Code action failed", "label antarmuka \xB7 EN: Code action failed \xB7 ID: Code action failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66449,13 +67170,13 @@ var init_zephyrIndeks = __esm({
       ["label", "Commits not merged into another branch will be lost PERMANENTLY.", "label antarmuka \xB7 EN: Commits not merged into another branch will be lost PERMANENTLY. \xB7 ID: Commits not merged into another branch will be lost PERMANENTLY. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Compact", "label antarmuka \xB7 EN: Compact \xB7 ID: Compact \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Compact Conversation", "label antarmuka \xB7 EN: Compact Conversation \xB7 ID: Kompakkan Percakapan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Compact context", "label antarmuka \xB7 ID: Padatkan konteks \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Compact context", "label antarmuka \xB7 EN: Compact context \xB7 ID: Padatkan konteks \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Compiled and ready. A rule whose pattern fails to compile is dropped rather than breaking every save.", "label antarmuka \xB7 EN: Compiled and ready. A rule whose pattern fails to compile is dropped rather than breaking every save. \xB7 ID: Terkompilasi dan siap. Aturan yang polanya gagal dikompilasi dibuang, bukan membuat semua penyimpanan gagal. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Confirm", "label antarmuka \xB7 EN: Confirm \xB7 ID: Konfirmasi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Confirm before closing the window", "label antarmuka \xB7 EN: Confirm before closing the window \xB7 ID: Konfirmasi sebelum menutup jendela \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Connect", "label antarmuka \xB7 EN: Connect \xB7 ID: Connect \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Connecting\u2026", "label antarmuka \xB7 EN: Connecting\u2026 \xB7 ID: Connecting\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Context is already short - {n} of {keep} messages kept", "label antarmuka \xB7 ID: Konteks sudah pendek - {n} dari {keep} pesan dipertahankan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Context is already short - {n} of {keep} messages kept", "label antarmuka \xB7 EN: Context is already short - {n} of {keep} messages kept \xB7 ID: Konteks sudah pendek - {n} dari {keep} pesan dipertahankan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Context usage", "label antarmuka \xB7 EN: Context usage \xB7 ID: Pemakaian konteks \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Context usage (estimate)", "label antarmuka \xB7 EN: Context usage (estimate) \xB7 ID: Pemakaian konteks (perkiraan) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Context used", "label antarmuka \xB7 EN: Context used \xB7 ID: Konteks terpakai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66515,14 +67236,14 @@ var init_zephyrIndeks = __esm({
       ["label", "Default terminal", "label antarmuka \xB7 EN: Default terminal \xB7 ID: Terminal bawaan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Default voice", "label antarmuka \xB7 EN: Default voice \xB7 ID: Suara bawaan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Definisi tidak ditemukan", "label antarmuka \xB7 EN: Definition not found \xB7 ID: Definisi tidak ditemukan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Definition not found", "label antarmuka \xB7 ID: Definition not found \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Definition not found", "label antarmuka \xB7 EN: Definition not found \xB7 ID: Definition not found \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete", "label antarmuka \xB7 EN: Delete \xB7 ID: Hapus \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete all", "label antarmuka \xB7 EN: Delete all \xB7 ID: Hapus semua \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete all chat history", "label antarmuka \xB7 EN: Delete all chat history \xB7 ID: Hapus semua riwayat chat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete all chat history?", "label antarmuka \xB7 EN: Delete all chat history? \xB7 ID: Hapus semua riwayat chat? \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete branch", "label antarmuka \xB7 EN: Delete branch \xB7 ID: Delete branch \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Delete chat", "label antarmuka \xB7 EN: Delete chat \xB7 ID: Hapus chat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Delete failed", "label antarmuka \xB7 ID: Delete failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Delete failed", "label antarmuka \xB7 EN: Delete failed \xB7 ID: Delete failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Deny", "label antarmuka \xB7 EN: Deny \xB7 ID: Tolak \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Destructive commands cannot be added to the allow list.", "label antarmuka \xB7 EN: Destructive commands cannot be added to the allow list. \xB7 ID: Destructive commands cannot be added to the allow list. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Detail build", "label antarmuka \xB7 EN: Build details \xB7 ID: Detail build \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66576,7 +67297,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Edit sub-agent", "label antarmuka \xB7 EN: Edit sub-agent \xB7 ID: Edit sub-agent \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Edit the queued message", "label antarmuka \xB7 EN: Edit the queued message \xB7 ID: Ubah pesan di antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Editor", "label antarmuka \xB7 EN: Editor \xB7 ID: Editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Empty group - open a file here", "label antarmuka \xB7 ID: Empty group - open a file here \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Empty group - open a file here", "label antarmuka \xB7 EN: Empty group - open a file here \xB7 ID: Empty group - open a file here \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Enable", "label antarmuka \xB7 EN: Enable \xB7 ID: Nyalakan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Enable IntelliSense (LSP)", "label antarmuka \xB7 EN: Enable IntelliSense (LSP) \xB7 ID: Enable IntelliSense (LSP) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Enable voice", "label antarmuka \xB7 EN: Enable voice \xB7 ID: Aktifkan suara \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66604,7 +67325,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Expand Selection", "label antarmuka \xB7 EN: Expand Selection \xB7 ID: Perluas Seleksi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Explain this file", "label antarmuka \xB7 EN: Explain this file \xB7 ID: Jelaskan berkas ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Explain what this file does, step by step.", "label antarmuka \xB7 EN: Explain what this file does, step by step. \xB7 ID: Jelaskan apa yang dilakukan berkas ini, langkah demi langkah. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Explore", "label antarmuka \xB7 ID: Explore \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Explore", "label antarmuka \xB7 EN: Explore \xB7 ID: Explore \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Explorer", "label antarmuka \xB7 EN: Explorer \xB7 ID: Explorer \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Exposed on port", "label antarmuka \xB7 EN: Exposed on port \xB7 ID: Exposed on port \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Extension JS code runs in", "label antarmuka \xB7 EN: Extension JS code runs in \xB7 ID: Extension JS code runs in \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66630,7 +67351,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Filter tools", "label antarmuka \xB7 EN: Filter tools \xB7 ID: Saring alat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Find", "label antarmuka \xB7 EN: Find \xB7 ID: Cari \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Find All References", "label antarmuka \xB7 EN: Find All References \xB7 ID: Cari Semua Referensi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Find References failed", "label antarmuka \xB7 ID: Find References failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Find References failed", "label antarmuka \xB7 EN: Find References failed \xB7 ID: Find References failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Find References gagal", "label antarmuka \xB7 EN: Find References failed \xB7 ID: Find References gagal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Find in Files", "label antarmuka \xB7 EN: Find in Files \xB7 ID: Cari di File \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Find the bug", "label antarmuka \xB7 EN: Find the bug \xB7 ID: Cari bug-nya \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66693,9 +67414,9 @@ var init_zephyrIndeks = __esm({
       ["label", "Git will reject the push while those commits are not local. Pull first, then push?", "label antarmuka \xB7 EN: Git will reject the push while those commits are not local. Pull first, then push? \xB7 ID: Git will reject the push while those commits are not local. Pull first, then push? \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "GitHub account", "label antarmuka \xB7 EN: GitHub account \xB7 ID: GitHub account \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Go", "label antarmuka \xB7 EN: Go \xB7 ID: Go \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Go to", "label antarmuka \xB7 ID: Go to \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Go to", "label antarmuka \xB7 EN: Go to \xB7 ID: Go to \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Go to Definition", "label antarmuka \xB7 EN: Go to Definition \xB7 ID: Ke Definisi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Go to Definition failed", "label antarmuka \xB7 ID: Go to Definition failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Go to Definition failed", "label antarmuka \xB7 EN: Go to Definition failed \xB7 ID: Go to Definition failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Go to Definition gagal", "label antarmuka \xB7 EN: Go to Definition failed \xB7 ID: Go to Definition gagal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Go to File\u2026", "label antarmuka \xB7 EN: Go to File\u2026 \xB7 ID: Ke File\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Go to Line\u2026", "label antarmuka \xB7 EN: Go to Line\u2026 \xB7 ID: Ke Baris\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66751,7 +67472,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Hentikan tes setelah (detik)", "label antarmuka \xB7 EN: Stop tests after (seconds) \xB7 ID: Hentikan tes setelah (detik) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Hide AI panel", "label antarmuka \xB7 EN: Hide AI panel \xB7 ID: Sembunyikan panel AI \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Hide every panel and keep only the text. Ctrl+K Z", "label antarmuka \xB7 EN: Hide every panel and keep only the text. Ctrl+K Z \xB7 ID: Sembunyikan semua panel dan sisakan teksnya saja. Ctrl+K Z \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Hide panel", "label antarmuka \xB7 ID: Hide panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Hide panel", "label antarmuka \xB7 EN: Hide panel \xB7 ID: Hide panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Hide replace", "label antarmuka \xB7 EN: Hide replace \xB7 ID: Hide replace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Hide the plan", "label antarmuka \xB7 EN: Hide the plan \xB7 ID: Sembunyikan rencana \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Hide the queue", "label antarmuka \xB7 EN: Hide the queue \xB7 ID: Sembunyikan antrean \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66765,7 +67486,7 @@ var init_zephyrIndeks = __esm({
       ["label", "How the AI answers: length, evidence, order, tone. Leave empty for the default.", "label antarmuka \xB7 EN: How the AI answers: length, evidence, order, tone. Leave empty for the default. \xB7 ID: How the AI answers: length, evidence, order, tone. Leave empty for the default. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "How the AI carries itself. A persona only changes the way it talks and thinks \u2014 the tool list, project rules, and your own instructions still apply.", "label antarmuka \xB7 EN: How the AI carries itself. A persona only changes the way it talks and thinks \u2014 the tool list, project rules, and your own instructions still apply. \xB7 ID: How the AI carries itself. A persona only changes the way it talks and thinks \u2014 the tool list, project rules, and your own instructions still apply. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "How to use it", "label antarmuka \xB7 EN: How to use it \xB7 ID: Cara pakai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", `How to use it: hit "Active" on a persona row to turn it on \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\\'s built-in orchestrator with nothing added.`, `label antarmuka \xB7 ID: How to use it: hit "Active" on a persona row to turn it on \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\\'s built-in orchestrator with nothing added. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH`],
+      ["label", `How to use it: hit "Active" on a persona row to turn it on \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\\'s built-in orchestrator with nothing added.`, `label antarmuka \xB7 EN: How to use it: hit "Active" on a persona row to turn it on \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\\'s built-in orchestrator with nothing added. \xB7 ID: How to use it: hit "Active" on a persona row to turn it on \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "Zeph" active: that is Zephyr\\'s built-in orchestrator with nothing added. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH`],
       ["label", `How to use it: hit "Active" on a persona row to use it \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr's built-in behaviour with nothing added.`, `label antarmuka \xB7 EN: How to use it: hit "Active" on a persona row to use it \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr's built-in behaviour with nothing added. \xB7 ID: How to use it: hit "Active" on a persona row to use it \u2014 it applies to the next chat, no restart needed. "Duplicate" copies a built-in persona so you can change it without losing the original. If unsure, leave "General" active: that is Zephyr's built-in behaviour with nothing added. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH`],
       ["label", "How to use:", "label antarmuka \xB7 EN: How to use: \xB7 ID: How to use: \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "HydraFusion", "label antarmuka \xB7 EN: HydraFusion \xB7 ID: HydraFusion \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66775,7 +67496,7 @@ var init_zephyrIndeks = __esm({
       ["label", "INPUT", "label antarmuka \xB7 EN: INPUT \xB7 ID: INPUT \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Icon theme file tree: inisial bahasa dengan warna resmi tiap bahasa.", "label antarmuka \xB7 EN: Icon theme file tree: language initial with each languages official color. \xB7 ID: Icon theme file tree: inisial bahasa dengan warna resmi tiap bahasa. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Identifier", "label antarmuka \xB7 EN: Identifier \xB7 ID: Identifier \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Identitas", "label antarmuka \xB7 ID: Identitas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Identitas", "label antarmuka \xB7 EN: Identity \xB7 ID: Identitas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Identitas ini dipakai saat commit dari Zephyr. Dibiarkan kosong = pakai konfigurasi git config yang sudah ada di mesin/repo.", "label antarmuka \xB7 EN: This identity is used when committing from Zephyr. Leave it empty to use the git config already on the machine/repo."],
       ["label", "Ikon Bulat", "label antarmuka \xB7 EN: Round Icons \xB7 ID: Ikon Bulat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ikut chat", "label antarmuka \xB7 EN: Follow chat \xB7 ID: Ikut chat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66786,21 +67507,21 @@ var init_zephyrIndeks = __esm({
       ["label", "In progress", "label antarmuka \xB7 EN: In progress \xB7 ID: In progress \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Info panel - full details are in the Subagents tab.", "label antarmuka \xB7 EN: Info panel - full details are in the Subagents tab. \xB7 ID: Panel info - detail penuh ada di tab Subagents. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Info subagent di kanan chat", "label antarmuka \xB7 EN: Subagent info beside the chat \xB7 ID: Info subagent di kanan chat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Ini yang benar-benar dikirim ke model (tanpa aturan proyek & konteks).", "label antarmuka \xB7 ID: Ini yang benar-benar dikirim ke model (tanpa aturan proyek & konteks). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Ini yang benar-benar dikirim ke model (tanpa aturan proyek & konteks).", "label antarmuka \xB7 EN: This is what is actually sent to the model (without project rules & context). \xB7 ID: Ini yang benar-benar dikirim ke model (tanpa aturan proyek & konteks). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Inline blame, line history, and commit graph", "label antarmuka \xB7 EN: Inline blame, line history, and commit graph \xB7 ID: Blame inline, riwayat baris, dan grafik commit \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Input", "label antarmuka \xB7 EN: Input \xB7 ID: Input \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Input copied", "label antarmuka \xB7 EN: Input copied \xB7 ID: Input disalin \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Insert the code at the cursor position", "label antarmuka \xB7 EN: Insert the code at the cursor position \xB7 ID: Sisipkan kode di posisi kursor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install", "label antarmuka \xB7 EN: Install \xB7 ID: Install \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install command", "label antarmuka \xB7 EN: Install command \xB7 ID: Install command \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Install failed", "label antarmuka \xB7 ID: Pemasangan gagal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Install failed", "label antarmuka \xB7 EN: Install failed \xB7 ID: Pemasangan gagal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install first to see the actual contributions from the manifest.", "label antarmuka \xB7 EN: Install first to see the actual contributions from the manifest. \xB7 ID: Install first to see the actual contributions from the manifest. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install from the bundled catalog", "label antarmuka \xB7 EN: Install from the bundled catalog \xB7 ID: Install from the bundled catalog \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install the language server", "label antarmuka \xB7 EN: Install the language server \xB7 ID: Pasang language server \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install to all", "label antarmuka \xB7 EN: Install to all \xB7 ID: Install to all \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Install with Zephyr", "label antarmuka \xB7 EN: Install with Zephyr \xB7 ID: Pasang dengan Zephyr \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Installed on this machine", "label antarmuka \xB7 EN: Installed on this machine \xB7 ID: Terpasang di komputer ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Installing...", "label antarmuka \xB7 ID: Memasang... \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Installing...", "label antarmuka \xB7 EN: Installing... \xB7 ID: Memasang... \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Instruksi tambahan", "label antarmuka \xB7 EN: Extra instructions \xB7 ID: Instruksi tambahan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "IntelliSense is off. Turn it on above to change the servers below.", "label antarmuka \xB7 EN: IntelliSense is off. Turn it on above to change the servers below. \xB7 ID: IntelliSense mati. Nyalakan di atas untuk mengubah server di bawah. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Interval", "label antarmuka \xB7 EN: Interval \xB7 ID: Interval \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66842,7 +67563,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Job name", "label antarmuka \xB7 EN: Job name \xB7 ID: Nama tugas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Join Editor Groups", "label antarmuka \xB7 EN: Join Editor Groups \xB7 ID: Gabung Grup Editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Jumlah chunk", "label antarmuka \xB7 EN: Chunk count \xB7 ID: Jumlah chunk \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Just stop", "label antarmuka \xB7 ID: Hentikan saja \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Just stop", "label antarmuka \xB7 EN: Just stop \xB7 ID: Hentikan saja \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kalau dimatikan, server MCP berhenti menerima perintah - konfigurasi di CLI tidak diubah.", "label antarmuka \xB7 EN: When off, the MCP server stops accepting commands - CLI configs are left untouched. \xB7 ID: Kalau dimatikan, server MCP berhenti menerima perintah - konfigurasi di CLI tidak diubah. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kamu", "label antarmuka \xB7 EN: You \xB7 ID: Kamu \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham.", "label antarmuka \xB7 EN: You are a teaching assistant. The goal is not only to finish the task but to make the user understand it. \xB7 ID: Kamu asisten yang mengajar. Tujuannya bukan hanya menyelesaikan tugas, tapi membuat penggunanya paham. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66882,7 +67603,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Keyboard Shortcuts", "label antarmuka \xB7 EN: Keyboard Shortcuts \xB7 ID: Pintasan Keyboard \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Keymap ala Sublime", "label antarmuka \xB7 EN: Sublime-style Keymap \xB7 ID: Keymap ala Sublime \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kill Active Pane", "label antarmuka \xB7 EN: Kill Active Pane \xB7 ID: Matikan Pane Aktif \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Kill process", "label antarmuka \xB7 ID: Kill process \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Kill process", "label antarmuka \xB7 EN: Kill process \xB7 ID: Kill process \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kind", "label antarmuka \xB7 EN: Kind \xB7 ID: Jenis \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kiri", "label antarmuka \xB7 EN: Left \xB7 ID: Kiri \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Kirim", "label antarmuka \xB7 EN: Send \xB7 ID: Kirim \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -66973,8 +67694,8 @@ var init_zephyrIndeks = __esm({
       ["label", "Make this the active root", "label antarmuka \xB7 EN: Make this the active root \xB7 ID: Jadikan ini akar yang aktif \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Maksimal pane per tab", "label antarmuka \xB7 EN: Maximum panes per tab"],
       ["label", "Maksimum baris yang dibaca (default 40)", "label antarmuka \xB7 EN: Maximum lines read (default 40)"],
-      ["label", "Manage GitHub token", "label antarmuka \xB7 ID: Manage GitHub token \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted).", "label antarmuka \xB7 ID: Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Manage GitHub token", "label antarmuka \xB7 EN: Manage GitHub token \xB7 ID: Manage GitHub token \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted).", "label antarmuka \xB7 EN: Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted). \xB7 ID: Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Manage Workspace Trust", "label antarmuka \xB7 EN: Manage Workspace Trust \xB7 ID: Kelola Kepercayaan Workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Manage personas & sub-agents", "label antarmuka \xB7 EN: Manage personas & sub-agents \xB7 ID: Kelola persona & sub-agent \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Mark all read", "label antarmuka \xB7 EN: Mark all read \xB7 ID: Mark all read \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67076,7 +67797,7 @@ var init_zephyrIndeks = __esm({
       ["label", "No active editor tab", "label antarmuka \xB7 EN: No active editor tab \xB7 ID: No active editor tab \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No active tab to insert into", "label antarmuka \xB7 EN: No active tab to insert into \xB7 ID: No active tab to insert into \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No agent CLI detected.", "label antarmuka \xB7 EN: No agent CLI detected. \xB7 ID: No agent CLI detected. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list.", "label antarmuka \xB7 ID: No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list.", "label antarmuka \xB7 EN: No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list. \xB7 ID: No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No agent has run in this conversation.", "label antarmuka \xB7 EN: No agent has run in this conversation. \xB7 ID: Tidak ada agen yang berjalan di percakapan ini. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No agent is running.", "label antarmuka \xB7 EN: No agent is running. \xB7 ID: Tidak ada agen yang berjalan. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No allowed commands yet.", "label antarmuka \xB7 EN: No allowed commands yet. \xB7 ID: No allowed commands yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67085,13 +67806,13 @@ var init_zephyrIndeks = __esm({
       ["label", "No changes - the working tree is clean.", "label antarmuka \xB7 EN: No changes - the working tree is clean. \xB7 ID: No changes - the working tree is clean. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No chat settings match.", "label antarmuka \xB7 EN: No chat settings match. \xB7 ID: Tidak ada pengaturan chat yang cocok. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No chats match.", "label antarmuka \xB7 EN: No chats match. \xB7 ID: Tidak ada chat yang cocok. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No colours in this document", "label antarmuka \xB7 ID: No colours in this document \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No colours in this document", "label antarmuka \xB7 EN: No colours in this document \xB7 ID: No colours in this document \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No conflict markers left in this file.", "label antarmuka \xB7 EN: No conflict markers left in this file. \xB7 ID: No conflict markers left in this file. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No connection yet. Once an external AI CLI greets", "label antarmuka \xB7 EN: No connection yet. Once an external AI CLI greets \xB7 ID: No connection yet. Once an external AI CLI greets \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No conversation is open", "label antarmuka \xB7 ID: Tidak ada percakapan yang terbuka \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No conversation is open", "label antarmuka \xB7 EN: No conversation is open \xB7 ID: Tidak ada percakapan yang terbuka \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", 'No conversations yet. Click "+ New chat".', 'label antarmuka \xB7 EN: No conversations yet. Click "+ New chat". \xB7 ID: Belum ada percakapan. Klik "+ Chat baru". \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH'],
       ["label", "No credentials stored yet.", "label antarmuka \xB7 EN: No credentials stored yet. \xB7 ID: No credentials stored yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No cursor in the editor", "label antarmuka \xB7 ID: No cursor in the editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No cursor in the editor", "label antarmuka \xB7 EN: No cursor in the editor \xB7 ID: No cursor in the editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No custom sub-agent yet. Create one to give the AI a dedicated worker.", "label antarmuka \xB7 EN: No custom sub-agent yet. Create one to give the AI a dedicated worker. \xB7 ID: No custom sub-agent yet. Create one to give the AI a dedicated worker. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No differences for this file.", "label antarmuka \xB7 EN: No differences for this file. \xB7 ID: No differences for this file. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works.", "label antarmuka \xB7 EN: No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works. \xB7 ID: No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67107,7 +67828,7 @@ var init_zephyrIndeks = __esm({
       ["label", "No key needed (local)", "label antarmuka \xB7 EN: No key needed (local) \xB7 ID: Tanpa key (lokal) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No key saved for this provider yet.", "label antarmuka \xB7 EN: No key saved for this provider yet. \xB7 ID: Belum ada API key tersimpan untuk provider ini. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No language server for this file.", "label antarmuka \xB7 EN: No language server for this file. \xB7 ID: No language server for this file. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No language server is running", "label antarmuka \xB7 ID: No language server is running \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No language server is running", "label antarmuka \xB7 EN: No language server is running \xB7 ID: No language server is running \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No matching commands.", "label antarmuka \xB7 EN: No matching commands. \xB7 ID: No matching commands. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No matching files.", "label antarmuka \xB7 EN: No matching files. \xB7 ID: No matching files. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No matching model", "label antarmuka \xB7 EN: No matching model \xB7 ID: Model tidak cocok \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67115,11 +67836,11 @@ var init_zephyrIndeks = __esm({
       ["label", "No notes yet.", "label antarmuka \xB7 EN: No notes yet. \xB7 ID: Belum ada catatan. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No notifications yet.", "label antarmuka \xB7 EN: No notifications yet. \xB7 ID: No notifications yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No problems detected yet. Diagnostics will appear here after a language server or task runs.", "label antarmuka \xB7 EN: No problems detected yet. Diagnostics will appear here after a language server or task runs. \xB7 ID: No problems detected yet. Diagnostics will appear here after a language server or task runs. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No problems in this file", "label antarmuka \xB7 ID: No problems in this file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No problems in this file", "label antarmuka \xB7 EN: No problems in this file \xB7 ID: No problems in this file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No projects found", "label antarmuka \xB7 EN: No projects found \xB7 ID: No projects found \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No provider has an API key yet. Add one in AI Models.", "label antarmuka \xB7 EN: No provider has an API key yet. Add one in AI Models. \xB7 ID: No provider has an API key yet. Add one in AI Models. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No quick fix at this position", "label antarmuka \xB7 EN: No quick fix at this position \xB7 ID: No quick fix at this position \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No references", "label antarmuka \xB7 ID: No references \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No references", "label antarmuka \xB7 EN: No references \xB7 ID: No references \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No requests yet", "label antarmuka \xB7 EN: No requests yet \xB7 ID: Belum ada permintaan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No requests yet. Send a message in the AI panel, then come back here.", "label antarmuka \xB7 EN: No requests yet. Send a message in the AI panel, then come back here. \xB7 ID: No requests yet. Send a message in the AI panel, then come back here. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No results.", "label antarmuka \xB7 EN: No results. \xB7 ID: Tidak ada hasil. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67127,7 +67848,7 @@ var init_zephyrIndeks = __esm({
       ["label", "No server matches that filter.", "label antarmuka \xB7 EN: No server matches that filter. \xB7 ID: Tidak ada server yang cocok dengan saringan itu. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No session yet.", "label antarmuka \xB7 EN: No session yet. \xB7 ID: No session yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No sessions yet.", "label antarmuka \xB7 EN: No sessions yet. \xB7 ID: Belum ada sesi. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "No snapshot for this file yet", "label antarmuka \xB7 ID: No snapshot for this file yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "No snapshot for this file yet", "label antarmuka \xB7 EN: No snapshot for this file yet \xB7 ID: No snapshot for this file yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No stopped threads", "label antarmuka \xB7 EN: No stopped threads \xB7 ID: Tidak ada thread yang berhenti \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel.", "label antarmuka \xB7 EN: No subagent is running. Open the Subagents tab in the bottom panel to run tasks in parallel. \xB7 ID: Tidak ada subagent yang jalan. Buka tab Subagents di panel bawah untuk menjalankan tugas paralel. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "No subagents yet.", "label antarmuka \xB7 EN: No subagents yet. \xB7 ID: No subagents yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67176,7 +67897,7 @@ var init_zephyrIndeks = __esm({
       ["label", "On branch {name}", "label antarmuka \xB7 EN: On branch {name} \xB7 ID: Di branch {name} \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "One Dark Pro", "label antarmuka \xB7 EN: One Dark Pro \xB7 ID: One Dark Pro \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "One line = one subagent", "label antarmuka \xB7 EN: One line = one subagent \xB7 ID: Satu baris = satu subagent \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "One line \u2014 shown in the persona list", "label antarmuka \xB7 ID: One line \u2014 shown in the persona list \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "One line \u2014 shown in the persona list", "label antarmuka \xB7 EN: One line \u2014 shown in the persona list \xB7 ID: One line \u2014 shown in the persona list \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "One line \u2014 the AI reads it to decide when to delegate here", "label antarmuka \xB7 EN: One line \u2014 the AI reads it to decide when to delegate here \xB7 ID: One line \u2014 the AI reads it to decide when to delegate here \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Only the first {n} of {total} tools from {label} are sent to the AI; {m} are held back ({contoh}).", "label antarmuka \xB7 EN: Only the first {n} of {total} tools from {label} are sent to the AI; {m} are held back ({contoh}). \xB7 ID: Hanya {n} dari {total} tool milik {label} yang dikirim ke AI; {m} ditahan ({contoh}). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open", "label antarmuka \xB7 EN: Open \xB7 ID: Open \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67188,7 +67909,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Open Folder", "label antarmuka \xB7 EN: Open Folder \xB7 ID: Open Folder \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open Folder\u2026", "label antarmuka \xB7 EN: Open Folder\u2026 \xB7 ID: Buka Folder\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open Subagents panel", "label antarmuka \xB7 EN: Open Subagents panel \xB7 ID: Open Subagents panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Open URL", "label antarmuka \xB7 ID: Open URL \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Open URL", "label antarmuka \xB7 EN: Open URL \xB7 ID: Open URL \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open Workspace from File\u2026", "label antarmuka \xB7 EN: Open Workspace from File\u2026 \xB7 ID: Buka Workspace dari File\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open a file first", "label antarmuka \xB7 EN: Open a file first \xB7 ID: Open a file first \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Open a file to see its symbols.", "label antarmuka \xB7 EN: Open a file to see its symbols. \xB7 ID: Open a file to see its symbols. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67259,7 +67980,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Panels", "label antarmuka \xB7 EN: Panels \xB7 ID: Panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Panic sesi ini", "label antarmuka \xB7 EN: Panics this session \xB7 ID: Panic sesi ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Panic this session", "label antarmuka \xB7 EN: Panic this session \xB7 ID: Panic this session \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Panjang prompt sekarang", "label antarmuka \xB7 ID: Panjang prompt sekarang \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Panjang prompt sekarang", "label antarmuka \xB7 EN: Current prompt length \xB7 ID: Panjang prompt sekarang \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Parallel tasks", "label antarmuka \xB7 EN: Parallel tasks \xB7 ID: Tugas paralel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Pasang", "label antarmuka \xB7 EN: Install \xB7 ID: Pasang \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Pasang dari katalog bundled", "label antarmuka \xB7 EN: Install from bundled catalog \xB7 ID: Pasang dari katalog bundled \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67275,7 +67996,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Pattern, e.g. cargo\\s+test (empty = every call)", "label antarmuka \xB7 EN: Pattern, e.g. cargo\\s+test (empty = every call) \xB7 ID: Pola, mis. cargo\\s+test (kosong = semua panggilan) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Patterns that refuse a save which looks like a mistake, naming what it matched. Off until you turn it on.", "label antarmuka \xB7 EN: Patterns that refuse a save which looks like a mistake, naming what it matched. Off until you turn it on. \xB7 ID: Pola yang menolak penyimpanan yang tampak seperti kesalahan, sambil menyebut apa yang cocok. Mati sampai Anda menyalakannya. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Peak total RAM", "label antarmuka \xB7 EN: Peak total RAM \xB7 ID: Peak total RAM \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Peek Definition failed", "label antarmuka \xB7 ID: Peek Definition failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Peek Definition failed", "label antarmuka \xB7 EN: Peek Definition failed \xB7 ID: Peek Definition failed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Peek Definition gagal", "label antarmuka \xB7 EN: Peek Definition failed \xB7 ID: Peek Definition gagal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Pekerja baca-saja buatanmu sendiri. AI bisa mendelegasikan ke yang aktif berdasarkan nama, di samping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah).", "label antarmuka \xB7 EN: Your own read-only workers. The AI can delegate to enabled ones by name, alongside the built-in roles (Search, Review, Plan, Audit, Work, Explore). \xB7 ID: Pekerja baca-saja buatanmu sendiri. AI bisa mendelegasikan ke yang aktif berdasarkan nama, di samping peran bawaan (Cari, Telaah, Rencana, Audit, Kerja, Jelajah). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Pemakaian konteks", "label antarmuka \xB7 EN: Context usage \xB7 ID: Pemakaian konteks \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67323,7 +68044,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Persona: baru", "label antarmuka \xB7 EN: + New persona \xB7 ID: + Persona baru \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Persona: bawaan", "label antarmuka \xB7 EN: built-in \xB7 ID: bawaan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Persona: cara kerja", "label antarmuka \xB7 EN: How it works \xB7 ID: Cara kerja \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Persona: identitas", "label antarmuka \xB7 ID: Identitas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Persona: identitas", "label antarmuka \xB7 EN: Identity \xB7 ID: Identitas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Persona: salin", "label antarmuka \xB7 EN: Duplicate \xB7 ID: Salin \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Perubahan tema/keymap/bahasa berlaku setelah reload.", "label antarmuka \xB7 EN: Theme/keymap/language changes apply after a reload. \xB7 ID: Perubahan tema/keymap/bahasa berlaku setelah reload. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Pesan commit (Ctrl+Enter untuk commit)", "label antarmuka \xB7 EN: Commit message (Ctrl+Enter to commit)"],
@@ -67371,7 +68092,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Primary Side Bar", "label antarmuka \xB7 EN: Primary Side Bar \xB7 ID: Primary Side Bar \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Prints the diagnostic message at the end of the line, without hovering.", "label antarmuka \xB7 EN: Prints the diagnostic message at the end of the line, without hovering. \xB7 ID: Cetak pesan diagnostik di ujung baris, tanpa perlu hover. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Private", "label antarmuka \xB7 EN: Private \xB7 ID: Privat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Private (no history)", "label antarmuka \xB7 ID: Private (no history) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Private (no history)", "label antarmuka \xB7 EN: Private (no history) \xB7 ID: Private (no history) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Private (tanpa riwayat)", "label antarmuka \xB7 EN: Private (no history) \xB7 ID: Private (tanpa riwayat) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Problems", "label antarmuka \xB7 EN: Problems \xB7 ID: Problems \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Profil", "label antarmuka \xB7 EN: Profile \xB7 ID: Profil \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67446,7 +68167,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Remove", "label antarmuka \xB7 EN: Remove \xB7 ID: Remove \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Remove Folder from Workspace", "label antarmuka \xB7 EN: Remove Folder from Workspace \xB7 ID: Hapus Folder dari Workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Remove breakpoint", "label antarmuka \xB7 EN: Remove breakpoint \xB7 ID: Remove breakpoint \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Remove folder from workspace", "label antarmuka \xB7 ID: Remove folder from workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Remove folder from workspace", "label antarmuka \xB7 EN: Remove folder from workspace \xB7 ID: Remove folder from workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Remove from CLI", "label antarmuka \xB7 EN: Remove from CLI \xB7 ID: Remove from CLI \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Remove from history", "label antarmuka \xB7 EN: Remove from history \xB7 ID: Remove from history \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Remove from list", "label antarmuka \xB7 EN: Remove from list \xB7 ID: Remove from list \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67494,7 +68215,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Restart to Update", "label antarmuka \xB7 EN: Restart to Update \xB7 ID: Mulai ulang untuk memperbarui \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Restore AI panel", "label antarmuka \xB7 EN: Restore AI panel \xB7 ID: Kembalikan panel AI \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Restore size", "label antarmuka \xB7 EN: Restore size \xB7 ID: Kembalikan ukuran \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Review", "label antarmuka \xB7 ID: Review \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Review", "label antarmuka \xB7 EN: Review \xB7 ID: Review \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Review kode", "label antarmuka \xB7 EN: Review code \xB7 ID: Review kode \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Rewrite this file as UTF-8 so it can be edited", "label antarmuka \xB7 EN: Rewrite this file as UTF-8 so it can be edited \xB7 ID: Rewrite this file as UTF-8 so it can be edited \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Right", "label antarmuka \xB7 EN: Right \xB7 ID: Kanan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67516,7 +68237,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Run Build Task", "label antarmuka \xB7 EN: Run Build Task \xB7 ID: Jalankan Build Task \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Run Task\u2026", "label antarmuka \xB7 EN: Run Task\u2026 \xB7 ID: Jalankan Task\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Run a search first, then open the results as a tab.", "label antarmuka \xB7 EN: Run a search first, then open the results as a tab. \xB7 ID: Jalankan pencarian dulu, lalu buka hasilnya sebagai tab. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Run after the current run finishes", "label antarmuka \xB7 ID: Jalankan setelah yang sekarang selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Run after the current run finishes", "label antarmuka \xB7 EN: Run after the current run finishes \xB7 ID: Jalankan setelah yang sekarang selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Run all tests", "label antarmuka \xB7 EN: Run all tests \xB7 ID: Run all tests \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Run in Terminal", "label antarmuka \xB7 EN: Run in Terminal \xB7 ID: Jalankan di Terminal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Run mode", "label antarmuka \xB7 EN: Run mode \xB7 ID: Mode jalan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67614,7 +68335,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Sembunyikan panel", "label antarmuka \xB7 EN: Hide panel"],
       ["label", "Sembunyikan panel AI", "label antarmuka \xB7 EN: Hide AI panel \xB7 ID: Hide AI panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sembunyikan panel info subagent", "label antarmuka \xB7 EN: Hide the subagent info panel \xB7 ID: Hide the subagent info panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Sembunyikan pratinjau", "label antarmuka \xB7 ID: Sembunyikan pratinjau \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Sembunyikan pratinjau", "label antarmuka \xB7 EN: Hide preview \xB7 ID: Sembunyikan pratinjau \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sembunyikan replace", "label antarmuka \xB7 EN: Hide replace \xB7 ID: Sembunyikan replace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sembunyikan token", "label antarmuka \xB7 EN: Hide token"],
       ["label", "Semua language server dimatikan", "label antarmuka \xB7 EN: All language servers stopped"],
@@ -67626,8 +68347,8 @@ var init_zephyrIndeks = __esm({
       ["label", "Send", "label antarmuka \xB7 EN: Send \xB7 ID: Kirim \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Send a follow-up message\u2026", "label antarmuka \xB7 EN: Send a follow-up message\u2026 \xB7 ID: Kirim pesan lanjutan\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Send a message and its request shows up here.", "label antarmuka \xB7 EN: Send a message and its request shows up here. \xB7 ID: Kirim pesan dan permintaannya muncul di sini. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Send now (interrupt)", "label antarmuka \xB7 ID: Kirim sekarang (hentikan yang jalan) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Send options", "label antarmuka \xB7 ID: Pilihan kirim \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Send now (interrupt)", "label antarmuka \xB7 EN: Send now (interrupt) \xB7 ID: Kirim sekarang (hentikan yang jalan) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Send options", "label antarmuka \xB7 EN: Send options \xB7 ID: Pilihan kirim \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Send test announcement", "label antarmuka \xB7 EN: Send test announcement \xB7 ID: Send test announcement \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Send this now", "label antarmuka \xB7 EN: Send this now \xB7 ID: Kirim sekarang \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Send to the active terminal pane", "label antarmuka \xB7 EN: Send to the active terminal pane \xB7 ID: Send to the active terminal pane \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67642,7 +68363,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Setiap perintah yang mengubah sesuatu harus kamu setujui", "label antarmuka \xB7 EN: Every mutating command needs your approval \xB7 ID: Setiap perintah yang mengubah sesuatu harus kamu setujui \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Settings", "label antarmuka \xB7 EN: Settings \xB7 ID: Settings \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Setup", "label antarmuka \xB7 EN: Setup \xB7 ID: Setup \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Shell", "label antarmuka \xB7 ID: Shell \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Shell", "label antarmuka \xB7 EN: Shell \xB7 ID: Shell \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Shell path", "label antarmuka \xB7 EN: Shell path \xB7 ID: Jalur shell \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Short", "label antarmuka \xB7 EN: Short \xB7 ID: Singkat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show / hide tabs", "label antarmuka \xB7 EN: Show / hide tabs \xB7 ID: Show / hide tabs \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67656,11 +68377,11 @@ var init_zephyrIndeks = __esm({
       ["label", "Show Task Output", "label antarmuka \xB7 EN: Show Task Output \xB7 ID: Tampilkan Output Task \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show as a flat list", "label antarmuka \xB7 EN: Show as a flat list \xB7 ID: Tampilkan sebagai daftar datar \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show or hide each part of the window: menu bar, activity bar, side bars, panel and status bar.", "label antarmuka \xB7 EN: Show or hide each part of the window: menu bar, activity bar, side bars, panel and status bar. \xB7 ID: Tampilkan atau sembunyikan tiap bagian jendela: menu bar, activity bar, side bar, panel, dan status bar. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Show panel", "label antarmuka \xB7 ID: Show panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Show panel", "label antarmuka \xB7 EN: Show panel \xB7 ID: Show panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show replace", "label antarmuka \xB7 EN: Show replace \xB7 ID: Show replace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show the Markdown source", "label antarmuka \xB7 EN: Show the Markdown source \xB7 ID: Tampilkan sumber Markdown \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show the bottom panel (Ctrl+J)", "label antarmuka \xB7 EN: Show the bottom panel (Ctrl+J) \xB7 ID: Show the bottom panel (Ctrl+J) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Show the bottom panel (Ctrl+`)", "label antarmuka \xB7 ID: Show the bottom panel (Ctrl+`) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Show the bottom panel (Ctrl+`)", "label antarmuka \xB7 EN: Show the bottom panel (Ctrl+`) \xB7 ID: Show the bottom panel (Ctrl+`) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show the pattern", "label antarmuka \xB7 EN: Show the pattern \xB7 ID: Tampilkan pola \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show the plan", "label antarmuka \xB7 EN: Show the plan \xB7 ID: Tampilkan rencana \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Show the queue", "label antarmuka \xB7 EN: Show the queue \xB7 ID: Tampilkan antrean \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67676,7 +68397,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Sign in to GitHub", "label antarmuka \xB7 EN: Sign in to GitHub \xB7 ID: Sign in to GitHub \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sign in to GitHub (opens browser)", "label antarmuka \xB7 EN: Sign in to GitHub (opens browser) \xB7 ID: Sign in to GitHub (opens browser) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sign in to GitHub - open Source Control", "label antarmuka \xB7 EN: Sign in to GitHub - open Source Control \xB7 ID: Sign in to GitHub - open Source Control \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Sign out of GitHub", "label antarmuka \xB7 ID: Sign out of GitHub \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Sign out of GitHub", "label antarmuka \xB7 EN: Sign out of GitHub \xB7 ID: Sign out of GitHub \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Simpan", "label antarmuka \xB7 EN: Save"],
       ["label", "Simpan dibatalkan", "label antarmuka \xB7 EN: Save cancelled \xB7 ID: Simpan dibatalkan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Simpan password", "label antarmuka \xB7 EN: Save password \xB7 ID: Simpan password \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67691,8 +68412,8 @@ var init_zephyrIndeks = __esm({
       ["label", "Skill yang tersedia", "label antarmuka \xB7 EN: Available skills \xB7 ID: Skill yang tersedia \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Skip code blocks", "label antarmuka \xB7 EN: Skip code blocks \xB7 ID: Lewati blok kode \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Snapshot contents loaded into the editor - not saved yet (Ctrl+S to write)", "label antarmuka \xB7 EN: Snapshot contents loaded into the editor - not saved yet (Ctrl+S to write) \xB7 ID: Isi snapshot dimuat ke editor - belum disimpan (Ctrl+S untuk menulis) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Snapshot contents loaded into the editor \u2014 not saved yet (Ctrl+S to write)", "label antarmuka \xB7 ID: Snapshot contents loaded into the editor \u2014 not saved yet (Ctrl+S to write) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Snapshot created", "label antarmuka \xB7 ID: Snapshot created \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Snapshot contents loaded into the editor \u2014 not saved yet (Ctrl+S to write)", "label antarmuka \xB7 EN: Snapshot contents loaded into the editor \u2014 not saved yet (Ctrl+S to write) \xB7 ID: Snapshot contents loaded into the editor \u2014 not saved yet (Ctrl+S to write) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Snapshot created", "label antarmuka \xB7 EN: Snapshot created \xB7 ID: Snapshot created \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Snapshot dibuat", "label antarmuka \xB7 EN: Snapshot created"],
       ["label", "Snapshot dilewati (isi sama / file besar / biner)", "label antarmuka \xB7 EN: Snapshot skipped (same content / large file / binary)"],
       ["label", "Snapshot skipped (identical content / large file / binary)", "label antarmuka \xB7 EN: Snapshot skipped (identical content / large file / binary) \xB7 ID: Snapshot dilewati (isi identik / berkas besar / biner) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67740,8 +68461,8 @@ var init_zephyrIndeks = __esm({
       ["label", "Stop loop", "label antarmuka \xB7 EN: Stop loop \xB7 ID: Hentikan loop \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Stop reading", "label antarmuka \xB7 EN: Stop reading \xB7 ID: Berhenti membaca \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Stop tests after (seconds)", "label antarmuka \xB7 EN: Stop tests after (seconds) \xB7 ID: Hentikan uji setelah (detik) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Stop the current run and keep this typed", "label antarmuka \xB7 ID: Hentikan yang jalan, ketikan ini tetap disimpan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Stop the current run, then send this", "label antarmuka \xB7 ID: Hentikan yang jalan, lalu kirim ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Stop the current run and keep this typed", "label antarmuka \xB7 EN: Stop the current run and keep this typed \xB7 ID: Hentikan yang jalan, ketikan ini tetap disimpan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Stop the current run, then send this", "label antarmuka \xB7 EN: Stop the current run, then send this \xB7 ID: Hentikan yang jalan, lalu kirim ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Stop the server after idle (seconds)", "label antarmuka \xB7 EN: Stop the server after idle (seconds) \xB7 ID: Stop the server after idle (seconds) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Stopped", "label antarmuka \xB7 EN: Stopped \xB7 ID: Dihentikan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Strength", "label antarmuka \xB7 EN: Strength \xB7 ID: Strength \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67841,7 +68562,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Terminal", "label antarmuka \xB7 EN: Terminal \xB7 ID: Terminal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Terminal PATH", "label antarmuka \xB7 EN: Terminal PATH \xB7 ID: Terminal PATH \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Terminal tab & pane menu", "label antarmuka \xB7 EN: Terminal tab & pane menu \xB7 ID: Terminal tab & pane menu \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Terminal tab name", "label antarmuka \xB7 ID: Terminal tab name \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Terminal tab name", "label antarmuka \xB7 EN: Terminal tab name \xB7 ID: Terminal tab name \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Terminals", "label antarmuka \xB7 EN: Terminals \xB7 ID: Terminals \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Terminate Task", "label antarmuka \xB7 EN: Terminate Task \xB7 ID: Hentikan Task \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Terpasang dari folder (", "label antarmuka \xB7 EN: Installed from folder ( \xB7 ID: Terpasang dari folder ( \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67863,7 +68584,7 @@ var init_zephyrIndeks = __esm({
       ["label", "The agent needs your answer", "label antarmuka \xB7 EN: The agent needs your answer \xB7 ID: The agent needs your answer \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The agent sees it in subagent_list and can delegate on its own.", "label antarmuka \xB7 EN: The agent sees it in subagent_list and can delegate on its own. \xB7 ID: Agen melihatnya di subagent_list dan bisa mendelegasi sendiri. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The cost is an estimate, not an official provider bill.", "label antarmuka \xB7 EN: The cost is an estimate, not an official provider bill. \xB7 ID: Biaya ini perkiraan, bukan tagihan resmi provider. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "The current run is still stopping - message queued", "label antarmuka \xB7 ID: Yang sekarang masih berhenti - pesan masuk antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "The current run is still stopping - message queued", "label antarmuka \xB7 EN: The current run is still stopping - message queued \xB7 ID: Yang sekarang masih berhenti - pesan masuk antrian \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The extension folder will be deleted PERMANENTLY (cannot be undone).", "label antarmuka \xB7 EN: The extension folder will be deleted PERMANENTLY (cannot be undone). \xB7 ID: The extension folder will be deleted PERMANENTLY (cannot be undone). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The file contents are already the same as this code", "label antarmuka \xB7 EN: The file contents are already the same as this code \xB7 ID: Isi berkas sudah sama dengan kode ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The id may only use letters, digits, hyphens and underscores.", "label antarmuka \xB7 EN: The id may only use letters, digits, hyphens and underscores. \xB7 ID: Id hanya boleh memakai huruf, angka, tanda hubung, dan garis bawah. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67871,14 +68592,14 @@ var init_zephyrIndeks = __esm({
       ["label", "The panel is not showing - it will be opened too.", "label antarmuka \xB7 EN: The panel is not showing - it will be opened too. \xB7 ID: Panel belum tampil - panel itu akan dibuka juga. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The recogniser listens for one language at a time and does not switch by itself.", "label antarmuka \xB7 EN: The recogniser listens for one language at a time and does not switch by itself. \xB7 ID: Pengenal suara mendengarkan satu bahasa saja dan tidak berganti sendiri. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The server returned no changes", "label antarmuka \xB7 EN: The server returned no changes \xB7 ID: The server returned no changes \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID.", "label antarmuka \xB7 ID: The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID.", "label antarmuka \xB7 EN: The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID. \xB7 ID: The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The web server that fronts the projects.", "label antarmuka \xB7 EN: The web server that fronts the projects. \xB7 ID: The web server that fronts the projects. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The window will close. Your files are already saved, so nothing is lost. Turn this question off in Settings, General if you do not want to be asked.", "label antarmuka \xB7 EN: The window will close. Your files are already saved, so nothing is lost. Turn this question off in Settings, General if you do not want to be asked. \xB7 ID: Jendela akan ditutup. Berkasmu sudah tersimpan, jadi tidak ada yang hilang. Matikan pertanyaan ini di Pengaturan, Umum kalau tidak mau ditanya. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "The write setting is on, but the AI approval mode is not Auto, so a file write is still refused - a subagent cannot ask for approval itself.", "label antarmuka \xB7 EN: The write setting is on, but the AI approval mode is not Auto, so a file write is still refused - a subagent cannot ask for approval itself. \xB7 ID: Setelan tulisnya menyala, tapi mode persetujuan AI bukan Auto, jadi tulisan ke berkas tetap ditolak - subagent tidak bisa meminta persetujuan sendiri. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Theirs", "label antarmuka \xB7 EN: Theirs \xB7 ID: Theirs \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Theme", "label antarmuka \xB7 EN: Theme \xB7 ID: Tema \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Theme/keymap/language changes take effect after reload.", "label antarmuka \xB7 EN: Theme/keymap/language changes take effect after reload. \xB7 ID: Theme/keymap/language changes take effect after reload. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "There is no replace to undo", "label antarmuka \xB7 ID: There is no replace to undo \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "There is no replace to undo", "label antarmuka \xB7 EN: There is no replace to undo \xB7 ID: There is no replace to undo \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Thinking", "label antarmuka \xB7 EN: Thinking \xB7 ID: Berpikir \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Thinking about the next step", "label antarmuka \xB7 EN: Thinking about the next step \xB7 ID: Memikirkan langkah berikutnya \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Thinking about the next step\u2026", "label antarmuka \xB7 EN: Thinking about the next step\u2026 \xB7 ID: Memikirkan langkah\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67889,7 +68610,7 @@ var init_zephyrIndeks = __esm({
       ["label", "This command is potentially destructive:", "label antarmuka \xB7 EN: This command is potentially destructive: \xB7 ID: Perintah ini berpotensi merusak: \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", 'This command is too short - write something more specific (e.g. "npm run build", not "n").', 'label antarmuka \xB7 EN: This command is too short - write something more specific (e.g. "npm run build", not "n"). \xB7 ID: This command is too short - write something more specific (e.g. "npm run build", not "n"). \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH'],
       ["label", "This conversation", "label antarmuka \xB7 EN: This conversation \xB7 ID: Percakapan ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "This folder is a git repo", "label antarmuka \xB7 ID: This folder is a git repo \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "This folder is a git repo", "label antarmuka \xB7 EN: This folder is a git repo \xB7 ID: This folder is a git repo \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "This folder is empty", "label antarmuka \xB7 EN: This folder is empty \xB7 ID: This folder is empty \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "This folder is not a git repository yet.", "label antarmuka \xB7 EN: This folder is not a git repository yet. \xB7 ID: This folder is not a git repository yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "This host connection will be removed from the list.", "label antarmuka \xB7 EN: This host connection will be removed from the list. \xB7 ID: This host connection will be removed from the list. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67968,7 +68689,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Too many images - the limit is {n} per message", "label antarmuka \xB7 EN: Too many images - the limit is {n} per message \xB7 ID: Terlalu banyak gambar - batasnya {n} per pesan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tool", "label antarmuka \xB7 EN: Tool \xB7 ID: Tool \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tool calls ({n})", "label antarmuka \xB7 EN: Tool calls ({n}) \xB7 ID: Panggilan tool ({n}) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Tool yang dikenalkan ke model", "label antarmuka \xB7 ID: Tool yang dikenalkan ke model \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Tool yang dikenalkan ke model", "label antarmuka \xB7 EN: Tools presented to the model \xB7 ID: Tool yang dikenalkan ke model \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tools", "label antarmuka \xB7 EN: Tools \xB7 ID: Alat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tools beyond this are not offered to the model; the panel says how many were held back. 0 = no limit.", "label antarmuka \xB7 EN: Tools beyond this are not offered to the model; the panel says how many were held back. 0 = no limit. \xB7 ID: Tool di atas batas ini tidak ditawarkan ke model; panel menyebut berapa yang ditahan. 0 = tanpa batas. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Top", "label antarmuka \xB7 EN: Top \xB7 ID: Atas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -67977,7 +68698,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Translucent panels", "label antarmuka \xB7 EN: Translucent panels \xB7 ID: Translucent panels \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Trust this folder", "label antarmuka \xB7 EN: Trust this folder \xB7 ID: Trust this folder \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Trust this folder?", "label antarmuka \xB7 EN: Trust this folder? \xB7 ID: Trust this folder? \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "Try again", "label antarmuka \xB7 ID: Try again \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Try again", "label antarmuka \xB7 EN: Try again \xB7 ID: Try again \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tugas paralel", "label antarmuka \xB7 EN: Parallel tasks \xB7 ID: Tugas paralel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tugas selesai.", "label antarmuka \xB7 EN: Task complete. \xB7 ID: Tugas selesai. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tugas terjadwal", "label antarmuka \xB7 EN: Scheduled tasks \xB7 ID: Tugas terjadwal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68015,7 +68736,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Type your answer...", "label antarmuka \xB7 EN: Type your answer... \xB7 ID: Type your answer... \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "URL", "label antarmuka \xB7 EN: URL \xB7 ID: URL \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "URL (http://host/mcp)", "label antarmuka \xB7 EN: URL (http://host/mcp) \xB7 ID: URL (http://host/mcp) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "URL address", "label antarmuka \xB7 ID: URL address \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "URL address", "label antarmuka \xB7 EN: URL address \xB7 ID: URL address \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "URL\u2026", "label antarmuka \xB7 EN: URL\u2026 \xB7 ID: URL\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ubah", "label antarmuka \xB7 EN: Edit \xB7 ID: Ubah \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ubah berkas", "label antarmuka \xB7 EN: Edit files \xB7 ID: Ubah berkas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68088,7 +68809,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Window scale, and the full-window modes that hide every panel.", "label antarmuka \xB7 EN: Window scale, and the full-window modes that hide every panel. \xB7 ID: Skala jendela, dan mode layar penuh yang menyembunyikan semua panel. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Windows already requested reduced motion - animation is off even if this is off", "label antarmuka \xB7 EN: Windows already requested reduced motion - animation is off even if this is off \xB7 ID: Windows already requested reduced motion - animation is off even if this is off \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Windows sudah meminta animasi dikurangi - animasi mati walau ini off", "label antarmuka \xB7 EN: Windows already asked for reduced animation - motion stays off even with this disabled"],
-      ["label", "Work", "label antarmuka \xB7 ID: Work \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Work", "label antarmuka \xB7 EN: Work \xB7 ID: Work \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Working", "label antarmuka \xB7 EN: Working \xB7 ID: Working \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Working directory", "label antarmuka \xB7 EN: Working directory \xB7 ID: Working directory \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Working through the workspace", "label antarmuka \xB7 EN: Working through the workspace \xB7 ID: Working through the workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68183,7 +68904,7 @@ var init_zephyrIndeks = __esm({
       ["label", "arguments before the prompt, e.g. -p", "label antarmuka \xB7 EN: arguments before the prompt, e.g. -p \xB7 ID: argumen sebelum prompt, mis. -p \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "asks first if there are unsaved files; a window closed by mistake cannot be undone", "label antarmuka \xB7 EN: asks first if there are unsaved files; a window closed by mistake cannot be undone \xB7 ID: bertanya dulu kalau ada berkas yang belum disimpan; jendela yang tertutup karena salah tidak bisa dibatalkan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "atau memanggil tool, barisnya muncul di sini - bukti nyata, bukan klaim.", "label antarmuka \xB7 EN: or calls a tool, its line appears here - real evidence, not a claim. \xB7 ID: atau memanggil tool, barisnya muncul di sini - bukti nyata, bukan klaim. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "authors", "label antarmuka \xB7 ID: authors \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "authors", "label antarmuka \xB7 EN: authors \xB7 ID: authors \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "axe belum disuntik", "label antarmuka \xB7 EN: axe has not been injected \xB7 ID: axe belum disuntik \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "bacakan status baris kolom posisi a11y screen reader", "label antarmuka \xB7 EN: announce the line/column position for a11y screen readers"],
       ["label", "background", "label antarmuka \xB7 EN: background \xB7 ID: latar belakang \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68203,7 +68924,7 @@ var init_zephyrIndeks = __esm({
       ["label", "belum ada key", "label antarmuka \xB7 EN: no key yet \xB7 ID: no key yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "belum ada workspace terbuka", "label antarmuka \xB7 EN: no workspace open yet \xB7 ID: no workspace open yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "belum dipercaya", "label antarmuka \xB7 EN: not trusted"],
-      ["label", "belum dipilih", "label antarmuka \xB7 ID: belum dipilih \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "belum dipilih", "label antarmuka \xB7 EN: not selected \xB7 ID: belum dipilih \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "belum diverifikasi", "label antarmuka \xB7 EN: not verified"],
       ["label", "belum punya upstream", "label antarmuka \xB7 EN: has no upstream yet"],
       ["label", "belum terpasang.", "label antarmuka \xB7 EN: not installed yet. \xB7 ID: belum terpasang. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68217,17 +68938,17 @@ var init_zephyrIndeks = __esm({
       ["label", "bisa di lebarkan", "label antarmuka \xB7 EN: can be widened \xB7 ID: bisa di lebarkan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "bisa ketik bebas", "label antarmuka \xB7 EN: free typing \xB7 ID: bisa ketik bebas \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "bisa langsung dijalankan di terminal.", "label antarmuka \xB7 EN: block can be run directly in the terminal. \xB7 ID: bisa langsung dijalankan di terminal. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "bithound", "label antarmuka \xB7 ID: bithound \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "bithound", "label antarmuka \xB7 EN: bithound \xB7 ID: bithound \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "block runs in the terminal.", "label antarmuka \xB7 EN: block runs in the terminal. \xB7 ID: bisa langsung jalan di terminal. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "bottom = flush with the terminal; right = a 340px column like VS Code", "label antarmuka \xB7 EN: bottom = flush with the terminal; right = a 340px column like VS Code \xB7 ID: bottom = flush with the terminal; right = a 340px column like VS Code \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "brainfuck", "label antarmuka \xB7 ID: brainfuck \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "brainfuck", "label antarmuka \xB7 EN: brainfuck \xB7 ID: brainfuck \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "buat Ollama) kalau lokal, lalu ketik", "label antarmuka \xB7 EN: for Ollama) if local, then type \xB7 ID: buat Ollama) kalau lokal, lalu ketik \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "buat narik daftar model langsung dari provider. Model ini muncul di dropdown panel AI (kiri bawah) - bukan hanya di terminal AI.", "label antarmuka \xB7 EN: to pull the model list straight from the provider. This model appears in the AI panel dropdown (bottom left) - not only in the AI terminal. \xB7 ID: buat narik daftar model langsung dari provider. Model ini muncul di dropdown panel AI (kiri bawah) - bukan hanya di terminal AI. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "built-in", "label antarmuka \xB7 EN: built-in \xB7 ID: built-in \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "buka file", "label antarmuka \xB7 EN: open file"],
       ["label", "buka folder dulu untuk mencari", "label antarmuka \xB7 EN: open a folder first to search \xB7 ID: buka folder dulu untuk mencari \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "buka folder workspace", "label antarmuka \xB7 EN: open workspace folder"],
-      ["label", "caddy", "label antarmuka \xB7 ID: caddy \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "caddy", "label antarmuka \xB7 EN: caddy \xB7 ID: caddy \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "can be run directly in the terminal.", "label antarmuka \xB7 EN: can be run directly in the terminal. \xB7 ID: bisa langsung dijalankan di terminal. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "cells", "label antarmuka \xB7 EN: cells \xB7 ID: cells \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "cepat", "label antarmuka \xB7 EN: fast \xB7 ID: cepat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68280,7 +69001,7 @@ var init_zephyrIndeks = __esm({
       ["label", "common.unsaved", "label antarmuka \xB7 EN: Unsaved \xB7 ID: Belum disimpan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "common.url", "label antarmuka \xB7 EN: URL \xB7 ID: URL \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "complete", "label antarmuka \xB7 EN: complete \xB7 ID: selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "conduct", "label antarmuka \xB7 ID: conduct \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "conduct", "label antarmuka \xB7 EN: conduct \xB7 ID: conduct \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "config belum ada", "label antarmuka \xB7 EN: config not found \xB7 ID: config does not exist yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "copied", "label antarmuka \xB7 EN: copied \xB7 ID: copied \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "copy", "label antarmuka \xB7 EN: copy \xB7 ID: copy \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68330,7 +69051,7 @@ var init_zephyrIndeks = __esm({
       ["label", "donate.title", "label antarmuka \xB7 EN: Support Zephyr \xB7 ID: Dukung Zephyr \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "done", "label antarmuka \xB7 EN: done \xB7 ID: selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "dot for spaces, arrow for tabs", "label antarmuka \xB7 EN: dot for spaces, arrow for tabs \xB7 ID: dot for spaces, arrow for tabs \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "drawio", "label antarmuka \xB7 ID: drawio \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "drawio", "label antarmuka \xB7 EN: drawio \xB7 ID: drawio \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "draws the actual text, not color blocks - much heavier", "label antarmuka \xB7 EN: draws the actual text, not color blocks - much heavier \xB7 ID: draws the actual text, not color blocks - much heavier \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "e.g. mysql/local", "label antarmuka \xB7 EN: e.g. mysql/local \xB7 ID: e.g. mysql/local \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "e.g. npx prettier --stdin-filepath {file}", "label antarmuka \xB7 EN: e.g. npx prettier --stdin-filepath {file} \xB7 ID: mis. npx prettier --stdin-filepath {file} \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68428,10 +69149,10 @@ var init_zephyrIndeks = __esm({
       ["label", "flagship, reasoning", "label antarmuka \xB7 EN: flagship, reasoning \xB7 ID: flagship, reasoning \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "folder ini bukan repo git", "label antarmuka \xB7 EN: this folder is not a git repo"],
       ["label", "folder path + symbols from the language server", "label antarmuka \xB7 EN: folder path + symbols from the language server \xB7 ID: folder path + symbols from the language server \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "folder-cloudflare", "label antarmuka \xB7 ID: folder-cloudflare \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "folder-form", "label antarmuka \xB7 ID: folder-form \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "folder-interceptor", "label antarmuka \xB7 ID: folder-interceptor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "folder-organism", "label antarmuka \xB7 ID: folder-organism \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "folder-cloudflare", "label antarmuka \xB7 EN: folder-cloudflare \xB7 ID: folder-cloudflare \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "folder-form", "label antarmuka \xB7 EN: folder-form \xB7 ID: folder-form \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "folder-interceptor", "label antarmuka \xB7 EN: folder-interceptor \xB7 ID: folder-interceptor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "folder-organism", "label antarmuka \xB7 EN: folder-organism \xB7 ID: folder-organism \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "for Ollama) if local, then type", "label antarmuka \xB7 EN: for Ollama) if local, then type \xB7 ID: for Ollama) if local, then type \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "for all commands. The contrast of every theme meets WCAG AA; the", "label antarmuka \xB7 EN: for all commands. The contrast of every theme meets WCAG AA; the \xB7 ID: for all commands. The contrast of every theme meets WCAG AA; the \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "for slash commands", "label antarmuka \xB7 EN: for slash commands \xB7 ID: untuk slash command \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68477,7 +69198,7 @@ var init_zephyrIndeks = __esm({
       ["label", "id, e.g. mycli", "label antarmuka \xB7 EN: id, e.g. mycli \xB7 ID: id, mis. mycli \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "idle", "label antarmuka \xB7 EN: idle \xB7 ID: diam \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "if turned off, only the summary appears", "label antarmuka \xB7 EN: if turned off, only the summary appears \xB7 ID: if turned off, only the summary appears \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "ifanr-cloud", "label antarmuka \xB7 ID: ifanr-cloud \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "ifanr-cloud", "label antarmuka \xB7 EN: ifanr-cloud \xB7 ID: ifanr-cloud \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "ikut", "label antarmuka \xB7 EN: follow \xB7 ID: ikut \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "in encrypted form (key derived from this machine), SEPARATE from settings.json. The frontend only receives a mask - the real key is never sent to the UI and never logged. Honest note: this encryption protects against someone reading the file, not against someone who already has access to your Windows account.", "label antarmuka \xB7 EN: in encrypted form (key derived from this machine), SEPARATE from settings.json. The frontend only receives a mask - the real key is never sent to the UI and never logged. Honest note: this encryption protects against someone reading the file, not against someone who already has access to your Windows account. \xB7 ID: in encrypted form (key derived from this machine), SEPARATE from settings.json. The frontend only receives a mask - the real key is never sent to the UI and never logged. Honest note: this encryption protects against someone reading the file, not against someone who already has access to your Windows account. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", 'in the extensions folder, or use the "Add from file\u2026" button.', 'label antarmuka \xB7 EN: in the extensions folder, or use the "Add from file\u2026" button. \xB7 ID: in the extensions folder, or use the "Add from file\u2026" button. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH'],
@@ -68492,7 +69213,7 @@ var init_zephyrIndeks = __esm({
       ["label", "jalan", "label antarmuka \xB7 EN: running \xB7 ID: jalan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "jalur folder + simbol dari language server", "label antarmuka \xB7 EN: folder path + symbols from the language server \xB7 ID: jalur folder + simbol dari language server \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "jobs", "label antarmuka \xB7 EN: jobs \xB7 ID: jobs \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "jupyter", "label antarmuka \xB7 ID: jupyter \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "jupyter", "label antarmuka \xB7 EN: jupyter \xB7 ID: jupyter \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "just now", "label antarmuka \xB7 EN: just now \xB7 ID: baru saja \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "kalau dimatikan, hanya ringkasan yang muncul", "label antarmuka \xB7 EN: when off, only the summary appears \xB7 ID: kalau dimatikan, hanya ringkasan yang muncul \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "karakter", "label antarmuka \xB7 EN: chars \xB7 ID: karakter \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68510,7 +69231,7 @@ var init_zephyrIndeks = __esm({
       ["label", "khusus coding", "label antarmuka \xB7 EN: coding-focused \xB7 ID: khusus coding \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "kosongkan untuk memakai warna tema", "label antarmuka \xB7 EN: leave empty to use the theme color \xB7 ID: kosongkan untuk memakai warna tema \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "kualitas tinggi", "label antarmuka \xB7 EN: high quality \xB7 ID: kualitas tinggi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "kubernetes", "label antarmuka \xB7 ID: kubernetes \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "kubernetes", "label antarmuka \xB7 EN: kubernetes \xB7 ID: kubernetes \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "label shown in the panel", "label antarmuka \xB7 EN: label shown in the panel \xB7 ID: label yang tampil di panel \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "label utama saja, bukan seluruh teks", "label antarmuka \xB7 EN: main labels only, not every string \xB7 ID: label utama saja, bukan seluruh teks \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "lalu di PATH. Server hanya start saat file bertipe itu dibuka, dan mati sendiri setelah idle.", "label antarmuka \xB7 EN: then on PATH. A server only starts when a file of that type is opened, and shuts itself down after idle. \xB7 ID: lalu di PATH. Server hanya start saat file bertipe itu dibuka, dan mati sendiri setelah idle. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68559,7 +69280,7 @@ var init_zephyrIndeks = __esm({
       ["label", "mis. Pengajar", "label antarmuka \xB7 EN: e.g. Teacher \xB7 ID: mis. Pengajar \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "mis. qwen3-coder:32b", "label antarmuka \xB7 EN: e.g. qwen3-coder:32b \xB7 ID: mis. qwen3-coder:32b \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "mis. server produksi", "label antarmuka \xB7 EN: e.g. production server \xB7 ID: mis. server produksi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "mocha", "label antarmuka \xB7 ID: mocha \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "mocha", "label antarmuka \xB7 EN: mocha \xB7 ID: mocha \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "mode", "label antarmuka \xB7 EN: mode \xB7 ID: mode \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "mode CLI: kirim pesan untuk menjalankan CLI", "label antarmuka \xB7 EN: CLI mode: send a message to run the CLI \xB7 ID: mode CLI: kirim pesan untuk menjalankan CLI \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "mode terang/gelap; tema spesifik di section Tema", "label antarmuka \xB7 EN: light/dark mode; specific themes live in the Theme section \xB7 ID: mode terang/gelap; tema spesifik di section Tema \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68596,7 +69317,7 @@ var init_zephyrIndeks = __esm({
       ["label", "nav.settings", "label antarmuka \xB7 EN: Settings \xB7 ID: Pengaturan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "nav.terminal", "label antarmuka \xB7 EN: Terminal \xB7 ID: Terminal \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "new file", "label antarmuka \xB7 EN: new file \xB7 ID: new file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "new log", "label antarmuka \xB7 ID: new log \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "new log", "label antarmuka \xB7 EN: new log \xB7 ID: new log \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "no config yet", "label antarmuka \xB7 EN: no config yet \xB7 ID: no config yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "no folder open yet", "label antarmuka \xB7 EN: no folder open yet \xB7 ID: no folder open yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "no key yet", "label antarmuka \xB7 EN: no key yet \xB7 ID: belum ada key \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68610,7 +69331,7 @@ var init_zephyrIndeks = __esm({
       ["label", "not found", "label antarmuka \xB7 EN: not found \xB7 ID: not found \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "not installed", "label antarmuka \xB7 EN: not installed \xB7 ID: not installed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "not installed yet.", "label antarmuka \xB7 EN: not installed yet. \xB7 ID: not installed yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "not trusted", "label antarmuka \xB7 ID: not trusted \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "not trusted", "label antarmuka \xB7 EN: not trusted \xB7 ID: not trusted \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "not verified", "label antarmuka \xB7 EN: not verified \xB7 ID: not verified \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "not yet", "label antarmuka \xB7 EN: not yet \xB7 ID: not yet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "notes", "label antarmuka \xB7 EN: notes \xB7 ID: Catatan \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68675,7 +69396,7 @@ var init_zephyrIndeks = __esm({
       ["label", "profesional", "label antarmuka \xB7 EN: professional \xB7 ID: profesional \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "provider disembunyikan karena belum ada API key.", "label antarmuka \xB7 EN: providers hidden because they have no API key yet. \xB7 ID: provider hidden because there is no API key yet. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "providers hidden because there is no API key yet.", "label antarmuka \xB7 EN: providers hidden because there is no API key yet. \xB7 ID: provider disembunyikan karena belum ada API key. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "puppet", "label antarmuka \xB7 ID: puppet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "puppet", "label antarmuka \xB7 EN: puppet \xB7 ID: puppet \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "reasoning", "label antarmuka \xB7 EN: reasoning \xB7 ID: reasoning \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "reasoning dalam", "label antarmuka \xB7 EN: deep reasoning \xB7 ID: reasoning dalam \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "reasoning, hemat", "label antarmuka \xB7 EN: reasoning, cheap \xB7 ID: reasoning, hemat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68786,7 +69507,7 @@ var init_zephyrIndeks = __esm({
       ["label", "smooth scroll off, minimap/sticky/indent/dekorator warna off, batas tab termuat 3 (dari 12), scrollback terminal 1000 baris", "label antarmuka \xB7 EN: smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines \xB7 ID: smooth scroll off, minimap/sticky/indent/dekorator warna off, batas tab termuat 3 (dari 12), scrollback terminal 1000 baris \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "smoother, slightly heavier", "label antarmuka \xB7 EN: smoother, slightly heavier \xB7 ID: smoother, slightly heavier \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "so the AI can answer. Without a key, every request will fail with 401.", "label antarmuka \xB7 EN: so the AI can answer. Without a key, every request will fail with 401. \xB7 ID: supaya AI bisa menjawab. Tanpa key, setiap request gagal dengan 401. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "stackblitz", "label antarmuka \xB7 ID: stackblitz \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "stackblitz", "label antarmuka \xB7 EN: stackblitz \xB7 ID: stackblitz \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "status.find", "label antarmuka \xB7 EN: Find \xB7 ID: Cari \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "status.format", "label antarmuka \xB7 EN: Format \xB7 ID: Format \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "stderr", "label antarmuka \xB7 EN: stderr \xB7 ID: stderr \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68794,7 +69515,7 @@ var init_zephyrIndeks = __esm({
       ["label", "steps", "label antarmuka \xB7 EN: steps \xB7 ID: langkah \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "steps are collapsed right after they finish", "label antarmuka \xB7 EN: steps are collapsed right after they finish \xB7 ID: steps are collapsed right after they finish \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "stopped", "label antarmuka \xB7 EN: stopped \xB7 ID: stopped \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "stylus", "label antarmuka \xB7 ID: stylus \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "stylus", "label antarmuka \xB7 EN: stylus \xB7 ID: stylus \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "sub.allowWrite", "label antarmuka \xB7 EN: Allow subagents to write files \xB7 ID: Izinkan subagent menulis file \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "sub.autoCollapse", "label antarmuka \xB7 EN: Auto-collapse steps when finished \xB7 ID: Lipat langkah otomatis saat selesai \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "sub.maxParallel", "label antarmuka \xB7 EN: Maximum parallel subagents \xB7 ID: Subagent paralel maksimum \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -68988,7 +69709,7 @@ var init_zephyrIndeks = __esm({
       ["label", "win.restore", "label antarmuka \xB7 EN: Restore window size \xB7 ID: Kembalikan ukuran jendela \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "win.skipToEditor", "label antarmuka \xB7 EN: Skip to editor \xB7 ID: Lompat ke editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "without a language server: path estimated from indentation", "label antarmuka \xB7 EN: without a language server: path estimated from indentation \xB7 ID: tanpa language server: path diperkirakan dari indentasi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
-      ["label", "word", "label antarmuka \xB7 ID: word \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "word", "label antarmuka \xB7 EN: word \xB7 ID: word \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "ws.isRepo", "label antarmuka \xB7 EN: This folder is a git repo \xB7 ID: Folder ini repo git \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "ws.removeFolder", "label antarmuka \xB7 EN: Remove folder from workspace \xB7 ID: Hapus folder dari workspace \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "ws.restricted", "label antarmuka \xB7 EN: Open in Restricted Mode \xB7 ID: Buka dalam Restricted Mode \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -69104,6 +69825,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Available when the adapter supports loadedSources.", "teks elemen di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
       ["layar", "BATAS && (", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "Bahasa Indonesia", "teks elemen di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
+      ["layar", "Bahasa vs bawaan", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "Bash(git *)", "placeholder di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Bash(rm *)", "placeholder di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Bookmark", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
@@ -69118,7 +69840,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Case sensitive", "tooltip title di layar \xB7 dirender 1 berkas: src/components/editor/FindBar.tsx"],
       ["layar", 'Channel "{name}" is still empty.', "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/OutputView.tsx"],
       ["layar", "ChatHeadActions", "src/components/ai/ChatHeadActions.tsx \xB7 17 label: Agent Customizations\u2026, Chat Settings, Chat history, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models \xB7 19 data-testid: ai-history-btn, ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
-      ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 33 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 24 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
+      ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 33 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 25 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
       ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 37 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., found, request(s), {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 22 data-testid: cset-agentcustom, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
       ["layar", "ChatSettingsPopup", "src/components/ai/ChatSettingsPopup.tsx \xB7 aria-label: Chat Settings \xB7 2 data-testid: cset-pop, cset-scrim"],
       ["layar", "ChatStamp", "src/components/ai/ChatStamp.tsx \xB7 3 label: Today, Tomorrow, Yesterday \xB7 2 data-testid: ai-day-div, ai-msg-time"],
@@ -69218,7 +69940,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "DevUpdateSection", "src/components/settings/DevUpdateSection.tsx \xB7 20 label: 1. Build, Cadangan, Memasang..., Membangun..., Memeriksa..., Mengembalikan..., Repo, Rollback, Versi, devupdate.buildDone, devupdate.buildFailed, devupdate.buildFailedCheckLog, devupdate.cannotSelfUpdate, devupdate.cannotSelfUpdateHint, devupdate.installAndRestart, devupdate.installFailed, devupdate.notAvailable, devupdate.rollbackFailed, devupdate.rollbackHint, settings.devupdate \xB7 7 data-testid: devupdate-apply, devupdate-build, devupdate-log, devupdate-pesan, devupdate-rollback, devupdate-section, devupdate-versi"],
       ["layar", "Development build (HMR, not the installed app)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/shell/MenuBar.tsx"],
       ["layar", "Diagnostics filter", "aria-label di layar \xB7 dirender 1 berkas: src/components/shell/ProblemsView.tsx"],
-      ["layar", "DiffViewer", "src/components/scm/DiffViewer.tsx \xB7 2 label: Discard changes to this file (permanent), No differences for this file. \xB7 9 data-testid: diff-binary, diff-close, diff-path, diff-pre, diff-revert, diff-side, diff-stage-toggle, diff-stat, diff-view \xB7 teks: binary file \xB7 Revert file"],
+      ["layar", "DiffViewer", "src/components/scm/DiffViewer.tsx \xB7 2 label: Discard changes to this file (permanent), No differences for this file. \xB7 16 data-testid: diff-binary, diff-close, diff-hunks, diff-hunks-catatan, diff-hunks-pesan, diff-hunks-ringkas, diff-hunks-terapkan, diff-hunks-terima-semua, diff-hunks-tolak-semua, diff-path, diff-pre, diff-revert, diff-side, diff-stage-toggle, diff-stat, diff-view \xB7 teks: binary file \xB7 Revert file \xB7 Terima semua \xB7 Tolak semua"],
       ["layar", "Discard All\u2026", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Discard all", "aria-label di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Discard draft", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
@@ -69255,7 +69977,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Export customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Export report (JSON)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsDiag.tsx"],
       ["layar", "ExtApprovalModal", "src/components/extensions/ExtApprovalModal.tsx \xB7 3 data-testid: ext-approval, ext-approval-izinkan, ext-approval-tolak \xB7 teks: External runtime permission \xB7 Allow &amp; run"],
-      ["layar", "ExtensionsView", "src/components/extensions/ExtensionsView.tsx \xB7 16 label: (no description), Delete, Download & install v{version}, Extension actions, Extension groups, Extension options, Install first to see the actual contributions from the manifest., Install from the bundled catalog, No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works., Not available offline, Not installed yet., Open a project folder first - recommendations are computed from the file languages in the workspace., Search extensions, Search extensions\u2026, The extension folder will be deleted PERMANENTLY (cannot be undone)., Theme/keymap/language changes take effect after reload. \xB7 41 data-testid: ext-actions-btn, ext-cards, ext-contribs, ext-details, ext-details-close, ext-err, ext-filter, ext-filter-select, ext-info, ext-install-folder, ext-install-zext, ext-kabar, ext-kabar-close, ext-kabar-diabaikan, ext-kabar-judul, ext-kabar-pesan, ext-kabar-ringkasan, ext-kabar-tanpa-efek, ext-kosong, ext-market-empty, ext-market-err, ext-market-off, ext-pengaruh, ext-pengaruh-diabaikan, ext-rec-empty, ext-reload, ext-reload-bar, ext-reload-list, ext-ringkas, ext-ringkas-bersih \xB7 teks: BATAS && ( \xB7 needs runtime \xB7 no effect \xB7 Show Details \xB7 What this changes here \xB7 Ignored here \xB7 Loader report \xB7 Every installed package loaded. Nothing was skipped. \xB7 Install from Folder\u2026 \xB7\u2026"],
+      ["layar", "ExtensionsView", "src/components/extensions/ExtensionsView.tsx \xB7 16 label: (no description), Delete, Download & install v{version}, Extension actions, Extension groups, Extension options, Install first to see the actual contributions from the manifest., Install from the bundled catalog, No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works., Not available offline, Not installed yet., Open a project folder first - recommendations are computed from the file languages in the workspace., Search extensions, Search extensions\u2026, The extension folder will be deleted PERMANENTLY (cannot be undone)., Theme/keymap/language changes take effect after reload. \xB7 42 data-testid: ext-actions-btn, ext-cards, ext-catatan-bahasa, ext-contribs, ext-details, ext-details-close, ext-err, ext-filter, ext-filter-select, ext-info, ext-install-folder, ext-install-zext, ext-kabar, ext-kabar-close, ext-kabar-diabaikan, ext-kabar-judul, ext-kabar-pesan, ext-kabar-ringkasan, ext-kabar-tanpa-efek, ext-kosong, ext-market-empty, ext-market-err, ext-market-off, ext-pengaruh, ext-pengaruh-diabaikan, ext-rec-empty, ext-reload, ext-reload-bar, ext-reload-list, ext-ringkas \xB7 teks: BATAS && ( \xB7 needs runtime \xB7 no effect \xB7 Show Details \xB7 Bahasa vs bawaan \xB7 What this changes here \xB7 Ignored here \xB7 Loader report \xB7 Every installed package loaded. Nothing was skipped. \xB7 Ins\u2026"],
       ["layar", "External AI CLIs can read panes, editor tabs, and settings, and can control this window.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "External AI \u2192 Zephyr", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "External runtime permission", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
@@ -69519,10 +70241,10 @@ var init_zephyrIndeks = __esm({
       ["layar", "Search\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Secondary Side Bar (AI)", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
       ["layar", "SectionsAdvanced", 'src/components/settings/SectionsAdvanced.tsx \xB7 112 label: (e.g., (saved - type to replace), A sub-agent cannot be renamed to a built-in role name, and two sub-agents cannot share a name., A sub-agent only sees the tools it was given when it was made, and it can never write files: that is what keeps it safe to run several at once., A subagent cannot ask for approval, so a file write also needs the approval mode Auto - without it the write is refused and reported as a refusal, not as a written file., API keys are stored by Rust in, Add a CLI, CLI Agents, CLIs that appear in the AI panel path switcher. The built-in four are always listed; these are added to them., Chunk count, Click, Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut., Fetch the model list directly from the provider, Hapus, How to use it, How to use:, Name, Name it in the chat to force it:, New sub-agent, No custom sub-agent yet. Create one to give the AI a dedicated worker., Or tell the agent which one to use:, Pick a model from the list, Press a combination\u2026, Remove, Status, Sub-agent kustom, Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up., Testing\u2026, That id is already used., The agent sees it in subag\u2026'],
-      ["layar", "SectionsBasic", `src/components/settings/SectionsBasic.tsx \xB7 133 label: .ts,.tsx (empty = every file), AI panel position, Absolute, Add, Bars in the gutter for lines added, changed or removed since the last commit., Blank lines kept above and below the cursor while scrolling., Change individual colours without writing CSS. Applies immediately., Chevron in the gutter collapses a block. Ctrl-Shift-[ folds, Ctrl-Shift-] unfolds., Commands run in order after the LSP formatter. Each receives the file on stdin and returns the new text on stdout., Confirm before closing the window, Default (auto-detect), Default terminal, Editor area (tab), Keep running in the tray when closed, Language server colours identifiers by meaning, over the parser's own highlighting., Language server shows inferred types and parameter names inside the code., Lets the last line be scrolled up to the middle of the window., Main layout, Narrow, centred text column. 0 keeps full width., Normal/insert/visual modes; the built-in keymap still handles unbound keys, Off, Prints the diagnostic message at the end of the line, without hovering., RAM saver mode, Relative, Relative shows the distance from the cursor, which is what Vim-style jumps need., Remove, Right (340px), Runs the language server's "fix all" action on save. This REWRITES your code - separate from formatting., Saving, Separate window, Shell path, Shows local values at\u2026`],
+      ["layar", "SectionsBasic", `src/components/settings/SectionsBasic.tsx \xB7 134 label: .ts,.tsx (empty = every file), AI panel position, Absolute, Add, Bars in the gutter for lines added, changed or removed since the last commit., Blank lines kept above and below the cursor while scrolling., Change individual colours without writing CSS. Applies immediately., Chevron in the gutter collapses a block. Ctrl-Shift-[ folds, Ctrl-Shift-] unfolds., Commands run in order after the LSP formatter. Each receives the file on stdin and returns the new text on stdout., Confirm before closing the window, Default (auto-detect), Default terminal, Editor area (tab), Keep running in the tray when closed, Language server colours identifiers by meaning, over the parser's own highlighting., Language server shows inferred types and parameter names inside the code., Lets the last line be scrolled up to the middle of the window., Main layout, Narrow, centred text column. 0 keeps full width., Normal/insert/visual modes; the built-in keymap still handles unbound keys, Off, Prints the diagnostic message at the end of the line, without hovering., RAM saver mode, Relative, Relative shows the distance from the cursor, which is what Vim-style jumps need., Remove, Right (340px), Runs the language server's "fix all" action on save. This REWRITES your code - separate from formatting., Saving, Separate window, Shell path, Shows local values at\u2026`],
       ["layar", "SectionsDiag", "src/components/settings/SectionsDiag.tsx \xB7 7 data-testid: diag-export, diag-export-msg, diag-open-logs, diag-self, diag-self-error, diag-self-run, diag-self-summary \xB7 teks: Quick self-test \xB7 Export report (JSON) \xB7 Open log folder"],
       ["layar", "SectionsExtensions", 'src/components/settings/SectionsExtensions.tsx \xB7 26 label: (Python, Java, Node, etc.) can ask for permission through, (no description), (without, - execution always happens on the Rust side from a binary you approve, and can be revoked here., - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below., /fs/IPC), so commands from extensions can run without giving system access. Extensions that need, Add, Add from file\u2026, Always read, cannot be removed., Extension JS code runs in, Extra indexes the marketplace reads, on top of the bundled one. https:// only \u2014 an index is installed from, so an unencrypted one can be rewritten in transit., Inline blame, line history, and commit graph, Installed from folder ({n}), Must start with https://, None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call, None yet. Put a folder containing, Open extensions folder, Reload, That index is already in the list., an external runtime, an isolated Web Worker sandbox, built-in, in the extensions folder, or use the "Add from file\u2026" button., remove, settings.extensions, settings.registrySources \xB7 placeholder: https://example.com/index.json \xB7 21 data-testid: ext-add, ext-empty, ext-error, ext-folder, ext-info, ext-list, ext-list-external, ext-market, ext-refresh, ext-\u2026'],
-      ["layar", "SectionsMisc", 'src/components/settings/SectionsMisc.tsx \xB7 58 label: + Add host, Add host, Auto-update checks GitHub Releases periodically., Build, Build details, Cancel, Check for updates, Copied, Copy system info, Core process RAM, Debug build only: triggers a panic in Rust to test the panic hook + crash dialog, Delete, Delete SSH host "{name}"?, Discord community, Edit, Host RAM, Key path, Live terminal panes, Log file, Log size, Logical CPUs, Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted)., OS, Open data folder, Open log folder, Operations since start:, Panic this session, Peak total RAM, Platform, identifier, license, and source repository., Releases page, Reload, Report an issue, Save changes, Save password, Source code, Support Zephyr, Test panic (debug), This host connection will be removed from the list., Timestamps (ms since process start):, Total RAM (with WebView2) \xB7 placeholder: (uses git config), 192.168.1.10 or host.example.com, C:/Users/\u2026/.ssh/id_ed25519, e.g. production server, root \xB7 38 data-testid: about-copy, about-data, about-discord, about-donate, about-github, about-issue, about-kartu, about-logs, about-releases, about-source, about-table, about-update, about-ver, \u2026'],
+      ["layar", "SectionsMisc", 'src/components/settings/SectionsMisc.tsx \xB7 57 label: + Add host, Add host, Auto-update checks GitHub Releases periodically., Build, Build details, Cancel, Check for updates, Copied, Copy system info, Core process RAM, Debug build only: triggers a panic in Rust to test the panic hook + crash dialog, Delete, Delete SSH host "{name}"?, Edit, Host RAM, Key path, Live terminal panes, Log file, Log size, Logical CPUs, Manage SSH hosts then open the connection as a terminal pane. Key auth uses keyPath (the passphrase is typed directly in the pane); password auth is typed in the pane on connect - Zephyr does not store the password unless you choose to save it (encrypted)., OS, Open data folder, Open log folder, Operations since start:, Panic this session, Peak total RAM, Platform, identifier, license, and source repository., Releases page, Reload, Report an issue, Save changes, Save password, Source code, Support Zephyr, Test panic (debug), This host connection will be removed from the list., Timestamps (ms since process start):, Total RAM (with WebView2), Uptime \xB7 placeholder: (uses git config), 192.168.1.10 or host.example.com, C:/Users/\u2026/.ssh/id_ed25519, e.g. production server, root \xB7 37 data-testid: about-copy, about-data, about-donate, about-github, about-issue, about-kartu, about-logs, about-releases, about-source, about-table, about-update, about-ver, diag-auto, diag-counters, \u2026'],
       ["layar", "SecuritySection", "src/components/settings/SecuritySection.tsx \xB7 6 label: : files can still be opened and edited, but tasks, debug, language servers, and extensions are not run. The decision is stored in, Forget the decision - the folder will be asked again when opened, No folder has ever been given a trust decision., Untrusted folders run in, and also applies to subfolders., no folder open yet \xB7 5 data-testid: sec-manage, sec-roots, sec-status, sec-trust-list, set-security \xB7 teks: Workspace Trust \xB7 Restricted Mode \xB7 Current workspace \xB7 Manage Trust"],
       ["layar", "Select a model", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Select model", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexChat.tsx"],
@@ -69577,6 +70299,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Take our version (ours)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Take their version (theirs)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Tasks / Todos", "tooltip title di layar \xB7 dirender 1 berkas: src/components/ai/ComposerStatusStack.tsx"],
+      ["layar", "Terima semua", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "Terminal tabs", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "TerminalArea", "src/components/shell/TerminalArea.tsx \xB7 3 label: Bottom panel, Resize the terminal panel height, Show the bottom panel (Ctrl+`) \xB7 aria-label: Terminal \xB7 2 data-testid: term-show, term-toast"],
       ["layar", "TerminalPanel", "src/components/shell/TerminalPanel.tsx \xB7 17 label: AGENT CLI, AGENT CLIS DETECTED, Click = open the agent in the bottom terminal panel., Close pane, Close tab, Hide panel, Kill process, No agent CLI installed. Install one (opencode, Claude Code, Codex, Gemini, Copilot) then reload the list., No sessions yet., Private, Shell, Show panel, Terminal, The panel is not showing - it will be opened too., The terminal panel is at the bottom (Ctrl+`). Running sessions will appear here with their PID., has exited, {a} tabs \xB7 {b} panes \xB7 {c} live \xB7 7 data-testid: tp-agents, tp-agents-kosong, tp-empty, tp-new-private, tp-new-shell, tp-summary, tp-toggle-panel"],
@@ -69598,6 +70321,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Tip", "src/components/shell/Tip.tsx \xB7 1 data-testid: tip"],
       ["layar", "Toast", "src/components/notifications/Toast.tsx \xB7 2 label: Close, Close notification \xB7 6 data-testid: toast, toast-action, toast-bar, toast-close, toast-msg, toast-stack"],
       ["layar", "Tokens", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+      ["layar", "Tolak semua", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "Tool name, e.g. Bash (blank = all)", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "ToolGatePanel", "src/components/ai/ToolGatePanel.tsx \xB7 9 label: AI tools, All off, All on, All on sends all {n} tool schemas on every request, and {m} of them ask for approval before running:, Close, Filter tools, No tool matches that filter., section, {n} of {total} on \xB7 9 data-testid: toolgate, toolgate-all-off, toolgate-all-on, toolgate-all-on-awas, toolgate-cari, toolgate-list, toolgate-scrim, toolgate-total, toolgate-tutup"],
       ["layar", "ToolsView", "src/components/shell/ToolsView.tsx \xB7 1 label: Tools \xB7 1 data-testid: tools-view"],
@@ -69650,7 +70374,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "ab-gh", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/ActivityBar.tsx"],
       ["layar", "about-copy", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-data", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
-      ["layar", "about-discord", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-donate", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-github", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-issue", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
@@ -69905,6 +70628,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "ai-slash", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-stop", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-subagents-open-panel", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/SubAgentInfo.tsx"],
+      ["layar", "ai-tabel-bungkus", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
       ["layar", "ai-tanya-batal", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-tanya-jawab", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-tanya-kirim", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
@@ -70204,6 +70928,13 @@ var init_zephyrIndeks = __esm({
       ["layar", "diag-table", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "diff-binary", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "diff-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-catatan", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-pesan", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-ringkas", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-terapkan", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-terima-semua", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
+      ["layar", "diff-hunks-tolak-semua", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "diff-path", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "diff-pre", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
       ["layar", "diff-revert", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
@@ -70273,6 +71004,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "ext-approval-izinkan", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
       ["layar", "ext-approval-tolak", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
       ["layar", "ext-cards", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+      ["layar", "ext-catatan-bahasa", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "ext-contribs", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "ext-details", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "ext-details-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
@@ -70909,6 +71641,10 @@ var init_zephyrIndeks = __esm({
       ["layar", "theme-bg-size", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "theme-builder", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "theme-grid", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
+      ["layar", "theme-hitung", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
+      ["layar", "theme-kosong", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
+      ["layar", "theme-preview-besar", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
+      ["layar", "theme-preview-besar-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "this workspace", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "timeline", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
       ["layar", "timeline-clear", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
@@ -71449,6 +72185,7 @@ var init_zephyrIndeks = __esm({
       ["setelan", "agents.startCommands", "default: {} (grup agents)"],
       ["setelan", "agents.userAvatarPath", "default: (grup agents)"],
       ["setelan", "allowCommands", "default: [] (level atas)"],
+      ["setelan", "allowlistWeb", "default: [] (level atas)"],
       ["setelan", "background.image", "default: (grup background)"],
       ["setelan", "background.opacity", "default: 55 (grup background)"],
       ["setelan", "background.size", "default: fill (grup background)"],
@@ -71520,9 +72257,12 @@ var init_zephyrIndeks = __esm({
       ["setelan", "history.maxDays", "default: 30 (grup history)"],
       ["setelan", "history.maxPerFile", "default: 200 (grup history)"],
       ["setelan", "history.maxTotal", "default: 2000 (grup history)"],
+      ["setelan", "hopRedirect", "default: 5 (level atas)"],
       ["setelan", "hydrafusion.enabled", "default: false (grup hydrafusion)"],
       ["setelan", "hydrafusion.maxRequests", "default: 3 (grup hydrafusion)"],
       ["setelan", "hydrafusion.tiers", 'default: {"cheap":"","mid":"","strong":""} (grup hydrafusion)'],
+      ["setelan", "izinIsiWeb", "default: false (level atas)"],
+      ["setelan", "izinJaringanLokal", "default: false (level atas)"],
       ["setelan", "layout", "default: default (level atas)"],
       ["setelan", "lsp.enabled", "default: true (grup lsp)"],
       ["setelan", "lsp.idleSeconds", "default: 300 (grup lsp)"],
@@ -71544,6 +72284,7 @@ var init_zephyrIndeks = __esm({
       ["setelan", "panel.activeTab", "default: terminal (grup panel)"],
       ["setelan", "panel.height", "default: 260 (grup panel)"],
       ["setelan", "panel.visibleTabs", 'default: ["problems","output","debug","terminal","ports","ai","subagents"] (grup panel)'],
+      ["setelan", "portWeb", "default: [80,443] (level atas)"],
       ["setelan", "rules.disabled", "default: [] (grup rules)"],
       ["setelan", "rules.enabled", "default: false (grup rules)"],
       ["setelan", "sidebar", "default: left (level atas)"],
@@ -71627,6 +72368,7 @@ var init_zephyrIndeks = __esm({
       ["tool", "workspace", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "worktree", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "write_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
+      ["tool", "zephyr_kode", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "zephyr_self", "tool \xB7 kelompok Search \xB7 efek read \xB7 perlu izin: tidak"]
     ];
   }
@@ -71640,9 +72382,12 @@ __export(zephyrCari_exports, {
   BATAS_HASIL_SUNTIK: () => BATAS_HASIL_SUNTIK,
   BATAS_KARAKTER_HASIL: () => BATAS_KARAKTER_HASIL,
   BATAS_KARAKTER_SUNTIK: () => BATAS_KARAKTER_SUNTIK,
+  FAKTA_HASH_BERKAS: () => FAKTA_HASH_BERKAS,
   FAKTA_KATEGORI: () => FAKTA_KATEGORI,
   FAKTA_VERSI: () => FAKTA_VERSI,
   bersihkanCacheSuntikSesi: () => bersihkanCacheSuntikSesi,
+  capBasi: () => capBasi,
+  capTersimpan: () => capTersimpan,
   cariFakta: () => cariFakta,
   cariKode: () => cariKode,
   formatHasil: () => formatHasil,
@@ -71707,6 +72452,45 @@ function jumlahEntri() {
 }
 function versiFakta() {
   return { aplikasi: FAKTA_VERSI.aplikasi, hashSumber: FAKTA_VERSI.hashSumber };
+}
+function capTersimpan() {
+  return {
+    aplikasi: FAKTA_VERSI.aplikasi,
+    hashSumber: FAKTA_VERSI.hashSumber,
+    /* Angka ini SENGAJA tidak ditaruh sebagai field FAKTA_VERSI: checker luar
+     * (scripts/cek-indeks-sinkron.mjs, scripts/uji-versi-indeks.mjs) membaca cap
+     * dengan pola TERTUTUP '{ aplikasi: ..., hashSumber: ... }', jadi field
+     * tambahan di baris itu membuat capnya tidak terbaca. Keduanya diturunkan
+     * dari artefak yang sama (bukan salinan tangan), jadi tetap angka nyata:
+     * daftar berkas yang masuk hash + jumlah entri indeks. */
+    berkas: FAKTA_HASH_BERKAS.length,
+    entri: FAKTA_INDEKS.length
+  };
+}
+function capBasi(capNyata) {
+  const cap3 = capTersimpan();
+  if (capNyata === null) {
+    return {
+      basi: false,
+      bisaDiverifikasi: false,
+      alasan: `cap tersimpan ${cap3.aplikasi} / ${cap3.hashSumber}; pohon sumber tidak ada di sini, jadi kesegaran hash TIDAK bisa diverifikasi - jangan bilang "segar"`
+    };
+  }
+  if (capNyata.hashSumber !== cap3.hashSumber) {
+    return {
+      basi: true,
+      bisaDiverifikasi: true,
+      alasan: `hash sumber BEDA: tersimpan ${cap3.hashSumber} vs nyata ${capNyata.hashSumber} - indeks dibuat dari sumber yang lebih lama`
+    };
+  }
+  if (capNyata.aplikasi !== cap3.aplikasi) {
+    return {
+      basi: true,
+      bisaDiverifikasi: true,
+      alasan: `versi BEDA: tersimpan ${cap3.aplikasi} vs app ${capNyata.aplikasi} (hash sama, jadi hanya versi yang naik)`
+    };
+  }
+  return { basi: false, bisaDiverifikasi: true, alasan: `segar: ${cap3.aplikasi} / ${cap3.hashSumber} sama dengan sumber sekarang` };
 }
 function kategoriTersedia() {
   const hitung2 = /* @__PURE__ */ new Map();
@@ -76501,6 +77285,7 @@ async function bagianVersi() {
   const a2 = ai;
   const d3 = di;
   const f = cari2.versiFakta();
+  const cap3 = cari2.capTersimpan();
   const u2 = upd.useUpdater.getState();
   const m = mcpS.useMcp.getState();
   const vApp = a2?.version ?? d3?.version ?? "?";
@@ -76510,10 +77295,37 @@ async function bagianVersi() {
   baris.push(`Mode: ${define_import_meta_env_default.DEV ? "dev (Vite)" : "build"} - identifier ${a2?.identifier ?? "?"} - arsitektur ${a2?.arch ?? "?"} - webview ${a2?.webview ?? "?"} - portable ${a2?.portable ? "ya" : "tidak"}${a2?.profile ? ` - profil ${a2.profile}` : ""}`);
   baris.push(`dataDir: ${a2?.dataDir ?? "?"}${a2?.exeDir ? ` - exeDir: ${a2.exeDir}` : ""}`);
   baris.push(`Indeks fakta bundel: versi ${f.aplikasi} - hash sumber ${f.hashSumber} (label hasil pembangunan; aplikasi yang berjalan tidak bisa menghitung ulang hash sumbernya sendiri)`);
-  baris.push(`Kemutakhiran indeks: ${basi ? `BASI - indeks dibuat untuk versi ${f.aplikasi}, aplikasi berjalan ${vApp}` : "segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI)"}`);
+  baris.push(`Kemutakhiran indeks: ${basi ? `BASI - indeks dibuat untuk versi ${f.aplikasi}, aplikasi berjalan ${vApp}` : "segar menurut VERSI (versi app == versi indeks) - hash sumber tidak bisa dihitung ulang dari dalam aplikasi, jadi kesegaran hash TIDAK terbukti di sini; itu diuji saat build oleh: node scripts/gen-fakta-zephyr.mjs --check (exit != 0 = BASI)"} - cap ${f.aplikasi} / ${f.hashSumber} (${cap3.berkas} berkas, ${cap3.entri} entri); cara memeriksa dari app: zephyr_self bagian=indeks`);
   baris.push(`MCP: ${mcp?.running ? "hidup" : "mati"} - port ${mcp?.port ?? "?"} (diminta ${mcp?.requestedPort ?? "?"}) - store port ${m.status?.port ?? "?"} - diagnostics mcpPort ${d3?.mcpPort ?? "?"}${mcp && !mcp.enabled ? " - nonaktif di setelan" : ""}`);
   baris.push(`Pembaruan: status=${u2.status}${u2.version ? ` - versi terbaru ${u2.version}` : " - belum ada versi yang dilaporkan"}${u2.message ? ` - ${u2.message}` : ""}${define_import_meta_env_default.DEV ? " (mode dev: pengecekan update dimatikan)" : ""}`);
   baris.push(`Sistem: ${d3?.os ?? "?"} - ${d3?.cpuCount ?? "?"} inti CPU - debug ${d3?.debug ? "ya" : "tidak"}`);
+  return baris.join("\n");
+}
+async function bagianIndeks() {
+  const [cmd2, cari2, { useStore: useStore3 }] = await Promise.all([
+    Promise.resolve().then(() => (init_commands(), commands_exports)),
+    Promise.resolve().then(() => (init_zephyrCari(), zephyrCari_exports)),
+    Promise.resolve().then(() => (init_store(), store_exports))
+  ]);
+  const cap3 = cari2.capTersimpan();
+  const ai = await cmd2.getAppInfo().catch(() => null);
+  const vApp = ai?.version ?? (await cmd2.getDiagnostics().catch(() => null))?.version ?? "?";
+  const ws = useStore3.getState().workspace;
+  const nilai2 = cari2.capBasi(null);
+  const baris = [
+    `Cap indeks bundel: versi ${cap3.aplikasi} - hash sumber ${cap3.hashSumber} - ${cap3.berkas} berkas - ${cap3.entri} entri.`,
+    `Versi aplikasi yang berjalan: ${vApp}${vApp !== "?" && vApp !== cap3.aplikasi ? " (BEDA - indeks dibuat untuk versi lain)" : vApp === "?" ? " (tidak terbaca)" : " (sama)"}.`,
+    `Kesegaran hash (bisa diverifikasi dari dalam app: ${nilai2.bisaDiverifikasi ? "ya" : "tidak"}): ${nilai2.alasan}.`,
+    "Pemeriksa yang bisa menghitungnya dijalankan di mesin yang punya pohon sumber Zephyr - bukan dari dalam app."
+  ];
+  if (ws) {
+    baris.push(`Workspace terbuka: ${ws}. Kalau folder itu pohon sumber Zephyr, jalankan di terminal pane:`);
+    baris.push("  node scripts/cek-indeks-sinkron.mjs");
+    baris.push("  node scripts/gen-fakta-zephyr.mjs --check");
+    baris.push("Pemeriksa mencetak cap tersimpan vs cap nyata + jumlah berkas/entri yang tertinggal; --check keluar 1 saat basi. Jangan menyegarkan tanpa perintah user.");
+  } else {
+    baris.push("Tidak ada workspace terbuka, jadi tidak ada tempat menjalankan pemeriksa. Sebutkan cap di atas apa adanya.");
+  }
   return baris.join("\n");
 }
 async function bagianFakta(kueri, kategori, batas) {
@@ -76560,6 +77372,7 @@ async function bagianSemua() {
   ]);
   const a2 = ai;
   const f = cari2.versiFakta();
+  const cap3 = cari2.capTersimpan();
   const ws = useStore3.getState().workspace;
   const vApp = a2?.version ?? di?.version ?? "?";
   return [
@@ -76567,8 +77380,8 @@ async function bagianSemua() {
     `Workspace: ${ws ? `terbuka (${ws})` : "TIDAK ADA folder terbuka - zephyr_self tetap jalan"}.`,
     `MCP: ${mcp?.running ? `hidup di port ${mcp.port}` : "mati"} - diag mcpPort ${di?.mcpPort ?? "?"}.`,
     `Ekstensi: ${list4.length} terdaftar (${bundled.length} bundel).`,
-    `Indeks fakta: versi ${f.aplikasi}, hash ${f.hashSumber}${vApp !== "?" && vApp !== f.aplikasi ? " (BASI - lebih tua dari app)" : ""}.`,
-    "Rinciannya: bagian=setelan|log|ekstensi|docs|versi (plus fakta untuk indeks)."
+    `Indeks fakta: versi ${f.aplikasi}, hash ${f.hashSumber}, ${cap3.berkas} berkas / ${cap3.entri} entri${vApp !== "?" && vApp !== f.aplikasi ? " (BASI menurut versi - lebih tua dari app)" : ""}.`,
+    "Rinciannya: bagian=setelan|log|ekstensi|docs|versi|indeks (plus fakta untuk isi indeks)."
   ].join("\n");
 }
 async function jalankanZephyrSelf(args = {}) {
@@ -76584,7 +77397,7 @@ async function jalankanZephyrSelf(args = {}) {
   const kunci2 = `${bagian}|${kueri}|${maks}|${kategori}|${batas}|${vApp}|${vIndeks}`;
   const tersimpan = CACHE_SESI.get(kunci2);
   if (tersimpan !== void 0) return tersimpan;
-  const pakaiIndeks = bagian === "docs" || bagian === "fakta" || bagian === "semua";
+  const pakaiIndeks = bagian === "docs" || bagian === "fakta" || bagian === "semua" || bagian === "indeks";
   const basi = pakaiIndeks && vApp !== "?" && vIndeks !== "?" && vApp !== vIndeks;
   let isi;
   let sumber;
@@ -76608,6 +77421,10 @@ async function jalankanZephyrSelf(args = {}) {
     case "versi":
       isi = await bagianVersi();
       sumber = ["get_app_info", "get_diagnostics", "updaterStore", "mcp_status", "zephyrCari.versiFakta"];
+      break;
+    case "indeks":
+      isi = await bagianIndeks();
+      sumber = ["zephyrCari.capTersimpan", "zephyrCari.capBasi", "get_app_info", "get_diagnostics", "store.workspace", "scripts/cek-indeks-sinkron.mjs"];
       break;
     case "fakta":
       isi = await bagianFakta(kueri, kategori, batas);
@@ -76657,19 +77474,19 @@ var init_zephyrSelf = __esm({
     TOKEN_POTONGAN_MAKS = 800;
     KARAKTER_PER_TOKEN = 4;
     KARAKTER_POTONGAN = (TOKEN_POTONGAN_MAKS - 16) * KARAKTER_PER_TOKEN;
-    BAGIAN_TAMPAK = ["setelan", "log", "ekstensi", "docs", "versi"];
+    BAGIAN_TAMPAK = ["setelan", "log", "ekstensi", "docs", "versi", "indeks"];
     BAGIAN_LAIN = ["fakta", "semua"];
     CACHE_SESI = /* @__PURE__ */ new Map();
     POLA_RAHASIA2 = /(api[_-]?key|token|secret|password|passwd|authorization)/i;
     SPEC_ZEPHYR_SELF = {
       name: "zephyr_self",
-      description: "Periksa ZEPHYR SENDIRI dari sumber milik aplikasi - tidak butuh folder proyek user dan tidak butuh jaringan. bagian: setelan (settings.json + nilai efektif), log (berkas log, kebijakan rotasi, status panic), ekstensi (terdaftar/mati/gagal + alasan), docs (dokumen bundel + pencarian lokal), versi (versi app, status update, port MCP), fakta (indeks fakta Zephyr: label, setelan, perintah, pintasan, tool, ekstensi, dokumen), semua (ringkasan). kueri = pencarian lokal deterministik; maks = jumlah potongan (1-4, <=800 token/potongan).",
+      description: "Periksa ZEPHYR SENDIRI dari sumber milik aplikasi - tidak butuh folder proyek user dan tidak butuh jaringan. bagian: setelan (settings.json + nilai efektif), log (berkas log, kebijakan rotasi, status panic), ekstensi (terdaftar/mati/gagal + alasan), docs (dokumen bundel + pencarian lokal), versi (versi app, status update, port MCP), indeks (cap versi + hash sumber indeks fakta + angka berkas/entri, dan cara memeriksa kesegarannya), fakta (indeks fakta Zephyr: label, setelan, perintah, pintasan, tool, ekstensi, dokumen), semua (ringkasan). kueri = pencarian lokal deterministik; maks = jumlah potongan (1-4, <=800 token/potongan). Kalau bagian=indeks melaporkan cap BEDA atau pemeriksa mengeluh BASI, tawarkan penyegaran lewat suggest_command dengan perintah node scripts/gen-fakta-zephyr.mjs (user yang menekan Enter), sebutkan angka yang tertinggal apa adanya, dan jangan mengaku fakta Zephyr sudah segar.",
       parameters: {
         type: "object",
         properties: {
           bagian: {
             type: "string",
-            enum: ["setelan", "log", "ekstensi", "docs", "versi", "fakta", "semua"],
+            enum: ["setelan", "log", "ekstensi", "docs", "versi", "indeks", "fakta", "semua"],
             description: "Sumber app yang diperiksa (bawaan: fakta kalau ada kueri, kalau tidak: semua)."
           },
           kueri: { type: "string", description: "Kata kunci pencarian lokal deterministik di dalam bagian terpilih." },
@@ -157155,24 +157972,52 @@ var init_mcp = __esm({
           return `Setelan diperbarui: ${key} = ${val}`;
         }
       },
-      /* 6. extension */
+      /*
+       * 6. extension
+       *
+       * AKAR (dulu STUB -> temuan MERAH "kapabilitas diklaim, belum terlayani"):
+       * handler lama hanya mengembalikan "aksi ${action} dicatat" tanpa memanggil
+       * apa pun. Kapabilitasnya (lihat ekstensi, aktif/nonaktif, copot) SUDAH ADA
+       * sebagai perintah aplikasi; jadi memperbaiki akarnya = menyambung handler ke
+       * perintah itu, bukan menghapus tool. `reload`/`update` DIBUANG karena tidak
+       * ada perintah yang melayaninya (padanan reload ada di `mcp__zephyr__run_command`
+       * bila commandRegistry memaparkannya; kalau tidak, tidak ada kapabilitas yang
+       * hilang karena memang tak pernah jalan).
+       */
       {
         spec: {
           name: "mcp__zephyr__extension",
-          description: "Kelola ekstensi: enable, disable, reload, update, uninstall.",
+          description: "Kelola ekstensi Zephyr: list (daftar terpasang), enable, disable, atau uninstall. Untuk memasang/mencopot berkas ekstensi dari luar pakai perintah aplikasi terkait.",
           parameters: {
             type: "object",
             properties: {
-              action: { type: "string", enum: ["enable", "disable", "reload", "update", "uninstall"] },
-              id: { type: "string", description: "ID ekstensi." }
+              action: { type: "string", enum: ["list", "enable", "disable", "uninstall"] },
+              id: { type: "string", description: "ID ekstensi (wajib untuk enable/disable/uninstall)." }
             },
-            required: ["action", "id"]
+            required: ["action"]
           }
         },
         run: async (a2) => {
           const action = wajib(a2, "action");
+          if (action === "list") {
+            const daftar3 = await extensionsList();
+            if (!daftar3.length) return "Tidak ada ekstensi terpasang.";
+            return JSON.stringify(daftar3, null, 2);
+          }
           const id3 = wajib(a2, "id");
-          return `Ekstensi ${id3}: aksi ${action} dicatat.`;
+          if (action === "enable") {
+            const ok3 = await extensionsSetEnabled(id3, true);
+            return ok3 ? `Ekstensi ${id3} diaktifkan.` : `Ekstensi ${id3} tidak diaktifkan (lihat Setelan > Ekstensi).`;
+          }
+          if (action === "disable") {
+            const ok3 = await extensionsSetEnabled(id3, false);
+            return ok3 ? `Ekstensi ${id3} dinonaktifkan.` : `Ekstensi ${id3} tetap aktif (lihat Setelan > Ekstensi).`;
+          }
+          if (action === "uninstall") {
+            const ok3 = await extensionsUninstall(id3);
+            return ok3 ? `Ekstensi ${id3} dicopot.` : `Ekstensi ${id3} tidak dicopot (lihat Setelan > Ekstensi).`;
+          }
+          throw new Error(`ERROR: aksi extension tidak dikenal: ${action}. Pakai list|enable|disable|uninstall.`);
         }
       },
       /* 7. ssh */
@@ -157288,42 +158133,117 @@ Kalau kamu mengira perintahnya belum jalan, periksa keluaran terminal dengan get
           return diubah ? `Perintah dikirim ke terminal ${targetId} (URL dikutip otomatis agar & tidak memecah perintah): ${aman}` : `Perintah dikirim ke terminal ${targetId}: ${aman}`;
         }
       },
-      /* 11. wait_for_terminal */
+      /*
+       * 11. wait_for_terminal
+       *
+       * AKAR (dulu STUB): handler lama hanya `setTimeout` lalu melapor "selesai" —
+       * ia TIDAK pernah membaca terminal, jadi "selesai" itu klaim kosong (dokumen
+       * audit menyebutnya C13: "isyarat teks yang ditunggu tidak diperiksa").
+       *
+       * Perbaikan akar: benar-benar MEMBACA scrollback pane aktif (cmd.ptyTail) dan
+       * berhenti dengan ALASAN yang jujur — teks `until` muncul, keluaran berhenti
+       * berubah (idle), atau batas waktu habis — lalu mengembalikan cuplikan keluaran
+       * sebagai bukti. Kapabilitas yang dilayani: membaca terminal (shell:baca).
+       */
       {
         spec: {
           name: "mcp__zephyr__wait_for_terminal",
-          description: "Tunggu beberapa saat sampai terminal selesai memproses.",
+          description: "Tunggu terminal aktif menyelesaikan prosesnya: berhenti begitu keluaran berhenti berubah (idle), begitu teks `until` muncul, atau saat batas waktu habis. Mengembalikan cuplikan keluaran terakhir sebagai bukti.",
           parameters: {
             type: "object",
             properties: {
-              timeout: { type: ["number", "string"], description: "Waktu tunggu dalam milidetik." }
+              timeout: { type: ["number", "string"], description: "Batas tunggu dalam milidetik (bawaan 5000, maksimum 60000)." },
+              until: { type: "string", description: "Teks yang ditunggu; tunggu berhenti lebih awal begitu teks ini muncul di scrollback." },
+              leafId: { type: "string", description: "ID pane terminal target; kosongkan untuk pane aktif." }
             },
             required: []
           }
         },
         run: async (a2) => {
-          const ms = Math.min(1e4, bacaAngka(a2.timeout, 1500) ?? 1500);
-          await new Promise((r2) => setTimeout(r2, ms));
-          return `Selesai menunggu terminal (${ms} ms).`;
+          const batasMs = Math.min(6e4, Math.max(200, bacaAngka(a2.timeout, 5e3) ?? 5e3));
+          const until = a2.until ? String(a2.until) : "";
+          const t2 = useTerminal.getState();
+          const aktif4 = t2.terminalTabs.find((x) => x.id === t2.activeTabId);
+          const targetId = a2.leafId ? String(a2.leafId) : aktif4?.activePaneId ?? aktif4?.panes[0]?.id;
+          if (!targetId) throw new Error("ERROR: tidak ada terminal aktif untuk ditunggu.");
+          const mulai = Date.now();
+          let sebelumnya = "";
+          let stabil = 0;
+          while (Date.now() - mulai < batasMs) {
+            const teks = await ptyTail(targetId, 200).catch(() => "");
+            if (until && teks.includes(until)) {
+              const ms2 = Date.now() - mulai;
+              return potong(`Teks "${until}" muncul di terminal ${targetId} setelah ${ms2} ms:
+${teks}`);
+            }
+            if (teks === sebelumnya) {
+              stabil += 1;
+              if (stabil >= 2) break;
+            } else {
+              stabil = 0;
+            }
+            sebelumnya = teks;
+            await new Promise((r2) => setTimeout(r2, 300));
+          }
+          const ms = Date.now() - mulai;
+          if (!sebelumnya.trim()) return `Terminal ${targetId} menunggu ${ms} ms: belum ada keluaran.`;
+          return potong(`Terminal ${targetId} idle setelah ${ms} ms. Keluaran terakhir:
+${sebelumnya}`);
         }
       },
-      /* 12. worktree */
+      /*
+       * 12. worktree
+       *
+       * AKAR (dulu STUB -> dokumen audit C10): handler lama mengembalikan "selesai"
+       * tanpa memanggil apa pun, padahal perintah git worktree NYATA sudah ada
+       * (commands.ts: `git_worktree_list/add/remove/prune`). Perbaikan akarnya =
+       * menyambung ke perintah itu. Aksi `open` DIBUANG karena tak ada backend
+       * "buka worktree"; padanannya jelas: buka foldernya lewat `mcp__zephyr__workspace`
+       * action="switch" dengan `path` worktree tersebut.
+       */
       {
         spec: {
           name: "mcp__zephyr__worktree",
-          description: "Kelola git worktree di repositori.",
+          description: 'Kelola git worktree repositori aktif: list, add, remove, prune. Untuk MEMBUKA folder worktree hasil `add`, pakai mcp__zephyr__workspace action="switch" dengan path-nya.',
           parameters: {
             type: "object",
             properties: {
-              action: { type: "string", enum: ["list", "add", "remove", "prune", "open"] },
-              branch: { type: "string" }
+              action: { type: "string", enum: ["list", "add", "remove", "prune"] },
+              path: { type: "string", description: "Jalur worktree (wajib untuk add/remove)." },
+              branch: { type: "string", description: "Nama branch (untuk add)." },
+              createBranch: { type: "boolean", description: "Buat branch baru (untuk add)." },
+              force: { type: "boolean", description: "Paksa hapus meski worktree kotor (untuk remove)." }
             },
             required: ["action"]
           }
         },
         run: async (a2) => {
           const action = wajib(a2, "action");
-          return `Git worktree ${action} selesai.`;
+          if (action === "list") {
+            const daftar3 = await worktreeList();
+            if (!daftar3.length) return "Tidak ada git worktree.";
+            return JSON.stringify(daftar3, null, 2);
+          }
+          if (action === "add") {
+            const path2 = wajib(a2, "path");
+            const branch = a2.branch ? String(a2.branch) : void 0;
+            const hasil = await worktreeAdd({
+              path: path2,
+              branch,
+              createBranch: a2.createBranch === true
+            });
+            return `Worktree ditambahkan di ${path2}${branch ? ` (branch ${branch})` : ""}. ${hasil}`;
+          }
+          if (action === "remove") {
+            const path2 = wajib(a2, "path");
+            const hasil = await worktreeRemove({ path: path2, force: a2.force === true });
+            return `Worktree ${path2} dihapus. ${hasil}`;
+          }
+          if (action === "prune") {
+            const hasil = await worktreePrune();
+            return `Worktree prune selesai. ${hasil}`;
+          }
+          throw new Error(`ERROR: aksi worktree tidak dikenal: ${action}. Pakai list|add|remove|prune.`);
         }
       },
       /* 13. focus_pane */
@@ -157403,11 +158323,29 @@ function kebijakanDariSetelan(setelan) {
     izinIsiWeb: s.izinIsiWeb === true,
     allowlist,
     batasByte: angkaSah(s.batasByteWeb, BATAS_BYTE_BAWAAN),
-    batasKarakter: angkaSah(s.batasKarakterWeb, BATAS_KARAKTER_KELUARAN)
+    batasKarakter: angkaSah(s.batasKarakterWeb, BATAS_KARAKTER_KELUARAN),
+    izinJaringanLokal: s.izinJaringanLokal === true,
+    portSah: daftarPort(s.portWeb),
+    hopRedirect: angkaHop(s.hopRedirect)
   };
 }
 function angkaSah(v2, bawaan) {
   return typeof v2 === "number" && Number.isFinite(v2) && v2 > 0 ? v2 : bawaan;
+}
+function daftarPort(v2) {
+  if (!Array.isArray(v2)) return PORT_SAH;
+  const out = new Set(PORT_SAH);
+  for (const p of v2) {
+    const s = String(p).trim();
+    if (/^\d{1,5}$/.test(s)) out.add(s);
+  }
+  return [...out];
+}
+function angkaHop(v2) {
+  if (typeof v2 !== "number" || !Number.isFinite(v2)) return BATAS_HOP_REDIRECT;
+  const n = Math.floor(v2);
+  if (n < 1) return BATAS_HOP_REDIRECT;
+  return Math.min(n, HOP_REDIRECT_MAKS);
 }
 function normalisasiHost(host) {
   return String(host ?? "").trim().toLowerCase().replace(/\.$/, "");
@@ -157416,6 +158354,10 @@ function isIpLiteral(host) {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;
   if (host.includes(":")) return true;
   return false;
+}
+function isIpMetadata(host) {
+  const h = String(host ?? "").replace(/^\[|\]$/g, "").toLowerCase();
+  return h === IP_METADATA || h === IP_METADATA_V6;
 }
 function isIpPrivat(host) {
   if (!isIpLiteral(host)) return false;
@@ -157438,6 +158380,34 @@ function isIpPrivat(host) {
   if (a2 === 100 && b >= 64 && b <= 127) return true;
   return false;
 }
+function isIpSelaluDilarang(host) {
+  if (!isIpLiteral(host)) return false;
+  if (host.includes(":")) {
+    const h = host.replace(/^\[|\]$/g, "").toLowerCase();
+    if (h === "::") return true;
+    if (h.startsWith("ff")) return true;
+    return false;
+  }
+  const p = host.split(".").map(Number);
+  const a2 = p[0];
+  const b = p[1];
+  const c2 = p[2];
+  if (a2 === 0) return true;
+  if (a2 === 255 && b === 255 && c2 === 255 && p[3] === 255) return true;
+  if (a2 >= 224 && a2 <= 239) return true;
+  if (a2 === 192 && b === 0 && c2 === 2) return true;
+  if (a2 === 198 && b === 51 && c2 === 100) return true;
+  if (a2 === 203 && b === 0 && c2 === 113) return true;
+  return false;
+}
+function isIpTerlarang(host, izinJaringanLokal) {
+  if (isIpMetadata(host)) return true;
+  if (izinJaringanLokal) return isIpSelaluDilarang(host);
+  return isIpPrivat(host);
+}
+function namaLokal(host) {
+  return host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local");
+}
 function hostDiAllowlist(host, allowlist) {
   const h = normalisasiHost(host);
   if (h === "") return false;
@@ -157448,6 +158418,9 @@ function hostDiAllowlist(host, allowlist) {
     if (h.endsWith("." + e)) return true;
   }
   return false;
+}
+function portSahBerlaku(kb) {
+  return Array.isArray(kb.portSah) && kb.portSah.length > 0 ? kb.portSah : PORT_SAH;
 }
 function periksaUrl(urlStr, kb) {
   if (kb.izinIsiWeb !== true) return { ok: false, alasan: "izin-isi-web-mati" };
@@ -157470,12 +158443,14 @@ function periksaUrl(urlStr, kb) {
   }
   if (!u2.hostname) return { ok: false, alasan: "host-kosong" };
   const host = normalisasiHost(u2.hostname);
-  if (isIpPrivat(host)) return { ok: false, alasan: "ip-privat:" + host };
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+  if (isIpTerlarang(host, kb.izinJaringanLokal === true)) {
+    return { ok: false, alasan: "ip-privat:" + host };
+  }
+  if (kb.izinJaringanLokal !== true && namaLokal(host)) {
     return { ok: false, alasan: "nama-lokal:" + host };
   }
   if (!hostDiAllowlist(host, kb.allowlist)) return { ok: false, alasan: "host-luar-allowlist:" + host };
-  if (!PORT_SAH.includes(u2.port)) {
+  if (!portSahBerlaku(kb).includes(u2.port)) {
     return { ok: false, alasan: "port-tak-lazim:" + (u2.port || "(default)") };
   }
   return { ok: true, url: u2.href, host };
@@ -157530,15 +158505,19 @@ async function ambilIsiWeb(urlStr, kb, fetcher) {
   const p = potongKeluaran(mentah, kb);
   return { ok: true, url: g.url, teks: p.teks, byte, dipotong: p.dipotong };
 }
-var BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, PENANDA_DIPOTONG;
+var BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG;
 var init_kebijakanIsiWeb = __esm({
   "src/lib/zephyrTools/kebijakanIsiWeb.ts"() {
     "use strict";
     init_define_import_meta_env();
     BATAS_BYTE_BAWAAN = 2 * 1024 * 1024;
     BATAS_BYTE_MAKS = 8 * 1024 * 1024;
+    BATAS_HOP_REDIRECT = 5;
+    HOP_REDIRECT_MAKS = 10;
     BATAS_KARAKTER_KELUARAN = 2e4;
     PORT_SAH = ["", "80", "443"];
+    IP_METADATA = "169.254.169.254";
+    IP_METADATA_V6 = "fd00:ec2::254";
     PENANDA_DIPOTONG = "[dipotong]";
   }
 });
@@ -157739,7 +158718,7 @@ var init_web = __esm({
       {
         spec: {
           name: "web_search",
-          description: "Search the web through DuckDuckGo HTML and return a list of links with their snippets.",
+          description: "Search the web through Zephyr built-in engines (Brave first, DuckDuckGo as fallback) and return result links with their titles. It does not return snippets - follow a promising link with web_fetch.",
           parameters: {
             type: "object",
             properties: {
@@ -157754,27 +158733,15 @@ var init_web = __esm({
           if (kb.izinIsiWeb !== true) {
             return "(web_search ditolak: izin-isi-web-mati - nyalakan izin isi web di Settings \xA7security)";
           }
-          const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q2)}`;
-          const html7 = await webFetch(url, 25e3);
-          const hasil = [];
-          const re2 = /<a[^>]+class="result__snippet"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-          let m;
-          let count2 = 0;
-          while ((m = re2.exec(html7)) !== null && count2 < 8) {
-            const link3 = m[1].replace(/.*uddg=([^&]+).*/, (_, u2) => decodeURIComponent(u2));
-            const snippet2 = m[2].replace(/<[^>]+>/g, "").trim();
-            hasil.push(`- ${link3}
-  ${snippet2}`);
-            count2++;
+          let daftar3;
+          try {
+            daftar3 = await webSearch(q2, 8);
+          } catch (e) {
+            return `Pencarian web gagal: ${e instanceof Error ? e.message : String(e)}`;
           }
-          if (!hasil.length) {
-            const reTitle = /<a[^>]+class="result__url"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-            while ((m = reTitle.exec(html7)) !== null && count2 < 8) {
-              const link3 = m[1].replace(/.*uddg=([^&]+).*/, (_, u2) => decodeURIComponent(u2));
-              hasil.push(`- ${link3}`);
-              count2++;
-            }
-          }
+          const satuBaris = (t2) => t2.replace(/\s+/g, " ").trim();
+          const hasil = daftar3.slice(0, 8).map((r2) => `- ${r2.url}
+  ${satuBaris(r2.judul) || r2.url}`);
           return hasil.length ? `Search results for "${q2}":
 
 ${hasil.join("\n\n")}` : `No web search results for "${q2}".`;
@@ -158051,511 +159018,6 @@ ${hasil.join("\n\n")}` : `No web search results for "${q2}".`;
         }
       }
     ];
-  }
-});
-
-// src/lib/konteksRepo.ts
-function normalJalur(p) {
-  let s = String(p ?? "").replace(/\\/g, "/");
-  s = s.replace(/^\.\//, "");
-  s = s.replace(/\/{2,}/g, "/");
-  s = s.replace(/^\/+/, "");
-  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
-  return s;
-}
-function basename2(p) {
-  const i = p.lastIndexOf("/");
-  return i >= 0 ? p.slice(i + 1) : p;
-}
-function alasanBlokirRahasia(rel, akar2 = "") {
-  const p = normalJalur(rel);
-  if (!p) return "jalur-terlarang";
-  const mentah = String(rel ?? "").replace(/\\/g, "/");
-  if (mentah.startsWith("/") || /^[A-Za-z]:\//.test(mentah)) return "jalur-terlarang";
-  if (p === ".." || p.startsWith("../") || p.split("/").includes("..")) return "jalur-terlarang";
-  if (/%2e|%2f|%5c/i.test(p)) return "jalur-terlarang";
-  const nama = basename2(p);
-  for (const re2 of POLA_RAHASIA_EFEKTIF) {
-    if (re2.test(nama)) return "rahasia-nama";
-  }
-  const relCmp = bentukBanding(p);
-  const cmpAkar = akar2 ? bentukBanding(normalJalur(akar2)) : "";
-  for (const dir of DIR_TERPROTEKSI) {
-    const d3 = bentukBanding(dir);
-    if (!d3) continue;
-    if (d3.includes("/.")) {
-      if (`/${relCmp}/`.includes(`${d3}/`)) return "rahasia-folder";
-      continue;
-    }
-    if (cmpAkar && (cmpAkar === d3 || cmpAkar.startsWith(`${d3}/`) || cmpAkar.endsWith(d3) || cmpAkar.includes(`${d3}/`))) {
-      return "rahasia-folder";
-    }
-  }
-  const gerbang = periksaBaca(p);
-  if (!gerbang.ok && !gerbang.alasan.includes("direktori terproteksi")) return "jalur-terlarang";
-  return null;
-}
-var BATAS_BYTE_TAMPIL, BATAS_UKURAN_BERKAS, BATAS_GITIGNORE_BYTE, POLA_RAHASIA_TAMBAHAN, POLA_RAHASIA_EFEKTIF, ABAIKAN_SEGMEN, HIMPUNAN_ABAIKAN;
-var init_konteksRepo = __esm({
-  "src/lib/konteksRepo.ts"() {
-    "use strict";
-    init_define_import_meta_env();
-    init_agentGuard();
-    init_agentGuard();
-    BATAS_BYTE_TAMPIL = 8 * 1024 * 1024;
-    BATAS_UKURAN_BERKAS = 1024 * 1024;
-    BATAS_GITIGNORE_BYTE = 64 * 1024;
-    POLA_RAHASIA_TAMBAHAN = [
-      /^.*\.(kdbx|ppk|age|ovpn|p8|tfstate|tfvars|mobileprovision)(?:[.\s:]|$)/i,
-      /^.*keychain(-db)?(?:[.\s:]|$)/i
-    ];
-    POLA_RAHASIA_EFEKTIF = [
-      ...POLA_RAHASIA,
-      ...POLA_RAHASIA_TAMBAHAN,
-      // Nama berkas yang rahasia tanpa melihat ekstensi. `.env` sudah ada di
-      // daftar bersama; yang di sini adalah bentuk yang tidak ditangkapnya.
-      /^(secrets?|credentials?|passwords?|tokens?)\.(json|ya?ml|toml|ini|cfg|conf|txt|xml|properties)(?:[.\s:]|$)/i,
-      /^(\.aws|\.dockercfg|\.gitconfig|\.git-credentials|\.node_repl_history)(?:[.\s:]|$)/i,
-      /^\.?htpasswd(?:[.\s:]|$)/i
-    ];
-    ABAIKAN_SEGMEN = [
-      "node_modules",
-      ".git",
-      ".hg",
-      ".svn",
-      "dist",
-      "build",
-      "target",
-      "out",
-      "obj",
-      ".next",
-      ".nuxt",
-      ".svelte-kit",
-      ".parcel-cache",
-      ".cache",
-      ".turbo",
-      ".vercel",
-      ".netlify",
-      "coverage",
-      "__pycache__",
-      ".mypy_cache",
-      ".pytest_cache",
-      ".ruff_cache",
-      ".tox",
-      "venv",
-      ".venv",
-      "vendor",
-      "Pods",
-      ".gradle",
-      ".idea",
-      ".vs",
-      ".dart_tool",
-      ".expo",
-      ".terraform",
-      ".yarn",
-      ".pnpm-store"
-    ];
-    HIMPUNAN_ABAIKAN = new Set(ABAIKAN_SEGMEN.map((s) => s.toLowerCase()));
-  }
-});
-
-// src/lib/bacaKode.ts
-function berekstensiTeks(p) {
-  const jalur = normalJalur(p);
-  const nama = jalur.slice(jalur.lastIndexOf("/") + 1);
-  if (NAMA_TEKS.includes(nama)) return true;
-  const titik = nama.lastIndexOf(".");
-  if (titik <= 0) return false;
-  return EKSTENSI_TEKS.includes(nama.slice(titik).toLowerCase());
-}
-function bolehDibacaKode(rel, akar2 = "") {
-  if (Array.isArray(rel)) {
-    return {
-      ok: false,
-      rel: "",
-      alasan: `hanya ${BATAS_BERKAS_PER_PANGGILAN} berkas per panggilan: kirim satu jalur string, bukan daftar.`
-    };
-  }
-  if (typeof rel !== "string" || rel.trim() === "") {
-    return { ok: false, rel: "", alasan: "berkas kosong: sebutkan jalur relatif dari akar repo Zephyr." };
-  }
-  if (/[\u0000-\u001f\u007f]/.test(rel)) {
-    return { ok: false, rel: "", alasan: "jalur ditolak: memuat byte kontrol." };
-  }
-  const mentah = rel.replace(/\\/g, "/").trim();
-  if (mentah.startsWith("//")) {
-    return { ok: false, rel: "", alasan: `jalur UNC ditolak: ${rel}` };
-  }
-  if (mentah.startsWith("/") || /^[A-Za-z]:/.test(mentah)) {
-    return { ok: false, rel: "", alasan: `jalur absolut ditolak (harus relatif dari akar repo): ${rel}` };
-  }
-  const p = normalJalur(rel);
-  if (!p) {
-    return { ok: false, rel: "", alasan: "jalur ditolak: kosong sesudah dinormalkan." };
-  }
-  const blokir = alasanBlokirRahasia(rel, akar2);
-  if (blokir) {
-    return { ok: false, rel: p, alasan: `berkas ditolak (${blokir}): ${p}` };
-  }
-  const bagian = p.split("/");
-  for (let i = 1; i < bagian.length; i++) {
-    const prefiks = bagian.slice(0, i).join("/");
-    const blokirFolder = alasanBlokirRahasia(prefiks, akar2);
-    if (blokirFolder) {
-      return { ok: false, rel: p, alasan: `berkas ditolak (${blokirFolder} di folder ${prefiks}): ${p}` };
-    }
-  }
-  if (!berekstensiTeks(p)) {
-    return { ok: false, rel: p, alasan: `berkas ditolak: ${p} bukan berkas teks/kode yang boleh dibaca.` };
-  }
-  return { ok: true, rel: p, alasan: "" };
-}
-function pisahBaris(isi) {
-  const bagian = String(isi ?? "").split(/\r\n|\r|\n/);
-  if (bagian.length > 0 && bagian[bagian.length - 1] === "") bagian.pop();
-  return bagian;
-}
-function tagIsi(isi) {
-  let h = 2166136261;
-  for (let i = 0; i < isi.length; i++) {
-    h ^= isi.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h.toString(16).padStart(8, "0");
-}
-function apakahBiner(isi) {
-  if (isi.includes("\0")) return true;
-  if (isi.length < 200) return false;
-  let ganti = 0;
-  for (let i = 0; i < isi.length; i++) if (isi.charCodeAt(i) === 65533) ganti++;
-  return ganti / isi.length > 0.02;
-}
-function angkaTitik(n) {
-  const s = String(Math.trunc(Math.abs(n)));
-  let keluar = "";
-  for (let i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 === 0) keluar += ".";
-    keluar += s[i];
-  }
-  return n < 0 ? `-${keluar}` : keluar;
-}
-function cariDefinisiBaris(baris, simbol) {
-  const s = String(simbol ?? "").trim();
-  if (!s) return 0;
-  const esc = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pola = [
-    new RegExp(
-      `^\\s*(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:async\\s+)?(?:function|class|const|let|var|interface|type|enum|namespace)\\s+${esc}\\b`
-    ),
-    new RegExp(`^\\s*pub\\s+(?:async\\s+)?(?:fn|struct|enum|trait|impl|const|static|type|mod)\\s+${esc}\\b`),
-    new RegExp(`^\\s*(?:async\\s+)?fn\\s+${esc}\\b`),
-    new RegExp(`^\\s*(?:def|class)\\s+${esc}\\b`)
-  ];
-  for (const re2 of pola) {
-    for (let i = 0; i < baris.length; i++) if (re2.test(baris[i])) return i + 1;
-  }
-  const cadangan = new RegExp(`\\b${esc}\\b`);
-  for (let i = 0; i < baris.length; i++) {
-    const t2 = baris[i].trim();
-    if (t2.startsWith("//") || t2.startsWith("*") || t2.startsWith("/*")) continue;
-    if (cadangan.test(baris[i])) return i + 1;
-  }
-  return 0;
-}
-function formatBaris(nomor, lebar, teks) {
-  return `${String(nomor).padStart(lebar, "0")}| ${teks}`;
-}
-function bacaPotongan(isi, jalur, opsi = {}) {
-  const semua = pisahBaris(isi);
-  const total = semua.length;
-  const tag2 = tagIsi(isi);
-  const simbol = typeof opsi.simbol === "string" ? opsi.simbol.trim() : "";
-  if (total === 0) {
-    return { ok: false, alasan: `berkas kosong (0 baris): ${jalur}` };
-  }
-  if (apakahBiner(isi)) {
-    return { ok: false, alasan: `isi berkas bukan teks (ada byte NUL atau banjir U+FFFD): ${jalur}` };
-  }
-  const angka = (v2) => {
-    const n = Math.floor(Number(v2));
-    return Number.isFinite(n) ? n : 0;
-  };
-  let dari = angka(opsi.dari);
-  let sampai = angka(opsi.sampai);
-  let simbolBaris = 0;
-  if (simbol && dari <= 0) {
-    simbolBaris = cariDefinisiBaris(semua, simbol);
-    if (simbolBaris === 0) {
-      return { ok: false, alasan: `simbol "${simbol}" tidak ditemukan di ${jalur} (${angkaTitik(total)} baris).` };
-    }
-    dari = Math.max(1, simbolBaris - JENDELA_SEBELUM_SIMBOL);
-    sampai = Math.min(total, simbolBaris + JENDELA_SESUDAH_SIMBOL);
-  } else {
-    if (dari <= 0) dari = 1;
-    if (sampai <= 0) sampai = dari + BATAS_BARIS_POTONGAN - 1;
-  }
-  if (dari > total) {
-    return { ok: false, alasan: `baris ${angkaTitik(dari)} melebihi jumlah baris berkas ${jalur} (${angkaTitik(total)}).` };
-  }
-  let sebabPotong = "tidak";
-  if (sampai > total) {
-    sampai = total;
-    sebabPotong = "ujung-berkas";
-  }
-  if (sampai < dari) {
-    return { ok: false, alasan: `rentang terbalik: dari ${angkaTitik(dari)} sampai ${angkaTitik(sampai)}.` };
-  }
-  if (sampai - dari + 1 > BATAS_BARIS_POTONGAN) {
-    sampai = dari + BATAS_BARIS_POTONGAN - 1;
-    sebabPotong = "batas-baris";
-  }
-  const baris = [];
-  const nomor = [];
-  const dipangkas = [];
-  for (let n = dari; n <= sampai; n++) {
-    const t2 = semua[n - 1] ?? "";
-    if (t2.length > BATAS_KARAKTER_BARIS) {
-      dipangkas.push(n);
-      baris.push(`${t2.slice(0, BATAS_KARAKTER_BARIS - 1)}\u2026`);
-    } else {
-      baris.push(t2);
-    }
-    nomor.push(n);
-  }
-  const lebar = String(Math.max(total, 1)).length;
-  let panjang = 0;
-  for (const t2 of baris) panjang += formatBaris(0, lebar, t2).length + 1;
-  let dipotongKarakter = false;
-  while (panjang > BATAS_CHAR_POTONGAN && baris.length > 1) {
-    const t2 = baris.pop();
-    nomor.pop();
-    panjang -= formatBaris(0, lebar, t2).length + 1;
-    dipotongKarakter = true;
-  }
-  if (dipotongKarakter) {
-    sampai = nomor[nomor.length - 1];
-    sebabPotong = "batas-karakter";
-  }
-  return {
-    ok: true,
-    potongan: {
-      jalur,
-      dari,
-      sampai,
-      totalBaris: total,
-      baris,
-      nomor,
-      dipangkas,
-      sebabPotong,
-      simbolBaris,
-      simbol,
-      byte: isi.length,
-      tag: tag2
-    }
-  };
-}
-function rakitPotongan(p) {
-  const lebar = String(Math.max(p.totalBaris, 1)).length;
-  const kepala2 = [];
-  kepala2.push(
-    `[baca_kode v${BACA_KODE_VERSI}] ${p.jalur}:${p.dari}-${p.sampai} (${angkaTitik(p.baris.length)} dari ${angkaTitik(p.totalBaris)} baris; ${angkaTitik(p.byte)} B; tag ${p.tag}${p.simbolBaris > 0 ? `; simbol ${p.simbol}@${p.simbolBaris}` : ""})`
-  );
-  for (let i = 0; i < p.baris.length; i++) kepala2.push(formatBaris(p.nomor[i], lebar, p.baris[i]));
-  if (p.sebabPotong === "batas-baris") {
-    kepala2.push(`\u2026 potongan berhenti di baris ${angkaTitik(p.sampai)}: batas ${BATAS_BARIS_POTONGAN} baris/pembacaan.`);
-  } else if (p.sebabPotong === "batas-karakter") {
-    kepala2.push(
-      `\u2026 potongan berhenti di baris ${angkaTitik(p.sampai)}: batas ${angkaTitik(BATAS_CHAR_POTONGAN)} karakter/pembacaan.`
-    );
-  } else if (p.sebabPotong === "ujung-berkas") {
-    kepala2.push(`\u2026 berkas berakhir di baris ${angkaTitik(p.totalBaris)} (tidak dipotong).`);
-  }
-  if (p.dipangkas.length > 0) {
-    kepala2.push(`\u2026 ${p.dipangkas.length} baris dipangkas pada ${BATAS_KARAKTER_BARIS} karakter: ${p.dipangkas.join(", ")}.`);
-  }
-  return kepala2.join("\n");
-}
-function buatAnggaranBaca(batas = BATAS_BACAAN_SESI) {
-  const maks = Number.isFinite(batas) && batas > 0 ? Math.floor(batas) : BATAS_BACAAN_SESI;
-  let pakai = 0;
-  return {
-    pakai(jalur) {
-      if (pakai >= maks) {
-        return {
-          ok: false,
-          alasan: `anggaran pembacaan sesi habis: ${maks} pembacaan sudah dipakai (permintaan "${jalur}" tidak dibaca).`
-        };
-      }
-      pakai++;
-      return { ok: true, alasan: "" };
-    },
-    terpakai: () => pakai,
-    tersisa: () => Math.max(0, maks - pakai),
-    batas: () => maks
-  };
-}
-function rapikanJalurNyata(p) {
-  let s = String(p ?? "").replace(/\\/g, "/").replace(/^\/\/\?\//, "");
-  s = s.replace(/\/{2,}/g, "/");
-  if (s.length > 1 && s.endsWith("/")) s = s.slice(0, -1);
-  return s;
-}
-function diDalamAkar(jalur, akar2) {
-  const j = rapikanJalurNyata(jalur).toLowerCase();
-  const a2 = rapikanJalurNyata(akar2).toLowerCase();
-  if (!j || !a2) return false;
-  return j === a2 || j.startsWith(`${a2}/`);
-}
-function isiDari(nilai2) {
-  if (typeof nilai2 === "string") return nilai2;
-  return String(nilai2?.content ?? "");
-}
-async function bacaBerkasKode(permintaan, jembatan, anggaran) {
-  const jejak = [];
-  const tolak = (alasan) => ({ ok: false, teks: `ditolak: ${alasan}`, alasan, jejak });
-  const periksa = bolehDibacaKode(permintaan?.berkas);
-  if (!periksa.ok) return tolak(periksa.alasan);
-  const rel = periksa.rel;
-  if (anggaran) {
-    const izin = anggaran.pakai(rel);
-    if (!izin.ok) return tolak(izin.alasan);
-  }
-  const cmd2 = jembatan?.cmd;
-  const akar2 = String(jembatan?.akar ?? "");
-  if (!cmd2 || typeof cmd2.fsRead !== "function" || typeof cmd2.fsStat !== "function" || typeof cmd2.realpath !== "function") {
-    return tolak("jembatan berkas belum lengkap (butuh fsRead + fsStat + realpath).");
-  }
-  if (!akar2) return tolak("akar repo belum dipasang.");
-  const akarKotor = akar2.replace(/\\/g, "/").replace(/\/+$/, "");
-  const berkasKotor = `${akarKotor}/${rel}`;
-  let akarNyata = "";
-  try {
-    jejak.push("realpath(akar)");
-    akarNyata = rapikanJalurNyata(await cmd2.realpath(akarKotor));
-  } catch {
-    return tolak(`akar repo tidak bisa dipastikan ada: ${rel} tidak dibaca.`);
-  }
-  if (!akarNyata) return tolak("akar repo tidak bisa dipastikan bentuk nyatanya.");
-  let berkasNyata = "";
-  try {
-    jejak.push(`realpath(${rel})`);
-    berkasNyata = rapikanJalurNyata(await cmd2.realpath(berkasKotor));
-  } catch {
-    return tolak(`berkas tidak ada: ${rel}`);
-  }
-  if (!berkasNyata) return tolak(`berkas tidak bisa dipastikan bentuk nyatanya: ${rel}`);
-  if (!diDalamAkar(berkasNyata, akarNyata)) {
-    return tolak(`berkas menunjuk KELUAR akar repo (tautan keluar repo): ${rel}`);
-  }
-  let stat;
-  try {
-    jejak.push("fsStat");
-    stat = await cmd2.fsStat(berkasKotor);
-  } catch {
-    return tolak(`berkas tidak bisa dibaca statistiknya: ${rel}`);
-  }
-  if (stat?.isDir) return tolak(`itu folder, bukan berkas: ${rel}`);
-  const ukuran = Number(stat?.size ?? 0);
-  if (ukuran > BATAS_BYTE_BERKAS) {
-    return tolak(
-      `berkas terlalu besar: ${rel} ${angkaTitik(ukuran)} B > batas ${angkaTitik(BATAS_BYTE_BERKAS)} B (${BATAS_BYTE_BERKAS / 1024} KiB).`
-    );
-  }
-  let isi = "";
-  try {
-    jejak.push("fsRead");
-    isi = isiDari(await cmd2.fsRead(berkasKotor));
-  } catch {
-    return tolak(`berkas gagal dibaca: ${rel}`);
-  }
-  if (apakahBiner(isi)) return { ...tolak(`isi bukan teks (byte NUL): ${rel}`), jejak };
-  const potong4 = bacaPotongan(isi, rel, { dari: permintaan.dari, sampai: permintaan.sampai, simbol: permintaan.simbol });
-  if (!potong4.ok) return { ...tolak(potong4.alasan), jejak };
-  const potongan = potong4.potongan;
-  return { ok: true, teks: rakitPotongan(potongan), alasan: "", potongan, jejak };
-}
-function pasangJembatanBacaKode(jembatan) {
-  JEMBATAN_SESI = jembatan;
-  ANGGARAN_SESI = buatAnggaranBaca();
-}
-function jembatanBacaKode() {
-  return JEMBATAN_SESI;
-}
-async function jalankanBacaKode(args = {}) {
-  const berkas = typeof args.berkas === "string" ? args.berkas : "";
-  const dari = args.dari === void 0 || args.dari === null ? void 0 : Number(args.dari);
-  const sampai = args.sampai === void 0 || args.sampai === null ? void 0 : Number(args.sampai);
-  const simbol = typeof args.simbol === "string" ? args.simbol : void 0;
-  if (!JEMBATAN_SESI) {
-    return "baca_kode belum tersambung: jembatan berkas belum dipasang. Tidak ada berkas yang dibaca.";
-  }
-  const hasil = await bacaBerkasKode({ berkas, dari, sampai, simbol }, JEMBATAN_SESI, ANGGARAN_SESI);
-  return hasil.teks;
-}
-var BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, EKSTENSI_TEKS, NAMA_TEKS, SPEC_BACA_KODE, JEMBATAN_SESI, ANGGARAN_SESI, TOOL_BACA_KODE;
-var init_bacaKode = __esm({
-  "src/lib/bacaKode.ts"() {
-    "use strict";
-    init_define_import_meta_env();
-    init_konteksRepo();
-    BACA_KODE_VERSI = 1;
-    BATAS_BARIS_POTONGAN = 120;
-    JENDELA_SEBELUM_SIMBOL = 6;
-    JENDELA_SESUDAH_SIMBOL = 40;
-    BATAS_BYTE_BERKAS = 512 * 1024;
-    BATAS_KARAKTER_BARIS = 400;
-    BATAS_CHAR_POTONGAN = 6e3;
-    BATAS_BACAAN_SESI = 12;
-    BATAS_BERKAS_PER_PANGGILAN = 1;
-    EKSTENSI_TEKS = [
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".mjs",
-      ".cjs",
-      ".rs",
-      ".json",
-      ".jsonc",
-      ".toml",
-      ".yml",
-      ".yaml",
-      ".ini",
-      ".cfg",
-      ".conf",
-      ".md",
-      ".txt",
-      ".css",
-      ".scss",
-      ".html",
-      ".sql",
-      ".sh",
-      ".py"
-    ];
-    NAMA_TEKS = ["Dockerfile", "Makefile", "LICENSE", "NOTICE"];
-    SPEC_BACA_KODE = {
-      name: "zephyr_kode",
-      description: 'Baca ISI kode ZEPHYR SENDIRI sebagai potongan baris bernomor - jangan menebak isi berkas dari peta kode. Pakai ini untuk menjawab "cara kerja X": sebutkan `berkas` (jalur relatif dari akar repo Zephyr, mis. src/components/shell/ActivityBar.tsx) plus `dari`/`sampai` ATAU `simbol` (jendela di sekitar definisi simbol). Batas: 120 baris/pembacaan, berkas <= 512 KiB, 1 berkas/panggilan, 12 pembacaan/sesi. Hanya berkas teks di dalam repo; berkas rahasia (.env, *.key, *.pem) dan jalur di luar repo DITOLAK.',
-      parameters: {
-        type: "object",
-        properties: {
-          berkas: {
-            type: "string",
-            description: 'Jalur RELATIF dari akar repo Zephyr, mis. "src/lib/konteksRepo.ts". Jalur absolut dan ".." ditolak.'
-          },
-          dari: { type: ["number", "string"], description: "Baris awal (1-based, inklusif). Bawaan 1." },
-          sampai: { type: ["number", "string"], description: `Baris akhir (1-based, inklusif). Bawaan dari+${BATAS_BARIS_POTONGAN - 1}.` },
-          simbol: { type: "string", description: "Nama simbol; jendela diambil di sekitar definisinya kalau `dari` tidak diberikan." }
-        },
-        required: ["berkas"]
-      }
-    };
-    JEMBATAN_SESI = null;
-    ANGGARAN_SESI = buatAnggaranBaca();
-    TOOL_BACA_KODE = {
-      spec: SPEC_BACA_KODE,
-      run: jalankanBacaKode
-    };
   }
 });
 
@@ -161003,7 +161465,9 @@ function deteksiKelasTugas(teks) {
   return URUTAN_KELAS.filter((k) => ada.has(k));
 }
 function rumahGantiTeks(kelas) {
-  return kelas.includes("repo-wide") ? { pilih: "replace_in_files", cadangan: ["edit", "multi_edit"] } : { pilih: "edit", cadangan: ["multi_edit", "replace_in_files"] };
+  if (kelas.includes("repo-wide")) return { pilih: "replace_in_files", cadangan: ["edit", "multi_edit"] };
+  if (kelas.includes("tulis-banyak")) return { pilih: "multi_edit", cadangan: ["edit", "replace_in_files"] };
+  return { pilih: "edit", cadangan: ["multi_edit", "replace_in_files"] };
 }
 function rumahDelegasi(kelas) {
   const paralel = kelas.includes("tulis-banyak") || kelas.includes("repo-wide");
@@ -161430,7 +161894,7 @@ var init_subsetTugas = __esm({
       "navigasi-kode",
       "delegasi-agen"
     ];
-    KELUARGA_TULIS = ["ganti-teks-berkas", "hapus-berkas"];
+    KELUARGA_TULIS = ["ganti-teks-berkas", "hapus-berkas", "kelola-berkas"];
     KELUARGA_WEB = ["web-cari", "web-ambil-url", "baca-panel", "panel-kendali"];
     RUMAH = {
       "baca-berkas": ["read_file"],
@@ -164727,7 +165191,7 @@ function padatkanRiwayatMurni(history2, opts = {}) {
   jejak.push(hasil.alasan);
   return hasil;
 }
-var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
+var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, JEDA_ULANG_ARGUMEN_CACAT_MS, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
 var init_aiStore = __esm({
   "src/lib/aiStore.ts"() {
     "use strict";
@@ -164916,6 +165380,7 @@ var init_aiStore = __esm({
     AGENT_HARD_LIMIT_MS = 15 * 6e4;
     agentHardTimer = null;
     AGENT_PROVIDER_RETRY_DELAYS = [1e3, 2500];
+    JEDA_ULANG_ARGUMEN_CACAT_MS = 1e3;
     TUNGGU_PULIH_DELAYS = [4e3, 12e3, 22e3];
     DESTRUCTIVE = [
       // POSIX recursive/forced delete, flags in any order, operands anywhere.
@@ -166404,6 +166869,7 @@ ${memori}`.trim() : aturan;
           let lanjutTanpaTool = 0;
           let sudahDiberiPeringatanTanpaKemajuan = false;
           let sudahDiberiPeringatanBrowserMuter = false;
+          let izinWebMatiPercobaan = 0;
           const tugasRun = content5;
           const beratRun = tugasBerat(tugasRun) || wajibTodo(tugasRun);
           const wsRun = useStore2.getState().workspace;
@@ -166642,7 +167108,7 @@ ${tugasRun.replace(/\s+/g, " ").trim().slice(0, 800)}`
                       `[aiStore] anggaran riwayat cuma ${sisaRiwayat} char (PAYLOAD_MAX_CHARS=${PAYLOAD_MAX_CHARS} - reserveTools=${reserveTools} - biayaTetap=${biayaTetap}); blok tetap (system prompt + kalimat pasca-potong) sudah memakan hampir seluruh anggaran model`
                     );
                   }
-                  const capUntukPesan = Math.max(2e4, sisaRiwayat);
+                  const capUntukPesan = Math.max(2e4, PAYLOAD_MAX_CHARS - reserveTools);
                   const pesanMentah = [];
                   let langkahAsisten = 0;
                   for (const m of history2) {
@@ -166774,9 +167240,7 @@ ${catatanStatus}`
                   agentStepLimit: MAX_AGENT_STEPS
                 });
                 clearGambarMenunggu();
-                if (!retryableToolResponse) {
-                  if (!await tungguRetryAgent(AGENT_PROVIDER_RETRY_DELAYS[retry])) break;
-                }
+                if (!await tungguRetryAgent(retryableToolResponse ? JEDA_ULANG_ARGUMEN_CACAT_MS : AGENT_PROVIDER_RETRY_DELAYS[retry])) break;
                 if (agentBatal) break;
               }
               if (res.cancelled || agentBatal) break;
@@ -167071,6 +167535,16 @@ Lanjutkan SEKARANG dengan memanggil tool untuk mengerjakan tugas berikutnya \u20
                   });
                   break;
                 }
+                if (!ok3 && hasil.includes("izin-isi-web-mati")) {
+                  izinWebMatiPercobaan += 1;
+                  if (izinWebMatiPercobaan === 1) {
+                    hasil = "(izin-isi-web-mati: fetching the web is DISABLED for this workspace.\nIt is a user setting (Settings > AI Tools > Web fetching, `izinIsiWeb`) and you cannot turn it on,\nso do NOT retry web_fetch, web_search, browser_open or download with any URL - every attempt\nreturns this same refusal.\nAnswer the user NOW: report that web access is off and how to enable it, then finish whatever\npart of the task can be done offline. If the whole task needs the web, say so plainly and stop.)";
+                  } else {
+                    akhir = "Stopped: web fetching is disabled (izinIsiWeb is off) and the attempt was retried.\nEnable it in Settings > AI Tools > Web fetching, then run the task again.";
+                    agentStopReason = "guard";
+                    agentBatal = true;
+                  }
+                }
                 if (ok3 && (tc.name === "browser_open" || tc.name === "system_browser_open")) {
                   halamanTerbuka = true;
                   const url = urlBrowserDinormalisasi(tc.name, argsObj);
@@ -167157,7 +167631,7 @@ Tugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjaka
                 }
                 if (taskComplete || navigationOpened) break;
               }
-              if (taskComplete || navigationOpened) break;
+              if (taskComplete || navigationOpened || agentBatal) break;
               if (langkahTanpaKemajuan >= BATAS_TANPA_KEMAJUAN) {
                 if (!sudahDiberiPeringatanTanpaKemajuan) {
                   sudahDiberiPeringatanTanpaKemajuan = true;
@@ -167875,6 +168349,7 @@ __export(commands_exports, {
   fsDelete: () => fsDelete,
   fsExists: () => fsExists,
   fsRead: () => fsRead,
+  fsRealpath: () => fsRealpath,
   fsRename: () => fsRename,
   fsStat: () => fsStat,
   fsUnwatch: () => fsUnwatch,
@@ -168147,12 +168622,13 @@ async function periksaAturanSebelumTulis(path2, content5) {
     throw new Error(pesan2);
   }
 }
-var KODE_SAH, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, fsRead, agentExec, fsWrite, fsExists, fsStat, fsCreateFile, fsCreateDir, fsDelete, fsRename, sessionLoad, sessionSave, fileDialogOpen, fileDialogSave, folderDialogOpen, bgImageRead, scanDir, fsWatch, fsUnwatch, searchFiles, replaceInFile, revealPath, listWorkspaceFiles, clearWorkspaceFileIndex, browserProbe, ragSearch, listShells, listAgents, ptySpawn, ptyWrite, ptyResize, ptyKill, ptyList, ptyTail, ptySetPaused, ptyInterrupt, sshList, sshAdd, sshUpdate, sshDelete, sshSavePassword, sshClearPassword, sshConnect, sshDisconnect, getPublicModels, setModelKey, testModelConnection, listModels, resetSettings, aiChat, aiCancel, aiPenolakanTerakhir, aiToolChat, aiToolChatStream, cliAgentsDetect, formatText, cliAgentRun, cliChat, cliChatCancel, cliModels, codexConfig, claudeAccountInfo, claudeSettingsPatch, claudeMemoryWrite, claudeCommandWrite, claudeCommandDelete, claudeBuiltinCommands, ccCatalogList, ccCatalogBody, ccCatalogInstall, ccCatalogUninstall, ccRepoScan, ccRepoInstall, ccPluginsCatalog, ccPluginInstall, ccPluginUninstall, ccPluginMarketplaces, bacaGambar, simpanGambarTemp, gitInit, gitStatus, gitStage, gitUnstage, gitCommit, gitPush, gitPull, gitFetch, gitBranches, gitCheckout, gitCreateBranch, gitDeleteBranch, gitDiff, gitDiffHead, gitDiscard, gitLog, gitConfigGetUser, gitBlame, gitStashSave, gitStashList, gitStashPop, gitStashDrop, gitRebase, gitConflictTake, gitConflictRead, gitConflictApply, gitRebaseInteractive, gitRebaseContinue, gitRebaseAbort, gitRebaseStatus, gitRebaseProgress, ghStatus, ghSetPat, ghLoginDevice, ghLogout, ghTest, mcpStatus, mcpStart, mcpStop, mcpReply, mcpUiReady, mcpRotateToken, mcpWriteCli, mcpRemoveCli, mcpCliStatus, mcpClientList, mcpClientTools, mcpClientCall, mcpClientPrompts, mcpClientPromptGet, mcpClientSave, mcpClientRemove, extensionsList, extensionsLoad, extensionsAdd, extensionsRemove, extensionsFolder, extensionsInstall, extensionsUninstall, extensionsSetEnabled, extensionsReadContrib, extensionsReadMain, extensionsReadFiles, extensionsManifests, extensionsWriteBundled, extensionsBundledIds, extensionsDownloadZext, extWhich, extExec, getDiagnostics, logTail, aiCaptureSet, aiCaptureGet, aiCaptureClear, selfTest, logFrontend, perfMark, debugPanic, tasksLoad, tasksMatchers, tasksMatchLine, tasksRun, tasksWait, tasksKill, tasksRuns, tasksClearRuns, tasksDetectPort, historySnapshot, historyList, historyRead, historyClear, historyPrune, historyStats, searchGrep, searchCancel, searchRgInfo, searchReplace, dapLoad, dapAdapters, dapStart, dapStop, dapStatus, dapKontrol, dapThreads, dapStack, dapScopes, dapVariables, dapEvaluate, dapSetVariable, dapSetBreakpoints, dapLoadedSources, cliArgsAwal, cliParse, cliWaitSelesai, cliWaitBuat, cliWaitAktif, cliTeks, workspaceInfo, workspaceSetTrust, workspaceForgetTrust, workspaceTrustList, workspaceAddRoot, workspaceRemoveRoot, workspaceSetActiveRoot, workspaceOpenFile, workspaceSaveFile, workspaceSettingsEfektif, workspaceSettingsAsal, workspaceSetSettings, workspaceBolehEksekusi, snippetsLoad, snippetsUserFile, snippetsUserList, snippetsBuiltinLangs, skillsList, skillRead, skillWrite, skillDelete, instructionsList, instructionRead, instructionWrite, instructionDelete, instructionCatalogList, instructionInstall, hookRun, agentContext, memoryRead, memoryWrite, worktreeList, worktreeAdd, worktreeRemove, worktreePrune, cronList, cronCreate, cronDelete, cronToggle, cronDue, cronMarkRun, browserPaneOpen, browserPaneBounds, browserPaneVisible, browserPaneClose, browserPaneNav, browserPaneEval, browserPaneInfo, browserDownloadUrl, webFetch, webSearch, browserPaneCursor, devenvDetectRuntimes, devenvDetectServices, devenvServiceStart, devenvServiceStop, devenvScanProjects, devenvOpenPath, credentialsList, credentialsSet, credentialsDelete, credentialsGet, dbTables, dbColumns, dbQuery, dbDefaultPath, httpRequest, graphqlBody, graphqlErrors, sftpAvailable, sftpList, sftpUpload, sftpDownload, sftpTunnelStart, sftpTunnelStop, sftpTunnelList;
+var KODE_SAH, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, fsRead, fsRealpath, agentExec, fsWrite, fsExists, fsStat, fsCreateFile, fsCreateDir, fsDelete, fsRename, sessionLoad, sessionSave, fileDialogOpen, fileDialogSave, folderDialogOpen, bgImageRead, scanDir, fsWatch, fsUnwatch, searchFiles, replaceInFile, revealPath, listWorkspaceFiles, clearWorkspaceFileIndex, browserProbe, ragSearch, listShells, listAgents, ptySpawn, ptyWrite, ptyResize, ptyKill, ptyList, ptyTail, ptySetPaused, ptyInterrupt, sshList, sshAdd, sshUpdate, sshDelete, sshSavePassword, sshClearPassword, sshConnect, sshDisconnect, getPublicModels, setModelKey, testModelConnection, listModels, resetSettings, aiChat, aiCancel, aiPenolakanTerakhir, aiToolChat, aiToolChatStream, cliAgentsDetect, formatText, cliAgentRun, cliChat, cliChatCancel, cliModels, codexConfig, claudeAccountInfo, claudeSettingsPatch, claudeMemoryWrite, claudeCommandWrite, claudeCommandDelete, claudeBuiltinCommands, ccCatalogList, ccCatalogBody, ccCatalogInstall, ccCatalogUninstall, ccRepoScan, ccRepoInstall, ccPluginsCatalog, ccPluginInstall, ccPluginUninstall, ccPluginMarketplaces, bacaGambar, simpanGambarTemp, gitInit, gitStatus, gitStage, gitUnstage, gitCommit, gitPush, gitPull, gitFetch, gitBranches, gitCheckout, gitCreateBranch, gitDeleteBranch, gitDiff, gitDiffHead, gitDiscard, gitLog, gitConfigGetUser, gitBlame, gitStashSave, gitStashList, gitStashPop, gitStashDrop, gitRebase, gitConflictTake, gitConflictRead, gitConflictApply, gitRebaseInteractive, gitRebaseContinue, gitRebaseAbort, gitRebaseStatus, gitRebaseProgress, ghStatus, ghSetPat, ghLoginDevice, ghLogout, ghTest, mcpStatus, mcpStart, mcpStop, mcpReply, mcpUiReady, mcpRotateToken, mcpWriteCli, mcpRemoveCli, mcpCliStatus, mcpClientList, mcpClientTools, mcpClientCall, mcpClientPrompts, mcpClientPromptGet, mcpClientSave, mcpClientRemove, extensionsList, extensionsLoad, extensionsAdd, extensionsRemove, extensionsFolder, extensionsInstall, extensionsUninstall, extensionsSetEnabled, extensionsReadContrib, extensionsReadMain, extensionsReadFiles, extensionsManifests, extensionsWriteBundled, extensionsBundledIds, extensionsDownloadZext, extWhich, extExec, getDiagnostics, logTail, aiCaptureSet, aiCaptureGet, aiCaptureClear, selfTest, logFrontend, perfMark, debugPanic, tasksLoad, tasksMatchers, tasksMatchLine, tasksRun, tasksWait, tasksKill, tasksRuns, tasksClearRuns, tasksDetectPort, historySnapshot, historyList, historyRead, historyClear, historyPrune, historyStats, searchGrep, searchCancel, searchRgInfo, searchReplace, dapLoad, dapAdapters, dapStart, dapStop, dapStatus, dapKontrol, dapThreads, dapStack, dapScopes, dapVariables, dapEvaluate, dapSetVariable, dapSetBreakpoints, dapLoadedSources, cliArgsAwal, cliParse, cliWaitSelesai, cliWaitBuat, cliWaitAktif, cliTeks, workspaceInfo, workspaceSetTrust, workspaceForgetTrust, workspaceTrustList, workspaceAddRoot, workspaceRemoveRoot, workspaceSetActiveRoot, workspaceOpenFile, workspaceSaveFile, workspaceSettingsEfektif, workspaceSettingsAsal, workspaceSetSettings, workspaceBolehEksekusi, snippetsLoad, snippetsUserFile, snippetsUserList, snippetsBuiltinLangs, skillsList, skillRead, skillWrite, skillDelete, instructionsList, instructionRead, instructionWrite, instructionDelete, instructionCatalogList, instructionInstall, hookRun, agentContext, memoryRead, memoryWrite, worktreeList, worktreeAdd, worktreeRemove, worktreePrune, cronList, cronCreate, cronDelete, cronToggle, cronDue, cronMarkRun, browserPaneOpen, browserPaneBounds, browserPaneVisible, browserPaneClose, browserPaneNav, browserPaneEval, browserPaneInfo, browserDownloadUrl, webFetch, webSearch, browserPaneCursor, devenvDetectRuntimes, devenvDetectServices, devenvServiceStart, devenvServiceStop, devenvScanProjects, devenvOpenPath, credentialsList, credentialsSet, credentialsDelete, credentialsGet, dbTables, dbColumns, dbQuery, dbDefaultPath, httpRequest, graphqlBody, graphqlErrors, sftpAvailable, sftpList, sftpUpload, sftpDownload, sftpTunnelStart, sftpTunnelStop, sftpTunnelList;
 var init_commands = __esm({
   "src/lib/commands.ts"() {
     "use strict";
     init_define_import_meta_env();
     init_core();
+    init_bacaKode();
     KODE_SAH = /* @__PURE__ */ new Set([
       "NotFound",
       "InvalidInput",
@@ -168207,6 +168683,8 @@ var init_commands = __esm({
     workspaceOpen = (path2) => invoke("workspace_open", { path: path2 });
     workspaceClose = () => invoke("workspace_close");
     fsRead = (path2, encoding) => invoke("fs_read", { path: path2, encoding });
+    fsRealpath = (path2) => invoke("fs_realpath", { path: path2 });
+    pasangRealpathBacaKode((path2) => fsRealpath(path2));
     agentExec = (command3, timeoutMs, cwd) => invoke("agent_exec", {
       command: command3,
       timeoutMs: timeoutMs ?? null,
@@ -170598,7 +171076,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 
 ## Looking things up - this block is the CORE, the rest is searchable
 - This block is the always-on core: identity, the rules for answering, the setting keys and shortcuts users ask about daily, ports, logs and the "never invent" rule. It is NOT the whole truth about the app - the rest is one search away.
-- Everything else ships with the app in a search index: ALL 124 setting keys and their defaults, all 34 default shortcuts, every interface label, palette command, tool, bundled extension, bundled document and the code map. Reach it with the \`zephyr_self\` tool: pass the user's own words, it searches the index locally (no folder open needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not written above, and before telling the user that something does not exist.
+- Everything else ships with the app in a search index: ALL 129 setting keys and their defaults, all 34 default shortcuts, every interface label, palette command, tool, bundled extension, bundled document and the code map. Reach it with the \`zephyr_self\` tool: pass the user's own words, it searches the index locally (no folder open needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not written above, and before telling the user that something does not exist.
 
 ## Settings
 - Open them with the Settings command (Ctrl+,). The page has a search box that filters by setting name.
@@ -170607,7 +171085,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Settings sections that are NOT in that nav: agents, rules, subagent, permissions, mcp - never send the user hunting in the Settings nav for them. These are still Settings sections that simply have no row in the nav: they are opened from Chat Settings (the "..." menu in the AI view) or from the Agent Customizations panel. If you are asked where one of them is opened from, look it up instead of naming a place.
 - "AI Models" (Settings group \`models\`: activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) is NOT a Settings page and has no row in the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`src/components/settings/AiModelsModal.tsx\` renders \`ModelsSection\`, the same section component the editor-area Settings page used to show. 4 ways in, all without leaving the chat: the "Open AI Models" button on the 401 / missing-key notice in the chat panel; the model dropdown (its empty state and the "Edit models\u2026" row); the "AI Models" row in the chat panel's "..." menu; the command palette command "AI: Configure Models & API Keys" (id ai.models). Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.
 - Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced.
-- Setting keys kept in this block (25 of 124; the rest is in the index - look it up with \`zephyr_self\`):
+- Setting keys kept in this block (25 of 129; the rest is in the index - look it up with \`zephyr_self\`):
   - general: theme=dark, uiLang=en, fontSize=13, zoom=100, aiPanel=bottom
   - editor: tabSize=2, wordWrap=false, autoSave=off, formatOnSave=false, vimMode=false
   - theme: current=zephyr-dark, accent=#3884ff
@@ -170639,7 +171117,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Where to look for a symptom: the Problems panel (diagnostics), the Output panel (task/tool output), the Debug panel, a terminal, the Ports panel (what is listening); Settings > About for the version and update state; the log file above when the answer really lives there.
 
 ## Never invent
-- A setting name, button label, shortcut or port that is not in this block or in a file you actually read: say where the user can look (Settings search, the settings.json path, the panel in question) and offer to check it. If it is one of the 124 settings or 34 shortcuts the app ships, \`zephyr_self\` finds it - look it up instead of guessing a name. A wrong name costs the user more than an honest "let me check".`;
+- A setting name, button label, shortcut or port that is not in this block or in a file you actually read: say where the user can look (Settings search, the settings.json path, the panel in question) and offer to check it. If it is one of the 129 settings or 34 shortcuts the app ships, \`zephyr_self\` finds it - look it up instead of guessing a name. A wrong name costs the user more than an honest "let me check".`;
   }
 });
 
@@ -171105,14 +171583,14 @@ function aturanRute(lang) {
   if (kode === "id") {
     return [
       "# Aturan routing URL",
-      "- Jika user hanya minta membuka, pergi ke, atau mengunjungi URL, panggil browser_open (browser tertanam) atau system_browser_open (browser sistem), lalu berhenti setelah berhasil. Jangan panggil bash_run, Invoke-WebRequest, curl, atau wget.",
+      "- Jika user hanya minta membuka, pergi ke, atau mengunjungi URL, panggil browser_open (browser tertanam), lalu berhenti setelah berhasil. Jangan panggil bash_run, Invoke-WebRequest, curl, atau wget.",
       "- Untuk membaca isi halaman, gunakan browser_read untuk halaman tertanam atau web_fetch untuk teks URL; terminal hanya jika diminta eksplisit. Perintah jaringan pakai timeout singkat, jangan menunggu tanpa batas.",
       '- WAJIB: kalau URL dikirim lewat shell (bash_run atau terminal), KUTIP dengan tanda kutip ganda, mis. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Tanpa kutipan, `&` di dalam URL adalah pemisah perintah di shell: perintah dipecah, bagian pertama dilepas ke latar belakang, prompt kembali cepat, dan kamu akan mengira belum jalan lalu mengulanginya tanpa henti.'
     ].join("\n");
   }
   return [
     "# URL routing rules",
-    "- If the user only asks to open, go to, or visit a URL, call browser_open (embedded browser) or system_browser_open (system browser), then stop after success. Do not call bash_run, Invoke-WebRequest, curl, or wget.",
+    "- If the user only asks to open, go to, or visit a URL, call browser_open (embedded browser), then stop after success. Do not call bash_run, Invoke-WebRequest, curl, or wget.",
     "- To read page content, use browser_read for an embedded page or web_fetch for URL text; the terminal only when explicitly requested. Give network commands a short timeout and never wait indefinitely.",
     '- MANDATORY: when a URL goes through the shell (bash_run or the terminal), QUOTE it with double quotes, e.g. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Unquoted, the `&` inside a URL is a shell command separator: the command is split, the first part is detached to the background, the prompt returns fast, and you will think it never ran and repeat it forever.'
   ].join("\n");
@@ -171464,8 +171942,8 @@ var init_systemPrompt = __esm({
         "8. For a large or multi-session task, keep a running plan in `.zephyr-context.md` inside the open folder (or the folder the user pointed you at when none is open). If it does not exist yet, CREATE it with write_file on your first step - do not spend a step trying to read it first; it only exists once you have written it. Record the goal, decisions, files already created, and what is left. It is fed back to you every turn, so after context is compacted you still know where you are - update it as you finish each part instead of trusting memory.",
         "",
         "# Which tool for which job",
-        'One-shot commands (test, build, typecheck, git, short network call): bash_run (returns exit code + output). Host is Windows: no Linux bashisms (`pwd && ls -la`, `which`, `/dev/null`); use PowerShell/cmd or portable commands (git, npm, cargo, npx). To open/run in a terminal pane, use pane (action: "open") then sh. Long-running processes (dev server, watcher): bash_background, then bash_logs / bash_list / bash_kill. Never use the terminal to open or read URLs.',
-        "Files: read_file, write_file, edit (small swap), multi_edit, replace_in_files (same change in many places); delete_file/move_file/copy_file/create_directory instead of shell rm/del/cp (recorded; with a folder open, relative paths resolve against it, and every write must land INSIDE it - an absolute path does not get you past that guard. With no folder open there is nowhere to write at all: file writes and shell commands are refused until the user opens a folder, so say so plainly instead of retrying. Reading files the user names by absolute path still works without a folder). list_directory for overview. Finding: grep for contents, glob for names. Code intelligence (if a language server exists): lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics - prefer these over grep for symbol questions. Git via bash_run (never push). SSH: ssh then sh. Terminal panes: pane."
+        'One-shot commands (test, build, typecheck, git, short network call): bash_run (returns exit code + output). Host is Windows: no Linux bashisms (`pwd && ls -la`, `which`, `/dev/null`); use PowerShell/cmd or portable commands (git, npm, cargo, npx). To open/run in a terminal pane, use pane (action: "open") then sh. Long-running processes (dev server, watcher): bash_run blocks until the command exits, so look up the background-bash pair with tool_search - start it, then read its logs. Never use the terminal to open or read URLs.',
+        "Files: read_file, write_file, edit (small swap), multi_edit (many hunks); delete_file/move_file/copy_file instead of shell rm/del/mv/cp (recorded; with a folder open, relative paths resolve against it, and every write must land INSIDE it - an absolute path does not get you past that guard. With no folder open there is nowhere to write at all: file writes and shell commands are refused until the user opens a folder, so say so plainly instead of retrying. Reading files the user names by absolute path still works without a folder). list_directory for overview. Finding: grep for contents, glob for names. Code intelligence (language-server tools and replace_in_files are deferred, not gone): grep first, and look them up with tool_search when a symbol question needs more than grep can give. Git via bash_run (never push). SSH: ssh then sh. Terminal panes: pane."
       ].join("\n"),
       aturan: [
         "# Rules",
@@ -171512,6 +171990,7 @@ var init_systemPrompt = __esm({
         // keduanya, dan `scripts/uji-prompt-subagent2.mjs` membaca hasil rakitan ini.
         ...aturanSubagentPrompt("en").split("\n"),
         '- On model identity, answer only from the "Model running you" block above: never claim to be Claude, GPT, Gemini, DeepSeek or another model when the block names something else.',
+        "- Progressive disclosure: many capabilities (web, browser, SSH, MCP, scheduling, notes, preview) are NOT in the tool list you received - they are found with tool_search and invoked through tool_call. When tool_search returns a match, the run is NOT finished: follow through with tool_call (name + the arguments its schema shows) and report what came back. Never stop after tool_search, and never answer from memory in its place - a tool_search hit followed by no tool_call is a dead end, not an answer.",
         "- Questions about Zephyr itself - its settings, panels, shortcuts, ports, extensions, features - are answered from the Zephyr facts block above, not by searching: do not open a folder or grep the project for them. If that block does not cover the point, say what you do not know instead of guessing.",
         '- You have your own cross-session memory (the "# Memori lintas sesi (Zeph AI)" block above; the file lives in the app data directory, not in the user project). Before asking about something that may already have been decided, look it up with the `ingat` tool (aksi=cari, or aksi=lihat for the contents; if `ingat` is not in the tool list you received, find it with `tool_search` and call it through `tool_call`). Save decisions, preferences and lasting work results with `ingat` (aksi=tambah) when they are agreed; do not store raw chatter or anything the repo can be read again for.'
       ].join("\n"),
@@ -171552,8 +172031,8 @@ var init_systemPrompt = __esm({
         "8. Untuk tugas besar atau lintas-sesi, simpan rencana berjalan di `.zephyr-context.md` di dalam folder yang terbuka (atau folder yang ditunjuk user kalau tidak ada yang terbuka). Kalau berkas itu belum ada, BUAT dengan write_file pada langkah pertama - jangan habiskan satu langkah untuk membacanya dulu; berkas itu hanya ada setelah kamu menulisnya. Catat tujuan, keputusan, berkas yang sudah dibuat, dan sisa pekerjaan. Berkas ini disodorkan lagi ke kamu tiap giliran, jadi setelah konteks dipadatkan kamu tetap tahu posisimu - perbarui tiap kali satu bagian selesai, jangan mengandalkan ingatan.",
         "",
         "# Tool mana untuk pekerjaan apa",
-        'Perintah sekali jalan (test, build, typecheck, git, panggilan jaringan singkat): bash_run (mengembalikan exit code + output). Host Windows: jangan perintah Linux (`pwd && ls -la`, `which`, `/dev/null`); pakai PowerShell/cmd atau CLI portabel (git, npm, cargo, npx). Untuk buka/jalankan di pane terminal, pakai pane (action: "open") lalu sh. Proses berjalan terus (dev server, watcher): bash_background, lalu bash_logs / bash_list / bash_kill. Jangan pakai terminal untuk membuka/membaca URL.',
-        "File: read_file, write_file, edit (ganti kecil), multi_edit, replace_in_files (perubahan sama di banyak tempat); delete_file/move_file/copy_file/create_directory daripada rm/del/cp di shell (tercatat; kalau ada folder terbuka, path relatif diselesaikan terhadapnya dan SETIAP tulisan wajib di DALAM folder itu - path absolut tidak bisa menembus penjaga itu. Tanpa folder terbuka tidak ada tempat menulis sama sekali: tool tulis dan perintah shell ditolak sampai user membuka folder, jadi bilang apa adanya alih-alih mencoba lagi. Membaca berkas yang user sebut lewat path absolut tetap jalan tanpa folder). list_directory untuk gambaran. Mencari: grep untuk isi, glob untuk nama. Kecerdasan kode (kalau ada language server): lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics - pakai ini daripada grep untuk pertanyaan simbol. Git lewat bash_run (jangan push). SSH: ssh lalu sh. Pane terminal: pane."
+        'Perintah sekali jalan (test, build, typecheck, git, panggilan jaringan singkat): bash_run (mengembalikan exit code + output). Host Windows: jangan perintah Linux (`pwd && ls -la`, `which`, `/dev/null`); pakai PowerShell/cmd atau CLI portabel (git, npm, cargo, npx). Untuk buka/jalankan di pane terminal, pakai pane (action: "open") lalu sh. Proses berjalan terus (dev server, watcher): bash_run berhenti sampai perintah selesai, jadi cari dulu pasangan bash-background lewat tool_search - nyalakan, lalu baca log-nya. Jangan pakai terminal untuk membuka/membaca URL.',
+        "File: read_file, write_file, edit (ganti kecil), multi_edit (banyak bagian); delete_file/move_file/copy_file daripada rm/del/mv/cp di shell (tercatat; kalau ada folder terbuka, path relatif diselesaikan terhadapnya dan SETIAP tulisan wajib di DALAM folder itu - path absolut tidak bisa menembus penjaga itu. Tanpa folder terbuka tidak ada tempat menulis sama sekali: tool tulis dan perintah shell ditolak sampai user membuka folder, jadi bilang apa adanya alih-alih mencoba lagi. Membaca berkas yang user sebut lewat path absolut tetap jalan tanpa folder). list_directory untuk gambaran. Mencari: grep untuk isi, glob untuk nama. Kecerdasan kode (tool language-server dan replace_in_files ditunda, bukan dihapus): grep dulu, dan cari lewat tool_search kalau pertanyaan simbol butuh lebih dari yang grep bisa berikan. Git lewat bash_run (jangan push). SSH: ssh lalu sh. Pane terminal: pane."
       ].join("\n"),
       aturan: [
         "# Aturan",
@@ -171580,6 +172059,7 @@ var init_systemPrompt = __esm({
         // Aturan subagent, satu sumber teks: `aturanSubagentPrompt('id')` di subagentRoles.ts.
         ...aturanSubagentPrompt("id").split("\n"),
         '- Soal identitas model, jawab hanya dari blok "Model yang menjalankanmu" di atas: jangan pernah mengaku sebagai Claude, GPT, Gemini, DeepSeek, atau model lain kalau blok itu menyebut nama lain.',
+        "- Progressive disclosure: banyak kemampuan (web, browser, SSH, MCP, jadwal, catatan, preview) TIDAK ada di daftar tool yang kamu terima - semuanya dicari lewat tool_search lalu dipanggil lewat tool_call. Saat tool_search menemukan tool yang cocok, run BELUM selesai: lanjutkan dengan tool_call (nama + argumen sesuai skemanya) dan laporkan apa yang keluar. Jangan berhenti setelah tool_search, dan jangan menjawab dari ingatan sebagai gantinya - tool_search ketemu lalu tidak ada tool_call itu jalan buntu, bukan jawaban.",
         "- Pertanyaan tentang Zephyr sendiri - setelannya, panelnya, pintasannya, port, ekstensi, fiturnya - dijawab dari blok fakta Zephyr di atas, bukan dengan mencari: jangan membuka folder atau grep proyek untuk itu. Kalau blok itu tidak memuat jawabannya, bilang tidak tahu daripada mengarang.",
         '- Kamu punya memori lintas sesi sendiri (blok "# Memori lintas sesi (Zeph AI)" di atas; berkasnya di data dir aplikasi, bukan di proyek user). Sebelum menanyakan hal yang mungkin sudah pernah diputuskan, cari dulu dengan tool `ingat` (aksi=cari, atau aksi=lihat untuk isinya; kalau `ingat` tidak ada di daftar tool yang kamu terima, temukan lewat `tool_search` lalu panggil lewat `tool_call`). Simpan keputusan, preferensi, dan hasil kerja yang berlaku terus dengan `ingat` (aksi=tambah) saat hal itu disepakati; jangan menyimpan obrolan mentah atau hal yang bisa dibaca lagi dari repo.'
       ].join("\n"),
