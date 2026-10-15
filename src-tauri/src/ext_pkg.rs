@@ -510,6 +510,47 @@ fn hitung(v: &Value, k: &str) -> usize {
     }
 }
 
+/// Key bindings a keymap file actually carries.
+///
+/// The loader (`muatKeymap` in `extLoader.ts`) accepts TWO shapes: a bare array
+/// of bindings, and an object wrapping them under `keybindings`. Only the
+/// wrapped shape was counted here, so every keymap written as a bare array —
+/// which is what all four bundled keymaps are, and what VS Code's own
+/// `keybindings.json` is — was reported as "declares 0 key bindings" and
+/// REFUSED at install time. The package could never be installed at all.
+fn hitung_binding(v: &Value) -> usize {
+    match v {
+        Value::Array(a) => a.len(),
+        _ => hitung(v, "keybindings"),
+    }
+}
+
+/// Icon definitions the file tree can actually draw.
+///
+/// `muatIconTheme` (`extLoader.ts`) reads `raw.icons ?? raw` and only draws
+/// entries that carry a `glyph`. A VS Code icon theme (`iconDefinitions` +
+/// `fileExtensions`) has no `glyph` anywhere, so it changes no pixel; counting
+/// `iconDefinitions` as support is what let a package be reported as
+/// "19 icons" while applying none. This is the number that decides whether the
+/// contribution is real.
+fn jumlah_ikon_dapat_digambar(v: &Value) -> usize {
+    let peta = match v.get("icons") {
+        Some(Value::Object(o)) => o,
+        _ => match v.as_object() {
+            Some(o) => o,
+            None => return 0,
+        },
+    };
+    peta.values()
+        .filter(|e| {
+            e.get("glyph")
+                .and_then(|g| g.as_str())
+                .map(|g| !g.trim().is_empty())
+                .unwrap_or(false)
+        })
+        .count()
+}
+
 /// Read a contribution file inside the package, bounded to the same size
 /// `extensions_read_contrib` allows. `None` = missing, oversized, or not JSON,
 /// all of which mean "this contributes nothing".
@@ -607,7 +648,17 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
         ));
     }
 
-    /* Icon themes: the count that matters is the icon definitions in the file. */
+    /*
+     * Icon themes: only the definitions the file tree can actually draw.
+     *
+     * Two formats arrive here. Zephyr's own (`{"icons":{".ext":{"glyph","color"}}}`)
+     * is what `muatIconTheme` reads; VS Code's (`iconDefinitions` +
+     * `fileExtensions`) has no glyph at all and changes no icon. Counting the
+     * VS Code key as support was the bug: a package could be reported as
+     * "19 icons" and apply none — and a package whose ONLY icon theme was that
+     * shape was refused as "0 icon definitions", which is why all four bundled
+     * icon themes could never be installed.
+     */
     let (mut n_ikon, mut jumlah_ikon) = (0usize, 0usize);
     for i in &c.icon_themes {
         let label = if i.label.trim().is_empty() {
@@ -625,17 +676,33 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                 ),
             )),
             Some(v) => {
-                let n = hitung(&v, "iconDefinitions");
-                if n == 0 {
-                    p.diabaikan.push(ki(
-                        "iconTheme",
-                        &label,
-                        format!("0 icon definitions in {} — no icon changes", i.path),
-                    ));
+                let n_gambar = jumlah_ikon_dapat_digambar(&v);
+                let n_vscode = hitung(&v, "iconDefinitions");
+                if n_gambar == 0 {
+                    /* Say WHY when the file is a real VS Code theme: "0 icon
+                       definitions" reads as a broken package, and it is not. */
+                    if n_vscode > 0 {
+                        p.diabaikan.push(ki(
+                            "iconTheme",
+                            &label,
+                            format!(
+                                "{} in {} use the VS Code format (iconDefinitions); Zephyr draws only its own {{\"icons\":{{\".ext\":{{\"glyph\",\"color\"}}}}}} format, so the file tree keeps its default icons",
+                                jumlah_nama(n_vscode, "1 icon definition", "icon definitions"),
+                                i.path
+                            ),
+                        ));
+                    } else {
+                        p.diabaikan.push(ki(
+                            "iconTheme",
+                            &label,
+                            format!("0 icon definitions in {} — no icon changes", i.path),
+                        ));
+                    }
                 } else {
                     n_ikon += 1;
-                    jumlah_ikon += n;
-                    p.didukung.push(ki("iconTheme", &label, format!("{n} icons")));
+                    jumlah_ikon += n_gambar;
+                    p.didukung
+                        .push(ki("iconTheme", &label, format!("{n_gambar} icons")));
                 }
             }
         }
@@ -671,7 +738,8 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
             .push(jumlah_nama(n_snippet, "1 snippet pack", "snippet packs"));
     }
 
-    /* Keymaps: report the number of bindings the file actually carries. */
+    /* Keymaps: report the number of bindings the file actually carries, in
+       either shape the loader accepts (bare array, or `keybindings` wrapper). */
     let (mut n_keymap, mut n_binding) = (0usize, 0usize);
     for k in &c.keymaps {
         let label = if k.label.trim().is_empty() {
@@ -689,7 +757,7 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                 ),
             )),
             Some(v) => {
-                let n = hitung(&v, "keybindings");
+                let n = hitung_binding(&v);
                 if n == 0 {
                     p.diabaikan.push(ki(
                         "keymap",
@@ -2000,9 +2068,14 @@ mod tests_pengaruh {
         );
 
         let ikon: serde_json::Map<String, Value> = (0..19)
-            .map(|i| (format!("i{i}"), json!({ "iconPath": format!("./i{i}.svg") })))
+            .map(|i| {
+                (
+                    format!("i{i}"),
+                    json!({ "glyph": "xy", "color": "#ffffff" }),
+                )
+            })
             .collect();
-        tulis(&d, "icons/i.json", &json!({ "iconDefinitions": ikon }).to_string());
+        tulis(&d, "icons/i.json", &json!({ "icons": ikon }).to_string());
 
         let bindings: Vec<Value> = (0..7)
             .map(|i| json!({ "key": format!("ctrl+{i}"), "command": format!("acme.c{i}") }))
@@ -2205,8 +2278,22 @@ mod tests_unduh {
             "tokenColors": [{ "scope": "a" }, { "scope": "b" }, { "scope": "c" }]
         })
         .to_string();
-        let ikon = json!({ "iconDefinitions": { "f1": {}, "f2": {}, "f3": {}, "f4": {} } }).to_string();
-        let peta = json!({ "keybindings": [{ "key": "ctrl+k" }, { "key": "ctrl+j" }] }).to_string();
+        /*
+         * Both shapes the loader accepts are exercised here: the icon theme is
+         * Zephyr's own (`icons` + glyph, the only one `muatIconTheme` draws),
+         * and the keymap is a bare ARRAY — the shape every bundled keymap uses,
+         * which the counter used to read as "0 key bindings".
+         */
+        let ikon = json!({
+            "icons": {
+                "f1": { "glyph": "aa", "color": "#111111" },
+                "f2": { "glyph": "bb", "color": "#222222" },
+                "f3": { "glyph": "cc", "color": "#333333" },
+                "f4": { "glyph": "dd", "color": "#444444" }
+            }
+        })
+        .to_string();
+        let peta = json!([{ "key": "ctrl+k" }, { "key": "ctrl+j" }]).to_string();
 
         tulis_zext(
             &z,
