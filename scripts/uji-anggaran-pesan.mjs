@@ -136,7 +136,9 @@ const SISTEM_CHAR = SISTEM.length;
  * di sini alih-alih mengikuti produk = melunakkan uji. */
 const KALIMAT_PASCA_POTONG_CHARS = M.KALIMAT_PASCA_POTONG_CHARS;
 const BIAYA_TETAP = M.ukuranPayload([{ role: 'system', content: SISTEM }]) + KALIMAT_PASCA_POTONG_CHARS;
-const CAP_PESAN = Math.max(20_000, M.PAYLOAD_MAX_CHARS - RESERVE_TOOL - BIAYA_TETAP);
+/* Cap memakai SATUAN YANG SAMA dengan ringkasUkuran (system-inclusive),
+   persis mengikuti aiStore.ts — bukan turunannya sendiri. */
+const CAP_PESAN = Math.max(20_000, M.PAYLOAD_MAX_CHARS - RESERVE_TOOL);
 /* systemPrompt.ts:94 menyematkan `new Date().toISOString()` (dan potret state
  * app yang hidup), jadi PANJANG mentah bergeser antar-jalan. Untuk digest yang
  * bisa dibandingkan lintas-proses, normalkan cap waktu ISO ke '<ISO>'. */
@@ -335,7 +337,8 @@ const gTurunEkor = perGiliran.filter((g) => !g.ekorSama);
       'B1-ekor-dipotong',
       `${gTurunEkor.length}/${GILIRAN} giliran mengirim pesan TERAKHIR yang bukan pesan terakhir asli (contoh: ${contoh?.ekorRole} ${angka(contoh?.ekorAsliLen ?? 0)}→${angka(contoh?.ekorKirimLen ?? 0)} char). ` +
         `Catatan pemotongan resmi produk ADA di ${gTurunEkor.length - tanpaCatatan.length}/${gTurunEkor.length} contoh -> model diberi tahu, jadi ini bukan pemotongan DIAM-DIAM; ` +
-        `tetapi identitas/isi pesan terakhir berubah karena blok tetap (${angka(SISTEM_CHAR)} char) > cap (${angka(CAP_PESAN)} char).`,
+        `tetapi isi pesan terakhir berubah karena sisa anggaran riwayat sempit: ` +
+        `cap ${angka(CAP_PESAN)} - blok tetap ${angka(SISTEM_CHAR)} - envelope = cuma ${angka(CAP_PESAN - SISTEM_CHAR - KALIMAT_PASCA_POTONG_CHARS)} char riwayat.`,
     );
   }
 }
@@ -611,7 +614,14 @@ const delaysPulih = (() => {
 const retryLimitFormula = /isTruncatedToolResponseError\(res\.error \?\? ''\) \? 2 : 1/.test(SRC_STORE)
   ? 'retryableToolResponse ? (truncated ? 2 : 1) : AGENT_PROVIDER_RETRY_DELAYS.length'
   : 'TIDAK TERBACA';
-const malformedTanpaJeda = /if \(!retryableToolResponse\) \{[\s\S]{0,120}?tungguRetryAgent\(AGENT_PROVIDER_RETRY_DELAYS\[retry\]\)/.test(SRC_STORE);
+/* Pacer jalur argumen-cacat (keputusan E2). Baca DARI KODE, bukan dari asumsi:
+   nilai konstanta DAN bukti pemakaian di jalur retry wajib keduanya ada. */
+const jedaMalformedMs = (() => {
+  const nilai = /JEDA_ULANG_ARGUMEN_CACAT_MS\s*=\s*([\d_]+)/.exec(SRC_STORE);
+  const dipakai = /tungguRetryAgent\(\s*retryableToolResponse\s*\?\s*JEDA_ULANG_ARGUMEN_CACAT_MS/.test(SRC_STORE);
+  if (!nilai || !dipakai) return 0; // belum ada pacer = jeda 0 ms
+  return Number(nilai[1].replace(/_/g, ''));
+})();
 const retryLimitMalformed = 1; // malformed (non-truncated): retryableToolResponse=true, truncated=false
 const retryLimitTruncated = 2;
 const retryLimitProvider = delaysLadder.length;
@@ -654,27 +664,33 @@ function puncakDalamJendela(times, jendelaMs) {
   );
 }
 
-/* E2 — jalur argumen-cacat: TANPA jeda, berapa percobaan/60 dtk? */
+/* E2 — jalur argumen-cacat: jeda pacer + RTTI tiap percobaan, laju/60 dtk. */
 {
   const perGiliranMalformed = 1 + retryLimitMalformed;
-  // tiap percobaan menunggu respons provider minimal RTT. Laju = 60_000/RTT percobaan/60 dtk.
-  const rttBatas = Math.ceil(60_000 / 70); // RTT minimum agar <= 70/60 dtk
-  const rttAcuanKode = delaysLadder[0]; // jeda "cepat" versi kode sendiri
-  const lajuPadaAcuan = Math.round(60_000 / rttAcuanKode);
-  const adaJedaMalformed = malformedTanpaJeda ? 0 : 1; // dibaca dari sumber
+  const rttBatas = Math.ceil(60_000 / 70); // RTT+ jeda minimum agar <= 70/60 dtk
+  const rttAcuanKode = delaysLadder[0]; // jeda "cepat" versi kode sendiri (pengganti RTT)
+  // tiap percobaan menunggu pacer + respons provider (RTT). laju = 60.000/(RTT+pacer).
+  const siklus = rttAcuanKode + jedaMalformedMs;
+  const lajuPadaAcuan = Math.round(60_000 / siklus);
+  const pakaiPacer = jedaMalformedMs > 0;
   lulus(
     'E2-laju-malformed',
-    lajuPadaAcuan <= 70,
+    // keputusan E2: pacer WAJIB ada, dan laju tetap <= 70/60 dtk
+    pakaiPacer && lajuPadaAcuan <= 70,
     `jalur argumen-cacat: ${perGiliranMalformed} percobaan/giliran (retryLimit=${retryLimitMalformed} untuk malformed, ${retryLimitTruncated} untuk terpotong), ` +
-      `jeda antar-percobaan dari kode=${adaJedaMalformed} ms (jalur retryableToolResponse TIDAK memakai tungguRetryAgent, terbaca=${malformedTanpaJeda}); ` +
-      `laju = 60.000/RTT: pada RTT=${rttAcuanKode} ms -> ${lajuPadaAcuan} percobaan/60 dtk; agar <=70 perlu RTT >= ${rttBatas} ms`,
+      `pacer=${jedaMalformedMs} ms (${pakaiPacer ? 'ADA' : 'TIDAK ADA'}, terbaca dari kode); ` +
+      `laju = 60.000/(RTT+pacer): pada RTT=${rttAcuanKode} ms -> siklus ${siklus} ms -> ${lajuPadaAcuan} percobaan/60 dtk ` +
+      `(batas 70 -> ${lajuPadaAcuan <= 70 ? 'AMAN' : 'MELEWATI'}; butuh RTT+pacer >= ${rttBatas} ms), ` +
+      `${perGiliranMalformed} percobaan/giliran = jeda total ${jedaMalformedMs * retryLimitMalformed} ms`,
   );
-  temuanCatat(
-    'E2-tanpa-jeda',
-    `jalur argumen-cacat mengulang SEKETIKA (jeda 0 ms, terbaca dari sumber=${malformedTanpaJeda}); tidak ada pacer di app. ` +
-      `Selama RTT provider >= ${rttBatas} ms laju tetap <= 70/60 dtk (angka batas laju TIDAK ada di kode - hanya dari fakta provider). ` +
-      `Ini 'perlu keputusan': tambahkan jeda kecil/pacer atau biarkan mengandalkan RTT provider.`,
-  );
+  if (!pakaiPacer) {
+    temuanCatat(
+      'E2-tanpa-jeda',
+      `jalur argumen-cacat mengulang SEKETIKA (pacer=${jedaMalformedMs} ms terbaca dari kode); ` +
+        `tidak ada pacer di app. Selama RTT provider >= ${rttBatas} ms laju tetap <= 70/60 dtk. ` +
+        `Ini 'perlu keputusan': tambahkan jeda kecil/pacer atau biarkan mengandalkan RTT provider.`,
+    );
+  }
 }
 temuanCatat(
   'E-rumus',

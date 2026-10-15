@@ -2146,6 +2146,15 @@ function agentHardLimitDisarm() {
 }
 
 const AGENT_PROVIDER_RETRY_DELAYS = [1000, 2500] as const;
+/**
+ * Pacer jalur argumen-cacat (keputusan E2, 2026-10-15).
+ *
+ * Dulu jalur ini mengulang 0 ms - memukul provider lagi persis ketika jawaban
+ * rusaknya belum sempat diproses. 1 dtk jeda tetap murah (paling banyak 1 ulang),
+ * menutup temuan E2, dan tetap bisa dibatalkan lewat Stop karena pakai
+ * `tungguRetryAgent` yang memeriksa `agentBatal`.
+ */
+const JEDA_ULANG_ARGUMEN_CACAT_MS = 1_000;
 
 /** A malformed tool response is safe to retry: no tool call has been dispatched yet. */
 function isRetryableAgentToolResponseError(error: string): boolean {
@@ -6003,12 +6012,21 @@ export const useAi = create<AiStore>((set0, get) => {
              * cap 23.251 char, jadi cap tak pernah tercapai dan yang dikorbankan
              * selalu riwayat, sementara payload di kabel tetap lewat batas.
              *
-             * Karena itu blok tetap dikurangkan lebih dulu: `reserveTools`
-             * menutup katalog tool (bentuk kabel `tools: toolSpecs`), `biayaTetap`
-             * menutup system prompt + envelope kalimat pasca-potong. Kalau
-             * sisanya tak cukup untuk riwayat bermakna, itu tanda anggaran model
-             * memang TERLALU KECIL untuk sistemnya - dan itu dicatat, bukan
-             * disembunyikan dengan diam-diam mengirim payload di atas batas.
+             * Karena itu cap Untuk pesan dihitung SEBAGAI SATUAN YANG SAMA dengan
+             * pengukuran `ringkasUkuran`/`ukuran()`, yaitu system-inclusive:
+             *
+             *   capUntukPesan = PAYLOAD_MAX_CHARS - reserveTools
+             *
+             * `reserveTools` menutup katalog tool (bentuk kabel `tools:`), sisanya
+             * untuk pesan - dan pesan itu memang mengukur system prompt + riwayat.
+             * Dulu `biayaTetap` (system prompt + envelope kalimat) ikut DIKURANGKAN
+             * dari cap, padahal system prompt MASIH DIUKUR ulang oleh `ukuran()`;
+             * system jadi terhitung dua kali, cap jatuh di bawah system prompt
+             * sendiri (20.000 < 24.296) dan tak pernah mungkin tercapai.
+             *
+             * Anggaran riwayat yang sesungguhnya tetap dicatat jujur di bawah lewat
+             * `sisaRiwayat`, bukan disembunyikan dengan diam-diam mengirim payload
+             * di atas batas; kelebihan kabel tetap dijaga terpisah oleh A3.
              */
             const biayaTetap =
               ukuranPayload(history.filter((m) => m.role === 'system')) + KALIMAT_PASCA_POTONG_CHARS;
@@ -6020,7 +6038,7 @@ export const useAi = create<AiStore>((set0, get) => {
                   'blok tetap (system prompt + kalimat pasca-potong) sudah memakan hampir seluruh anggaran model',
               );
             }
-            const capUntukPesan = Math.max(20_000, sisaRiwayat);
+            const capUntukPesan = Math.max(20_000, PAYLOAD_MAX_CHARS - reserveTools);
             /*
              * Build the request from the STEP list, not from `history`.
              *
@@ -6300,16 +6318,17 @@ export const useAi = create<AiStore>((set0, get) => {
           // never to the provider retry boundary.
           clearGambarMenunggu();
           /*
-           * A tool-response retry (malformed or truncated args) re-asks the
-           * provider immediately — there is nothing to wait out, the previous
-           * answer was complete, just unusable. Only a transient PROVIDER error
-           * (429/5xx) uses the backoff ladder, whose two delays are indexed by
-           * `retry` (0,1). Reading that array for a tool-response retry would be
-           * out of bounds past the first.
+           * A tool-response retry (malformed or truncated args) used to re-ask
+           * the provider immediately at 0 ms. That was temuan E2: re-asking the
+           * instant a malformed answer arrives hammers the provider before the
+           * rejection has even settled, and the fix is a small PAUSE, not the
+           * provider's backoff ladder. So that path now waits `JEDA_..._MS`
+           * instead of nothing; only a transient PROVIDER error (429/5xx) uses
+           * the ladder, whose two delays are indexed by `retry` (0,1). Reading
+           * that array for a tool-response retry would be out of bounds past
+           * the first.
            */
-          if (!retryableToolResponse) {
-            if (!(await tungguRetryAgent(AGENT_PROVIDER_RETRY_DELAYS[retry]))) break;
-          }
+          if (!(await tungguRetryAgent(retryableToolResponse ? JEDA_ULANG_ARGUMEN_CACAT_MS : AGENT_PROVIDER_RETRY_DELAYS[retry]))) break;
           if (agentBatal) break;
         }
         if (res.cancelled || agentBatal) break;
