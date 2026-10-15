@@ -118,10 +118,6 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   glob: ['cari-berkas', 'daftar-isi-folder'],
   /* shell - satu keluarga untuk seluruh pengelolaan proses latar */
   bash_run: ['jalankan-shell'],
-  bash_background: ['shell-latar'],
-  bash_logs: ['shell-latar'],
-  bash_list: ['shell-latar'],
-  bash_kill: ['shell-latar'],
   /* rencana, penalaran, jalur tool */
   todo_write: ['rencana-tugas'],
   tool_search: ['temukan-tool'],
@@ -325,7 +321,6 @@ const KELUARGA_DASAR: readonly string[] = [
   'cari-isi',
   'cari-berkas',
   'jalankan-shell',
-  'shell-latar',
   'rencana-tugas',
   'temukan-tool',
   'panggil-tool',
@@ -383,7 +378,6 @@ const RUMAH: Record<string, readonly string[]> = {
   'cari-isi': ['grep'],
   'cari-berkas': ['glob'],
   'jalankan-shell': ['bash_run'],
-  'shell-latar': [],
   'rencana-tugas': ['todo_write'],
   'temukan-tool': ['tool_search'],
   'panggil-tool': ['tool_call'],
