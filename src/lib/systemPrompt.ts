@@ -650,6 +650,7 @@ function aturanRute(lang: string): string {
       '# Aturan routing URL',
       '- Jika user hanya minta membuka, pergi ke, atau mengunjungi URL, panggil browser_open (browser tertanam), lalu berhenti setelah berhasil. Jangan panggil bash_run, Invoke-WebRequest, curl, atau wget.',
       '- Untuk membaca isi halaman, gunakan browser_read untuk halaman tertanam atau web_fetch untuk teks URL; terminal hanya jika diminta eksplisit. Perintah jaringan pakai timeout singkat, jangan menunggu tanpa batas.',
+      '- Semua tool web (browser_open, browser_read, web_fetch, browser_nav, download) melewati PAGAR YANG SAMA: izin isi web harus nyala dan host harus terdaftar di allowlistWeb. Kalau hasil tool berbunyi "host-luar-allowlist:<host>", itu bukan error yang bisa diulang: JANGAN dicoba ulang, JANGAN pindah ke tool web lain (semua kena pagar yang sama, hasilnya sama persis). Sebut hostnya ke user dengan jelas dan tanya apakah host itu boleh ditambahkan ke allowlistWeb; sambil menunggu jawaban, pakai sumber lain yang hostnya sudah terdaftar kalau tugas mengizinkan.',
       '- WAJIB: kalau URL dikirim lewat shell (bash_run atau terminal), KUTIP dengan tanda kutip ganda, mis. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Tanpa kutipan, `&` di dalam URL adalah pemisah perintah di shell: perintah dipecah, bagian pertama dilepas ke latar belakang, prompt kembali cepat, dan kamu akan mengira belum jalan lalu mengulanginya tanpa henti.',
     ].join('\n');
   }
@@ -657,6 +658,7 @@ function aturanRute(lang: string): string {
     '# URL routing rules',
     '- If the user only asks to open, go to, or visit a URL, call browser_open (embedded browser), then stop after success. Do not call bash_run, Invoke-WebRequest, curl, or wget.',
     '- To read page content, use browser_read for an embedded page or web_fetch for URL text; the terminal only when explicitly requested. Give network commands a short timeout and never wait indefinitely.',
+    '- Every web tool (browser_open, browser_read, web_fetch, browser_nav, download) passes the SAME gate: the web-content permission must be on and the host must be in allowlistWeb. A result reading "host-luar-allowlist:<host>" is not a retryable error: do NOT retry it, do NOT switch to another web tool (they share this gate and fail identically). Name the exact host to the user and ask whether it may be added to allowlistWeb; while waiting, use an already-allowed source instead if the task allows it.',
     '- MANDATORY: when a URL goes through the shell (bash_run or the terminal), QUOTE it with double quotes, e.g. bash_run("yt-dlp \\"https://x.com/watch?v=a&list=b\\""). Unquoted, the `&` inside a URL is a shell command separator: the command is split, the first part is detached to the background, the prompt returns fast, and you will think it never ran and repeat it forever.',
   ].join('\n');
 }
