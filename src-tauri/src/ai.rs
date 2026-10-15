@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
-const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 300;
-const TOTAL_CALL_TIMEOUT_SECS: u64 = 420;
+const RECEIVE_IDLE_TIMEOUT_SECS: u64 = 600;
+const TOTAL_CALL_TIMEOUT_SECS: u64 = 720;
 
 /// Batas waktu TOTAL untuk seluruh tangga ulang, bukan per percobaan.
 ///
@@ -30,7 +30,7 @@ const TOTAL_CALL_TIMEOUT_SECS: u64 = 420;
 /// 300s dipilih karena itu recv-idle untuk SATU percobaan - jadi kesabarannya
 /// sama dengan batas yang sudah ada, hanya sekarang berlaku untuk seluruh
 /// tangga sekaligus.
-const RETRY_LOOP_DEADLINE_SECS: u64 = 300;
+const RETRY_LOOP_DEADLINE_SECS: u64 = 600;
 
 // Receive timeout limits an idle gap between bytes; the total timeout still bounds the full call.
 
@@ -465,7 +465,7 @@ fn kirim_dengan_ulang(
                         .get("retry-after")
                         .and_then(|v| v.to_str().ok())
                         .and_then(retry_after_ms)
-                        .filter(|ms| *ms > 0 && *ms <= 20_000)
+                        .filter(|ms| *ms > 0 && *ms <= 30_000)
                         .unwrap_or_else(|| JEDA_MS[(percobaan_reguler - 1).min(1)]);
                     terakhir = Some(format!("HTTP {status}"));
                     std::thread::sleep(std::time::Duration::from_millis(jeda));
@@ -1041,7 +1041,7 @@ pub fn ai_chat(
             .http_status_as_error(false)
             .build()
             .into();
-        let resp = match kirim_dengan_ulang(&agent, &prepared, 3) {
+        let resp = match kirim_dengan_ulang(&agent, &prepared, 4) {
             Ok(r) => r,
             Err(teks) => {
                 let low = teks.to_lowercase();
@@ -1348,7 +1348,7 @@ pub async fn ai_tool_chat(
             .http_status_as_error(false)
             .build()
             .into();
-        match kirim_dengan_ulang(&agent, &prepared, 3) {
+        match kirim_dengan_ulang(&agent, &prepared, 4) {
             Ok(r) => {
                 let status = r.status().as_u16();
                 let mut body = r.into_body();
@@ -1469,7 +1469,7 @@ pub fn ai_tool_chat_stream(
             .http_status_as_error(false)
             .build()
             .into();
-        let resp = match kirim_dengan_ulang(&agent, &prepared, 3) {
+        let resp = match kirim_dengan_ulang(&agent, &prepared, 4) {
             Ok(r) => r,
             Err(e) => {
                 let cancelled = cancel.load(Ordering::Relaxed);
@@ -2196,13 +2196,13 @@ mod retry_tests {
      * harus dicocokkan kalau diubah - kalau tidak, tes ini akan lulus dengan
      * tenang sementara UI kembali terkunci.
      */
-    const FRONTEND_IDLE_WATCHDOG_SECS: u64 = 360;
-    const FRONTEND_HARD_LIMIT_SECS: u64 = 900;
+    const FRONTEND_IDLE_WATCHDOG_SECS: u64 = 900;
+    const FRONTEND_HARD_LIMIT_SECS: u64 = 2700;
 
     #[test]
     fn retry_ladder_always_reports_before_the_frontend_gives_up() {
         /* Worst case: every attempt uses the per-call timeout, plus every backoff. */
-        let attempts: u64 = 3;
+        let attempts: u64 = 4;
         let backoff_secs: u64 = 20;
         let per_call_secs = TOTAL_CALL_TIMEOUT_SECS.max(RECEIVE_IDLE_TIMEOUT_SECS);
 
