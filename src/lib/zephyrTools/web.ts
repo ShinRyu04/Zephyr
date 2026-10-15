@@ -93,6 +93,42 @@ function pesanGalat(e: unknown): string {
 }
 
 /**
+ * Alasan penolakan gerbang, dalam teks yang BISA DITINDAKLANJUTI model.
+ *
+ * Alasan mentah (`host-luar-allowlist:youtube.com`) bermakna bagi pembaca kode,
+ * tapi jalan buntu bagi model: dicoba ulang, lalu dialihkan ke tool web lain
+ * yang memakai gerbang yang SAMA, lalu dilaporkan ke user sebagai "error".
+ * Itu persis yang terjadi pada keluhan "buka YouTube/Google selalu error":
+ * pagar bekerja sebagaimana dirancang, tapi tidak ada satu pun teks yang
+ * menyebut host mana yang kurang dan apa jalan keluarnya.
+ *
+ * Teks di sini menyebut keduanya: host persisnya, dan langkah berikutnya
+ * (minta user menambahkannya ke `allowlistWeb`). Petunjuk `izinIsiWeb` juga
+ * diralih karena versi lama menunjuk ke panel Settings yang tidak pernah ada -
+ * grep seluruh src/components tidak menemukan UI untuk izin/allowlist isi web.
+ */
+function pesanTolakGerbang(alasan: string): string {
+  if (alasan.startsWith('izin-isi-web-mati')) {
+    return (
+      alasan +
+      ' - the web-content permission is OFF, so every web/browser tool is closed. ' +
+      'The user must turn it on (settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
+    );
+  }
+  if (alasan.startsWith('host-luar-allowlist:')) {
+    const host = alasan.slice('host-luar-allowlist:'.length);
+    return (
+      alasan +
+      ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb; edited in settings.json, there is no settings UI for it yet). ` +
+      'Tell the user the exact host and ask whether to add it. Do NOT retry and do NOT try another web tool - ' +
+      'web_fetch, browser_read, browser_nav and download use this same gate and fail the same way. ' +
+      'If the task allows another already-allowed source, use that instead and say so.'
+    );
+  }
+  return alasan;
+}
+
+/**
  * Sebab kegagalan eval TERAKHIR, dipakai sebagai keterangan saat `browser_read`
  * harus jatuh ke jalur cadangan: model perlu tahu BUKAN "halaman kosong" tapi
  * "webview-nya belum ada".
@@ -353,7 +389,7 @@ async function bacaHalamanMentah(paneId: string): Promise<string> {
  */
 async function bacaHalaman(paneId: string, kb: KebijakanIsiWeb): Promise<string> {
   if (kb.izinIsiWeb !== true) {
-    return '(isi web ditolak: izin-isi-web-mati - nyalakan izin isi web di Settings §security, lalu baca lagi)';
+    return `isi web ditolak: ${pesanTolakGerbang('izin-isi-web-mati')}`;
   }
   const saring = saringKeModel(await bacaHalamanMentah(paneId), kb);
   return saring.ok ? saring.teks : `(isi web ditolak: ${saring.alasan})`;
@@ -429,7 +465,7 @@ export const TOOL_WEB: AgentTool[] = [
          juga di sini, walau host pencarinya milik tool (bukan URL pilihan model)
          sehingga daftar host tidak dipakai untuk jalur ini. */
       if (kb.izinIsiWeb !== true) {
-        return '(web_search ditolak: izin-isi-web-mati - nyalakan izin isi web di Settings §security)';
+        return `web_search ditolak: ${pesanTolakGerbang('izin-isi-web-mati')}`;
       }
       /* Pencarian lewat perintah Rust `web_search` (`src-tauri/src/web.rs`),
          BUKAN merangkai URL pencari sendiri lalu dilewatkan `webFetch`.
@@ -486,9 +522,9 @@ export const TOOL_WEB: AgentTool[] = [
          yang tidak ada di `periksaUrl`: URL ber-userinfo, karena di situ host
          yang DILIHAT mata pembaca bisa berbeda dari host yang divonis parser. */
       const lantai = lantaiHttpsWeb(url, kb);
-      if (!lantai.ok) return `(isi web ditolak: ${lantai.alasan})`;
+      if (!lantai.ok) return `(isi web ditolak: ${pesanTolakGerbang(lantai.alasan)})`;
       const ambil = await ambilIsiWeb(lantai.url, kb, (u, maxChars) => cmd.webFetch(u, maxChars * 2));
-      if (!ambil.ok) return `(isi web ditolak: ${ambil.alasan})`;
+      if (!ambil.ok) return `(isi web ditolak: ${pesanTolakGerbang(ambil.alasan)})`;
       const teksBersih = ambil.teks
         .replace(/<script[\s\S]*?<\/script>/gi, '')
         .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -522,7 +558,7 @@ export const TOOL_WEB: AgentTool[] = [
       /* Pagar isi web: URL yang tidak diizinkan tidak pernah sampai ke pane -
          jadi tidak ada halaman yang dimuat atas nama agen di luar daftar. */
       const gerbang = gerbangIsiKonten(url, kebijakan());
-      if (!gerbang.ok) return `(browser_open ditolak: ${gerbang.alasan})`;
+      if (!gerbang.ok) return `(browser_open ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
       const t = useTerminal.getState();
       /*
        * Pane browser yang sudah membawa URL INI dipakai ulang; selain itu
@@ -765,7 +801,7 @@ export const TOOL_WEB: AgentTool[] = [
         /* Gerbang yang SAMA seperti browser_open: navigasi pane tidak boleh
            menjadi jalan belakang untuk memuat host di luar daftar. */
         const gerbangGoto = gerbangIsiKonten(tujuan, kebijakan());
-        if (!gerbangGoto.ok) return `(browser_nav goto ditolak: ${gerbangGoto.alasan})`;
+        if (!gerbangGoto.ok) return `(browser_nav goto ditolak: ${pesanTolakGerbang(gerbangGoto.alasan)})`;
         if (await pakaiUlangPane(id, tujuan)) {
           return `Browser pane ${id} navigated to ${tujuan} (same pane reused).`;
         }
@@ -862,7 +898,7 @@ export const TOOL_WEB: AgentTool[] = [
          jalur tulis lain) - unduhan tidak boleh menjadi cara menulis ke berkas
          yang dilindungi. */
       const gerbang = gerbangIsiKonten(url, kb);
-      if (!gerbang.ok) return `(download ditolak: ${gerbang.alasan})`;
+      if (!gerbang.ok) return `(download ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
       const izinTulis = periksaTulis(dest);
       if (!izinTulis.ok) return `(download ditolak: ${izinTulis.alasan})`;
       /* Batas byte keras: 2 MiB bawaan, 8 MiB maksimum. Yang diminta dari
@@ -898,7 +934,7 @@ export const TOOL_WEB: AgentTool[] = [
       /* URL yang keluar ke browser sistem lewat gerbang yang sama: ini tetap
          URL pilihan agen, dan membukanya adalah tindakan atas nama pengguna. */
       const gerbang = gerbangIsiKonten(url, kebijakan());
-      if (!gerbang.ok) return `(system_browser_open ditolak: ${gerbang.alasan})`;
+      if (!gerbang.ok) return `(system_browser_open ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
       await openUrl(url);
       return `URL opened in the external system browser: ${url}`;
     },
