@@ -569,11 +569,22 @@ const ERROR_401 = 'Unauthorized (401): invalid api key';
   const impor = hitung('providerTahan');
   const panggilTahan = hitung('panggilTahan');
   const jendela = hitung('JendelaKredensial');
+  /*
+   * Cek ini DIBALIK 2026-10-15 oleh patch sambungan (lane zeph-provider-sambung).
+   * Versi lama menegakkan KEADAAN RUSAK: 'm1-providerTahan-nol-pengguna' =
+   * modul diharapkan TIDAK dipakai siapa pun. Setelah disambungkan, syarat
+   * lama justru akan GAGAL - itulah tanda patch berhasil, bukan regresi.
+   *
+   * Yang dituntut sekarang: modul DIIMPOR produk, dan jendela benar-benar
+   * dipakai di jalur kirim nyata. `panggilTahan` sengaja tetap 0: patch B
+   * memakai fungsi jendela-nya langsung (buatJendela/jatahJendela), bukan
+   * pembungkus panggilTahan yang menelan tangga retry milik aiStore.
+   */
   check(
-    'm1-providerTahan-nol-pengguna',
-    impor === 0 && panggilTahan === 0 && jendela === 0,
-    `grep di src/ (tanpa berkas modulnya sendiri): impor 'providerTahan' = ${impor}, 'panggilTahan' = ${panggilTahan}, 'JendelaKredensial' = ${jendela}`,
-    `artinya modul 37.107 B / 913 baris itu MATI bagi produk: tidak diimpor siapa pun, jadi 41/41 hijau di scripts/uji-provider-fallback.mjs tidak menjamin satu pun perilaku jalur kirim nyata`,
+    'm1-providerTahan-sudah-disambungkan',
+    impor > 0 && jendela > 0 && panggilTahan === 0,
+    `grep di src/ (tanpa berkas modulnya sendiri): impor 'providerTahan' = ${impor} (>0), 'JendelaKredensial' = ${jendela} (>0), 'panggilTahan' = ${panggilTahan} (0, disengaja)`,
+    `artinya modul kembar providerTahan bukan lagi kode mati: jendela 60/70/60 kini punya pemakai di jalur kirim nyata, dan keempat sisipan patch B ikut terbukti ada di pohon kode`,
   );
 }
 
@@ -601,11 +612,25 @@ console.log('\n(A) jalur CHAT nyata — send() (aiStore.ts:4356): satu-satunya p
     `total tunggu ${S.totalMs} ms; model ${JSON.stringify([...new Set(S.router.percobaan.map((p) => p.model))])}`,
   );
   const teks = pesan || toast;
+  /*
+   * Cek ini DIBALIK 2026-10-15 oleh patch B (lane zeph-provider-sambung).
+   * Versi lama menuntut pesan akhir TIDAK memuat daftar provider
+   * (`!/openai|anthropic|custom/`) — itulah temuan (d) yang dijadikan target
+   * patch: pesan "provider error" tanpa satu pun nama provider membuat user
+   * mustahil membedakan "model salah" dari "provider sedang penuh".
+   *
+   * Sekarang daftar kandidat + nomor percobaan WAJIB ada. Jalur CHAT ikut
+   * kena (bukan hanya sendAgent): bukti dari log run ini — `send()` menempel
+   * `finalError` yang sama, jadi pintu kotak ketik pun menerimanya.
+   */
   check(
-    'a2-jalur-chat-pesan-jujur',
-    /429/.test(teks) && /lanjut|coba lagi|tunggu/i.test(teks) && !/openai|anthropic|custom/.test(teks),
-    `pesan yang diterima user dari pintu chat (${teks.length} karakter) memuat SEBAB (429) dan TINDAKAN, tetapi TIDAK memuat daftar provider`,
-    `sebab=${/429/.test(teks)} tindakan=${/lanjut|coba lagi|tunggu/i.test(teks)} daftar-provider=${/openai|anthropic|custom/.test(teks)} nomor-percobaan=${/percobaan|coba ke|attempt|\d+\s*×/i.test(teks)}; bunyi pesan: ${teks.replace(/\n/g, ' ').slice(0, 150)}`,
+    'a2-jalur-chat-pesan-jujur-kini-menyebut-kandidat',
+    /429/.test(teks) &&
+      /lanjut|coba lagi|tunggu/i.test(teks) &&
+      /openai|anthropic|custom/.test(teks) &&
+      /percobaan kirim:\s*\d+\s*kali/i.test(teks),
+    `pesan dari pintu chat (${teks.length} karakter) memuat SEBAB (429), TINDAKAN, daftar provider yang sudah dicoba, dan JUMLAH percobaan kirim`,
+    `sebab=${/429/.test(teks)} tindakan=${/lanjut|coba lagi|tunggu/i.test(teks)} daftar-provider=${/openai|anthropic|custom/.test(teks)} nomor-percobaan=${/percobaan kirim:\s*\d+\s*kali/i.test(teks)}; bunyi pesan: ${teks.replace(/\n/g, ' ').slice(0, 200)}`,
   );
 }
 
@@ -799,19 +824,33 @@ console.log('\n(F) laju percobaan vs batas nyata 60 sukses / 70 percobaan per 60
   const jejakPlafon = grep('maksPercobaan');
   const jejakRetryAfter = grep('Retry-After');
   catat(`grep di src/lib/aiStore.ts: 'JendelaKredensial' = ${jejakJendela}, 'maksPercobaan' = ${jejakPlafon}, 'Retry-After' = ${jejakRetryAfter}`);
+  /*
+   * Cek ini DIBALIK 2026-10-15 oleh patch B (lane zeph-provider-sambung).
+   * Versi lama menuntut jendela/anggaran menit TIDAK ADA di jalur kirim
+   * nyata — dan memang tidak ada, itulah temuan (f) yang dijadikan target:
+   * 40 giliran serial tetap di bawah 70/menit hanya karena tangga retry
+   * 41.500 ms mengunci laju, bukan karena dijaga; dua lajur paralel (f3)
+   * lolos dari "penguncian" itu tanpa rem sama sekali.
+   *
+   * SYARAT LULUS SEKARANG: jendela + plafon benar-benar ada di kode.
+   * `Retry-After` tetap 0 dan itu DISENGAJA, bukan lalai: Rust (ai.rs
+   * `pesan_http`) meneruskan status tapi TIDAK nilai Retry-After, jadi
+   * menghormatinya di TS akan jadi kode mati yang menipu pembaca. Pemasangannya
+   * menuntut perubahan Rust yang berdiri sendiri.
+   */
   check(
-    'f1-tidak-ada-jendela-anggaran',
-    jejakJendela === 0 && jejakPlafon === 0 && jejakRetryAfter === 0,
-    `TIDAK ADA satu baris pun kode jendela/anggaran menit dan TIDAK ADA penghormatan Retry-After di jalur kirim nyata (3 grep = 0)`,
-    `percobaan terbanyak dalam jendela 60 dtk mana pun pada pola serial ini = ${terburuk} (plafon 70) — di bawah plafon BUKAN karena dijaga, melainkan karena tangga retry 41.500 ms per giliran (f2) mengunci laju; tidak ada satu baris kode pun yang menahan`,
+    'f1-jendela-anggaran-sudah-ada',
+    jejakJendela > 0 && jejakPlafon > 0 && jejakRetryAfter === 0,
+    `kode jendela/anggaran menit ADA di jalur kirim nyata: 'JendelaKredensial' = ${jejakJendela} (>0), 'maksPercobaan' = ${jejakPlafon} (>0); 'Retry-After' = ${jejakRetryAfter} (0, DISENGAJA - Rust tidak meneruskan nilainya)`,
+    `percobaan terbanyak dalam jendela 60 dtk mana pun pada pola SERIAL ini = ${terburuk} (plafon 70) — di bawah plafon karena tangga retry 41.500 ms per giliran (f2) memang lambat; pembuktian bahwa jendela benar-benar MENAHAN ada di f4 (lajur paralel), bukan di pola serial yang memang tak pernah mendekati plafon`,
   );
   const tanggaSemua = tanggaDariPercobaan(S.router.percobaan);
   const tanggaSah = tanggaSemua.every((d) => [0, 1000, 2500, 4000, 12000, 22000].includes(d));
   check(
-    'f2-jeda-hanya-tangga-tanpa-anggaran',
+    'f2-jeda-saat-ini-hanya-tangga',
     tanggaSah && tanggaSemua.length === total - 1,
     `semua ${tanggaSemua.length} jeda antar percobaan persis milik tangga retry {0,1000,2500,4000,12000,22000}: ${tanggaSah}`,
-    `jeda giliran ke-1 sama dengan giliran ke-${N} (rata-rata ${(S.totalMs / N).toFixed(0)} ms per giliran = 41.500 ms tangga) — tidak ada pelambatan karena anggaran kredensial, tetapi juga tidak ada yang menahan laju selain tangga itu sendiri`,
+    `jeda giliran ke-1 sama dengan giliran ke-${N} (rata-rata ${(S.totalMs / N).toFixed(0)} ms per giliran = 41.500 ms tangga) — pola SERIAL ini memang tidak menyentuh plafon (puncak ${terburuk}/60 dtk), jadi jendela tidak perlu ikut campur; bukti jendela BEKERJA saat laju meledak ada di f4 (paralel)`,
   );
 }
 
@@ -839,7 +878,111 @@ console.log('\n(F3) dua lajur agent sekaligus dalam satu proses');
     'f3-dua-lajur-menembak-provider-bersamaan',
     !j.nyangkut && router.percobaan.length > 7,
     `dua sendAgent() dipanggil berturut-turut tanpa menunggu → ${router.percobaan.length} percobaan provider (bukan 7), artinya lajur kedua JUSTRU ikut menembak provider; status setelah panggilan pertama: ${nilai.sesudahA}, toast: ${nilai.toast ? '"' + nilai.toast.slice(0, 60) + '"' : '(kosong)'}, hasil janji A/B = ${JSON.stringify({ A: nilai.ra, B: nilai.rb })}`,
-    `jadi laju percobaan berbanding lurus dengan jumlah lajur: tidak ada penjaga 60/70 per 60 dtk, dan penjaga busy pun tidak menahan lajur kedua pada jalur store ini. Inilah bentuk nyata insiden "429 membunuh beberapa anak": makin banyak lajur, makin banyak percobaan per menit`,
+    `penjaga busy TIDAK menahan lajur kedua pada jalur store ini (${router.percobaan.length} percobaan dari 2 lajur); yang kini menahan laju adalah jendela anggaran menit (f4), bukan penjaga busy`,
+  );
+}
+
+/* ─────────────── (F4) pembuktian jendela: laju meledak, apakah ditahan? ─────────────── */
+console.log('\n(F4) 100 giliran 401 BERUNTUN (0 jeda, galat non-retry) — apakah plafon 70 percobaan / 60 dtk MENAHAN laju mentah 1,7/dtk?');
+{
+  /*
+   * Dua kesalahan rancangan skenario ini ditemukan dengan MENGUKUR, bukan menebak:
+   *
+   * (1) Versi pertama memakai 12 lajur paralel. Hasil: 18 percobaan, bukan 84.
+   *     Penyebabnya bukan jendela, melainkan guard BUSY APP-WIDE di awal
+   *     sendAgent (aiStore.ts:5076 `if (get().pending || get().agentBusy) return
+   *     gagalKirimToast(...)` dengan komentar "deliberately APP-WIDE, not per
+   *     surface"): satu store = satu permintaan = satu penampung chunk, jadi
+   *     lajur kedua ditolak sebelum mengirim apa pun. Menambah composerId per
+   *     lajur TIDAK membantu - memang tidak ada jalur untuk 12 lajur paralel di
+   *     produk ini. Permintaan tidak pernah meledak, jadi jendela tak tersentuh.
+   *
+   * (2) Pola 429 (f1/f2/f3) juga tak bisa membuktikan apa pun: tangga retry
+   *     41.500 ms per giliran membatasi laju ke ~0,16 percobaan/detik, jauh di
+   *     bawah plafon 70/60 dtk. Di sana jendela memang tidak seharusnya ikut
+   *     campur - dan benar begitu.
+   *
+   * Yang benar-benar bisa meledakkan laju pada satu lajur adalah giliran SUKSES
+   * beruntun: satu percobaan per giliran, nol milidetik jeda. 100 giliran =
+   * 100 percobaan dalam ~satu detik waktu-palsu, melampaui plafon 70 tujuh kali
+   * lipat. Ini juga pola nyata: giliran agen yang membaca banyak berkas mengirim
+   * permintaan model beruntun-beruntun tanpa pernah kena 429.
+   *
+   * Jendela yang benar harus MENAHAN: laju terburuk 60 dtk tidak boleh melewati
+   * 70, dan giliran ke-71 ke atas harus MENUNGGU (bukan tetap dikirim lalu
+   * provider yang melempar 429).
+   */
+  /*
+   * TIGA kesalahan rancangan skenario ini ditemukan dengan MENGUKUR, bukan menebak:
+   *
+   * (1) 12 lajur PARALEL → cuma 18 percobaan, bukan 84. Penyebabnya bukan jendela,
+   *     melainkan guard BUSY APP-WIDE di awal sendAgent (aiStore.ts:5076
+   *     `if (get().pending || get().agentBusy) return gagalKirimToast(...)` dengan
+   *     komentar "deliberately APP-WIDE, not per surface"): satu store = satu
+   *     permintaan = satu penampung chunk, jadi lajur ke-2..12 ditolak sebelum
+   *     mengirim apa pun. Menambah composerId per lajur TIDAK membantu — memang
+   *     tidak ada jalur untuk 12 lajur paralel di produk ini. Tidak ada yang
+   *     meledak, jadi jendela tak tersentuh.
+   *
+   * (2) Pola 429 (f1/f2/f3) juga tak bisa membuktikan apa pun: tangga retry
+   *     41.500 ms per giliran membatasi laju ke ~0,16 percobaan/detik, jauh di
+   *     bawah plafon 70/60 dtk. Di sana jendela memang TIDAK seharusnya ikut
+   *     campur — dan benar begitu (f2).
+   *
+   * (3) Giliran SUKSES (perilaku null) hanya menghasilkan 1 percobaan lalu berhenti:
+   *     jalur sukses tidak pernah memasang timer sama sekali, dan runner jam-palsu
+   *     berhenti sendiri begitu antrean timer kosong (jalankan: "menunggu sesuatu
+   *     yang tak akan datang"). Bukan produknya yang salah — penggerak ujinya yang
+   *     perlu dipancing dengan keepalive.
+   *
+   * Yang benar-benar bisa meledakkan laju pada SATU lajur adalah giliran galat
+   * TANPA tangga: 401 tidak diulang (c2: tepat 1 percobaan, 0 ms jeda). 100 giliran
+   * 401 = 100 percobaan provider dalam ~0 ms — melampaui plafon 70 sepuluh kali
+   * lipat. Ini juga pola nyata: kredensial kedaluwarsa membuat setiap giliran agent
+   * langsung menembak provider dan langsung ditolak, tanpa pernah kena 429.
+   *
+   * Jendela yang benar harus MENAHAN: laju terburuk 60 dtk tidak boleh melewati 70.
+   */
+  const GILIRAN = 100;
+  let diterima = 0;
+  let ditolak = 0;
+  const S = await skenario(
+    modulPath,
+    { model: 'gpt-6-astra', provider: 'openai', kunci: ['openai'], perilaku: () => ({ gagal: ERROR_401 }) },
+    async (mod) => {
+      /* Keepalive: jalur galat-instan tidak memasang timer apa pun, sehingga
+         runner jam-palsu akan berhenti sendiri setelah giliran pertama. Timer
+         1 detik ini hanya membuat penggerak tetap memutar; TIDAK menambah
+         percobaan provider apa pun. */
+      const hidup = setInterval(() => {}, 1_000);
+      try {
+        for (let i = 0; i < GILIRAN; i++) {
+          const ok = await mod.useAi.getState().sendAgent('baca berkas ' + i, [], 'baca berkas ' + i, '');
+          if (ok) diterima += 1;
+          else {
+            ditolak += 1;
+            if (ditolak <= 2)
+              catat(`giliran ke-${i} DITOLAK (ok=${ok}); toast = ${JSON.stringify(mod.useAi.getState().toast)}; agentBusy=${mod.useAi.getState().agentBusy}`);
+          }
+        }
+      } finally {
+        clearInterval(hidup);
+      }
+    },
+  );
+  const total = S.router.percobaan.length;
+  const terburuk = rentangJendelaTerburuk(S.router.percobaan, 60_000);
+  const pertama = S.router.percobaan[0]?.t;
+  const terakhir = S.router.percobaan.at(-1)?.t;
+  const menitPalsu = ((terakhir - pertama) / 60_000).toFixed(2);
+  catat(`${GILIRAN} giliran 401 beruntun (0 jeda) → ${total} percobaan provider dalam ${S.totalMs} ms waktu-palsu (${menitPalsu} menit-palsu); sendAgent diterima=${diterima} ditolak=${ditolak}`);
+  catat(`jendela 60 dtk TERBURUK = ${terburuk} (plafon 70); percobaan pertama t=${pertama}, terakhir t=${terakhir}`);
+  catat(`tanpa jendela, ${total} percobaan ini mendarat dalam ${S.totalMs} ms = ${(total / (S.totalMs / 1000)).toFixed(2)} percobaan/detik`);
+  check(
+    'f4-jendela-menahan-laju-meledak',
+    !S.jalan.nyangkut && total >= GILIRAN && terburuk <= 70,
+    `${GILIRAN} giliran 401 beruntun menuntut ${total} percobaan provider dalam ${S.totalMs} ms waktu-palsu, tetapi jendela 60 dtk TERBURUK hanya ${terburuk} (<= plafon 70) — laju mentah ${((total / (S.totalMs / 1000))).toFixed(1)}/dtk benar-benar DITAHAN, bukan sekadar kebetulan rendah`,
+    `tanpa jendela, semua ${total} percobaan akan mendarat dalam rentang yang sama; satu-satunya alasan puncaknya terkunci di ${terburuk} adalah jendela anggaran menit membatasi percobaan yang benar-benar dikirim ke provider`,
   );
 }
 
@@ -968,15 +1111,40 @@ const merah = hasil.length - hijau;
 console.log(`\nRingkasan uji-fallback-jalur-kirim: ${hasil.length} pemeriksaan — ${hijau} cocok, ${merah} tidak cocok`);
 console.log(`merah: ${hasil.filter((h) => !h.ok).map((h) => h.id).join(', ') || '(tidak ada)'}`);
 console.log('\nVONIS (dari angka di atas, bukan dari bacaan):');
-console.log('  (a) 429/5xx retry+backoff ....... ADA SEBAGIAN — 7 percobaan, jeda 1000/2500/4000/12000/22000 ms = 41.500 ms (b1); hanya satu jalur kirim (a1); tanpa Retry-After, tanpa anggaran menit (f1)');
-console.log('  (b) fallback antar-model ........ ADA SEBAGIAN — 1× pindah model, provider TETAP (b2); provider freeText user: nol cadangan (h1)');
-console.log('  (c) batas waktu per giliran ..... ADA — penjaga tanpa-progres 300.000 ms terbukti menyala (g1, aiStore.ts:2025); penjaga pendek selalu menang atas batas keras 900.000 ms (:2042) yang tidak terjangkau (g2)');
-console.log('  (d) pesan jujur ................. SEBAGIAN — sebab (429) + tindakan ("lanjut") ada di pesan akhir (b4/a2); daftar provider yang dicoba + nomor percobaan TIDAK ada');
-console.log('  (e) kerja di disk utuh .......... TERBUKTI (d1-d3: belum ada bukti berkurang/tertimpa)');
-console.log('  (f) plafon 60/70 per 60 dtk ..... TIDAK ADA KODENYA (f1: 3 grep = 0; f2: jeda hanya tangga)');
-console.log('  (g) determinisme ................ TERBUKTI (i1)');
-console.log('  (m) providerTahan.ts ............ MODUL MATI (m1: 0 pengguna di src/)');
-console.log('  (f3) lajur bersamaan ............ percobaan provider BERKALI dengan jumlah lajur (f3: >7 percobaan dari 2 lajur)');
+console.log('\nVONIS (dibaca dari hasil cek di atas — bukan ditulis tangan, supaya tidak basi):');
+/* tiap baris memanggil v(id); kalau sebuah cek dibalik/ditambah, vonis ikut berubah sendiri */
+const v = (id) => { const h = hasil.find((x) => x.id === id); return h ? (h.ok ? 'LULUS' : 'GAGAL') : 'TIDAK ADA'; };
+/* vonis tiap butir dibaca dari hasil cek sesungguhnya (param id), bukan ditulis tangan —
+   kalau cek ditambah/dibalik, kalimat ikut berubah sendiri dan tak bisa basi */
+const baris = (label, judul, ids, teks) => console.log(`  ${label} ${judul} ${teks} [${ids.map((i) => `${i.split('-')[0]}=${v(i)}`).join(' ')}]`);
+baris('(a)', '429/5xx retry+backoff ......',
+  ['b1-429-bukan-3-lalu-mati', 'a1-send-satu-jalur-bukan-retry-chat-datar'],
+  'tangga 1000/2500/4000/12000/22000 ms = 41.500 ms untuk 7 percobaan; tanpa Retry-After (B1 ditunda: Rust tidak meneruskan header)');
+baris('(b)', 'fallback antar-model .......',
+  ['b2-pindah-model-terpakai', 'h1-cadangan-satu-model-provider-sama'],
+  '1x pindah model dengan provider TETAP; provider freeText user tanpa cadangan');
+baris('(c)', 'batas waktu per giliran ....',
+  ['g1-penjaga-tanpa-progres-nyala-300dtk', 'g2-batas-keras-900dtk-tak-terjangkau'],
+  'penjaga tanpa-progres 300.000 ms + penjaga pendek menang atas batas keras 900.000 ms');
+baris('(d)', 'pesan akhir / daftar coba ..',
+  ['a2-jalur-chat-pesan-jujur-kini-menyebut-kandidat', 'b4-pesan-akhir-sebab-tindakan', 'c2-401-tidak-diulang'],
+  'pesan akhir memuat sebab (429) + tindakan ("lanjut") + daftar provider yang dicoba + JUMLAH percobaan');
+baris('(e)', 'kerja di disk utuh .........',
+  ['d1-tool-nyata-menulis-berkas', 'd2-kerja-utuh-setelah-gagal-total', 'd3-tidak-ada-tulis-ulang-diputar-lagi'],
+  'belum ada bukti kerja berkurang/tertimpa');
+baris('(f)', 'plafon 60/70 per 60 dtk ....',
+  ['f1-jendela-anggaran-sudah-ada', 'f4-jendela-menahan-laju-meledak'],
+  'jendela 60/70 per 60 dtk MENAHAN laju meledak 100 giliran 401 (mentah 1,7/dtk), puncak jendela = 70');
+baris('(g)', 'determinisme ...............',
+  ['i1-dua-jalan-identik', 'f2-jeda-saat-ini-hanya-tangga'],
+  'ladder tetap deterministik tanpa jitter (B4 ditolak agar i1/f2 tidak rusak)');
+baris('(m)', 'providerTahan.ts ...........',
+  ['m1-providerTahan-sudah-disambungkan'],
+  'modul kini TERPAKAI di jalur kirim nyata (impor produk > 0, impor tengah tetap 0)');
+baris('(f3)', 'lajur bersamaan ............',
+  ['f3-dua-lajur-menembak-provider-bersamaan', 'f4-jendela-menahan-laju-meledak'],
+  'guard busy app-wide MENAHAN lajur paralel (bukan jendela); yang menahan laju justru jendela pada giliran beruntun');
+
 return merah;
 }
 process.on('uncaughtException', (e) => {

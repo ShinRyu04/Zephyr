@@ -21,6 +21,7 @@ import {
 import * as cmd from './commands';
 import { useStore } from './store';
 import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID, PROVIDERS, providerSiap } from './modelCatalog';
+import { buatJendela, jatahJendela, JENDELA_PROVIDER, type JendelaKredensial } from './providerTahan';
 import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
 import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type LoopState } from './loopJadwal';
@@ -2155,6 +2156,52 @@ const AGENT_PROVIDER_RETRY_DELAYS = [1000, 2500] as const;
  * `tungguRetryAgent` yang memeriksa `agentBatal`.
  */
 const JEDA_ULANG_ARGUMEN_CACAT_MS = 1_000;
+
+/*
+ * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
+ *
+ * Sebelum modul `providerTahan` disambungkan (2026-10-15), jalur kirim nyata
+ * NOL KODENYA untuk ini: satu-satunya yang menahan laju adalah tangga retry
+ * 41.500 ms per giliran, dan itu mengunci laju BUKAN karena dijaga - jadi
+ * dua lajur yang gagal bersamaan menembak provider tanpa rem (temuan f3).
+ *
+ * Satu jendela dipakai bersama SEMUA giliran (bukan per-giliran): jendela yang
+ * di-reset tiap giliran mengirim 70 permintaan/menit dari tiap giliran
+ * sekaligus, tepat kesalahan yang melahirkan modul kembar ini.
+ */
+const jendelaKunci: Record<string, JendelaKredensial> = {};
+function jendelaUntuk(provider: string): JendelaKredensial {
+  return (jendelaKunci[provider] ??= buatJendela());
+}
+/**
+ * true = masih ada jatah menit; false = user menekan Stop saat menunggu.
+ *
+ * Menunggu, BUKAN menyerah: menolak di sini adalah bug "menyerah di percobaan
+ * ke-3" yang justru diminta hilang. Batas 180 putar (3 menit) mencegah
+ * penggantungan tanpa batas; keputusan berhenti tetap milik lapisan bawah.
+ */
+async function jagaJendela(provider: string): Promise<boolean> {
+  const j = jendelaUntuk(provider);
+  const jendelaMs = JENDELA_PROVIDER.detik * 1000;
+  for (let putar = 0; putar < 180; putar++) {
+    const sisa = jatahJendela(j, Date.now(), {
+      jendelaMs,
+      maksPercobaanJendela: JENDELA_PROVIDER.maksPercobaan,
+      maksSuksesJendela: JENDELA_PROVIDER.maksSukses,
+    });
+    if (!sisa) return true;
+    if (!(await tungguRetryAgent(Math.max(250, Math.min(sisa.tungguMs, 5_000))))) return false;
+  }
+  return true;
+}
+/** Catat satu percobaan kirim. Dua fungsi terpisah: sukses dicatat SEBELUM dipanggil lagi, jadi tidak double-count. */
+function catatPercobaan(provider: string): void {
+  jendelaUntuk(provider).percobaan.push(Date.now());
+}
+/** Provider benar-benar membalas (bahkan 4xx) = memakai kuota sukses menit. */
+function catatSukses(provider: string): void {
+  jendelaUntuk(provider).sukses.push(Date.now());
+}
 
 /** A malformed tool response is safe to retry: no tool call has been dispatched yet. */
 function isRetryableAgentToolResponseError(error: string): boolean {
@@ -5042,6 +5089,18 @@ export const useAi = create<AiStore>((set0, get) => {
       );
     }
     const agentImages = explicitImages ?? get().draftImages;
+    /*
+     * JEJAK KANDIDAT & PENCACAH PERCOBAAN (temuan d: pesan akhir TIDAK pernah
+     * menyebut provider mana pun, dan TIDAK memberi tahu user berapa kali
+     * permintaan yang sama diulang).
+     *
+     * Dideklarasikan di lingkup `sendAgent` paling luar (bukan di blok retry)
+     * supaya terlihat oleh catch akhir yang menyusun `finalError` ~1.500 baris
+     * ke bawah. `activeDef` ada di indentasi 8 dan TIDAK terlihat dari catch
+     * yang berindentasi 6 - itu sebabnya jejak dicatat di sini.
+     */
+    const jejakKandidat: string[] = [];
+    let jejakPercobaan = 0;
     const navigationOnly = isNavigationOnlyRequest(raw);
     let content = raw;
     if (raw.length > MSG_LIMIT) {
@@ -5859,6 +5918,25 @@ export const useAi = create<AiStore>((set0, get) => {
         let activeCfg = cfg;
         let sudahFallback = false;
         for (let retry = 0; ; retry++) {
+          /*
+           * PLAFON ANGGARAN MENIT: menunggu jatah, bukan menolak kirim.
+           * `false` = user menekan Stop saat menunggu; keluar sebagai batal.
+           */
+          if (!(await jagaJendela(activeDef.provider))) {
+            res = { content: '', toolCalls: [], cancelled: true };
+            break;
+          }
+          const kunciPercobaan = activeDef.provider;
+          catatPercobaan(kunciPercobaan);
+          /*
+           * Jejak untuk pesan akhir: model + provider yang dipakai, dan
+           * berapa kali percobaan dikirim ulang untuk putaran ini.
+           */
+          jejakPercobaan += 1;
+          {
+            const label = `${activeDef.id} via ${activeDef.provider}`;
+            if (!jejakKandidat.includes(label)) jejakKandidat.push(label);
+          }
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
             /*
@@ -6199,6 +6277,11 @@ export const useAi = create<AiStore>((set0, get) => {
           });
           agentWatchdogDisarm();
           agentHardLimitDisarm();
+          /*
+           * Kuota SUKSES (2xx) dihitung terpisah dari percobaan: 429/5xx
+           * memakai plafon percobaan (70), bukan plafon sukses (60).
+           */
+          if (!res.error) catatSukses(kunciPercobaan);
 
           // Retry only a failed provider request before any tool call is returned.
           // The history is untouched until the successful response below, so a
@@ -6284,6 +6367,15 @@ export const useAi = create<AiStore>((set0, get) => {
                 });
                 activeDef = findModel(cadangan.id, cadangan.provider);
                 activeCfg = useStore.getState().settings.models.providers[cadangan.provider] ?? {};
+                /*
+                 * Kandidat pengganti dicatat SEBELUM dicoba, bukan sesudah
+                 * gagal: pesan akhir yang hanya mencatat kandidat yang sudah
+                 * mati menyembunyikan kandidat terakhir yang belum sempat dicoba.
+                 */
+                {
+                  const label = `${activeDef.id} via ${activeDef.provider}`;
+                  if (!jejakKandidat.includes(label)) jejakKandidat.push(label);
+                }
                 if (agentBatal) break;
                 continue;
               }
@@ -7478,7 +7570,20 @@ export const useAi = create<AiStore>((set0, get) => {
       const bisaLanjut =
         (agentFailure.category === 'provider' || agentFailure.category === 'timeout') &&
         adaKerjaNyata;
-      finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
+      /*
+       * DAFTAR KANDIDAT + NOMOR PERCOBAAN disisipkan di sini, di pesan akhir.
+       * Sebelum patch ini (2026-10-15) pesan akhir menyebut "provider error"
+       * tanpa pernah menyebut provider mana pun, dan tanpa memberi tahu user
+       * bahwa permintaan yang sama sudah dikirim ulang N kali - pengguna tidak
+       * bisa membedakan "model salah" dari "provider sedang penuh".
+       */
+      const jejakTeks =
+        jejakKandidat.length || jejakPercobaan
+          ? `\n\nYang sudah dicoba: ${
+              jejakKandidat.length ? jejakKandidat.join('; ') : '(tanpa kandidat tercatat)'
+            }. Total percobaan kirim: ${jejakPercobaan} kali.`
+          : '';
+      finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}${jejakTeks}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
       const context = akhir.trim();
       akhir = context ? `${context}\n\n${finalError}` : finalError;
       if (bisaLanjut) {

@@ -66564,7 +66564,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/aiDebugStore.ts", "107 baris \xB7 ekspor: ReqLog, LOG_MAKS, useAiDebug"],
       ["kode", "src/lib/aiMemori.ts", "983 baris \xB7 MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). \xB7 ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, \u2026(+12)"],
       ["kode", "src/lib/aiModelsStore.ts", "29 baris \xB7 ekspor: useAiModels"],
-      ["kode", "src/lib/aiStore.ts", "9180 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
+      ["kode", "src/lib/aiStore.ts", "9304 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
       ["kode", "src/lib/aiTabsStore.ts", "113 baris \xB7 ekspor: CLI_TABS, AiTabId, useAiTabs"],
       ["kode", "src/lib/aiWindow.ts", "43 baris \xB7 ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
       ["kode", "src/lib/aiZephyrState.ts", "970 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -161032,6 +161032,37 @@ var init_repeatDetect = __esm({
   }
 });
 
+// src/lib/providerTahan.ts
+function buatJendela() {
+  return { percobaan: [], sukses: [] };
+}
+function rapikanJendela(j, sekarangMs, jendelaMs) {
+  const ambang = sekarangMs - jendelaMs;
+  while (j.percobaan.length > 0 && j.percobaan[0] <= ambang) j.percobaan.shift();
+  while (j.sukses.length > 0 && j.sukses[0] <= ambang) j.sukses.shift();
+}
+function jatahJendela(j, sekarangMs, opsi) {
+  rapikanJendela(j, sekarangMs, opsi.jendelaMs);
+  const lepas = (cap3) => cap3 + opsi.jendelaMs - sekarangMs;
+  if (j.percobaan.length >= opsi.maksPercobaanJendela) {
+    const tungguMs = Math.max(0, lepas(j.percobaan[0]));
+    return { tungguMs, sebab: "percobaan" };
+  }
+  if (j.sukses.length >= opsi.maksSuksesJendela) {
+    const tungguMs = Math.max(0, lepas(j.sukses[0]));
+    return { tungguMs, sebab: "sukses" };
+  }
+  return null;
+}
+var JENDELA_PROVIDER;
+var init_providerTahan = __esm({
+  "src/lib/providerTahan.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    JENDELA_PROVIDER = { detik: 60, maksPercobaan: 70, maksSukses: 60 };
+  }
+});
+
 // src/lib/promptLibrary.ts
 function loadUserPrompts() {
   try {
@@ -164586,6 +164617,29 @@ function agentHardLimitDisarm() {
   if (agentHardTimer) clearTimeout(agentHardTimer);
   agentHardTimer = null;
 }
+function jendelaUntuk(provider) {
+  return jendelaKunci[provider] ??= buatJendela();
+}
+async function jagaJendela(provider) {
+  const j = jendelaUntuk(provider);
+  const jendelaMs = JENDELA_PROVIDER.detik * 1e3;
+  for (let putar = 0; putar < 180; putar++) {
+    const sisa = jatahJendela(j, Date.now(), {
+      jendelaMs,
+      maksPercobaanJendela: JENDELA_PROVIDER.maksPercobaan,
+      maksSuksesJendela: JENDELA_PROVIDER.maksSukses
+    });
+    if (!sisa) return true;
+    if (!await tungguRetryAgent(Math.max(250, Math.min(sisa.tungguMs, 5e3)))) return false;
+  }
+  return true;
+}
+function catatPercobaan(provider) {
+  jendelaUntuk(provider).percobaan.push(Date.now());
+}
+function catatSukses(provider) {
+  jendelaUntuk(provider).sukses.push(Date.now());
+}
 function isRetryableAgentToolResponseError(error) {
   const text8 = error.toLowerCase();
   return text8.includes("returned malformed json arguments") || text8.includes("arguments must be a json object") || text8.includes("is missing arguments") || text8.includes("is missing a function name") || /* A tool call cut off at the output-token ceiling: the arguments are
@@ -165191,7 +165245,7 @@ function padatkanRiwayatMurni(history2, opts = {}) {
   jejak.push(hasil.alasan);
   return hasil;
 }
-var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, JEDA_ULANG_ARGUMEN_CACAT_MS, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
+var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, JEDA_ULANG_ARGUMEN_CACAT_MS, jendelaKunci, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
 var init_aiStore = __esm({
   "src/lib/aiStore.ts"() {
     "use strict";
@@ -165203,6 +165257,7 @@ var init_aiStore = __esm({
     init_commands();
     init_store();
     init_modelCatalog();
+    init_providerTahan();
     init_settingsStore();
     init_promptLibrary();
     init_loopJadwal();
@@ -165381,6 +165436,7 @@ var init_aiStore = __esm({
     agentHardTimer = null;
     AGENT_PROVIDER_RETRY_DELAYS = [1e3, 2500];
     JEDA_ULANG_ARGUMEN_CACAT_MS = 1e3;
+    jendelaKunci = {};
     TUNGGU_PULIH_DELAYS = [4e3, 12e3, 22e3];
     DESTRUCTIVE = [
       // POSIX recursive/forced delete, flags in any order, operands anywhere.
@@ -166665,6 +166721,8 @@ ${h.content}`
             );
           }
           const agentImages = explicitImages ?? get().draftImages;
+          const jejakKandidat = [];
+          let jejakPercobaan = 0;
           const navigationOnly = isNavigationOnlyRequest(raw);
           let content5 = raw;
           if (raw.length > MSG_LIMIT) {
@@ -167054,6 +167112,17 @@ ${tugasRun.replace(/\s+/g, " ").trim().slice(0, 800)}`
               let activeCfg = cfg;
               let sudahFallback = false;
               for (let retry = 0; ; retry++) {
+                if (!await jagaJendela(activeDef.provider)) {
+                  res = { content: "", toolCalls: [], cancelled: true };
+                  break;
+                }
+                const kunciPercobaan = activeDef.provider;
+                catatPercobaan(kunciPercobaan);
+                jejakPercobaan += 1;
+                {
+                  const label = `${activeDef.id} via ${activeDef.provider}`;
+                  if (!jejakKandidat.includes(label)) jejakKandidat.push(label);
+                }
                 res = await new Promise((resolve) => {
                   const attemptId = nextId3(`attempt-${botMsg.id}`);
                   if (retry > 0) {
@@ -167192,6 +167261,7 @@ ${catatanStatus}`
                 });
                 agentWatchdogDisarm();
                 agentHardLimitDisarm();
+                if (!res.error) catatSukses(kunciPercobaan);
                 const bolehRetry = !res.cancelled && !agentBatal && res.toolCalls.length === 0 && !!res.error && (isRetryableAgentToolResponseError(res.error) || isRetryableAgentProviderError(res.error));
                 const retryableToolResponse = !!res.error && isRetryableAgentToolResponseError(res.error);
                 const retryLimit = retryableToolResponse ? isTruncatedToolResponseError(res.error ?? "") ? 2 : 1 : AGENT_PROVIDER_RETRY_DELAYS.length;
@@ -167221,6 +167291,10 @@ ${catatanStatus}`
                       });
                       activeDef = findModel(cadangan.id, cadangan.provider);
                       activeCfg = useStore2.getState().settings.models.providers[cadangan.provider] ?? {};
+                      {
+                        const label = `${activeDef.id} via ${activeDef.provider}`;
+                        if (!jejakKandidat.includes(label)) jejakKandidat.push(label);
+                      }
                       if (agentBatal) break;
                       continue;
                     }
@@ -167712,7 +167786,10 @@ ${detail}` : message
           if (agentFailure) {
             const adaKerjaNyata = history2.length > 1 || langkah > 0;
             const bisaLanjut = (agentFailure.category === "provider" || agentFailure.category === "timeout") && adaKerjaNyata;
-            finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}
+            const jejakTeks = jejakKandidat.length || jejakPercobaan ? `
+
+Yang sudah dicoba: ${jejakKandidat.length ? jejakKandidat.join("; ") : "(tanpa kandidat tercatat)"}. Total percobaan kirim: ${jejakPercobaan} kali.` : "";
+            finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}${jejakTeks}
 
 Tugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ""}`;
             const context = akhir.trim();
