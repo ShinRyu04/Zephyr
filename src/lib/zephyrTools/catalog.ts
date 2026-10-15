@@ -526,33 +526,36 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter(
  * YouTube terbuka di browser sistem alih-alih pane browser Zephyr. Aturannya:
  * apa pun yang di-route prompt WAJIB ikut dikirim.
  */
+/* Tool yang DIKIRIM SETIAP GILIRAN.
+ *
+ * DIPANGKAS 20 -> 13 berdasarkan DATA run agen nyata, bukan tebakan: histogram
+ * 153 langkah tool pada run uji-kurs (run ke-5) menghasilkan pemakaian
+ *   web_fetch 36 | browser_open 22 | tool_search 22 | browser_read 17 | todo_write 14
+ *   tool_call 14 (4 gagal) | read_file 10 (2 gagal) | bash_run 7 | glob 3 | zephyr_self 2
+ * dan NOL pemakaian untuk: edit, delete_file, move_file, copy_file, list_directory,
+ * think, ask_user. Tujuh nama terakhir DIHAPUS dari daftar ini supaya gudang yang
+ * dikirim tidak penuh tool mati. KELUARGA NYA TETAP ADA di `subsetTugas.ts`, jadi
+ * tugas yang butuh hapus/pindah/salin tetap mendapat satu rumahnya lewat jalur
+ * keluarga; dan semua nama yang dibuang masih bisa dipanggil lewat
+ * `tool_search` -> `tool_call` (jalur yang selalu dikirim). Tool-nya juga tidak
+ * dihapus dari `TOOL_CATALOG`.
+ *
+ * Batas yang tidak boleh dilanggar: SEMUA nama yang diroute prompt harus ikut
+ * dikirim. Setiap perubahan daftar ini wajib disertai hapus-pasang rute prompt di
+ * `systemPrompt.ts` (grep nama tool) - kalau tidak, model disuruh memanggil tool
+ * yang tidak ada dan berputar di `tool_search`.
+ */
 export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'read_file',
   'write_file',
-  'edit',
+  /* `multi_edit` satu-satunya rumah `ganti-teks-berkas` yang ikut di sini -
+     `edit` (kembarannya, satu keluarga) DIPANGKAS: lihat catatan pemangkasan
+     di bawah daftar ini. */
   'multi_edit',
-  'delete_file',
-  /*
-   * `move_file` / `copy_file` ikut karena PROMPT menyebut namanya (baris route
-   * file: "delete_file/move_file/copy_file instead of shell rm/del/mv/cp").
-   * Selama ini keduanya diroute tapi TIDAK dikirim - pelanggaran aturan di
-   * atas. Akibatnya model membaca "jangan pakai rm/cp, pakai move_file" lalu
-   * tidak bisa memanggilnya dan balik ke `rm`/`cp` di shell persis seperti yang
-   * ingin dicegah aturan itu. Menyambungnya menutup celah itu tanpa menambah
-   * jumlah: dua ini menggantikan perintah shell yang sebelumnya dipakai.
-   *
-   * Jangan menyebut nama tool di komentar ini sebagai fakta teks prompt -
-   * salin dari prompt saat ini (grep "delete_file/" di systemPrompt.ts).
-   */
-  'move_file',
-  'copy_file',
-  'list_directory',
   'grep',
   'glob',
   'bash_run',
   'todo_write',
-  'think',
-  'ask_user',
   /*
    * `zephyr_self` bukan pilihan gaya, tapi kewajiban: blok larangan di
    * `systemPrompt.ts:850` / `:862` menyebut tool ini dengan nama - "jangan
