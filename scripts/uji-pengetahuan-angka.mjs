@@ -62,6 +62,12 @@ export const useInstructions = { getState: () => ({ daftar: [], muat: async () =
 export const cocokPola = () => false;
 `;
 
+/* Versi app NYATA, dibaca dari package.json. Dipakai untuk mengganti
+ * placeholder __VERSI_APP__ di stub/modul uji, supaya tidak ada versi yang
+ * ditulis tangan di dalam harness - nilai yang ditulis tangan jadi salah
+ * begitu versi app naik, dan yang terlihat merah adalah produk, bukan harness. */
+const VERSI_APP = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+
 const GANTI_PROMPT = [
   './store', './commands', './personaStore', './zephyrRuntime', './mcpTools',
   './aiZephyrState', './terminalStore', './historyStore', './aiMemori', './instructionsStore',
@@ -69,7 +75,15 @@ const GANTI_PROMPT = [
 
 const STUB_SELF = `/* stub uji-pengetahuan-angka.mjs - Tauri/store untuk bundel zephyr_self.
  * Tiap jawaban IPC DIHITUNG supaya cache per sesi bisa dibuktikan dengan angka. */
-const G = (globalThis.__UJI = globalThis.__UJI || { ipc: 0, calls: [], versiApp: '1.1.13' });
+/* Versi disuntikkan dari luar (__VERSI_APP__), bukan ditulis tangan.
+ *
+ * Sebelum ini nilainya hardcode '1.1.13'. Begitu versi app naik (1.1.14),
+ * kontrol NEGATIF "versi sama -> tidak ada kata BASI" jadi mustahil lulus:
+ * harness menyuntikkan versi lama sementara indeksnya dibuat untuk versi baru,
+ * sehingga runtime benar-benar melihat cap yang berbeda dan menjawab BASI.
+ * Yang merah adalah harness-nya, bukan produknya - dan harness yang salah
+ * melaporkan produk sehat sebagai rusak lebih buruk daripada tidak ada harness. */
+const G = (globalThis.__UJI = globalThis.__UJI || { ipc: 0, calls: [], versiApp: '__VERSI_APP__' });
 const catat = (nama) => { G.ipc++; G.calls.push(nama); return nama; };
 export const useStore = { getState: () => ({ settings: { general: { uiLang: 'en' }, agents: {}, models: {} }, workspace: undefined }), setState: () => undefined, subscribe: () => () => undefined };
 export const useUpdater = { getState: () => ({ status: 'idle', version: null, message: null }) };
@@ -136,7 +150,7 @@ writeFileSync(keluar, JSON.stringify(data));
  * lewat dynamic import SETELAH modul ini menyiapkan pembaca spy jaringan. */
 const ENTRI_B = `import { writeFileSync } from 'node:fs';
 
-const G = ((globalThis as any).__UJI = { ipc: 0, calls: [] as string[], versiApp: process.env.UJI_VERSI_APP || '1.1.13' });
+const G = ((globalThis as any).__UJI = { ipc: 0, calls: [] as string[], versiApp: process.env.UJI_VERSI_APP || '__VERSI_APP__' });
 const jaringan: string[] = ((globalThis as any).__JARINGAN ??= []);
 const keluar = process.env.ANGKA_KELUAR || '';
 
@@ -243,7 +257,7 @@ const potonganTool = {
 
 /* ---- BASIS: kontrol positif (versi beda) + negatif (versi sama) ---- */
 S.bersihkanCacheSesi();
-(G as any).versiApp = '1.1.13';
+(G as any).versiApp = '__VERSI_APP__';
 const segar = await S.jalankanZephyrSelf({ bagian: 'semua' });
 S.bersihkanCacheSesi();
 const segarVersi = await S.jalankanZephyrSelf({ bagian: 'versi' });
@@ -356,11 +370,17 @@ async function bangun(nama, sumber, plugin) {
 }
 
 writeFileSync(join(KERJA, 'stub-prompt.mjs'), STUB_PROMPT);
-writeFileSync(join(KERJA, 'stub-self.mjs'), STUB_SELF);
+/* Placeholder diganti di SATU tempat ini: nilai versi masuk ke berkas stub
+   saat ditulis, jadi tidak ada versi yang ditulis tangan di dalam template. */
+writeFileSync(join(KERJA, 'stub-self.mjs'), STUB_SELF.split('__VERSI_APP__').join(VERSI_APP));
 writeFileSync(join(KERJA, 'spy.cjs'), SPY);
 
-const BUNDEL_A = await bangun('inti', ENTRI_A, pluginGanti('ganti-prompt', { 'systemPrompt\\.ts$': GANTI_PROMPT }, join(KERJA, 'stub-prompt.mjs')));
-const BUNDEL_B = await bangun('self', ENTRI_B, pluginGanti('ganti-self', { 'zephyrSelf\\.ts$': GANTI_SELF }, join(KERJA, 'stub-self.mjs')));
+/* Placeholder __VERSI_APP__ diganti nilai NYATA di kedua entry point, di satu
+   tempat: nilai yang ditulis tangan di dalam template jadi salah begitu versi
+   app naik, dan yang terbaca merah adalah produk, bukan harness-nya. */
+const isiVersi = (x) => x.split('__VERSI_APP__').join(VERSI_APP);
+const BUNDEL_A = await bangun('inti', isiVersi(ENTRI_A), pluginGanti('ganti-prompt', { 'systemPrompt\\.ts$': GANTI_PROMPT }, join(KERJA, 'stub-prompt.mjs')));
+const BUNDEL_B = await bangun('self', isiVersi(ENTRI_B), pluginGanti('ganti-self', { 'zephyrSelf\\.ts$': GANTI_SELF }, join(KERJA, 'stub-self.mjs')));
 const SPY_CJS = join(KERJA, 'spy.cjs');
 
 function jalankan(bundel, env, cwd = AKAR, pakaiSpy = false) {

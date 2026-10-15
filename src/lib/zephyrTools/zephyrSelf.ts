@@ -43,7 +43,18 @@ export const POTONGAN_MAKS = 4;
 export const TOKEN_POTONGAN_MAKS = 800;
 export const KARAKTER_PER_TOKEN = 4;
 /** Anggaran karakter per potongan, disisakan 16 token untuk penanda potong. */
-const KARAKTER_POTONGAN = (TOKEN_POTONGAN_MAKS - 16) * KARAKTER_PER_TOKEN;
+/*
+ * Cadangan token untuk KEPALA/HDR, bukan angka bulat 16.
+ *
+ * Kepala jawaban `zephyr_self` (pembungkus JSON: bagian, cap versi/hash, jumlah
+ * potongan, penanda pemotongan) terukur ~265 karakter ~= 66 token, jauh di atas
+ * cadangan 16 token yang lama. Akibatnya muatan satu panggilan bisa mendarat di
+ * 840 token walau tiap potongan badan sudah "<=800": yang tidak ikut dihitung
+ * adalah pembungkusnya. Angka ini dipakai dua kali - di sini dan oleh pemanggil
+ * yang mengoper `bebanAwal` - jadi menaikkannya menutup kedua jalur sekaligus.
+ */
+const CADANGAN_KEPALA_TOKEN = 80;
+const KARAKTER_POTONGAN = (TOKEN_POTONGAN_MAKS - CADANGAN_KEPALA_TOKEN) * KARAKTER_PER_TOKEN;
 
 /** Bagian sumber yang bisa dipilih model lewat `bagian`. */
 export const BAGIAN_TAMPAK: readonly string[] = ['setelan', 'log', 'ekstensi', 'docs', 'versi', 'indeks'];
