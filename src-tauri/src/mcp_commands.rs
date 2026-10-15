@@ -116,9 +116,40 @@ pub fn mcp_client_list(state: State<AppState>) -> ZResult<Vec<McpServer>> {
     Ok(crate::mcp_client::list_servers(&state))
 }
 
+/**
+ * Daftar tool sebuah server MCP.
+ *
+ * `server` (id) dipakai lebih dulu kalau ada: server stdio TIDAK punya URL -
+ * mereka dijalankan sebagai proses (`npx ...`) dan bicara lewat stdin/stdout -
+ * jadi memanggilnya dengan `url` saja akan selalu gagal untuk SELURUH server
+ * yang dipasang dari katalog. `url`/`token` tetap diterima supaya pemanggil
+ * lama (server http ad-hoc yang belum tersimpan) tidak rusak.
+ */
 #[tauri::command(async)]
-pub fn mcp_client_tools(url: String, token: String) -> ZResult<Vec<McpToolSpec>> {
-    crate::mcp_client::list_tools(&url, &token)
+pub fn mcp_client_tools(
+    state: State<AppState>,
+    server: Option<String>,
+    url: Option<String>,
+    token: Option<String>,
+) -> ZResult<Vec<McpToolSpec>> {
+    let id = server.unwrap_or_default();
+    let id = id.trim();
+    if !id.is_empty() {
+        if let Some(s) = crate::mcp_client::cari_server(&state, id) {
+            if s.stdio() {
+                return crate::mcp_stdio::list_tools(
+                    &s.id,
+                    &s.command,
+                    &s.args,
+                    Some(s.cwd.as_str()),
+                );
+            }
+            if !s.url.trim().is_empty() {
+                return crate::mcp_client::list_tools(&s.url, &s.token);
+            }
+        }
+    }
+    crate::mcp_client::list_tools(&url.unwrap_or_default(), &token.unwrap_or_default())
 }
 
 #[tauri::command(async)]

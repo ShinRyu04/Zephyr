@@ -238,7 +238,7 @@ export const useMcp = create<McpStore>((set, get) => ({
       await Promise.all(
         servers.map(async (s) => {
           try {
-            const tools = await cmd.mcpClientTools(s.url, s.token);
+            const tools = await cmd.mcpClientTools(s.id, s.url, s.token);
             for (const t of tools) {
               daftar.push({
                 serverId: s.id,
@@ -332,7 +332,13 @@ export const useMcp = create<McpStore>((set, get) => ({
   testServer: async (url, token) => {
     set({ busy: true, mcpError: null, mcpInfo: null });
     try {
-      const tools = await cmd.mcpClientTools(url.trim(), token.trim());
+      /*
+       * Ad-hoc test of a URL the user typed: no server id yet, so the id slot
+       * is empty and Rust falls back to the url/token path. A SAVED server is
+       * tested by id instead (`refreshServers`), which is the only way a stdio
+       * server can be tested at all - it has no URL to pass here.
+       */
+      const tools = await cmd.mcpClientTools('', url.trim(), token.trim());
       /*
        * Prompts are reported too, and their ABSENCE is stated rather than
        * implied.

@@ -40,6 +40,7 @@ const WARNA_JENIS: Record<string, string> = {
   ikon: '#f59e0b',
   keymap: '#38bdf8',
   snippet: '#34d399',
+  dap: '#f472b6',
   lain: '#94a3b8',
 };
 
@@ -223,7 +224,7 @@ export function inlineIkonDataUri(dataUri: string, nama: string): { svg: string;
 export type JenisIkonExt =
   | { svg: string; id: string; warna?: undefined; tinta: string; inisial?: undefined }
   | { svg: null; inisial: string; id: string; warna?: undefined; tinta: string }
-  | { svg: null; id: string; warna: 'theme' | 'ikon' | 'keymap' | 'snippet' | 'lain'; tinta: string; inisial?: undefined };
+  | { svg: null; id: string; warna: 'theme' | 'ikon' | 'keymap' | 'snippet' | 'dap' | 'lain'; tinta: string; inisial?: undefined };
 
 export function ikonEkstensi(id: string, kategori: string[]): JenisIkonExt {
   const kat = kategori.join(' ').toLowerCase();
@@ -263,6 +264,16 @@ export function ikonEkstensi(id: string, kategori: string[]): JenisIkonExt {
   }
   if (kat.includes('snippet')) {
     return { svg: null, id: 'snippet', warna: 'snippet', tinta: WARNA_JENIS.snippet };
+  }
+  /*
+   * Debug adapters: the category VS Code and the panel both call "Debug
+   * Adapters". Checked BEFORE the generic box so a package whose only card tag
+   * is that category gets its own mark instead of the same grey outline as
+   * everything unrecognised — the panel has a category for it, so the card
+   * should look like it has one.
+   */
+  if (kat.includes('debug')) {
+    return { svg: null, id: 'dap', warna: 'dap', tinta: WARNA_JENIS.dap };
   }
 
   return { svg: null, id: 'lain', warna: 'lain', tinta: WARNA_JENIS.lain };
