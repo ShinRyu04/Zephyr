@@ -1613,7 +1613,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
           `Jadwal dibuat dengan id ${job.id}.\n` +
           `Perintah akan dijalankan sekali sekitar ${sampai} (${delay} detik dari sekarang).\n` +
           'Catatan: mesin penjadwal aplikasi ini berulang, jadi entri ini akan tetap terdaftar. ' +
-          `Hapus dengan cancel_schedule (id ${job.id}) setelah perintahnya berjalan.`
+          `Hapus dengan schedule_command (action: "cancel", id: "${job.id}") setelah perintahnya berjalan.`
         );
       }
 

@@ -248,7 +248,7 @@ for (const namaTool of himpunanKatalog) {
  */
 const NAMA_MCP_POLOS = [
   'inspect', 'run_command', 'open_file', 'workspace', 'set_setting', 'extension',
-  'ssh', 'state', 'read', 'sh', 'wait_for_terminal', 'worktree', 'focus_pane', 'pane',
+  'ssh', 'read', 'sh', 'wait_for_terminal', 'worktree', 'focus_pane', 'pane',
 ];
 const mcpPanjang = NAMA_MCP_POLOS.map((n) => `mcp__zephyr__${n}`);
 for (const n of NAMA_MCP_POLOS) {
