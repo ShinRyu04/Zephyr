@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6258 entri
- * (bridge=1, dokumen=176, ekstensi=17, kode=429, label=3023, layar=1991, menu=122, panel=22, perintah=179, pintasan=66, port=4, seksi=31, setelan=129, tool=68).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6252 entri
+ * (bridge=1, dokumen=176, ekstensi=17, kode=429, label=3023, layar=1993, menu=122, panel=22, perintah=179, pintasan=66, port=4, seksi=32, setelan=129, tool=59).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.13 · hash sumber: 39f4e0cc1e827154
+ * Versi app: 1.1.13 · hash sumber: c1e8a3b1d798272e
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.13', hashSumber: '39f4e0cc1e827154' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.13', hashSumber: 'c1e8a3b1d798272e' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -431,7 +431,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/adapters/anthropic.rs","742 baris · ekspor: thinking_field, butuh_budget, prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode","src-tauri/src/adapters/gemini.rs","355 baris · ekspor: prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode","src-tauri/src/adapters/mod.rs","202 baris · ekspor: split_data_url, prepare, extract_delta, extract_reasoning, extract_usage, trim_base, prepare_tools, parse_tool_response, prepare_tools_stream, StreamAcc, new, feed, feed_reasoning, reasoning_parts, finish"],
-  ["kode","src-tauri/src/adapters/openai.rs","872 baris · ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
+  ["kode","src-tauri/src/adapters/openai.rs","917 baris · ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode","src-tauri/src/adapters/xml_tools.rs","855 baris · ekspor: normalisasi_penanda, posisi_aman, mungkin_awal_tag, mengandung_tool_call, bersihkan_teks, parse_teks"],
   ["kode","src-tauri/src/agent_exec.rs","344 baris · ekspor: ExecResult, agent_exec"],
   ["kode","src-tauri/src/agent_patch.rs","126 baris · ekspor: PatchResult, file_patch"],
@@ -517,7 +517,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AiPanel.tsx","2446 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","226 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatMessage.tsx","1034 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ChatSettingsPage.tsx","1532 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ChatSettingsPage.tsx","1645 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatSettingsPopup.tsx","72 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatStamp.tsx","139 baris · ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode","src/components/ai/ClearChatsDialog.tsx","89 baris · tanpa ekspor"],
@@ -686,7 +686,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","29 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","9304 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
+  ["kode","src/lib/aiStore.ts","9338 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
   ["kode","src/lib/aiTabsStore.ts","113 baris · ekspor: CLI_TABS, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","970 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -697,7 +697,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/autocompleteInline.ts","207 baris · Autocomplete inline — perencana permintaan + pengatur laju (governor). · ekspor: JEDA_MS, BATAS_BYTE_PAYLOAD, BATAS_JENDELA_BARIS, BATAS_JENDELA_KARAKTER, PANJANG_MINIMUM_BARIS, bytePanjang, jendelaKonteks, PermintaanInline, OpsiPermintaan, bangunPermintaan, KeadaanInline, keadaanAwal, ketik, tiket, AlasanInline, KeputusanInline, putuskanKirim, mulaiKirim, selesaiKirim, setAktif"],
   ["kode","src/lib/bacaKode.ts","847 baris · bacaKode - Zeph membaca ISI kode ZEPHYR SENDIRI sebagai POTONGAN BARIS. · ekspor: BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, KARAKTER_PER_TOKEN, EKSTENSI_TEKS, NAMA_TEKS, berekstensiTeks, HasilJalur, bolehDibacaKode, pisahBaris, tagIsi, apakahBiner, angkaTitik, OpsiPotong, PotonganKode, HasilPotong, cariDefinisiBaris, bacaPotongan, rakitPotongan, AnggaranBaca, buatAnggaranBaca, PerintahBacaKode, JembatanBacaKode, PermintaanBaca, HasilBaca, rapikanJalurNyata, diDalamAkar, bacaBerkasKode, SPEC_BACA_KODE, pasangJembatanBacaKode, pasangRealpathBacaKode, realpathBacaKode, resetAnggaranBaca, jembatanBacaKode, …(+2)"],
   ["kode","src/lib/breakpointGutter.ts","80 baris · ekspor: bpCompartment, barisAktifCompartment, breakpointGutter, barisAktifExt"],
-  ["kode","src/lib/chatSettingsStore.ts","90 baris · ekspor: ChatSeksi, useAiChatSettings"],
+  ["kode","src/lib/chatSettingsStore.ts","92 baris · ekspor: ChatSeksi, useAiChatSettings"],
   ["kode","src/lib/checkpoint.ts","170 baris · Checkpoints — undoing everything one agent turn changed. · ekspor: BerkasCheckpoint, Checkpoint, mulaiTurn, catat, tutupCheckpoint, HasilRestore, pulihkanCheckpoint"],
   ["kode","src/lib/cliAgentStore.ts","121 baris · ekspor: CliRun, useCliAgent"],
   ["kode","src/lib/cliCatalog.ts","165 baris · The model / permission-mode / effort catalogue for the hosted CLI tabs · ekspor: CliModel, CliMode, CliCatalog, CLAUDE_MODES, CLAUDE_MODELS, catalogFor, modelChip, EFFORT_LEVELS, EffortLevel, jendelaAliasCli"],
@@ -755,7 +755,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/konteksRepo.ts","1341 baris · KONTEKS REPO - apa yang Zeph ketahui tentang folder yang SEDANG DIBUKA user. · ekspor: BATAS_PINDAI_BERKAS, BATAS_BERKAS_TAMPIL, BATAS_BYTE_TAMPIL, BATAS_UKURAN_BERKAS, BATAS_CHAR_RINGKASAN, BATAS_BARIS_STRUKTUR, BATAS_BAHASA, BATAS_GITIGNORE_BYTE, BATAS_STAT_BERKAS, KONTEKS_REPO_VERSI, BerkasRepo, EntriGitignore, MasukanKonteksRepo, BarisBerkas, RincianBahasa, BarisStruktur, StatKonteksRepo, KonteksRepo, JenisBlokir, POLA_RAHASIA_TAMBAHAN, POLA_RAHASIA_EFEKTIF, ABAIKAN_SEGMEN, normalJalur, bahasaDariJalur, ringkasByte, waktuUbahIso, diabaikanStruktur, alasanBlokirRahasia, AturanGitignore, susunAturanGitignore, diabaikanOlehGitignore, skorPrioritasBerkas, bangunKonteksRepo, PerintahKonteksRepo, OpsiSumberRepo, HasilPindai, pindaiKonteksRepo"],
   ["kode","src/lib/konteksZephyr.ts","496 baris · konteksZephyr.ts — aturan berkas `.zephyr-context.md` sebagai fungsi murni. · ekspor: NAMA_KONTEKS, BATAS_BYTE, JUDUL_APLIKASI, JUDUL_AGEN, PENANDA_POTONG, DataKonteks, TemuanRahasia, HasilSaring, BERKAS_DIBLOKIR, ATURAN_RAHASIA, cariRahasia, redaksi, saring, berkasDiblokir, HasilJalur, diDalamAkar, jalurKonteks, BagianKonteks, pecahBagian, bagianAplikasi, RencanaTulis, OpsiRencana, rencanaTulis, HasilPotong, batasiUkuran"],
   ["kode","src/lib/kutipPerintah.ts","68 baris · kutipPerintah.ts - mengamankan perintah agen sebelum dikirim ke shell. · ekspor: kutipUrlDiPerintah"],
-  ["kode","src/lib/labelAksi.ts","263 baris · ekspor: JenisAksi, AksiInfo, namaPolos, infoAksi, sasaranAksi, perintahAksi, KELAS_JENIS"],
+  ["kode","src/lib/labelAksi.ts","260 baris · ekspor: JenisAksi, AksiInfo, namaPolos, infoAksi, sasaranAksi, perintahAksi, KELAS_JENIS"],
   ["kode","src/lib/labelI18n.ts","39 baris · Translation of labels that come from data, not from JSX. · ekspor: labelTerjemah, useLabel"],
   ["kode","src/lib/labelPaket.ts","118 baris · labelPaket.ts - label jujur untuk paket bahasa di katalog ekstensi. · ekspor: JenisLabelPaket, LabelPaket, LABEL_PAKET, labelPaket, daftarLabelPaket"],
   ["kode","src/lib/lang.ts","305 baris · ekspor: detectLang, extLangUntuk, labelBahasa, LANG_LABEL, loadLangExtension, extensiUntukFile"],
@@ -780,7 +780,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/pembungkusBahasa.ts","141 baris · PEMBUNGKUS BAHASA + ATURAN KLAIM NILAI (item 161, sisa item 138). · ekspor: ATURAN_NILAI_ID, ATURAN_NILAI_EN, blokKlaimNilai, blokPenutup, FaktaNilai, JenisPelanggaranNilai, PelanggaranNilai, periksaKlaimNilai"],
   ["kode","src/lib/peranIcons.ts","54 baris · ekspor: IKON_PERAN, IKON_KUSTOM, pathIkonPeran"],
   ["kode","src/lib/personaStore.ts","356 baris · ekspor: Persona, PERSONA_BAWAAN, usePersona, personaAktif, blokPersona"],
-  ["kode","src/lib/planMode.ts","126 baris · Mode rencana: agen mengusulkan langkah, user menyetujui, BARU dikerjakan. · ekspor: Rencana, rencanaKeTeks, PILIHAN_RENCANA, JawabanRencana, tafsirJawaban, adaPerubahanBelumDisimpan"],
+  ["kode","src/lib/planMode.ts","127 baris · Mode rencana: agen mengusulkan langkah, user menyetujui, BARU dikerjakan. · ekspor: Rencana, rencanaKeTeks, PILIHAN_RENCANA, JawabanRencana, tafsirJawaban, adaPerubahanBelumDisimpan"],
   ["kode","src/lib/pluginsStore.ts","245 baris · The plugin layer. · ekspor: InstalledPlugin, MarketPlugin, PluginHook, PluginAgent, PluginToggle, usePlugins"],
   ["kode","src/lib/portsStore.ts","84 baris · ekspor: PortProtocol, PortSource, ForwardedPort, usePorts"],
   ["kode","src/lib/problemsStore.ts","112 baris · ekspor: Severity, Diagnostic, useProblems"],
@@ -811,7 +811,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/subagentRouter.ts","99 baris · ekspor: SubagentTaskCategory, SubagentModelSource, SubagentModelCandidate, RouteSubagentModelInput, RoutedSubagentModel, classifySubagentTask, capabilityScore, routeSubagentModel"],
   ["kode","src/lib/subagentStore.ts","1437 baris · ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
   ["kode","src/lib/subsetAlat.ts","244 baris · Subset alat per tugas - dan gerbang rencana pada langkah pertama. · ekspor: butuhAlatWeb, tugasButuhWeb, tugasBerat, TOOL_RENCANA_PERTAMA, alatRencanaPertama, gerbangRencanaSiap, ALAT_BUTUH_FOLDER, butuhFolder, TOOL_TULIS_BERKAS, alatUntukTugas, ALAT_TERAKHIR, catatAlatTerakhir"],
-  ["kode","src/lib/subsetTugas.ts","938 baris · Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). · ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
+  ["kode","src/lib/subsetTugas.ts","905 baris · Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). · ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
   ["kode","src/lib/suntikKonteks.ts","581 baris · suntikKonteks.ts — menyusun SATU giliran agen dari tiga sumber. · ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
   ["kode","src/lib/symbolTree.ts","201 baris · ekspor: SimpulSimbol, ikonKind, labelKind, pohonSimbol, jalurKe, barisSticky, sebaya"],
   ["kode","src/lib/systemPrompt.ts","1433 baris · ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
@@ -825,7 +825,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/themes.ts","331 baris · Tokens the Theme Builder may override. · ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
   ["kode","src/lib/toolGate.ts","436 baris · Sekat tool untuk agen di dalam editor. · ekspor: ToolSection, SECTION_URUTAN, sectionOf, ToolGroup, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
   ["kode","src/lib/toolRules.ts","165 baris · Per-tool permission rules. · ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
-  ["kode","src/lib/types.ts","1909 baris · ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, …(+77)"],
+  ["kode","src/lib/types.ts","1925 baris · ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, …(+77)"],
   ["kode","src/lib/unduhInstal.ts","657 baris · UNDUH-INSTAL - jalur \"unduh -> periksa -> pasang\" untuk paket EKSTENSI. · ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal"],
   ["kode","src/lib/updaterStore.ts","251 baris · ekspor: UpdateStatus, useUpdater, labelStatus"],
   ["kode","src/lib/useAiChunkListener.ts","33 baris · ekspor: useAiChunkListener"],
@@ -843,14 +843,14 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrRuntime.ts","265 baris · Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. · ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
   ["kode","src/lib/zephyrTools/ambilWeb.ts","736 baris · ambilWeb.ts — rumah satu-satunya untuk kemampuan \"AMBIL-WEB\" agen Zephyr. · ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb"],
   ["kode","src/lib/zephyrTools/awalan.ts","33 baris · Satu-satunya definisi awalan nama tool. · ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
-  ["kode","src/lib/zephyrTools/builtins.ts","2565 baris · Tool bawaan - implementasi untuk 40 nama pertama di katalog. · ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
-  ["kode","src/lib/zephyrTools/catalog.ts","614 baris · Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. · ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
-  ["kode","src/lib/zephyrTools/deskripsiTool.ts","816 baris · ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
+  ["kode","src/lib/zephyrTools/builtins.ts","2225 baris · Tool bawaan - implementasi untuk 40 nama pertama di katalog. · ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
+  ["kode","src/lib/zephyrTools/catalog.ts","602 baris · Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. · ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
+  ["kode","src/lib/zephyrTools/deskripsiTool.ts","726 baris · ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
   ["kode","src/lib/zephyrTools/deskripsiToolHook.ts","35 baris · deskripsiToolHook.ts - versi HOOK dari deskripsi tool, sengaja dipisah. · ekspor: useDeskripsiTool"],
   ["kode","src/lib/zephyrTools/kebijakanIsiWeb.ts","491 baris · KEBIJAKAN ISI WEB — satu tempat yang memutuskan apakah isi halaman dari · ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG, KebijakanIsiWeb, Keputusan, KeputusanUrl, HasilIsi, HasilSaring, Fetcher, KEBIJAKAN_TOLAK_SEMUA, kebijakanDariSetelan, normalisasiHost, isIpLiteral, isIpMetadata, isIpPrivat, isIpSelaluDilarang, isIpTerlarang, namaLokal, hostDiAllowlist, portSahBerlaku, hopBerlaku, periksaUrl, gerbangIsiKonten, ikutiRedirect, batasByteBerlaku, batasKarakterBerlaku, ukuranByte, batasiByte, potongKeluaran, saringKeModel, ambilIsiWeb"],
   ["kode","src/lib/zephyrTools/kendaliJendela.ts","609 baris · Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. · ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, DOK_LAPORAN_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar, TARGET_TANGKAP, TargetTangkap, targetTangkapDikenal, periksaTargetTangkap, periksaPathTangkap, tangkapJendela"],
   ["kode","src/lib/zephyrTools/mcp.ts","726 baris · Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. · ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
-  ["kode","src/lib/zephyrTools/web.ts","943 baris · Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. · ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+  ["kode","src/lib/zephyrTools/web.ts","847 baris · Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. · ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
   ["kode","src/lib/zephyrTools/worktree.ts","279 baris · worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. · ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
   ["kode","src/lib/zephyrTools/zephyrIngat.ts","207 baris · `ingat` - memori lintas sesi milik Zeph AI sendiri. · ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
   ["kode","src/lib/zephyrTools/zephyrSelf.ts","676 baris · zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. · ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
@@ -3963,7 +3963,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Channel \"{name}\" is still empty.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/OutputView.tsx"],
   ["layar","ChatHeadActions","src/components/ai/ChatHeadActions.tsx · 17 label: Agent Customizations…, Chat Settings, Chat history, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models · 19 data-testid: ai-history-btn, ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
   ["layar","ChatMessage","src/components/ai/ChatMessage.tsx · 33 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan · 25 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
-  ["layar","ChatSettingsPage","src/components/ai/ChatSettingsPage.tsx · 37 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do…, Auto (from the model list), Chat Settings, Clear all chats…, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets…, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings…, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., found, request(s), {n} changes - close the page and they stay · placeholder: http://localhost:7777 · 22 data-testid: cset-agentcustom, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
+  ["layar","ChatSettingsPage","src/components/ai/ChatSettingsPage.tsx · 38 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do…, Auto (from the model list), Chat Settings, Clear all chats…, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets…, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings…, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), {n} changes - close the page and they stay · placeholder: http://localhost:7777 · 23 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
   ["layar","ChatSettingsPopup","src/components/ai/ChatSettingsPopup.tsx · aria-label: Chat Settings · 2 data-testid: cset-pop, cset-scrim"],
   ["layar","ChatStamp","src/components/ai/ChatStamp.tsx · 3 label: Today, Tomorrow, Yesterday · 2 data-testid: ai-day-div, ai-msg-time"],
   ["layar","Choose a model: type a name below or press Refresh.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ModelSelector.tsx"],
@@ -4936,6 +4936,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","crash-log","data-testid di layar · dirender 1 berkas: src/components/shell/CrashDialog.tsx"],
   ["layar","crash-message","data-testid di layar · dirender 1 berkas: src/components/shell/CrashDialog.tsx"],
   ["layar","cset-agentcustom","data-testid di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
+  ["layar","cset-allowlistweb","data-testid di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar","cset-clear","data-testid di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar","cset-close","data-testid di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar","cset-empty","data-testid di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
@@ -5119,6 +5120,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","empty-shell","data-testid di layar · dirender 1 berkas: src/components/terminal/PaneGrid.tsx"],
   ["layar","empty-split-browser","data-testid di layar · dirender 1 berkas: src/components/terminal/PaneGrid.tsx"],
   ["layar","every {n} minutes","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
+  ["layar","example.com","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar","exclude: *.min.js, dist/**","placeholder di layar · dirender 1 berkas: src/components/explorer/SearchPanel.tsx"],
   ["layar","ext-actions-btn","data-testid di layar · dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar","ext-add","data-testid di layar · dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
@@ -6269,6 +6271,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["seksi","Agent","seksi di Chat Settings (panel AI)"],
   ["seksi","Appearance","seksi di Chat Settings (panel AI)"],
   ["seksi","Context","seksi di Chat Settings (panel AI)"],
+  ["seksi","Konten web","seksi di Chat Settings (panel AI)"],
   ["seksi","Mode","seksi di Chat Settings (panel AI)"],
   ["seksi","Models","seksi di Chat Settings (panel AI)"],
   ["seksi","Rules","seksi di Chat Settings (panel AI)"],
@@ -6424,7 +6427,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["setelan","update.lastSeenVersion","default: (grup update)"],
   ["setelan","update.pendingNotes","default: (grup update)"],
   ["setelan","update.seenAnnouncements","default: [] (grup update)"],
-  ["tool","ask_user","tool · kelompok Penalaran · efek read · perlu izin: tidak"],
   ["tool","bash_background","tool · kelompok Shell · efek exec · perlu izin: ya"],
   ["tool","bash_kill","tool · kelompok Shell · efek exec · perlu izin: ya"],
   ["tool","bash_list","tool · kelompok Shell · efek read · perlu izin: tidak"],
@@ -6434,11 +6436,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["tool","browser_close","tool · kelompok Browser · efek appWrite · perlu izin: ya"],
   ["tool","browser_download_url","tool · kelompok Browser · efek netWrite · perlu izin: ya"],
   ["tool","browser_list","tool · kelompok Browser · efek read · perlu izin: tidak"],
-  ["tool","browser_nav","tool · kelompok Browser · efek net · perlu izin: tidak"],
   ["tool","browser_open","tool · kelompok Browser · efek net · perlu izin: tidak"],
   ["tool","browser_read","tool · kelompok Browser · efek read · perlu izin: tidak"],
   ["tool","browser_type","tool · kelompok Browser · efek netWrite · perlu izin: ya"],
-  ["tool","calculator","tool · kelompok Penalaran · efek read · perlu izin: tidak"],
   ["tool","cancel_schedule","tool · kelompok Schedules · efek appWrite · perlu izin: ya"],
   ["tool","copy_file","tool · kelompok Files · efek fsWrite · perlu izin: ya"],
   ["tool","create_directory","tool · kelompok Files · efek fsWrite · perlu izin: ya"],
@@ -6446,7 +6446,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["tool","edit","tool · kelompok Edit · efek fsWrite · perlu izin: ya"],
   ["tool","extension","tool · kelompok control · efek appWrite · perlu izin: ya"],
   ["tool","focus_pane","tool · kelompok terminal · efek appWrite · perlu izin: ya"],
-  ["tool","get_terminal_output","tool · kelompok Terminal · efek read · perlu izin: tidak"],
   ["tool","glob","tool · kelompok Search · efek read · perlu izin: tidak"],
   ["tool","grep","tool · kelompok Search · efek read · perlu izin: tidak"],
   ["tool","ingat","tool · kelompok Memori · efek appWrite · perlu izin: tidak"],
@@ -6464,23 +6463,18 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["tool","notes_read","tool · kelompok Tasks & Notes · efek read · perlu izin: tidak"],
   ["tool","notes_write","tool · kelompok Tasks & Notes · efek appWrite · perlu izin: ya"],
   ["tool","open_file","tool · kelompok control · efek appWrite · perlu izin: ya"],
-  ["tool","open_preview","tool · kelompok Terminal · efek appWrite · perlu izin: ya"],
   ["tool","pane","tool · kelompok terminal · efek appWrite · perlu izin: ya"],
   ["tool","read","tool · kelompok inspect · efek read · perlu izin: tidak"],
   ["tool","read_file","tool · kelompok Files · efek read · perlu izin: tidak"],
   ["tool","replace_in_files","tool · kelompok Files · efek fsWrite · perlu izin: ya"],
   ["tool","run_command","tool · kelompok control · efek exec · perlu izin: ya"],
   ["tool","run_subagent","tool · kelompok Sub-agents · efek exec · perlu izin: ya"],
-  ["tool","run_subagents","tool · kelompok Sub-agents · efek exec · perlu izin: ya"],
   ["tool","schedule_command","tool · kelompok Schedules · efek appWrite · perlu izin: ya"],
   ["tool","set_setting","tool · kelompok control · efek appWrite · perlu izin: ya"],
   ["tool","sh","tool · kelompok terminal · efek exec · perlu izin: ya"],
   ["tool","skill_view","tool · kelompok Skills · efek read · perlu izin: tidak"],
   ["tool","ssh","tool · kelompok control · efek exec · perlu izin: ya"],
   ["tool","state","tool · kelompok inspect · efek read · perlu izin: tidak"],
-  ["tool","suggest_command","tool · kelompok Terminal · efek appWrite · perlu izin: ya"],
-  ["tool","system_browser_open","tool · kelompok Browser · efek net · perlu izin: tidak"],
-  ["tool","think","tool · kelompok Penalaran · efek read · perlu izin: tidak"],
   ["tool","todo_write","tool · kelompok Tasks & Notes · efek appWrite · perlu izin: ya"],
   ["tool","tool_call","tool · kelompok Penalaran · efek exec · perlu izin: ya"],
   ["tool","tool_search","tool · kelompok Penalaran · efek read · perlu izin: tidak"],

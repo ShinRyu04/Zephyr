@@ -32,8 +32,6 @@ const js = String.raw`(async () => {
   const rb = await (await fetch('/src/lib/aiStore.ts')).text();
   return JSON.stringify({
     zephyr: document.title.includes('Zephyr'),
-    adaCalculator: t.includes("name: 'calculator'"),
-    adaThink: t.includes("name: 'think'"),
     adaFallback: rb.includes('pilihModelCadangan'),
     adaCapPayload: rb.includes('PAYLOAD_MAX_CHARS'),
     toolTerpasang: window.__ZEPHYR_TOOLS__ ? window.__ZEPHYR_TOOLS__.nama().length : null,

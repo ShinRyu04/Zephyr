@@ -71,8 +71,8 @@ const masalah = [];
  * katalog, EN, dan ID dua arah (kunci hilang DAN kunci asing), jadi angka
  * yang berbeda pasti sudah tertangkap di sana. Yang tersisa hanyalah
  * change-detector yang basi - setiap tool baru membuat harness ini gagal
- * padahal keadaan sebenarnya benar (terbukti: 54 jadi 56 saat `think` dan
- * `calculator` ditambahkan, dan harness gagal tanpa ada yang rusak).
+ * padahal keadaan sebenarnya benar (terbukti: angka itu berubah tiap kali
+ * katalog bertambah, dan harness gagal tanpa ada yang rusak).
  *
  * Yang tetap dijaga: katalog tidak boleh kosong, supaya regex yang gagal
  * membaca berkas tidak bisa membuat semua pemeriksaan di bawah ini lulus

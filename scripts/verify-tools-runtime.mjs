@@ -66,12 +66,12 @@ r.check('R3', duplikat.length === 0, `tidak ada nama duplikat` + (duplikat.lengt
 
 const webWajib = [
   'web_search', 'web_fetch', 'browser_open', 'browser_read', 'browser_click',
-  'browser_type', 'browser_nav', 'browser_list', 'browser_close',
-  'browser_download_url', 'system_browser_open',
+  'browser_type', 'browser_list', 'browser_close',
+  'browser_download_url',
 ];
 const webHilang = webWajib.filter((w) => !nama.includes(w));
-r.check('R4', webHilang.length === 0, `11 tool web/browser lengkap` + (webHilang.length ? ' :: ' + JSON.stringify(webHilang) : ''));
-r.check('R5', (d.web || []).length === 11, `jumlah web di katalog = ${(d.web || []).length}`);
+r.check('R4', webHilang.length === 0, `9 tool web/browser lengkap` + (webHilang.length ? ' :: ' + JSON.stringify(webHilang) : ''));
+r.check('R5', (d.web || []).length === 9, `jumlah web di katalog = ${(d.web || []).length}`);
 
 const { lulus, total } = r.selesai();
 await cdp.close();

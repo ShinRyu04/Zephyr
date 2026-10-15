@@ -544,22 +544,20 @@ const TOOL_PENULIS = new Set([
   'write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory',
   'copy_file', 'move_file', 'delete_file',
   'bash_run', 'bash_background', 'bash_kill', 'mcp__zephyr__sh', 'sh',
-  'browser_open', 'browser_click', 'browser_type', 'browser_nav', 'browser_close',
-  'system_browser_open', 'browser_download_url', 'open_preview',
+  'browser_open', 'browser_click', 'browser_type', 'browser_close',
+  'browser_download_url',
   'subagent_run', 'subagent_kirim', 'subagent_batal',
   'todo_write', 'schedule_command', 'cancel_schedule', 'notes_write',
   'set_setting', 'run_command', 'ssh', 'worktree', 'extension', 'pane',
-  'workspace', 'focus_pane', 'suggest_command',
+  'workspace', 'focus_pane',
 ]);
 const TOOL_BROWSER = new Set([
   'browser_open',
   'browser_read',
-  'browser_nav',
   'browser_click',
   'browser_type',
   'browser_close',
   'browser_list',
-  'system_browser_open',
   'web_fetch',
   'web_search',
 ]);
@@ -605,7 +603,7 @@ export interface HasilMuterBrowser {
 }
 
 function urlBrowserDinormalisasi(nama: string, args: Record<string, unknown>): string {
-  if (nama !== 'browser_open' && nama !== 'system_browser_open') return '';
+  if (nama !== 'browser_open') return '';
   return String(args.url ?? '')
     .trim()
     .toLowerCase()
@@ -1931,7 +1929,7 @@ function perluasPerintah(teks: string): { kirim: string; tampil: string } {
 let agentConfirmResolve: ((ok: boolean) => void) | null = null;
 
 /*
- * Penunggu jawaban `ask_user`.
+ * Penunggu jawaban pertanyaan (`agentTanya`).
  *
  * Berbeda dari `agentConfirmResolve` yang menerima boolean, ini menerima
  * STRING: pertanyaan bebas tidak bisa dijawab dengan ya/tidak.
@@ -2597,7 +2595,7 @@ export interface AgentSurfaceState {
   lastProgressAt: number | null;
   startedAt: number | null;
   navigationOnly: boolean;
-  /** A question the agent is waiting on (ask_user), for this run. */
+  /** A question the agent is waiting on, for this run. */
   tanya: { pertanyaan: string; pilihan: string[] } | null;
   /** An approval the loop is blocked on, for this run. */
   confirm: { tool: string; argsText: string; isDestructive: boolean; isWrite?: boolean } | null;
@@ -2811,7 +2809,8 @@ interface AiState {
   agentConfirm: { tool: string; argsText: string; isDestructive: boolean; isWrite?: boolean } | null;
 
   /**
-   * Pertanyaan yang sedang menunggu jawaban user, diisi tool `ask_user`.
+   * Pertanyaan yang sedang menunggu jawaban user, diisi lewat jalur
+ * pertanyaan (`agentAjukanTanya`) yang kini dipakai juga oleh plan mode.
    *
    * `pilihan` boleh kosong: kalau ada isinya, UI menampilkan tombol pilihan
    * cepat di samping kotak ketik bebas.
@@ -2820,7 +2819,8 @@ interface AiState {
 
   agentTodos: AgentTodo[];
   /**
-   * Kartu saran perintah dari tool `suggest_command`.
+   * Kartu saran perintah (bekas tool `suggest_command` yang sudah dihapus
+   * dari katalog; state dipertahankan supaya kartu lama tetap tampil).
    *
    * Sengaja hanya DATA, bukan aksi: tool ini menampilkan perintah untuk
    * diperiksa user, dan yang menjalankannya adalah user lewat tombol Insert.
@@ -2929,7 +2929,7 @@ interface AiActions {
    * Ajukan pertanyaan ke user dan tunggu jawabannya.
    *
    * Mengembalikan jawaban yang diketik user, atau `null` kalau pertanyaannya
-   * dibatalkan (ditutup tanpa dijawab). Dipakai tool `ask_user`: model yang
+   * dibatalkan (ditutup tanpa dijawab). Dipakai jalur pertanyaan: model yang
    * menemukan instruksi ambigu berhenti dan bertanya, alih-alih menebak lalu
    * mengerjakan hal yang salah.
    */
@@ -6075,8 +6075,8 @@ export const useAi = create<AiStore>((set0, get) => {
                    `pilihToolTugas` memakai aturan yang sama dengan
                    `alatUntukTugas` untuk memutuskan apa yang boleh dibuang
                    (menulis? jaringan? ada folder?), lalu memangkas KEMBAR -
-                   `edit` vs `multi_edit` vs `replace_in_files`,
-                   `run_subagent` vs `run_subagents` - supaya himpunan dasar 17
+                   `edit` vs `multi_edit` vs `replace_in_files` - supaya
+                   himpunan dasar 17
                    tool tidak berubah jadi 23-26. Yang dipangkas TIDAK hilang:
                    `tool_search`/`tool_call` selalu ikut, jadi satu langkah lebih
                    jauh. Bukti kesetaraan kemampuan: scripts/cek-subset-tugas.mjs
@@ -6541,7 +6541,8 @@ export const useAi = create<AiStore>((set0, get) => {
          * SUDAH disaring - bukan daftar aslinya.
          *
          * Penyebab 400 yang terbukti: model mengirim dua tool call dalam satu
-         * balasan (`think` dan `create_directory`), penyaring di bawah membuang
+         * balasan (`think` - kini sudah dihapus - dan `create_directory`),
+ * penyaring di bawah membuang
          * salah satunya, tetapi `langkahRiwayat` masih menyimpan keduanya.
          * Payload yang terkirim lalu berbunyi:
          *
@@ -6553,7 +6554,7 @@ export const useAi = create<AiStore>((set0, get) => {
          * Karena itu daftar yang dipakai harus satu dan sama: apa yang dikirim
          * ke provider adalah apa yang benar-benar dijalankan.
          */
-        const browserOpen = (tc: AgentToolCall) => tc.name === 'browser_open' || tc.name === 'system_browser_open';
+        const browserOpen = (tc: AgentToolCall) => tc.name === 'browser_open';
         const firstBrowser = res.toolCalls.findIndex(browserOpen);
         let callsToDispatch = res.toolCalls;
         if (navigationOnly && firstBrowser >= 0) {
@@ -6821,11 +6822,9 @@ export const useAi = create<AiStore>((set0, get) => {
           /*
            * Guard treadmill browser.
            *
-           * `system_browser_open` diperlakukan SAMA dengan `browser_open` di
-           * sini. Sebelumnya ia hanya ikut dihitung sebagai "muter" tapi tidak
-           * pernah diakui sebagai pembuka baru, sehingga membuka tiga alamat
-           * berbeda lewat browser sistem akan dihentikan sebagai putaran -
-           * padahal setiap langkah membuka halaman baru.
+           * Setiap pembukaan halaman baru harus diakui sebagai "pembuka
+           * baru" di sini - kalau tidak, guard berhenti menghentikan langkah
+           * yang membuka tiga alamat berbeda.
            */
           if (halamanTerbuka && TOOL_BROWSER.has(tc.name)) {
             /* `membukaBaru` berarti url yang BELUM pernah dibuka pada giliran
@@ -7164,7 +7163,7 @@ export const useAi = create<AiStore>((set0, get) => {
               agentBatal = true;
             }
           }
-          if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) {
+          if (ok && tc.name === 'browser_open') {
             halamanTerbuka = true;
             /*
              * Record the page only once it actually opened. A call that failed
@@ -7315,7 +7314,7 @@ export const useAi = create<AiStore>((set0, get) => {
            */
           if (
             navigationResultOk &&
-            (tc.name === 'browser_open' || tc.name === 'system_browser_open') &&
+            tc.name === 'browser_open' &&
             navigationOnly
           ) {
             /*
@@ -7353,7 +7352,7 @@ export const useAi = create<AiStore>((set0, get) => {
              */
             if (
               navigationResultOk &&
-              (tc.name === 'browser_open' || tc.name === 'system_browser_open')
+              tc.name === 'browser_open'
             ) {
               halamanTerbuka = true;
               const urlDibuka = urlBrowserDinormalisasi(tc.name, argsObj);

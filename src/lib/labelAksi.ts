@@ -54,7 +54,6 @@ const PETA: Record<string, AksiInfo> = {
 
   /* Sub-agents */
   run_subagent: { label: 'Subagent', jenis: 'lain', ikon: 'robot' },
-  run_subagents: { label: 'Subagents', jenis: 'lain', ikon: 'robot' },
 
   /* Tasks & Notes */
   todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
@@ -95,11 +94,9 @@ const PETA: Record<string, AksiInfo> = {
   browser_read: { label: 'Read page', jenis: 'baca', ikon: 'web' },
   browser_click: { label: 'Click', jenis: 'jalan', ikon: 'web' },
   browser_type: { label: 'Type', jenis: 'jalan', ikon: 'web' },
-  browser_nav: { label: 'Navigate', jenis: 'jalan', ikon: 'web' },
   browser_list: { label: 'List pages', jenis: 'baca', ikon: 'list' },
   browser_close: { label: 'Close page', jenis: 'tulis', ikon: 'web' },
   browser_download_url: { label: 'Download', jenis: 'tulis', ikon: 'plus' },
-  system_browser_open: { label: 'Open in browser', jenis: 'jalan', ikon: 'web' },
 };
 
 /*

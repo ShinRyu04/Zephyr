@@ -8,8 +8,9 @@
  * banyak berkas atau menghapus sesuatu, urutan yang benar adalah: lihat
  * rencananya dulu, setujui, baru eksekusi.
  *
- * Rencananya ditampilkan lewat jalur yang SAMA dengan `ask_user`, jadi tidak
- * ada dua jenis kartu persetujuan yang harus dipelajari user.
+ * Rencananya ditampilkan lewat kartu pertanyaan yang sama (state
+ * `pertanyaanMenunggu` di `aiStore`), jadi tidak ada dua jenis kartu
+ * persetujuan yang harus dipelajari user.
  */
 
 export interface Rencana {

@@ -254,8 +254,8 @@ async function main() {
       `baca=${kirimBaca.length}, tes=${kirimTulis.length}, cap=${BATAS}`,
     );
     cek(
-      'tool inti tidak tersingkir oleh zephyr_kode (read_file/think/tool_call tetap ada)',
-      ['read_file', 'think', 'tool_call', 'tool_search'].every((n) => kirimBaca.includes(n)),
+      'tool inti tidak tersingkir oleh zephyr_kode (read_file/tool_call tetap ada)',
+      ['read_file', 'tool_call', 'tool_search'].every((n) => kirimBaca.includes(n)),
       `terkirim=${kirimBaca.join(',')}`,
     );
     cek(

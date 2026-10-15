@@ -82,7 +82,7 @@ for (const [nama, frasa, harusHilang] of periksa) {
   console.log(`  ${ok ? 'LULUS' : 'GAGAL'}  ${nama}`);
   if (ok) lulus++;
   else {
-    const i = teks.indexOf('run_subagents');
+    const i = teks.indexOf('run_subagent');
     console.log('         kutipan:', teks.slice(Math.max(0, i - 60), i + 220).replace(/\s+/g, ' '));
   }
 }

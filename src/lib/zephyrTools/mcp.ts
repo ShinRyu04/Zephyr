@@ -523,7 +523,7 @@ export const TOOL_MCP: AgentTool[] = [
         return (
           `Perintah yang sama sudah dikirim ${berulang - 1} kali berturut-turut dan tidak ada gunanya mengirim lagi.\n` +
           `Perintah: ${aman}\n` +
-          'Kalau kamu mengira perintahnya belum jalan, periksa keluaran terminal dengan get_terminal_output ' +
+          'Kalau kamu mengira perintahnya belum jalan, baca output yang sudah muncul di terminal ' +
           'alih-alih mengirim ulang. Kalau perintahnya gagal, BACA pesan errornya dan perbaiki penyebabnya. ' +
           'Kalau perintahnya tidak menghasilkan apa-apa, itu memang hasilnya - lanjutkan.'
         );

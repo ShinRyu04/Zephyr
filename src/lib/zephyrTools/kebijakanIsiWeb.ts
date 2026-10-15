@@ -5,7 +5,7 @@
  * ## Kenapa berkas ini ada
  *
  * Sebelum ini setiap tool web/browser memutuskan sendiri: `web_fetch` memanggil
- * `cmd.webFetch` dengan URL apa pun, `browser_open`/`browser_nav` menyerahkan URL
+ * `cmd.webFetch` dengan URL apa pun, `browser_open` menyerahkan URL
  * apa pun ke pane, dan `browser_download_url` menulis berkas dari URL apa pun.
  * Tidak ada satu titik yang bisa diperiksa, jadi tidak ada yang bisa dibuktikan
  * tentang apa yang benar-benar keluar dari internet dan masuk ke percakapan.

@@ -1554,7 +1554,7 @@ export interface Settings {
 
   /*
    * Pagar isi web — dipakai SEMUA tool web (browser_open, browser_read,
-   * web_fetch, browser_nav, download) lewat `kebijakanDariSetelan` di
+   * web_fetch, download) lewat `kebijakanDariSetelan` di
    * `zephyrTools/kebijakanIsiWeb.ts`, yang membaca keduanya dari objek settings
    * ini apa adanya.
    *
