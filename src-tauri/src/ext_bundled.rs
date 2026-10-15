@@ -1659,4 +1659,56 @@ mod tests {
         ids.dedup();
         assert_eq!(ids.len(), n, "ada id paket bundled yang kembar");
     }
+
+    /// Every bundled package has to survive the SAME gate a downloaded one
+    /// passes.
+    ///
+    /// `extensions_install` runs `pengaruh_paket` and refuses the package when
+    /// nothing in it can be applied (`tolak_paket` -> `NOTHING TO INSTALL:`).
+    /// A bundled package the gate rejects is a card in the marketplace that
+    /// can never be installed - which is exactly what a user reads as "this
+    /// kind of extension is broken here".
+    ///
+    /// `paket_bundled_konsisten` above only checks that paths exist and the
+    /// JSON parses, so a contribution file in a shape the counter does not
+    /// read sailed through it.
+    #[test]
+    fn paket_bundled_lolos_gerbang_pengaruh() {
+        let d = std::env::temp_dir().join(format!("zephyr-bundled-gate-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+
+        let mut ditolak: Vec<String> = vec![];
+        for (id, files) in PAKET {
+            let dir = d.join(id);
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            for (rel, isi) in *files {
+                let f = dir.join(rel);
+                if let Some(p) = f.parent() {
+                    std::fs::create_dir_all(p).unwrap();
+                }
+                std::fs::write(&f, isi).unwrap();
+            }
+
+            let m = crate::ext_pkg::read_manifest(&dir)
+                .unwrap_or_else(|e| panic!("{id}: manifest tidak terbaca: {e}"));
+            let p = crate::ext_pkg::pengaruh_paket(&dir, &m);
+            if let Some(tolak) = crate::ext_pkg::tolak_paket(&m, &p) {
+                ditolak.push(format!("{id}: {tolak}"));
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&d);
+
+        /* Collected, not first-fail: the point of this test is the LIST of
+           bundled packages that cannot be installed, and a panic on the first
+           one hides every package after it. */
+        assert!(
+            ditolak.is_empty(),
+            "{} bundled package(s) would be refused at install time:\n{}",
+            ditolak.len(),
+            ditolak.join("\n")
+        );
+    }
 }
