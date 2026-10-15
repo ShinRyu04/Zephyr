@@ -5422,6 +5422,21 @@ export const useAi = create<AiStore>((set0, get) => {
     /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
     let langkahTanpaKemajuan = 0;
     /*
+     * URL/kunci kueri yang BELUM PERNAH dibuka pada giliran ini.
+     *
+     * Guard tanpa-kemajuan menghentikan run RISET yang tidak punya todo_write:
+     * membaca web bersifat netral (bukan kemajuan, bukan kemunduran), jadi
+     * penghitung hanya maju dari langkah pasif - dan pada run yang memang
+     * tujuannya membaca, hitungan itu penuh tanpa pernah ada tulisan yang
+     * me-resetnya. Padahal membuka URL BARU adalah mengumpulkan bahan baru,
+     * bukan berputar; yang berputar adalah URL YANG SAMA dibuka lagi.
+     *
+     * Karena itu yang dihitung kemajuan adalah KEBARUAN-nya. Pengulangan URL
+     * sama tetap netral, dan watchdog sidik-jari browser (BATAS_BROWSER_MUTER,
+     * BATAS_BACA_SAMA) tetap menangkap loop web sungguhan.
+     */
+    let webUrlBaruDilacak = new Set<string>();
+    /*
      * Berkas yang DITULIS agen pada giliran ini.
      *
      * Membaca ulang atau mencari di dalam berkas yang baru saja kamu tulis
@@ -6967,6 +6982,19 @@ export const useAi = create<AiStore>((set0, get) => {
             const sasaran = sebutBerkasTertulis(argsObj);
             if (sasaran && berkasDitulisGiliran.has(sasaran)) {
               langkahTanpaKemajuan += 1;
+            } else if (tc.name === 'web_fetch' || tc.name === 'web_search') {
+              /* Bahan BARU = kemajuan. Lihat `webUrlBaruDilacak` di atas. */
+              const kunci = String(
+                (argsObj as Record<string, unknown> | null)?.url ??
+                  (argsObj as Record<string, unknown> | null)?.query ??
+                  (argsObj as Record<string, unknown> | null)?.q ??
+                  '',
+              ).trim();
+              if (kunci && !webUrlBaruDilacak.has(kunci)) {
+                webUrlBaruDilacak.add(kunci);
+                langkahTanpaKemajuan = 0;
+                sudahDiberiPeringatanTanpaKemajuan = false;
+              }
             }
           } else {
             /*
