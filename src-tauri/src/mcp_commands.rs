@@ -170,8 +170,23 @@ pub fn mcp_client_save(
     label: String,
     url: String,
     token: String,
+    /* Transport stdio: perintah + argumen + cwd. Opsional supaya pemanggil
+       lama (server http) tidak perlu diubah. */
+    command: Option<String>,
+    args: Option<Vec<String>>,
+    cwd: Option<String>,
 ) -> ZResult<McpServer> {
-    crate::mcp_client::save_server(&app, &state, id, label, url, token)
+    crate::mcp_client::save_server(
+        &app,
+        &state,
+        id,
+        label,
+        url,
+        token,
+        command.unwrap_or_default(),
+        args.unwrap_or_default(),
+        cwd.unwrap_or_default(),
+    )
 }
 
 #[tauri::command(async)]

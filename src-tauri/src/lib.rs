@@ -44,6 +44,7 @@ mod mcp_client;
 mod mcp_commands;
 mod mcp_config;
 mod mcp_server;
+mod mcp_stdio;
 mod memory;
 mod paths;
 mod plugins;
