@@ -3963,7 +3963,30 @@ export const useAi = create<AiStore>((set0, get) => {
     const lSebelum = jumlahSelesai(sebelum);
     const lSesudah = jumlahSelesai(bersih);
     const adaBaruSelesai = [...lSesudah].some(([content, n]) => (lSebelum.get(content) ?? 0) < n);
-    if (adaBaruSelesai) agenAksiBerulang.clear();
+    /*
+     * Menandai todo `done` adalah kemajuan - TAPI bukan alasan membuang SELURUH
+     * penghitung aksi-berulang.
+     *
+     * Versi sebelumnya memanggil `agenAksiBerulang.clear()`, dan itu terbukti
+     * mematikan penjaga: pada run nyata `todo_write` dipanggil 19 kali, dan tiap
+     * satu item yang selesai mengosongkan hitungan untuk SEMUA sidik jari -
+     * termasuk bacaan identik yang sedang berputar. `read_file` atas berkas yang
+     * sama diulang 33 kali tanpa pernah menyentuh ambang 6, karena hitungannya
+     * ke-reset terus oleh todo yang tak berhubungan. Loop bacaan seperti itu
+     * lalu hanya berhenti di `batas langkah`, bukan di penjaga.
+     *
+     * Yang benar: KURANGI hitungan, jangan buang. Sebuah kemajuan tidak
+     * membatalkan pengulangan yang sudah terjadi; ia hanya memberi sedikit
+     * kelonggaran. Dengan pengurangan 1 per todo selesai, verifikasi sah di
+     * sela kerja tetap lolos (tulis -> baca -> tulis), sementara loop murni
+     * tanpa tulisan tetap merangkak ke ambang dan berhenti di sana.
+     */
+    if (adaBaruSelesai) {
+      for (const [sidik, n] of agenAksiBerulang) {
+        if (n <= 1) agenAksiBerulang.delete(sidik);
+        else agenAksiBerulang.set(sidik, n - 1);
+      }
+    }
     return bersih.length;
   },
 
