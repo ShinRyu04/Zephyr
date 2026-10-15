@@ -2156,6 +2156,15 @@ const AGENT_PROVIDER_RETRY_DELAYS = [1000, 2500] as const;
  * `tungguRetryAgent` yang memeriksa `agentBatal`.
  */
 const JEDA_ULANG_ARGUMEN_CACAT_MS = 1_000;
+/**
+ * Berapa kali argumen tool rusak BERTURUT-TURUT masih boleh disodok sebelum
+ * run dilempar (lihat `responsToolRusak` di loop agen).
+ *
+ * Batas 2: sodokan pertama biasanya membuat model menulis JSON yang benar;
+ * kalau langkah KETIGA berturut-turut masih rusak, model memang tidak akan
+ * pernah menulis JSON yang valid dan melanjutkan hanya memutar langkah.
+ */
+const BATAS_ARGUMEN_RUSAK_BERTURUT = 2;
 
 /*
  * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
@@ -5476,6 +5485,23 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     let izinWebMatiPercobaan = 0;
     /*
+     * Berapa kali argumen tool rusak BERTURUT-TURUT, tanpa satu pun langkah
+     * sukses di antaranya.
+     *
+     * Jalur nudge dulu dijaga `langkah > 0`: argumen rusak di langkah PERTAMA
+     * dianggap "belum ada kerja nyata" lalu `throw`, jadi run mati merah tepat
+     * pada langkah pertama - persis yang dilaporkan pengguna, bubble merah
+     * membunuh run padahal model baru saja mulai. Kondisi itu dibuang; sebagai
+     * gantinya penghitung inilah yang menjaga agar nudge tidak memutar tanpa
+     * batas: dua sodokan diberikan, langkah ketiga yang masih rusak baru
+     * dilempar (BATAS_ARGUMEN_RUSAK_BERTURUT).
+     *
+     * Penghitungnya BERTURUT-TURUT, bukan kumulatif: satu langkah sukses
+     * mengembalikannya ke nol, karena model yang kembali menulis JSON benar
+     * sudah membuktikan dirinya membaik.
+     */
+    let argumenRusakBerturut = 0;
+    /*
      * A(i)/A(iv): keadaan yang hanya perlu dihitung SEKALI per run.
      *
      * Tugasnya dibekukan di sini, bukan dibaca ulang tiap langkah: yang
@@ -6438,15 +6464,21 @@ export const useAi = create<AiStore>((set0, get) => {
            * belum selesai". opencode tidak mati di sini; ia memperlakukan
            * panggilan rusak sebagai satu langkah yang gagal lalu lanjut.
            *
-           * Jadi: kalau errornya respons-tool DAN sudah ada kerja nyata
-           * (minimal satu langkah berlalu), catat sebagai hasil tool yang gagal,
-           * sodok model untuk membetulkan panggilannya, dan TERUSKAN loop.
-           * History tetap valid karena tidak ada assistant tool-call yang
-           * tergantung tanpa hasil - respons yang rusak tak pernah menghasilkan
-           * tool call. Error provider sejati tetap dilempar seperti dulu.
+           * Jadi: kalau errornya respons-tool - termasuk di LANGKAH PERTAMA,
+           * yang dulu justru dilempar karena `langkah > 0` - catat sebagai hasil
+           * tool yang gagal, sodok model untuk membetulkan panggilannya, dan
+           * TERUSKAN loop, selama hitungan argumen-rusak BERTURUT-TURUT masih
+           * di bawah batas (lihat `argumenRusakBerturut`). History tetap valid
+           * karena tidak ada assistant tool-call yang tergantung tanpa hasil -
+           * respons yang rusak tak pernah menghasilkan tool call. Error
+           * provider sejati tetap dilempar seperti dulu.
            */
           const responsToolRusak = isRetryableAgentToolResponseError(res.error);
-          if (responsToolRusak && langkah > 0) {
+          if (responsToolRusak) argumenRusakBerturut += 1;
+          /* Batasnya HITUNGAN BERTURUT-TURUT, bukan posisi langkah: rusak di
+             langkah pertama kini ikut jalur ini seperti langkah lainnya, dan
+             hanya rangkaian tiga kali gagal berturut-turut yang menyerah. */
+          if (responsToolRusak && argumenRusakBerturut <= BATAS_ARGUMEN_RUSAK_BERTURUT) {
             set((s) => ({
               agentSteps: [
                 ...s.agentSteps,
@@ -6472,6 +6504,9 @@ export const useAi = create<AiStore>((set0, get) => {
           }
           throw new Error(res.error);
         }
+        /* Langkah ini berakhir TANPA error: rangkaian argumen rusak (kalau ada)
+           terputus, jadi hitungannya kembali ke nol sebelum langkah berikutnya. */
+        argumenRusakBerturut = 0;
 
         /*
          * Teks yang sudah dikatakan model di langkah SEBELUMNYA tidak boleh
