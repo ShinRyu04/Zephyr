@@ -5,6 +5,7 @@ import {
   TOOL_GROUPS,
   SEMUA_TOOL,
   SECTION_URUTAN,
+  grupEkstensi,
 } from '../../lib/toolGate';
 import { POLA_AWALAN_MCP, TOOL_BY_NAME } from '../../lib/zephyrTools/catalog';
 /*
@@ -84,9 +85,16 @@ export default function ToolGatePanel() {
    */
   const tampil = useMemo(() => {
     const q = cari.trim().toLowerCase();
+    /*
+     * Grup EKSTENSI dibaca dari registry runtime, bukan dari TOOL_GROUPS:
+     * kelompok itu tidak ada di katalog (katalog dibekukan saat build) dan
+     * berubah saat paket dipasang/dilepas. Membacanya dari TOOL_GROUPS membuat
+     * bagian EXTENSIONS selalu kosong walau ada paket yang membawa tool.
+     */
+    const semuaGrup = [...TOOL_GROUPS, ...grupEkstensi()];
     const perBagian = SECTION_URUTAN.map((s) => ({
       ...s,
-      grup: TOOL_GROUPS.filter((g) => g.section === s.id)
+      grup: semuaGrup.filter((g) => g.section === s.id)
         .map((g) => ({
           ...g,
           isi: g.tools.filter((t) => (q ? t.toLowerCase().includes(q) : true)),

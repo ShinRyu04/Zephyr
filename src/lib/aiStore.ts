@@ -2012,7 +2012,7 @@ export function resetAutoCompact() {
 // Rust's receive idle timeout is 300s (aligned below). The frontend watchdog
 // sits above it so Rust reports the stall first with its own message, and the
 // frontend only fires when Rust itself never answered at all.
-const AGENT_IDLE_MS = 360_000;
+const AGENT_IDLE_MS = 900_000;
 
 /*
  * Batas tanpa KEMAJUAN, jauh di bawah batas diam.
@@ -2041,7 +2041,7 @@ const AGENT_IDLE_MS = 360_000;
  * tidak perlu ikut memotong dan cukup menjadi jaring untuk stream yang hidup
  * tapi tidak lagi berguna.
  */
-const AGENT_NO_PROGRESS_MS = 300_000;
+const AGENT_NO_PROGRESS_MS = 600_000;
 let agentWatchdog: ReturnType<typeof setTimeout> | null = null;
 let agentNoProgress: ReturnType<typeof setTimeout> | null = null;
 
@@ -2058,7 +2058,7 @@ let agentNoProgress: ReturnType<typeof setTimeout> | null = null;
  * lebih lama dari ini, cepat atau lambat ia salah atau providernya mengirim
  * data tak berguna; dua-duanya bukan alasan menahan UI.
  */
-const AGENT_HARD_LIMIT_MS = 15 * 60_000;
+const AGENT_HARD_LIMIT_MS = 45 * 60_000;
 let agentHardTimer: ReturnType<typeof setTimeout> | null = null;
 
 function agentHardLimitArm() {
@@ -2089,7 +2089,7 @@ function agentHardLimitArm() {
       content: '',
       toolCalls: [],
       cancelled: true,
-      error: 'Satu langkah melebihi batas 15 menit dan dihentikan.',
+      error: 'Satu langkah melebihi batas 45 menit dan dihentikan.',
     });
     // If no step is waiting (the run hung outside the loop), release the UI
     // directly - the resolved step can no longer do it from inside the loop.
@@ -7261,7 +7261,30 @@ export const useAi = create<AiStore>((set0, get) => {
                        * rebuild, so messages written before this existed keep
                        * rendering the old way (all tools, then all text).
                        */
-                      const runDenganPosisi = { ...run, atChar: m.content.length };
+                      /*
+                       * Land any buffered text BEFORE reading the length.
+                       *
+                       * Text arrives in chunks buffered by a rAF flush (see
+                       * chunkBuf/flushChunkBuf), so `m.content` can still be
+                       * missing the words that were streamed just before this
+                       * tool ran. Stamping `m.content.length` then points the
+                       * offset at a position the narration has not reached yet:
+                       * the slice for this tool comes out empty and the text it
+                       * belongs to is handed to the NEXT row, which is exactly
+                       * the reported symptom - narration cut off mid-sentence,
+                       * a tool row wedged in the gap, then the sentence
+                       * continuing below it.
+                       *
+                       * Flushing here makes `m.content` the text as it really
+                       * stands at the moment of the call, so the offset and the
+                       * prose on screen describe the same run. `m` is read
+                       * inside the map callback, so it is re-read after the
+                       * flush rather than captured stale.
+                       */
+                      flushChunkBuf();
+                      const isiKini = useAi.getState().sessions.find((x) => x.id === sessionId)
+                        ?.messages.find((x) => x.id === botMsg.id)?.content;
+                      const runDenganPosisi = { ...run, atChar: (isiKini ?? m.content).length };
                       return { ...m, tools: [...(m.tools ?? []), runDenganPosisi] };
                     }),
                   }

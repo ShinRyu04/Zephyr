@@ -33,7 +33,16 @@ import { AWALAN_MCP, POLA_AWALAN_MCP } from './awalan';
 export { AWALAN_MCP, POLA_AWALAN_MCP };
 
 /** Sumber tool, untuk ditampilkan di picker sebagai bagian terpisah. */
-export type ToolSource = 'builtin' | 'mcp' | 'web';
+/*
+ * Dari mana sebuah tool datang.
+ *
+ * 'ekstensi' adalah sumber keempat dan satu-satunya yang isinya TIDAK hidup di
+ * katalog ini: tool yang dibawa paket ekstensi terpasang didaftarkan saat
+ * runtime (lihat toolGate/sectionOf). Ia tetap ada di sini supaya picker punya
+ * satu tempat untuk bertanya "sumber apa saja yang mungkin", bukan daftar
+ * kedua yang harus dijaga agar sama.
+ */
+export type ToolSource = 'builtin' | 'mcp' | 'web' | 'ekstensi';
 
 /**
  * Apa yang bisa dilakukan tool ini.
