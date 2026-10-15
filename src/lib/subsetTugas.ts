@@ -75,8 +75,6 @@ export const TOOL_INTI_TUGAS: readonly string[] = [
   'glob',
   'bash_run',
   'todo_write',
-  'think',
-  'ask_user',
   'tool_search',
   'tool_call',
 ];
@@ -343,8 +341,10 @@ const KELUARGA_DASAR: readonly string[] = [
   'jalankan-shell',
   'shell-latar',
   'rencana-tugas',
-  'bernalar',
-  'tanya-user',
+  /* `bernalar` (think) dan `tanya-user` (ask_user) DIHAPUS dari dasar: keduanya
+     0 kali terpanggil pada 153 langkah tool run nyata (lihat catatan pemangkasan
+     di catalog.ts). Tool-nya masih di katalog dan masih bisa dipanggil lewat
+     `tool_search` -> `tool_call`. */
   'temukan-tool',
   'panggil-tool',
   'introspeksi-app',
