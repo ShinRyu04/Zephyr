@@ -893,8 +893,8 @@ export const TOOL_BAWAAN: AgentTool[] = [
     run: async (a) => {
       const path = wajib(a, 'path');
       jagaTulis(path);
-      const lama = String(a.old_string ?? '');
-      const baru = String(a.new_string ?? '');
+      const lama = String(a.old_string ?? a.oldText ?? a.oldString ?? '');
+      const baru = String(a.new_string ?? a.newText ?? a.newString ?? '');
       if (lama === '') throw new Error('ERROR: old_string tidak boleh kosong.');
       if (lama === baru) throw new Error('ERROR: old_string dan new_string sama, tidak ada yang berubah.');
 
@@ -967,8 +967,12 @@ export const TOOL_BAWAAN: AgentTool[] = [
 
       for (let i = 0; i < daftar.length; i++) {
         const e = daftar[i] as Record<string, unknown>;
-        const lama = String(e.old_string ?? '');
-        const baru = String(e.new_string ?? '');
+        /* Alias camelCase/snake_case: `file_edit` memakai `oldText` sementara
+           `edit`/`multi_edit` memakai `old_string` - model sering tertukar
+           antar kedua bentuk dan kena galat "old_string kosong" palsu padahal
+           teks sudah dikirim dengan nama yang berbeda. Terima keduanya. */
+        const lama = String(e.old_string ?? e.oldText ?? e.oldString ?? '');
+        const baru = String(e.new_string ?? e.newText ?? e.newString ?? '');
         const semua = bacaBool(e.replace_all);
         if (!lama) throw new Error(`ERROR: edits[${i}].old_string kosong.`);
 
