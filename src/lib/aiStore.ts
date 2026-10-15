@@ -541,25 +541,10 @@ const BATAS_LANJUT_TANPA_TOOL = 20;
  * menjelaskan, bukan terus berputar tanpa henti.
  */
 const TOOL_PENULIS = new Set([
-  'write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory',
-  'copy_file', 'move_file', 'delete_file',
-  'bash_run', 'bash_background', 'bash_kill', 'mcp__zephyr__sh', 'sh',
-  'browser_open', 'browser_click', 'browser_type', 'browser_close',
-  'browser_download_url',
-  'subagent_run', 'subagent_kirim', 'subagent_batal',
-  'todo_write', 'schedule_command', 'cancel_schedule', 'notes_write',
-  'set_setting', 'run_command', 'ssh', 'worktree', 'extension', 'pane',
-  'workspace', 'focus_pane',
+  'write_file', 'multi_edit', 'replace_in_files', 'copy_file', 'move_file', 'delete_file', 'bash_run', 'mcp__zephyr__sh', 'sh', 'browser_open', 'browser_click', 'browser_type', 'browser_close', 'browser_download_url', 'subagent_run', 'subagent_kirim', 'subagent_batal', 'todo_write', 'schedule_command', 'notes_write', 'set_setting', 'run_command', 'ssh', 'worktree', 'extension', 'pane', 'workspace', 'focus_pane',
 ]);
 const TOOL_BROWSER = new Set([
-  'browser_open',
-  'browser_read',
-  'browser_click',
-  'browser_type',
-  'browser_close',
-  'browser_list',
-  'web_fetch',
-  'web_search',
+  'browser_open', 'browser_read', 'browser_click', 'browser_type', 'browser_close', 'browser_list', 'web_fetch', 'web_search',
 ]);
 
 function sidikAksi(name: string, args: Record<string, unknown>): string {
@@ -1737,24 +1722,12 @@ export const todoTerpangkas = () => dipangkasTodo;
  * model dan bukannya menghentikan pembacaan berulang.
  */
 const TOOL_TULIS_BERKAS = new Set([
-  'write_file',
-  'edit',
-  'multi_edit',
-  'replace_in_files',
-  'create_directory',
-  'copy_file',
-  'move_file',
-  'delete_file',
+  'write_file', 'multi_edit', 'replace_in_files', 'copy_file', 'move_file', 'delete_file',
 ]);
 
 /** Tool yang jelas-jelas tidak mengubah apa pun. */
 const TOOL_HANYA_BACA = new Set([
-  'read_file',
-  'list_directory',
-  'glob',
-  'grep',
-  'search_files',
-  'read_terminal',
+  'read_file', 'list_directory', 'glob', 'grep', 'search_files', 'read_terminal',
 ]);
 
 /**
@@ -3159,7 +3132,6 @@ function bootEffort(): ReasoningEffort | null {
   }
   return 'medium';
 }
-
 
 /*
  * Run state, mirrored into per-surface records.
@@ -4897,7 +4869,6 @@ export const useAi = create<AiStore>((set0, get) => {
       toast: null,
     }));
     persist(get());
-
 
     const cliAktif = useCliAgent.getState().aktif;
     if (cliAktif) {
@@ -6723,7 +6694,7 @@ export const useAi = create<AiStore>((set0, get) => {
          * writes, multi-file refactors) also stays serial.
          */
         const targetBerkas = (tc: AgentToolCall): string | null => {
-          if (tc.name !== 'write_file' && tc.name !== 'edit') return null;
+          if (tc.name !== 'write_file') return null;
           const p = (tc.args as Record<string, unknown> | undefined)?.path;
           return typeof p === 'string' && p.trim() ? p.trim() : null;
         };
@@ -7039,7 +7010,7 @@ export const useAi = create<AiStore>((set0, get) => {
            * memakai argumen `command`, jadi pembacaan `perintah` di bawah tetap
            * bekerja tanpa perubahan.
            */
-          const namaShell = tc.name === 'bash_run' || tc.name === 'bash_background';
+          const namaShell = tc.name === 'bash_run';
           const perintah = namaShell ? String(argsObj.command ?? '') : '';
           /*
            * Read-only mode is a hard gate on the whole write set, not a shell
@@ -9072,15 +9043,7 @@ function rapi(teks: string, batas: number = PADAT_BATAS_POTONGAN): string {
 
 /** Tool yang argumennya menyebut path - sumber "berkas yang sedang digarap". */
 const ALAT_BERKAS = new Set([
-  'read_file',
-  'write_file',
-  'edit',
-  'multi_edit',
-  'replace_in_files',
-  'delete_file',
-  'move_file',
-  'copy_file',
-  'create_directory',
+  'read_file', 'write_file', 'multi_edit', 'replace_in_files', 'delete_file', 'move_file', 'copy_file',
 ]);
 
 const KUNCI_PATH = ['path', 'file_path', 'paths', 'files', 'old_path', 'new_path', 'target', 'from', 'to'];

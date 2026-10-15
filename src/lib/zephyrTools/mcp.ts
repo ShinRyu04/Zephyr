@@ -412,27 +412,6 @@ export const TOOL_MCP: AgentTool[] = [
   },
 
   /* 8. state */
-  {
-    spec: {
-      name: 'mcp__zephyr__state',
-      description: 'Ambil snapshot lengkap keadaan jendela: tabs editor, pane terminal, fokus.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    run: async () => {
-      const s = useStore.getState();
-      const t = useTerminal.getState();
-      const info = {
-        workspace: s.workspace,
-        activeTab: s.tabs.find((x) => x.id === s.activeTabId)?.path ?? null,
-        openTabs: s.tabs.map((x) => ({ id: x.id, path: x.path, dirty: x.unsaved })),
-        terminals: t.terminalTabs.map((tab) => ({
-          tabId: tab.id,
-          panes: tab.panes.map((p) => ({ id: p.id, kind: p.kind, title: p.title })),
-        })),
-      };
-      return JSON.stringify(info, null, 2);
-    },
-  },
 
   /* 9. read */
   {

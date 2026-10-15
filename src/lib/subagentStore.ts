@@ -479,22 +479,13 @@ function pathDitulis(namaTool: string, args: Record<string, unknown>): string | 
   const efek = TOOL_BY_NAME.get(namaTool)?.effect;
   const menulis = efek === 'fsWrite' || efek === 'appWrite';
   const menulisEksplisit = new Set([
-    'write_file',
-    'edit',
-    'multi_edit',
-    'delete_file',
-    'create_directory',
-    'move_file',
-    'copy_file',
-    'replace_in_files',
+    'write_file', 'multi_edit', 'delete_file', 'move_file', 'copy_file', 'replace_in_files',
   ]).has(namaTool);
   if (!menulis && !menulisEksplisit) return null;
   switch (namaTool) {
     case 'write_file':
-    case 'edit':
     case 'multi_edit':
     case 'delete_file':
-    case 'create_directory':
       return p(args.path) || null;
     case 'move_file':
     case 'copy_file':
@@ -518,7 +509,6 @@ function pathDitulis(namaTool: string, args: Record<string, unknown>): string | 
 function isToolShell(namaTool: string): boolean {
   return (
     namaTool === 'bash_run' ||
-    namaTool === 'bash_background' ||
     namaTool === 'mcp__zephyr__sh' ||
     namaTool === 'sh'
   );

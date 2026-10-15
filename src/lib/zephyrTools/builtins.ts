@@ -415,6 +415,25 @@ function akar(): string | null {
 }
 
 /**
+ * Akar workspace, atau lempar dengan pesan yang bisa ditindak.
+ *
+ * Dipakai tool yang memang TIDAK punya arti tanpa folder (mis. `list_directory`
+ * yang isinya adalah isi folder itu sendiri): di situ pesan yang jelas lebih
+ * berguna daripada hasil kosong yang harus ditebak model.
+ */
+function akarWajib(apa: string): string {
+  const a = akar();
+  if (!a) {
+    throw new Error(
+      `Belum ada folder yang terbuka, jadi ${apa} tidak punya tempat untuk dijalankan. ` +
+        'Kalau user sudah menyebut folder atau path tertentu, pakai path itu apa adanya. ' +
+        'Kalau tugasnya memang perlu seluruh proyek, baru minta user membuka foldernya (File -> Open Folder), lalu ulangi.',
+    );
+  }
+  return a;
+}
+
+/**
  * Akar workspace, atau lempar dengan pesan yang bisa ditindaklanjuti.
  *
  * Dipakai tool yang memang tidak punya arti tanpa workspace. Melempar di sini
@@ -445,18 +464,6 @@ function akarCwd(): string | null {
     if (potong > 1 && !/^[A-Za-z]:$/.test(berkas.slice(0, potong))) return berkas.slice(0, potong);
   }
   return s.workspace;
-}
-
-function akarWajib(apa: string): string {
-  const a = akar();
-  if (!a) {
-    throw new Error(
-      `Belum ada folder yang terbuka, jadi ${apa} tidak punya tempat untuk dijalankan. ` +
-        'Kalau user sudah menyebut folder atau path tertentu, pakai path itu apa adanya. ' +
-        'Kalau tugasnya memang perlu seluruh proyek, baru minta user membuka foldernya (File -> Open Folder), lalu ulangi.',
-    );
-  }
-  return a;
 }
 
 /* ------------------------------------------------------------------ */
@@ -547,7 +554,7 @@ function opsiCari(a: Record<string, unknown>, query: string): SearchOpts {
 }
 
 /* ------------------------------------------------------------------ */
-/* 34 tool                                                            */
+/* Tool bawaan - handler untuk tool inti non-MCP.                      */
 /* ------------------------------------------------------------------ */
 
 export const TOOL_BAWAAN: AgentTool[] = [
@@ -716,24 +723,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
 
   {
     spec: {
-      name: 'create_directory',
-      description: 'Buat sebuah direktori, termasuk direktori induk yang belum ada.',
-      parameters: {
-        type: 'object',
-        properties: { path: { type: 'string', description: 'Jalur direktori baru.' } },
-        required: ['path'],
-      },
-    },
-    run: async (a) => {
-      const path = wajib(a, 'path');
-      jagaTulis(path);
-      await cmd.fsCreateDir(path);
-      return `Direktori dibuat: ${path}`;
-    },
-  },
-
-  {
-    spec: {
       name: 'move_file',
       description: 'Pindahkan atau ganti nama sebuah berkas atau direktori.',
       parameters: {
@@ -873,59 +862,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
   },
 
   /* ---------------- Edit ---------------- */
-
-  {
-    spec: {
-      name: 'edit',
-      description:
-        'Ubah sebagian isi berkas: cari teks lama, ganti teks baru. Teks lama harus muncul TEPAT SEKALI kecuali replace_all disetel. Pakai ini, bukan write_file, untuk perubahan kecil.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'Berkas yang diubah.' },
-          old_string: { type: 'string', description: 'Teks yang dicari. Harus persis, termasuk indentasi.' },
-          new_string: { type: 'string', description: 'Teks pengganti.' },
-          replace_all: { type: ['boolean', 'string'], description: 'Ganti semua kemunculan, bukan hanya satu.' },
-        },
-        required: ['path', 'old_string', 'new_string'],
-      },
-    },
-    run: async (a) => {
-      const path = wajib(a, 'path');
-      jagaTulis(path);
-      const lama = String(a.old_string ?? a.oldText ?? a.oldString ?? '');
-      const baru = String(a.new_string ?? a.newText ?? a.newString ?? '');
-      if (lama === '') throw new Error('ERROR: old_string tidak boleh kosong.');
-      if (lama === baru) throw new Error('ERROR: old_string dan new_string sama, tidak ada yang berubah.');
-
-      const isi = await bacaLengkap(path);
-      const semua = bacaBool(a.replace_all);
-      const jumlah = isi.split(lama).length - 1;
-
-      if (jumlah === 0) {
-        /* Kesalahan yang paling sering: indentasi berbeda. Disebutkan apa
-           adanya supaya model bisa memperbaiki sendiri. */
-        throw new Error(
-          `ERROR: teks lama tidak ditemukan di ${path}. Periksa indentasi dan spasi. ` +
-            'Kalau berkasnya sudah berubah, baca ulang dengan read_file.',
-        );
-      }
-      if (jumlah > 1 && !semua) {
-        throw new Error(
-          `ERROR: teks lama muncul ${jumlah} kali di ${path}. Persempit teksnya supaya unik, ` +
-            'atau setel replace_all untuk mengganti semuanya.',
-        );
-      }
-
-      const hasil = semua ? isi.split(lama).join(baru) : isi.replace(lama, baru);
-      await tulis(path, hasil);
-      /* Barisan kalimatnya tetap ada, tapi diffnya menyusul: panel AI hanya
-         merender DiffViewer kalau hasilnya memuat hunk `@@`. Ringkasan saja
-         membuat setiap perubahan berkas tampil sebagai satu baris teks. */
-      const diff = buatDiff(path, isi, hasil);
-      return `${jumlah} penggantian di ${path}.` + (diff ? `\n${diff}` : '');
-    },
-  },
 
   {
     spec: {
@@ -1128,184 +1064,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
         r.stderr ? `--- stderr ---\n${r.stderr}` : '',
       ].filter(Boolean);
       return potong(bagian.join('\n'));
-    },
-  },
-
-  {
-    spec: {
-      name: 'bash_background',
-      description:
-        'Jalankan proses yang berumur panjang - dev server, watcher - sebagai tugas yang dipantau aplikasi, dan kembalikan segera dengan id-nya. Baca keluarannya dengan bash_logs, hentikan dengan bash_kill.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: { type: 'string', description: 'Perintah yang dijalankan.' },
-          id: { type: 'string', description: 'Id tugas yang didefinisikan di settings.tasks.json.' },
-        },
-        required: ['command'],
-      },
-    },
-    run: async (a) => {
-      const command = wajib(a, 'command');
-      periksaPerintah(command);
-
-      /*
-       * Bangun dari perintah apa adanya, TANPA menyisipkan apa pun.
-       *
-       * Versi pertama fungsi ini memecah perintah dengan `split(' ')` lalu
-       * meneruskannya sebagai `args`. Itu kelihatan rapi sampai kena perintah
-       * yang memuat tanda kutip, mis. `node -e "console.log('x')"`. Pecahan
-       * seperti itu menghasilkan argumen yang berbeda dari yang ditulis, dan
-       * kegagalannya membingungkan karena perintah yang sama berhasil di
-       * bash_run. Karena itu seluruh perintah dioper sebagai satu kesatuan.
-       */
-      /*
-       * `navigator.userAgent` dipakai, bukan `process.platform`: kode ini
-       * berjalan di WebView, bukan di Node, dan nama `process` tidak ada di
-       * sana. Menyentuhnya membuat bundel gagal pada saat runtime - bukan saat
-       * kompilasi, jadi kesalahannya baru muncul jauh dari sini.
-       */
-      const windows = /Windows/i.test(navigator.userAgent);
-      const shell = windows ? 'pwsh' : 'sh';
-      const bendera = windows ? '-Command' : '-c';
-
-      const id = a.id ? String(a.id) : `agent-${Date.now().toString(36)}`;
-      const runId = await cmd.tasksRun({
-        id,
-        label: a.id ? String(a.id) : command.slice(0, 60),
-        kind: 'shell',
-        command: shell,
-        args: [bendera, command],
-        /* `undefined` = serahkan ke backend, sama seperti `bash_run`. Proses
-           latar yang dijalankan di folder kerja aplikasi alih-alih folder user
-           adalah kegagalan yang paling sulit dilacak, karena ia terlihat
-           "jalan" sambil menulis ke tempat yang salah. */
-        cwd: akarCwd() ?? undefined,
-        isBackground: true,
-      });
-
-      return (
-        `Proses latar belakang dimulai.\n  id: ${runId}\n  command: ${command}\n` +
-        'Keluaran awal mungkin belum siap. Tunggu sebentar, lalu panggil bash_logs - jangan menebak isinya.'
-      );
-    },
-  },
-
-  {
-    spec: {
-      name: 'bash_logs',
-      description:
-        'Baca keluaran sebuah proses latar belakang. Pakai since_offset dari panggilan sebelumnya untuk membaca tambahannya saja.',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'Id proses dari bash_background atau bash_list.' },
-          since_offset: { type: ['number', 'string'], description: 'Mulai dari baris keluaran ini.' },
-        },
-        required: ['id'],
-      },
-    },
-    run: async (a) => {
-      const id = wajib(a, 'id');
-      const offset = bacaAngka(a.since_offset) ?? 0;
-
-      /*
-       * Tunggu sebentar dulu, baru baca.
-       *
-       * `tasks_runs` melaporkan BERAPA BARIS yang sudah dihasilkan, bukan
-       * isinya; keluaran diambil dari terminal lewat `pty_tail`. Tanpa jeda,
-       * pembacaan pertama hampir selalu kosong - dan model lalu menyimpulkan
-       * prosesnya gagal padahal baru saja dimulai.
-       */
-      if (offset === 0) await new Promise((r) => setTimeout(r, 1200));
-
-      const semua = await cmd.tasksRuns();
-      const run = semua.find((r) => r.id === id);
-      if (!run) {
-        const ids = semua.map((r) => r.id).join(', ') || '(tidak ada)';
-        throw new Error(`ERROR: tidak ada proses dengan id "${id}". Yang ada: ${ids}`);
-      }
-
-      /*
-       * `pty_tail` mengembalikan EKOR riwayat sejumlah N baris - ia tidak
-       * menerima offset. Jadi `since_offset` diperlakukan sebagai "berapa baris
-       * terakhir yang mau dilihat", dan itu memang arti yang berguna di sini:
-       * yang dicari adalah keluaran TERBARU, bukan yang paling awal.
-       *
-       * `run.lines` memberi tahu total baris; kalau ada baris yang sudah
-       * tergeser keluar dari riwayat, itu disebutkan supaya model tidak
-       * menyimpulkan bahwa isinya hanya sebanyak yang dia lihat.
-       */
-      const maksBaris = offset > 0 ? Math.max(20, Math.min(2000, offset)) : 400;
-      const teks = await cmd.ptyTail(id, maksBaris).catch(() => '');
-
-      const dilihat = teks ? teks.split('\n').length : 0;
-      const terlewat = run.lines > dilihat ? `  (${run.lines - dilihat} baris lebih awal tidak ditampilkan)` : '';
-      const masalah = run.problems.length
-        ? `\nMasalah yang terdeteksi:\n` +
-          run.problems
-            .slice(0, 20)
-            .map((p) => `  ${p.file}:${p.line}  ${p.message}`)
-            .join('\n')
-        : '';
-
-      const kepala =
-        `status=${run.active ? 'berjalan' : 'selesai'}` +
-        `  exit=${run.exitCode ?? 'n/a'}  baris=${run.lines}${terlewat}`;
-      return potong(`${kepala}\n${teks || '(belum ada keluaran)'}${masalah}`);
-    },
-  },
-
-  {
-    spec: {
-      name: 'bash_list',
-      description: 'Daftar semua proses latar belakang, termasuk yang sudah selesai.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    run: async () => {
-      const daftar = await cmd.tasksRuns();
-      if (!daftar.length) return 'Tidak ada tugas latar belakang yang terdaftar.';
-      return daftar
-        .map(
-          (t) =>
-            `${t.id}  ${t.active ? 'berjalan' : 'selesai'}  ${t.label}  ` +
-            `exit=${t.exitCode ?? 'n/a'}  ${t.lines} baris`,
-        )
-        .join('\n');
-    },
-  },
-
-  {
-    spec: {
-      name: 'bash_kill',
-      description:
-        'Hentikan sebuah proses latar belakang beserta seluruh proses turunannya. Tidak apa-apa dipanggil pada proses yang sudah selesai.',
-      parameters: {
-        type: 'object',
-        properties: { id: { type: 'string', description: 'Id proses dari bash_background atau bash_list.' } },
-        required: ['id'],
-      },
-    },
-    run: async (a) => {
-      const id = wajib(a, 'id');
-      const ada = await cmd.tasksRuns();
-      if (!ada.some((r) => r.id === id)) {
-        const ids = ada.map((r) => r.id).join(', ') || '(tidak ada)';
-        throw new Error(`ERROR: tidak ada proses dengan id "${id}". Yang ada: ${ids}`);
-      }
-      /*
-       * Dua langkah, dan keduanya perlu.
-       *
-       * `tasks_kill` menandai tugasnya berhenti dan mematikannya dari sudut
-       * pandang aplikasi, tapi proses anak yang sudah di-spawn - mis. server
-       * yang dijalankan oleh `npm run dev` - bisa tetap hidup dan memegang
-       * portnya. Karena itu PTY-nya ikut dimatikan. Tanpa langkah kedua,
-       * menjalankan ulang tugas yang sama gagal karena portnya masih terpakai,
-       * dan penyebabnya tidak terlihat dari mana pun.
-       */
-      await cmd.tasksKill(id);
-      await cmd.ptyKill(id).catch(() => undefined);
-      return `Proses ${id} dihentikan.`;
     },
   },
 
@@ -1700,23 +1458,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
 
   {
     spec: {
-      name: 'notes_read',
-      description:
-        'Baca catatan dan preferensi yang tersimpan tentang user. Baca dulu sebelum menulis, supaya tidak menimpa atau menggandakan yang sudah ada.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    run: async () => {
-      const m = await cmd.memoryRead();
-      const bagian = [
-        `=== memori (${m.memory_chars}/${m.memory_limit} karakter) ===\n${m.memory || '(kosong)'}`,
-        `=== catatan tentang user (${m.user_chars}/${m.user_limit} karakter) ===\n${m.user || '(kosong)'}`,
-      ];
-      return potong(bagian.join('\n\n'));
-    },
-  },
-
-  {
-    spec: {
       name: 'notes_write',
       description:
         'Ubah catatan yang tersimpan tentang user. Ini TIDAK bisa dibaca-tulis sebagian: kirim bentuk lengkap yang kamu inginkan, bukan tambahannya.',
@@ -1816,38 +1557,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
       return `Jadwal dibuat dengan id ${job.id}: ${pola}.`;
     },
   },
-
-  {
-    spec: {
-      name: 'list_schedules',
-      description: 'Daftar perintah yang terjadwal. Read-only.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    run: async () => {
-      const daftar = await cmd.cronList();
-      if (!daftar.length) return 'Tidak ada jadwal.';
-      return daftar.map((c) => formatJadwal(c)).join('\n');
-    },
-  },
-
-  {
-    spec: {
-      name: 'cancel_schedule',
-      description: 'Batalkan sebuah perintah terjadwal berdasarkan id-nya.',
-      parameters: {
-        type: 'object',
-        properties: { id: { type: 'string', description: 'Id jadwal dari list_schedules.' } },
-        required: ['id'],
-      },
-    },
-    run: async (a) => {
-      const id = wajib(a, 'id');
-      await cmd.cronDelete(id);
-      return `Jadwal ${id} dibatalkan.`;
-    },
-  },
-
-
 
   /*
    * Progressive tool disclosure (the Hermes `tool_search` pattern).
@@ -2009,15 +1718,6 @@ export const TOOL_BAWAAN: AgentTool[] = [
 /* ------------------------------------------------------------------ */
 /* Bantuan                                                            */
 /* ------------------------------------------------------------------ */
-
-function formatJadwal(c: cmd.CronJob): string {
-  const kapan =
-    c.at_hour !== null && c.at_hour !== undefined
-      ? `setiap jam ${c.at_hour}:00`
-      : `setiap ${c.every_minutes} menit`;
-  const hidup = c.enabled ? '' : ' (nonaktif)';
-  return `${c.id}  ${kapan}  ${c.name}  ->  ${c.command}${hidup}`;
-}
 
 /**
  * Kumpulkan berkas yang cocok, untuk `search_replace`.

@@ -134,14 +134,13 @@ function evaluasiAturan(
 /**
  * The tool name a rule matches for a shell call.
  *
- * Both shell tools report as `bash_run` so one rule covers `bash_run`,
- * `bash_background` and anything else that runs a command — a reader writing
- * "never confirm cargo test" means the command, not the transport.
+ * Shell tools report as `bash_run` so one rule covers every way a command can
+ * be run — a reader writing "never confirm cargo test" means the command, not
+ * the transport. Kept as a function (not an inline passthrough) so the mapping
+ * has one home if another transport appears.
  */
 function namaUntukAturan(tool: string): string {
-  return tool === 'bash_background' || tool === 'bash_kill' || tool === 'bash_logs'
-    ? 'bash_run'
-    : tool;
+  return tool;
 }
 
 /** Convenience for a call site that has a tool call in hand. */
