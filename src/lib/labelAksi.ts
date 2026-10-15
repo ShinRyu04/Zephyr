@@ -57,13 +57,10 @@ const PETA: Record<string, AksiInfo> = {
 
   /* Tasks & Notes */
   todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
-  notes_read: { label: 'Read notes', jenis: 'ingat', ikon: 'brain' },
   notes_write: { label: 'Write notes', jenis: 'ingat', ikon: 'brain' },
 
   /* Schedules */
   schedule_command: { label: 'Schedule', jenis: 'ingat', ikon: 'clock' },
-  list_schedules: { label: 'List schedules', jenis: 'ingat', ikon: 'clock' },
-  cancel_schedule: { label: 'Cancel schedule', jenis: 'ingat', ikon: 'clock' },
 
   /* MCP - inspect */
   mcp__zephyr__inspect: { label: 'Inspect', jenis: 'baca', ikon: 'search' },

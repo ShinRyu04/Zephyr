@@ -154,11 +154,8 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   browser_download_url: ['panel-kendali'],
   /* app lain */
   ingat: ['memori'],
-  notes_read: ['catatan-user'],
   notes_write: ['catatan-user'],
   schedule_command: ['jadwal'],
-  list_schedules: ['jadwal'],
-  cancel_schedule: ['jadwal'],
   /* MCP Zephyr: kendali app */
   mcp__zephyr__inspect: ['kendali-app'],
   mcp__zephyr__run_command: ['kendali-app'],
@@ -381,12 +378,12 @@ const KELUARGA_WEB: readonly string[] = ['web-cari', 'web-ambil-url', 'baca-pane
 const RUMAH: Record<string, readonly string[]> = {
   'baca-berkas': ['read_file'],
   'tulis-berkas': ['write_file'],
-  'buat-folder': ['write_file', 'create_directory'],
+  'buat-folder': ['write_file'],
   'daftar-isi-folder': ['glob', 'list_directory'],
   'cari-isi': ['grep'],
   'cari-berkas': ['glob'],
   'jalankan-shell': ['bash_run'],
-  'shell-latar': ['bash_background', 'bash_logs', 'bash_list', 'bash_kill'],
+  'shell-latar': [],
   'rencana-tugas': ['todo_write'],
   'temukan-tool': ['tool_search'],
   'panggil-tool': ['tool_call'],
@@ -395,7 +392,7 @@ const RUMAH: Record<string, readonly string[]> = {
   'navigasi-kode': ['lsp_definition', 'lsp_symbols', 'lsp_references', 'lsp_diagnostics', 'zephyr_kode'],
   'delegasi-agen': ['run_subagent'],
   'hapus-berkas': ['delete_file'],
-  'ganti-teks-berkas': ['edit', 'multi_edit', 'replace_in_files'],
+  'ganti-teks-berkas': ['multi_edit', 'replace_in_files'],
   /* pindah + salin digabung satu rumah: keduanya juga terjangkau `bash_run` (mv/cp) */
   'kelola-berkas': ['move_file', 'copy_file'],
   /* web: cari (satu rumah), ambil URL (satu rumah), baca panel (satu rumah) */
@@ -426,9 +423,12 @@ export function rumahGantiTeks(kelas: readonly KelasTugas[]): { pilih: string; c
      juga mendorong `multi_edit` untuk `tulis-banyak`, dan tanpa ini keduanya
      (`edit` sebagai rumah + `multi_edit` sebagai tambahan) terkirim bersamaan -
      dua tool satu keluarga yang cek-subset-tugas tolak. */
-  if (kelas.includes('repo-wide')) return { pilih: 'replace_in_files', cadangan: ['edit', 'multi_edit'] };
-  if (kelas.includes('tulis-banyak')) return { pilih: 'multi_edit', cadangan: ['edit', 'replace_in_files'] };
-  return { pilih: 'edit', cadangan: ['multi_edit', 'replace_in_files'] };
+  /* `edit` dibuang pada pemangkasan ke 40 inti, jadi `multi_edit` sekarang
+     satu-satunya rumah "ganti teks berkas" - dan pemilihannya jadi lebih
+     sederhana: banyak berkas -> `replace_in_files`, sisanya -> `multi_edit`. */
+  if (kelas.includes('repo-wide')) return { pilih: 'replace_in_files', cadangan: ['multi_edit'] };
+  if (kelas.includes('tulis-banyak')) return { pilih: 'multi_edit', cadangan: ['replace_in_files'] };
+  return { pilih: 'multi_edit', cadangan: ['replace_in_files'] };
 }
 
 /** Rumah `delegasi-agen`: satu-satunya rumahnya kini `run_subagent`. */
@@ -467,57 +467,43 @@ function tambahanKelas(kelas: readonly KelasTugas[]): string[] {
   };
   if (kelas.includes('baca')) {
     push('list_directory');
-    push('bash_logs');
     push('zephyr_kode');
     push('lsp_diagnostics');
   }
   if (kelas.includes('tulis') || kelas.includes('perbaiki')) {
-    push('create_directory');
     push('list_directory');
-    push('bash_logs');
   }
   if (kelas.includes('tulis-banyak')) {
-    push('create_directory');
     push('list_directory');
     push('multi_edit');
   }
   if (kelas.includes('repo-wide')) {
-    push('create_directory');
     push('move_file');
     push('list_directory');
   }
   if (kelas.includes('perbaiki')) push('lsp_diagnostics');
   if (kelas.includes('uji')) {
-    push('bash_logs');
     push('lsp_diagnostics');
   }
   if (kelas.includes('hapus') || kelas.includes('shell')) {
     push('move_file');
-    push('bash_logs');
-    push('bash_kill');
   }
   if (kelas.includes('web') || kelas.includes('panel')) {
     push('web_search');
     push('browser_list');
   }
   if (kelas.includes('git')) {
-    push('bash_kill');
-    push('bash_list');
   }
   if (kelas.includes('app')) {
-    push('mcp__zephyr__state');
     push('mcp__zephyr__inspect');
     push('mcp__zephyr__read');
   }
   if (kelas.includes('jadwal')) {
     push('schedule_command');
-    push('list_schedules');
-    push('cancel_schedule');
   }
   if (kelas.includes('memori')) {
     push('ingat');
     push('notes_write');
-    push('notes_read');
   }
   return hasil;
 }

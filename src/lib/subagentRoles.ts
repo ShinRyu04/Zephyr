@@ -64,11 +64,7 @@ export type BatasKategori =
 
 /** Semua kategori yang dikenal. Dipakai harness untuk menolak kategori karangan. */
 export const KATEGORI_BATAS: BatasKategori[] = [
-  'baca',
-  'cari',
-  'web',
-  'tulis',
-  'hapus',
+  'baca', 'cari', 'web', 'tulis', 'hapus',
   'shell-cek',
   'shell-bebas',
 ];
@@ -81,10 +77,10 @@ export const TOOL_KATEGORI: Record<BatasKategori, string[]> = {
   baca: ['read_file', 'list_directory', 'lsp_hover', 'lsp_diagnostics'],
   cari: ['grep', 'glob', 'lsp_symbols', 'lsp_references', 'lsp_definition'],
   web: ['web_search', 'web_fetch', 'browser_open', 'browser_read'],
-  tulis: ['write_file', 'edit', 'multi_edit', 'replace_in_files', 'create_directory', 'editor_write'],
+  tulis: ['write_file', 'multi_edit', 'replace_in_files', 'editor_write'],
   hapus: ['delete_file', 'move_file', 'browser_download_url'],
   'shell-cek': ['bash_run'],
-  'shell-bebas': ['bash_run', 'bash_background', 'bash_kill'],
+  'shell-bebas': ['bash_run'],
 };
 
 /** Susun peran lalu bekukan dalam-dalam, supaya batasnya tidak bisa dilonggarkan saat jalan. */
