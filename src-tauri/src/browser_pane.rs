@@ -52,8 +52,15 @@ fn daftar() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
 /// Dipisah jadi fungsi biasa (bukan closure anonim) supaya keputusannya bisa
 /// diuji unit tanpa app (`cargo test --lib`). Penegakan oleh WebView2 sendiri
 /// tetap BUTUH APP — lihat docs/LAPORAN-PANE-BROWSER-TAMBAL.md.
-fn boleh_navigasi(url: &tauri::Url) -> bool {
-    crate::web::periksa_url_pane(url.as_str()).is_ok()
+fn boleh_navigasi_dengan(url: &tauri::Url, kb: &crate::web::KebijakanJaringan) -> bool {
+    crate::web::periksa_url_pane_dengan(url.as_str(), kb).is_ok()
+}
+
+/// Kebijakan jaringan-lokal yang berlaku sekarang, dibaca dari setelan
+/// (`zeph-buka-jaringan-lokal`). Tanpa setelan = default AMAN.
+fn kebijakan(app: &AppHandle) -> crate::web::KebijakanJaringan {
+    let st = app.state::<crate::app_state::AppState>();
+    crate::web::KebijakanJaringan::dari_setelan(&crate::settings::read_settings_value(st.inner()))
 }
 
 #[derive(Serialize)]
@@ -87,7 +94,7 @@ pub fn browser_pane_open(
      * link-local, dan port di luar 80/443 — jauh lebih ketat daripada prefix
      * `starts_with("http")` yang lama: `http://127.0.0.1/` dulu lolos.
      */
-    let tujuan = crate::web::periksa_url_pane(u)?;
+    let tujuan = crate::web::periksa_url_pane_dengan(u, &kebijakan(&app))?;
     let label = label_untuk(&pane_id);
 
     /*
@@ -132,12 +139,15 @@ pub fn browser_pane_open(
         .get_window("main")
         .ok_or_else(|| ZephyrError::InvalidInput("main window not found".into()))?;
 
+    let kb = kebijakan(&app);
     let builder = tauri::webview::WebviewBuilder::new(&label, WebviewUrl::External(tujuan.clone()))
         // Setiap navigasi DI DALAM webview lewat gerbang yang sama: menutup
         // `location.href = ...` yang ditulis lewat `browser_pane_eval` (BUTUH APP
-        // untuk membuktikan penegakan runtime-nya; keputusan `boleh_navigasi`
-        // diuji unit di bawah tanpa app).
-        .on_navigation(boleh_navigasi)
+        // untuk membuktikan penegakan runtime-nya; keputusan `boleh_navigasi_dengan`
+        // diuji unit di bawah tanpa app). Kebijakan (`kb`) diambil SEKALI di sini,
+        // saat webview lahir, sehingga perubahan setelan berlaku pada pane
+        // berikutnya — bukan membuka pagar yang sudah terpasang.
+        .on_navigation(move |u| boleh_navigasi_dengan(u, &kb))
         .auto_resize();
 
     /*
@@ -241,8 +251,10 @@ pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResul
         lain => {
             // `back`/`forward`/`reload` tidak membawa URL baru, jadi tidak dijaga.
             // `goto` membawa URL baru, jadi lewat gerbang yang sama seperti
-            // `browser_pane_open` (skema, userinfo, host privat, port).
-            let u = crate::web::periksa_url_pane(lain)?;
+            // `browser_pane_open` (skema, userinfo, host privat, port) DAN dengan
+            // kebijakan yang sama — `izinJaringanLokal`/`portWeb` tidak boleh
+            // hanya berlaku saat pane dibuka tapi tidak saat isi URL diganti.
+            let u = crate::web::periksa_url_pane_dengan(lain, &kebijakan(&app))?;
             w.navigate(u)
                 .map_err(|e| ZephyrError::InvalidInput(format!("{e}")))?;
         }
@@ -446,10 +458,32 @@ pub fn browser_pane_cursor(app: AppHandle, pane_id: String, selector: String) ->
 
 #[cfg(test)]
 mod tests {
-    use super::boleh_navigasi;
+    use super::boleh_navigasi_dengan;
+    use crate::web::KebijakanJaringan;
 
     fn u(s: &str) -> tauri::Url {
         s.parse().unwrap_or_else(|e| panic!("url uji {s}: {e}"))
+    }
+
+    /// Kebijakan BAWAAN: `izinJaringanLokal` MATI, port 80/443, hop 5.
+    fn aman() -> KebijakanJaringan {
+        KebijakanJaringan::default()
+    }
+
+    /// Kebijakan `izinJaringanLokal` HIDUP (tetap memuat lantai metadata).
+    fn lokal() -> KebijakanJaringan {
+        KebijakanJaringan {
+            izin_jaringan_lokal: true,
+            ..KebijakanJaringan::default()
+        }
+    }
+
+    #[test]
+    fn default_izin_jaringan_lokal_matil_aman() {
+        let kb = aman();
+        assert!(!kb.izin_jaringan_lokal, "jaringan lokal harus MATI bawaan");
+        assert_eq!(kb.port_dipakai(), vec![80, 443]);
+        assert_eq!(kb.hop_dipakai(), 5);
     }
 
     #[test]
@@ -460,7 +494,9 @@ mod tests {
             "data:text/html,<h1>x</h1>",
             "about:blank",
         ] {
-            assert!(!boleh_navigasi(&u(s)), "{s} harus ditolak di on_navigation");
+            // Skema terlarang ditolak di KEDUA keadaan — bukan setelan.
+            assert!(!boleh_navigasi_dengan(&u(s), &aman()), "{s} harus ditolak (default)");
+            assert!(!boleh_navigasi_dengan(&u(s), &lokal()), "{s} harus ditolak (lokal on)");
         }
     }
 
@@ -473,7 +509,7 @@ mod tests {
             "http://[::1]/",
             "http://localhost/",
         ] {
-            assert!(!boleh_navigasi(&u(s)), "{s} harus ditolak di on_navigation");
+            assert!(!boleh_navigasi_dengan(&u(s), &aman()), "{s} harus ditolak di on_navigation");
         }
     }
 
@@ -481,12 +517,76 @@ mod tests {
     fn gerbang_navigasi_menolak_trik_userinfo() {
         // Dirangkai supaya tidak ada literal userinfo utuh di dalam kode.
         let s = format!("https://contoh.com{}jahat.com/x", "@");
-        assert!(!boleh_navigasi(&u(&s)), "userinfo harus ditolak");
+        assert!(!boleh_navigasi_dengan(&u(&s), &aman()), "userinfo harus ditolak");
+        assert!(!boleh_navigasi_dengan(&u(&s), &lokal()), "userinfo ditolak walau lokal on");
     }
 
     #[test]
     fn gerbang_navigasi_menerima_halaman_http_publik() {
-        assert!(boleh_navigasi(&u("https://contoh.com/halaman")));
-        assert!(boleh_navigasi(&u("http://contoh.com:80/x")));
+        assert!(boleh_navigasi_dengan(&u("https://contoh.com/halaman"), &aman()));
+        assert!(boleh_navigasi_dengan(&u("http://contoh.com:80/x"), &aman()));
+    }
+
+    /// ON/OFF `izinJaringanLokal` di gerbang navigasi.
+    #[test]
+    fn on_off_izin_jaringan_lokal_pada_navigasi() {
+        let kasus = ["http://127.0.0.1/", "http://192.168.1.10/x", "http://printer.local/"];
+        for s in kasus {
+            assert!(
+                !boleh_navigasi_dengan(&u(s), &aman()),
+                "OFF: {s} harus ditolak"
+            );
+            assert!(
+                boleh_navigasi_dengan(&u(s), &lokal()),
+                "ON: {s} harus diterima"
+            );
+        }
+    }
+
+    /// `169.254.169.254` (metadata cloud) TETAP ditolak walau switch menyala.
+    #[test]
+    fn metadata_cloud_tetap_ditolak_walau_lokal_on() {
+        let uji = [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[fd00:ec2::254]/",
+        ];
+        for s in uji {
+            assert!(!boleh_navigasi_dengan(&u(s), &aman()), "OFF: {s} harus ditolak");
+            assert!(!boleh_navigasi_dengan(&u(s), &lokal()), "ON: {s} TETAP ditolak");
+        }
+    }
+
+    /// ON/OFF `portWeb`: non-80/443 hanya sah bila port ditambahkan.
+    #[test]
+    fn on_off_port_web_pada_navigasi() {
+        let url = "http://127.0.0.1:8080/";
+        let boleh_port = KebijakanJaringan {
+            izin_jaringan_lokal: true,
+            port_sah: vec![80, 443, 8080],
+            ..KebijakanJaringan::default()
+        };
+        assert!(!boleh_navigasi_dengan(&u(url), &lokal()), "port 8080 di luar daftar: ditolak");
+        assert!(boleh_navigasi_dengan(&u(url), &boleh_port), "port 8080 ditambahkan: diterima");
+    }
+
+    /// ON/OFF `hopRedirect` di gerbang navigasi tidak relevan (per-hop ada di
+    /// redirect fetch), tapi kebijakan wajib menghormati clamp.
+    #[test]
+    fn hop_redirect_dihormati_dan_di_clamp() {
+        let tinggi = KebijakanJaringan {
+            hop_redirect: 10,
+            ..KebijakanJaringan::default()
+        };
+        assert_eq!(tinggi.hop_dipakai(), 10, "ON: hop 10 dipakai utuh");
+        let lewat = KebijakanJaringan {
+            hop_redirect: 999,
+            ..KebijakanJaringan::default()
+        };
+        assert_eq!(lewat.hop_dipakai(), 10, "melebihi plafon keras di-clamp ke 10");
+        let nol = KebijakanJaringan {
+            hop_redirect: 0,
+            ..KebijakanJaringan::default()
+        };
+        assert_eq!(nol.hop_dipakai(), 1, "0 di-clamp ke 1, tidak pernah 0");
     }
 }

@@ -10,7 +10,7 @@
  * Tidak ada satu titik yang bisa diperiksa, jadi tidak ada yang bisa dibuktikan
  * tentang apa yang benar-benar keluar dari internet dan masuk ke percakapan.
  *
- * Empat aturan yang tinggal di sini - dan hanya di sini:
+ * Enam aturan yang tinggal di sini - dan hanya di sini:
  *
  *   1. IZIN OPT-IN. Isi web mati sampai user menyalakannya. Tanpa izin, tidak
  *      ada satu pun permintaan jaringan yang dibuat, bahkan untuk host yang
@@ -27,6 +27,24 @@
  *      isi -> model. Jalur cadangan di dalam `browser_read` (fetch statis saat
  *      webview belum hidup) memakai pintu yang sama, jadi "otomatis" tidak
  *      berarti "tanpa izin".
+ *   5. JARINGAN LOKAL OPT-IN (`izinJaringanLokal`, default MATI). Saat mati,
+ *      loopback/privat/link-local/CGNAT dan nama `*.local`/`*.localhost`
+ *      ditolak - persis perilaku lama. Saat hidup, alamat itu boleh
+ *      dijangkau... KECUALI endpoint metadata cloud `169.254.169.254`
+ *      (dan padanan IPv6 `fd00:ec2::254`) yang TETAP ditolak: alamat itu
+ *      bukan "jaringan lokal pengguna", ia kredensial instans yang bisa
+ *      dibaca siapa pun yang menjangkau socket-nya.
+ *   6. PORT & HOP SETELAN. Port yang sah (`portWeb`, default 80/443) dan
+ *      plafon hop redirect (`hopRedirect`, default 5, keras 10) bisa
+ *      dikonfigurasi, tapi selalu di-clamp ke batas keras.
+ *
+ * ## Yang TIDAK pernah dibuka (ditolak permanen)
+ *
+ *   - userinfo `user@host` (trik penyamaran host),
+ *   - skema `file:`/`javascript:`/`data:`/`about:`,
+ *   - ekstensi non-`open-vsx` (di jalur unduhan ekstensi, bukan di sini).
+ *
+ * Ketiganya ditolak tanpa syarat - tidak ada setelan yang membukanya.
  *
  * ## Kenapa murni (tanpa impor)
  *
@@ -43,6 +61,7 @@
  *   BATAS_BYTE_BAWAAN       = 2.097.152 byte (2 MiB)
  *   BATAS_BYTE_MAKS         = 8.388.608 byte (8 MiB)
  *   BATAS_HOP_REDIRECT      = 5
+ *   HOP_REDIRECT_MAKS       = 10
  *   BATAS_KARAKTER_KELUARAN = 20.000 karakter
  *   PORT_SAH                = {default, 80, 443} — sama dengan lantai port web.rs
  */
@@ -54,8 +73,17 @@
 export const BATAS_BYTE_BAWAAN = 2 * 1024 * 1024; // 2.097.152
 export const BATAS_BYTE_MAKS = 8 * 1024 * 1024; // 8.388.608
 export const BATAS_HOP_REDIRECT = 5;
+/** Plafon KERAS hop redirect: `hopRedirect` setelan tidak pernah melewati ini. */
+export const HOP_REDIRECT_MAKS = 10;
 export const BATAS_KARAKTER_KELUARAN = 20000;
 export const PORT_SAH: readonly string[] = ['', '80', '443'];
+
+/**
+ * Endpoint metadata instans cloud. SELALU ditolak, bahkan saat
+ * `izinJaringanLokal` hidup - lihat aturan 5 di header.
+ */
+export const IP_METADATA = '169.254.169.254';
+export const IP_METADATA_V6 = 'fd00:ec2::254';
 
 /** Penanda yang ditambahkan saat isi dipotong, supaya model tahu ada sisa. */
 export const PENANDA_DIPOTONG = '[dipotong]';
@@ -73,6 +101,16 @@ export interface KebijakanIsiWeb {
   batasByte: number;
   /** Batas karakter isi yang boleh dilihat model (di-clamp BATAS_KARAKTER_KELUARAN). */
   batasKarakter: number;
+  /**
+   * Opt-in jaringan lokal. `false` (default) = loopback/privat/link-local/
+   * CGNAT dan `*.local`/`*.localhost` ditolak. `true` = boleh, KECUALI
+   * `169.254.169.254` yang tetap ditolak.
+   */
+  izinJaringanLokal: boolean;
+  /** Port yang sah (default `PORT_SAH`). Selalu menyertakan '' (port default). */
+  portSah: readonly string[];
+  /** Plafon hop redirect (default `BATAS_HOP_REDIRECT`, keras `HOP_REDIRECT_MAKS`). */
+  hopRedirect: number;
 }
 
 export type Keputusan = { ok: true } | { ok: false; alasan: string };
@@ -99,6 +137,9 @@ export const KEBIJAKAN_TOLAK_SEMUA: KebijakanIsiWeb = {
   allowlist: [],
   batasByte: BATAS_BYTE_BAWAAN,
   batasKarakter: BATAS_KARAKTER_KELUARAN,
+  izinJaringanLokal: false,
+  portSah: PORT_SAH,
+  hopRedirect: BATAS_HOP_REDIRECT,
 };
 
 /**
@@ -107,6 +148,10 @@ export const KEBIJAKAN_TOLAK_SEMUA: KebijakanIsiWeb = {
  * Field yang belum dikenal - mis. sebelum setelan izin isi web dipasang di
  * Settings §security - dibaca sebagai "belum ada izin". Jadi pemasangan UI-nya
  * tidak bisa mengubah arti berkas ini: yang belum ada selalu fail-closed.
+ *
+ * Field BARU (`izinJaringanLokal`, `portWeb`, `hopRedirect`) juga fail-closed:
+ * yang tidak ada = default AMAN (jaringan lokal tetap tertutup, port 80/443,
+ * hop 5).
  */
 export function kebijakanDariSetelan(setelan: unknown): KebijakanIsiWeb {
   const s = (setelan ?? {}) as Record<string, unknown>;
@@ -118,11 +163,42 @@ export function kebijakanDariSetelan(setelan: unknown): KebijakanIsiWeb {
     allowlist,
     batasByte: angkaSah(s.batasByteWeb, BATAS_BYTE_BAWAAN),
     batasKarakter: angkaSah(s.batasKarakterWeb, BATAS_KARAKTER_KELUARAN),
+    izinJaringanLokal: s.izinJaringanLokal === true,
+    portSah: daftarPort(s.portWeb),
+    hopRedirect: angkaHop(s.hopRedirect),
   };
 }
 
 function angkaSah(v: unknown, bawaan: number): number {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : bawaan;
+}
+
+/**
+ * Port sah dari setelan. Tidak ada/rusak = `PORT_SAH`. Selalu ada `''`.
+ *
+ * Sama dengan `port_dipakai()` di `web.rs`: 80/443 SELALU sah, dan `portWeb`
+ * hanya MEMPERLUAS daftar itu (lih. `web.rs:223` "portWeb memperluas port yang
+ * sah (80/443 selalu sah)" + tes `port_web_on_membuka_port_tambahan` yang
+ * meng-assert `port_diizinkan(443)` tetap `true`). Jadi `portWeb: [3000]`
+ * menambah 3000 TANPA menghapus 80/443, dan `portWeb: []` kembali ke
+ * `PORT_SAH` — bukan `['']` yang membuat `:443` eksplisit ikut tertolak.
+ */
+function daftarPort(v: unknown): readonly string[] {
+  if (!Array.isArray(v)) return PORT_SAH;
+  const out = new Set<string>(PORT_SAH);
+  for (const p of v) {
+    const s = String(p).trim();
+    if (/^\d{1,5}$/.test(s)) out.add(s);
+  }
+  return [...out];
+}
+
+/** Hop redirect dari setelan: di-clamp ke [1, HOP_REDIRECT_MAKS]. */
+function angkaHop(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return BATAS_HOP_REDIRECT;
+  const n = Math.floor(v);
+  if (n < 1) return BATAS_HOP_REDIRECT;
+  return Math.min(n, HOP_REDIRECT_MAKS);
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,6 +216,12 @@ export function isIpLiteral(host: string): boolean {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true; // IPv4
   if (host.includes(':')) return true; // IPv6 (termasuk bentuk [..])
   return false;
+}
+
+/** Endpoint metadata cloud - ditolak TANPA syarat (lihat aturan 5). */
+export function isIpMetadata(host: string): boolean {
+  const h = String(host ?? '').replace(/^\[|\]$/g, '').toLowerCase();
+  return h === IP_METADATA || h === IP_METADATA_V6;
 }
 
 /** Alamat yang tidak boleh dijangkau agen: loopback, privat, link-local, CGNAT. */
@@ -166,6 +248,49 @@ export function isIpPrivat(host: string): boolean {
 }
 
 /**
+ * Alamat yang tetap dilarang WALAU jaringan lokal dibuka: unspecified,
+ * broadcast, multicast, dan blok dokumentasi. Ini bukan "jaringan pengguna" -
+ * tidak ada server sah di sana, jadi membukanya hanya menambah permukaan.
+ */
+export function isIpSelaluDilarang(host: string): boolean {
+  if (!isIpLiteral(host)) return false;
+  if (host.includes(':')) {
+    const h = host.replace(/^\[|\]$/g, '').toLowerCase();
+    if (h === '::') return true; // unspecified
+    if (h.startsWith('ff')) return true; // multicast ff00::/8
+    return false;
+  }
+  const p = host.split('.').map(Number);
+  const a = p[0];
+  const b = p[1];
+  const c = p[2];
+  if (a === 0) return true; // 0.0.0.0/8 (unspecified)
+  if (a === 255 && b === 255 && c === 255 && p[3] === 255) return true; // broadcast
+  if (a >= 224 && a <= 239) return true; // multicast 224/4
+  if (a === 192 && b === 0 && c === 2) return true; // TEST-NET-1
+  if (a === 198 && b === 51 && c === 100) return true; // TEST-NET-2
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3
+  return false;
+}
+
+/**
+ * Lantai alamat BERLAKU. Urutannya:
+ *   1. metadata cloud SELALU dilarang;
+ *   2. jaringan lokal tertutup -> `isIpPrivat` penuh;
+ *   3. jaringan lokal terbuka -> hanya blok yang memang tidak punya server sah.
+ */
+export function isIpTerlarang(host: string, izinJaringanLokal: boolean): boolean {
+  if (isIpMetadata(host)) return true;
+  if (izinJaringanLokal) return isIpSelaluDilarang(host);
+  return isIpPrivat(host);
+}
+
+/** Nama host lokal: `localhost`, `*.localhost`, `*.local`. */
+export function namaLokal(host: string): boolean {
+  return host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local');
+}
+
+/**
  * Cocok bila host SAMA DENGAN entri, atau subdomain SAH-nya (batas titik).
  * Pencocokan `endsWith` tanpa titik akan meloloskan "contoh.com.jahat.com"
  * untuk entri "contoh.com" - itu satu-satunya trik yang membuat allowlist
@@ -187,6 +312,21 @@ export function hostDiAllowlist(host: string, allowlist: readonly string[]): boo
 /* Gerbang URL                                                         */
 /* ------------------------------------------------------------------ */
 
+/** Port sah BERLAKU: dari setelan bila ada, kalau tidak `PORT_SAH`. */
+export function portSahBerlaku(kb: KebijakanIsiWeb): readonly string[] {
+  return Array.isArray(kb.portSah) && kb.portSah.length > 0 ? kb.portSah : PORT_SAH;
+}
+
+/** Hop redirect BERLAKU: dari setelan bila ada, di-clamp ke plafon keras. */
+export function hopBerlaku(kb: KebijakanIsiWeb): number {
+  if (typeof kb.hopRedirect !== 'number' || !Number.isFinite(kb.hopRedirect)) {
+    return BATAS_HOP_REDIRECT;
+  }
+  const n = Math.floor(kb.hopRedirect);
+  if (n < 1) return BATAS_HOP_REDIRECT;
+  return Math.min(n, HOP_REDIRECT_MAKS);
+}
+
 /**
  * Gerbang satu URL. Urutannya disengaja:
  *   izin -> skema -> bentuk URL -> host -> IP privat -> nama lokal -> allowlist -> port
@@ -194,6 +334,10 @@ export function hostDiAllowlist(host: string, allowlist: readonly string[]): boo
  * Izin diperiksa PALING AWAL supaya "izin mati" selalu alasan penolakan yang
  * muncul, apa pun bentuk URL-nya - dan supaya tidak ada satu pun pemeriksaan
  * yang bisa dipakai untuk menyimpulkan isi allowlist saat izin mati.
+ *
+ * `izinJaringanLokal` hanya melonggarkan langkah IP-privat/nama-lokal; ia TIDAK
+ * melonggarkan allowlist (host tetap harus terdaftar) dan TIDAK membuka
+ * `169.254.169.254`.
  */
 export function periksaUrl(urlStr: unknown, kb: KebijakanIsiWeb): KeputusanUrl {
   if (kb.izinIsiWeb !== true) return { ok: false, alasan: 'izin-isi-web-mati' };
@@ -222,12 +366,14 @@ export function periksaUrl(urlStr: unknown, kb: KebijakanIsiWeb): KeputusanUrl {
   if (!u.hostname) return { ok: false, alasan: 'host-kosong' };
 
   const host = normalisasiHost(u.hostname);
-  if (isIpPrivat(host)) return { ok: false, alasan: 'ip-privat:' + host };
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
+  if (isIpTerlarang(host, kb.izinJaringanLokal === true)) {
+    return { ok: false, alasan: 'ip-privat:' + host };
+  }
+  if (kb.izinJaringanLokal !== true && namaLokal(host)) {
     return { ok: false, alasan: 'nama-lokal:' + host };
   }
   if (!hostDiAllowlist(host, kb.allowlist)) return { ok: false, alasan: 'host-luar-allowlist:' + host };
-  if (!PORT_SAH.includes(u.port)) {
+  if (!portSahBerlaku(kb).includes(u.port)) {
     return { ok: false, alasan: 'port-tak-lazim:' + (u.port || '(default)') };
   }
 
@@ -243,7 +389,8 @@ export function gerbangIsiKonten(urlStr: unknown, kb: KebijakanIsiWeb): Keputusa
 /** Tiap hop redirect diperiksa ULANG - bukan hanya URL pertama. */
 export function ikutiRedirect(rantai: readonly string[], kb: KebijakanIsiWeb): Keputusan {
   if (!Array.isArray(rantai) || rantai.length === 0) return { ok: false, alasan: 'rantai-kosong' };
-  if (rantai.length - 1 > BATAS_HOP_REDIRECT) {
+  const hop = hopBerlaku(kb);
+  if (rantai.length - 1 > hop) {
     return { ok: false, alasan: 'batas-redirect-terlampaui:' + (rantai.length - 1) };
   }
   for (let i = 0; i < rantai.length; i++) {

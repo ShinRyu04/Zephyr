@@ -362,13 +362,18 @@ const KELUARGA_DASAR: readonly string[] = [
  * keluarga tulis ikut untuk semua kelas selain `baca` - memangkasnya justru yang
  * akan menghilangkan kemampuan.
  */
-const KELUARGA_TULIS: readonly string[] = ['ganti-teks-berkas', 'hapus-berkas'];
+const KELUARGA_TULIS: readonly string[] = ['ganti-teks-berkas', 'hapus-berkas', 'kelola-berkas'];
 /*
- * `kelola-berkas` (pindah/salin) sengaja TIDAK wajib: `subsetAlat` tidak pernah
- * mengirim `move_file`/`copy_file` untuk kelas mana pun, jadi menuntutnya justru
- * memaksa satu tool keluar dari jatah tanpa menambah kemampuan apa pun. Keluarga
- * ini tetap terdaftar supaya `move_file`/`copy_file` tetap bisa dipilih sebagai
- * TAMBAHAN kelas hapus/repo-wide, dan ganti nama folder tetap bisa lewat `bash_run`.
+ * `kelola-berkas` (pindah/salin) DULU sengaja tidak wajib, dengan alasan
+ * `subsetAlat` tidak pernah mengirim `move_file`/`copy_file` untuk kelas mana
+ * pun - menuntutnya berarti memaksa satu tool keluar dari jatah tanpa menambah
+ * kemampuan. Alasan itu tidak berlaku lagi: `TOOL_DIKIRIM_SELALU` sekarang
+ * memuat `move_file`/`copy_file` setiap giliran (prompt me-route namanya), jadi
+ * kelas tulis memang menerimanya di `sebelum` - dan membiarkannya di luar
+ * `KELUARGA_TULIS` membuat `pilihToolTugas` memangkasnya, keluarga
+ * `kelola-berkas` hilang, dan `move_file`/`copy_file` jadi yatim. Yang salah
+ * bukan daftarnya, tapi daftar wajib yang ketinggalan. Tetap terjangkau
+ * `bash_run` (mv/cp) sebagai jalan cadangan.
  */
 
 /**
@@ -434,9 +439,15 @@ const RUMAH: Record<string, readonly string[]> = {
  * menyapu banyak berkas sekaligus; satu berkas cukup dengan `edit`.
  */
 export function rumahGantiTeks(kelas: readonly KelasTugas[]): { pilih: string; cadangan: string[] } {
-  return kelas.includes('repo-wide')
-    ? { pilih: 'replace_in_files', cadangan: ['edit', 'multi_edit'] }
-    : { pilih: 'edit', cadangan: ['multi_edit', 'replace_in_files'] };
+  /* Repo-wide menyapu banyak berkas sekaligus; tulis-banyak menyentuh beberapa
+     berkas dalam satu langkah (`multi_edit`); sisanya satu berkas (`edit`).
+     Memilih `multi_edit` di sini SEKALIGUS menutup kembar: `tambahanKelas`
+     juga mendorong `multi_edit` untuk `tulis-banyak`, dan tanpa ini keduanya
+     (`edit` sebagai rumah + `multi_edit` sebagai tambahan) terkirim bersamaan -
+     dua tool satu keluarga yang cek-subset-tugas tolak. */
+  if (kelas.includes('repo-wide')) return { pilih: 'replace_in_files', cadangan: ['edit', 'multi_edit'] };
+  if (kelas.includes('tulis-banyak')) return { pilih: 'multi_edit', cadangan: ['edit', 'replace_in_files'] };
+  return { pilih: 'edit', cadangan: ['multi_edit', 'replace_in_files'] };
 }
 
 /** Rumah `delegasi-agen`: tugas paralel (banyak berkas) cocok dengan bentuk jamak. */

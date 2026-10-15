@@ -249,7 +249,6 @@ export const EN: Record<string, string> = {
   'Buka panel AI': 'Open AI panel',
   'Isi panel bawah': 'Bottom panel content',
   'Tampilkan terminal di panel bawah': 'Show terminal in the bottom panel',
-  'Tampilkan panel AI di panel bawah (Ctrl+Shift+A)': 'Show the AI panel in the bottom panel (Ctrl+Shift+A)',
   'Tampilkan panel bawah (Ctrl+J)': 'Show the bottom panel (Ctrl+J)',
   'Tampilkan panel bawah (Ctrl+`)': 'Show the bottom panel (Ctrl+`)',
   'Sembunyikan panel': 'Hide panel',

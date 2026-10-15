@@ -18,9 +18,9 @@ set -euo pipefail
 
 SRC=/mnt/d/Zephyr
 WORK=$HOME/zephyr-build
-KEY=/mnt/c/Users/home/AppData/Roaming/zephyr/zephyr.key
-KEYTXT=/mnt/c/Users/home/AppData/Roaming/zephyr/signing-key.txt
-OUT=/mnt/d/Zephyr/release/1.1.10/linux
+KEY=/mnt/c/Users/Zyrex/AppData/Roaming/zephyr/zephyr.key
+KEYTXT=/mnt/c/Users/Zyrex/AppData/Roaming/zephyr/signing-key.txt
+OUT=/mnt/d/Zephyr/release/1.1.13/linux
 
 # cargo/rustc dipasang lewat rustup ke ~/.cargo/bin, dan direktori itu TIDAK
 # selalu ada di PATH shell non-interaktif (mis. `wsl bash script.sh`). Tanpa

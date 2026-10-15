@@ -28,8 +28,15 @@ pub const BATAS_BYTE_BAWAAN: usize = 2 * 1024 * 1024; // 2_097_152 byte (2 MiB)
 pub const BATAS_BYTE_MAKS: usize = 8 * 1024 * 1024; // 8_388_608 byte (8 MiB)
 /// Jumlah maksimum hop redirect yang boleh diikuti (tiap hop diperiksa ulang).
 pub const BATAS_HOP_REDIRECT: u32 = 5;
+/// Plafon KERAS hop redirect: `hopRedirect` setelan tidak pernah melewati ini.
+pub const HOP_REDIRECT_MAKS: u32 = 10;
 /// Port yang sah untuk keluar. Sama dengan lantai port yang sudah ada.
 pub const PORT_SAH: [u16; 2] = [80, 443];
+/// Endpoint metadata instans cloud (IPv4). SELALU ditolak, walau jaringan lokal
+/// dibuka: alamat ini bukan "jaringan lokal pengguna", ia kredensial instans.
+pub const IP_METADATA_V4: [u8; 4] = [169, 254, 169, 254];
+/// Endpoint metadata instans cloud (IPv6).
+pub const IP_METADATA_V6: std::net::Ipv6Addr = std::net::Ipv6Addr::new(0xfd00, 0x0ec2, 0, 0, 0, 0, 0, 0x0254);
 
 /// Batas byte yang dipakai untuk membaca bodi.
 ///
@@ -43,11 +50,135 @@ pub fn batas_byte_dipakai(diminta: Option<usize>) -> usize {
     }
 }
 
+/// Kebijakan jaringan-lokal yang dibaca dari setelan (`zeph-buka-jaringan-lokal`).
+///
+/// WHY struct, bukan argumen terpisah: keempat fungsi gerbang (fetch, pane,
+/// redirect) harus memakai pagar yang SAMA; satu struct membuat "lupa
+/// meneruskan satu setelan" menjadi kesalahan tipe, bukan bug diam-diam.
+///
+/// Default = AMAN: jaringan lokal tertutup, port 80/443, hop 5.
+#[derive(Clone, Debug)]
+pub struct KebijakanJaringan {
+    /// `izinJaringanLokal` (default `false`). Saat `true`, loopback/privat/
+    /// link-local/CGNAT dan `*.local`/`*.localhost` boleh dijangkau — KECUALI
+    /// endpoint metadata cloud yang tetap ditolak.
+    pub izin_jaringan_lokal: bool,
+    /// `hopRedirect` (default `BATAS_HOP_REDIRECT`, di-clamp `HOP_REDIRECT_MAKS`).
+    pub hop_redirect: u32,
+    /// `portWeb` (default `PORT_SAH`). Selalu memuat 80 dan 443.
+    pub port_sah: Vec<u16>,
+}
+
+impl Default for KebijakanJaringan {
+    fn default() -> Self {
+        Self {
+            izin_jaringan_lokal: false,
+            hop_redirect: BATAS_HOP_REDIRECT,
+            port_sah: PORT_SAH.to_vec(),
+        }
+    }
+}
+
+impl KebijakanJaringan {
+    /// Hop redirect BERLAKU: di-clamp ke `[1, HOP_REDIRECT_MAKS]`.
+    pub fn hop_dipakai(&self) -> u32 {
+        self.hop_redirect.clamp(1, HOP_REDIRECT_MAKS)
+    }
+
+    /// Baca kebijakan dari setelan JSON (`read_settings_value`). Field yang
+    /// tidak ada / salah tipe dibaca sebagai default AMAN (fail-closed), jadi
+    /// pemasangan setelan tidak pernah bisa MEMBUKA pagar secara tak sengaja.
+    pub fn dari_setelan(setelan: &serde_json::Value) -> Self {
+        let b = |k: &str| setelan.get(k).and_then(|v| v.as_bool());
+        let hop = setelan
+            .get("hopRedirect")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as u32)
+            .unwrap_or(BATAS_HOP_REDIRECT);
+        let mut port_sah = PORT_SAH.to_vec();
+        if let Some(arr) = setelan.get("portWeb").and_then(|v| v.as_array()) {
+            for p in arr {
+                if let Some(n) = p.as_u64() {
+                    if (1..=65535).contains(&n) {
+                        let n = n as u16;
+                        if !port_sah.contains(&n) {
+                            port_sah.push(n);
+                        }
+                    }
+                }
+            }
+        }
+        Self {
+            izin_jaringan_lokal: b("izinJaringanLokal").unwrap_or(false),
+            hop_redirect: hop.clamp(1, HOP_REDIRECT_MAKS),
+            port_sah,
+        }
+    }
+
+    /// Port sah BERLAKU: selalu memuat 80/443; entri duplikat/tak sah dibuang.
+    pub fn port_dipakai(&self) -> Vec<u16> {
+        let mut out: Vec<u16> = PORT_SAH.to_vec();
+        for p in &self.port_sah {
+            if *p != 0 && !out.contains(p) {
+                out.push(*p);
+            }
+        }
+        out
+    }
+
+    /// Port ini boleh keluar?
+    pub fn port_diizinkan(&self, port: u16) -> bool {
+        self.port_dipakai().contains(&port)
+    }
+}
+
+/// Alamat metadata cloud? Selalu dilarang, walau jaringan lokal dibuka.
+pub fn is_metadata(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v) => v.octets() == IP_METADATA_V4,
+        IpAddr::V6(v) => v == IP_METADATA_V6,
+    }
+}
+
+/// Alamat yang tetap dilarang WALAU jaringan lokal dibuka: unspecified,
+/// broadcast, multicast, dan blok dokumentasi. Ini bukan "jaringan pengguna" —
+/// tidak ada server sah di sana, jadi membukanya hanya menambah permukaan.
+fn ip_selalu_dilarang(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v) => {
+            v.is_unspecified()
+                || v.is_broadcast()
+                || v.is_multicast()
+                || v.is_documentation()
+                || v.octets() == [255, 255, 255, 255]
+        }
+        IpAddr::V6(v) => v.is_unspecified() || v.is_multicast(),
+    }
+}
+
+/// Lantai alamat BERLAKU. Urutannya:
+///   1. metadata cloud SELALU dilarang;
+///   2. jaringan lokal tertutup -> `ip_terlarang` penuh;
+///   3. jaringan lokal terbuka -> hanya blok yang memang tidak punya server sah.
+pub fn ip_terlarang_dengan(ip: IpAddr, izin_jaringan_lokal: bool) -> bool {
+    if is_metadata(ip) {
+        return true;
+    }
+    if izin_jaringan_lokal {
+        ip_selalu_dilarang(ip)
+    } else {
+        ip_terlarang(ip)
+    }
+}
+
 /// Satu-satunya daftar alamat yang tidak boleh dihubungi.
 ///
 /// WHY fungsi, bukan closure di dalam satu jalur: jalur `web_fetch` dan jalur
 /// pane browser harus memakai lantai yang SAMA. Dua salinan daftar menyimpang
 /// dengan sendirinya (satu jalur ditambal, yang lain tidak).
+///
+/// Ini lantai BAWAAN (jaringan lokal tertutup). Untuk lantai yang menghormati
+/// `izinJaringanLokal`, pakai `ip_terlarang_dengan`.
 pub fn ip_terlarang(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v) => {
@@ -79,7 +210,22 @@ pub fn ip_terlarang(ip: IpAddr) -> bool {
 
 /// Validate an outbound URL before opening a socket. DNS results are checked
 /// too, so a public hostname cannot be used to reach a private address.
+///
+/// Ini gerbang BAWAAN (jaringan lokal tertutup). Untuk gerbang yang menghormati
+/// `izinJaringanLokal`/`portWeb`, pakai `validate_outbound_url_dengan`.
 pub fn validate_outbound_url(url: &str) -> ZResult<ureq::http::Uri> {
+    validate_outbound_url_dengan(url, &KebijakanJaringan::default())
+}
+
+/// Seperti `validate_outbound_url`, tetapi menghormati kebijakan jaringan-lokal:
+///   - `izin_jaringan_lokal` membuka loopback/privat/link-local/CGNAT dan
+///     `*.local`/`*.localhost`; `169.254.169.254` TETAP ditolak;
+///   - `portWeb` memperluas port yang sah (80/443 selalu sah);
+///   - `hopRedirect` dipakai `langkah_redirect`, bukan di sini.
+pub fn validate_outbound_url_dengan(
+    url: &str,
+    kb: &KebijakanJaringan,
+) -> ZResult<ureq::http::Uri> {
     let parsed: ureq::http::Uri = url
         .trim()
         .parse()
@@ -102,23 +248,27 @@ pub fn validate_outbound_url(url: &str) -> ZResult<ureq::http::Uri> {
         } else {
             80
         });
-    if !PORT_SAH.contains(&port) {
+    if !kb.port_diizinkan(port) {
         return Err(ZephyrError::InvalidInput(format!(
             "URL port {port} is not allowed"
         )));
     }
-    // Satu-satunya sumber lantai alamat sekarang `ip_terlarang` (dipakai jalur
-    // pane juga), supaya daftar alamat terlarang tidak bercabang dua.
-    let is_blocked = ip_terlarang;
+    let izin = kb.izin_jaringan_lokal;
+    // Satu-satunya sumber lantai alamat sekarang `ip_terlarang_dengan` (dipakai
+    // jalur pane juga), supaya daftar alamat terlarang tidak bercabang dua.
     if let Ok(ip) = host.parse::<IpAddr>() {
-        if is_blocked(ip) {
+        if ip_terlarang_dengan(ip, izin) {
             return Err(ZephyrError::InvalidInput(
                 "URL resolves to a blocked address".into(),
             ));
         }
     } else {
         let lower = host.trim_end_matches('.').to_ascii_lowercase();
-        if lower == "localhost" || lower.ends_with(".localhost") || lower.ends_with(".local") {
+        if !izin
+            && (lower == "localhost"
+                || lower.ends_with(".localhost")
+                || lower.ends_with(".local"))
+        {
             return Err(ZephyrError::InvalidInput(
                 "localhost names are not allowed".into(),
             ));
@@ -129,7 +279,7 @@ pub fn validate_outbound_url(url: &str) -> ZResult<ureq::http::Uri> {
         let mut found = false;
         for addr in addrs {
             found = true;
-            if is_blocked(addr.ip()) {
+            if ip_terlarang_dengan(addr.ip(), izin) {
                 return Err(ZephyrError::InvalidInput(
                     "URL resolves to a blocked address".into(),
                 ));
@@ -166,6 +316,15 @@ pub fn validate_outbound_url(url: &str) -> ZResult<ureq::http::Uri> {
 /// `validate_outbound_url` — batas ini dicatat apa adanya di
 /// `docs/LAPORAN-PANE-BROWSER-TAMBAL.md`, bukan diklaim tertutup.
 pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
+    periksa_url_pane_dengan(url, &KebijakanJaringan::default())
+}
+
+/// Seperti `periksa_url_pane`, tetapi menghormati kebijakan jaringan-lokal:
+/// `izin_jaringan_lokal` membuka IP privat/link-local/loopback dan nama lokal
+/// (`localhost`, `*.localhost`, `*.local`); `portWeb` memperluas port yang sah;
+/// `169.254.169.254` TETAP ditolak. Skema terlarang dan userinfo tetap ditolak
+/// tanpa syarat — tidak ada setelan yang membukanya.
+pub fn periksa_url_pane_dengan(url: &str, kb: &KebijakanJaringan) -> ZResult<tauri::Url> {
     let s = url.trim();
     if s.is_empty() {
         return Err(ZephyrError::InvalidInput(
@@ -199,15 +358,20 @@ pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
     // tanpa itu `"[::1]".parse::<IpAddr>()` gagal dan loopback lolos seolah
     // "hostname biasa".
     let host_telanjang = host.trim_start_matches('[').trim_end_matches(']');
+    let izin = kb.izin_jaringan_lokal;
     if let Ok(ip) = host_telanjang.parse::<IpAddr>() {
-        if ip_terlarang(ip) {
+        if ip_terlarang_dengan(ip, izin) {
             return Err(ZephyrError::InvalidInput(format!(
                 "host {host} menunjuk alamat privat/link-local — ditolak"
             )));
         }
     } else {
         let bawah = host.trim_end_matches('.').to_ascii_lowercase();
-        if bawah == "localhost" || bawah.ends_with(".localhost") || bawah.ends_with(".local") {
+        if !izin
+            && (bawah == "localhost"
+                || bawah.ends_with(".localhost")
+                || bawah.ends_with(".local"))
+        {
             return Err(ZephyrError::InvalidInput(format!(
                 "nama host lokal {host} ditolak"
             )));
@@ -215,7 +379,7 @@ pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
     }
 
     let port = u.port_or_known_default().unwrap_or(0);
-    if !PORT_SAH.contains(&port) {
+    if !kb.port_diizinkan(port) {
         return Err(ZephyrError::InvalidInput(format!(
             "URL port {port} is not allowed (hanya 80/443)"
         )));
@@ -231,9 +395,22 @@ pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
 /// sah sudah cukup untuk mengarahkan permintaan ke `http://169.254.169.254/`
 /// atau ke skema lain. `BATAS_HOP_REDIRECT` memutus rantai redirect tak berujung.
 pub fn langkah_redirect(dasar: &str, location: &str, hop_selesai: u32) -> ZResult<tauri::Url> {
-    if hop_selesai >= BATAS_HOP_REDIRECT {
+    langkah_redirect_dengan(dasar, location, hop_selesai, &KebijakanJaringan::default())
+}
+
+/// Seperti `langkah_redirect`, tetapi plafon hop dan lantai alamat mengikuti
+/// `kb` (`hopRedirect` di-clamp `HOP_REDIRECT_MAKS`; `izinJaringanLokal`
+/// melonggarkan IP privat/nama lokal, tapi TIDAK membuka `169.254.169.254`).
+pub fn langkah_redirect_dengan(
+    dasar: &str,
+    location: &str,
+    hop_selesai: u32,
+    kb: &KebijakanJaringan,
+) -> ZResult<tauri::Url> {
+    let batas_hop = kb.hop_dipakai();
+    if hop_selesai >= batas_hop {
         return Err(ZephyrError::InvalidInput(format!(
-            "batas {BATAS_HOP_REDIRECT} hop redirect terlampaui"
+            "batas {batas_hop} hop redirect terlampaui"
         )));
     }
     let basis: tauri::Url = dasar
@@ -242,7 +419,7 @@ pub fn langkah_redirect(dasar: &str, location: &str, hop_selesai: u32) -> ZResul
     let tujuan = basis
         .join(location.trim())
         .map_err(|e| ZephyrError::InvalidInput(format!("Location tidak sah: {e}")))?;
-    validate_outbound_url(tujuan.as_str())?;
+    validate_outbound_url_dengan(tujuan.as_str(), kb)?;
     Ok(tujuan)
 }
 
@@ -270,8 +447,15 @@ fn ambil(url: &str) -> ZResult<String> {
 /// `take(batas + 1)` memberi tahu LEBIH DULU bahwa bodi melewati batas, lalu
 /// permintaan ditolak dengan angka batas yang jelas.
 fn ambil_batas(url: &str, batas_byte: usize) -> ZResult<String> {
+    ambil_batas_dengan(url, batas_byte, &KebijakanJaringan::default())
+}
+
+/// Seperti `ambil_batas`, tetapi lantai URL dan plafon hop mengikuti `kb`
+/// (`izinJaringanLokal`, `portWeb`, `hopRedirect`). Inilah jalur yang dipakai
+/// `web_fetch` setelah setelan `zeph-buka-jaringan-lokal` dipasang.
+fn ambil_batas_dengan(url: &str, batas_byte: usize, kb: &KebijakanJaringan) -> ZResult<String> {
     let batas = batas_byte.clamp(1, BATAS_BYTE_MAKS);
-    let mut sekarang = validate_outbound_url(url)?.to_string();
+    let mut sekarang = validate_outbound_url_dengan(url, kb)?.to_string();
     let mut hop: u32 = 0;
     loop {
         let resp = ureq::get(sekarang.as_str())
@@ -304,7 +488,7 @@ fn ambil_batas(url: &str, batas_byte: usize) -> ZResult<String> {
                     "server menjawab HTTP {status} tanpa header Location"
                 )));
             };
-            let tujuan = langkah_redirect(&sekarang, &lokasi, hop)?;
+            let tujuan = langkah_redirect_dengan(&sekarang, &lokasi, hop, kb)?;
             hop += 1;
             sekarang = tujuan.to_string();
             continue;
@@ -428,12 +612,19 @@ fn teks_dari_html(html: &str) -> String {
 
 /// Fetch one page and return just its text.
 #[tauri::command(async)]
-pub fn web_fetch(url: String, max_chars: Option<usize>) -> ZResult<String> {
+pub fn web_fetch(
+    state: tauri::State<crate::app_state::AppState>,
+    url: String,
+    max_chars: Option<usize>,
+) -> ZResult<String> {
     let batas = max_chars.unwrap_or(12_000).clamp(500, 60_000);
     // Permintaan karakter diterjemahkan ke batas byte (UTF-8 paling buruk = 4
     // byte/karakter) lalu di-clamp: bawaan 2 MiB, tidak pernah lebih dari 8 MiB.
     let batas_byte = batas_byte_dipakai(Some(batas.saturating_mul(4)));
-    let html = ambil_batas(&url, batas_byte)?;
+    // Kebijakan jaringan-lokal dibaca dari setelan yang berlaku (`zeph-buka-
+    // jaringan-lokal`). Tanpa setelan = default AMAN (jaringan lokal tertutup).
+    let kb = KebijakanJaringan::dari_setelan(&crate::settings::read_settings_value(&state));
+    let html = ambil_batas_dengan(&url, batas_byte, &kb)?;
     let teks = teks_dari_html(&html);
     if teks.is_empty() {
         return Ok("(the page has no readable text)".into());
@@ -466,13 +657,22 @@ pub fn web_fetch(url: String, max_chars: Option<usize>) -> ZResult<String> {
  * Brave's own subdomains.
  */
 #[tauri::command(async)]
-pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<HasilCari>> {
+pub fn web_search(
+    state: tauri::State<crate::app_state::AppState>,
+    query: String,
+    max_results: Option<usize>,
+) -> ZResult<Vec<HasilCari>> {
     let q = query.trim();
     if q.is_empty() {
         return Err(ZephyrError::InvalidInput("keyword is empty".into()));
     }
     let batas = max_results.unwrap_or(8).clamp(1, 20);
     let param = urlencode(q);
+
+    // Mesin pencari ini selalu publik (80/443), tapi tetap melewati gerbang
+    // yang sama dengan `web_fetch`: `portWeb`/`hopRedirect`/`izinJaringanLokal`
+    // tidak boleh punya dua wajah yang berbeda.
+    let kb = KebijakanJaringan::dari_setelan(&crate::settings::read_settings_value(&state));
 
     let mesin = [
         format!("https://search.brave.com/search?q={param}"),
@@ -482,7 +682,7 @@ pub fn web_search(query: String, max_results: Option<usize>) -> ZResult<Vec<Hasi
 
     let mut galat = String::new();
     for url in &mesin {
-        match ambil(url) {
+        match ambil_batas_dengan(url, batas_byte_dipakai(None), &kb) {
             Ok(html) => {
                 let hasil = parse_hasil(&html, batas);
                 if !hasil.is_empty() {
@@ -587,9 +787,12 @@ fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        batas_byte_dipakai, ip_terlarang, langkah_redirect, periksa_url_pane,
-        validate_outbound_url, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, PORT_SAH,
+        batas_byte_dipakai, ip_terlarang, ip_terlarang_dengan, is_metadata, langkah_redirect,
+        langkah_redirect_dengan, periksa_url_pane, periksa_url_pane_dengan, validate_outbound_url,
+        validate_outbound_url_dengan, KebijakanJaringan, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS,
+        BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, PORT_SAH,
     };
+    use std::net::IpAddr;
 
     #[test]
     fn outbound_url_rejects_private_and_local_addresses() {
@@ -715,5 +918,185 @@ mod tests {
         let ok = langkah_redirect("https://93.184.216.34/a", "/b", 0);
         assert!(ok.is_ok());
         assert_eq!(ok.expect("hop sah").as_str(), "https://93.184.216.34/b");
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* zeph-buka-jaringan-lokal: bukti on/off tiap setelan                */
+    /* ------------------------------------------------------------------ */
+
+    fn kb_lokal() -> KebijakanJaringan {
+        KebijakanJaringan {
+            izin_jaringan_lokal: true,
+            ..KebijakanJaringan::default()
+        }
+    }
+
+    #[test]
+    fn default_kebijakan_aman() {
+        let kb = KebijakanJaringan::default();
+        assert!(!kb.izin_jaringan_lokal, "jaringan lokal harus MATI secara bawaan");
+        assert_eq!(kb.hop_dipakai(), BATAS_HOP_REDIRECT);
+        assert_eq!(kb.port_dipakai(), vec![80, 443]);
+    }
+
+    #[test]
+    fn izin_jaringan_lokal_off_menolak_ip_privat() {
+        let kb = KebijakanJaringan::default();
+        for url in [
+            "http://127.0.0.1/",
+            "http://10.0.0.1/",
+            "http://192.168.1.1/",
+            "http://172.16.0.1/",
+            "http://[::1]/",
+            "http://localhost/",
+            "http://pane.local/",
+        ] {
+            assert!(
+                validate_outbound_url_dengan(url, &kb).is_err(),
+                "OFF: {url} harus ditolak"
+            );
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_err(),
+                "OFF (pane): {url} harus ditolak"
+            );
+        }
+    }
+
+    #[test]
+    fn izin_jaringan_lokal_on_membuka_ip_privat_tanpa_dns() {
+        let kb = kb_lokal();
+        // IP literal: tidak memanggil DNS, jadi uji ini tanpa jaringan.
+        for url in [
+            "http://127.0.0.1/",
+            "http://10.0.0.1/",
+            "http://192.168.1.1/",
+            "http://172.16.0.1/",
+            "http://[::1]/",
+            "http://100.64.0.1/", // CGNAT
+        ] {
+            assert!(
+                validate_outbound_url_dengan(url, &kb).is_ok(),
+                "ON: {url} harus diterima"
+            );
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_ok(),
+                "ON (pane): {url} harus diterima"
+            );
+        }
+    }
+
+    #[test]
+    fn izin_jaringan_lokal_on_membuka_nama_lokal() {
+        let kb = kb_lokal();
+        for url in ["http://localhost/", "http://pane.local/", "http://x.localhost/"] {
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_ok(),
+                "ON: nama lokal {url} harus diterima"
+            );
+        }
+        assert!(
+            periksa_url_pane_dengan("http://pane.local/", &KebijakanJaringan::default()).is_err(),
+            "OFF: nama lokal harus ditolak"
+        );
+    }
+
+    #[test]
+    fn metadata_cloud_tetap_ditolak_walau_jaringan_lokal_nyala() {
+        let kb = kb_lokal();
+        for url in [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://169.254.169.254/",
+        ] {
+            assert!(
+                validate_outbound_url_dengan(url, &kb).is_err(),
+                "ON: metadata {url} HARUS tetap ditolak"
+            );
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_err(),
+                "ON (pane): metadata {url} HARUS tetap ditolak"
+            );
+        }
+        let meta: IpAddr = "169.254.169.254".parse().expect("ip uji");
+        assert!(is_metadata(meta));
+        assert!(ip_terlarang_dengan(meta, true), "metadata dilarang walau izin nyala");
+        assert!(ip_terlarang_dengan(meta, false));
+    }
+
+    #[test]
+    fn skema_terlarang_dan_userinfo_tetap_ditolak_saat_jaringan_lokal_nyala() {
+        let kb = kb_lokal();
+        for url in [
+            "file:///etc/passwd",
+            "javascript:alert(1)",
+            "data:text/html,<h1>x</h1>",
+            "about:blank",
+        ] {
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_err(),
+                "ON: skema {url} HARUS tetap ditolak"
+            );
+        }
+        let trik = format!("https://contoh.com{}jahat.com/x", "@");
+        assert!(
+            periksa_url_pane_dengan(&trik, &kb).is_err(),
+            "ON: userinfo HARUS tetap ditolak"
+        );
+    }
+
+    #[test]
+    fn port_web_off_default_hanya_80_443() {
+        let kb = KebijakanJaringan::default();
+        assert!(periksa_url_pane_dengan("https://contoh.com/x", &kb).is_ok());
+        assert!(periksa_url_pane_dengan("https://contoh.com:8080/x", &kb).is_err());
+        assert!(validate_outbound_url_dengan("https://127.0.0.1:8080/", &kb).is_err());
+    }
+
+    #[test]
+    fn port_web_on_membuka_port_tambahan_tetap_menolak_lainnya() {
+        let kb = KebijakanJaringan {
+            port_sah: vec![8080, 3000],
+            ..KebijakanJaringan::default()
+        };
+        assert!(periksa_url_pane_dengan("https://contoh.com:8080/x", &kb).is_ok());
+        assert!(periksa_url_pane_dengan("http://contoh.com:3000/x", &kb).is_ok());
+        // 80/443 tetap sah walau tidak didaftarkan ulang.
+        assert!(periksa_url_pane_dengan("https://contoh.com/x", &kb).is_ok());
+        // Port yang tidak terdaftar tetap ditolak.
+        assert!(periksa_url_pane_dengan("https://contoh.com:9090/x", &kb).is_err());
+        assert!(kb.port_diizinkan(8080) && kb.port_diizinkan(443) && !kb.port_diizinkan(9090));
+    }
+
+    #[test]
+    fn hop_redirect_off_default_dan_on_mengikuti_setelan_dengan_clamp() {
+        // OFF (bawaan): 5 hop -> hop ke-5 (index 5) ditolak.
+        let kb = KebijakanJaringan::default();
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 4, &kb).is_ok());
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 5, &kb).is_err());
+
+        // ON: hopRedirect 8 -> hop ke-8 boleh, hop ke-8 (index 8) ditolak.
+        let kb8 = KebijakanJaringan {
+            hop_redirect: 8,
+            ..KebijakanJaringan::default()
+        };
+        assert_eq!(kb8.hop_dipakai(), 8);
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 7, &kb8).is_ok());
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 8, &kb8).is_err());
+
+        // Clamp keras: 99 -> 10.
+        let kb99 = KebijakanJaringan {
+            hop_redirect: 99,
+            ..KebijakanJaringan::default()
+        };
+        assert_eq!(kb99.hop_dipakai(), HOP_REDIRECT_MAKS);
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 9, &kb99).is_ok());
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "https://contoh.com/b", 10, &kb99).is_err());
+    }
+
+    #[test]
+    fn langkah_redirect_on_tetap_menolak_metadata_dan_privat_sesuai_kebijakan() {
+        let kb = kb_lokal();
+        // Jaringan lokal nyala: 127.0.0.1 boleh, tapi metadata TETAP ditolak.
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "http://127.0.0.1/", 0, &kb).is_ok());
+        assert!(langkah_redirect_dengan("https://contoh.com/a", "http://169.254.169.254/", 0, &kb).is_err());
     }
 }
