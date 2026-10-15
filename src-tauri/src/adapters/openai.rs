@@ -646,6 +646,27 @@ fn parse_argumen_tool(raw: &str, truncated: bool, name: &str) -> Result<Value, S
             return Ok(v);
         }
     }
+    /* Kandidat penyelamat TERAKHIR: objek argumen yang salah BUNGKUS. Model
+     * menulis pasangan `kunci: "nilai"` di dalam kurung SIBUK `[...]` padahal
+     * yang benar adalah kurung KURAWIK `{...}` - isinya sudah berupa daftar
+     * kunci/nilai, hanya kurung terluarnya yang keliru. Ditukar HANYA dua
+     * kurung itu; isi di antaranya (termasuk array/objek bersarang) tidak
+     * disentuh, dan tangga perbaikan di atas tidak diubah - ini kandidat
+     * tambahan yang dicoba kalau semua langkah lama sudah menyerah.
+     *
+     * Syarat `:` di dalam menjaga `[]` tetap diperlakukan seperti dulu: kurung
+     * kosong bukan objek yang salah bungkus, dan mengubahnya jadi `{}` akan
+     * menelan galat "must be a JSON object" yang memang harus muncul. */
+    let sibuk = bersih.trim();
+    if sibuk.starts_with('[') && sibuk.ends_with(']') {
+        let isi = &sibuk[1..sibuk.len() - 1];
+        if isi.contains(':') {
+            let tekar = format!("{{{}}}", isi);
+            if let Ok(v) = serde_json::from_str::<Value>(&tekar) {
+                return Ok(v);
+            }
+        }
+    }
     if truncated {
         return Err(format!(
             "tool call \"{name}\" terpotong karena batas token keluaran tercapai — \
@@ -844,6 +865,30 @@ mod tests {
 
         let hasil = parse_tool_response(&response).expect("objek terluar harus diambil");
         assert_eq!(hasil.tool_calls[0].args["path"], "a.txt");
+    }
+
+    #[test]
+    fn repairs_arguments_wrapped_in_brackets_instead_of_braces() {
+        /* Kasus nyata: model menulis objek argumen sebagai daftar berpasangan
+           di dalam kurung SIBUK - `["path": "a.txt", ...]` - bukan kurung
+           kurawik. Dulu bentuk itu langsung "malformed JSON arguments" dan
+           mematikan run. Hanya kurung terluarnya yang ditukar, jadi isi
+           bersarang di dalamnya tetap utuh. */
+        let args = "[\"path\": \"a.txt\", \"tags\": [\"x\", \"y\"]]";
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": { "name": "write_file", "arguments": args }
+                    }]
+                }
+            }]
+        });
+
+        let hasil = parse_tool_response(&response).expect("kurung sibuk harus jadi kurawik");
+        assert_eq!(hasil.tool_calls[0].args["path"], "a.txt");
+        assert_eq!(hasil.tool_calls[0].args["tags"], json!(["x", "y"]));
     }
 
     #[test]
