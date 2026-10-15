@@ -132,11 +132,21 @@ export const TOOL_MCP: AgentTool[] = [
           2,
         );
       }
+      /*
+       * Kedua cabang di bawah dulu menjawab dengan KONSTANTA: `[]` untuk
+       * ekstensi dan string "[logs sistem normal]" untuk log. Keduanya
+       * "berhasil" tanpa membaca apa pun - dan itu jenis jawaban yang paling
+       * berbahaya untuk sebuah alat introspeksi: model menyimpulkan "tidak ada
+       * ekstensi terpasang" atau "log bersih" dari data yang tidak pernah
+       * dibaca. Sekarang keduanya memanggil sumbernya yang sebenarnya.
+       */
       if (what === 'extensions') {
-        return JSON.stringify([], null, 2);
+        const daftar = await cmd.extensionsList().catch(() => []);
+        return JSON.stringify(daftar, null, 2);
       }
       if (what === 'logs') {
-        return '[logs sistem normal]';
+        const baris = await cmd.logTail(60).catch(() => []);
+        return baris.length ? baris.join('\n') : 'Berkas log aplikasi kosong.';
       }
       return `Tidak ada kategori inspect: ${what}`;
     },
