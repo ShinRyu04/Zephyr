@@ -2,6 +2,7 @@ import { snippetCompletion } from '@codemirror/autocomplete';
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import * as cmd from './commands';
+import { setToolEkstensi } from './toolGate';
 import type {
   ContribLanguage,
   ContribSnippet,
@@ -418,6 +419,9 @@ async function muatIconTheme(
 const extCommands: Array<{ id: string; title: string; description: string; extId: string }> = [];
 export const commandsEkstensi = () => extCommands.slice();
 
+/* Tool dari paket, dirakit selama pemuatan lalu diserahkan sekali di akhir. */
+const hasilToolEkstensi: Array<{ id: string; label: string; tools: string[] }> = [];
+
 export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
   /*
    * Guarantee the id set is complete before a single extension keymap is
@@ -439,6 +443,10 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
   kosongkanIkonExt();
   langPemilik.clear();
   extCommands.length = 0;
+
+  /* Daftar dibangun ulang tiap pemuatan: paket yang sudah dilepas harus
+     benar-benar hilang dari picker, bukan menumpuk dari pemuatan sebelumnya. */
+  hasilToolEkstensi.length = 0;
 
   const hasil: LoaderRingkasan = {
     themes: [],
@@ -488,6 +496,32 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
     }
 
     /*
+     * Perintah paket juga menjadi TOOL yang dilihat agen.
+     *
+     * Sebelum ini `contributes.commands` hanya masuk `extCommands` - daftar
+     * yang dibaca palet perintah, bukan loop agen. Akibatnya paket yang membawa
+     * perintah tampil di kartunya dan tidak menambah satu kemampuan pun yang
+     * bisa dipanggil model: bentuk kegagalan yang paling sulit dilihat, karena
+     * tidak ada yang error.
+     */
+    const toolPaket = m.contributes.commands
+      .filter((c) => (c.id ?? '').trim().length > 0)
+      .map((c) => {
+        /*
+         * Buang awalan yang Rust tambahkan ke id perintah (`ext.<paket>.`).
+         * Tanpa ini nama tool berisi paketnya dua kali
+         * (`ext__zephyr.zephyr.uji__ext.zephyr.zephyr.uji.satu`), dan yang
+         * dibaca model adalah jalur paket, bukan nama aksinya.
+         */
+        const awalan = `ext.${m.id}.`;
+        const bersih = c.id.startsWith(awalan) ? c.id.slice(awalan.length) : c.id;
+        return `ext__${m.id}__${bersih}`;
+      });
+    if (toolPaket.length > 0) {
+      hasilToolEkstensi.push({ id: m.id, label: m.name || m.id, tools: toolPaket });
+    }
+
+    /*
      * TextMate grammars are parsed by Rust (`contributes.grammars`) but nothing
      * in the editing stack consumes them. Report that plainly rather than
      * letting the user conclude the pack does nothing.
@@ -500,7 +534,50 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
         alasan: `paket ini menyumbang ${grammars.length} grammar TextMate, tetapi Zephyr belum punya mesin TextMate - penyorotan warna tetap memakai bahasa bawaan.`,
       });
     }
+
+    /*
+     * Debug adapters (`contributes.debuggers` / `contributes.debugAdapters`).
+     *
+     * The loader does not start them - nothing does - so this list is the only
+     * place a user finds out. The reason is not "unsupported": Zephyr speaks
+     * DAP (`dap.rs`), but its adapter registry is fixed (node via js-debug,
+     * python via debugpy) and `dap_start` builds the command line from
+     * `spec_node`/`spec_python`; no code path reads `program`/`runtime` out of
+     * a manifest. Saying that is the difference between "this pack is broken"
+     * and "this pack is detected but never started".
+     */
+    const dap = (m.contributes as { debugAdapters?: Array<{ type?: string; label?: string }> })
+      .debugAdapters ?? [];
+    if (dap.length > 0) {
+      const nama = dap
+        .map((d) => (d.label ?? '').trim() || (d.type ?? '').trim() || '(unnamed)')
+        .join(', ');
+      hasil.tidakDidukung.push({
+        id: m.id,
+        fitur: 'debugAdapters',
+        alasan: `paket ini menyumbang ${dap.length} debug adapter (${nama}), tetapi Zephyr belum menjalankan adapter dari paket: registry-nya tetap (node, python) dan tidak ada jalur kode yang membaca program/runtime dari manifest - adapter terdeteksi, belum dijalankan.`,
+      });
+    }
   }
+
+  /*
+   * Serahkan tool paket ke sekat tool SEKALI di akhir pemuatan.
+   *
+   * Per paket, bukan per tool: picker menampilkan bagian EXTENSIONS sebagai
+   * satu kelompok per ekstensi (`api-client 0/11`), jadi user bisa mematikan
+   * satu paket tanpa menyentuh paket lain - dan nama paket yang membawa tool
+   * selalu terbaca.
+   */
+  setToolEkstensi(
+    hasilToolEkstensi.map((g) => ({
+      id: `ekstensi-${g.id}`,
+      label: g.label,
+      section: 'ekstensi' as const,
+      optional: true,
+      tools: g.tools,
+      ekstensiId: g.id,
+    })),
+  );
 
   ringkasanTerakhir = hasil;
 

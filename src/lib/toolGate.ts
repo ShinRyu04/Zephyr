@@ -48,18 +48,31 @@ import {
 /* ------------------------------------------------------------------ */
 
 /* Dua tingkat: bagian dulu, lalu kelompok di dalamnya. */
-export type ToolSection = 'builtin' | 'mcp';
+export type ToolSection = 'builtin' | 'mcp' | 'ekstensi';
 
-/** Dua bagian yang ditampilkan oleh picker, dalam urutan visualnya. */
+/** Bagian yang ditampilkan oleh picker, dalam urutan visualnya. */
 export const SECTION_URUTAN: { id: ToolSection; label: string }[] = [
   { id: 'builtin', label: 'BUILT-IN' },
   { id: 'mcp', label: 'MCP' },
+  { id: 'ekstensi', label: 'EXTENSIONS' },
 ];
 
 /** Web/browser adalah kelompok bawaan di picker, walau tetap opsional. */
 export function sectionOf(source: ToolSource): ToolSection {
-  return source === 'mcp' ? 'mcp' : 'builtin';
+  if (source === 'mcp') return 'mcp';
+  if (source === 'ekstensi') return 'ekstensi';
+  return 'builtin';
 }
+
+/*
+ * Bagian EKSTENSI sengaja tetap ada walau katalog belum memuat satu pun tool
+ * ber-sumber 'ekstensi'. Alasannya sama dengan bagian MCP: user membandingkan
+ * panel ini dengan editor lain yang menunjukkan tiga bagian, dan bagian yang
+ * HILANG saat kosong membuatnya terbaca sebagai fitur yang tidak ada. Bagian
+ * kosong yang jujur ("belum ada ekstensi yang membawa tool") lebih baik
+ * daripada bagian yang muncul-hilang tergantung isi katalog.
+ */
+export const EKSTENSI_ADA = SECTION_URUTAN.some((s) => s.id === 'ekstensi');
 
 export interface ToolGroup {
   id: string;
@@ -69,6 +82,15 @@ export interface ToolGroup {
   optional: boolean;
   /** Nama tool yang dilihat model - kunci yang sama dengan `aktif`. */
   tools: string[];
+  /*
+   * Id paket ekstensi yang membawa kelompok ini, kalau ada.
+   *
+   * Picker mengelompokkan bagian EKSTENSI per PAKET (`api-client 0/11`),
+   * bukan per nama kelompok seperti bagian lain - itu yang membuat user bisa
+   * melihat ekstensi mana yang menyumbang tool apa, dan mematikan satu paket
+   * tanpa menyentuh paket lain. `undefined` untuk kelompok bawaan/MCP.
+   */
+  ekstensiId?: string;
 }
 
 /**
@@ -78,16 +100,122 @@ export interface ToolGroup {
  * mencari grup dengan `find(g => g.id === id)`, jadi id yang terulang membuat
  * setiap grup setelahnya tidak bisa di-toggle.
  */
+/* ------------------------------------------------------------------ */
+/* Registry tool dari EKSTENSI (runtime)                              */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Tool yang dibawa paket ekstensi terpasang.
+ *
+ * Ini SATU-SATUNYA kelompok yang isinya tidak berasal dari katalog, karena
+ * katalog dibekukan saat build sementara ekstensi dipasang dan dilepas saat
+ * app berjalan. Karena itu ia hidup di variabel yang bisa diisi ulang
+ * (`setToolEkstensi`), bukan di `const` hasil pemetaan katalog.
+ *
+ * Satu kelompok per PAKET, sesuai bentuk yang user lihat di editor lain
+ * (`api-client 0/11`, `browser 0/1`): mematikan satu paket tidak menyentuh
+ * paket lain, dan nama paket yang membawa tool selalu terbaca.
+ */
+/*
+ * Disimpan di globalThis, BUKAN di variabel modul.
+ *
+ * Vite menyajikan modul yang sama di bawah dua URL yang berbeda setelah HMR
+ * (`/src/lib/toolGate.ts` dan `/src/lib/toolGate.ts?t=...`), dan dua URL berarti
+ * dua instance modul. Kalau daftar ini hidup di variabel modul, ekstensi yang
+ * mendaftarkan toolnya lewat satu instance dan picker yang membacanya lewat
+ * instance lain: bagian EXTENSIONS selalu kosong walau paketnya terpasang dan
+ * loader melaporkan perintahnya. Satu slot global membuat keduanya menunjuk
+ * daftar yang sama, apa pun URL yang dipakai untuk mengimpornya.
+ */
+const SLOT_TOOL_EKSTENSI = '__ZEPHYR_TOOL_EKSTENSI__';
+type SlotGlobal = { [SLOT_TOOL_EKSTENSI]?: ToolGroup[] };
+
+function slot(): ToolGroup[] {
+  const g = globalThis as unknown as SlotGlobal;
+  if (!g[SLOT_TOOL_EKSTENSI]) g[SLOT_TOOL_EKSTENSI] = [];
+  return g[SLOT_TOOL_EKSTENSI];
+}
+
+/**
+ * Ganti seluruh daftar tool dari ekstensi.
+ *
+ * Dipanggil saat ekstensi dipasang/dilepas/dinyalakan - sumbernya manifest
+ * paket (`contributes.commands`), bukan tulisan tangan. Memanggilnya dengan
+ * daftar kosong adalah keadaan yang sah: tidak ada ekstensi yang membawa tool.
+ */
+export function setToolEkstensi(grup: ToolGroup[]): void {
+  slot().length = 0;
+  slot().push(...grup.map((g) => ({ ...g, section: 'ekstensi' as ToolSection })));
+
+  /*
+   * `SEMUA_TOOL` diperbarui DI TEMPAT (push/splice), bukan diganti array baru.
+   *
+   * Daftar itu dikonsumsi sebagai nilai oleh banyak pemanggil
+   * (`SEMUA_TOOL.includes(n)` di `setGrup`/`semua`, dan `periksaSekat`), dan
+   * sebagian membacanya saat modul dimuat. Menggantinya dengan array baru
+   * membuat mereka semua memegang daftar lama: tool ekstensi tampil di picker
+   * tapi tombolnya tidak berefek, dan sekat melaporkan tool tak dikenal.
+   * Mutasi di tempat membuat referensi yang sudah dipegang tetap benar.
+   */
+  const daftar = daftarSemua();
+  const nama = slot().flatMap((g) => g.tools);
+  const tambahan = nama.filter((n) => !daftar.includes(n));
+  const hilang = daftar.filter((n) => !TOOL_NAMES.includes(n) && !nama.includes(n));
+  for (const n of tambahan) daftar.push(n);
+  for (const n of hilang) {
+    const i = daftar.indexOf(n);
+    if (i >= 0) daftar.splice(i, 1);
+  }
+}
+
+/** Kelompok tool yang datang dari ekstensi, untuk picker. */
+export function grupEkstensi(): readonly ToolGroup[] {
+  return slot();
+}
+
+/** Semua nama tool dari ekstensi - dipakai agar toggle & hitungan ikut benar. */
+export function namaToolEkstensi(): string[] {
+  return slot().flatMap((g) => g.tools);
+}
+
 export const TOOL_GROUPS: ToolGroup[] = kelompokKatalog().map((k) => ({
   id: `${k.source}:${k.group}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
   label: k.group,
   section: sectionOf(k.source),
-  optional: k.source === 'web',
+  optional: k.source === 'web' || k.source === 'ekstensi',
   tools: k.names,
 }));
 
 /** Semua tool yang dikenali sekat. Turunan dari katalog. */
-export const SEMUA_TOOL: string[] = [...TOOL_NAMES];
+/**
+ * Semua tool yang dikenali sekat: katalog + yang dibawa ekstensi.
+ *
+ * Ekstensi HARUS ikut di sini. `setGrup` dan `semua` menyaring lewat daftar
+ * ini (`SEMUA_TOOL.includes(n)`), jadi tool ekstensi yang tidak terdaftar di
+ * sini akan tampil di picker tapi tombolnya tidak berefek - persis kegagalan
+ * senyap yang paling sulit dilihat.
+ */
+/*
+ * Semua tool yang dikenali sekat: katalog + yang dibawa ekstensi.
+ *
+ * Bentuknya getter ke slot global, bukan array yang dibekukan saat modul
+ * dimuat. Dua alasan, dan keduanya pernah menjadi bug nyata:
+ *
+ *   - Vite menyajikan satu modul di bawah dua URL (lihat SLOT_TOOL_EKSTENSI),
+ *     jadi array modul-level berarti dua daftar yang berbeda antara pemanggil
+ *     dan pendaftar.
+ *   - Ekstensi dipasang SESUDAH modul ini dimuat. Array yang dihitung sekali
+ *     akan selalu berisi katalog saja, sehingga tool ekstensi tampil di picker
+ *     tapi `setGrup` menolaknya (`SEMUA_TOOL.includes(n)`) dan tombolnya tidak
+ *     berefek - kegagalan senyap yang paling sulit dilihat.
+ */
+function daftarSemua(): string[] {
+  const g = globalThis as unknown as { __ZEPHYR_SEMUA_TOOL__?: string[] };
+  if (!g.__ZEPHYR_SEMUA_TOOL__) g.__ZEPHYR_SEMUA_TOOL__ = [...TOOL_NAMES];
+  return g.__ZEPHYR_SEMUA_TOOL__;
+}
+
+export const SEMUA_TOOL: string[] = daftarSemua();
 
 /* ------------------------------------------------------------------ */
 /* Kelas efek - satu sumber, bukan beberapa daftar terpisah.          */
