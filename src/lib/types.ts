@@ -555,8 +555,21 @@ export interface CliStatus {
 export interface McpServer {
   id: string;
   label: string;
+  /** URL server yang sudah hidup (transport http). */
   url: string;
   token: string;
+  /**
+   * Perintah yang dijalankan Zephyr sendiri (transport stdio).
+   *
+   * Server MCP dari katalog hampir semuanya didistribusikan begini -
+   * `npx -y @modelcontextprotocol/server-x` - dan bicara lewat stdin/stdout,
+   * bukan lewat URL. Dua transport hidup berdampingan: `command` menang kalau
+   * terisi, `url` dipakai kalau tidak.
+   */
+  command?: string;
+  args?: string[];
+  /** Direktori kerja perintah (opsional; kosong = direktori app). */
+  cwd?: string;
 }
 
 export interface McpToolSpec {

@@ -51,7 +51,16 @@ interface McpActions {
   writeToCli: () => Promise<void>;
   removeFromCli: () => Promise<void>;
   refreshServers: () => Promise<void>;
-  saveServer: (s: { id: string; label: string; url: string; token: string }) => Promise<boolean>;
+  saveServer: (s: {
+    id: string;
+    label: string;
+    url: string;
+    token: string;
+    /** Transport stdio (opsional): perintah + argumen + cwd. */
+    command?: string;
+    args?: string[];
+    cwd?: string;
+  }) => Promise<boolean>;
   removeServer: (id: string) => Promise<void>;
   testServer: (url: string, token: string) => Promise<number | null>;
   copyToken: () => Promise<void>;
@@ -270,15 +279,34 @@ export const useMcp = create<McpStore>((set, get) => ({
 
   saveServer: async (s) => {
     const url = s.url.trim();
-    if (!url) {
-      set({ mcpError: 'MCP server URL is required' });
+    const command = (s.command ?? '').trim();
+    /*
+     * Salah satu transport harus ada. Dulu URL wajib; sekarang tidak, karena
+     * server stdio tidak punya URL - yang wajib adalah BISA DIPAKAI. Pesannya
+     * menyebut kedua pilihan supaya user tahu apa yang kurang, bukan sekadar
+     * "URL wajib" pada server yang memang tidak memakai URL.
+     */
+    if (!url && !command) {
+      set({ mcpError: 'MCP server needs a URL or a command' });
       return false;
     }
     set({ busy: true, mcpError: null, mcpInfo: null });
     try {
-      await cmd.mcpClientSave({ id: s.id, label: s.label, url, token: s.token });
+      await cmd.mcpClientSave({
+        id: s.id,
+        label: s.label,
+        url,
+        token: s.token,
+        command,
+        args: s.args ?? [],
+        cwd: s.cwd ?? '',
+      });
       await get().refreshServers();
-      set({ mcpInfo: `External MCP server saved (${url})` });
+      set({
+        mcpInfo: command
+          ? `MCP server saved (stdio: ${command})`
+          : `External MCP server saved (${url})`,
+      });
       return true;
     } catch (e) {
       set({ mcpError: cmd.asZephyrError(e).message });
