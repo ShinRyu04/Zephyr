@@ -5393,6 +5393,21 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     let sudahDiberiPeringatanBrowserMuter = false;
     /*
+     * Jaring pengaman untuk `izin-isi-web-mati` (temuan 2026-10-15).
+     *
+     * Ketika `izinIsiWeb` mati (itu DEFAULT, lihat `kebijakanIsiWeb.ts:98`),
+     * `web_fetch`/`web_search` menolak dengan teks yang berisi
+     * "izin-isi-web-mati". Model lalu mengulang fetch dengan argumen lain,
+     * ditolak lagi, dan loop itu baru berhenti setelah disodok 20x oleh
+     * BATAS_LANJUT_TANPA_TOOL - pengguna melihat "thinking" lama sekali lalu
+     * run mati sendiri tanpa penjelasan.
+     *
+     * Penghitungnya SEKALI PER RUN, bukan per langkah: izin yang mati tidak
+     * berubah di tengah run, jadi mengulang percobaan ke-N sama saja dengan
+     * percobaan pertama.
+     */
+    let izinWebMatiPercobaan = 0;
+    /*
      * A(i)/A(iv): keadaan yang hanya perlu dihitung SEKALI per run.
      *
      * Tugasnya dibekukan di sini, bukan dibaca ulang tiap langkah: yang
@@ -6969,6 +6984,40 @@ export const useAi = create<AiStore>((set0, get) => {
             });
             break;
           }
+          /*
+           * izin-isi-web-mati: setelannya ada di TANGAN PENGGUNA, jadi
+           * mengulang fetch dengan argumen apa pun hanya membuang-buang
+           * iterasi - persis loop yang pernah terlihat di app.
+           *
+           * Peringatan pertama MENYURUH BERHENTI mencari di web dan menjawab
+           * user, lengkap dengan cara menyalakan izinnya. Percobaan kedua
+           * mengakhiri run: model tidak bisa menyalakan setelan itu sendiri,
+           * jadi melanjutkan hanya mengulang kegagalan yang sama.
+           *
+           * `!ok` ikut diperiksa supaya membaca berkas yang MEMUAT teks
+           * "izin-isi-web-mati" (mis. web.ts sendiri lewat read_file) tidak
+           * dihitung sebagai penolakan.
+           */
+          if (!ok && hasil.includes('izin-isi-web-mati')) {
+            izinWebMatiPercobaan += 1;
+            if (izinWebMatiPercobaan === 1) {
+              hasil =
+                '(izin-isi-web-mati: fetching the web is DISABLED for this workspace.\n' +
+                'It is a user setting (Settings > AI Tools > Web fetching, `izinIsiWeb`) ' +
+                'and you cannot turn it on,\nso do NOT retry web_fetch, web_search, ' +
+                'browser_open or download with any URL - every attempt\nreturns this ' +
+                'same refusal.\nAnswer the user NOW: report that web access is off ' +
+                'and how to enable it, then finish whatever\npart of the task can be ' +
+                'done offline. If the whole task needs the web, say so plainly and stop.)';
+            } else {
+              akhir =
+                'Stopped: web fetching is disabled (izinIsiWeb is off) and the attempt ' +
+                'was retried.\nEnable it in Settings > AI Tools > Web fetching, then ' +
+                'run the task again.';
+              agentStopReason = 'guard';
+              agentBatal = true;
+            }
+          }
           if (ok && (tc.name === 'browser_open' || tc.name === 'system_browser_open')) {
             halamanTerbuka = true;
             /*
@@ -7211,7 +7260,7 @@ export const useAi = create<AiStore>((set0, get) => {
           }
           if (taskComplete || navigationOpened) break;
         }
-        if (taskComplete || navigationOpened) break;
+        if (taskComplete || navigationOpened || agentBatal) break;
 
         /*
          * Goal-satisfied guard — diperiksa sekali per LANGKAH, bukan per
