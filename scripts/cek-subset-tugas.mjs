@@ -208,9 +208,14 @@ const tanpaFolder = T.pilihToolTugas('Baca berkas ini', AKTIF, false);
 if (tanpaFolder.some((n) => T.BUTUH_FOLDER_TUGAS.includes(n)))
   cek.push('tool butuh folder ikut terkirim saat tidak ada folder');
 if (T.BATAS_TOOL_TUGAS !== 20) cek.push(`BATAS_TOOL_TUGAS = ${T.BATAS_TOOL_TUGAS}, harus 20`);
-if (T.TOOL_INTI_TUGAS.length < 10) cek.push('daftar tool inti terlalu pendek');
-for (const wajib of ['read_file', 'write_file', 'grep', 'glob', 'bash_run', 'todo_write', 'think', 'ask_user', 'tool_search', 'tool_call'])
+if (T.TOOL_INTI_TUGAS.length < 8) cek.push('daftar tool inti terlalu pendek');
+for (const wajib of ['read_file', 'write_file', 'grep', 'glob', 'bash_run', 'todo_write', 'tool_search', 'tool_call'])
   if (!T.TOOL_INTI_TUGAS.includes(wajib)) cek.push(`tool inti wajib tidak ada: ${wajib}`);
+/* Hasil pemangkasan berbasis data run nyata (153 langkah, 10 nama 0 pemakaian)
+   harus TETAP terpangkas - jangan dikembalikan diam-diam. */
+const DIPANGKAS_DATA = ['edit', 'delete_file', 'move_file', 'copy_file', 'list_directory', 'think', 'ask_user'];
+for (const n of DIPANGKAS_DATA)
+  if (AKTIF.includes(n)) cek.push(`tool 0-pemakaian sudah dikembalikan ke TOOL_DIKIRIM_SELALU: ${n}`);
 /* Kembar tidak boleh dikirim bertiga/berdua sekaligus. */
 const kembar = [
   ['ganti-teks-berkas', ['edit', 'multi_edit', 'replace_in_files']],

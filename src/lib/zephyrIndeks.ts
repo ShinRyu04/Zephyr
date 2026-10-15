@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.13 · hash sumber: 841ead6a570703ad
+ * Versi app: 1.1.13 · hash sumber: 39f4e0cc1e827154
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.13', hashSumber: '841ead6a570703ad' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.13', hashSumber: '39f4e0cc1e827154' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -844,7 +844,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrTools/ambilWeb.ts","736 baris · ambilWeb.ts — rumah satu-satunya untuk kemampuan \"AMBIL-WEB\" agen Zephyr. · ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb"],
   ["kode","src/lib/zephyrTools/awalan.ts","33 baris · Satu-satunya definisi awalan nama tool. · ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
   ["kode","src/lib/zephyrTools/builtins.ts","2565 baris · Tool bawaan - implementasi untuk 40 nama pertama di katalog. · ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
-  ["kode","src/lib/zephyrTools/catalog.ts","611 baris · Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. · ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
+  ["kode","src/lib/zephyrTools/catalog.ts","614 baris · Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. · ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
   ["kode","src/lib/zephyrTools/deskripsiTool.ts","816 baris · ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
   ["kode","src/lib/zephyrTools/deskripsiToolHook.ts","35 baris · deskripsiToolHook.ts - versi HOOK dari deskripsi tool, sengaja dipisah. · ekspor: useDeskripsiTool"],
   ["kode","src/lib/zephyrTools/kebijakanIsiWeb.ts","491 baris · KEBIJAKAN ISI WEB — satu tempat yang memutuskan apakah isi halaman dari · ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG, KebijakanIsiWeb, Keputusan, KeputusanUrl, HasilIsi, HasilSaring, Fetcher, KEBIJAKAN_TOLAK_SEMUA, kebijakanDariSetelan, normalisasiHost, isIpLiteral, isIpMetadata, isIpPrivat, isIpSelaluDilarang, isIpTerlarang, namaLokal, hostDiAllowlist, portSahBerlaku, hopBerlaku, periksaUrl, gerbangIsiKonten, ikutiRedirect, batasByteBerlaku, batasKarakterBerlaku, ukuranByte, batasiByte, potongKeluaran, saringKeModel, ambilIsiWeb"],

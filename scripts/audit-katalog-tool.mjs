@@ -369,6 +369,28 @@ const SEBUTAN_PROSA = {
       'systemPrompt.ts ID: "tool language-server dan replace_in_files ditunda, bukan dihapus"',
     ],
   },
+  /* Dipangkas dari TOOL_DIKIRIM_SELALU (0 pemakaian pada 153 langkah run nyata),
+     tapi tetap dijelaskan lewat jalur deklaratif cari-dulu: namanya disebut di
+     kalimat yang menyuruh model MENEMUKAN tool-nya lewat tool_search, bukan
+     ajakan memakainya langsung. Tool-nya tetap ada di katalog. */
+  delete_file: {
+    bukti: [
+      'systemPrompt.ts EN: "delete, move and copy a file through tool_search -> delete_file/move_file/copy_file"',
+      'systemPrompt.ts ID: "hapus/pindah/salin berkas lewat tool_search -> delete_file/move_file/copy_file"',
+    ],
+  },
+  move_file: {
+    bukti: [
+      'systemPrompt.ts EN: "delete, move and copy a file through tool_search -> delete_file/move_file/copy_file"',
+      'systemPrompt.ts ID: "hapus/pindah/salin berkas lewat tool_search -> delete_file/move_file/copy_file"',
+    ],
+  },
+  copy_file: {
+    bukti: [
+      'systemPrompt.ts EN: "delete, move and copy a file through tool_search -> delete_file/move_file/copy_file"',
+      'systemPrompt.ts ID: "hapus/pindah/salin berkas lewat tool_search -> delete_file/move_file/copy_file"',
+    ],
+  },
 };
 const sebutanProsa = diRoutePrompt.filter((n) => SEBUTAN_PROSA[n] && !DIKIRIM_SELALU.includes(n));
 const jebakanNyata = jebakan.filter((n) => !SEBUTAN_PROSA[n]);
