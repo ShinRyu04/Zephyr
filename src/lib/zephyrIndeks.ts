@@ -855,7 +855,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrTools/web.ts","847 baris · Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. · ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
   ["kode","src/lib/zephyrTools/worktree.ts","279 baris · worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. · ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
   ["kode","src/lib/zephyrTools/zephyrIngat.ts","207 baris · `ingat` - memori lintas sesi milik Zeph AI sendiri. · ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
-  ["kode","src/lib/zephyrTools/zephyrSelf.ts","676 baris · zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. · ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
+  ["kode","src/lib/zephyrTools/zephyrSelf.ts","687 baris · zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. · ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
   ["kode","src/main.tsx","51 baris · tanpa ekspor"],
   ["kode","src/styles/editor-themes.ts","160 baris · ekspor: warnaToken, zephyrHighlight, editorTheme, EDITOR_THEME_IDS"],
   ["kode","src/vite-env.d.ts","2 baris · /// <reference types=\"vite/client\" /> · tanpa ekspor"],
