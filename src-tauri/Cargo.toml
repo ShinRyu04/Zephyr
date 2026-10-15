@@ -1,6 +1,6 @@
 [package]
 name = "zephyr"
-version = "1.1.13"
+version = "1.1.14"
 description = "A lightweight Windows code editor that AI CLIs can drive"
 authors = ["Zephyr"]
 license = "Apache-2.0"
