@@ -43,7 +43,17 @@ export const ACTIONS: ActionDef[] = [
   { id: 'terminal.new', label: 'Pane terminal baru', group: 'Terminal', default: 'Ctrl+Shift+T' },
   { id: 'terminal.newPane', label: 'Pane terminal baru (alt)', group: 'Terminal', default: 'Ctrl+Shift+`' },
 
-  { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: 'Ctrl+Shift+A' },
+  /*
+   * No default chord: `Ctrl+Shift+A` belongs to `agents.openWindow` now
+   * (keybindings.ts), which is what actually opens the 3-column Agents
+   * workspace from the main window. This row used to claim the same chord, so
+   * the Settings page advertised a shortcut for the AI panel that the key
+   * router would never deliver — the Agents command won at resolve time. The
+   * panel is still reachable from the palette and from Customize Layout; the
+   * row is kept so an existing user remap survives, but it ships unbound rather
+   * than shipping a lie.
+   */
+  { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: '' },
   { id: 'ai.send', label: 'Send AI prompt', group: 'AI', default: 'Ctrl+Enter' },
   { id: 'git.panel', label: 'Open Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
 

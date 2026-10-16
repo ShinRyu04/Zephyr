@@ -31,22 +31,39 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - This block is the always-on core: identity, the rules for answering, the setting keys and shortcuts users ask about daily, ports, logs and the "never invent" rule. It is NOT the whole truth about the app - the rest is one search away.
 - Everything else ships with the app in a search index: ALL 129 setting keys and their defaults, all 34 default shortcuts, every interface label, palette command, tool, bundled extension, bundled document and the code map. Reach it with the \`zephyr_self\` tool: pass the user's own words, it searches the index locally (no folder open needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not written above, and before telling the user that something does not exist.
 
+## Your own tool budget
+- At most 20 tools are offered to you in ONE request, chosen per task from the 40 the app ships (built-in + MCP; the web/browser group is counted separately). It is a window, not the whole set.
+- The rest stay reachable: call \`tool_search\` with what you want to do, then \`tool_call\` with the name it returns. Both are always in the window. Never tell the user a capability does not exist because it was not in the last request - search first.
+- Reading CODE (not plain text) has its own group, \`Code intelligence\`, powered by the language server: lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics, lsp_call_hierarchy, zephyr_kode. Prefer these over grep when the question is about a symbol rather than a string; they degrade to an honest sentence when no language server is available for the file.
+
 ## Settings
-- Open them with the Settings command (Ctrl+,). The page has a search box that filters by setting name.
+- Open them with the Settings command (Ctrl+comma). The page has a search box that filters by setting name.
 - Stored as JSON in two layers: the global file %APPDATA%\\zephyr\\settings.json, and a per-project file <open folder>\\.zephyr\\settings.json. A value in the project file wins over the global one.
 - Pages in the nav, in order: general, editor, theme, shortcuts, extensions, lsp, scm, tests, devenv, devupdate, security, accessibility, ssh, memori, about.
 - Settings sections that are NOT in that nav: agents, rules, subagent, permissions, mcp - never send the user hunting in the Settings nav for them. These are still Settings sections that simply have no row in the nav: they are opened from Chat Settings (the "..." menu in the AI view) or from the Agent Customizations panel. If you are asked where one of them is opened from, look it up instead of naming a place.
 - "AI Models" (Settings group \`models\`: activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) is NOT a Settings page and has no row in the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`src/components/settings/AiModelsModal.tsx\` renders \`ModelsSection\`, the same section component the editor-area Settings page used to show. 4 ways in, all without leaving the chat: the "Open AI Models" button on the 401 / missing-key notice in the chat panel; the model dropdown (its empty state and the "Edit models\u2026" row); the "AI Models" row in the chat panel's "..." menu; the command palette command "AI: Configure Models & API Keys" (id ai.models). Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.
-- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced.
-- Setting keys kept in this block (25 of 129; the rest is in the index - look it up with \`zephyr_self\`):
-  - general: theme=dark, uiLang=en, fontSize=13, zoom=100, aiPanel=bottom
-  - editor: tabSize=2, wordWrap=false, autoSave=off, formatOnSave=false, vimMode=false
+- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Konten web, Rules, Models, Appearance, Session, Advanced.
+- Setting keys kept in this block (129 of 129; the rest is in the index - look it up with \`zephyr_self\`):
+  - general: theme=dark, fontFamily=Consolas, 'Cascadia Mono', 'Segoe UI Mono', monospace, fontSize=13, lineHeight=1.5, uiLang=en, zoom=100, restoreSession=true, checkUpdates=true, lowRam=false, aiPanel=bottom, layout=default, confirmExit=true, minimizeToTray=false, defaultTerminal=default, shellPath=, chatAvatar=true, userAvatarPath=
+  - top level: sidebar=left, layout=default, allowCommands=[], izinIsiWeb=false, allowlistWeb=[], izinJaringanLokal=false, portWeb=[80,443], hopRedirect=5
+  - background: image=, opacity=55, size=fill, transparan=true
+  - editor: tabSize=2, insertSpaces=true, wordWrap=false, minimap=false, cursorStyle=line, smoothScroll=false, formatOnSave=false, showWhitespace=false, snippetSuggestions=inline, breadcrumbs=true, stickyScroll=false, stickyScrollMaxLines=3, minimapRenderCharacters=false, indentGuides=true, colorDecorators=true, unicodeHighlight=true, bracketPairColorization=true, vimMode=false, autoSave=off, autoSaveDelay=1000, codeFolding=true, diagLens=false, gitBlame=false, lineNumbers=on, scrollMargin=3, scrollPastEnd=false, autoscrollOnClick=true, centeredWidth=0, fixAllOnSave=false, gitGutter=false, inlayHints=false, semanticTokens=false, debugInlineValues=false
   - theme: current=zephyr-dark, accent=#3884ff
-  - agents: maxPanes=6, attachActiveFile=false
-  - subagent: maxParallel=4, maxSteps=15, allowWrite=false, model=
-  - mcp: enabled=false, port=9222, allow_terminal_control=false
+  - models: activeProvider=custom, providers={}, answerLang=follow, answerStyle=short, ragEnabled=false, ragUrl=http://localhost:7777, ragProject=, ragK=4
+  - agents: maxPanes=6, order=[], startCommands={}, attachActiveFile=false, customInstructions=, chatAvatar=true, userAvatarPath=
+  - rules: enabled=false, disabled=[]
+  - extensions: enabled=[], trust={}, registryUrl=, registryUrls=[]
+  - accessibility: reducedMotion=false, screenReader=false, autoFocusDialog=true, toastDurasiMin=3200
+  - git: defaultBranch=main, pullBeforePush=true, github={"method":"none","clientId":""}
+  - subagent: maxParallel=4, maxSteps=15, allowWrite=false, showPanel=true, autoCollapse=true, model=, provider=, idleSecs=90
+  - hydrafusion: enabled=false, tiers={"cheap":"","mid":"","strong":""}, maxRequests=3
+  - mcp: enabled=false, port=9222, token=, writeToCli=[], allow_terminal_control=false, maxToolsPerServer=40
+  - ssh: recentHosts=[]
   - panel: visibleTabs=["problems","output","debug","terminal","ports","ai","subagents"], activeTab=terminal, height=260
-  - top level: allowCommands=[]
+  - lsp: enabled=true, idleSeconds=300, servers={}
+  - devenv: rootFolder=D:\\DevEnv, domain=.test, server=nginx, runtimes={}, services={}, projects=[]
+  - history: enabled=true, maxPerFile=200, maxDays=30, maxTotal=2000
+  - update: lastSeenVersion=, pendingNotes=, seenAnnouncements=[]
 
 ## Panels, ports and logs
 - Bottom panel tabs: problems, output, debug, terminal, ports, ai, subagents - default visible: problems, output, debug, terminal, ports, ai, subagents; default active tab: terminal, default height: 260 px.
@@ -56,7 +73,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Logs: %APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotated to zephyr-1.log, zephyr-2.log ... The same folder holds settings.json.
 
 ## Shortcuts (the DEFAULTS - the user may have rebound them in Settings > Shortcuts)
-  Ctrl+, = Open Settings [View], Ctrl+J = Toggle bottom panel [View], Ctrl+Shift+P = Command Palette [View], Ctrl+Shift+E = Open Explorer [View], Ctrl+B = Toggle sidebar [View], Ctrl+Shift+D = Panel Subagents [View], Ctrl+\` = Toggle panel terminal [Terminal], Ctrl+Shift+T = Pane terminal baru [Terminal], Ctrl+Shift+A = Toggle panel AI [AI], Ctrl+Enter = Send AI prompt [AI], Ctrl+S = Simpan [File], Ctrl+F = Find in File [Edit] - the defaults that answer the usual questions; the other 22 are in the index (searchable by key AND by what they do).
+  Ctrl+, = Open Settings [View], Ctrl+J = Toggle bottom panel [View], Ctrl+Shift+P = Command Palette [View], Ctrl+Shift+E = Open Explorer [View], Ctrl+B = Toggle sidebar [View], Ctrl+Shift+D = Panel Subagents [View], Ctrl+backtick = Toggle panel terminal [Terminal], Ctrl+Shift+T = Pane terminal baru [Terminal], Ctrl+Shift+A = Toggle panel AI [AI], Ctrl+Enter = Send AI prompt [AI], Ctrl+S = Simpan [File], Ctrl+F = Find in File [Edit] - the defaults that answer the usual questions; the other 22 are in the index (searchable by key AND by what they do).
 
 ## Running commands
 - Shell tools (bash_run, bash_background) start in the folder of the file that is open in the editor; with no file open they start in the open folder, and with no folder open the backend decides. Zephyr\u2019s own source folder is NOT the user\u2019s project - never run the user\u2019s commands there just because that is the folder that happens to be open.
@@ -64,7 +81,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 
 ## Answering questions about Zephyr itself
 - This whole block is about the app you ARE - answer questions about Zephyr (settings, panels, ports, shortcuts, tools, extensions) from this block plus the index behind \`zephyr_self\`; do not open a folder, do not grep the project, do not run programs to check a documented default. A chat question about Zephyr is answered, not "worked on".
-- A SYMPTOM ("my panel disappeared", "the AI box is gone") is answered like a question: name the setting key (the "panel" group holds bottom-panel tabs/height/visibility), the panel, and the default shortcut that governs it (bottom panel = Ctrl+J), then say where the user can look. Do NOT run shell commands, do not open Zephyr-own files (its settings.json, its log) and do not start a diagnosis hunt for a "why does this happen / where do I check" turn - the defaults are in this block and the index. Offer the deeper check as a next step ("want me to read the log?").
+- A SYMPTOM ("my panel disappeared", "the AI box is gone") is answered like a question: name the setting key (the "panel" group holds bottom-panel tabs/height/visibility), the panel, and the default shortcut that governs it (bottom panel = Ctrl+J), then NAME WHERE THE VALUE LIVES - the exact file and path, not just "Settings": the global file %APPDATA%\\zephyr\\settings.json (per-project override: <folder>\\.zephyr\\settings.json). That sentence is part of the answer, not optional: the reader who is told the key name but not the file still cannot find it. Do NOT run shell commands, do not open Zephyr-own files (its settings.json, its log) and do not start a diagnosis hunt for a "why does this happen / where do I check" turn - the defaults are in this block and the index. Offer the deeper check as a next step ("want me to read the log?").
 - Reading Zephyr-own files with a shell command is not a way to answer a chat question: the shell starts in the user project, quoting there is fragile (cmd/PowerShell mishandle it), and the value would come from a file this block or the index already describes. Read them only when the user asks you to open that file.
 - When the user needs a setting changed or a panel brought back, the answer is the path inside Zephyr: the Settings page and section, the panel name, the shortcut, or the exact setting key.
 - Where to look for a symptom: the Problems panel (diagnostics), the Output panel (task/tool output), the Debug panel, a terminal, the Ports panel (what is listening); Settings > About for the version and update state; the log file above when the answer really lives there.
@@ -75,7 +92,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 // src/lib/zephyrIndeks.ts
 init_define_import_meta_env();
 var FAKTA_KATEGORI = ["bridge", "dokumen", "ekstensi", "kode", "label", "layar", "menu", "panel", "perintah", "pintasan", "port", "seksi", "setelan", "tool"];
-var FAKTA_VERSI = { aplikasi: "1.1.13", hashSumber: "39f4e0cc1e827154" };
+var FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "5b4305035475e9a8" };
 var FAKTA_INDEKS = [
   ["bridge", "window.__ZEPHYR_*__", "bridge dev untuk membaca store yang sama dengan UI: __ZEPHYR_A11Y__, __ZEPHYR_AGENT_EXTRAS__, __ZEPHYR_AI__, __ZEPHYR_BUG__, __ZEPHYR_CLIAGENT__, __ZEPHYR_CLICHAT__, __ZEPHYR_CLI__, __ZEPHYR_CMD__, __ZEPHYR_CM__, __ZEPHYR_CP__, __ZEPHYR_DBG__, __ZEPHYR_DEVENV__, __ZEPHYR_DIAG__, __ZEPHYR_ERRORS__, __ZEPHYR_EXT19__, __ZEPHYR_EXTRAS__, __ZEPHYR_EXT__, __ZEPHYR_EX__, __ZEPHYR_FLUSH__, __ZEPHYR_FS__, __ZEPHYR_GIT__, __ZEPHYR_HIST__, __ZEPHYR_KB__, __ZEPHYR_LAYOUT__, __ZEPHYR_LSP__, __ZEPHYR_MCP__, __ZEPHYR_MEMORI__, __ZEPHYR_MUTER__, __ZEPHYR_NOTIF__, __ZEPHYR_PANEL__, __ZEPHYR_PARALEL__, __ZEPHYR_PERAN__, __ZEPHYR_PERSONA__, __ZEPHYR_PLUGINS__, __ZEPHYR_PROMPT_LIB__, __ZEPHYR_PROMPT__, __ZEPHYR_PTY__, __ZEPHYR_REPEAT__, __ZEPHYR_REVEAL__, __ZEPHYR_RINGKAS_DEVENV__, __ZEPHYR_RIWAYAT__, __ZEPHYR_SECRETS__, __ZEPHYR_SETTINGS__, __ZEPHYR_SETUI__, __ZEPHYR_SET_PAUSED__, __ZEPHYR_SET__, __ZEPHYR_SHORTCUTS__, __ZEPHYR_SNIP__, __ZEPHYR_SRC__, __ZEPHYR_SUBSET__, __ZEPHYR_SUB__, __ZEPHYR_TASK__, __ZEPHYR_TERM__, __ZEPHYR_THEME__, __ZEPHYR_TODO__, __ZEPHYR_TOOLS__, __ZEPHYR_WAKTU__, __ZEPHYR_WIN__, __ZEPHYR_WS__"],
   ["dokumen", "AGENTS.md#1. Apa ini", "Zephyr adalah code editor desktop (Tauri 2 + React + TS) yang dibangun dari nol: ringan, lengkap, dengan terminal multi-pane (shell/private/ AI-agent), SSH, settings lengkap, Source Control, AI panel (multi-model dengan logo), dan **MCP server port 9222** sehingga AI CLI luar bisa mengontrol jendela."],
@@ -274,7 +291,7 @@ var FAKTA_INDEKS = [
   ["kode", "src-tauri/src/adapters/anthropic.rs", "742 baris \xB7 ekspor: thinking_field, butuh_budget, prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode", "src-tauri/src/adapters/gemini.rs", "355 baris \xB7 ekspor: prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode", "src-tauri/src/adapters/mod.rs", "202 baris \xB7 ekspor: split_data_url, prepare, extract_delta, extract_reasoning, extract_usage, trim_base, prepare_tools, parse_tool_response, prepare_tools_stream, StreamAcc, new, feed, feed_reasoning, reasoning_parts, finish"],
-  ["kode", "src-tauri/src/adapters/openai.rs", "872 baris \xB7 ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
+  ["kode", "src-tauri/src/adapters/openai.rs", "1037 baris \xB7 ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode", "src-tauri/src/adapters/xml_tools.rs", "855 baris \xB7 ekspor: normalisasi_penanda, posisi_aman, mungkin_awal_tag, mengandung_tool_call, bersihkan_teks, parse_teks"],
   ["kode", "src-tauri/src/agent_exec.rs", "344 baris \xB7 ekspor: ExecResult, agent_exec"],
   ["kode", "src-tauri/src/agent_patch.rs", "126 baris \xB7 ekspor: PatchResult, file_patch"],
@@ -294,7 +311,7 @@ var FAKTA_INDEKS = [
   ["kode", "src-tauri/src/credential.rs", "70 baris \xB7 ekspor: handle_cli, respond"],
   ["kode", "src-tauri/src/credentials.rs", "219 baris \xB7 //! Credential store for user-owned third-party accounts: database passwords, \xB7 ekspor: CredentialInfo, credentials_list, credentials_set, credentials_delete, credentials_get"],
   ["kode", "src-tauri/src/cron.rs", "754 baris \xB7 ekspor: MAX_JOBS, CronJob, StatusJadwal, jatuh_tempo, status, sesi_mulai, epoch_sekarang, muat, tambah, tambah_penuh, hapus, set_aktif, tandai_jalan, terlewat_belum_dilapor, lapor_terlewat, pesan_terlewat, mulai_timer, pulihkan_jadwal_terlewat, cron_list, cron_create, cron_delete, cron_toggle, cron_due, cron_mark_run"],
-  ["kode", "src-tauri/src/dap.rs", "1308 baris \xB7 ekspor: DebugConfig, ekspansi_var, LaunchFile, InvalidEntry, dap_load, parse_launch, AdapterSpec, spec_untuk, tipe_untuk_adapter, dap_adapters, Sesi, DapRuntime, dap_start, SumberBreakpoint, dap_stop, dap_status, dap_kontrol, dap_threads, dap_stack, dap_scopes, dap_variables, dap_evaluate, dap_set_variable, dap_set_breakpoints, dap_loaded_sources"],
+  ["kode", "src-tauri/src/dap.rs", "1358 baris \xB7 ekspor: DebugConfig, ekspansi_var, LaunchFile, InvalidEntry, dap_load, parse_launch, AdapterSpec, adapter_bawaan, spec_untuk, tipe_untuk_adapter, dap_adapters, Sesi, DapRuntime, dap_start, SumberBreakpoint, dap_stop, dap_status, dap_kontrol, dap_threads, dap_stack, dap_scopes, dap_variables, dap_evaluate, dap_set_variable, dap_set_breakpoints, dap_loaded_sources"],
   ["kode", "src-tauri/src/database.rs", "303 baris \xB7 //! Database browser: read-only inspection of a local database. \xB7 ekspor: DbKolom, DbTabel, DbHasil, db_tables, db_columns, db_query, db_default_path"],
   ["kode", "src-tauri/src/dev_update.rs", "474 baris \xB7 //! Dev-only in-app update for the person building Zephyr. \xB7 ekspor: DevUpdateInfo, DevUpdateHasil, dev_update_info, dev_update_build, dev_update_apply, dev_update_log, dev_update_rollback"],
   ["kode", "src-tauri/src/devenv.rs", "1169 baris \xB7 //! Dev Environment: detect what is actually installed on this machine. \xB7 ekspor: RuntimeFound, devenv_detect_runtimes, ServiceFound, devenv_detect_services, ServiceHasil, devenv_service_stop, devenv_service_start, ProjectFound, devenv_scan_projects, devenv_open_path"],
@@ -303,10 +320,10 @@ var FAKTA_INDEKS = [
   ["kode", "src-tauri/src/discord_rpc.rs", "142 baris \xB7 ekspor: start, stop"],
   ["kode", "src-tauri/src/errors.rs", "90 baris \xB7 ekspor: ZephyrError, code, ZResult"],
   ["kode", "src-tauri/src/explorer.rs", "610 baris \xB7 ekspor: DirNode, scan_dir, fs_watch, fs_unwatch, SearchHit, SearchResult, QuickFile, list_workspace_files, workspace_file_index_clear, search_files, replace_in_file, reveal_path, is_ignored_for_test, build_regex_for_test, scan_names_for_test"],
-  ["kode", "src-tauri/src/ext_bundled.rs", "1663 baris \xB7 ekspor: extensions_write_bundled, extensions_bundled_ids, index_bundled"],
+  ["kode", "src-tauri/src/ext_bundled.rs", "1715 baris \xB7 ekspor: extensions_write_bundled, extensions_bundled_ids, index_bundled"],
   ["kode", "src-tauri/src/ext_bundled_extra.rs", "542 baris \xB7 Extra bundled packages: icon themes, keymaps, snippets. \xB7 tanpa ekspor"],
   ["kode", "src-tauri/src/ext_lang_icons.rs", "64 baris \xB7 ekspor: LOGO_URI"],
-  ["kode", "src-tauri/src/ext_pkg.rs", "2302 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, IZIN_UNDUH, izin_unduh, hash_sha256, normalisasi_hash, hash_cocok, \u2026(+1)"],
+  ["kode", "src-tauri/src/ext_pkg.rs", "2812 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, ContribDebugger, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, IZIN_UNDUH, izin_unduh, hash_sha256, normalisasi_hash, \u2026(+2)"],
   ["kode", "src-tauri/src/ext_registry.rs", "385 baris \xB7 ekspor: IndexEntry, registry_file, registry_dir, parse_index_pub, ext_registry_list, ext_registry_save, ext_registry_read, ext_registry_installed, ext_registry_url_diizinkan"],
   ["kode", "src-tauri/src/extensions.rs", "547 baris \xB7 ekspor: MAX_MAIN_BYTES, ExtCommand, ExtensionInfo, ExtensionLoad, extensions_dir, parse_commands_pub, list_all, extensions_list, extensions_load, extensions_add, registry_lepas, extensions_remove, extensions_folder"],
   ["kode", "src-tauri/src/fs_utils.rs", "1024 baris \xB7 ekspor: BIG_FILE_BYTES, map_fs_err, ReadResult, StatResult, SessionTab, MAX_READ_BYTES, read_file_detect, MAKS_TULIS_BYTE, periksa_ukuran_tulis, write_file_encoded, fs_read, fs_write, tulis_isi, fs_exists, fs_stat, realpath_dalam_akar, fs_realpath, fs_create_file, fs_create_dir, fs_delete, fs_rename, session_load, session_save, decode_for_test, encode_for_test, detect_le_for_test"],
@@ -316,14 +333,15 @@ var FAKTA_INDEKS = [
   ["kode", "src-tauri/src/history.rs", "552 baris \xB7 ekspor: Snapshot, HistoryInfo, folder_untuk, tampak_biner, snapshot_internal, history_snapshot, history_list, history_read, history_clear, history_prune, history_stats"],
   ["kode", "src-tauri/src/hooks.rs", "476 baris \xB7 //! Hook execution: running the commands a reader configured at lifecycle points. \xB7 ekspor: HookRunResult, hook_run, FormatResult, format_text"],
   ["kode", "src-tauri/src/instructions.rs", "463 baris \xB7 //! Instructions: coding standards that apply to files matching a pattern. \xB7 ekspor: InstructionInfo, parse_instruction, instructions_list, instruction_read, instruction_write, instruction_delete, CatalogInstruction, instruction_catalog_list, instruction_catalog_body, instruction_install"],
-  ["kode", "src-tauri/src/lib.rs", "617 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
+  ["kode", "src-tauri/src/lib.rs", "618 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
   ["kode", "src-tauri/src/logging.rs", "439 baris \xB7 ekspor: LogSink, write_line, path, LogWriter, init, attach_app, log_file_path, LOG_TAIL_N_BAWAAN, LOG_TAIL_N_MAKS, LOG_TAIL_BYTES_BAWAAN, LOG_TAIL_BYTES_MAKS, LOG_TAIL_BYTES_MIN, baca_ekor, log_tail, panicked, last_panic, sink_for_test, max_bytes_for_test, keep_for_test"],
   ["kode", "src-tauri/src/lsp.rs", "1232 baris \xB7 ekspor: ServerSpec, id_punya_resep, lsp_start, path_to_uri, lsp_request, lsp_notify, lsp_stop, lsp_stop_all, LspInfo, lsp_status, lsp_reap, lsp_set_idle, lsp_resep, lsp_pasang, lsp_probe"],
   ["kode", "src-tauri/src/main.rs", "13 baris \xB7 tanpa ekspor"],
-  ["kode", "src-tauri/src/mcp_client.rs", "284 baris \xB7 ekspor: McpServer, McpToolSpec, list_servers, list_tools, call_tool, McpPromptSpec, list_prompts, get_prompt, call_by_server, save_server, remove_server"],
-  ["kode", "src-tauri/src/mcp_commands.rs", "181 baris \xB7 ekspor: mcp_status, mcp_start, mcp_stop, mcp_reply, mcp_ui_ready, mcp_rotate_token, mcp_write_cli, mcp_remove_cli, mcp_cli_status, mcp_write_custom_cli, mcp_client_list, mcp_client_tools, mcp_client_call, mcp_client_prompts, mcp_client_prompt_get, mcp_client_save, mcp_client_remove"],
+  ["kode", "src-tauri/src/mcp_client.rs", "429 baris \xB7 ekspor: McpServer, stdio, bisa_dipakai, spec_dari_json, McpToolSpec, list_servers, list_tools, call_tool, McpPromptSpec, list_prompts, get_prompt, cari_server, call_by_server, save_server, remove_server"],
+  ["kode", "src-tauri/src/mcp_commands.rs", "227 baris \xB7 ekspor: mcp_status, mcp_start, mcp_stop, mcp_reply, mcp_ui_ready, mcp_rotate_token, mcp_write_cli, mcp_remove_cli, mcp_cli_status, mcp_write_custom_cli, mcp_client_list, mcp_client_tools, mcp_client_call, mcp_client_prompts, mcp_client_prompt_get, mcp_client_save, mcp_client_remove"],
   ["kode", "src-tauri/src/mcp_config.rs", "737 baris \xB7 ekspor: McpConfig, load_or_init, save, rotate_token, CliTarget, Format, TARGETS, target, target_path, CliWriteResult, write_cli, remove_cli, CliStatus, write_custom_cli, cli_status, random_token_for_test, merge_json_for_test, unmerge_json_for_test, merge_toml_for_test, strip_toml_for_test, merge_yaml_for_test, strip_yaml_for_test"],
   ["kode", "src-tauri/src/mcp_server.rs", "998 baris \xB7 ekspor: McpStatus, candidate_ports, start, stop, tools_schema, bearer_ok_for_test, terminal_control_setting_enabled_for_test"],
+  ["kode", "src-tauri/src/mcp_stdio.rs", "391 baris \xB7 mcp_stdio.rs - klien MCP lewat transport STDIO. \xB7 ekspor: list_tools, call_tool, matikan, jumlah_sesi_hidup"],
   ["kode", "src-tauri/src/memory.rs", "243 baris \xB7 ekspor: MEMORY_LIMIT, USER_LIMIT, MemoryState, baca, entri, tambah, ganti, hapus, ringkasan_untuk_prompt, memory_read, memory_write"],
   ["kode", "src-tauri/src/paths.rs", "299 baris \xB7 ekspor: Normalized, long_path, is_drive_root, strip_unc, canonical_or_parent, is_inside, is_same, normalize_workspace_path, warn_if_symlink_escapes, env_data_dir_override, validate_cwd, lexical_clean_for_test, pathdiff_for_test"],
   ["kode", "src-tauri/src/plugins.rs", "1697 baris \xB7 //! Zephyr plugins: one package that carries skills, agents, rules, hooks and \xB7 ekspor: Provides, Kind, PluginManifest, PluginEntry, plugins_dir, InstalledPlugin, MarketPlugin, plugin_install, plugin_install_bundled, plugins_list, plugins_marketplace, PluginHook, PluginAgent, PluginToggle, plugin_enable, plugin_remove, MARKETPLACE_JSON"],
@@ -359,8 +377,8 @@ var FAKTA_INDEKS = [
   ["kode", "src/components/ai/AiIkon.tsx", "777 baris \xB7 Icon set for the AI panel header. \xB7 ekspor: NamaAiIkon"],
   ["kode", "src/components/ai/AiPanel.tsx", "2446 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatHeadActions.tsx", "226 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/ai/ChatMessage.tsx", "1034 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/ai/ChatSettingsPage.tsx", "1532 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/ai/ChatMessage.tsx", "1055 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/ai/ChatSettingsPage.tsx", "1645 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatSettingsPopup.tsx", "72 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatStamp.tsx", "139 baris \xB7 ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode", "src/components/ai/ClearChatsDialog.tsx", "89 baris \xB7 tanpa ekspor"],
@@ -402,7 +420,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/components/ai/SubSummary.tsx", "69 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ThinkingBar.tsx", "53 baris \xB7 ekspor: ThinkingBarProps"],
   ["kode", "src/components/ai/TodoPanel.tsx", "2 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/ai/ToolGatePanel.tsx", "349 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/ai/ToolGatePanel.tsx", "357 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/UpdateBtn.tsx", "196 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/claudeCodeUi.tsx", "732 baris \xB7 ekspor: toolGlyph, toolKind, imageOutput, unifiedFromHalves, looksLikeUnified, halvesFromUnified, DIFF_PEEK, pairForSplit, EditDiff, diffStat, ToolRowProps, ToolRow"],
   ["kode", "src/components/api/ApiClientView.tsx", "335 baris \xB7 tanpa ekspor"],
@@ -434,7 +452,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/components/explorer/SearchPanel.tsx", "411 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/explorer/TimelineView.tsx", "227 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/extensions/ExtApprovalModal.tsx", "68 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/extensions/ExtensionsView.tsx", "1118 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/extensions/ExtensionsView.tsx", "1349 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/extensions/bahasaTerpasang.ts", "156 baris \xB7 bahasaTerpasang.ts - catatan jujur untuk kontribusi bahasa SEBUAH PAKET \xB7 ekspor: CatatanBahasa, BarisGrammar, CekGrammar, catatanBahasaTerpasang, bahasaTanpaEfek"],
   ["kode", "src/components/notifications/NotificationCenter.tsx", "158 baris \xB7 ekspor: NotifBell"],
   ["kode", "src/components/notifications/Toast.tsx", "115 baris \xB7 tanpa ekspor"],
@@ -524,15 +542,15 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/agentGuard.ts", "362 baris \xB7 Penjaga sisi-agent: pola berkas rahasia, direktori terproteksi, dan \xB7 ekspor: bentukBanding, POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, HasilAman, periksaBaca, periksaTulis, periksaPerintahShell"],
   ["kode", "src/lib/agentLsp.ts", "390 baris \xB7 ekspor: Posisi, LokasiLsp, SimbolLsp, adaServer, lspDefinitionTool, lspReferencesTool, lspCallHierarchyTool, lspHoverTool, lspDocumentSymbolsTool, lspWorkspaceSymbolsTool, lspDiagnosticsTool"],
   ["kode", "src/lib/agentStop.ts", "50 baris \xB7 Peta alasan berhentinya agent, terpisah dari store. \xB7 ekspor: AgentStopReason, AgentFailureCategory, agentStopMessage"],
-  ["kode", "src/lib/agentTools.ts", "313 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, pasangJembatanBacaKodeDariWorkspace, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
+  ["kode", "src/lib/agentTools.ts", "321 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, pasangJembatanBacaKodeDariWorkspace, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
   ["kode", "src/lib/aiCliStore.ts", "979 baris \xB7 ekspor: CliTodo, CliPart, CliMsg, CliTask, CliSession, CliOpts, useAiCli, bindCliChatListener"],
   ["kode", "src/lib/aiDebugStore.ts", "107 baris \xB7 ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode", "src/lib/aiMemori.ts", "983 baris \xB7 MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). \xB7 ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, \u2026(+12)"],
   ["kode", "src/lib/aiModelsStore.ts", "29 baris \xB7 ekspor: useAiModels"],
-  ["kode", "src/lib/aiStore.ts", "9304 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
+  ["kode", "src/lib/aiStore.ts", "9375 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
   ["kode", "src/lib/aiTabsStore.ts", "113 baris \xB7 ekspor: CLI_TABS, AiTabId, useAiTabs"],
   ["kode", "src/lib/aiWindow.ts", "43 baris \xB7 ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
-  ["kode", "src/lib/aiZephyrState.ts", "970 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
+  ["kode", "src/lib/aiZephyrState.ts", "1000 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
   ["kode", "src/lib/alurVerifikasi.ts", "621 baris \xB7 alurVerifikasi.ts \u2014 aturan jalur yang memaksa agen Zeph memverifikasi \xB7 ekspor: JenisPeriksa, Nilai, StatusPutusan, BATAS_PERCOBAAN, PERINTAH_TETAP, POLA_PERINTAH_DINAMIS, perintahDiizinkan, PENANDA_GAGAL, normJalur, PermintaanPeriksa, periksaBerkas, PerintahRencana, Rencana, rencanaVerifikasi, nilaiKeluaran, berkasBermasalah, HasilJalankan, Ubah, NilaiPerintah, Putusan, putuskan, validasiLaporan, laporanAkhir"],
   ["kode", "src/lib/analisGambar.ts", "723 baris \xB7 analisGambar.ts - the image (vision) path: how a picture gets IN, and how it \xB7 ekspor: MimeGambar, SumberGambar, KodeTolak, HasilGambar, GambarSiap, KandidatGambar, RingkasGambar, MIME_DIIZINKAN, ANALIS_MAKS_BYTE, ANALIS_MAKS_GAMBAR, ANALIS_SISI_MAKS, KUALITAS_TANGGA, SKALA_TANGGA, LangkahPerkecil, HasilUbah, PengubahGambar, OpsiBatas, normalisasiMime, mimeDiizinkan, mimeDariNama, hitungByteBase64, tebakMimeDariBase64, bangunDataUrl, uraiDataUrl, fmtByte, pemisah, bisaDiperkecil, siapkanGambar, gambarDariTempel, gambarDariBerkas, gambarDariLampiran, periksaJumlah, MasukanRencana, Rencana, rencanaPerkecil, perkecilGambar, terimaGambar, ringkasGambar, barisLog, sensorBase64, \u2026(+8)"],
   ["kode", "src/lib/announcements.ts", "71 baris \xB7 ekspor: cekPengumuman"],
@@ -540,7 +558,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/autocompleteInline.ts", "207 baris \xB7 Autocomplete inline \u2014 perencana permintaan + pengatur laju (governor). \xB7 ekspor: JEDA_MS, BATAS_BYTE_PAYLOAD, BATAS_JENDELA_BARIS, BATAS_JENDELA_KARAKTER, PANJANG_MINIMUM_BARIS, bytePanjang, jendelaKonteks, PermintaanInline, OpsiPermintaan, bangunPermintaan, KeadaanInline, keadaanAwal, ketik, tiket, AlasanInline, KeputusanInline, putuskanKirim, mulaiKirim, selesaiKirim, setAktif"],
   ["kode", "src/lib/bacaKode.ts", "847 baris \xB7 bacaKode - Zeph membaca ISI kode ZEPHYR SENDIRI sebagai POTONGAN BARIS. \xB7 ekspor: BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, KARAKTER_PER_TOKEN, EKSTENSI_TEKS, NAMA_TEKS, berekstensiTeks, HasilJalur, bolehDibacaKode, pisahBaris, tagIsi, apakahBiner, angkaTitik, OpsiPotong, PotonganKode, HasilPotong, cariDefinisiBaris, bacaPotongan, rakitPotongan, AnggaranBaca, buatAnggaranBaca, PerintahBacaKode, JembatanBacaKode, PermintaanBaca, HasilBaca, rapikanJalurNyata, diDalamAkar, bacaBerkasKode, SPEC_BACA_KODE, pasangJembatanBacaKode, pasangRealpathBacaKode, realpathBacaKode, resetAnggaranBaca, jembatanBacaKode, \u2026(+2)"],
   ["kode", "src/lib/breakpointGutter.ts", "80 baris \xB7 ekspor: bpCompartment, barisAktifCompartment, breakpointGutter, barisAktifExt"],
-  ["kode", "src/lib/chatSettingsStore.ts", "90 baris \xB7 ekspor: ChatSeksi, useAiChatSettings"],
+  ["kode", "src/lib/chatSettingsStore.ts", "92 baris \xB7 ekspor: ChatSeksi, useAiChatSettings"],
   ["kode", "src/lib/checkpoint.ts", "170 baris \xB7 Checkpoints \u2014 undoing everything one agent turn changed. \xB7 ekspor: BerkasCheckpoint, Checkpoint, mulaiTurn, catat, tutupCheckpoint, HasilRestore, pulihkanCheckpoint"],
   ["kode", "src/lib/cliAgentStore.ts", "121 baris \xB7 ekspor: CliRun, useCliAgent"],
   ["kode", "src/lib/cliCatalog.ts", "165 baris \xB7 The model / permission-mode / effort catalogue for the hosted CLI tabs \xB7 ekspor: CliModel, CliMode, CliCatalog, CLAUDE_MODES, CLAUDE_MODELS, catalogFor, modelChip, EFFORT_LEVELS, EffortLevel, jendelaAliasCli"],
@@ -553,8 +571,8 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/codexStore.ts", "233 baris \xB7 ekspor: ApprovalPolicy, WorkLocation, APPROVAL_POLICIES, WORK_LOCATIONS, CODEX_EFFORTS, CodexEffort, EFFORT_FROM_CONFIG, CODEX_EFFORT_LABELS, CODEX_MODELS, CodexSettings, useCodex"],
   ["kode", "src/lib/commandIds.ts", "30 baris \xB7 Leaf module: the id set of commands that exist. \xB7 ekspor: COMMAND_IDS, daftarkanCommandId, commandIdAda"],
   ["kode", "src/lib/commandRegistry.ts", "2545 baris \xB7 ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
-  ["kode", "src/lib/commands.ts", "1645 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, \u2026(+320)"],
-  ["kode", "src/lib/contextBudget.ts", "465 baris \xB7 Context budget: one place for the token estimate and the window size. \xB7 ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
+  ["kode", "src/lib/commands.ts", "1656 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, \u2026(+320)"],
+  ["kode", "src/lib/contextBudget.ts", "514 baris \xB7 Context budget: one place for the token estimate and the window size. \xB7 ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
   ["kode", "src/lib/cronRunner.ts", "158 baris \xB7 ekspor: pasangPendengarCron"],
   ["kode", "src/lib/debugInline.ts", "154 baris \xB7 Debugger inline values \u2014 the locals, shown at the line execution stopped on. \xB7 ekspor: VariabelDebug, debugInlineField, setNilaiEffect, clearNilaiEffect"],
   ["kode", "src/lib/debugStore.ts", "799 baris \xB7 ekspor: Breakpoint, StackFrame, Scope, Variable, WatchItem, ReplLine, DebugState, useDebug, bindDebugListeners, catatExceptionKeProblems"],
@@ -568,12 +586,12 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/extApprovalStore.ts", "58 baris \xB7 ekspor: ExtApproval, useExtApproval"],
   ["kode", "src/lib/extCatalog.ts", "228 baris \xB7 ekspor: KatalogItem, KATALOG_BUNDLED, katalogById"],
   ["kode", "src/lib/extHost.ts", "234 baris \xB7 ekspor: sandboxCommands, runEkstensiCommand, tutupEkstensi, muatEkstensiRuntime"],
-  ["kode", "src/lib/extIkon.ts", "277 baris \xB7 The mark on an extension card. \xB7 ekspor: inlineIkonDataUri, JenisIkonExt, ikonEkstensi"],
+  ["kode", "src/lib/extIkon.ts", "288 baris \xB7 The mark on an extension card. \xB7 ekspor: inlineIkonDataUri, JenisIkonExt, ikonEkstensi"],
   ["kode", "src/lib/extIkonFile.ts", "45 baris \xB7 File icons contributed by an installed extension icon pack. \xB7 ekspor: setIkonExt, kosongkanIkonExt, jumlahIkonExt, ikonFileExt"],
-  ["kode", "src/lib/extLoader.ts", "534 baris \xB7 ekspor: LoaderRingkasan, ringkasanLoader, terapkanTokenEkstensi, themesEkstensi, keymapEkstensi, snippetSource, adaSnippet, jumlahSnippet, bahasaEkstensi, bahasaUntukExt, grammarTersedia, muatCmBahasa, ikonUntukExt, adaIconTheme, commandsEkstensi, muatSemuaEkstensi"],
+  ["kode", "src/lib/extLoader.ts", "611 baris \xB7 ekspor: LoaderRingkasan, ringkasanLoader, terapkanTokenEkstensi, themesEkstensi, keymapEkstensi, snippetSource, adaSnippet, jumlahSnippet, bahasaEkstensi, bahasaUntukExt, grammarTersedia, muatCmBahasa, ikonUntukExt, adaIconTheme, commandsEkstensi, muatSemuaEkstensi"],
   ["kode", "src/lib/extRunner.ts", "1686 baris \xB7 ekspor: skripEkstensi"],
   ["kode", "src/lib/extensionStore.ts", "173 baris \xB7 ekspor: ExtStore, BUILTIN_IDS, useExtensions"],
-  ["kode", "src/lib/extensionsStore19.ts", "415 baris \xB7 ekspor: ExtTab, TOLAK_PENANDA, ExtKabarJenis, ExtKabar, Ext19Store, setBahasaWorkspace, getBahasaWorkspace, useExt19"],
+  ["kode", "src/lib/extensionsStore19.ts", "423 baris \xB7 ekspor: ExtTab, TOLAK_PENANDA, ExtKabarJenis, ExtKabar, Ext19Store, setBahasaWorkspace, getBahasaWorkspace, useExt19"],
   ["kode", "src/lib/fileIconMap.ts", "9233 baris \xB7 GENERATED by scripts/gen-file-icons.mjs \u2014 do not edit by hand. \xB7 ekspor: IKON_SVG, IKON_EXT, IKON_NAMA, IKON_FOLDER_NAMA, IKON_LANG, IKON_FOLDER, IKON_FOLDER_BUKA, IKON_FILE"],
   ["kode", "src/lib/fileIcons.ts", `103 baris \xB7 File-type icons for the composer's "@" picker, the editor gutter and the \xB7 ekspor: FileIkon, ikonFile, ikonFolder`],
   ["kode", "src/lib/fileRefs.ts", "142 baris \xB7 ekspor: FileRef, tokenAt, saringFile, muatFileWorkspace, lupakanFileWorkspace"],
@@ -589,16 +607,17 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/hydraFusion.ts", "671 baris \xB7 HydraFusion \u2014 adaptive model orchestration for the MAIN chat. \xB7 ekspor: HydraTier, HydraJalur, HydraPeran, HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT, HYDRA_MAKS_ESKALASI, HYDRA_PENANDA_RAGU, HYDRA_ID_PREFIX, HydraPengaturan, HydraKandidat, HydraSinyal, HydraKlasifikasi, HydraLangkah, HydraRencana, HydraLapor, HydraHasil, HydraTerakhir, bacaPengaturan, parseTierRef, tingkatKandidat, usulTingkat, klasifikasiChat, HydraMasuk, rencanaHydra, pesanUntuk, bersihkanPenanda, deteksiGagal, HydraDeps, jalankanHydra, hydraSiapkan, hydraLupakan, hydraCatat, hydraLihat, hydraAmbil, hydraAktif"],
   ["kode", "src/lib/i18n-extra.ts", "24083 baris \xB7 tanpa ekspor"],
   ["kode", "src/lib/i18n-src.ts", "617 baris \xB7 ekspor: EN"],
-  ["kode", "src/lib/i18n.ts", "4025 baris \xB7 ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
+  ["kode", "src/lib/i18n.ts", "4117 baris \xB7 ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
   ["kode", "src/lib/inlayHints.ts", "214 baris \xB7 Inlay hints \u2014 inferred types and parameter names, drawn inside the code. \xB7 ekspor: InlayHint, inlayField, setHintsEffect, clearHintsEffect, mintaInlayHints"],
   ["kode", "src/lib/instructionsStore.ts", "215 baris \xB7 ekspor: useInstructions, cocokPola"],
+  ["kode", "src/lib/katalogMcpServer.ts", "270 baris \xB7 Katalog MCP server - daftar server populer yang bisa DILIHAT user dan \xB7 ekspor: McpTransport, McpStdio, McpHttp, KatalogMcpEntry, TRANSPORT_STDIO_TERSAMBUNG, KATALOG_MCP_SERVER, kategoriMcp, mcpById, barisJalan, cariMcp, bisaDipasang"],
   ["kode", "src/lib/keybindingStore.ts", "191 baris \xB7 ekspor: CHORD_TIMEOUT_MS, useKb"],
   ["kode", "src/lib/keybindings.ts", "562 baris \xB7 ekspor: Layer, WhenCtx, KeyBinding, normalizeChord, displayChord, DEFAULT_BINDINGS, UserBinding, mergeBindings, chordFor, prefixSet, resolveBinding, chordConflicts, ChordAlias, ChordEntry, LaporanChordKembar, HasilGabung, gabungChordKembar, tabelEfektif, entriChord, cariPintasan, resolveChord"],
   ["kode", "src/lib/keymapAlias.ts", "41 baris \xB7 Command-name translation for extension keymaps. \xB7 ekspor: ALIAS_PERINTAH, perintahKeymap, dialihkan"],
   ["kode", "src/lib/konteksRepo.ts", "1341 baris \xB7 KONTEKS REPO - apa yang Zeph ketahui tentang folder yang SEDANG DIBUKA user. \xB7 ekspor: BATAS_PINDAI_BERKAS, BATAS_BERKAS_TAMPIL, BATAS_BYTE_TAMPIL, BATAS_UKURAN_BERKAS, BATAS_CHAR_RINGKASAN, BATAS_BARIS_STRUKTUR, BATAS_BAHASA, BATAS_GITIGNORE_BYTE, BATAS_STAT_BERKAS, KONTEKS_REPO_VERSI, BerkasRepo, EntriGitignore, MasukanKonteksRepo, BarisBerkas, RincianBahasa, BarisStruktur, StatKonteksRepo, KonteksRepo, JenisBlokir, POLA_RAHASIA_TAMBAHAN, POLA_RAHASIA_EFEKTIF, ABAIKAN_SEGMEN, normalJalur, bahasaDariJalur, ringkasByte, waktuUbahIso, diabaikanStruktur, alasanBlokirRahasia, AturanGitignore, susunAturanGitignore, diabaikanOlehGitignore, skorPrioritasBerkas, bangunKonteksRepo, PerintahKonteksRepo, OpsiSumberRepo, HasilPindai, pindaiKonteksRepo"],
   ["kode", "src/lib/konteksZephyr.ts", "496 baris \xB7 konteksZephyr.ts \u2014 aturan berkas `.zephyr-context.md` sebagai fungsi murni. \xB7 ekspor: NAMA_KONTEKS, BATAS_BYTE, JUDUL_APLIKASI, JUDUL_AGEN, PENANDA_POTONG, DataKonteks, TemuanRahasia, HasilSaring, BERKAS_DIBLOKIR, ATURAN_RAHASIA, cariRahasia, redaksi, saring, berkasDiblokir, HasilJalur, diDalamAkar, jalurKonteks, BagianKonteks, pecahBagian, bagianAplikasi, RencanaTulis, OpsiRencana, rencanaTulis, HasilPotong, batasiUkuran"],
   ["kode", "src/lib/kutipPerintah.ts", "68 baris \xB7 kutipPerintah.ts - mengamankan perintah agen sebelum dikirim ke shell. \xB7 ekspor: kutipUrlDiPerintah"],
-  ["kode", "src/lib/labelAksi.ts", "263 baris \xB7 ekspor: JenisAksi, AksiInfo, namaPolos, infoAksi, sasaranAksi, perintahAksi, KELAS_JENIS"],
+  ["kode", "src/lib/labelAksi.ts", "257 baris \xB7 ekspor: JenisAksi, AksiInfo, namaPolos, infoAksi, sasaranAksi, perintahAksi, KELAS_JENIS"],
   ["kode", "src/lib/labelI18n.ts", "39 baris \xB7 Translation of labels that come from data, not from JSX. \xB7 ekspor: labelTerjemah, useLabel"],
   ["kode", "src/lib/labelPaket.ts", "118 baris \xB7 labelPaket.ts - label jujur untuk paket bahasa di katalog ekstensi. \xB7 ekspor: JenisLabelPaket, LabelPaket, LABEL_PAKET, labelPaket, daftarLabelPaket"],
   ["kode", "src/lib/lang.ts", "305 baris \xB7 ekspor: detectLang, extLangUntuk, labelBahasa, LANG_LABEL, loadLangExtension, extensiUntukFile"],
@@ -607,7 +626,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/lsp.ts", "392 baris \xB7 ekspor: LspServerDef, LSP_SERVERS, SERVER_BY_ID, serverForPath, LspOverride, LspSettings, DEFAULT_LSP_SETTINGS, effectiveSpec, severityFromLsp, uriToPath, pathToUri, COMPLETION_KIND, SYMBOL_KIND, hoverText"],
   ["kode", "src/lib/lspCm.ts", "913 baris \xB7 ekspor: offsetToLsp, lspToOffset, squiggleFor, squiggleField, setSquiggleEffect, lspCompletionSource, snippetCompletionSource, lspAutocompletion, autocompletionZephyr, lspHover, LspLocation, lspDefinition, lspReferences, lspDocumentSymbols, CallItem, lspPrepareCallHierarchy, lspCallHierarchy, TextEditLsp, applyEdits, lspFormat, applyWorkspaceEdit, lspFixAll, lspRename, lspCodeActions, lspSignatureHelp, SymbolOutline, lspSymbolTree, lspPeekExtension, tutupPeek, peekDefinition"],
   ["kode", "src/lib/lspStore.ts", "319 baris \xB7 ekspor: useLsp"],
-  ["kode", "src/lib/mcpStore.ts", "765 baris \xB7 ekspor: McpStore, useMcp, runAction"],
+  ["kode", "src/lib/mcpStore.ts", "799 baris \xB7 ekspor: McpStore, useMcp, runAction"],
   ["kode", "src/lib/mcpTools.ts", "231 baris \xB7 Tools from EXTERNAL MCP servers, offered to the agent. \xB7 ekspor: McpExternalTool, BATAS_TOOL_PER_SERVER, mcpBatas, McpRingkas, setMcpExternalTools, mcpRingkas, mcpTerpotong, pecahNamaMcp, mcpExternalSpecs, jalankanToolMcp"],
   ["kode", "src/lib/mdPreviewStore.ts", "42 baris \xB7 ekspor: useMdPreview"],
   ["kode", "src/lib/menu.ts", "238 baris \xB7 ekspor: MenuItem, MenuDef, MENUS"],
@@ -623,7 +642,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/pembungkusBahasa.ts", "141 baris \xB7 PEMBUNGKUS BAHASA + ATURAN KLAIM NILAI (item 161, sisa item 138). \xB7 ekspor: ATURAN_NILAI_ID, ATURAN_NILAI_EN, blokKlaimNilai, blokPenutup, FaktaNilai, JenisPelanggaranNilai, PelanggaranNilai, periksaKlaimNilai"],
   ["kode", "src/lib/peranIcons.ts", "54 baris \xB7 ekspor: IKON_PERAN, IKON_KUSTOM, pathIkonPeran"],
   ["kode", "src/lib/personaStore.ts", "356 baris \xB7 ekspor: Persona, PERSONA_BAWAAN, usePersona, personaAktif, blokPersona"],
-  ["kode", "src/lib/planMode.ts", "126 baris \xB7 Mode rencana: agen mengusulkan langkah, user menyetujui, BARU dikerjakan. \xB7 ekspor: Rencana, rencanaKeTeks, PILIHAN_RENCANA, JawabanRencana, tafsirJawaban, adaPerubahanBelumDisimpan"],
+  ["kode", "src/lib/planMode.ts", "127 baris \xB7 Mode rencana: agen mengusulkan langkah, user menyetujui, BARU dikerjakan. \xB7 ekspor: Rencana, rencanaKeTeks, PILIHAN_RENCANA, JawabanRencana, tafsirJawaban, adaPerubahanBelumDisimpan"],
   ["kode", "src/lib/pluginsStore.ts", "245 baris \xB7 The plugin layer. \xB7 ekspor: InstalledPlugin, MarketPlugin, PluginHook, PluginAgent, PluginToggle, usePlugins"],
   ["kode", "src/lib/portsStore.ts", "84 baris \xB7 ekspor: PortProtocol, PortSource, ForwardedPort, usePorts"],
   ["kode", "src/lib/problemsStore.ts", "112 baris \xB7 ekspor: Severity, Diagnostic, useProblems"],
@@ -648,16 +667,16 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/sshArgv.ts", "597 baris \xB7 sshArgv \u2014 penyusun argumen MURNI untuk ssh / scp / sftp. \xB7 ekspor: ModeSsh, KebijakanHostKey, TargetSsh, OpsiSsh, JalurSsh, KodeGalatSsh, GalatSsh, PORT_MIN, PORT_MAX, TIMEOUT_MS_BAWAAN, TIMEOUT_MS_MIN, TIMEOUT_MS_MAX, SERVER_ALIVE_DETIK, SERVER_ALIVE_MAKS, OPSI_DILARANG, OPSI_DIIZINKAN, hostSah, userSah, portSah, kunciSah, fingerprintSah, berkasOpsiSah, validasiTarget, kutipNilaiOpsi, kutipTokenRujukan, teksPerintah, jagaArgv, susunArgv, susunJalur, susunArgvJalankan, susunArgvSkripMentah, susunArgvSalin, teksArgv, FIELD_TERLARANG_DI_TARGET, targetMembawaRahasia"],
   ["kode", "src/lib/sshRedaksi.ts", "211 baris \xB7 sshRedaksi \u2014 penyaring rahasia untuk keluaran SSH dan catatan log. \xB7 ekspor: PENANDA, PENANDA_KUNCI_PRIVAT, AturanRedaksi, ATURAN_REDAKSI, DILARANG_LOG, BOLEH_LOG, sensorRahasia, namaAturanCocok, adaRahasia, sensorArgv, sensorUntukLog"],
   ["kode", "src/lib/store.ts", "1725 baris \xB7 ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
-  ["kode", "src/lib/subagentCustom.ts", "364 baris \xB7 ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
+  ["kode", "src/lib/subagentCustom.ts", "358 baris \xB7 ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
   ["kode", "src/lib/subagentIcons.ts", "236 baris \xB7 The icon set for custom sub-agents. \xB7 ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
-  ["kode", "src/lib/subagentRoles.ts", "334 baris \xB7 ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
+  ["kode", "src/lib/subagentRoles.ts", "330 baris \xB7 ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
   ["kode", "src/lib/subagentRouter.ts", "99 baris \xB7 ekspor: SubagentTaskCategory, SubagentModelSource, SubagentModelCandidate, RouteSubagentModelInput, RoutedSubagentModel, classifySubagentTask, capabilityScore, routeSubagentModel"],
-  ["kode", "src/lib/subagentStore.ts", "1437 baris \xB7 ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
+  ["kode", "src/lib/subagentStore.ts", "1427 baris \xB7 ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
   ["kode", "src/lib/subsetAlat.ts", "244 baris \xB7 Subset alat per tugas - dan gerbang rencana pada langkah pertama. \xB7 ekspor: butuhAlatWeb, tugasButuhWeb, tugasBerat, TOOL_RENCANA_PERTAMA, alatRencanaPertama, gerbangRencanaSiap, ALAT_BUTUH_FOLDER, butuhFolder, TOOL_TULIS_BERKAS, alatUntukTugas, ALAT_TERAKHIR, catatAlatTerakhir"],
-  ["kode", "src/lib/subsetTugas.ts", "938 baris \xB7 Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). \xB7 ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
+  ["kode", "src/lib/subsetTugas.ts", "885 baris \xB7 Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). \xB7 ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
   ["kode", "src/lib/suntikKonteks.ts", "581 baris \xB7 suntikKonteks.ts \u2014 menyusun SATU giliran agen dari tiga sumber. \xB7 ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
   ["kode", "src/lib/symbolTree.ts", "201 baris \xB7 ekspor: SimpulSimbol, ikonKind, labelKind, pohonSimbol, jalurKe, barisSticky, sebaya"],
-  ["kode", "src/lib/systemPrompt.ts", "1431 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
+  ["kode", "src/lib/systemPrompt.ts", "1440 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
   ["kode", "src/lib/systemPromptLanguages.ts", "457 baris \xB7 Translated prompt blocks for the UI languages other than English and \xB7 ekspor: BlokPromptSebagian, LANGS"],
   ["kode", "src/lib/tampilanStore.ts", "57 baris \xB7 ekspor: ModeTampilan, useTampilan, EXT_GAMBAR, apakahGambar, mimeGambar"],
   ["kode", "src/lib/tasksStore.ts", "572 baris \xB7 ekspor: isiKonteks, TaskState, channelUntuk, sumberUntuk, useTasks, bindTaskListeners"],
@@ -666,10 +685,10 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/testsStore.ts", "292 baris \xB7 ekspor: TestFramework, TestCounts, TestRunResult, useTests, hitungHasil"],
   ["kode", "src/lib/themeBuilder.ts", "133 baris \xB7 Theme Builder \u2014 reading the live palette, overriding it, and exporting it. \xB7 ekspor: TOKEN_WARNA, TokenWarna, OverrideTema, bacaPalet, hexBisa, terapkanOverride, hexKeRgba, overrideTerisi"],
   ["kode", "src/lib/themes.ts", "331 baris \xB7 Tokens the Theme Builder may override. \xB7 ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
-  ["kode", "src/lib/toolGate.ts", "436 baris \xB7 Sekat tool untuk agen di dalam editor. \xB7 ekspor: ToolSection, SECTION_URUTAN, sectionOf, ToolGroup, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
-  ["kode", "src/lib/toolRules.ts", "165 baris \xB7 Per-tool permission rules. \xB7 ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
-  ["kode", "src/lib/types.ts", "1909 baris \xB7 ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, \u2026(+77)"],
-  ["kode", "src/lib/unduhInstal.ts", '657 baris \xB7 UNDUH-INSTAL - jalur "unduh -> periksa -> pasang" untuk paket EKSTENSI. \xB7 ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal'],
+  ["kode", "src/lib/toolGate.ts", "564 baris \xB7 Sekat tool untuk agen di dalam editor. \xB7 ekspor: ToolSection, SECTION_URUTAN, sectionOf, EKSTENSI_ADA, ToolGroup, setToolEkstensi, grupEkstensi, namaToolEkstensi, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
+  ["kode", "src/lib/toolRules.ts", "164 baris \xB7 Per-tool permission rules. \xB7 ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
+  ["kode", "src/lib/types.ts", "1965 baris \xB7 ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, \u2026(+78)"],
+  ["kode", "src/lib/unduhInstal.ts", '697 baris \xB7 UNDUH-INSTAL - jalur "unduh -> periksa -> pasang" untuk paket EKSTENSI. \xB7 ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, hitungBinding, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal'],
   ["kode", "src/lib/updaterStore.ts", "251 baris \xB7 ekspor: UpdateStatus, useUpdater, labelStatus"],
   ["kode", "src/lib/useAiChunkListener.ts", "33 baris \xB7 ekspor: useAiChunkListener"],
   ["kode", "src/lib/useAturanTersambung.ts", "76 baris \xB7 Wires the Rules SETTINGS to the Rules ENGINE. \xB7 ekspor: terapkanSetelanAturan, useAturanTersambung"],
@@ -682,21 +701,21 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/xtermRegistry.ts", "237 baris \xB7 ekspor: TermHandle, fontAman, retheme, reSrMode, getHandle, ensureHandle, writeTo, flushQueue, clearTerm, disposeHandle, fitTerm, readBuffer, findRow, getSelection, selectLine, termSize, termOptionsTheme, activeIds"],
   ["kode", "src/lib/zephyrCari.ts", "691 baris \xB7 Pencarian fakta tentang Zephyr dari indeks yang IKUT DIBUNDEL di aplikasi. \xB7 ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, CaraCocok, HasilFakta, pecahKueri, namaDalamKueri, kataTakDikenal, jumlahEntri, versiFakta, capTersimpan, capBasi, kategoriTersedia, cariFakta, hitungCocok, formatHasil, cariKode, BATAS_KARAKTER_SUNTIK, BATAS_HASIL_SUNTIK, ukuranCacheSuntikSesi, bersihkanCacheSuntikSesi, kepalaSuntikanIndeks, petaIndeks, OpsiSuntikan, suntikanIndeks"],
   ["kode", "src/lib/zephyrDokumen.ts", "512 baris \xB7 zephyrDokumen.ts - pencarian LOKAL atas isi dokumen Zephyr yang dibundel. \xB7 ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, BATAS_POTONGAN, BATAS_POTONGAN_BARU, BATAS_KATA_KUERI, BATAS_HASIL_SUNTIK, BATAS_KARAKTER_SUNTIK, BATAS_BARU_BAWAAN, CaraCocokDokumen, HasilDokumen, MetaDokumen, OpsiCariDokumen, rapikanBaris, potongPotongan, pecahKueri, barisTeksPertama, barisJudulBagian, cariDokumen, hitungCocok, kataTakDikenal, kataKunciDokumen, pertanyaanBaru, versiTeratas, apaYangBaru, jawabApaYangBaru, formatHasilDokumen, suntikanDokumen, daftarBerkas, metaBerkas, jumlahBerkas, jumlahBagian, versiDokumen, bundelKosong"],
-  ["kode", "src/lib/zephyrDokumenData.ts", "546 baris \xB7 BERKAS HASIL GENERATE - jangan disunting tangan. \xB7 ekspor: DokumenBagian, DokumenBerkas, DOKUMEN_VERSI, DOKUMEN_BERKAS, DOKUMEN_BAGIAN"],
+  ["kode", "src/lib/zephyrDokumenData.ts", "1838 baris \xB7 BERKAS HASIL GENERATE - jangan disunting tangan. \xB7 ekspor: DokumenBagian, DokumenBerkas, DOKUMEN_VERSI, DOKUMEN_BERKAS, DOKUMEN_BAGIAN"],
   ["kode", "src/lib/zephyrRuntime.ts", "265 baris \xB7 Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. \xB7 ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
   ["kode", "src/lib/zephyrTools/ambilWeb.ts", '736 baris \xB7 ambilWeb.ts \u2014 rumah satu-satunya untuk kemampuan "AMBIL-WEB" agen Zephyr. \xB7 ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb'],
   ["kode", "src/lib/zephyrTools/awalan.ts", "33 baris \xB7 Satu-satunya definisi awalan nama tool. \xB7 ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
-  ["kode", "src/lib/zephyrTools/builtins.ts", "2565 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
-  ["kode", "src/lib/zephyrTools/catalog.ts", "614 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
-  ["kode", "src/lib/zephyrTools/deskripsiTool.ts", "816 baris \xB7 ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
+  ["kode", "src/lib/zephyrTools/builtins.ts", "2000 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
+  ["kode", "src/lib/zephyrTools/catalog.ts", "631 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
+  ["kode", "src/lib/zephyrTools/deskripsiTool.ts", "636 baris \xB7 ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
   ["kode", "src/lib/zephyrTools/deskripsiToolHook.ts", "35 baris \xB7 deskripsiToolHook.ts - versi HOOK dari deskripsi tool, sengaja dipisah. \xB7 ekspor: useDeskripsiTool"],
   ["kode", "src/lib/zephyrTools/kebijakanIsiWeb.ts", "491 baris \xB7 KEBIJAKAN ISI WEB \u2014 satu tempat yang memutuskan apakah isi halaman dari \xB7 ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG, KebijakanIsiWeb, Keputusan, KeputusanUrl, HasilIsi, HasilSaring, Fetcher, KEBIJAKAN_TOLAK_SEMUA, kebijakanDariSetelan, normalisasiHost, isIpLiteral, isIpMetadata, isIpPrivat, isIpSelaluDilarang, isIpTerlarang, namaLokal, hostDiAllowlist, portSahBerlaku, hopBerlaku, periksaUrl, gerbangIsiKonten, ikutiRedirect, batasByteBerlaku, batasKarakterBerlaku, ukuranByte, batasiByte, potongKeluaran, saringKeModel, ambilIsiWeb"],
   ["kode", "src/lib/zephyrTools/kendaliJendela.ts", "609 baris \xB7 Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. \xB7 ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, DOK_LAPORAN_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar, TARGET_TANGKAP, TargetTangkap, targetTangkapDikenal, periksaTargetTangkap, periksaPathTangkap, tangkapJendela"],
-  ["kode", "src/lib/zephyrTools/mcp.ts", "726 baris \xB7 Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. \xB7 ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
-  ["kode", "src/lib/zephyrTools/web.ts", "907 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+  ["kode", "src/lib/zephyrTools/mcp.ts", "715 baris \xB7 Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. \xB7 ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
+  ["kode", "src/lib/zephyrTools/web.ts", "847 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
   ["kode", "src/lib/zephyrTools/worktree.ts", "279 baris \xB7 worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. \xB7 ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
   ["kode", "src/lib/zephyrTools/zephyrIngat.ts", "207 baris \xB7 `ingat` - memori lintas sesi milik Zeph AI sendiri. \xB7 ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
-  ["kode", "src/lib/zephyrTools/zephyrSelf.ts", "676 baris \xB7 zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. \xB7 ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
+  ["kode", "src/lib/zephyrTools/zephyrSelf.ts", "687 baris \xB7 zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. \xB7 ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
   ["kode", "src/main.tsx", "51 baris \xB7 tanpa ekspor"],
   ["kode", "src/styles/editor-themes.ts", "160 baris \xB7 ekspor: warnaToken, zephyrHighlight, editorTheme, EDITOR_THEME_IDS"],
   ["kode", "src/vite-env.d.ts", '2 baris \xB7 /// <reference types="vite/client" /> \xB7 tanpa ekspor'],
@@ -3758,6 +3777,7 @@ var FAKTA_INDEKS = [
   ["layar", "Add image", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar", "Add server", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CliSlashPanel.tsx, src/components/ai/CodexSettings.tsx"],
   ["layar", "Add skills, hooks, or plugins first \u2014 then you can export them.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
+  ["layar", "Add this server to Zephyr", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Add your custom instructions...", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar", "AgcSections", "src/components/settings/AgcSections.tsx \xB7 111 label: (no description), (no event set), (no pattern set), (not active yet), A plugin is a package that brings skills, rules, hooks, agents and MCP servers together. Enabling one writes the skills and rules it carries, registers its MCP servers, and adds its hooks (switched off) and agents to the sections that own them., Action, Add a rule, Add skills, hooks, or plugins first \u2014 then you can export them., Allow, Allow, confirm or block a tool call by pattern. Rules are checked top to bottom and the FIRST match decides \u2014 so a rule that should always apply belongs at the top. With no matching rule, the approval mode above decides as before., Any tool, Applies to (glob), Available, Block, Browse catalog, Cancel, Close, Command, Command to run, e.g. npm run lint, Commands run automatically at key points in the agent lifecycle to validate, format, or coordinate work., Confirm, Could not save the skill. See the message above., Create with AI, Customizations copied to the clipboard as JSON., Customizations exported as a download., Delete, Describe it in plain language, Description, Disable, Discard draft, Dismiss, Draft a hook from a description, Draft a skill from a description, Enable, Enabled, Enabled: its skills, rules, hooks, agents and MCP servers are in place., Export customizations, Folders of instructions and workflows the agent l\u2026"],
   ["layar", "AgcToolList", "src/components/settings/AgcToolList.tsx \xB7 6 label: All off, All on, Filter tools, No tool matches that filter., section, {n} of {total} on \xB7 5 data-testid: agc-tool-list, agc-tools-all-off, agc-tools-all-on, agc-tools-cari, agc-tools-total"],
@@ -3788,7 +3808,6 @@ var FAKTA_INDEKS = [
   ["layar", "Available", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "Available reasoning efforts", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar", "Available when the adapter supports loadedSources.", "teks elemen di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
-  ["layar", "BATAS && (", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Bahasa Indonesia", "teks elemen di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar", "Bahasa vs bawaan", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Bash(git *)", "placeholder di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -3806,7 +3825,7 @@ var FAKTA_INDEKS = [
   ["layar", 'Channel "{name}" is still empty.', "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/OutputView.tsx"],
   ["layar", "ChatHeadActions", "src/components/ai/ChatHeadActions.tsx \xB7 17 label: Agent Customizations\u2026, Chat Settings, Chat history, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models \xB7 19 data-testid: ai-history-btn, ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
   ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 33 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 25 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
-  ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 37 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., found, request(s), {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 22 data-testid: cset-agentcustom, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
+  ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 38 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 23 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
   ["layar", "ChatSettingsPopup", "src/components/ai/ChatSettingsPopup.tsx \xB7 aria-label: Chat Settings \xB7 2 data-testid: cset-pop, cset-scrim"],
   ["layar", "ChatStamp", "src/components/ai/ChatStamp.tsx \xB7 3 label: Today, Tomorrow, Yesterday \xB7 2 data-testid: ai-day-div, ai-msg-time"],
   ["layar", "Choose a model: type a name below or press Refresh.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ModelSelector.tsx"],
@@ -3880,6 +3899,7 @@ var FAKTA_INDEKS = [
   ["layar", "Customizations exported as a download.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "Customize Your Agent", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
   ["layar", "Debug", "aria-label di layar \xB7 dirender 1 berkas: src/components/debug/DebugToolbar.tsx"],
+  ["layar", "Debug Adapters", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Debug configuration", "aria-label di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
   ["layar", "Debug expression", "aria-label di layar \xB7 dirender 1 berkas: src/components/shell/DebugConsoleView.tsx"],
   ["layar", "DebugConsoleView", "src/components/shell/DebugConsoleView.tsx \xB7 1 label: Debug Console. Start a debug session (F5), then evaluate an expression in the frame that is paused. \xB7 tooltip: Clear console \xB7 aria-label: Debug expression \xB7 placeholder: Evaluasi ekspresi\u2026 \xB7 7 data-testid: dc-body, dc-clear, dc-empty, dc-input, dc-line, dc-send, debug-console-view"],
@@ -3942,7 +3962,7 @@ var FAKTA_INDEKS = [
   ["layar", "Export customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "Export report (JSON)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsDiag.tsx"],
   ["layar", "ExtApprovalModal", "src/components/extensions/ExtApprovalModal.tsx \xB7 3 data-testid: ext-approval, ext-approval-izinkan, ext-approval-tolak \xB7 teks: External runtime permission \xB7 Allow &amp; run"],
-  ["layar", "ExtensionsView", "src/components/extensions/ExtensionsView.tsx \xB7 16 label: (no description), Delete, Download & install v{version}, Extension actions, Extension groups, Extension options, Install first to see the actual contributions from the manifest., Install from the bundled catalog, No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works., Not available offline, Not installed yet., Open a project folder first - recommendations are computed from the file languages in the workspace., Search extensions, Search extensions\u2026, The extension folder will be deleted PERMANENTLY (cannot be undone)., Theme/keymap/language changes take effect after reload. \xB7 42 data-testid: ext-actions-btn, ext-cards, ext-catatan-bahasa, ext-contribs, ext-details, ext-details-close, ext-err, ext-filter, ext-filter-select, ext-info, ext-install-folder, ext-install-zext, ext-kabar, ext-kabar-close, ext-kabar-diabaikan, ext-kabar-judul, ext-kabar-pesan, ext-kabar-ringkasan, ext-kabar-tanpa-efek, ext-kosong, ext-market-empty, ext-market-err, ext-market-off, ext-pengaruh, ext-pengaruh-diabaikan, ext-rec-empty, ext-reload, ext-reload-bar, ext-reload-list, ext-ringkas \xB7 teks: BATAS && ( \xB7 needs runtime \xB7 no effect \xB7 Show Details \xB7 Bahasa vs bawaan \xB7 What this changes here \xB7 Ignored here \xB7 Loader report \xB7 Every installed package loaded. Nothing was skipped. \xB7 Ins\u2026"],
+  ["layar", "ExtensionsView", "src/components/extensions/ExtensionsView.tsx \xB7 23 label: (no description), Add this server to Zephyr, Delete, Download & install v{version}, Extension actions, Extension groups, Extension options, Install, Install first to see the actual contributions from the manifest., Install from the bundled catalog, No MCP server matches, No extension registry is configured - showing the packages bundled with Zephyr. Install from .zext or a folder also works., Not available offline, Not installed yet., Open a project folder first - recommendations are computed from the file languages in the workspace., Remove this server from Zephyr, Search extensions, Search extensions\u2026, The stdio transport is not wired up yet \u2014 see the note below the list., Unavailable, Uninstall, Weekly npm downloads, Zephyr will run {cmd} on this machine \xB7 38 data-testid: ext-actions-btn, ext-cards, ext-catatan-bahasa, ext-contribs, ext-debug-adapters, ext-details, ext-details-close, ext-err, ext-filter, ext-filter-select, ext-install-folder, ext-install-zext, ext-kosong, ext-market-empty, ext-market-err, ext-market-off, ext-mcp-cards, ext-mcp-err, ext-mcp-filter, ext-mcp-filter-select, ext-mcp-kosong, ext-pengaruh, ext-pengaruh-diabaikan, ext-rec-empty, ext-reload, ext-reload-bar, ext-reload-list, ext-ringkas, ext-ringkas-bersih, ext-ringkas-gagal \xB7 teks: needs runtime \xB7 no effect \xB7 Show Details \xB7 needs token \xB7 butuh\u2026"],
   ["layar", "External AI CLIs can read panes, editor tabs, and settings, and can control this window.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar", "External AI \u2192 Zephyr", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar", "External runtime permission", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
@@ -4077,6 +4097,7 @@ var FAKTA_INDEKS = [
   ["layar", "New terminal tab", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
   ["layar", "New token", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar", "No", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+  ["layar", "No MCP server matches", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "No MCP servers configured.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar", "No MCP servers connected", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar", "No actions match.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
@@ -4164,6 +4185,7 @@ var FAKTA_INDEKS = [
   ["layar", "Regular expression", "tooltip title di layar \xB7 dirender 1 berkas: src/components/editor/FindBar.tsx"],
   ["layar", "Remove bookmark", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar", "Remove for good", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
+  ["layar", "Remove this server from Zephyr", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Rename Symbol", "aria-label di layar \xB7 dirender 1 berkas: src/components/editor/LspOverlay.tsx"],
   ["layar", "Rename Tab", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
   ["layar", "Replace all", "teks elemen di layar \xB7 dirender 1 berkas: src/components/editor/FindBar.tsx"],
@@ -4275,6 +4297,7 @@ var FAKTA_INDEKS = [
   ["layar", "The agent wants to write to disk with {tool}:", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar", "The name may only contain letters, digits, dot, dash and underscore.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar", "The prompt this command runs\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+  ["layar", "The stdio transport is not wired up yet \u2014 see the note below the list.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "The token is stored in Zephyr settings and sent when testing this server.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar", "Theme: {t}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar", "ThinkingBar", "src/components/ai/ThinkingBar.tsx \xB7 2 label: Working, {n}s"],
@@ -4299,6 +4322,7 @@ var FAKTA_INDEKS = [
   ["layar", "Ultracode is the toggle in the model picker", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar", "Unified", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/claudeCodeUi.tsx"],
   ["layar", "Unified view \u2014 click to follow panel width", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/claudeCodeUi.tsx"],
+  ["layar", "Uninstall", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Untitled hook", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "Update", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/UpdateBtn.tsx"],
   ["layar", "UpdateBanner", "src/components/shell/UpdateBanner.tsx \xB7 6 label: common.close, common.ok, update.done, update.doneHint, update.fullChangelog, update.whatsNew \xB7 8 data-testid: upd-banner, upd-banner-close, upd-banner-notes, upd-done-changelog, upd-done-dialog, upd-done-notes, upd-done-ok, upd-done-title"],
@@ -4310,6 +4334,7 @@ var FAKTA_INDEKS = [
   ["layar", "Verify &amp; save", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar", "Version", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar", "Watch expression\u2026", "placeholder di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
+  ["layar", "Weekly npm downloads", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "What it does", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "What this changes here", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "When the agent should use this", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -4329,6 +4354,7 @@ var FAKTA_INDEKS = [
   ["layar", "Zephyr Marketplace", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
   ["layar", "Zephyr process memory", "tooltip title di layar \xB7 dirender 1 berkas: src/components/shell/StatusBar.tsx"],
   ["layar", "Zephyr ran into a problem", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/CrashDialog.tsx"],
+  ["layar", "Zephyr will run {cmd} on this machine", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "Zephyr \u2192 MCP servers", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar", "ZephyrLogo", "src/components/shell/ZephyrLogo.tsx \xB7 aria-label: Logo Zephyr"],
   ["layar", "Zoom", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
@@ -4678,6 +4704,7 @@ var FAKTA_INDEKS = [
   ["layar", "bp-stage", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/BrowserPane.tsx"],
   ["layar", "bp-title", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/BrowserPane.tsx"],
   ["layar", "bp-url", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/BrowserPane.tsx"],
+  ["layar", "butuh transport stdio", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "by {a}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "capture-panel", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/CapturePanel.tsx"],
   ["layar", "ce-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/ConflictEditor.tsx"],
@@ -4779,6 +4806,7 @@ var FAKTA_INDEKS = [
   ["layar", "crash-log", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/CrashDialog.tsx"],
   ["layar", "crash-message", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/CrashDialog.tsx"],
   ["layar", "cset-agentcustom", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
+  ["layar", "cset-allowlistweb", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar", "cset-clear", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar", "cset-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar", "cset-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
@@ -4962,6 +4990,7 @@ var FAKTA_INDEKS = [
   ["layar", "empty-shell", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/PaneGrid.tsx"],
   ["layar", "empty-split-browser", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/PaneGrid.tsx"],
   ["layar", "every {n} minutes", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
+  ["layar", "example.com", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
   ["layar", "exclude: *.min.js, dist/**", "placeholder di layar \xB7 dirender 1 berkas: src/components/explorer/SearchPanel.tsx"],
   ["layar", "ext-actions-btn", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-add", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
@@ -4971,6 +5000,7 @@ var FAKTA_INDEKS = [
   ["layar", "ext-cards", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-catatan-bahasa", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-contribs", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-debug-adapters", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-details", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-details-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
@@ -4979,16 +5009,9 @@ var FAKTA_INDEKS = [
   ["layar", "ext-filter", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-filter-select", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-folder", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
-  ["layar", "ext-info", "data-testid di layar \xB7 dirender 2 berkas: src/components/extensions/ExtensionsView.tsx, src/components/settings/SectionsExtensions.tsx"],
+  ["layar", "ext-info", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
   ["layar", "ext-install-folder", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-install-zext", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-diabaikan", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-judul", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-pesan", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-ringkasan", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-kabar-tanpa-efek", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-kosong", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-list", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
   ["layar", "ext-list-external", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
@@ -4996,6 +5019,11 @@ var FAKTA_INDEKS = [
   ["layar", "ext-market-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-market-err", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-market-off", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-mcp-cards", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-mcp-err", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-mcp-filter", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-mcp-filter-select", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "ext-mcp-kosong", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-pengaruh", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-pengaruh-diabaikan", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-rec-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
@@ -5018,11 +5046,9 @@ var FAKTA_INDEKS = [
   ["layar", "ext-trust-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
   ["layar", "ext-trust-head", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
   ["layar", "ext-trust-list", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
-  ["layar", "ext-uninstall-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-uninstall-cancel", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-uninstall-confirm", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-uninstall-ok", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-  ["layar", "ext-uninstall-pengaruh", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "ext-uninstall-title", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "extensions-view", "data-testid di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "feat-x", "placeholder di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
@@ -5205,6 +5231,7 @@ var FAKTA_INDEKS = [
   ["layar", "nc-read-all", "data-testid di layar \xB7 dirender 1 berkas: src/components/notifications/NotificationCenter.tsx"],
   ["layar", "nc-total", "data-testid di layar \xB7 dirender 1 berkas: src/components/notifications/NotificationCenter.tsx"],
   ["layar", "needs runtime", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+  ["layar", "needs token", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "next in {n}m", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
   ["layar", "no effect", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar", "npx -y @modelcontextprotocol/server-filesystem . \u2014 or https://\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -6068,7 +6095,7 @@ var FAKTA_INDEKS = [
   ["pintasan", "Ctrl+Tab", "untuk: Tab editor berikutnya \xB7 grup View"],
   ["pintasan", "Ctrl+W", "untuk: Close Tab \xB7 grup File"],
   ["pintasan", "Ctrl+\\\\", "untuk: Split editor to the right \xB7 grup View"],
-  ["pintasan", "Ctrl+`", "untuk: Toggle panel terminal \xB7 grup Terminal"],
+  ["pintasan", "Ctrl+backtick", "untuk: Toggle panel terminal \xB7 grup Terminal"],
   ["pintasan", "F4", "untuk: Next search result \xB7 grup Edit"],
   ["pintasan", "File baru", "tombol bawaan: Ctrl+N \xB7 grup File \xB7 id file.new"],
   ["pintasan", "Find in File", "tombol bawaan: Ctrl+F \xB7 grup Edit \xB7 id edit.find"],
@@ -6112,6 +6139,7 @@ var FAKTA_INDEKS = [
   ["seksi", "Agent", "seksi di Chat Settings (panel AI)"],
   ["seksi", "Appearance", "seksi di Chat Settings (panel AI)"],
   ["seksi", "Context", "seksi di Chat Settings (panel AI)"],
+  ["seksi", "Konten web", "seksi di Chat Settings (panel AI)"],
   ["seksi", "Mode", "seksi di Chat Settings (panel AI)"],
   ["seksi", "Models", "seksi di Chat Settings (panel AI)"],
   ["seksi", "Rules", "seksi di Chat Settings (panel AI)"],
@@ -6267,35 +6295,23 @@ var FAKTA_INDEKS = [
   ["setelan", "update.lastSeenVersion", "default: (grup update)"],
   ["setelan", "update.pendingNotes", "default: (grup update)"],
   ["setelan", "update.seenAnnouncements", "default: [] (grup update)"],
-  ["tool", "ask_user", "tool \xB7 kelompok Penalaran \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "bash_background", "tool \xB7 kelompok Shell \xB7 efek exec \xB7 perlu izin: ya"],
-  ["tool", "bash_kill", "tool \xB7 kelompok Shell \xB7 efek exec \xB7 perlu izin: ya"],
-  ["tool", "bash_list", "tool \xB7 kelompok Shell \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "bash_logs", "tool \xB7 kelompok Shell \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "bash_run", "tool \xB7 kelompok Shell \xB7 efek exec \xB7 perlu izin: ya"],
   ["tool", "browser_click", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
   ["tool", "browser_close", "tool \xB7 kelompok Browser \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "browser_download_url", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
   ["tool", "browser_list", "tool \xB7 kelompok Browser \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "browser_nav", "tool \xB7 kelompok Browser \xB7 efek net \xB7 perlu izin: tidak"],
   ["tool", "browser_open", "tool \xB7 kelompok Browser \xB7 efek net \xB7 perlu izin: tidak"],
   ["tool", "browser_read", "tool \xB7 kelompok Browser \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "browser_type", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
-  ["tool", "calculator", "tool \xB7 kelompok Penalaran \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "cancel_schedule", "tool \xB7 kelompok Schedules \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "copy_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
-  ["tool", "create_directory", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
   ["tool", "delete_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
-  ["tool", "edit", "tool \xB7 kelompok Edit \xB7 efek fsWrite \xB7 perlu izin: ya"],
   ["tool", "extension", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "focus_pane", "tool \xB7 kelompok terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
-  ["tool", "get_terminal_output", "tool \xB7 kelompok Terminal \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "glob", "tool \xB7 kelompok Search \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "grep", "tool \xB7 kelompok Search \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "ingat", "tool \xB7 kelompok Memori \xB7 efek appWrite \xB7 perlu izin: tidak"],
   ["tool", "inspect", "tool \xB7 kelompok inspect \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "list_directory", "tool \xB7 kelompok Files \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "list_schedules", "tool \xB7 kelompok Schedules \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "lsp_call_hierarchy", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "lsp_definition", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "lsp_diagnostics", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
@@ -6304,26 +6320,19 @@ var FAKTA_INDEKS = [
   ["tool", "lsp_symbols", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "move_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
   ["tool", "multi_edit", "tool \xB7 kelompok Edit \xB7 efek fsWrite \xB7 perlu izin: ya"],
-  ["tool", "notes_read", "tool \xB7 kelompok Tasks & Notes \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "notes_write", "tool \xB7 kelompok Tasks & Notes \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "open_file", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
-  ["tool", "open_preview", "tool \xB7 kelompok Terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "pane", "tool \xB7 kelompok terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "read", "tool \xB7 kelompok inspect \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "read_file", "tool \xB7 kelompok Files \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "replace_in_files", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
   ["tool", "run_command", "tool \xB7 kelompok control \xB7 efek exec \xB7 perlu izin: ya"],
   ["tool", "run_subagent", "tool \xB7 kelompok Sub-agents \xB7 efek exec \xB7 perlu izin: ya"],
-  ["tool", "run_subagents", "tool \xB7 kelompok Sub-agents \xB7 efek exec \xB7 perlu izin: ya"],
   ["tool", "schedule_command", "tool \xB7 kelompok Schedules \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "set_setting", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "sh", "tool \xB7 kelompok terminal \xB7 efek exec \xB7 perlu izin: ya"],
   ["tool", "skill_view", "tool \xB7 kelompok Skills \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "ssh", "tool \xB7 kelompok control \xB7 efek exec \xB7 perlu izin: ya"],
-  ["tool", "state", "tool \xB7 kelompok inspect \xB7 efek read \xB7 perlu izin: tidak"],
-  ["tool", "suggest_command", "tool \xB7 kelompok Terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
-  ["tool", "system_browser_open", "tool \xB7 kelompok Browser \xB7 efek net \xB7 perlu izin: tidak"],
-  ["tool", "think", "tool \xB7 kelompok Penalaran \xB7 efek read \xB7 perlu izin: tidak"],
   ["tool", "todo_write", "tool \xB7 kelompok Tasks & Notes \xB7 efek appWrite \xB7 perlu izin: ya"],
   ["tool", "tool_call", "tool \xB7 kelompok Penalaran \xB7 efek exec \xB7 perlu izin: ya"],
   ["tool", "tool_search", "tool \xB7 kelompok Penalaran \xB7 efek read \xB7 perlu izin: tidak"],
@@ -6435,12 +6444,12 @@ var PERAN_BY_ID = new Map(PERAN.map((p) => [p.id, p]));
 function aturanSubagentPrompt(bahasa) {
   if ((bahasa || "").toLowerCase().startsWith("id")) {
     return [
-      "- JANGAN memunculkan subagent (run_subagents) kecuali user secara eksplisit minta subagent, delegasi, atau kerja paralel. Subagent MENELITI; mereka tidak menulis berkas. Jangan pernah menyerahkan penulisan berkas ke subagent: anak read-only tetap melapor selesai padahal berkasnya tak pernah ada; putuskan dari JENIS pekerjaan, bukan jumlah berkas - membangun dikerjakan OLEHMU satu berkas demi satu, riset paralel yang boleh didelegasikan. Kalau memang mendelegasikan, tiap peran TERKUNCI pada batas tool-nya (roster: cari/telaah/rencana/audit/jelajah read-only, hanya `kerja` yang boleh menulis, tak ada peran yang boleh menghapus berkas atau memakai terminal bebas).",
+      "- JANGAN memunculkan subagent (run_subagent) kecuali user secara eksplisit minta subagent, delegasi, atau kerja paralel. Subagent MENELITI; mereka tidak menulis berkas. Jangan pernah menyerahkan penulisan berkas ke subagent: anak read-only tetap melapor selesai padahal berkasnya tak pernah ada; putuskan dari JENIS pekerjaan, bukan jumlah berkas - membangun dikerjakan OLEHMU satu berkas demi satu, riset paralel yang boleh didelegasikan. Kalau memang mendelegasikan, tiap peran TERKUNCI pada batas tool-nya (roster: cari/telaah/rencana/audit/jelajah read-only, hanya `kerja` yang boleh menulis, tak ada peran yang boleh menghapus berkas atau memakai terminal bebas).",
       "- Sebelum mengaku pekerjaan selesai, buktikan dari disk dengan tool baca (glob, read_file, list_directory). Ringkasan adalah klaim, bukan bukti. Kalau berkasnya tidak ada, berarti tidak ada."
     ].join("\n");
   }
   return [
-    "- Do NOT spawn subagents (run_subagents) unless the user explicitly asks for subagents, delegation, or parallel work. Subagents RESEARCH; they do not write files. Never hand file-writing to a subagent: a read-only child reports success while the file never appears; decide by the kind of work, not the number of files - a build is done by YOU, file by file, while genuine parallel research is the case you may delegate. When you DO delegate, each role is LOCKED to its tool limits (roster: cari/telaah/rencana/audit/jelajah are read-only, only `kerja` may write, and no role may delete files or run a free shell).",
+    "- Do NOT spawn subagents (run_subagent) unless the user explicitly asks for subagents, delegation, or parallel work. Subagents RESEARCH; they do not write files. Never hand file-writing to a subagent: a read-only child reports success while the file never appears; decide by the kind of work, not the number of files - a build is done by YOU, file by file, while genuine parallel research is the case you may delegate. When you DO delegate, each role is LOCKED to its tool limits (roster: cari/telaah/rencana/audit/jelajah are read-only, only `kerja` may write, and no role may delete files or run a free shell).",
     "- Before you claim a build is finished, verify it from the disk with a read tool (glob, read_file, list_directory). A summary is a claim, not proof. If the files are not there, they do not exist."
   ].join("\n");
 }
@@ -7369,7 +7378,7 @@ var EN = {
   ].join("\n"),
   aturanProyek: "# Project rules (follow these)",
   konteksProyek: "# Project context and memory",
-  tanpaWorkspace: "- No folder is open, and that is fine: chatting, answering questions and READING files the user names by absolute path all work without one. What does NOT work is writing: with no folder open there is nowhere to write, so file writes and shell commands are refused (WorkspaceOutside) however absolute the path looks - state that limit instead of retrying, and do not claim a file was written when it was not. Do NOT ask the user to open a folder otherwise and do not invent one; a folder is opened only when the user asks for it or the task truly needs a write or the whole project. Folder-scoped tools (glob, grep) are not offered in this state - work from the paths the user names, and if a task truly needs the whole project, name the folder to open instead of probing for one.",
+  tanpaWorkspace: "- No folder is open, and that is fine: chatting, answering questions and READING files the user names by absolute path all work without one. What does NOT work is writing: with no folder open there is nowhere to write, so file writes and shell commands are refused (WorkspaceOutside) however absolute the path looks - state that limit instead of retrying, and do not claim a file was written when it was not. Do NOT ask the user to open a folder otherwise and do not invent one; a folder is opened only when the user asks for it or the task truly needs a write or the whole project. Folder-scoped tools (list_directory, glob, grep) are not offered in this state - work from the paths the user names, and if a task truly needs the whole project, name the folder to open instead of probing for one.",
   batasMcp: (ringkas) => `- Some external MCP servers expose more tools than are sent. These are the limits right now: ${ringkas}. Nothing was sent for the withheld tools, so do NOT claim they are unavailable or that the server is broken - say which tools are held back and that the reader can raise the limit in Settings. Never invent a tool name that is not in your tool list.`,
   instruksiSaya: "# Instructions from me",
   blokModelJudul: "# Model running you (facts, not guesses)",
@@ -7438,7 +7447,7 @@ var ID = {
   ].join("\n"),
   aturanProyek: "# Aturan proyek (ikuti)",
   konteksProyek: "# Konteks dan memori proyek",
-  tanpaWorkspace: "- Tidak ada folder yang terbuka, dan itu tidak masalah: chat, menjawab pertanyaan, dan MEMBACA berkas yang disebut user lewat path absolut semuanya jalan tanpa workspace. Yang TIDAK jalan adalah menulis: tanpa folder terbuka tidak ada tempat menulis, jadi tool tulis dan perintah shell ditolak (WorkspaceOutside) betapa pun absolut kelihatannya path itu - sebutkan batas itu alih-alih mencoba lagi, dan jangan bilang berkas sudah ditulis kalau ternyata tidak. Selain itu JANGAN meminta user membuka folder dan jangan mengarang satu; folder hanya dibuka kalau user yang memintanya atau tugasnya memang butuh menulis / butuh seluruh proyek. Tool ber-scope folder (glob, grep) tidak ditawarkan dalam keadaan ini - kerjakan dari path yang user sebut, dan kalau tugasnya memang butuh seluruh proyek, sebutkan folder mana yang perlu dibuka alih-alih menyisir mencari-cari.",
+  tanpaWorkspace: "- Tidak ada folder yang terbuka, dan itu tidak masalah: chat, menjawab pertanyaan, dan MEMBACA berkas yang disebut user lewat path absolut semuanya jalan tanpa workspace. Yang TIDAK jalan adalah menulis: tanpa folder terbuka tidak ada tempat menulis, jadi tool tulis dan perintah shell ditolak (WorkspaceOutside) betapa pun absolut kelihatannya path itu - sebutkan batas itu alih-alih mencoba lagi, dan jangan bilang berkas sudah ditulis kalau ternyata tidak. Selain itu JANGAN meminta user membuka folder dan jangan mengarang satu; folder hanya dibuka kalau user yang memintanya atau tugasnya memang butuh menulis / butuh seluruh proyek. Tool ber-scope folder (list_directory, glob, grep) tidak ditawarkan dalam keadaan ini - kerjakan dari path yang user sebut, dan kalau tugasnya memang butuh seluruh proyek, sebutkan folder mana yang perlu dibuka alih-alih menyisir mencari-cari.",
   batasMcp: (ringkas) => `- Sebagian server MCP pihak ketiga memaparkan lebih banyak tool daripada yang dikirim. Batas yang berlaku sekarang: ${ringkas}. Untuk tool yang ditahan tidak ada yang dikirim, jadi JANGAN mengaku tool itu tidak ada atau server-nya rusak - sebut mana yang ditahan dan bahwa batasnya bisa dinaikkan pembaca di Setelan. Jangan mengarang nama tool yang tidak ada di daftar toolmu.`,
   instruksiSaya: "# Instruksi dari saya",
   blokModelJudul: "# Model yang menjalankanmu (fakta, bukan tebakan)",
@@ -7592,30 +7601,9 @@ var KATA_ID = /* @__PURE__ */ new Set([
   "buka",
   "cara"
 ]);
-var AMBANG_TOKEN_INTI = 2e3;
-var ON_DEMAND = [
-  /* Setelan provider/API key/model: kelas `model` (item 162). */
-  { penanda: '- "AI Models" (Settings group', kelas: "model" },
-  /* Jalur log: kelas `galat`, yang memang blok prosedur debugging. */
-  { penanda: "- Logs: %APPDATA%", kelas: "galat" }
-];
-function rentangBullet(penanda) {
-  const i = FAKTA_ZEPHYR.indexOf(penanda);
-  if (i < 0) return null;
-  const mulai = FAKTA_ZEPHYR.lastIndexOf("\n- ", i);
-  const akhir = FAKTA_ZEPHYR.indexOf("\n", i + penanda.length);
-  if (mulai < 0 || akhir < 0) return null;
-  return { mulai, akhir, teks: FAKTA_ZEPHYR.slice(mulai + 1, akhir) };
-}
-function rentangOnDemand() {
-  return ON_DEMAND.map((od) => ({ ...od, r: rentangBullet(od.penanda) })).filter((x) => x.r !== null).sort((a, b) => b.r.mulai - a.r.mulai);
-}
+var AMBANG_TOKEN_INTI = 3400;
 function faktaInti() {
-  let teks = FAKTA_ZEPHYR;
-  for (const x of rentangOnDemand()) {
-    teks = teks.slice(0, x.r.mulai) + teks.slice(x.r.akhir);
-  }
-  return teks;
+  return FAKTA_ZEPHYR;
 }
 var LARANGAN_EN = [
   "# Hard limits",
@@ -7626,7 +7614,8 @@ var LARANGAN_EN = [
   "5. Never print secrets (API key, token, SSH key, .env): say where the user can see them.",
   "6. Never run a destructive tool (delete, move, overwrite, force push, kill a process) or commit/push unless the user asked for it.",
   "7. Never answer a Zephyr question from memory: the facts above + `zephyr_self`.",
-  "8. Any output you quote must come from a tool that actually ran this turn; if it failed, quote the error as it is."
+  "8. Any output you quote must come from a tool that actually ran this turn; if it failed, quote the error as it is.",
+  "9. A backtick only exists in PAIRS, and never after Ctrl+/Alt+/Shift+: write Ctrl+J, NOT Ctrl+`. A lone backtick swallows the text after it and the answer reaches the reader cut in pieces - that is a bug you caused, not a rendering quirk."
 ].join("\n");
 var LARANGAN_ID = [
   "# Batas keras",
@@ -7637,7 +7626,8 @@ var LARANGAN_ID = [
   "5. Jangan tampilkan isi rahasia (API key, token, kunci SSH, .env): sebut di mana user bisa melihatnya.",
   "6. Jangan panggil tool perusak (hapus, pindah, timpa, force push, matikan proses) atau commit/push tanpa diminta user.",
   "7. Jangan menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas + `zephyr_self`.",
-  "8. Keluaran yang kamu kutip harus dari tool yang benar-benar jalan giliran ini; kalau gagal, kutip error-nya apa adanya."
+  "8. Keluaran yang kamu kutip harus dari tool yang benar-benar jalan giliran ini; kalau gagal, kutip error-nya apa adanya.",
+  "9. Backtick hanya ada BERPASANGAN, dan jangan pernah dipakai setelah Ctrl+/Alt+/Shift+: tulis Ctrl+J, BUKAN Ctrl+`. Satu backtick nyasar menelan teks sesudahnya, dan jawabanmu sampai ke pembaca dalam potongan-potongan - itu bug yang kamu bikin, bukan salah tampilan."
 ].join("\n");
 function blokLarangan() {
   return kodeBahasaPrompt() === "id" ? LARANGAN_ID : LARANGAN_EN;

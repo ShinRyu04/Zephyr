@@ -27,29 +27,54 @@ export default function AgentsLayout() {
   const [kananBuka, setKananBuka] = useState(true);
   const [maks, setMaks] = useState(false);
 
+  /* Toggle Details (☰): hides the RIGHT panel — Files, Changes, Search,
+     Browser — while the editor/chat in the middle STAYS and grows into the
+     freed space. This is the reference design's behaviour: pressing ☰ in the
+     file panel collapses the panel, it never collapses the editor too.
+
+     The title bar's ☰ and the strip's button are the SAME control, so both are
+     wired to this one function rather than each holding their own flag. */
+  const toggleDetails = () => setKananBuka((v) => !v);
+
   return (
     <div className={`ag-root${maks ? ' is-maks' : ''}`} data-testid="agents-layout">
       <AgentsTitlebar
         kiriBuka={kiriBuka}
         kananBuka={kananBuka}
         onToggleKiri={() => setKiriBuka((v) => !v)}
-        onToggleKanan={() => setKananBuka((v) => !v)}
+        onToggleKanan={toggleDetails}
       />
-      <div className={`ag-body${kiriBuka && !maks ? '' : ' no-left'}${kananBuka ? '' : ' no-right'}`}>
+      <div
+        className={`ag-body${kiriBuka && !maks ? '' : ' no-left'}${kananBuka ? '' : ' no-right'}${maks ? ' is-maks' : ''}`}
+      >
         {kiriBuka && !maks && (
           <aside className="ag-col ag-left" data-testid="agents-left" aria-label="Sessions">
             <AgentsSessions />
           </aside>
         )}
 
-        <main className="ag-col ag-center" aria-label="Chat">
-          <Suspense fallback={null}>
-            <AiHost />
-          </Suspense>
-        </main>
+        {/*
+          * Maximise hides the CHAT too — the whole point is a full-window
+          * file/diff surface, like VS Code's "Maximize Editor Area". The old
+          * behaviour kept the chat at ~40% of the bar while only collapsing
+          * sessions; the user's complaint was exact: "gua pake maximize jga
+          * AI-nya msih ada". So under `maks` the centre does not render at
+          * all and the right column takes 100%.
+          */}
+        {!maks && (
+          <main className="ag-col ag-center" aria-label="Chat">
+            <Suspense fallback={null}>
+              <AiHost />
+            </Suspense>
+          </main>
+        )}
 
         {kananBuka && (
-          <aside className="ag-col ag-right" data-testid="agents-right" aria-label="Changes and files">
+          <aside
+            className={`ag-col ag-right${maks ? ' is-maks' : ''}`}
+            data-testid="agents-right"
+            aria-label="Changes and files"
+          >
             <AgentsRight maks={maks} onToggleMaks={() => setMaks((v) => !v)} />
           </aside>
         )}

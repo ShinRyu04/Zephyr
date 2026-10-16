@@ -207,19 +207,72 @@ export function onPtyExit(cb: (id: string, code: number | null) => void): Promis
 declare global {
   interface Window {
     __ZEPHYR_AI_LISTENER_PROMISE__?: Promise<UnlistenFn>;
+    /** Every live consumer, not just the newest one — see `onAiChunk`. */
+    __ZEPHYR_AI_CALLBACKS__?: Set<(c: AiChunk) => void>;
+    /** @deprecated kept so existing diagnostics keep working; mirrors the newest. */
     __ZEPHYR_AI_CALLBACK__?: (c: AiChunk) => void;
   }
 }
 
+/**
+ * Subscribe to `ai-chunk`.
+ *
+ * The Tauri listener is installed ONCE per window (the call below is a no-op
+ * after the first) but must serve EVERY subscriber. It used to hold a single
+ * `__ZEPHYR_AI_CALLBACK__` slot that each caller overwrote, so only the last
+ * registrant ever received a chunk and every earlier one was silently dropped.
+ *
+ * The subscription is kept as a Set and each entry is invoked on every chunk.
+ * That alone was not enough: a caller can be bound to a DIFFERENT `useAi`
+ * instance than the one the UI reads (Vite can hand out two copies of the store
+ * module across an HMR boundary, and each `create()` is its own store). In that
+ * state the chunk is delivered to a live function that writes to a store
+ * nothing renders - measured as `cb !== store.getState().onChunk` with the
+ * listener demonstrably firing. The symptom was the reported one: an agents
+ * chat stuck on "thinking" with no reply and no error, because `agentBusy` was
+ * only ever cleared inside the store that never saw the chunk.
+ *
+ * `useAiChunkListener` therefore registers a callback that re-reads the live
+ * store on every chunk instead of closing over one instance.
+ */
 export function onAiChunk(cb: (c: AiChunk) => void): Promise<UnlistenFn> {
   if (typeof window !== 'undefined') {
+    const daftar = (window.__ZEPHYR_AI_CALLBACKS__ ??= new Set());
+    daftar.add(cb);
     window.__ZEPHYR_AI_CALLBACK__ = cb;
     if (!window.__ZEPHYR_AI_LISTENER_PROMISE__) {
       window.__ZEPHYR_AI_LISTENER_PROMISE__ = listen<AiChunk>(EV.aiChunk, (e) => {
-        window.__ZEPHYR_AI_CALLBACK__?.(e.payload);
+        for (const f of window.__ZEPHYR_AI_CALLBACKS__ ?? []) {
+          try {
+            f(e.payload);
+          } catch {
+            /* One bad consumer must not stop the others. */
+          }
+        }
       });
     }
-    return window.__ZEPHYR_AI_LISTENER_PROMISE__;
+    const janji = window.__ZEPHYR_AI_LISTENER_PROMISE__;
+    return janji.then((un) => () => {
+      window.__ZEPHYR_AI_CALLBACKS__?.delete(cb);
+      /*
+       * Also drop the cached promise when the last consumer leaves.
+       *
+       * Without this the window is left with a promise that resolves to an
+       * ALREADY-CALLED unlisten while `__ZEPHYR_AI_CALLBACKS__` goes empty: the
+       * next mount sees a truthy `__ZEPHYR_AI_LISTENER_PROMISE__`, installs no
+       * new Tauri listener, and every later chunk is delivered to nobody. That
+       * is precisely the reported failure - a raw `ai-chunk` listener proved
+       * the events still arrived, while the store's `onChunk` was never
+       * entered. Clearing the slot makes the next subscriber re-install.
+       *
+       * Only when empty: a component unmounting must not tear the listener out
+       * from under the others.
+       */
+      if ((window.__ZEPHYR_AI_CALLBACKS__?.size ?? 0) === 0) {
+        window.__ZEPHYR_AI_LISTENER_PROMISE__ = undefined;
+        un();
+      }
+    });
   }
   return listen<AiChunk>(EV.aiChunk, (e) => cb(e.payload));
 }

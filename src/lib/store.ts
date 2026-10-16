@@ -626,9 +626,21 @@ export const useStore = create<Store>((set, get) => ({
 
     try {
       const saved = await cmd.sessionLoad();
+
+      /*
+       * The folder first, so the restored files open INTO it.
+       *
+       * Opening a tab before the workspace exists leaves `workspace` null while
+       * the file loads, and everything that keys off the workspace — the
+       * explorer root, the git status, the agent's project context — settles on
+       * "no folder". Doing it in this order means the first restored tab is
+       * already in the right project.
+       */
+      if (saved.workspace) await get().openWorkspace(saved.workspace);
+
       let restored = 0;
       set({ navSuppress: true });
-      for (const t of saved) {
+      for (const t of saved.tabs) {
         try {
           /* Restoring is not browsing: every file the reader had open comes
              back as a real tab, never as a preview slot that a later click
@@ -645,7 +657,7 @@ export const useStore = create<Store>((set, get) => ({
         }
       }
       set({ navSuppress: false });
-      const missing = saved.length - restored;
+      const missing = saved.tabs.length - restored;
       if (restored > 0) {
         set({
           statusMessage:
@@ -1648,7 +1660,15 @@ export const useStore = create<Store>((set, get) => ({
          */
         .filter((t) => !t.preview)
         .map((t) => ({ path: t.path as string, encoding: t.encoding, pinned: !!t.pinned }));
-      await cmd.sessionSave(tabs);
+      /*
+       * The folder goes with the tabs.
+       *
+       * It used to be dropped here, which is why the workspace was gone after
+       * every reload: the editor came back with its files but no folder for
+       * them to belong to, and the explorer, the Changes list and the agent's
+       * context all start from the workspace.
+       */
+      await cmd.sessionSave({ tabs, workspace: get().workspace });
     } catch {
 
     }

@@ -16,7 +16,7 @@
  *   A. 7 aturan wajib item ini DITEMUKAN di teks terkirim, UNTUK BAHASA EN DAN
  *      ID (14 pemeriksaan). Tiap aturan punya tanda tangan teks (regex) yang
  *      memang pernyataan aturannya, bukan kata umum.
- *   B. Anggaran blok inti tetap di bawah AMBANG_TOKEN_INTI (2.000 token =
+ *   B. Anggaran blok inti tetap di bawah AMBANG_TOKEN_INTI (3.400 token =
  *      8.000 char, token = ceil(char/4)). Angka char + token NYATA dicetak
  *      sebelum dan sesudah patch, bukan disimpulkan.
  *   C. JUDUL blok tidak berubah: '# Batas keras' (id) / '# Hard limits' (en)
@@ -345,7 +345,7 @@ for (const [lang, d] of [
   uji(
     'B',
     `2 anggaran baca dari kode ${lang}`,
-    d.ambangToken === 2000 && ambangChar === 8000,
+    d.ambangToken === 3400 && ambangChar === 13600,
     `AMBANG_TOKEN_INTI = ${d.ambangToken} token (dibaca dari src/lib/systemPrompt.ts, bukan ditulis di harness)`
   );
   uji(

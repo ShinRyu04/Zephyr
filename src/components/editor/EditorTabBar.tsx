@@ -3,7 +3,7 @@ import { useStore } from '../../lib/store';
 import { tx } from '../../lib/i18n';
 import FileIcon from './FileIcon';
 
-export default function EditorTabBar({ gid }: { gid?: string }) {
+export default function EditorTabBar({ gid, tanpaTabBaru = false }: { gid?: string; tanpaTabBaru?: boolean }) {
   const tabsAll = useStore((s) => s.tabs);
   const activeTabId = useStore((s) => s.activeTabId);
   const setActiveTab = useStore((s) => s.setActiveTab);
@@ -125,9 +125,11 @@ export default function EditorTabBar({ gid }: { gid?: string }) {
         ))}
       </div>
 
-      <button className="tabbar-new" title="New tab (Ctrl+N)" aria-label="New tab" onClick={newUntitled}>
-        ＋
-      </button>
+      {!tanpaTabBaru && (
+        <button className="tabbar-new" title="New tab (Ctrl+N)" aria-label="New tab" onClick={newUntitled}>
+          ＋
+        </button>
+      )}
     </div>
   );
 }

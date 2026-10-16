@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
+import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
+import AiIkon, { type NamaAiIkon } from '../ai/AiIkon';
 
 /*
  * The left column: past sessions on top, Customizations below.
@@ -19,19 +21,21 @@ import { useT } from '../../lib/i18n';
  * is ever hidden.
  */
 
-/** Customizations entries. Items with a `section` open that Settings section;
-    the rest are placeholders that open Settings at its overview. */
-type Custom = { label: string; count?: number; testid: string };
+/** Customizations entries. Each row opens the Agent Customizations panel on
+    its own section — the same modal the AI view's `…` menu opens, NOT the
+    editor-area Settings page. The glyph is the same one that section uses in
+    the panel's own nav, so a row and its destination read as the same thing. */
+type Custom = { label: string; section: AgentCustomSection; icon: NamaAiIkon };
 
 const CUSTOMS: Custom[] = [
-  { label: 'Overview', testid: 'ag-cust-overview' },
-  { label: 'Plugins', testid: 'ag-cust-plugins' },
-  { label: 'MCP Servers', testid: 'ag-cust-mcp' },
-  { label: 'Skills', testid: 'ag-cust-skills' },
-  { label: 'Instructions', testid: 'ag-cust-instructions' },
-  { label: 'Agents', testid: 'ag-cust-agents' },
-  { label: 'Hooks', testid: 'ag-cust-hooks' },
-  { label: 'Tools', testid: 'ag-cust-tools' },
+  { label: 'Overview', section: 'overview', icon: 'robot' },
+  { label: 'Plugins', section: 'plugins', icon: 'link' },
+  { label: 'MCP Servers', section: 'mcp', icon: 'terminal' },
+  { label: 'Skills', section: 'skills', icon: 'thought' },
+  { label: 'Instructions', section: 'instructions', icon: 'doc' },
+  { label: 'Agents', section: 'agents', icon: 'robot' },
+  { label: 'Hooks', section: 'hooks', icon: 'queue' },
+  { label: 'Tools', section: 'tools', icon: 'wrench' },
 ];
 
 export default function AgentsSessions() {
@@ -41,6 +45,8 @@ export default function AgentsSessions() {
   const selectChat = useAi((s) => s.selectChat);
   const newChat = useAi((s) => s.newChat);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const bukaCustom = useAgentCustom((s) => s.buka);
+  const workspaceAktif = useStore((s) => s.workspace);
   const [cari, setCari] = useState('');
   const [custBuka, setCustBuka] = useState(true);
 
@@ -61,23 +67,33 @@ export default function AgentsSessions() {
     return s.title.toLowerCase().includes(q);
   });
 
-  /* Group by recency. A per-workspace grouping (as in the reference design) is
-     not possible: `ChatSession` carries no workspace field — a conversation is
-     not bound to a folder — so grouping by one would mean inventing the data. */
+  /*
+   * Group by the workspace folder each conversation belongs to, newest group
+   * first — the way the reference design lists "Zephyr", "ZephyrCLI", "Talos"
+   * as their own blocks.
+   *
+   * A session created before `workspace` existed has none recorded; those fall
+   * under the folder that is OPEN right now, because that is the context they
+   * were almost certainly had in, and it keeps them visible instead of
+   * dropping them into a nameless bucket.
+   */
   const grup = useMemo(() => {
-    const hariIni = Date.now() - 86400000;
-    const kemarin = Date.now() - 172800000;
     const peta = new Map<string, typeof tersaring>();
     for (const s of tersaring) {
-      const last = s.messages[s.messages.length - 1];
-      const ts = last?.at ?? s.createdAt;
-      const label = ts > hariIni ? 'Today' : ts > kemarin ? 'Yesterday' : 'Earlier';
+      const label = s.workspace || workspaceAktif || 'Chats';
       const arr = peta.get(label);
       if (arr) arr.push(s);
       else peta.set(label, [s]);
     }
-    return [...peta.entries()];
-  }, [tersaring]);
+    return [...peta.entries()].sort((a, b) => {
+      /* The active folder first: it is the one being worked in. */
+      if (a[0] === workspaceAktif) return -1;
+      if (b[0] === workspaceAktif) return 1;
+      const terbaru = (arr: typeof tersaring) =>
+        Math.max(...arr.map((s) => s.messages[s.messages.length - 1]?.at ?? s.createdAt));
+      return terbaru(b[1]) - terbaru(a[1]);
+    });
+  }, [tersaring, workspaceAktif]);
 
   return (
     <div className="ag-sesi" data-testid="ag-sessions">
@@ -114,7 +130,16 @@ export default function AgentsSessions() {
         {grup.length === 0 && <p className="ag-sesi-kosong">{tr('No conversations yet')}</p>}
         {grup.map(([label, items]) => (
           <div key={label} className="ag-sesi-grup">
-            <div className="ag-sesi-grup-label">{label}</div>
+            {/*
+              * No folder header.
+              *
+              * The reader asked for the folder name to go: in a column this
+              * narrow the name was the widest thing on the row and it named a
+              * fact nobody was choosing between — every conversation below it
+              * belongs to the folder that is already open in the title bar. The
+              * grouping is kept (it still orders sessions by folder, active one
+              * first); only the label is gone, so nothing is hidden.
+              */}
             {items.map((s) => (
               <button
                 key={s.id}
@@ -167,13 +192,21 @@ export default function AgentsSessions() {
         {custBuka &&
           CUSTOMS.map((c) => (
             <button
-              key={c.testid}
+              key={c.section}
               className="ag-cust-row"
-              data-testid={c.testid}
-              onClick={() => setSettingsOpen(true)}
+              data-testid={`ag-cust-${c.section}`}
+              onClick={() => {
+                /* The panel is its own modal, NOT the editor Settings page —
+                   sending the reader to Settings for customizations is the
+                   path that was removed once already. */
+                setSettingsOpen(false);
+                bukaCustom(c.section);
+              }}
             >
+              <span className="ag-cust-ikon" aria-hidden="true">
+                <AiIkon name={c.icon} size={15} />
+              </span>
               <span className="ag-cust-label">{tr(c.label)}</span>
-              {c.count !== undefined && <span className="ag-cust-count">{c.count}</span>}
             </button>
           ))}
       </div>

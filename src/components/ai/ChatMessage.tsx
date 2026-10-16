@@ -232,16 +232,34 @@ const MdTabel: NonNullable<Components['table']> = ({ children }) => (
 
 const KODE_LANG = /language-([\w-]+)/;
 
-/** Narration between tool rows: every code span is a plain code block. */
+/**
+ * Narration between tool rows.
+ *
+ * Inline code STAYS inline. This used to render every code span through
+ * `CodeBlock`, so a `panel.height` mentioned mid-sentence came out as a full
+ * code CARD - header, Apply/Insert/Copy buttons, its own box - and one
+ * paragraph that named three keys was chopped into six boxes with prose
+ * crumbs between them. That is the reported "text is cut off, then rejoined"
+ * bug, and it is a RENDER bug: the paragraph arrived whole.
+ *
+ * Only a real fence (```lang) or a multi-line span is a block. A span longer
+ * than 80 chars with no fence is not code either: it is the sentence a lone
+ * stray backtick swallowed (a shortcut like Ctrl+` typed bare), and it comes
+ * back as PLAIN TEXT - monospacing a whole sentence would keep the words but
+ * still look broken.
+ */
 const MD_NARASI: Components = {
   pre: MdPre,
   table: MdTabel,
-  code: ({ className, children }) => (
-    <CodeBlock
-      code={String(children ?? '')}
-      lang={(KODE_LANG.exec(className ?? '')?.[1] ?? '').toLowerCase()}
-    />
-  ),
+  code: ({ className, children }) => {
+    const text = String(children ?? '').replace(/\n$/, '');
+    const m = KODE_LANG.exec(className ?? '');
+    if (m || text.includes('\n')) {
+      return <CodeBlock code={text} lang={(m?.[1] ?? '').toLowerCase()} />;
+    }
+    if (text.length > 80) return <>{text}</>;
+    return <code className="ai-inline">{text}</code>;
+  },
   a: MdLink,
 };
 
@@ -256,6 +274,9 @@ const MD_JAWABAN: Components = {
     const text = String(children ?? '').replace(/\n$/, '');
     const m = KODE_LANG.exec(className ?? '');
     if (!m && !text.includes('\n')) {
+      /* A lone stray backtick swallows the sentence after it; that is text,
+         not a file reference and not a code span (same rule as MD_NARASI). */
+      if (text.length > 80) return <>{text}</>;
       const ref = REF_RE.exec(text);
       if (ref) {
         return (

@@ -2,6 +2,14 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 /** Label of the "Open in Agents" window. One at a time. */
 export const AGENTS_WINDOW_LABEL = 'agents';
+const EDITOR_WINDOW_LABEL = 'main';
+
+/** Focus the main editor window from the Agents window. */
+export async function fokusEditorWindow(): Promise<void> {
+  const editor = await WebviewWindow.getByLabel(EDITOR_WINDOW_LABEL);
+  if (!editor) throw new Error(`Editor window "${EDITOR_WINDOW_LABEL}" is not available`);
+  await editor.setFocus();
+}
 
 /**
  * Open (or focus) the Agents window.

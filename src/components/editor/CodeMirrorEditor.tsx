@@ -56,6 +56,13 @@ import {
 import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
+/*
+ * Reused from the explorer rather than copied: the same question ("am I in the
+ * agents window?") must have one answer. Imported from `lib/`, NOT from
+ * `ExplorerPanel` — importing it from there closed a cycle (ExplorerPanel →
+ * CodeMirrorEditor → ExplorerPanel) and broke module loading outright.
+ */
+import { useDiAgen } from '../../lib/useDiAgen';
 import { vim } from '@replit/codemirror-vim';
 import { useStore } from '../../lib/store';
 import { extensiUntukFile } from '../../lib/lang';
@@ -730,7 +737,21 @@ export default function CodeMirrorEditor({ tab }: Props) {
    */
   const extrasAktif = !readOnly;
   const tampilMinimap = extrasAktif && editorSettings.minimap;
-  const tampilBreadcrumbs = !readOnly && editorSettings.breadcrumbs;
+  /*
+   * Breadcrumbs, never in the agents window.
+   *
+   * The reader asked for the path bar to go in "Open in Agents" (and only
+   * there). It is redundant on that surface: the file is already named by the
+   * tab sharing the strip above it, and the column is a side panel where a
+   * second path line costs height that the code needs. The setting still
+   * governs the main window, so nothing the reader configured is overridden —
+   * this window simply has no breadcrumb bar to configure.
+   *
+   * Read through a hook rather than a render-time DOM probe: this window mounts
+   * its own root, so the wrapper is not in the DOM yet while children render.
+   */
+  const diAgenWin = useDiAgen();
+  const tampilBreadcrumbs = !readOnly && editorSettings.breadcrumbs && !diAgenWin;
   const tampilSticky = extrasAktif && editorSettings.stickyScroll && !lowRam;
 
   /*

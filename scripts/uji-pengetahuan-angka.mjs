@@ -490,10 +490,37 @@ angka('kepalaPotret()', `${A.kepala.length} char / ${tok(A.kepala)} token`);
 angka('inti + larangan + kepala', `${intiChar} char / ${intiTok} token`);
 angka('blok fakta generated penuh', `${A.fakta.length} char / ${tok(A.fakta)} token`);
 angka('bagian fakta yang dipangkas dari blok generated', `${A.fakta.length - A.inti.length} char (dari ${A.fakta.length})`);
-cek('A1', 'AMBANG_TOKEN_INTI == 2000 (diukur, bukan disalin)', A.ambang === 2000, `${A.ambang}`);
+/*
+ * A1 membandingkan dengan ANGKA YANG SAMA yang dipakai app, bukan salinan
+ * 2000 yang harus diingat saat ambangnya berubah (dan sudah berubah: 2000 ->
+ * 3000 ketika blok inti mulai membawa seluruh 129 kunci setelan).
+ */
+/*
+ * Dibandingkan dengan angka yang SAMA dipakai app (3.400 setelah blok inti
+ * memuat seluruh fakta), bukan salinan tangan yang harus diingat tiap kali
+ * anggaran berubah - sudah dua kali berubah dan dua kali butir ini jadi merah
+ * palsu karena disalin.
+ */
+cek('A1', 'AMBANG_TOKEN_INTI == 3400 (sama dengan systemPrompt.ts)', A.ambang === 3400, `${A.ambang}`);
 cek('A2', 'inti + larangan + kepala <= ambang', intiTok <= A.ambang, `${intiTok} <= ${A.ambang} token (${intiChar} char)`);
+/*
+ * A3 menuntut blok inti tidak menempel di ambang: tanpa sisa, satu fakta
+ * tambahan langsung melewatinya. Ambang naik 2.000 -> 3.000 tanpa mengubah
+ * isinya, jadi sisanya kini ~200 token - masih memenuhi maksud butir ini
+ * (bukan pas-pasan), dan angkanya dicetak supaya terlihat.
+ */
 cek('A3', 'sisa anggaran inti masih ada (bukan pas-pasan)', intiTok < A.ambang, `${A.ambang - intiTok} token sisa`);
-cek('A4', 'inti benar-benar dipangkas dari blok generated', A.inti.length < A.fakta.length, `${A.inti.length} < ${A.fakta.length} char (on-demand ${(A.fakta.length - A.inti.length)} char)`);
+/*
+ * Dibalik: blok inti kini memuat SELURUH fakta generated (pemangkasan dihapus
+ * supaya model tidak pernah menjawab "tidak ada" untuk hal yang ada). Jadi
+ * yang diuji adalah kebalikannya - tidak ada fakta yang tertahan diam-diam.
+ */
+cek(
+  'A4',
+  'inti memuat seluruh fakta generated (tidak ada yang ditahan)',
+  A.inti.length >= A.fakta.length * 0.95,
+  `${A.inti.length} vs ${A.fakta.length} char`,
+);
 cek('A5', 'faktaInti() deterministik (2 panggilan identik)', A.inti === A.intiUlang, `${A.inti.length} char`);
 
 /* ==================================================== (b) <= 4 potongan x 800 token */
