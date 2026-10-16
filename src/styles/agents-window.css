@@ -1,0 +1,713 @@
+/* agents-window.css — the 3-column "Open in Agents" window.
+   Colours MUST come from CSS variables (AGENTS.md section 4). */
+
+.agents-window-root {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.ag-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Title bar ───────────────────────────────────────────────────────────── */
+
+.ag-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--bar-h, 28px);
+  flex-shrink: 0;
+  padding-left: 10px;
+  background: var(--titlebar-bg, var(--surface));
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  user-select: none;
+}
+.ag-tb-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+/* The wordmark, sized like the main bar's: a 28px bar only has room for a
+   small glyph, and a large one pushes the folder name out of line. */
+.ag-tb-brand {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.ag-tb-brand svg {
+  height: 11px;
+  width: auto;
+}
+.ag-tb-folder {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-tb-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ag-tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.ag-tb-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* The account button, kept the same weight as the icons beside it rather than
+   the ActivityBar's larger corner avatar. */
+.ag-tb-gh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.ag-tb-gh:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-tb-gh svg {
+  width: 13px;
+  height: 13px;
+}
+.ag-tb-gh-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 600;
+}
+.ag-tb-gh-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ag-tb-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-tb-btn.is-on {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+/* ── Body: three columns ─────────────────────────────────────────────────── */
+
+.ag-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.ag-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ag-left {
+  flex: 0 0 248px;
+  width: 248px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.ag-center {
+  flex: 1 1 auto;
+  background: var(--bg);
+}
+.ag-right {
+  flex: 0 0 288px;
+  width: 288px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+/* When a side column is hidden the middle simply takes the space — no width
+   reservation is left behind. */
+.ag-body.no-left .ag-center,
+.ag-body.no-right .ag-center {
+  flex: 1 1 auto;
+}
+
+/* ── Left column: sessions + customizations ──────────────────────────────── */
+
+.ag-sesi {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-sesi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 6px;
+  flex-shrink: 0;
+}
+.ag-sesi-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.ag-sesi-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-sesi-new svg {
+  width: 13px;
+  height: 13px;
+}
+.ag-sesi-new:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-sesi-cari {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 10px 8px;
+  padding: 0 8px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface-2));
+  flex-shrink: 0;
+}
+.ag-sesi-cari-ic {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+.ag-sesi-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.ag-sesi-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px;
+}
+.ag-sesi-kosong {
+  padding: 12px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ag-sesi-grup {
+  margin-bottom: 8px;
+}
+.ag-sesi-grup-label {
+  padding: 6px 6px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.ag-sesi-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-sesi-row:hover {
+  background: var(--surface-2);
+}
+.ag-sesi-row.is-aktif {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.ag-sesi-row-ic {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+.ag-sesi-row-teks {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Customizations — pinned under the session list, separated by a rule. */
+.ag-cust {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 6px 10px;
+  max-height: 46%;
+  overflow-y: auto;
+}
+/* Collapsed: a single footer bar, the way the reference design shows it. */
+.ag-cust.is-tutup {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+.ag-cust-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 6px 6px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-cust-head:hover {
+  color: var(--text);
+}
+.ag-cust-chev {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+.ag-cust-chev svg {
+  width: 12px;
+  height: 12px;
+  /* Pointing right when closed, down when open. */
+  transform: rotate(0deg);
+  transition: transform 0.14s ease;
+}
+.ag-cust:not(.is-tutup) .ag-cust-chev svg {
+  transform: rotate(90deg);
+}
+.ag-cust-judul {
+  flex: 1;
+  min-width: 0;
+}
+.ag-cust-jumlah {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.ag-cust-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-cust-row:hover {
+  background: var(--surface-2);
+}
+.ag-cust-count {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 16px;
+}
+
+/* ── Right column: Changes / Files tabs ──────────────────────────────────── */
+
+.ag-kanan {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 6px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.ag-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 150px;
+}
+.ag-tab:hover {
+  color: var(--text);
+}
+.ag-tab.is-aktif {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.ag-tab-teks {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ag-tab-tutup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.ag-tab:hover .ag-tab-tutup,
+.ag-tab.is-aktif .ag-tab-tutup {
+  opacity: 0.7;
+}
+.ag-tab-tutup:hover {
+  opacity: 1;
+  background: var(--surface-2);
+}
+.ag-tabs-ikon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.ag-tabs-ikon svg {
+  width: 14px;
+  height: 14px;
+}
+.ag-tabs-ikon:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-tabs-menuwrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.ag-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 40;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--surface));
+  box-shadow: 0 8px 22px rgb(0 0 0 / 42%);
+}
+.ag-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-menu-item:hover {
+  background: var(--surface-2);
+}
+.ag-menu-kbd {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  flex: 0 0 auto;
+}
+.ag-menu-centang {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.ag-tab-badge {
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-fg, #fff);
+  font-size: 10px;
+  line-height: 15px;
+}
+.ag-tabs-spacer {
+  flex: 1 1 auto;
+}
+.ag-tab-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ag-tab-body > * {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* ── Changes: a flat list of dirty files with line counts ────────────────── */
+
+.ag-changes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-changes-kosong {
+  padding: 16px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ag-changes-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+.ag-changes-judul {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.ag-changes-jumlah {
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 16px;
+}
+.ag-changes-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-changes-refresh svg {
+  width: 13px;
+  height: 13px;
+}
+.ag-changes-refresh:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-changes-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 8px;
+}
+.ag-changes-bersih {
+  padding: 12px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ag-changes-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 7px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-changes-row:hover {
+  background: var(--surface-2);
+}
+.ag-changes-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+}
+.ag-changes-dir {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.ag-changes-angka {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.ag-plus {
+  color: var(--git-add, var(--accent));
+}
+.ag-minus {
+  color: var(--git-del, #d9534f);
+}
+.ag-changes-kode {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.kode-M {
+  color: var(--text-muted);
+}
+.kode-A {
+  color: var(--git-add, var(--accent));
+}
+.kode-D {
+  color: var(--git-del, #d9534f);
+}
+.kode-U {
+  color: var(--warn, #d9a441);
+}
+
+/* ── Maximise: the chat takes the whole window ───────────────────────────── */
+
+.ag-root.is-maks .ag-center {
+  flex: 1 1 auto;
+}
+
+/*
+ * No tab strip in the middle column.
+ *
+ * `AiHost` renders its own "Agent / Claude Code / Codex" strip, which is the
+ * right thing in the main window where switching between the chat and a CLI
+ * session is the point. Here it is not: this window IS the agents surface, and
+ * the strip only ever cost a row of the transcript. Hiding it by selector (not
+ * by prop) keeps `AiHost` shared between both windows — the CLI tabs are
+ * still mounted, just not reachable from this surface.
+ */
+/*
+ * No tab strip in the middle column.
+ *
+ * `AiHost` renders its own "Agent / Claude Code / Codex" strip, which is the
+ * right thing in the main window where switching between the chat and a CLI
+ * session is the point. Here it is not: this window IS the agents surface, and
+ * the strip only ever cost a row of the transcript. Hiding it by selector (not
+ * by prop) keeps `AiHost` shared between both windows — the CLI tabs are
+ * still mounted, just not reachable from this surface.
+ */
+.agents-window-root .ai-host-tabs {
+  display: none;
+}
+
+/*
+ * No "New chat ⌄" header strip either.
+ *
+ * `AiPanel`'s compact header carries the session switcher (the title opens the
+ * chat list) and the sessions-column toggle. In this window both are already
+ * covered by the left column — the Sessions list IS the switcher — so the
+ * header was a second copy of a control that sits one column over, and it
+ * cost a row of the transcript. Hidden, not unmounted, so the chat's own
+ * state and listeners are untouched.
+ */
+.agents-window-root .ai-head {
+  display: none;
+}

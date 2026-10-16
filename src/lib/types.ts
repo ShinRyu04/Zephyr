@@ -390,6 +390,17 @@ export interface ChatSession {
   provider: string;
   messages: ChatMsg[];
   createdAt: number;
+  /**
+   * The workspace the conversation belongs to, recorded when the session is
+   * created or first used.
+   *
+   * The Agents window groups its session list by workspace, the way VS Code
+   * does, and without this field there is nothing to group by — sessions carry
+   * no other link to a folder. Sessions persisted before this field existed
+   * have `undefined`, and read as belonging to whichever workspace is active
+   * (see AgentsSessions), so nothing disappears from the list.
+   */
+  workspace?: string;
 
   approval?: ApprovalMode;
 }

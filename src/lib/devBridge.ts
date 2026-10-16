@@ -160,7 +160,7 @@ import {
 import { allPrompts, saveUserPrompts, matchPrompts, type PromptItem } from './promptLibrary';
 import { batasParalel, batasLangkah, bolehTulis, kemampuanTulis, putusanTulis, catatanTulis } from './subagentStore';
 import { flushTab, getActiveView, revealPosition } from './editorRegistry';
-import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitCreateBranch, setWindowSize, takeBrokenConfig, workspaceOpen } from './commands';
+import { fsRead, fsWrite, sessionLoad, scanDir, searchFiles, ptyWrite, ptyKill, ptySpawn, ptyList, ptySetPaused, ptyInterrupt, listAgents, getPublicModels, setModelKey, testModelConnection, resetSettings, getSettings, extensionsLoad, extensionsFolder, getDiagnostics, logFrontend, perfMark, debugPanic, gitStatus, gitStage, gitCommit, gitLog, gitDiff, gitNumstat, gitCreateBranch, setWindowSize, takeBrokenConfig, workspaceOpen } from './commands';
 import { readBuffer, getSelection, activeIds, findRow, selectLine, termSize, termOptionsTheme, retheme } from './xtermRegistry';
 import { copySelection, pasteInto, writeChunked } from './terminalClipboard';
 import { clipboardRead, clipboardWrite } from './clipboard';
@@ -172,7 +172,7 @@ import { useExtensions } from './extensionStore';
 import { COMMANDS, availableCommands, extensionCommands, findCommand, runCommand } from './commandRegistry';
 import { useNotif } from './notificationStore';
 import { useKb } from './keybindingStore';
-import { chordConflicts, chordFor } from './keybindings';
+import { chordConflicts, chordFor, gabungChordKembar } from './keybindings';
 import { MENUS } from './menu';
 import { usePanel } from './panelStore';
 import { useProblems } from './problemsStore';
@@ -614,24 +614,44 @@ export function installDevBridge(): void {
     available: () =>
       availableCommands().map((c) => ({ id: c.id, title: c.title, group: c.group })),
 
+    /*
+     * The RUNTIME bindings, matching what Settings > Shortcuts now renders.
+     *
+     * This used to report `ACTIONS` — the stale 35-row copy — so a harness
+     * asserting against it was checking chords the app does not actually
+     * respond to. Reading `useKb.bindings` makes the bridge agree with both the
+     * settings page and the real key handler.
+     */
     shortcutTable: () => {
-      const custom = useStore.getState().settings.shortcuts;
-      const rows = ACTIONS.map((a) => ({
-        id: a.id,
-        label: a.label,
-        group: a.group,
-        binding: effectiveBinding(a.id, custom),
+      const bindings = useKb.getState().bindings;
+      const rows = bindings.map((b) => ({
+        id: b.command,
+        label: b.label ?? b.command,
+        group: findCommand(b.command)?.group ?? 'View',
+        binding: b.chord,
       }));
-      const seen = new Map<string, string[]>();
-      for (const r of rows) {
 
-        if (!r.binding) continue;
-        seen.set(r.binding, [...(seen.get(r.binding) ?? []), r.id]);
-      }
-      const conflicts = [...seen.entries()]
-        .filter(([, ids]) => ids.length > 1)
-        .map(([binding, ids]) => ({ binding, ids }));
-      return { rows, conflicts };
+      /*
+       * Conflicts = chords held by two rows with the SAME `when`.
+       *
+       * A plain "two rows share this chord" scan is wrong here: Zephyr has
+       * deliberate twin chords (`Ctrl+Shift+O` for file.openFolder and
+       * editor.gotoSymbol, `F11` for window.fullscreen and debug.stepInto)
+       * which differ by context and are all reachable — `resolveBinding` picks
+       * the right one per `when`. Reporting those as conflicts turned a healthy
+       * table into a scary number, and it only surfaced now because the page
+       * used to show 35 of 93 rows and never revealed them.
+       *
+       * `gabungChordKembar` is the engine's own analysis and already separates
+       * the two kinds: `konflik` is only the row that LOSES at the same `when`
+       * and therefore can never run.
+       */
+      const laporan = gabungChordKembar(bindings).laporan;
+      const conflicts = laporan.kembar
+        .filter((k) => k.konflik.length > 0)
+        .map((k) => ({ binding: k.chord, ids: [k.utama, ...k.konflik] }));
+
+      return { rows, conflicts, jumlahKembar: laporan.jumlahKembar, barisEfektif: laporan.baris };
     },
   };
 
@@ -782,6 +802,9 @@ export function installDevBridge(): void {
       })),
 
     diffRaw: (path: string, staged = false) => gitDiff(path, staged),
+
+    /** Added/removed line counts per file — what the Agents Changes list shows. */
+    numstat: (staged = false) => gitNumstat(staged),
 
     commitRaw: (msg: string) => gitCommit(msg),
     branchRaw: (name: string) => gitCreateBranch(name),
