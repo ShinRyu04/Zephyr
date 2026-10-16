@@ -4138,6 +4138,15 @@ export const useAi = create<AiStore>((set0, get) => {
     const s = makeSession(st.model, st.provider);
 
     s.approval = st.approvalMode;
+    /*
+     * Record the folder this conversation belongs to.
+     *
+     * The Agents window groups its session list by workspace; without a folder
+     * stamped on the session there is nothing to group by, because a chat has no
+     * other link to a place on disk. Read from the store rather than a prop so
+     * it is right no matter which surface created the chat.
+     */
+    s.workspace = useStore.getState().workspace ?? undefined;
     /* Drop any buffered delta from a run that ended abnormally (crash, HMR) so
        it cannot flush into the NEW chat on the next frame. */
     batalkanFlushChunk();

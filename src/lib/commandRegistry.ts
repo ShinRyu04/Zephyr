@@ -820,6 +820,28 @@ export const COMMANDS: CommandDef[] = [
     run: () => window.dispatchEvent(new Event('zephyr-quickopen')),
   },
   {
+    id: 'agents.openWindow',
+    title: 'Open in Agents',
+    group: 'AI',
+    action: 'agents.openWindow',
+    keywords: 'agents window popout workspace new window tiga kolom ctrl+shift+a',
+    run: () => {
+      S().setSettingsOpen(false);
+      void import('./agentsWindow').then((m) => m.bukaAgentsWindow());
+    },
+  },
+  {
+    id: 'ai.openWindow',
+    title: 'AI: Open Chat Window',
+    group: 'AI',
+    action: 'ai.openWindow',
+    keywords: 'ai window popout agents chat new window ctrl+alt+o',
+    run: () => {
+      S().setSettingsOpen(false);
+      void import('./aiWindow').then((m) => m.bukaAiWindow());
+    },
+  },
+  {
     id: 'ai.panel',
     title: 'AI: Toggle AI Panel',
     group: 'AI',

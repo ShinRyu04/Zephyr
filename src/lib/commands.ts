@@ -923,6 +923,14 @@ export const gitDiff = (path: string, staged = false) =>
  * reader staged the file, before anything was committed.
  */
 export const gitDiffHead = (path: string) => invoke<string>('git_diff_head', { path });
+/**
+ * Added/removed line counts per changed file, keyed by path.
+ *
+ * `gitStatus()` says which files changed but not by how much; the Changes list
+ * in the Agents window shows "+92 -1" beside each row, which needs `--numstat`.
+ */
+export const gitNumstat = (staged = false) =>
+  invoke<Record<string, [number, number]>>('git_numstat', { staged });
 export const gitDiscard = (paths: string[]) => invoke<void>('git_discard', { paths });
 export const gitLog = (n = 20) => invoke<GitCommitInfo[]>('git_log', { n });
 export const gitConfigGetUser = () => invoke<GitUser>('git_config_get_user');

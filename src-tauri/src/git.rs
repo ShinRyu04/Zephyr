@@ -472,6 +472,92 @@ pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
     })
 }
 
+/**
+ * Added/removed line counts per changed file, for the Changes list.
+ *
+ * `git status` says WHICH files changed but not how much, and the Changes list
+ * shows "+92 -1" beside each row. `--numstat` is the cheapest source: one line
+ * per file, `added<TAB>removed<TAB>path`, and it counts a rename as its new
+ * path so the numbers line up with the status entries.
+ *
+ * Binary files report `-` instead of numbers; they are returned as 0/0 rather
+ * than guessed at, because a "binary" showing a fake line count is worse than
+ * showing none.
+ *
+ * Untracked files are absent from `git diff` entirely (there is nothing to
+ * diff against), so they are counted by reading the file: every line it has is
+ * an added line, which is what the editor would show for a new file.
+ */
+#[tauri::command(async)]
+pub fn git_numstat(
+    state: State<AppState>,
+    staged: Option<bool>,
+) -> ZResult<std::collections::HashMap<String, (u64, u64)>> {
+    let dir = match state.workspace_path() {
+        Some(d) => d,
+        None => return Ok(std::collections::HashMap::new()),
+    };
+
+    let _guard = state.git_permit()?;
+
+    let mut out_map: std::collections::HashMap<String, (u64, u64)> =
+        std::collections::HashMap::new();
+
+    /* Tracked changes: staged reads the index, unstaged the working tree.
+       Both are asked for, so a file with staged AND further unstaged edits
+       reports the total the reader will see after committing. */
+    let args: Vec<&str> = if staged.unwrap_or(false) {
+        vec!["diff", "--numstat", "--cached", "--", "."]
+    } else {
+        vec!["diff", "--numstat", "--", "."]
+    };
+    if let Ok(got) = run_git_in(&dir, &args, &[]) {
+        if got.ok {
+            for line in got.stdout.lines() {
+                let mut it = line.split('\t');
+                let (a, r, p) = match (it.next(), it.next(), it.next()) {
+                    (Some(a), Some(r), Some(p)) => (a, r, p),
+                    _ => continue,
+                };
+                /* "-" means binary; 0/0 keeps the row honest. */
+                let add = a.trim().parse::<u64>().unwrap_or(0);
+                let del = r.trim().parse::<u64>().unwrap_or(0);
+                let entry = out_map.entry(p.trim().to_string()).or_insert((0, 0));
+                entry.0 += add;
+                entry.1 += del;
+            }
+        }
+    }
+
+    /* Untracked files: `git diff` never lists them, so they would show no
+       counts at all. Counting their lines here makes a brand-new file read as
+       "all added", matching what the editor gutter shows for it. */
+    if !staged.unwrap_or(false) {
+        if let Ok(ls) = run_git_in(
+            &dir,
+            &["ls-files", "--others", "--exclude-standard", "--", "."],
+            &[],
+        ) {
+            if ls.ok {
+                for p in ls.stdout.lines().map(|l| l.trim()).filter(|l| !l.is_empty()) {
+                    if out_map.contains_key(p) {
+                        continue;
+                    }
+                    let full = dir.join(p.replace('/', std::path::MAIN_SEPARATOR_STR));
+                    /* A missing or unreadable file is skipped: an untracked entry
+                       that has since been deleted is not worth an error. */
+                    if let Ok(text) = std::fs::read_to_string(&full) {
+                        let n = text.lines().count() as u64;
+                        out_map.insert(p.to_string(), (n, 0));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(out_map)
+}
+
 fn non_empty(paths: &[String]) -> ZResult<Vec<&str>> {
     let v: Vec<&str> = paths
         .iter()

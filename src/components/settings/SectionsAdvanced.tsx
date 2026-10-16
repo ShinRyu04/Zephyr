@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
+import { useKb } from '../../lib/keybindingStore';
+import { findCommand, type CmdGroup } from '../../lib/commandRegistry';
 import { useT, tx } from '../../lib/i18n';
 import {
-  ACTIONS,
   ACTION_BY_ID,
   displayBinding,
-  effectiveBinding,
   eventToBinding,
   findConflicts,
 } from '../../lib/shortcuts';
@@ -27,6 +27,28 @@ import {
   type PromptItem,
 } from '../../lib/promptLibrary';
 
+/*
+ * The order groups appear in. Was a hardcoded 6-item list that silently
+ * dropped everything else — `Tasks` rows existed in ACTIONS but were never
+ * rendered, and a runtime table has Debug/MCP/Extensions/Snippets too. Listing
+ * the full CmdGroup vocabulary means a group can no longer go missing just
+ * because nobody added it here.
+ */
+const GROUP_ORDER: CmdGroup[] = [
+  'File',
+  'Edit',
+  'View',
+  'Terminal',
+  'Debug',
+  'Git',
+  'AI',
+  'MCP',
+  'Extensions',
+  'Snippets',
+  'Tasks',
+  'Settings',
+];
+
 export function ShortcutsSection() {
   const tr = useT();
   const custom = useStore((s) => s.settings.shortcuts);
@@ -35,6 +57,61 @@ export function ShortcutsSection() {
   const setCapturing = useSettingsUi((s) => s.setCapturing);
   const conflict = useSettingsUi((s) => s.conflictWarning);
   const setConflict = useSettingsUi((s) => s.setConflictWarning);
+
+  /*
+   * The RUNTIME table, not `ACTIONS`.
+   *
+   * This page used to render `ACTIONS` (shortcuts.ts) — a hand-maintained copy
+   * of ~35 rows that had drifted from reality. It claimed F4 for "next match"
+   * when the real chord is F3, said `terminal.new` was Ctrl+Shift+T when the
+   * real one is Ctrl+Shift+`, invented bindings that do not exist at all
+   * (edit.replaceInFiles, ai.send), and omitted whole families (debug.*,
+   * nav.*, editor.select.*). A reader who trusted this page would press
+   * chords that do nothing.
+   *
+   * `useKb.bindings` is the table `resolveBinding` actually consults on every
+   * keystroke (built from DEFAULT_BINDINGS, extension keymaps and the user's
+   * own overrides) — the same source the Ctrl+K Ctrl+S editor already uses.
+   * Rendering it is what makes the two surfaces agree.
+   *
+   * Resolution is per-COMMAND, while `settings.shortcuts` is keyed by ACTION id
+   * (the historical namespace). `actionFor()` bridges the two, so an override
+   * saved under an action id still controls the command it belongs to.
+   */
+  const bindings = useKb((s) => s.bindings);
+
+  /* The runtime rows, grouped by the command's own group. Sorted so the list
+     does not reshuffle between renders as extension keymaps load. */
+  const baris = useMemo(() => {
+    const out: { key: string; command: string; action?: string; label: string; group: CmdGroup; chord: string }[] = [];
+    for (const b of bindings) {
+      const def = findCommand(b.command);
+      /* Stub rows carry no implementation, so a chord that "does something"
+         is a lie — this page is for real actions. */
+      if (b.layer === 'stub') continue;
+      const action = def?.action;
+      /* A command with several chords contributes one row PER chord; keying on
+         the chord keeps React keys and the reset button unique. */
+      out.push({
+        key: `${action ?? b.command}::${b.chord}`,
+        command: b.command,
+        action,
+        label: (def ? tx(def.title) : b.label) || b.command,
+        group: def?.group ?? 'View',
+        chord: b.chord,
+      });
+    }
+    return out;
+  }, [bindings]);
+
+  /* Only rows that resolve to a real command — a binding for an id nobody
+     registered cannot be run, so offering it here would be the same lie the
+     old page told. */
+  const grupAda = useMemo(() => {
+    const set = new Set<CmdGroup>();
+    for (const r of baris) set.add(r.group);
+    return GROUP_ORDER.filter((g) => set.has(g));
+  }, [baris]);
 
   useEffect(() => {
     if (!capturing) return;
@@ -64,8 +141,6 @@ export function ShortcutsSection() {
 
   useEffect(() => () => setCapturing(null), [setCapturing]);
 
-  const groups = ['File', 'Edit', 'View', 'Terminal', 'AI', 'Git'] as const;
-
   return (
     <Section title={tr('settings.shortcuts')}>
       <p className="set-note">
@@ -77,29 +152,34 @@ export function ShortcutsSection() {
         </p>
       )}
 
-      {groups.map((g) => (
+      {grupAda.map((g) => (
         <div key={g} className="sc-group">
           <h3 className="sc-group-title">{g}</h3>
           <table className="sc-table">
             <tbody>
-              {ACTIONS.filter((a) => a.group === g).map((a) => {
-                const eff = effectiveBinding(a.id, custom);
-                const isCustom = !!custom[a.id];
-                const isCapturing = capturing === a.id;
+              {baris.filter((r) => r.group === g).map((r) => {
+                /* The row's identity for rebinding: the ACTION id when the
+                   command declares one (the historical settings namespace),
+                   else the command id itself. */
+                const id = r.action ?? r.command;
+                const label = r.label;
+                const isCustom = !!custom[id];
+                const isCapturing = capturing === id;
                 return (
-                  <tr key={a.id} data-sc-row={a.id}>
-                    <td className="sc-label">{tx(a.label)}</td>
+                  <tr key={r.key} data-sc-row={id}>
+                    <td className="sc-label">{label}</td>
                     <td className="sc-key">
                       <button
                         type="button"
                         className={`sc-binding${isCapturing ? ' is-capturing' : ''}${
                           isCustom ? ' is-custom' : ''
                         }`}
-                        data-testid={`sc-btn-${a.id}`}
-                        data-binding={eff}
-                        onClick={() => setCapturing(isCapturing ? null : a.id)}
+                        data-testid={`sc-btn-${id}`}
+                        data-binding={r.chord}
+                        data-command={r.command}
+                        onClick={() => setCapturing(isCapturing ? null : id)}
                       >
-                        {isCapturing ? tr('Press a combination…') : displayBinding(eff)}
+                        {isCapturing ? tr('Press a combination…') : displayBinding(r.chord)}
                       </button>
                     </td>
                     <td className="sc-actions">
@@ -107,10 +187,10 @@ export function ShortcutsSection() {
                         <button
                           type="button"
                           className="btn btn-sm"
-                          data-testid={`sc-reset-${a.id}`}
+                          data-testid={`sc-reset-${id}`}
                           onClick={() => {
 
-                            void apply({ shortcuts: { [a.id]: null } });
+                            void apply({ shortcuts: { [id]: null } });
                           }}
                         >
                           {tr('common.reset')}
