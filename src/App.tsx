@@ -1072,7 +1072,7 @@ export default function App() {
     void useAi.getState().init();
     aiListenerConsumers++;
     if (!aiListenerBound && !aiListenerBinding) {
-      aiListenerBinding = onAiChunk((c) => useAi.getState().onChunk(c))
+      aiListenerBinding = onAiChunk((c) => (window.__ZEPHYR_AI_STORE__ ?? useAi).getState().onChunk(c))
         .then((un) => {
           aiListenerBinding = undefined;
           if (aiListenerConsumers === 0) {

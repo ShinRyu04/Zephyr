@@ -493,8 +493,13 @@ export const fsCreateDir = (path: string) => invoke<void>('fs_create_dir', { pat
 export const fsDelete = (paths: string[], recursive = false) =>
   invoke<void>('fs_delete', { paths, recursive });
 export const fsRename = (from: string, to: string) => invoke<void>('fs_rename', { from, to });
-export const sessionLoad = () => invoke<SessionTab[]>('session_load');
-export const sessionSave = (tabs: SessionTab[]) => invoke<void>('session_save', { tabs });
+export interface SessionState {
+  tabs: SessionTab[];
+  /** The folder that was open, so the next launch returns to it. */
+  workspace?: string | null;
+}
+export const sessionLoad = () => invoke<SessionState>('session_load');
+export const sessionSave = (session: SessionState) => invoke<void>('session_save', { session });
 
 export const fileDialogOpen = (multiple = false) =>
   invoke<string[] | null>('file_dialog_open', { multiple });

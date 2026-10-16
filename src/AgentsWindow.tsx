@@ -1,12 +1,15 @@
 import { lazy, Suspense, useEffect } from 'react';
 import LiveRegion from './components/a11y/LiveRegion';
 import Toast from './components/notifications/Toast';
+import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useAiChunkListener } from './lib/useAiChunkListener';
 import { useAi } from './lib/aiStore';
 import { useStore } from './lib/store';
 import { useGit } from './lib/gitStore';
 import { useWs } from './lib/workspaceStore';
 import { onFsChanged } from './lib/events';
+import { muatSemuaEkstensi } from './lib/extLoader';
+import { fokusEditorWindow } from './lib/agentsWindow';
 
 const AgentsLayout = lazy(() => import('./components/agents/AgentsLayout'));
 const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
@@ -69,6 +72,21 @@ export default function AgentsWindow() {
   useEffect(() => saatSetelanSiap(() => void useAi.getState().init()), []);
 
   /*
+   * Extensions, for the editor.
+   *
+   * `muatSemuaEkstensi` is what installs language modes, themes, snippets and
+   * extension keymaps — without it the Editor tab would show every file as
+   * plain uncoloured text, and every `.cm-` colour rule read as missing rather
+   * than as "the extension set was never loaded". The main window does the same
+   * load at startup; this window is a separate WebView, so it needs its own.
+   */
+  useEffect(() => {
+    void muatSemuaEkstensi().catch(() => {
+      /* non-Tauri origin */
+    });
+  }, []);
+
+  /*
    * The workspace, for the Files column.
    *
    * Waits for settings to land first: `syncWorkspaceLokal` writes into the same
@@ -96,6 +114,39 @@ export default function AgentsWindow() {
       hidup = false;
       unsub();
     };
+  }, []);
+
+  /*
+   * Ctrl+Shift+A — the return trip to the editor.
+   *
+   * In the main window that chord opens this workspace (`agents.openWindow`,
+   * keybindings.ts). Here it must mean the opposite, exactly as VS Code's
+   * "toggle" chords do: the same key gets you back where you came from.
+   *
+   * This is bound LOCALLY rather than added to `DEFAULT_BINDINGS` on purpose.
+   * That table is global and this window resolves nothing from it: a global
+   * `Ctrl+Shift+A` row would resolve `agents.openWindow` HERE too, whose run()
+   * calls `bukaAgentsWindow()` -> `getByLabel('agents')` -> this very window ->
+   * `.setFocus()`. The chord would focus the window it was pressed in and look
+   * dead. Focusing the editor directly is the only thing that can work, so the
+   * binding lives where the intent does.
+   *
+   * `fokusEditorWindow` focuses the `main` window WITHOUT closing this one: the
+   * agents window stays alive behind it, and the main window's own
+   * Ctrl+Shift+A brings it straight back. A close-and-restore pair would lose
+   * the three columns' scroll positions and the draft in the composer.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return;
+      if (e.key.toLowerCase() !== 'a') return;
+      e.preventDefault();
+      void fokusEditorWindow().catch((error: unknown) => {
+        console.error('gagal kembali ke jendela editor', error);
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   /*
@@ -148,6 +199,16 @@ export default function AgentsWindow() {
       </Suspense>
       <Suspense fallback={null}>
         <Toast />
+      </Suspense>
+      {/*
+        * Unsaved-close confirmation, for both ways a file is opened here:
+        * double-clicking in Changes, and the tab strip's own ×. `openPath`
+        * routes a dirty buffer into `confirm`, and without this mount the store
+        * sets that flag and nothing ever asks — the click would silently
+        * discard the edits.
+        */}
+      <Suspense fallback={null}>
+        <ConfirmDialog />
       </Suspense>
       <LiveRegion />
     </div>

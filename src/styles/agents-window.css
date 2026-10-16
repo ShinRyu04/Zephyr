@@ -38,17 +38,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-}
-/* The wordmark, sized like the main bar's: a 28px bar only has room for a
-   small glyph, and a large one pushes the folder name out of line. */
-.ag-tb-brand {
-  display: flex;
-  align-items: center;
   flex: 0 0 auto;
-}
-.ag-tb-brand svg {
-  height: 11px;
-  width: auto;
 }
 .ag-tb-folder {
   color: var(--text-muted);
@@ -57,11 +47,125 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * The command-centre group: back/forward chevrons immediately left of the
+ * search box, then the box itself, then the "Open in Editor" pill.
+ *
+ * `flex: 1` on the wrapper is what gives the group its width: the left and
+ * right groups are sized by their content, so the leftover space collects here.
+ *
+ * `justify-content: flex-start` — NOT `center`, which is what this rule used to
+ * say. Centring was the cause of the pill's icon sliding 38px to the left on
+ * hover: with the group's contents centred, widening the LAST child re-centres
+ * the whole row, so everything to its left (chevrons, search box, and the Z
+ * glyph itself) shifted to keep the group balanced. The main window's
+ * equivalent row (`.mb-cc-wrap`) is `flex-start` for the same reason, and there
+ * the pill's icon is measurably motionless — 0.00px across the whole hover.
+ *
+ * With `flex-start` the contents are pinned to the left edge and the pill grows
+ * rightward into the group's spare space, exactly as it does in the main
+ * window. The measured spare space here is ~355px against a ~85px label, so
+ * there is no risk of the group overflowing at normal window widths.
+ */
+.ag-tb-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 10px;
+  /* Nudge the centred group right of dead centre: the user asked for it a
+     little further right than `center` alone gives, and a translate keeps the
+     group's internal layout untouched (unlike padding, which would also grow
+     the hit area and shift the flex line's basis). */
+  transform: translateX(90px);
+}
+.ag-cc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 14px;
+  width: min(480px, 100%);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 6px;
+  background: var(--bg0, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms, background 120ms, color 120ms;
+}
+.ag-cc:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-cc-ico {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+.ag-cc-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * "Open in Editor" — the main window's pill, copied whole.
+ *
+ * Same markup, same classes, same metrics, same animation as `.mb-aipill` in
+ * index.css. The goal is that hovering it here and hovering it in the main
+ * window look like the same widget, because they are the same widget.
+ *
+ * The motion that has to match is subtle and was measured, not assumed: the Z
+ * glyph does NOT travel. The LABEL opens and the button widens; the icon stays
+ * put (main window: 0.00px of icon movement across a hover, while the button
+ * grows 85px). That only works if there is spare room for the label to grow
+ * into, which is why `.ag-tb-center` above is `flex-start` and why this button
+ * is the group's last child.
+ *
+ * Two earlier versions of this rule got the motion wrong in opposite ways and
+ * both are recorded here so neither comes back:
+ *
+ *   1. `position: absolute; right: 100%` on `.mb-aipill-body` — made the label
+ *      open leftward out of the icon. Wrong direction, and the icon still did
+ *      not stay put. Removed.
+ *   2. Leaving the body in flow while `.ag-tb-center` was `justify-content:
+ *      center` — the label opened rightward, but re-centring the row pushed the
+ *      icon 38px left as it did. `flex-start` on the group is the fix.
+ *
+ * The old `.mb-aipill-ic { color: var(--accent) }` override is gone as well: it
+ * painted the Z blue at rest, while the main window's Z starts in
+ * `--text-muted` and only takes the accent on hover. Same mark, same states.
+ */
+.ag-open-editor {
+  margin: 0 0 0 4px;
+  padding: 0 5px;
+}
 .ag-tb-right {
   display: flex;
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  /*
+   * Above `.ag-tb-center`, which overlaps this group.
+   *
+   * Measured, not guessed: the centre group is `flex: 1 1 auto` and carries
+   * `transform: translateX(90px)`, so it spans x=163..1434 while this group
+   * starts at x=1344. `document.elementFromPoint()` at the centre of the right
+   * toggle returned `DIV.ag-tb-center` with the button at index 2 of the stack,
+   * so the click never landed on the button.
+   *
+   * `position: relative` is required for `z-index` to apply; the group's own
+   * layout is untouched because it is only moved in paint order.
+   */
+  position: relative;
+  z-index: 10;
 }
 .ag-tb-btn {
   display: flex;
@@ -158,9 +262,16 @@
   flex: 1 1 auto;
   background: var(--bg);
 }
+/*
+ * The right column, sized like VS Code's secondary side bar rather than a
+ * narrow rail. At 288px the Changes rows were truncating file names and the
+ * "+N -N" counts crowded the status letter; VS Code's own secondary bar opens
+ * around 340-400px for the same content. 480px gives the git diff list and
+ * file tree enough room to read comfortably without crowding the chat.
+ */
 .ag-right {
-  flex: 0 0 288px;
-  width: 288px;
+  flex: 0 0 480px;
+  width: 480px;
   border-left: 1px solid var(--border);
   background: var(--surface);
 }
@@ -253,14 +364,6 @@
 }
 .ag-sesi-grup {
   margin-bottom: 8px;
-}
-.ag-sesi-grup-label {
-  padding: 6px 6px 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
 }
 .ag-sesi-row {
   display: flex;
@@ -358,7 +461,7 @@
 .ag-cust-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   padding: 5px 7px;
@@ -372,6 +475,21 @@
 }
 .ag-cust-row:hover {
   background: var(--surface-2);
+}
+/* The glyph, not the label, is what makes the row recognisable at a glance —
+   same size and colour as the main sidebar's icons so the two columns read as
+   one editor. */
+.ag-cust-ikon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+.ag-cust-row:hover .ag-cust-ikon {
+  color: var(--text);
 }
 .ag-cust-count {
   flex: 0 0 auto;
@@ -403,27 +521,43 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 8px;
-  border: none;
-  border-bottom: 2px solid transparent;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
   background: transparent;
   color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
   max-width: 150px;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
 .ag-tab:hover {
   color: var(--text);
 }
+/*
+ * The active tab is a bordered CARD, not an underline.
+ *
+ * The reference design draws the selected view as a rounded rectangle with a
+ * hairline border and a faint fill, the way VS Code shows its own view tabs —
+ * an underline reads as "this section is selected", a card reads as "this is
+ * the open tab", which is what the reader is being told.
+ */
 .ag-tab.is-aktif {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  background: var(--surface-2);
+  border-color: var(--border-strong, var(--border));
 }
 .ag-tab-teks {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/*
+ * The close glyph lives INSIDE the active card, right of the label, and is
+ * always visible there — the reader closes the tab they are looking at, so a
+ * × that only appears on hover of a tab they are not on is the wrong control
+ * in the wrong place.
+ */
 .ag-tab-tutup {
   display: flex;
   align-items: center;
@@ -431,18 +565,18 @@
   width: 14px;
   height: 14px;
   border-radius: 3px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 0.12s ease, background 0.12s ease;
 }
 .ag-tab:hover .ag-tab-tutup,
 .ag-tab.is-aktif .ag-tab-tutup {
-  opacity: 0.7;
+  opacity: 0.75;
 }
 .ag-tab-tutup:hover {
   opacity: 1;
-  background: var(--surface-2);
+  background: var(--surface-3, var(--surface));
 }
 .ag-tabs-ikon {
   display: flex;
@@ -474,7 +608,17 @@
 .ag-menu {
   position: absolute;
   top: calc(100% + 2px);
-  right: 0;
+  /*
+   * Left-aligned to its button, not right-aligned.
+   *
+   * `right: 0` pushed the menu off the LEFT edge of the window whenever the
+   * button sat near the start of the strip — which is exactly where `+` is
+   * (measured at x=7 maximised, with the menu landing at x=-161, fully
+   * off-screen). The `+` menu is left-aligned in VS Code too, so the fix is
+   * also the reference behaviour. The `…` menu keeps the same rule; it lives
+   * further along the strip, where left-aligning is still on-screen.
+   */
+  left: 0;
   z-index: 40;
   min-width: 190px;
   padding: 4px;
@@ -519,6 +663,33 @@
   font-size: 10px;
   line-height: 15px;
 }
+/*
+ * The hoisted editor tab bar, sitting inline in the strip.
+ *
+ * `min-width: 0` + `overflow: hidden` let it shrink with many files open, and
+ * the inner `.tabbar-scroll` is what scrolls — the host must not grow the strip
+ * or the view tabs and the icon buttons get pushed off-screen.
+ */
+.ag-tabbar-host {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+/* The bar was built for the editor area, where it fills the width; in the strip
+   it must size to its tabs instead. */
+.ag-tabbar-host .tabbar {
+  background: transparent;
+  border: 0;
+  min-width: 0;
+  height: auto;
+  align-items: stretch;
+}
+.ag-tabbar-host .tabbar-scroll {
+  min-width: 0;
+}
+
 .ag-tabs-spacer {
   flex: 1 1 auto;
 }
@@ -529,9 +700,119 @@
   display: flex;
   flex-direction: column;
 }
+/*
+ * Side by side, once a file is open: editor on the LEFT, tree/list on the
+ * RIGHT — the editor is the first child of the row, so no `row-reverse` and no
+ * second opinion about which edge "first" means.
+ *
+ * The widths are a fixed 58/42 rather than `flex-grow` shares: a grow factor
+ * lets the CodeMirror measure push its own pane wider than the flex-basis that
+ * was asked for, which is how the editor ended up at 140px inside a 480px
+ * column while the list kept the rest.
+ */
+.ag-tab-body.is-belah {
+  flex-direction: row;
+}
+.ag-body-ed {
+  /* Width comes from the split rules below (`flex-basis: 58%`); keep only the
+     box behaviour here so there is ONE place that decides the split. */
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+.ag-body-list {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* The two panes always set their own widths; no caller should end up with an
+   empty strip beside a list. */
+.ag-tab-body:not(.is-belah) .ag-body-list {
+  flex: 1 1 100%;
+  width: 100%;
+}
+/*
+ * Children of the body default to filling it, but the two panes of the split
+ * set their own widths — the bare `flex: 1 1 auto` here would override
+ * `.ag-body-ed`'s fixed basis (a later rule with equal specificity does not win,
+ * and both are single-class selectors, so the one that comes LATER in the file
+ * does). Excluding them keeps the split's own sizing in charge.
+ */
 .ag-tab-body > * {
   min-height: 0;
   flex: 1 1 auto;
+}
+.ag-tab-body.is-belah > .ag-body-ed,
+.ag-tab-body.is-belah > .ag-body-list {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+.ag-tab-body.is-belah > .ag-body-ed {
+  flex-basis: 58%;
+}
+.ag-tab-body.is-belah > .ag-body-list {
+  flex-grow: 1;
+  flex-basis: 0;
+}
+
+/*
+ * Details OFF: the list is not rendered at all, so the editor takes the whole
+ * body. Stated explicitly rather than left to "it is the only child", because
+ * the split rules above give `.ag-body-ed` a 58% basis and would otherwise
+ * leave the other 42% of the column empty.
+ */
+.ag-tab-body.is-belah.no-detail > .ag-body-ed {
+  flex-grow: 1;
+  flex-basis: 0;
+}
+
+/* ── Editor: a real editor in the agent column ───────────────────────────── */
+.ag-ed {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-editor, var(--bg));
+}
+/* The tab strip is the column's own row: it must not stretch, and it scrolls
+   sideways rather than wrapping when many files are open. */
+.ag-ed .tabbar {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.ag-ed-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* CodeMirror sizes itself from its container; the wrapper only has to give it
+   a height to fill. */
+.ag-ed-body > * {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.ag-ed-kosong {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.ag-ed-kosong p {
+  margin: 0;
+  max-width: 30ch;
+  line-height: 1.5;
 }
 
 /* ── Changes: a flat list of dirty files with line counts ────────────────── */
@@ -668,10 +949,109 @@
   color: var(--warn, #d9a441);
 }
 
-/* ── Maximise: the chat takes the whole window ───────────────────────────── */
+/* ── Browser view (right column, opened from `+`) ────────────────────────── */
 
-.ag-root.is-maks .ag-center {
+.ag-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.ag-browser-url {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg0, var(--surface-2));
+  color: var(--text);
+  font-size: 11.5px;
+  outline: none;
+}
+.ag-browser-url:focus {
+  border-color: var(--accent);
+}
+.ag-browser-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-browser-go svg {
+  width: 14px;
+  height: 14px;
+}
+.ag-browser-go:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-browser-galat {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--warn, #d9a441);
+  font-size: 11.5px;
+}
+/*
+ * The stage is only a RECTANGLE: the native webview is positioned over it by
+ * `browser_pane_bounds`, so it must not paint anything of its own or the two
+ * would fight. It needs a real size, though, since a zero rect is skipped.
+ */
+.ag-browser-stage {
   flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg);
+}
+
+/* ── Maximise: the RIGHT column takes the room ───────────────────────────── */
+
+/*
+ * Maximise: the chat and sessions are BOTH gone, so the right column takes
+ * the entire window — no 60% cap, there is nothing left to share with.
+ */
+.ag-right.is-maks {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 420px;
+  max-width: none;
+}
+
+/*
+ * In maximise the split inverts: the TREE gets a fixed column and the editor
+ * takes everything else.
+ *
+ * It is the opposite of the normal mode on purpose. At 480px wide there is
+ * nothing to spare, so the tree keeps the larger half (58%) because a tree is
+ * what you navigate with and 130px of file names is unusable. Full width is the
+ * opposite problem: 42% of a 1366px window is a 570px-wide tree — wider than
+ * VS Code's own sidebar — while the editor, the surface the reader maximised
+ * FOR, is squeezed beside it. So the tree is pinned to a fixed 260px (the width
+ * it would have had anyway) and every remaining pixel goes to the editor.
+ */
+.ag-right.is-maks .ag-tab-body.is-belah > .ag-body-list {
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: 260px;
+}
+.ag-right.is-maks .ag-tab-body.is-belah > .ag-body-ed {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 0;
 }
 
 /*
