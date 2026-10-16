@@ -226,7 +226,17 @@ const nextId = () => `t${++idSeq}`;
 
 const baseName = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
-let bootstrapStarted = false;
+/**
+ * The in-flight `bootstrap()`.
+ *
+ * A caller that arrives while a load is already running must AWAIT that load,
+ * not return immediately. Returning early is what broke the "Open in Agents"
+ * window: its root called `bootstrap()`, a second caller had already claimed
+ * the flag, the call returned in 1ms having done nothing, and the window
+ * rendered with `settingsLoaded: false` and no workspace — so the Changes and
+ * Files columns were empty while every other part of the UI looked fine.
+ */
+let bootstrapBerjalan: Promise<void> | null = null;
 
 /**
  * Fills in settings keys that a file from an older version does not have, and
@@ -543,9 +553,23 @@ export const useStore = create<Store>((set, get) => ({
 
   bootstrap: async () => {
 
-    if (bootstrapStarted) return;
-    bootstrapStarted = true;
+    /*
+     * A second caller AWAITS the first load instead of returning instantly.
+     *
+     * React StrictMode mounts the root twice, and a pop-out window's root and
+     * its lazy children can both reach for settings. With a bare `return`, the
+     * loser of that race resolved immediately — before any settings existed —
+     * and whatever it was about to do with them ran against an empty store.
+     * Handing back the in-flight promise makes every caller wait for the same
+     * result.
+     *
+     * The flag is also released on failure so a transient IPC failure (common
+     * right after a window is created) can be retried rather than locking the
+     * window out of settings forever.
+     */
+    if (bootstrapBerjalan) return bootstrapBerjalan;
 
+    bootstrapBerjalan = (async () => {
     try {
       const s = await cmd.getSettings();
       set({ settings: normalisasiSettings(s), settingsLoaded: true });
@@ -633,6 +657,13 @@ export const useStore = create<Store>((set, get) => ({
     } catch {
 
     }
+    })().finally(() => {
+      /* Cleared so a later caller after a FAILURE can try again; on success the
+         store already reports `settingsLoaded`, which is what callers check. */
+      bootstrapBerjalan = null;
+    });
+
+    return bootstrapBerjalan;
   },
 
   openFolderDialog: async () => {

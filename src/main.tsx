@@ -2,16 +2,22 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import AiWindow from './AiWindow';
+import AgentsWindow from './AgentsWindow';
 import { ErrorBoundary } from './components/shell/ErrorBoundary';
 
 /*
- * Two possible roots. The pop-out AI window loads with the hash `#ai`
- * (set when it is created in `aiWindow.ts`); every other window is the full
- * editor. Keeping this split at the entry point means the AI window never
- * mounts the activity bar, editor or terminal — it is just the chat.
+ * Three possible roots, chosen by the URL hash.
+ *
+ *   #ai      -> the floating chat window (aiWindow.ts)
+ *   #agents  -> the 3-column Agents workspace (agentsWindow.ts)
+ *   (none)   -> the full editor
+ *
+ * The hash is compared EXACTLY, never with startsWith: `#ai` is a prefix of
+ * `#agents`, so a prefix test would send the Agents window to the chat root and
+ * the layout would silently be the wrong one.
  */
-const isAiWindow = window.location.hash.replace(/^#/, '').split('?')[0] === 'ai';
-const Root = isAiWindow ? AiWindow : App;
+const hash = window.location.hash.replace(/^#/, '').split('?')[0];
+const Root = hash === 'ai' ? AiWindow : hash === 'agents' ? AgentsWindow : App;
 
 if (import.meta.env.DEV) {
   void import('./lib/devBridge').then((m) => m.installDevBridge());

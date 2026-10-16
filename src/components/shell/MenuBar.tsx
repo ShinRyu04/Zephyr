@@ -305,6 +305,39 @@ export default function MenuBar() {
           </svg>
           <span className="mb-cc-label">{tr('Search files & commands…')}</span>
         </button>
+
+        {/* "Open in Agents" — VS Code's title-bar pill, immediately RIGHT of the
+            command-centre box (not in the right-hand icon group: it belongs with
+            the search field, and the user asked for it flush against it).
+
+            Compact by default (the Z glyph alone) and it EXPANDS on hover to
+            show the label. The chord deliberately does NOT sit inside the pill —
+            VS Code puts it in the hover tooltip instead, so a Tip wrapper
+            carries it. Ctrl+Shift+A matches VS Code's own "Open in Agents". */}
+        <Tip label={tr('Open in Agents Window')} kbd="Ctrl+Shift+A">
+          <button
+            className="mb-aipill"
+            data-testid="mb-ai-pill"
+            aria-label={tr('Open in Agents')}
+            onClick={() => {
+              tutup();
+              void import('../../lib/agentsWindow').then((m) => m.bukaAgentsWindow());
+            }}
+          >
+            {/* The Zephyr "Z" on its own — no wind strokes and no accent dot.
+                At 14px the wind curves and the dot collapse into noise, so the
+                bare letter is the only part that still reads. */}
+            <svg className="mb-aipill-ic" viewBox="268 300 488 424" aria-hidden="true">
+              <path
+                d="M268 300 L756 300 L756 396 L464 628 L756 628 L756 724 L268 724 L268 628 L560 396 L268 396 Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span className="mb-aipill-body">
+              <span className="mb-aipill-label">{tr('Open in Agents')}</span>
+            </span>
+          </button>
+        </Tip>
       </div>
 
       {/* Layout controls collapse to a SINGLE "Customize Layout" button.

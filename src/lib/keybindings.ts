@@ -107,13 +107,29 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+B', 'view.sidebar', 'app'),
   D('Ctrl+J', 'workbench.action.togglePanel', 'app'),
   D('Ctrl+`', 'terminalPanel.focus', 'app'),
+  /*
+   * Ctrl+Shift+T opens a new terminal pane.
+   *
+   * AGENTS.md records this as already decided in phase 12 ("Ctrl+Shift+T
+   * sekarang = pane terminal baru (dulu Ctrl+Shift+`)"), and the verify12
+   * harness has asserted Ctrl+Shift+T ever since — but this table kept the old
+   * chord, so the runtime and both documents disagreed. The old chord is kept
+   * as a second row (different `when` is not needed: `chordFor` returns the
+   * first, and `gabungChordKembar` lists the twin) so nobody who learned
+   * Ctrl+Shift+` loses it.
+   */
+  D('Ctrl+Shift+T', 'terminal.new', 'app'),
   D('Ctrl+Shift+`', 'terminal.new', 'app'),
   
   D('Ctrl+\\', 'view.splitEditorRight', 'app'),
   D('Ctrl+Shift+E', 'view.explorer', 'app'),
   D('Ctrl+Shift+F', 'edit.findInFiles', 'app'),
   D('Ctrl+Shift+G', 'git.panel', 'app'),
-  D('Ctrl+Shift+A', 'ai.panel', 'app'),
+  /* Ctrl+Shift+A opens the 3-column Agents workspace. The right-column chat
+     toggle that used to own this chord is reachable from Customize Layout, and
+     the Agents window is the more prominent action of the two. */
+  D('Ctrl+Shift+A', 'agents.openWindow', 'app', 'global', 'Open in Agents'),
+  D('Ctrl+Alt+O', 'ai.openWindow', 'app', 'global', 'Open AI Chat Window'),
   D('Ctrl+Alt+B', 'view.secondarySideBar', 'app', 'global', 'Toggle Secondary Side Bar (AI)'),
   D('Ctrl+Shift+X', 'extensions.focus', 'app'),
   D('Ctrl+=', 'view.zoomIn', 'app'),

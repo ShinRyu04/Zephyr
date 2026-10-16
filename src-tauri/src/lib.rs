@@ -403,6 +403,7 @@ pub fn run() {
             git::git_delete_branch,
             git::git_diff,
             git::git_diff_head,
+            git::git_numstat,
             git::git_discard,
             git::git_log,
             git::git_config_get_user,

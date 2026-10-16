@@ -171,6 +171,14 @@ const LABEL: Record<ActivityId, string> = {
   outline: 'Outline',
   scm: 'Source Control',
   debug: 'Run & Debug (Ctrl+Shift+D)',
+  /*
+   * No `ai` entry. The robot icon used to sit in the rail and toggle the chat
+   * in whatever home it had been given, but the rail is for the EDITOR's views
+   * (files, search, source control, terminal...), and the chat is not one of
+   * them: it now lives in the Agents window (Ctrl+Shift+A) or the right-hand
+   * column, both reachable from Customize Layout. The label is kept in the type
+   * because `ActivityId` still accepts the value for saved profiles.
+   */
   ai: 'AI Chat',
   terminal: 'Terminal',
   extensions: 'Extensions (Ctrl+Shift+X)',
@@ -190,7 +198,6 @@ const ORDER: ActivityId[] = [
   'debug',
   'extensions',
   'terminal',
-  'ai',
   'tools',
   'settings',
 ];
@@ -200,13 +207,6 @@ export default function ActivityBar() {
   const tf = useTf();
   const activity = useStore((s) => s.activity);
   const sidebarVisible = useStore((s) => s.sidebarVisible);
-  /* The robot icon highlights when the chat is open in its own home, not when
-     the left sidebar shows an 'ai' panel (there is none any more). */
-  const aiKolomVisible = useStore((s) => s.aiKolomVisible);
-  const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
-  /* No bottom-dock home any more: the window is always "open", otherwise the
-     right column's visibility flag is the state. */
-  const aiTerbuka = aiPanelPos === 'window' ? true : aiKolomVisible;
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
@@ -268,8 +268,7 @@ export default function ActivityBar() {
       <nav className="activitybar" aria-label="Activity Bar">
       {ORDER.map((id) => {
         const Icon = Icons[id];
-        const isActive =
-          id === 'ai' ? aiTerbuka : activity === id && sidebarVisible;
+        const isActive = activity === id && sidebarVisible;
         return (
           <button
             key={id}
@@ -281,30 +280,6 @@ export default function ActivityBar() {
             data-testid={`ab-${id}`}
             onClick={() => {
               setSettingsOpen(false);
-
-              /*
-               * The robot icon ONLY toggles the chat in its configured home.
-               * It no longer sets `activity = 'ai'`, because the left sidebar
-               * has no AI panel any more — doing so would blank whatever panel
-               * is showing on the left. Chat history now lives in the panel's
-               * own header switcher.
-               *
-               * Posisi chat AI mengikuti setelan `general.aiPanel`:
-               *   right/editor -> kolom kanan; klik = toggle kolom.
-               *   window       -> jendela terpisah.
-               *   (tidak ada lagi posisi 'bottom' - tab AI di panel bawah sudah dibuang.)
-               */
-              if (id === 'ai') {
-                const pos =
-                  useStore.getState().settings.general.aiPanel ?? 'right';
-                if (pos === 'window') {
-                  void import('../../lib/aiWindow').then((m) => m.bukaAiWindow());
-                } else {
-                  /* right / editor: toggle the right column. */
-                  useStore.getState().toggleAiKolom();
-                }
-                return;
-              }
 
               if (activity === id) toggleSidebar();
               else {
