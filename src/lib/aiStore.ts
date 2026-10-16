@@ -3220,6 +3220,27 @@ function mirrorRun(
   return out;
 }
 
+/*
+ * The live AI store for THIS window, published so that anything holding a chunk
+ * callback can reach the same instance the UI renders.
+ *
+ * Why this exists: a chunk subscription created before an HMR boundary (or in a
+ * window that ends up with two copies of this module) can close over an
+ * instance that is no longer the one React reads. Chunks then land in a store
+ * nobody displays - the transcript stays empty, `agentBusy` is never cleared,
+ * and the chat sits on "thinking" forever with no error to explain it. Measured
+ * directly: the Tauri listener fired (4 chunks received) while
+ * `__ZEPHYR_AI_CALLBACK__ !== useAi.getState().onChunk`.
+ *
+ * Published on `window` because the duplication is a property of module
+ * loading, not of any component - a global is the only scope both copies share.
+ */
+declare global {
+  interface Window {
+    __ZEPHYR_AI_STORE__?: typeof useAi;
+  }
+}
+
 export const useAi = create<AiStore>((set0, get) => {
   /*
    * Every write goes through `mirrorRun` first, so the flat run-state keys and
@@ -3627,8 +3648,10 @@ export const useAi = create<AiStore>((set0, get) => {
    *      not by `cancel()`, so it has to be waited for.
    *
    * Hence the poll below: cancel, then wait for the flags to go quiet, with a
-   * ceiling so a pathological provider cannot wedge the button forever. If
-   * the ceiling is hit the message is queued instead, which is always safe.
+   * ceiling so a pathological provider cannot wedge the button forever. If the
+   * ceiling is hit the run is FORCE-RELEASED and the message is still sent -
+   * queuing it silently is what turned a stuck run into a composer that looked
+   * dead, because the reader got no request, no error and no reply.
    */
   kirimSekarang: async (teks, images, composerId = '') => {
     /* This surface owns the run it is about to start. */
@@ -3653,13 +3676,33 @@ export const useAi = create<AiStore>((set0, get) => {
     }
     if (get().pending || get().agentBusy) {
       /*
-       * The old run refused to unwind in time. Queue rather than fire a
-       * second request: a stuck provider thread plus a live one is not worth
-       * the risk of two answers writing the same session.
+       * The old run refused to unwind in time.
+       *
+       * Sending is refused while the previous run is live, so that two answers
+       * never write the same session. That rule stands - but a run that ignores
+       * `cancel()` must not be able to block the composer FOREVER, which is
+       * what it did: `agentBusy` stayed true, every later message took this
+       * branch, and the reader saw a send that produced no request, no error
+       * and no reply ("it just thinks forever"). The Rust side never even
+       * received the call, so nothing upstream could recover it either.
+       *
+       * After `cancel()` and an 8s grace period the run has demonstrably failed
+       * to stop, and by then keeping the UI locked protects nothing: the run is
+       * already broken. So force the flags down and send, rather than queue
+       * silently. Whatever the stalled attempt still holds is discarded by
+       * `retiredAgentAttempts`, which is exactly what it exists for.
        */
-      set((s) => ({ antrian: [...s.antrian, { teks: teksBersih, images: imgs }] }));
-      set({ toast: tf('The current run is still stopping - message queued', {}) });
-      return;
+      set((s) => ({
+        pending: null,
+        agentBusy: false,
+        agentBusys: { ...s.agentBusys, '': false },
+        agentPhase: 'idle',
+        agentCurrentTool: null,
+        agentStepIndex: 0,
+        agentStartedAt: null,
+        antrian: [],
+        toast: tf('The previous run did not stop; it was released so this message can be sent.', {}),
+      }));
     }
     await get().send(teksBersih, imgs);
   },
@@ -8137,7 +8180,49 @@ export const useAi = create<AiStore>((set0, get) => {
         tunggu({ content: '', toolCalls: [], cancelled: true });
       }
 
-      set({ agentConfirm: null });
+      /*
+       * Close any bubble that is still marked streaming.
+       *
+       * Resolving the step is not enough on its own. When `agentStepResolve`
+       * is ALREADY null — the step resolved earlier, or the run was started
+       * outside the loop — the `if (tunggu)` above does nothing, and nothing
+       * else on this path clears `streaming`. The bubble then spins forever:
+       * reported as "no reply, it just keeps thinking", with `agentBusy` true
+       * so every later send is refused too. The run's own exit block cannot be
+       * relied on here, because the whole reason the reader pressed Stop is
+       * that the run is not reaching its exit block.
+       *
+       * `streaming: false` on every assistant bubble (not just one id) because
+       * this path does not know which attempt is the live one — `pending` is
+       * null in agent mode. Closing a bubble that was already closed is a
+       * no-op, so the broad sweep costs nothing and cannot leave a spinner on.
+       * The content is kept as-is; an empty one gets a note so the bubble does
+       * not read as a blank answer.
+       */
+      set((s) => ({
+        agentConfirm: null,
+        /*
+         * Release the composer too. `streaming` and `agentBusy` are two halves
+         * of one symptom — the spinner that never stops and the form that
+         * refuses every later send — so leaving one set would only convert
+         * "no reply" into "cannot type". They are cleared together here.
+         */
+        agentBusy: false,
+        agentBusys: { ...s.agentBusys, '': false },
+        agentPhase: 'idle',
+        agentCurrentTool: null,
+        agentStepIndex: 0,
+        agentStartedAt: null,
+        sessions: s.sessions.map((x) => ({
+          ...x,
+          messages: x.messages.map((m) =>
+            m.role === 'assistant' && m.streaming
+              ? { ...m, streaming: false, content: m.content || '(cancelled before any answer)' }
+              : m,
+          ),
+        })),
+      }));
+      persist(get());
       return;
     }
     const id = get().pending;
@@ -8165,7 +8250,6 @@ export const useAi = create<AiStore>((set0, get) => {
   },
 
   onChunk: (c) => {
-
     if (subagentOnChunk(c)) return;
 
     /*
@@ -8298,7 +8382,30 @@ export const useAi = create<AiStore>((set0, get) => {
       );
       return;
     }
-    if (attempt && c.id !== attempt) {
+    /*
+     * Id percobaan asing: BUANG chunk-nya, tapi jangan matikan langkah yang
+     * sedang berjalan hanya karena id-nya tidak persis sama.
+     *
+     * `attempt` adalah `activeAgentAttempt`, dan id yang datang dari Rust
+     * dibentuk sebagai `attempt-<botMsgId>-<counter>`. Keduanya berasal dari
+     * sumber berbeda dan terbukti bisa TIDAK sama: pada laporan "chat selalu
+     * thinking", chunk yang tiba ber-id `attempt-m-mvas4ynf-5-mvas4yrh-6`
+     * sementara sesi aktif ber-id `chat-mva37809-1` dengan pesan `m-mva7cwj2-*`.
+     * Chunk itu dibuang, `toolDone`-nya ikut hilang, `agentStepResolve` tidak
+     * pernah dipanggil, dan `agentBusy` bertahan sampai batas keras 45 menit -
+     * persis gejala "nggak ada balasan, muter terus".
+     *
+     * Pembedaan yang dipakai: apakah id ini MASIH SATU KELUARGA dengan
+     * percobaan yang aktif. Kalau ya, ia bagian dari langkah yang sedang
+     * berjalan (langkah baru membuat keluarga baru) sehingga tetap diproses;
+     * kalau tidak, ia sisa percobaan lain dan tetap dibuang seperti semula.
+     *
+     * Keluarga dibandingkan lewat awalan `attempt-<pesanId>` tanpa counter,
+     * karena counter-nya memang berubah tiap langkah sementara pesan UI-nya
+     * tetap sama selama satu langkah berjalan.
+     */
+    const keluarga = (s: string | null) => (s ?? '').replace(/-\d+$/, '');
+    if (attempt && c.id !== attempt && keluarga(c.id) !== keluarga(attempt)) {
       retiredAgentAttempts.add(c.id);
       lepaskanLangkahDitelan(
         'Provider menutup langkah dari percobaan yang tidak dikenal; langkah dihentikan agar agen tidak menunggu selamanya.',
@@ -8622,6 +8729,17 @@ export const useAi = create<AiStore>((set0, get) => {
   },
   };
 });
+
+/*
+ * Publish this window's live store so a chunk callback can always reach the
+ * instance the UI reads — see the note above `useAi`. Guarded so the FIRST
+ * registration wins: if the module is evaluated twice, the store that mounted
+ * first (and that React therefore renders) keeps the slot, instead of being
+ * replaced by a later copy that nothing displays.
+ */
+if (typeof window !== 'undefined' && !window.__ZEPHYR_AI_STORE__) {
+  window.__ZEPHYR_AI_STORE__ = useAi;
+}
 
 /*
  * Akumulasi teks per permintaan untuk penjaga pengulangan.

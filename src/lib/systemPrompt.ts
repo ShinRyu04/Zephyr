@@ -720,8 +720,16 @@ import { blokMemoriTersimpan, BATAS_TOKEN_BAWAAN } from './aiMemori';
  * Yang ON-DEMAND tidak dihitung: potongan indeks (`suntikanIndeks`), blok
  * kondisional, dan potret keadaan - ketiganya hanya ikut saat giliran ini
  * memang membutuhkannya.
+ *
+ * Dinaikkan 2.000 -> 3.000 saat blok inti mulai membawa SELURUH 129 kunci
+ * setelan, bukan 25 pilihan tangan. Pertukarannya disengaja dan satu arah:
+ * kunci yang tidak ada di kepala model membuatnya menjawab "tidak ada setelan
+ * itu" untuk setelan yang benar-benar ada - jawaban salah yang lebih mahal
+ * daripada ~1.000 token konteks tambahan per giliran. Angka ini masih jauh di
+ * bawah jendela model mana pun yang dipakai app, dan blok di luar blok inti
+ * tetap tidak ikut hitungan.
  */
-export const AMBANG_TOKEN_INTI = 2000;
+export const AMBANG_TOKEN_INTI = 3400;
 
 /**
  * Bullet fakta yang TIDAK layak ikut tiap giliran: hanya berguna saat user
@@ -790,12 +798,26 @@ export function faktaModelAi(): string {
  * Kalau penandanya hilang (generator berubah bentuk), fakta dikirim UTUH -
  * lebih panjang, tapi tidak pernah ada fakta yang hilang tanpa suara.
  */
+/*
+ * SELURUH fakta, tanpa pemangkasan.
+ *
+ * Dulu fungsi ini membuang bagian yang dianggap "hanya berguna saat topiknya
+ * disebut" dan menggantungnya di blok kondisional. Akibatnya nyata dan
+ * dilaporkan user: ditanya soal hal yang bagiannya sedang ditahan, model
+ * menjawab "tidak ada / tidak tahu" untuk sesuatu yang Zephyr benar-benar
+ * punya - dan ia harus mencari dulu untuk hal yang seharusnya sudah ada di
+ * kepalanya ("tau semua nya di Zephyr").
+ *
+ * Pemangkasan itu juga tidak lagi perlu: isinya sekarang masuk anggaran
+ * (AMBANG_TOKEN_INTI, lihat A2/A3 di scripts/uji-blok-inti.mjs), dan blok
+ * kondisional tetap ada untuk bahan yang memang panjang - indeks, potongan
+ * tool, potret keadaan - bukan untuk menahan fakta.
+ *
+ * `rentangOnDemand()` tetap dipakai di tempat lain (indeks & laporan) supaya
+ * penanda bagian on-demand tidak hilang dari data generated.
+ */
 export function faktaInti(): string {
-  let teks = FAKTA_ZEPHYR;
-  for (const x of rentangOnDemand()) {
-    teks = teks.slice(0, x.r.mulai) + teks.slice(x.r.akhir);
-  }
-  return teks;
+  return FAKTA_ZEPHYR;
 }
 
 /**
@@ -836,6 +858,7 @@ const LARANGAN_EN = [
   '6. Never run a destructive tool (delete, move, overwrite, force push, kill a process) or commit/push unless the user asked for it.',
   '7. Never answer a Zephyr question from memory: the facts above + `zephyr_self`.',
   '8. Any output you quote must come from a tool that actually ran this turn; if it failed, quote the error as it is.',
+  '9. A backtick only exists in PAIRS, and never after Ctrl+/Alt+/Shift+: write Ctrl+J, NOT Ctrl+`. A lone backtick swallows the text after it and the answer reaches the reader cut in pieces - that is a bug you caused, not a rendering quirk.',
 ].join('\n');
 
 const LARANGAN_ID = [
@@ -848,6 +871,7 @@ const LARANGAN_ID = [
   '6. Jangan panggil tool perusak (hapus, pindah, timpa, force push, matikan proses) atau commit/push tanpa diminta user.',
   '7. Jangan menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas + `zephyr_self`.',
   '8. Keluaran yang kamu kutip harus dari tool yang benar-benar jalan giliran ini; kalau gagal, kutip error-nya apa adanya.',
+  '9. Backtick hanya ada BERPASANGAN, dan jangan pernah dipakai setelah Ctrl+/Alt+/Shift+: tulis Ctrl+J, BUKAN Ctrl+`. Satu backtick nyasar menelan teks sesudahnya, dan jawabanmu sampai ke pembaca dalam potongan-potongan - itu bug yang kamu bikin, bukan salah tampilan.',
 ].join('\n');
 
 /** Blok larangan dalam bahasa aktif (bahasa lain jatuh ke Inggris). */

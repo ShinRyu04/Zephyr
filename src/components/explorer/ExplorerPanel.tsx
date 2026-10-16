@@ -6,6 +6,13 @@ import TimelineView from './TimelineView';
 import ContextMenu from './ContextMenu';
 import RootSection from '../workspace/RootSection';
 import { useT } from '../../lib/i18n';
+/*
+ * Satu sumber jawaban untuk "apakah ini window Agents?". Dulu hook ini tinggal
+ * di file ini, tapi `CodeMirrorEditor` juga membutuhkannya — dan mengimpornya
+ * dari sini membentuk impor melingkar yang membuat modul gagal dimuat. Sekarang
+ * keduanya membaca dari `lib/useDiAgen`.
+ */
+import { useDiAgen } from '../../lib/useDiAgen';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -67,6 +74,7 @@ export default function ExplorerPanel() {
   const jumlahRoot = useWs((s) => s.roots.length);
   const kunciRoots = useWs((s) => s.roots.map((r) => r.path).join('|'));
   const wsFile = useWs((s) => s.file);
+  const diAgen = useDiAgen();
 
   if (!workspace) return <EmptyWorkspace />;
 
@@ -75,7 +83,19 @@ export default function ExplorerPanel() {
 
   return (
     <div className="explorer" data-roots={jumlahRoot} data-ws-file={wsFile}>
-      <div className="explorer-header">
+      {/*
+        * No header inside the Agents window.
+        *
+        * This bar (folder name + new file / new folder / refresh / collapse /
+        * close) belongs to VS Code's EDITOR Explorer, where it titles the whole
+        * sidebar. The "Open in Agents" window is a different surface with its
+        * own layout: the folder is already named in this window's title bar, and
+        * the tree here sits under the Changes/Files tab that owns it, so a
+        * second title plus a row of editor-level commands is chrome that names
+        * nothing and controls the wrong thing. The main window keeps it.
+        */}
+      {!diAgen && (
+        <div className="explorer-header">
         <span className="explorer-title" title={wsFile || workspace}>
           {wsFile ? baseOf(wsFile).replace(/\.code-workspace$/, '') : baseOf(workspace)}
           {multi && <span className="explorer-count"> ({jumlahRoot} folders)</span>}
@@ -135,6 +155,7 @@ export default function ExplorerPanel() {
           </button>
         </div>
       </div>
+      )}
 
       <div className="explorer-body">
         {/* A single root is still rendered without a section header: adding one
@@ -152,7 +173,15 @@ export default function ExplorerPanel() {
         )}
       </div>
 
-      <TimelineView />
+      {/*
+        * No Timeline in the agents column.
+        *
+        * The reader asked for it gone: a Timeline under a tree that is already
+        * half a narrow column leaves neither surface enough height to be read,
+        * and it is a history view — not what this column is for (open a file,
+        * see what changed). The main window's explorer keeps it.
+        */}
+      {!diAgen && <TimelineView />}
 
       <ContextMenu />
     </div>

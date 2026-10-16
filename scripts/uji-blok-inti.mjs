@@ -45,7 +45,19 @@ import * as esbuild from 'esbuild';
 
 const AKAR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const KERJA = join(AKAR, 'scratch', 'uji-blok-inti');
-const AMBANG_TOKEN = 2000;
+/*
+ * Disalin dari AMBANG_TOKEN_INTI (systemPrompt.ts) dan HARUS ikut berubah
+ * bersamanya. Dinaikkan 2.000 -> 3.000 ketika blok inti mulai membawa seluruh
+ * 129 kunci setelan: kunci yang tidak ada di kepala model membuatnya menjawab
+ * "tidak ada setelan itu" untuk setelan yang benar-benar ada.
+ */
+/*
+ * 3.400 token: blok inti kini memuat SELURUH fakta Zephyr (tidak ada lagi
+ * bagian yang ditahan untuk blok kondisional), jadi anggarannya dinaikkan
+ * mengikuti isinya - 3.000 -> 3.400. Angka ini HARUS sama dengan
+ * AMBANG_TOKEN_INTI di systemPrompt.ts.
+ */
+const AMBANG_TOKEN = 3400;
 const AMBANG_CHAR = AMBANG_TOKEN * 4;
 /* Cara hitung tunggal yang dipakai seluruh harness ini: 4 karakter = 1 token. */
 const charTok = (n) => Math.ceil(n / 4);
@@ -246,8 +258,20 @@ for (const [lang, d] of [['en', en], ['id', id]]) {
     `${lang}: inti + kepala keadaan ${plusKepala} char / ${charTok(plusKepala)} tok <= ${AMBANG_CHAR} char / ${AMBANG_TOKEN} tok`
   );
 }
-/* Pemangkasan nyata: blok inti harus lebih kecil dari blok generatednya. */
-uji('A', 4, id.inti.length + id.larangan.length < id.fakta.length, `id: ${id.inti.length + id.larangan.length} < ${id.fakta.length} char (on-demand benar-benar dipotong)`);
+/*
+ * Blok inti kini membawa SELURUH fakta generated (user: "tau semua nya di
+ * Zephyr"), jadi "inti < generated" tidak lagi berlaku dan TIDAK BOLEH diuji
+ * seperti itu: yang penting sekarang bukan bahwa ada yang dipangkas, tapi
+ * bahwa blok inti masih di bawah anggaran setelah memuat semuanya - dan itu
+ * sudah diukur di atas (A2/A3). Yang tetap diuji di sini: fakta generated
+ * benar-benar ikut seluruhnya, bukan sebagian diam-diam.
+ */
+uji(
+  'A',
+  4,
+  id.inti.length >= id.fakta.length * 0.95 && id.inti.length <= id.fakta.length,
+  `id: inti ${id.inti.length} char vs generated ${id.fakta.length} char (seluruh fakta ikut blok inti)`,
+);
 /* Fakta penting yang TIDAK boleh hilang dari blok inti. */
 for (const [lang, d] of [['en', en], ['id', id]]) {
   const wajib = ['## Shortcuts', 'Ctrl+J = Toggle bottom panel', 'zephyr_self', 'settings.json'];
@@ -278,7 +302,19 @@ for (const [lang, d] of [['en', en], ['id', id]]) {
   /* Fakta yang dipotong dari blok inti wajib masih terjangkau lewat kelasnya. */
   uji('B', 4, d.onDemandModel.includes('"AI Models" (Settings group'), `kelas model memuat bullet setelan AI Models (${d.onDemandModel.length} char)`);
   uji('B', 5, d.onDemandGalat.includes('zephyr-YYYY-MM-DD.log') && d.onDemandGalat.includes('settings.json'), `kelas galat memuat jalur log + settings.json (${d.onDemandGalat.length} char)`);
-  uji('B', 6, !id.inti.includes('"AI Models" (Settings group') && !id.inti.includes('- Logs: %APPDATA%'), 'bullet on-demand sudah keluar dari blok inti');
+  /*
+   * Dibalik dari uji sebelumnya: dulu butir ini menuntut bullet on-demand
+   * KELUAR dari blok inti. Sekarang pemangkasan itu dihapus (user: "tau semua
+   * nya di Zephyr"), jadi yang benar adalah sebaliknya - blok inti HARUS
+   * memuatnya, dan blok kondisional tetap ada sebagai bahan panjang (indeks,
+   * potongan tool), bukan sebagai penahan fakta.
+   */
+  uji(
+    'B',
+    6,
+    id.inti.includes('"AI Models" (Settings group') && id.inti.includes('- Logs: %APPDATA%'),
+    'bullet yang dulu ditahan kini IKUT di blok inti (seluruh fakta selalu ada)',
+  );
   /* Deterministik: panggilan ulang pada pesan yang sama harus identik. */
   const lagi = ukur('id');
   const sama = lagi.sampel.every((s, i) => s.kelas.join(',') === d.sampel[i].kelas.join(',') && s.teks === d.sampel[i].teks);

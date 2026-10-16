@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 
-const G = ((globalThis as any).__UJI = { ipc: 0, calls: [] as string[], versiApp: process.env.UJI_VERSI_APP || '1.1.13' });
+const G = ((globalThis as any).__UJI = { ipc: 0, calls: [] as string[], versiApp: process.env.UJI_VERSI_APP || '1.1.14' });
 const jaringan: string[] = ((globalThis as any).__JARINGAN ??= []);
 const keluar = process.env.ANGKA_KELUAR || '';
 
@@ -107,7 +107,7 @@ const potonganTool = {
 
 /* ---- BASIS: kontrol positif (versi beda) + negatif (versi sama) ---- */
 S.bersihkanCacheSesi();
-(G as any).versiApp = '1.1.13';
+(G as any).versiApp = '1.1.14';
 const segar = await S.jalankanZephyrSelf({ bagian: 'semua' });
 S.bersihkanCacheSesi();
 const segarVersi = await S.jalankanZephyrSelf({ bagian: 'versi' });

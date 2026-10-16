@@ -121,7 +121,19 @@ R.check('A9', punya(/## Answering questions about Zephyr itself/) &&
 
 /* ---------- arahkan provider ke mock (tanpa ini bagian B/C cuma membaca 401) ---------- */
 
-const SIAP = `
+/*
+ * MODE PROVIDER ASLI (PROVIDER_ASLI=1).
+ *
+ * Bagian B dan C mengukur JAWABAN model, jadi provider yang dipakai harus bisa
+ * benar-benar menjawab. Mock-ai hanya membalas teks tetap ("Halo, ini jawaban
+ * uji") karena ia dirancang untuk menguji transport, bukan pengetahuan - dengan
+ * mock, B3/B4/B5 dan C2-C5 MUSTAHIL lulus walau produknya benar, dan laporan
+ * merah itu menyesatkan. Saat user memasang provider sungguhan, mode ini
+ * melewati pengarahan ke mock dan mengukur jawaban model yang asli.
+ */
+const PAKAI_MOCK = process.env.PROVIDER_ASLI !== '1';
+
+const SIAP_MOCK = `
   const stz = window.__ZEPHYR__.getState();
   await window.__ZEPHYR_SET__.set({ models: { ...stz.settings.models, activeProvider: 'custom',
     providers: { ...(stz.settings.models?.providers ?? {}), custom: { baseUrl: '${MOCK}/v1', model: 'mock-model' } } } });
@@ -135,9 +147,24 @@ const SIAP = `
   return JSON.stringify({ provider: A.getState().provider, model: A.getState().model,
     baseUrl: window.__ZEPHYR__.getState().settings.models?.providers?.custom?.baseUrl ?? null,
     busy: !!A.getState().agentBusy });
+`
+const SIAP_ASLI = `
+  const A = window.__ZEPHYR_AI__.store;
+  if (typeof A.getState().newChat === 'function') A.getState().newChat();
+  A.setState({ agentSteps: [], agentFailure: null, agentStopReason: null });
+  return JSON.stringify({ provider: A.getState().provider, model: A.getState().model,
+    busy: !!A.getState().agentBusy });
 `;
-const siap = await cdp.json(`return JSON.stringify(await (async () => { ${SIAP} })())`, 60000);
-console.log(`     provider diarahkan ke mock ${MOCK_PORT}: ${JSON.stringify(siap)}`);
+const SKRIP_SIAP = PAKAI_MOCK ? SIAP_MOCK : SIAP_ASLI;
+const siap = await cdp.json(
+  `return JSON.stringify(await (async () => { ${SKRIP_SIAP} })())`,
+  60000,
+);
+console.log(
+  PAKAI_MOCK
+    ? `     provider diarahkan ke mock ${MOCK_PORT}: ${JSON.stringify(siap)}`
+    : `     provider ASLI dipakai (mode PROVIDER_ASLI=1): ${JSON.stringify(siap)}`,
+);
 
 /* ---------- B. run agen nyata, tanpa workspace ---------- */
 

@@ -46,6 +46,29 @@ pub struct StatResult {
     pub mtime: u64,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionState {
+    #[serde(default)]
+    pub tabs: Vec<SessionTab>,
+    /*
+     * The folder that was open, so reopening Zephyr returns to it.
+     *
+     * Nothing recorded this before, which is why the workspace was gone after
+     * every restart and every dev-server reload: the editor came back with the
+     * tabs it had, but no folder for them to belong to, and the explorer, the
+     * Changes list and the agent's context all start from the workspace. VS
+     * Code reopens the last folder by default and this makes Zephyr do the
+     * same.
+     *
+     * `Option` rather than a plain String so "no folder was open" is
+     * representable — a reader who closed the folder before quitting should get
+     * an empty window back, not the folder they closed.
+     */
+    #[serde(default)]
+    pub workspace: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionTab {
@@ -604,27 +627,51 @@ pub fn fs_rename(state: State<AppState>, from: String, to: String) -> ZResult<()
 }
 
 #[tauri::command(async)]
-pub fn session_load(state: State<AppState>) -> ZResult<Vec<SessionTab>> {
+pub fn session_load(state: State<AppState>) -> ZResult<SessionState> {
     let p = state.file("session.json");
     if !p.exists() {
-        return Ok(vec![]);
+        return Ok(SessionState {
+            tabs: vec![],
+            workspace: None,
+        });
     }
     let raw = std::fs::read_to_string(&p)?;
-    let tabs: Vec<SessionTab> = serde_json::from_str(&raw).unwrap_or_default();
 
-    Ok(tabs
-        .into_iter()
-        .filter(|t| Path::new(&t.path).exists())
-        .collect())
+    /*
+     * A file from an older build is a bare ARRAY of tabs, with no workspace key
+     * (the shape was `Vec<SessionTab>` before the folder was recorded). Parsing
+     * it as the new object would fail, and the failure would take the open tabs
+     * with it — so the old shape is read as `tabs` and the workspace simply
+     * comes back empty. Losing the folder once on upgrade is acceptable;
+     * losing the reader's open files is not.
+     */
+    let st: SessionState = match serde_json::from_str::<SessionState>(&raw) {
+        Ok(s) => s,
+        Err(_) => serde_json::from_str::<Vec<SessionTab>>(&raw)
+            .map(|tabs| SessionState {
+                tabs,
+                workspace: None,
+            })
+            .unwrap_or_default(),
+    };
+
+    Ok(SessionState {
+        tabs: st
+            .tabs
+            .into_iter()
+            .filter(|t| Path::new(&t.path).exists())
+            .collect(),
+        workspace: st.workspace.filter(|w| Path::new(w).is_dir()),
+    })
 }
 
 #[tauri::command(async)]
-pub fn session_save(state: State<AppState>, tabs: Vec<SessionTab>) -> ZResult<()> {
+pub fn session_save(state: State<AppState>, session: SessionState) -> ZResult<()> {
     let p = state.file("session.json");
     if let Some(parent) = p.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&p, serde_json::to_vec_pretty(&tabs)?)?;
+    std::fs::write(&p, serde_json::to_vec_pretty(&session)?)?;
     Ok(())
 }
 

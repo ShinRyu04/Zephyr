@@ -2799,13 +2799,15 @@ body.is-resizing-v {
 .mb-cc-wrap {
   display: flex;
   align-items: center;
-  /* Centred in the menu row (like the VS Code command center) — not stuck
-     after the Help menu on the left. */
-  justify-content: center;
+  /* Left of centre, with the "Open in Agents" pill flush against the search
+     box's right edge. It used to be centred, but the user wants the pair
+     sitting further left so it does not eat the right-hand side of the bar. */
+  justify-content: flex-start;
   flex: 1 1 auto;
   min-width: 0;
   margin-left: 12px;
   padding-right: 12px;
+  padding-left: 7.5vw;
 }
 .mb-cc {
   display: flex;
@@ -2889,6 +2891,79 @@ body.is-resizing-v {
   flex-shrink: 0;
 }
 .mb-arrow { color: var(--text-muted); font-size: 13px; line-height: 1; }
+
+/*
+ * "Open in Agents" pill — the title-bar button that opens the pop-out AI window.
+ *
+ * COLLAPSED it is a square icon button; HOVERED (or focused by keyboard) it grows
+ * into a pill with the label and the chord, the way VS Code's own does. The width
+ * transition needs a concrete target, so the body is clipped with `max-width: 0`
+ * + `opacity: 0` rather than `width: auto` (which cannot animate), and the label
+ * is `nowrap` so it does not reflow mid-transition.
+ */
+.mb-aipill {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 22px;
+  /* Flush against the command-centre box on its LEFT — it lives inside
+     .mb-cc-wrap, right after .mb-cc. No left margin; a small right margin keeps
+     it from touching whatever the wrap's edge is. */
+  margin: 0 0 0 4px;
+  padding: 0 5px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.mb-aipill:hover,
+.mb-aipill:focus-visible {
+  /* Accent-tinted on hover, not the neutral grey the other title-bar buttons
+     use: this pill opens a whole window, so it reads as the accent action. */
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--text);
+}
+/* Only the Z glyph takes the accent — the label and the chord stay in the
+   normal title-bar colours, so the pill does not turn into a block of colour. */
+.mb-aipill:hover .mb-aipill-ic,
+.mb-aipill:focus-visible .mb-aipill-ic {
+  color: var(--accent);
+}
+.mb-aipill-ic {
+  /* The Zephyr "Z" glyph is WIDER than tall (488x424 viewBox), so a square
+     14x14 box would letterbox it and shrink the letter. Fixed height with
+     auto width keeps the Z at its true proportions and full 14px cap height. */
+  height: 14px;
+  width: auto;
+  flex: 0 0 auto;
+}
+.mb-aipill-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Animated: 0 -> natural width. The label's own width is the target because
+     max-width on the WRAPPER is what the transition can interpolate. */
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 0.2s ease, opacity 0.14s ease, margin-left 0.2s ease;
+}
+.mb-aipill:hover .mb-aipill-body,
+.mb-aipill:focus-visible .mb-aipill-body {
+  max-width: 180px;
+  opacity: 1;
+  margin-left: 6px;
+}
+.mb-aipill-label {
+  white-space: nowrap;
+}
 .mb-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 .mb-sub-wrap { position: relative; }
 .mb-submenu { top: -4px; left: 100%; }

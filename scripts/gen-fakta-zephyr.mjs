@@ -852,10 +852,46 @@ function susunTeks() {
    *     dari blok inti ATAU dari indeks).
    * ---------------------------------------------------------------------- */
 
-  /* Kunci setelan yang tetap dibawa blok inti. Kalau salah satu hilang dari
+  /*
+ * Semua kunci setelan dari bentuknya sendiri: `setelan` sudah berupa objek
+ * bersarang hasil pembacaan settings.rs, jadi daftarnya diturunkan - tidak ada
+ * nama yang diketik tangan dan tidak ada kunci yang bisa tertinggal.
+ *
+ * Kunci level atas yang nilainya bukan objek (mis. `allowCommands`) ikut
+ * sebagai dirinya sendiri; kunci di dalam grup jadi `grup.kunci`.
+ */
+function daftarSemuaKunciSetelan(setelan) {
+  const out = [];
+  for (const [grup, isi] of Object.entries(setelan)) {
+    if (isi && typeof isi === 'object' && !Array.isArray(isi)) {
+      for (const kunci of Object.keys(isi)) out.push(`${grup}.${kunci}`);
+    } else {
+      out.push(grup);
+    }
+  }
+  return out;
+}
+
+/* Kunci setelan yang tetap dibawa blok inti. Kalau salah satu hilang dari
      settings.rs, generator GAGAL - bukan diam-diam lenyap dari prompt (itu
      persis kesalahan yang bikin Zeph bilang "tidak ada setelan itu"). */
-  const KUNCI_INTI = [
+  /*
+   * SEMUA kunci setelan, bukan daftar 25 yang dipilih tangan.
+   *
+   * Blok ini sebelumnya membawa 25 dari 129 kunci, jadi 104 kunci TIDAK ada di
+   * kepala model: ditanya soal setelan yang tidak ada di daftar itu, ia harus
+   * mencari dulu - dan bila pencariannya meleset, ia menjawab "tidak ada setelan
+   * itu". Itu kegagalan yang persis dikeluhkan user ("tau semua settingan di
+   * Zephyr"). Daftar tangan juga punya cacat kedua: ia BISA basi (kunci baru di
+   * settings.rs tidak ikut masuk), sedangkan daftar yang dibaca dari sumbernya
+   * tidak bisa.
+   *
+   * Daftar cadangan di bawah tetap ada sebagai jaring: kalau bentuk settings.rs
+   * berubah sehingga pembacaan gagal, blok inti tetap membawa kunci terpenting
+   * alih-alih kehilangan semuanya.
+   */
+  const KUNCI_INTI = daftarSemuaKunciSetelan(setelan);
+  const KUNCI_CADANGAN = [
     'general.theme',
     'general.uiLang',
     'general.fontSize',
@@ -958,9 +994,54 @@ function susunTeks() {
       'needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not ' +
       'written above, and before telling the user that something does not exist.',
   );
+  /*
+   * Angka-angka diambil dari SUMBERNYA, bukan ditulis tangan: batas dari
+   * `BATAS_TOOL_TUGAS` (subsetTugas.ts), jumlah tool dari katalog yang sama
+   * dipakai blok tool di bawah, dan daftar tool kode disaring dari grup
+   * 'Code intelligence' di katalog itu juga. Angka yang ditulis tangan di
+   * blok fakta akan basi begitu kodenya berubah - dan blok inilah yang dibaca
+   * model, jadi basi di sini berarti salah jawab, bukan sekadar catatan usang.
+   */
+  const batasToolTugas = (() => {
+    const m = /export const BATAS_TOOL_TUGAS\s*=\s*(\d+)/.exec(baca('src/lib/subsetTugas.ts'));
+    if (!m) throw new Error('subsetTugas.ts: BATAS_TOOL_TUGAS tidak ditemukan');
+    return Number(m[1]);
+  })();
+  const semuaTool = toolKatalog();
+  const toolInti = semuaTool.filter((x) => x.grup !== 'Web' && x.grup !== 'Browser');
+  const daftarLsp = semuaTool.filter((x) => x.grup === 'Code intelligence').map((x) => x.nama);
+
+  /*
+   * Batas tool per giliran + jalur penemuan tool.
+   *
+   * Bagian ini DULU tidak ada, dan model yang ditanya "berapa batas tool yang
+   * dikirim ke model" menjawab dengan daftar tool baca-kode sambil membakar 17
+   * langkah mencari di indeks - jawaban yang salah arah, karena angkanya memang
+   * tidak pernah ditulis di blok fakta. Angka yang mengatur perilaku agen
+   * sendiri harus ada di blok selalu-nyala, bukan hanya di kode.
+   */
+  baris.push('');
+  baris.push('## Your own tool budget');
+  baris.push(
+    `- At most ${batasToolTugas} tools are offered to you in ONE request, chosen per task from the ` +
+      `${toolInti.length} the app ships (built-in + MCP; the web/browser group is counted separately). It is a window, ` +
+      'not the whole set.',
+  );
+  baris.push(
+    '- The rest stay reachable: call `tool_search` with what you want to do, then `tool_call` with the name it ' +
+      'returns. Both are always in the window. Never tell the user a capability does not exist because it was not ' +
+      'in the last request - search first.',
+  );
+  baris.push(
+    '- Reading CODE (not plain text) has its own group, `Code intelligence`, powered by the language server: ' +
+      `${daftarLsp.join(', ')}. Prefer these over grep when the question is about a symbol rather than a string; ` +
+      'they degrade to an honest sentence when no language server is available for the file.',
+  );
   baris.push('');
   baris.push('## Settings');
-  baris.push('- Open them with the Settings command (Ctrl+,). The page has a search box that filters by setting name.');
+  baris.push(
+    '- Open them with the Settings command (Ctrl+comma). The page has a search box that filters by setting name.',
+  );
   baris.push(
     '- Stored as JSON in two layers: the global file %APPDATA%\\zephyr\\settings.json, and a per-project file ' +
       '<open folder>\\.zephyr\\settings.json. A value in the project file wins over the global one.',
@@ -1026,7 +1107,17 @@ function susunTeks() {
   baris.push('');
   baris.push('## Shortcuts (the DEFAULTS - the user may have rebound them in Settings > Shortcuts)');
   baris.push(
-    `  ${pintasanInti.map((p) => `${p.tombol || '(no default)'} = ${p.label} [${p.grup}]`).join(', ')} ` +
+    /*
+     * A default whose key IS a backtick (Ctrl+`) gets the word "backtick"
+     * spelled out. The raw character in this line was what taught the model
+     * that a bare backtick after `Ctrl+` is normal - it then wrote one into an
+     * answer, the renderer swallowed the rest of the sentence into a code
+     * card, and the user read a paragraph cut into pieces. Spelling it here
+     * removes the example; rule 9 in the limits block states the rule.
+     */
+    `  ${pintasanInti
+      .map((p) => `${p.tombol === 'Ctrl+`' ? 'Ctrl+backtick' : p.tombol || '(no default)'} = ${p.label} [${p.grup}]`)
+      .join(', ')} ` +
       `- the defaults that answer the usual questions; the other ${pintasan.length - pintasanInti.length} are in the index ` +
       '(searchable by key AND by what they do).',
   );
@@ -1050,9 +1141,11 @@ function susunTeks() {
   baris.push(
     '- A SYMPTOM ("my panel disappeared", "the AI box is gone") is answered like a question: name the setting key (the "panel" group ' +
       'holds bottom-panel tabs/height/visibility), the panel, and the default shortcut that governs it (bottom panel = Ctrl+J), then ' +
-      'say where the user can look. Do NOT run shell commands, do not open Zephyr-own files (its settings.json, its log) and do not ' +
-      'start a diagnosis hunt for a "why does this happen / where do I check" turn - the defaults are in this block and the index. ' +
-      'Offer the deeper check as a next step ("want me to read the log?").',
+      'NAME WHERE THE VALUE LIVES - the exact file and path, not just "Settings": the global file %APPDATA%\\zephyr\\settings.json ' +
+      '(per-project override: <folder>\\.zephyr\\settings.json). That sentence is part of the answer, not optional: the reader who is ' +
+      'told the key name but not the file still cannot find it. Do NOT run shell commands, do not open Zephyr-own files (its ' +
+      'settings.json, its log) and do not start a diagnosis hunt for a "why does this happen / where do I check" turn - the defaults ' +
+      'are in this block and the index. Offer the deeper check as a next step ("want me to read the log?").',
   );
   baris.push(
     '- Reading Zephyr-own files with a shell command is not a way to answer a chat question: the shell starts in the user project, ' +
@@ -1249,7 +1342,15 @@ function susunIndeks() {
       p.label,
       `tombol bawaan: ${p.tombol || '(tanpa bawaan)'} · grup ${p.grup} · id ${p.id}`,
     );
-    if (p.tombol) tambah('pintasan', p.tombol, `untuk: ${p.label} · grup ${p.grup}`);
+    /*
+     * Sama seperti baris fakta: tombol yang ISINYA backtick ditulis sebagai
+     * kata "backtick", supaya tidak ada satu pun tempat di bahan sumber yang
+     * mencontohkan backtick nyasar setelah Ctrl+.
+     */
+    if (p.tombol) {
+      const tombol = p.tombol === 'Ctrl+`' ? 'Ctrl+backtick' : p.tombol;
+      tambah('pintasan', tombol, `untuk: ${p.label} · grup ${p.grup}`);
+    }
   }
 
   const { diNav, tanpaNav, hanyaChat, popup } = seksiSetelan();
