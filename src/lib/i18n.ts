@@ -439,6 +439,7 @@ const ID: Dict = {
   'Capabilities': 'Kemampuan',
   'Tools': 'Alat',
   'Vision': 'Visi',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'ekstensi {ext} (bahasa "{lang}") diabaikan: {ext} sudah dipakai {owner}',
 };
 
 const EN: Dict = {
@@ -876,6 +877,7 @@ const EN: Dict = {
   'Capabilities': 'Capabilities',
   'Tools': 'Tools',
   'Vision': 'Vision',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}',
 };
 
 const JA: Dict = {
@@ -1305,6 +1307,7 @@ const JA: Dict = {
   'Capabilities': '機能',
   'Tools': 'ツール',
   'Vision': 'ビジョン',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': '拡張子 {ext}（言語 "{lang}"）は無視されました: {ext} は {owner} が使用中です',
 };
 
 const KO: Dict = {
@@ -1734,6 +1737,7 @@ const KO: Dict = {
   'Capabilities': '기능',
   'Tools': '도구',
   'Vision': '비전',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': '확장자 {ext}(언어 "{lang}")는 무시되었습니다: {ext}은(는) {owner}가 사용 중입니다',
 };
 
 const ZH: Dict = {
@@ -2163,6 +2167,7 @@ const ZH: Dict = {
   'Capabilities': '能力',
   'Tools': '工具',
   'Vision': '视觉',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': '扩展名 {ext}（语言 "{lang}"）已忽略：{ext} 已被 {owner} 占用',
 };
 
 const ES: Dict = {
@@ -2592,6 +2597,7 @@ const ES: Dict = {
   'Capabilities': 'Capacidades',
   'Tools': 'Herramientas',
   'Vision': 'Visión',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'extensión {ext} (idioma "{lang}") ignorada: {ext} ya lo usa {owner}',
 };
 
 const FR: Dict = {
@@ -3021,6 +3027,7 @@ const FR: Dict = {
   'Capabilities': 'Capacités',
   'Tools': 'Outils',
   'Vision': 'Vision',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'extension {ext} (langue "{lang}") ignorée : {ext} est déjà utilisée par {owner}',
 };
 
 const DE: Dict = {
@@ -3450,6 +3457,7 @@ const DE: Dict = {
   'Capabilities': 'Fähigkeiten',
   'Tools': 'Werkzeuge',
   'Vision': 'Bilderkennung',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'Erweiterung {ext} (Sprache "{lang}") ignoriert: {ext} wird bereits von {owner} verwendet',
 };
 
 const PT: Dict = {
@@ -3879,6 +3887,7 @@ const PT: Dict = {
   'Capabilities': 'Capacidades',
   'Tools': 'Ferramentas',
   'Vision': 'Visão',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'extensão {ext} (idioma "{lang}") ignorada: {ext} já é usada por {owner}',
 };
 
 const AR: Dict = {
@@ -4308,6 +4317,7 @@ const AR: Dict = {
   'Capabilities': 'القدرات',
   'Tools': 'أدوات',
   'Vision': 'الرؤية',
+  'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'تم تجاهل الامتداد {ext} (اللغة "{lang}"): {ext} مستخدم بالفعل من قبل {owner}',
 };
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };
