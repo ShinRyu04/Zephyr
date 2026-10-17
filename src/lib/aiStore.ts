@@ -16,6 +16,7 @@ import {
   type HydraTerakhir,
 } from './hydraFusion';
 import { pilihHydra, HYDRA_MODEL_ID } from './hydraModel';
+import { kecilkanGambar } from './gambarKecil';
 import {
   BATAS_LEG_MS,
   bacaPutusanKritik,
@@ -309,6 +310,23 @@ export const ATTACH_LIMIT = 12 * 1024;
 export const MSG_LIMIT = 8 * 1024;
 
 export const MAX_IMAGES = 10;
+
+/*
+ * Shrinks currently in flight, so `send()` can wait for them.
+ *
+ * Module-level on purpose: the attachment is added by a component, but the
+ * message is sent by the store, and the two must not race. A reader who pastes
+ * a screenshot and presses Enter immediately must get the image attached, not
+ * an empty message that silently lost it.
+ */
+const gambarMenunggu = new Set<Promise<void>>();
+
+/** Resolve once every pending attachment shrink has landed. */
+async function tungguGambar(): Promise<void> {
+  while (gambarMenunggu.size > 0) {
+    await Promise.allSettled([...gambarMenunggu]);
+  }
+}
 
 export const IMAGE_MAX_BYTES = 3_500_000;
 
@@ -3699,9 +3717,9 @@ export const useAi = create<AiStore>((set0, get) => {
       await get().lanjutkanAgent();
       return;
     }
+    await tungguGambar();
     const imgs = images ?? get().draftImages;
-    if (!teksBersih && imgs.length === 0) return;
-    if (!get().pending && !get().agentBusy) {
+    if (!teksBersih && imgs.length === 0) return;    if (!get().pending && !get().agentBusy) {
       await get().send(teksBersih, imgs, composerId);
       return;
     }
@@ -3749,20 +3767,65 @@ export const useAi = create<AiStore>((set0, get) => {
         set({ toast: tf('Too many images - the limit is {n} per message', { n: MAX_IMAGES }) });
         return false;
       }
-      let bytes = 0;
-      const match = /^data:[^;,]+;base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl);
-      if (match) {
-        const encoded = match[1].replace(/\s/g, '');
-        const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
-        bytes = Math.max(0, Math.floor(encoded.length * 3 / 4) - padding);
-      } else if (dataUrl.startsWith('data:')) {
-        bytes = new TextEncoder().encode(dataUrl).byteLength;
-      }
-      if (bytes > IMAGE_MAX_BYTES) {
-        set({ toast: tf('Image is larger than 3.5 MB and was not attached', {}) });
-        return false;
-      }
-      set({ draftImages: [...now, dataUrl] });
+      /*
+       * Shrink BEFORE the size check.
+       *
+       * The 3.5 MB ceiling below guards the file, but a file that passes it can
+       * still be far too large for the REQUEST: a 638 KB screenshot becomes
+       * 850.834 characters of base64, and the request budget is 80.000 for
+       * everything. The trimmer then had to release the image to fit, so the
+       * model answered about a picture it never received ("request-nya terpotong
+       * batas gateway"). Rejecting big screenshots would be the wrong fix - they
+       * are exactly what readers paste. Scaling them down is the right one.
+       *
+       * The optimistic path (small images) is synchronous: no await, no flicker
+       * for the common case. Only oversized images take the async re-encode, and
+       * the draft is updated once when it finishes.
+       */
+      const masukkan = (url: string) => {
+        set((s) => ({ draftImages: [...s.draftImages, url] }));
+      };
+      /*
+       * Track the in-flight shrink so `send()` can WAIT for it.
+       *
+       * Without this, a reader who pastes a screenshot and hits Enter inside the
+       * ~200 ms the canvas needs sends a message with NO image — the draft is
+       * still empty, `send()` reads it, and the model answers about nothing. A
+       * race that silently loses the attachment is worse than the size bug it
+       * replaces, so the promise is registered and awaited at the send door.
+       */
+      const kecil = kecilkanGambar(dataUrl).then((hasil) => {
+        const url = hasil.dataUrl;
+        let bytes = 0;
+        const match = /^data:[^;,]+;base64,([A-Za-z0-9+/=\s]+)$/.exec(url);
+        if (match) {
+          const encoded = match[1].replace(/\s/g, '');
+          const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
+          bytes = Math.max(0, Math.floor(encoded.length * 3 / 4) - padding);
+        } else if (url.startsWith('data:')) {
+          bytes = new TextEncoder().encode(url).byteLength;
+        }
+        if (bytes > IMAGE_MAX_BYTES) {
+          set({ toast: tf('Image is larger than 3.5 MB and was not attached', {}) });
+          return;
+        }
+        masukkan(url);
+        if (hasil.dikecilkan) {
+          /*
+           * Say it, quietly. A reader who pasted a 2 MB screenshot and sees a
+           * smaller attachment deserves to know the app resized it, otherwise
+           * "the model missed the small text" looks like a model failure.
+           */
+          set({
+            toast: tf('Image resized for sending ({from} KB -> {to} KB)', {
+              from: String(Math.round(hasil.awalChar / 1024)),
+              to: String(Math.round(hasil.akhirChar / 1024)),
+            }),
+          });
+        }
+      });
+      gambarMenunggu.add(kecil);
+      void kecil.finally(() => gambarMenunggu.delete(kecil));
       return true;
     },
     removeDraftImage: (index) =>
@@ -4590,6 +4653,15 @@ export const useAi = create<AiStore>((set0, get) => {
     const perluas = perluasPerintah(diketik);
     const raw = perluas.kirim;
     const tampil = perluas.tampil;
+    /*
+     * Wait for an in-flight attachment shrink before reading the draft.
+     *
+     * The reader can press Enter inside the ~200 ms the canvas needs; without
+     * this await the message leaves with `draftImages: []` and the image is
+     * silently lost — a race that looks exactly like "the model cannot see my
+     * image".
+     */
+    await tungguGambar();
     const imgs = images ?? get().draftImages;
     if (!raw && imgs.length === 0) return false;
 
