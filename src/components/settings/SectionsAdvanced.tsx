@@ -10,7 +10,7 @@ import {
   eventToBinding,
   findConflicts,
 } from '../../lib/shortcuts';
-import { PROVIDERS, ProviderLogo, type ProviderInfo } from '../../lib/modelCatalog';
+import { PROVIDERS, PROVIDER_AUTO, ProviderLogo, type ProviderInfo } from '../../lib/modelCatalog';
 import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
@@ -264,7 +264,17 @@ export function ModelsSection() {
           testid="models-active"
           value={models.activeProvider}
           onChange={(v) => void apply({ models: { activeProvider: v } })}
-          options={PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
+          options={[
+            /*
+             * `Auto` comes FIRST and is the option that needs no decision: the
+             * reader picks nothing, and Zephyr uses the first provider that has
+             * a key (catalogue order, so it is deterministic). Before this,
+             * `activeProvider` was a required choice - a reader with three
+             * gateways configured still had to name one before anything worked.
+             */
+            { value: PROVIDER_AUTO, label: tr('Auto (use the first provider with a key)') },
+            ...PROVIDERS.map((p) => ({ value: p.id, label: p.label })),
+          ]}
         />
       </Row>
 
