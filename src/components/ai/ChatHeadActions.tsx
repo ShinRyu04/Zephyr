@@ -158,17 +158,6 @@ export default function ChatHeadActions() {
             )}
           </div>
 
-          {/* History — opens the session switcher anchored to the title. */}
-          <button
-            className="ai-ikon"
-            data-testid="ai-history-btn"
-            title={tr('Chat history')}
-            aria-label={tr('Chat history')}
-            onClick={() => window.dispatchEvent(new Event('zephyr-ai-history'))}
-          >
-            <AiIkon name="history" size={14} />
-          </button>
-
           {/* Maximize / Restore moved to just LEFT of Close — see below, the
               VSCode Copilot header puts the expand toggle immediately before
               the X. The block that used to sit here was relocated. */}
