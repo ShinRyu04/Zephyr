@@ -13,38 +13,78 @@ pub struct AgentInfo {
 }
 
 /*
- * Every AI CLI Zephyr knows how to host a tab for.
+ * Every AI **CLI** Zephyr knows how to host a pane for.
  *
  * (id, label, executable). The list is a CATALOGUE, not a claim about what is
  * installed: `list_agents` returns only the entries whose executable is actually
  * found on this machine, so the UI shows what exists and nothing else.
  *
- * Adding an entry here is enough to make the CLI appear - the tab strip is built
- * from `list_agents()`, not from a hard-coded pair. The reader's report was
- * exactly that gap: nine CLIs were detected, two were shown.
+ * ## CLI only - never a GUI application
  *
- * `dsh` and `dsh-tui` are DeepSeek's harness (`@deepseek-ai/dsh`,
- * `@deepseek-harness-tui/dsh-tui`); `copilot` is `@github/copilot`. They were
- * missing entirely, so a machine with them installed showed nothing for them.
+ * This list used to contain `zed` with the executable `zed`, and on this machine
+ * that resolved to `%LOCALAPPDATA%\Programs\Zed\bin\Zed.exe` - the Zed EDITOR.
+ * Launching it inside a terminal pane opens a desktop window, not a TUI, which
+ * is not what this list is for. The reader caught it: "itu zed agent kan
+ * aplikasi bjir".
+ *
+ * The rule now, and it is a rule rather than a one-off fix: an entry belongs
+ * here only if running its executable in a terminal keeps you IN the terminal.
+ * GUI-first products (Zed, Cursor, Trae, Windsurf, Antigravity, Kiro) are out
+ * unless the vendor ships a separate headless CLI binary - which is why `trae`
+ * now points at `trae-agent`, not at `trae`, and `antigravity` no longer points
+ * at `agy` (that name is not a CLI on Windows).
+ *
+ * Adding an entry here is enough to make the CLI appear - the sidebar and the
+ * terminal `+` menu are both built from `list_agents()`.
+ *
+ * The list follows the set Orca surfaces, which is what the reader asked to
+ * match: "kek orca gtu, yg nnti bnyk list ny klo terdeteksi". An entry that is
+ * not installed costs nothing - it is filtered out before the UI sees it - so
+ * the catalogue can be generous while the displayed list stays honest.
  */
 const CATALOG: &[(&str, &str, &str)] = &[
-    ("opencode", "opencode", "opencode"),
+    /* Hosted coding CLIs with their own TUI. */
     ("claude", "Claude Code", "claude"),
     ("codex", "Codex CLI", "codex"),
+    ("opencode", "opencode", "opencode"),
+    ("opencode2", "opencode 2", "opencode2"),
     ("gemini", "Gemini CLI", "gemini"),
-    ("grok", "Grok CLI", "grok"),
-    ("pi", "Pi CLI", "pi"),
     ("gh", "GitHub Copilot CLI", "gh"),
     ("copilot", "Copilot CLI", "copilot"),
+    ("qwen", "Qwen Code", "qwen"),
+    ("grok", "Grok CLI", "grok"),
+    ("pi", "Pi CLI", "pi"),
     ("cursor", "Cursor Agent", "cursor"),
     ("hermes", "Hermes Agent", "hermes"),
+    ("omp", "OMP", "omp"),
     ("dsh", "DeepSeek Harness", "dsh"),
     ("dsh-tui", "DeepSeek Harness TUI", "dsh-tui"),
-    ("omp", "OMP", "omp"),
     ("qoder", "Qoder CLI", "qodercli"),
     ("aider", "Aider", "aider"),
-    ("crush", "Crush", "crush"),
-    ("qwen", "Qwen Code", "qwen"),
+    ("crush", "Charm Crush", "crush"),
+    /* The wider field Orca lists. Each is one `which` lookup when absent. */
+    ("amp", "Amp", "amp"),
+    ("auggie", "Augment Auggie", "auggie"),
+    ("autohand", "Autohand", "autohand"),
+    ("cline", "Cline", "cline"),
+    ("codebuff", "Codebuff", "codebuff"),
+    ("commandcode", "Command Code", "command-code"),
+    ("continue", "Continue", "cn"),
+    ("devin", "Devin", "devin"),
+    ("droid", "Droid", "droid"),
+    ("goose", "Goose", "goose"),
+    ("jcode", "Jcode", "jcode"),
+    ("kilocode", "Kilo Code", "kilocode"),
+    ("kimi", "Kimi CLI", "kimi"),
+    ("kiro", "Kiro", "kiro"),
+    ("mistral", "Mistral Vibe", "mistral-vibe"),
+    ("openclaw", "OpenClaw", "openclaw"),
+    ("prime", "Prime Agent", "prime"),
+    ("rovodev", "Rovo Dev", "acli"),
+    ("trae", "Trae Agent", "trae-agent"),
+    ("zcode", "ZCode", "zcode"),
+    ("antigravity", "Antigravity", "antigravity"),
+    ("freebuff", "Freebuff", "freebuff"),
 ];
 
 /*
