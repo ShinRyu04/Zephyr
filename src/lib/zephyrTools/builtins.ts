@@ -47,6 +47,8 @@ import { useStore } from '../store';
 import { useAi, MAX_TODOS, todoTerpangkas } from '../aiStore';
 import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
+import { buatLspTool } from './lsp';
+import { buatApplyPatchTool } from './patch';
 import type { SearchOpts } from '../types';
 import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
 import { kutipUrlDiPerintah } from '../kutipPerintah';
@@ -1390,6 +1392,61 @@ export const TOOL_BAWAAN: AgentTool[] = [
       );
     },
   },
+
+  /*
+   * `lsp` — ONE tool for six language-server questions.
+   *
+   * The six `lsp_*` tools above used to be six catalogue entries. They share
+   * every parameter except which question is asked, they all read the same
+   * language server, and none can write - so six names meant six rows to choose
+   * between for one decision, six near-miss results in `tool_search`, and six
+   * schema blobs in the prompt.
+   *
+   * The bridge is wired here, in the file that already holds the six
+   * implementations, so the consolidation cannot drift from the code it wraps.
+   * Each branch calls exactly what the old tool called.
+   */
+  buatLspTool({
+    symbols: lspSymbols,
+    refs: lspRefs,
+    def: lspDef,
+    hover: lspHover,
+    diagnostics: lspDiagnostics,
+    callHierarchy: lspCallHierarchy,
+  }),
+
+  /*
+   * `apply_patch` — many files in one call, in OpenCode's patch grammar.
+   *
+   * The bridge is wired to the same primitives `write_file` and `delete_file`
+   * already use (`cmd.fsWrite`, `cmd.fsRemove`), so the patch cannot bypass a
+   * guard those two honour. `periksaTulis` is called by the tool itself as well
+   * as by the bridge, which is deliberate: a patch naming a secret path must be
+   * refused before ANY file is read, not when the write is attempted.
+   */
+  buatApplyPatchTool({
+    baca: async (p) => {
+      try {
+        const r = await cmd.fsRead(p);
+        return r.content;
+      } catch {
+        return null;
+      }
+    },
+    tulis: async (p, isi) => {
+      await cmd.fsWrite(p, isi);
+    },
+    hapus: async (p) => {
+      await cmd.fsDelete([p]);
+    },
+    ada: async (p) => {
+      try {
+        return await cmd.fsExists(p);
+      } catch {
+        return false;
+      }
+    },
+  }),
 
   /*
    * `skill_view` — the tool the prompt has been promising all along.

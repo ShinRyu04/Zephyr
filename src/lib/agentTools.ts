@@ -15,6 +15,8 @@ import type { AgentToolSpec } from './types';
 import { TOOL_BAWAAN } from './zephyrTools/builtins';
 import { TOOL_ZEPHYR_SELF } from './zephyrTools/zephyrSelf';
 import { tunjukTool as TOOL_TUNJUK } from './zephyrTools/tunjuk';
+import { TOOL_BROWSER, TOOL_BROWSER_LAMA } from './zephyrTools/browser';
+import { TOOL_WEB_SATU, TOOL_WEB_LAMA } from './zephyrTools/webSatu';
 import { TOOL_INGAT } from './zephyrTools/zephyrIngat';
 import { TOOL_MCP } from './zephyrTools/mcp';
 import { TOOL_WEB } from './zephyrTools/web';
@@ -92,7 +94,17 @@ export const AGENT_TOOLS: AgentTool[] = [
    */
   TOOL_TUNJUK,
   ...TOOL_MCP,
-  ...TOOL_WEB,
+  /*
+   * `browser` replaces the seven `browser_*` entries.
+   *
+   * The seven are FILTERED OUT of `TOOL_WEB` here rather than deleted from it:
+   * their implementations are what `browser` dispatches to, and `TOOL_WEB` is
+   * also the module other code imports the implementations from. Removing them
+   * from the array would remove the code, not just the name.
+   */
+  ...TOOL_WEB.filter((t) => !TOOL_BROWSER_LAMA.includes(t.spec.name) && !TOOL_WEB_LAMA.includes(t.spec.name)),
+  TOOL_BROWSER,
+  TOOL_WEB_SATU,
 ];
 
 /* ------------------------------------------------------------------ */

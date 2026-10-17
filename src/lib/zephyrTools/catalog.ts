@@ -158,12 +158,23 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
    * either. Its spec lived only in `bacaKode.ts` until now, which is why the
    * model could not call it: unreachable spec, no catalog entry.
    */
-  ['lsp_symbols', 'Code intelligence', 'read', false, 'Daftar simbol di sebuah berkas, dengan jenis dan kedalaman'],
-  ['lsp_references', 'Code intelligence', 'read', false, 'Tempat-tempat yang memakai sebuah simbol, menurut language server'],
-  ['lsp_definition', 'Code intelligence', 'read', false, 'Lokasi definisi sebuah simbol'],
-  ['lsp_hover', 'Code intelligence', 'read', false, 'Tipe dan dokumentasi simbol pada satu posisi'],
-  ['lsp_diagnostics', 'Code intelligence', 'read', false, 'Galat dan peringatan language server untuk sebuah berkas'],
-  ['lsp_call_hierarchy', 'Code intelligence', 'read', false, 'Fungsi yang memanggil dan dipanggil oleh sebuah simbol, menurut language server'],
+  /*
+   * ONE entry for the whole language-server family.
+   *
+   * Six `lsp_*` entries used to sit here. They differed only in WHICH question
+   * was asked - same parameters, same server, none able to write - so six names
+   * meant six rows to choose between for one decision and six near-misses in
+   * `tool_search`. The implementations are unchanged; they moved behind
+   * `aksi` in `lsp.ts`.
+   */
+  ['lsp', 'Code intelligence', 'read', false, 'Tanya language server: simbol, referensi, definisi, tipe, diagnostik, atau hierarki panggilan'],
+  /*
+   * `apply_patch` — many files, one call, OpenCode's own patch grammar.
+   *
+   * `fsWrite` because it writes; `needsApproval` true for the same reason
+   * `write_file` has it: it can overwrite work.
+   */
+  ['apply_patch', 'Files', 'fsWrite', true, 'Ubah banyak berkas dalam satu panggilan patch (format OpenCode)'],
   ['zephyr_kode', 'Code intelligence', 'read', false, 'Potongan baris BERKODE NOMOR dari sumber Zephyr sendiri (baca-kode): satu berkas, satu rentang baris, atau simbol'],
 
   /* Skills - 1 */
@@ -252,15 +263,23 @@ const MCP: Array<[string, string, ToolEffect, boolean, string]> = [
  * tool web baru, tempatkan di sini sebagai mati, lalu pilih sadar di sekat.
  */
 const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
-  ['web_search', 'Web', 'net', false, 'Cari di internet'],
-  ['web_fetch', 'Web', 'net', false, 'Ambil dan bersihkan satu halaman web'],
-  ['browser_open', 'Browser', 'net', false, 'Buka URL di pane browser yang terlihat'],
-  ['browser_read', 'Browser', 'read', false, 'Baca isi halaman di pane browser'],
-  ['browser_click', 'Browser', 'netWrite', true, 'Klik elemen di pane browser'],
-  ['browser_type', 'Browser', 'netWrite', true, 'Isi kolom di pane browser lalu tekan Enter'],
-  ['browser_list', 'Browser', 'read', false, 'Daftar pane browser yang terbuka'],
-  ['browser_close', 'Browser', 'appWrite', true, 'Tutup pane browser'],
-  ['browser_download_url', 'Browser', 'netWrite', true, 'Unduh URL langsung ke berkas di workspace'],
+  /*
+   * Web: search + fetch in one entry - see the note above `browser`.
+   */
+  ['web', 'Web', 'net', false, 'Ambil dari internet: search (cari) atau fetch (isi satu URL)'],
+  /*
+   * Browser: ONE entry for seven actions.
+   *
+   * The seven `browser_*` entries that used to sit here act on the same pane and
+   * pass the same gate - they differ only in which action runs. Their
+   * implementations stay in `TOOL_WEB` (dispatching to them is what `browser`
+   * does); they are no longer offered to the model under seven names.
+   */
+  ['browser', 'Browser', 'netWrite', false, 'Kendalikan pane browser: open, read, click, type, list, close, download'],
+  /*
+   * Web: search + fetch in one entry, same reason as `browser`.
+   */
+  ['web', 'Web', 'net', false, 'Ambil dari internet: search (cari) atau fetch (isi satu URL)'],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -601,6 +620,20 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    * tidak tahu letaknya juga tidak akan tahu harus menunggu.
    */
   'tunjuk',
+  /*
+   * `lsp` dan `apply_patch` ikut setiap giliran.
+   *
+   * Keduanya menggantikan keluarga tool yang DULU selalu dikirim
+   * (`lsp_definition` dkk. dan `write_file`/`multi_edit` untuk banyak berkas).
+   * Kalau yang baru tidak ikut, konsolidasinya justru MENGHILANGKAN kemampuan:
+   * model harus menemukan `lsp` lewat `tool_search` sebelum bisa bertanya ke
+   * language server, padahal dulu `lsp_definition` sudah ada di tangannya.
+   *
+   * `apply_patch` adalah jalur utama menulis banyak berkas - satu-satunya cara
+   * menyelesaikan tugas multi-berkas tanpa membakar langkah per berkas.
+   */
+  'lsp',
+  'apply_patch',
   /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
@@ -623,9 +656,8 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    * `web_search` tetap terpasang dan tetap aktif, hanya diakses lewat
    * `tool_search` -> `tool_call`.
    */
-  'browser_open',
-  'browser_read',
-  'web_fetch',
+  'browser',
+  'web',
 ];
 
 /** Rincian per kelompok, untuk picker. */
