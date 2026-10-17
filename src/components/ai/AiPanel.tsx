@@ -26,7 +26,7 @@ import BrowserContextChip from './BrowserContextChip';
 import ContextMeter from './ContextMeter';
 import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
-import { fileDialogOpen, folderDialogOpen, fsRead, scanDir } from '../../lib/commands';
+import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
@@ -637,7 +637,27 @@ const bukaModels = () => useAiModels.getState().buka();
     }
   };
 
-  /* Paste an image straight from the clipboard into the attachments. */
+  /*
+   * Paste an image straight from the clipboard into the attachments.
+   *
+   * ## Why it also touches disk
+   *
+   * The attachment pipeline hands the model a data URL, which is all a
+   * vision-capable model needs. But Zeph's `modlens` rule says images must be
+   * read through the skill BEFORE answering about them, and `modlens` takes a
+   * PATH or a URL - a data URL living only in the composer has neither. So the
+   * rule promised something the pipeline could not deliver for pasted
+   * screenshots, and the model was left describing an image it could not open.
+   *
+   * `simpanGambarTemp` (Rust, `gambar.rs`) already existed for the hosted CLI
+   * path and does exactly what is needed: writes to `%TEMP%\zephyr-paste`,
+   * content-addressed, returns the absolute path. Nothing new is invented here;
+   * the existing command is wired into the paste path and the path is reported
+   * in the toast so the reader (and the model, next turn) can refer to the file.
+   *
+   * A failure to write is NOT fatal: the attachment still works, it just has no
+   * path to read from. Saying so beats a silent half-feature.
+   */
   const tempelGambar = async () => {
     const url = await clipboardReadImage();
     if (!url) {
@@ -645,7 +665,30 @@ const bukaModels = () => useAiModels.getState().buka();
       return;
     }
     addDraftImage(url);
-    setToast(tr('Screenshot pasted as an attachment'));
+    const jalur = await simpanJalurGambar(url);
+    setToast(
+      jalur
+        ? tf('Screenshot attached ({path})', { path: jalur })
+        : tr('Screenshot pasted as an attachment'),
+    );
+  };
+
+  /**
+   * Write a pasted data URL to a temp file and return its path, or `null`.
+   *
+   * Split out because BOTH paste routes need it: the clipboard button and the
+   * composer's own `onPaste`. Returns `null` on anything unexpected - a missing
+   * comma, an unsupported extension, a Rust error - so callers can fall back to
+   * the plain toast instead of failing the attachment.
+   */
+  const simpanJalurGambar = async (dataUrl: string): Promise<string | null> => {
+    const pisah = /^data:image\/([a-z0-9+.-]+);base64,(.*)$/i.exec(dataUrl);
+    if (!pisah) return null;
+    try {
+      return await simpanGambarTemp(pisah[2], pisah[1]);
+    } catch {
+      return null;
+    }
   };
 
 
@@ -2032,10 +2075,24 @@ const bukaModels = () => useAiModels.getState().buka();
               const reader = new FileReader();
               reader.onload = () => {
                 const url = typeof reader.result === 'string' ? reader.result : null;
-                if (url) {
-                  addDraftImage(url);
-                  setToast(tr('Screenshot pasted as an attachment'));
-                }
+                if (!url) return;
+                addDraftImage(url);
+                /*
+                 * Also write it to disk so `modlens` can open it.
+                 *
+                 * This is the paste route that actually matters: Ctrl+V into
+                 * the composer produces a File with no path at all. The toast
+                 * reports the temp path once the write lands, and falls back to
+                 * the plain message when it does not - the attachment still
+                 * works either way.
+                 */
+                void simpanJalurGambar(url).then((jalur) => {
+                  setToast(
+                    jalur
+                      ? tf('Screenshot attached ({path})', { path: jalur })
+                      : tr('Screenshot pasted as an attachment'),
+                  );
+                });
               };
               reader.readAsDataURL(f);
               return;
