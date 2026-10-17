@@ -536,7 +536,21 @@ export const useStore = create<Store>((set, get) => ({
   toolsOpen: false,
   activeTheme: 'zephyr-dark',
 
-  setActivity: (a) => set({ activity: a }),
+  /*
+   * `'settings'` is not a side-bar activity any more - it is a floating panel.
+   *
+   * Ten call sites across the app ask for it (`setActivity('settings')` from
+   * the command palette, the MCP panel, Dev Environment, the agent's window
+   * tools...). Making every one of them remember to also call
+   * `setSettingsOpen(true)` was a bug waiting to happen: the activity would
+   * switch, the side bar would go blank, and nothing would open. Opening the
+   * panel HERE keeps all of them working without touching any of them.
+   */
+  setActivity: (a) =>
+    set(() =>
+      a === 'settings'
+        ? { activity: a, settingsOpen: true, extensionsOpen: false, toolsOpen: false }
+        : { activity: a }),
   setToolsTab: (v) => set({ toolsTab: v }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
