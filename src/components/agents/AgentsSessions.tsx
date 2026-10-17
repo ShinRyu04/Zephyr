@@ -4,6 +4,7 @@ import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
 import AiIkon, { type NamaAiIkon } from '../ai/AiIkon';
+import SessionContextMenu from './SessionContextMenu';
 
 /*
  * The left column: past sessions on top, Customizations below.
@@ -44,20 +45,37 @@ export default function AgentsSessions() {
   const activeId = useAi((s) => s.activeId);
   const selectChat = useAi((s) => s.selectChat);
   const newChat = useAi((s) => s.newChat);
+  const deleteChat = useAi((s) => s.deleteChat);
+  const renameChat = useAi((s) => s.renameChat);
+  const duplicateChat = useAi((s) => s.duplicateChat);
+  const setChatPinned = useAi((s) => s.setChatPinned);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bukaCustom = useAgentCustom((s) => s.buka);
   const workspaceAktif = useStore((s) => s.workspace);
   const [cari, setCari] = useState('');
   const [custBuka, setCustBuka] = useState(true);
+  /*
+   * The row a right-click opened the menu for, plus where to draw it.
+   *
+   * Kept as ONE piece of state: a separate `open` flag and `target` would allow
+   * the menu to be open with no target (a click on nothing renders an empty
+   * menu), and the position must travel with the row anyway.
+   */
+  const [menu, setMenu] = useState<{ id: string; judul: string; dipin: boolean; x: number; y: number } | null>(null);
+  /* Inline rename: the id being edited and its draft text. */
+  const [gantiNama, setGantiNama] = useState<{ id: string; teks: string } | null>(null);
 
   /* Newest activity first — a conversation you just had is the one you want. */
   const urut = useMemo(() => {
     const arr = [...sesi];
-    arr.sort(
-      (a, b) =>
+    arr.sort((a, b) => {
+      /* Pinned rows sit on top regardless of age — that is what pinning means. */
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      return (
         (b.messages[b.messages.length - 1]?.at ?? b.createdAt) -
-        (a.messages[a.messages.length - 1]?.at ?? a.createdAt),
-    );
+        (a.messages[a.messages.length - 1]?.at ?? a.createdAt)
+      );
+    });
     return arr;
   }, [sesi]);
 
@@ -147,6 +165,12 @@ export default function AgentsSessions() {
                 data-testid={`ag-sesi-${s.id}`}
                 title={s.title}
                 onClick={() => selectChat(s.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ id: s.id, judul: s.title || tr('Untitled'), dipin: !!s.pinned, x: e.clientX, y: e.clientY });
+                }}
+                /* Double-click renames, the same gesture the reference list uses. */
+                onDoubleClick={() => setGantiNama({ id: s.id, teks: s.title || '' })}
               >
                 <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-row-ic">
                   <path
@@ -157,12 +181,81 @@ export default function AgentsSessions() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span className="ag-sesi-row-teks">{s.title || tr('Untitled')}</span>
+                {gantiNama?.id === s.id ? (
+                  <input
+                    className="ag-sesi-row-input"
+                    data-testid="ag-sesi-rename-input"
+                    value={gantiNama.teks}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setGantiNama({ id: s.id, teks: e.target.value })}
+                    onBlur={() => {
+                      renameChat(s.id, gantiNama.teks);
+                      setGantiNama(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        renameChat(s.id, gantiNama.teks);
+                        setGantiNama(null);
+                      }
+                      if (e.key === 'Escape') setGantiNama(null);
+                    }}
+                  />
+                ) : (
+                  <span className="ag-sesi-row-teks">{s.title || tr('Untitled')}</span>
+                )}
+                {s.pinned && (
+                  <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-row-pin" data-testid="ag-sesi-pin">
+                    <path
+                      d="M9.6 2.2 13.8 6.4l-1.6 1.6-.6-.6-2.6 2.6.2 2.2-1 1-3.4-3.4 1-1 2.2.2 2.6-2.6-.6-.6z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.1"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
               </button>
             ))}
           </div>
         ))}
       </div>
+
+      {menu && (
+        <SessionContextMenu
+          x={menu.x}
+          y={menu.y}
+          judul={menu.judul}
+          dipin={menu.dipin}
+          onAksi={(aksi) => {
+            const id = menu.id;
+            switch (aksi) {
+              case 'rename':
+                setGantiNama({ id, teks: menu.judul });
+                break;
+              case 'duplicate':
+                duplicateChat(id);
+                break;
+              case 'pin':
+                setChatPinned(id, true);
+                break;
+              case 'unpin':
+                setChatPinned(id, false);
+                break;
+              case 'copyTitle':
+                void navigator.clipboard?.writeText(menu.judul).catch(() => undefined);
+                break;
+              case 'copyId':
+                void navigator.clipboard?.writeText(id).catch(() => undefined);
+                break;
+              case 'delete':
+                deleteChat(id);
+                break;
+            }
+          }}
+          onTutup={() => setMenu(null)}
+        />
+      )}
 
       {/* Customizations — collapsible, with the collapsed state keeping a
           footer bar so the section is never lost: closed it reads
