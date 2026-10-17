@@ -445,6 +445,80 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1 1 auto;
+}
+.ag-sesi-row-pin {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+/* Inline rename: same box as the label, so the row does not jump. */
+.ag-sesi-row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg0);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  padding: 1px 4px;
+}
+
+/*
+ * The right-click menu.
+ *
+ * Positioned `fixed` at the pointer: the list scrolls, and an absolutely
+ * positioned menu would be clipped by the column's own overflow.
+ */
+.ag-ctx {
+  position: fixed;
+  z-index: 2600;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.28);
+  outline: none;
+}
+.ag-ctx-head {
+  padding: 4px 8px 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.ag-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-ctx-item:hover,
+.ag-ctx-item:focus-visible {
+  background: var(--surface-2);
+}
+.ag-ctx-item.is-bahaya {
+  color: var(--danger);
+}
+.ag-ctx-item.is-bahaya:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.ag-ctx-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
 
 /* Customizations — pinned under the session list, separated by a rule. */
