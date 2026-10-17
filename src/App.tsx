@@ -46,6 +46,7 @@ const NotesPanel = lazy(() => import('./components/ai/NotesPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
 import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir } from './lib/store';
+import { SettingsPopup, ExtensionsPopup, ToolsPopup } from './components/shell/ShellPopups';
 import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
 import { useExplorer } from './lib/explorerStore';
@@ -100,6 +101,7 @@ import './styles/devupdate.css';
 import './styles/api.css';
 import './styles/sftp.css';
 import './styles/tools.css';
+import './styles/modal-popup.css';
 /*
  * Loaded after ai.css (which is imported above with the other early styles) so
  * the compact panel rules win: this file flattens the AI header into one row of
@@ -1643,6 +1645,14 @@ export default function App() {
         <AiModelsModal />
         <KeybindingsEditor />
         <LspOverlay />
+        {/*
+          * The three floating panels: Settings, Extensions and Dev Tools.
+          * They used to take over the editor area / side bar; they now float
+          * over the work so the open file stays visible behind them.
+          */}
+        <SettingsPopup />
+        <ExtensionsPopup />
+        <ToolsPopup />
       </Suspense>
       <Toast />
       {/* phase 31: the a11y live region. Rendered LAST so it does not slip in
