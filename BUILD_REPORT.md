@@ -1,7 +1,7 @@
 # BUILD_REPORT - Zephyr
 
-Ditulis 2026-10-02. Berisi keadaan build, dan **bukti** untuk setiap klaim.
-Yang tidak dijalankan tidak ditulis di sini sebagai "lulus".
+Ditulis 2026-10-02, **diperbarui 2026-10-17**. Berisi keadaan build, dan **bukti**
+untuk setiap klaim. Yang tidak dijalankan tidak ditulis di sini sebagai "lulus".
 
 ---
 
@@ -9,15 +9,24 @@ Yang tidak dijalankan tidak ditulis di sini sebagai "lulus".
 
 | | |
 |---|---|
-| Versi | **1.1.13** |
+| Versi | **1.1.14** |
 | Artefak terakhir | `src-tauri/target/release/zephyr.exe` |
-| Ukuran | 10.69 MB |
-| SHA256 | `5C71B36ABB03CB5CE64443CD0AA9D85CD3078176617BBA61AE32878929628309` |
-| Commit | 221 commit, HEAD `a4bd979` |
-| Frontend tertanam | **ya** (`assets/index-` ada di dalam exe) |
+| Ukuran exe | 19.18 MB |
+| SHA256 exe | `F73D23BD1EDAF74F6D9BA759CB9A9BCDEB37600779F502C5096E7138253C1B13` |
+| Installer MSI | `bundle/msi/Zephyr_1.1.14_x64_en-US.msi` — 10.18 MB |
+| SHA256 MSI | `36E948DF1734C507164AFDF03A1C21BD3EFCF089E5CC709C4F66D568F6115798` |
+| Installer NSIS | `bundle/nsis/Zephyr_1.1.14_x64-setup.exe` — 7.46 MB |
+| SHA256 NSIS | `E1F497F7807D5975B4F76F99BAA357A63B76AB47793D80264223146F2C1D7AD1` |
+| Dibangun | 2026-10-17 18:10-18:11 |
+| Commit | HEAD `58d5f2b` |
+| Frontend tertanam | **ya** (`dist/` di-embed; `assets/index-` ada di dalam exe) |
 
-**Installer belum dibangun, dan itu memang disengaja** - menunggu hasil tes
-portable oleh user.
+**Installer SUDAH dibangun** (MSI + NSIS). Yang **tidak** dilakukan: signing
+updater — `tauri build` berhenti di langkah itu karena
+`TAURI_SIGNING_PRIVATE_KEY` tidak disetel. Itu langkah terpisah dari pembuatan
+installer: kedua bundel sudah ada di disk sebelum pesan itu muncul. Installer
+yang tidak ditandatangani akan memicu peringatan SmartScreen di mesin lain —
+itu konsekuensi yang disengaja selama belum ada sertifikat.
 
 ---
 
@@ -26,16 +35,16 @@ portable oleh user.
 ### 2.1 TypeScript
 
 ```
-npx tsc --noEmit    ->  0 error
+node node_modules/typescript/lib/tsc.js --noEmit   ->  0 error
 ```
 
 ### 2.2 Rust
 
 ```
-cargo test --lib            ->  268 lulus, 0 gagal
-cargo test --test encoding_replace  ->  5 lulus
-cargo check                 ->  bersih (tanpa error)
+cargo test --lib --offline   ->  554 passed; 0 failed; exit 0
 ```
+
+(25 warning `dead_code`/`unused` yang sudah lama ada; tidak ada yang baru.)
 
 ### 2.3 Harness UI (app dev, port CDP 9223)
 
@@ -43,20 +52,42 @@ Dijalankan berurutan; semuanya lulus dan tidak saling merusak.
 
 | Harness | Hasil |
 |---|---|
-| `verify-tool-gate.mjs` | 9/9 |
-| `verify-tools-g7.mjs` | 16/16 |
-| `verify-ask-user.mjs` | 10/10 |
-| `verify-gelombang7.mjs` | 7/7 |
-| `verify-wallpaper.mjs` | 4/4 |
-| `verify-todo-card.mjs` | 28/28 |
-| `uji-repeat.mjs` | 12/12 |
-| `verify-fase-loop.mjs` | 20/20 |
-| `uji-tool-pill.mjs` | 8/8 |
-| `uji-work-step.mjs` | 8/8 |
-| `uji-i18n-kunci.mjs` | 3/3 |
-| `uji-gerbang-git.mjs` | 7/7 |
-| `uji-token-css.mjs` | 3/3 |
-| **TOTAL** | **135/135** |
+| `verify-bahasa-ui.mjs` | 5/5 |
+| `verify-hydra-agent.mjs` | 6/6 |
+| `verify-hydra-picker.mjs` **(baru)** | 6/6 |
+| `verify-gambar-ke-provider.mjs` **(baru)** | 6/6 |
+| `verify-tabel-model.mjs` **(baru)** | 7/7 |
+| `verify-mcp-katalog.mjs` | 5/5 |
+| `verify-agen-fix.mjs` | 5/5 |
+| `verify-agents-browser.mjs` | 13/13 |
+| `verify-agents-cust-editor.mjs` | 23/23 |
+| `verify-ekstensi-ikon.mjs` | 3/3 |
+| `verify-ekstensi-status.mjs` | 3/3 |
+| `uji-hydrafusion.mjs` | 106/106 |
+| `uji-katalog-ekstensi-jujur.mjs` | 20/20 |
+| `uji-set-pindah.mjs` | 19/19 |
+| `uji-pane-browser-kebijakan.mjs` | 44/44 |
+| `uji-label-bahasa.mjs` | 30/30 |
+| `uji-bahasa-live.mjs` | 87/88 efektif, 1 no-op terdokumentasi |
+| `uji-suntik-konteks.mjs` | 17/17 |
+| `uji-antrean-pesan.mjs` | 18/18 |
+| `uji-antrean-live.mjs` | 22/22 |
+| `cek-cap-payload.mjs` | 18/18 |
+| `cek-panel-tools-bahasa.mjs` | 5/5 |
+| `cek-i18n-10-bahasa.mjs` | 12/12 |
+| **TOTAL** | **semua hijau** |
+
+Catatan jujur tentang dua harness yang SEMPAT merah dan mengapa:
+
+- `verify-agen-fix` F1/F2 butuh **precondition**: pane browser siap (F1) dan
+  setidaknya satu berkas berubah (F2). Dengan working tree bersih, F2 merah
+  karena tidak ada baris change — bukan karena produknya. Keduanya lulus 5/5
+  setelah precondition dipenuhi.
+- `verify-bahasa-ui` B3 merah karena **bug produk nyata** (`extLoader.ts`
+  menulis kalimat Indonesia yang dirender di UI Inggris). Sudah diperbaiki.
+- `uji-katalog-ekstensi-jujur` merah karena harness mengunci **kalimat literal**
+  yang baru saja diterjemahkan; pemeriksaannya diubah untuk mengunci perilaku.
+
 
 ### 2.4 Harness RILIS (exe rilis, port CDP 9444)
 
