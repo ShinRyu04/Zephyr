@@ -89,8 +89,20 @@ const TOKEN_PER_IMAGE = 1500;
  * in practice with room to spare, while still being ~10k tokens of text - far
  * more than any single step needs once tool output is truncated the way
  * `HISTORY_TOOL_CHARS` already does.
+ *
+ * WHY IT MOVED TO 80k (2026-10-17, measured, not guessed): the fixed block that
+ * `ringkasUkuran` can never touch grew past the old budget. The agent system
+ * prompt alone measured 40.954 characters - already over the 40k total - so
+ * `capUntukPesan` (40.000 - reserveTools) was UNREACHABLE on every single
+ * request. The trimmer therefore ran on every turn, and the last-resort pass
+ * released the newest turn's images and cut its text to 400 characters before
+ * the model ever saw them. Wire captures against the real gateway show bodies
+ * of 54.322-57.219 characters accepted and answered, so the 40k ceiling was
+ * lower than the transport actually needs. 80k leaves the fixed block plus
+ * ~30k characters of real history, and every trimmer pass stays dormant in a
+ * normal run.
  */
-export const PAYLOAD_MAX_CHARS = 40_000;
+export const PAYLOAD_MAX_CHARS = 80_000;
 
 /**
  * Approximate serialized size of an outgoing message list.
