@@ -224,6 +224,14 @@ function popupSetelan() {
      kalimatnya, jadi tanpa pengecualian ini output-nya menghitung dirinya
      sendiri sebagai pintu masuk - dan generator gagal terus setelah menulis. */
   const HASIL_SENDIRI = new Set(['zephyrFakta.ts', 'zephyrIndeks.ts']);
+  /*
+   * `devBridge.ts` MENGEKSPOS `buka()` supaya harness CDP bisa membuka pop-up.
+   * Itu bukan pintu masuk yang dilihat pembaca, dan menghitungnya sebagai pintu
+   * akan membuat fakta menyebut "dipanggil dari devBridge" - kalimat yang tidak
+   * berguna bagi model maupun pembaca. Alasannya sama dengan HASIL_SENDIRI di
+   * atas: berkas yang menyebut `buka()` sebagai JEMBATAN, bukan sebagai tombol.
+   */
+  const JEMBATAN = new Set(['devBridge.ts']);
   const telusuri = (rel) => {
     for (const e of readdirSync(join(akar, rel), { withFileTypes: true })) {
       if (['node_modules', 'dist', 'target', '__snapshots__'].includes(e.name)) continue;
@@ -232,6 +240,7 @@ function popupSetelan() {
       else if (
         /\.(ts|tsx)$/.test(e.name) &&
         !HASIL_SENDIRI.has(e.name) &&
+        !JEMBATAN.has(e.name) &&
         r !== modal &&
         r !== store &&
         /useAiModels\.getState\(\)\.buka\(\)/.test(baca(r))
