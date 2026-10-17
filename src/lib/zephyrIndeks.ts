@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6375 entri
- * (bridge=1, dokumen=121, ekstensi=17, kode=449, label=3084, layar=2099, menu=122, panel=22, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=49).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6376 entri
+ * (bridge=1, dokumen=121, ekstensi=17, kode=449, label=3085, layar=2099, menu=122, panel=22, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=49).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.14 · hash sumber: 0b4215003c452370
+ * Versi app: 1.1.14 · hash sumber: 6f116afb7119f3a3
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '0b4215003c452370' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '6f116afb7119f3a3' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -445,7 +445,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/pty.rs","564 baris · ekspor: TailBuf, PtySession, info, terminate, tail_lines, PtyInfo, ShellInfo, list_shells, resolve_shell_for_test, pty_spawn, pty_write, pty_resize, pty_kill, pty_list, pty_tail, pty_set_paused, pty_interrupt"],
   ["kode","src-tauri/src/rag.rs","100 baris · ekspor: RagHit, rag_search"],
   ["kode","src-tauri/src/search.rs","1132 baris · ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, MAKS_BERKAS_GANTI, search_replace, ganti_lintas_berkas"],
-  ["kode","src-tauri/src/secrets.rs","656 baris · ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, list_models, reset_settings, roundtrip_for_test, preview_for_test, endpoint_for_test"],
+  ["kode","src-tauri/src/secrets.rs","663 baris · ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, list_models, reset_settings, roundtrip_for_test, preview_for_test, endpoint_for_test"],
   ["kode","src-tauri/src/settings.rs","809 baris · ekspor: AppInfo, RecentEntry, default_settings, deep_merge_um, read_json_um, take_broken_config, get_keybindings, set_keybindings, get_app_info, get_settings, set_settings, set_window_size, list_recents, push_recent, workspace_open, workspace_close, read_settings_value, patch_settings, patch_settings_no_emit, git_default_branch, git_identity, ram_peak, ram_last, ram_total_last, ram_total_peak, host_ram_total, host_cpu_count, host_os, spawn_ram_sampler, merge_for_test"],
   ["kode","src-tauri/src/sftp.rs","418 baris · //! SFTP and port forwarding, driven by the OpenSSH client Windows already · ekspor: SftpEntry, SftpHostInfo, ssh_path, sftp_list, sftp_upload, sftp_download, sftp_tunnel_start, sftp_tunnel_stop, sftp_tunnel_list, sftp_available"],
   ["kode","src-tauri/src/skills.rs","477 baris · ekspor: SKILL_MAX_BYTES, SkillInfo, nama_valid, parse_frontmatter, daftar_skills, baca_skill, tulis_skill, hapus_skill, skills_list, skill_read, skill_write, skill_delete, ringkasan_untuk_prompt, agent_context"],
@@ -464,23 +464,23 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/web.rs","1103 baris · // web.rs — internet access for the agent: search the web and fetch page contents. · ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, PORT_SAH, IP_METADATA_V4, IP_METADATA_V6, batas_byte_dipakai, KebijakanJaringan, hop_dipakai, dari_setelan, port_dipakai, port_diizinkan, is_metadata, ip_terlarang_dengan, ip_terlarang, validate_outbound_url, validate_outbound_url_dengan, periksa_url_pane, periksa_url_pane_dengan, langkah_redirect, langkah_redirect_dengan, HasilCari, web_fetch, web_search"],
   ["kode","src-tauri/src/workspace.rs","770 baris · ekspor: Trust, boleh_eksekusi, Root, WorkspaceFile, FolderEntry, WorkspaceInfo, trust_untuk, ensure_trusted, ensure_trusted_path, baca_workspace_file, gabung_scope, workspace_info, workspace_set_trust, workspace_forget_trust, workspace_trust_list, workspace_add_root, workspace_remove_root, workspace_set_active_root, workspace_open_file, workspace_save_file, workspace_settings_efektif, workspace_settings_asal, workspace_set_settings, workspace_boleh_eksekusi"],
   ["kode","src-tauri/src/worktree.rs","946 baris · worktree.rs - `git worktree` dari dalam Zephyr, versi yang TIDAK melempar. · ekspor: Hasil, worktree_list, worktree_add, worktree_remove"],
-  ["kode","src/AgentsWindow.tsx","217 baris · tanpa ekspor"],
-  ["kode","src/AiWindow.tsx","64 baris · tanpa ekspor"],
+  ["kode","src/AgentsWindow.tsx","234 baris · tanpa ekspor"],
+  ["kode","src/AiWindow.tsx","70 baris · tanpa ekspor"],
   ["kode","src/App.tsx","1654 baris · tanpa ekspor"],
   ["kode","src/components/a11y/LiveRegion.tsx","38 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsBrowser.tsx","920 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsChanges.tsx","151 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsEditor.tsx","86 baris · tanpa ekspor"],
-  ["kode","src/components/agents/AgentsLayout.tsx","85 baris · tanpa ekspor"],
+  ["kode","src/components/agents/AgentsLayout.tsx","99 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsRight.tsx","489 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsSessions.tsx","384 baris · tanpa ekspor"],
-  ["kode","src/components/agents/AgentsTitlebar.tsx","239 baris · tanpa ekspor"],
+  ["kode","src/components/agents/AgentsTitlebar.tsx","254 baris · tanpa ekspor"],
   ["kode","src/components/agents/SessionContextMenu.tsx","124 baris · ekspor: AksiSesi"],
   ["kode","src/components/ai/AgentMap.tsx","201 baris · ekspor: kelompokkanSubagent, IsiSubagent, AgentMap"],
   ["kode","src/components/ai/AgentMapPanel.tsx","506 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiHost.tsx","137 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiIkon.tsx","777 baris · Icon set for the AI panel header. · ekspor: NamaAiIkon"],
-  ["kode","src/components/ai/AiPanel.tsx","2466 baris · tanpa ekspor"],
+  ["kode","src/components/ai/AiPanel.tsx","2549 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","226 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatMessage.tsx","1092 baris · tanpa ekspor"],
@@ -656,7 +656,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","29 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","10174 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
+  ["kode","src/lib/aiStore.ts","10212 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
   ["kode","src/lib/aiTabsStore.ts","113 baris · ekspor: CLI_TABS, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -717,7 +717,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/hydraAgent.ts","140 baris · HydraFusion on the AGENT path — the critique and the revision. · ekspor: INSTRUKSI_KRITIK_AGEN, INSTRUKSI_REVISI_AGEN, PutusanKritik, bacaPutusanKritik, pesanKritik, pesanRevisi, pilihKritikus, HydraPemakaian, jumlahkanPemakaian, legHarusBerhenti, BATAS_LEG_MS"],
   ["kode","src/lib/hydraFusion.ts","832 baris · HydraFusion — adaptive model orchestration for the MAIN chat. · ekspor: HydraTier, HydraJalur, HydraPeran, HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT, HYDRA_MAKS_ESKALASI, HYDRA_PENANDA_RAGU, HYDRA_ID_PREFIX, HydraPengaturan, HydraKandidat, HydraSinyal, HydraKlasifikasi, HydraLangkah, kandidatHydra, pilihanTersimpan, HydraRencana, HydraLapor, HydraHasil, HydraTerakhir, bacaPengaturan, parseTierRef, tingkatKandidat, usulTingkat, klasifikasiChat, HydraMasuk, periksaRencana, rencanaHydra, pesanUntuk, bersihkanPenanda, deteksiGagal, HydraDeps, jalankanHydra, hydraSiapkan, hydraLupakan, hydraCatat, hydraLihat, hydraAmbil, hydraAktif"],
   ["kode","src/lib/hydraModel.ts","47 baris · HydraFusion as a MODEL, not as a hidden switch. · ekspor: HYDRA_MODEL_ID, pilihHydra, labelHydra"],
-  ["kode","src/lib/i18n-extra.ts","24340 baris · tanpa ekspor"],
+  ["kode","src/lib/i18n-extra.ts","24350 baris · tanpa ekspor"],
   ["kode","src/lib/i18n-src.ts","617 baris · ekspor: EN"],
   ["kode","src/lib/i18n.ts","4627 baris · ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
   ["kode","src/lib/inlayHints.ts","214 baris · Inlay hints — inferred types and parameter names, drawn inside the code. · ekspor: InlayHint, inlayField, setHintsEffect, clearHintsEffect, mintaInlayHints"],
@@ -743,11 +743,11 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/mdPreviewStore.ts","42 baris · ekspor: useMdPreview"],
   ["kode","src/lib/menu.ts","238 baris · ekspor: MenuItem, MenuDef, MENUS"],
   ["kode","src/lib/modelBrandIcons.ts","154 baris · // GENERATED by scripts/gen-brand-lengkap.mjs - do not edit by hand. · ekspor: BrandMark, BRAND_MARKS"],
-  ["kode","src/lib/modelCatalog.tsx","747 baris · ekspor: LogoId, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, baseUrlEfektif, providerSiap, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, ModelLogo"],
+  ["kode","src/lib/modelCatalog.tsx","791 baris · ekspor: LogoId, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, baseUrlEfektif, providerSiap, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, ModelLogo"],
   ["kode","src/lib/multilineKey.ts","44 baris · ekspor: PILIHAN_MULTILINE, MultilineKeyId, multilineSequence, isAgentPane"],
   ["kode","src/lib/nativeOverlay.ts","91 baris · Does the app currently draw something ON TOP of a native webview pane? · ekspor: overlayMenutupi, paneHarusTampil"],
   ["kode","src/lib/notesTodosStore.ts","159 baris · ekspor: Kind, Item, urutkan, useNotesTodos"],
-  ["kode","src/lib/notificationStore.ts","180 baris · ekspor: Severity, NotifAction, Notif, useNotif, notifyInfo, notifyWarn, notifyError"],
+  ["kode","src/lib/notificationStore.ts","202 baris · ekspor: Severity, NotifAction, Notif, useNotif, NotifOpts, notifyInfo, notifyWarn, notifyError"],
   ["kode","src/lib/outputStore.ts","117 baris · ekspor: MAX_LINES, OutputChannel, useOutput, logOutput"],
   ["kode","src/lib/paletteStore.ts","320 baris · ekspor: PaletteMode, PaletteItem, fuzzyMatch, PaletteStore, usePalette"],
   ["kode","src/lib/panelStore.ts","137 baris · ekspor: PanelTabId, PANEL_TABS, usePanel"],
@@ -760,8 +760,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/portsStore.ts","84 baris · ekspor: PortProtocol, PortSource, ForwardedPort, usePorts"],
   ["kode","src/lib/problemsStore.ts","112 baris · ekspor: Severity, Diagnostic, useProblems"],
   ["kode","src/lib/projectContext.ts","221 baris · ekspor: ringkasanProyek, resetRingkasanProyek"],
-  ["kode","src/lib/promptIcons.ts","141 baris · ekspor: IKON_CMD, WARNA_CMD, warnaIkonCmd, pathIkonCmd"],
-  ["kode","src/lib/promptLibrary.ts","359 baris · ekspor: PromptItem, IkonCmd, BUILTIN_PROMPTS, loadUserPrompts, saveUserPrompts, allPrompts, matchPrompts, matchSnippets, snippetTrigger, expandSnippet, expandPrompt, expandPromptBody"],
+  ["kode","src/lib/promptIcons.ts","146 baris · ekspor: IKON_CMD, WARNA_CMD, warnaIkonCmd, pathIkonCmd"],
+  ["kode","src/lib/promptLibrary.ts","369 baris · ekspor: PromptItem, IkonCmd, BUILTIN_PROMPTS, loadUserPrompts, saveUserPrompts, allPrompts, matchPrompts, matchSnippets, snippetTrigger, expandSnippet, expandPrompt, expandPromptBody"],
   ["kode","src/lib/providerTahan.ts","914 baris · providerTahan.ts — the resilience layer for ONE provider turn. · ekspor: SebabPulih, AlasanBerhenti, Kandidat, PercobaanKandidat, VonisPulih, GalatProvider, BAWAAN_PROVIDER_TAHAN, JendelaKredensial, buatJendela, rapikanJendela, jatahJendela, isiJendela, LaporanTahan, RingkasGagal, HasilTahan, OpsiTahan, galatProvider, adalahGalatProvider, saringRahasia, vonisStatus, vonisGalat, bacaSetelahHeader, OpsiJeda, jedaKe, pesanTunggu, JENDELA_PROVIDER, pesanGagal, panggilTahan"],
   ["kode","src/lib/repeatDetect.ts","273 baris · Deteksi jawaban yang mengulang-ulang dirinya sendiri. · ekspor: MIN_FRAGMENT_LENGTH, STOP_PATH_MIN_CHARS, REPETITION_LOOP_INTERRUPTED, HasilDeteksi, mengulangDominan, mengulangPelarian"],
   ["kode","src/lib/rulesCatalog.ts","179 baris · The rules the write-time check runs. · ekspor: RULES_BAWAAN"],
@@ -816,7 +816,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrCari.ts","691 baris · Pencarian fakta tentang Zephyr dari indeks yang IKUT DIBUNDEL di aplikasi. · ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, CaraCocok, HasilFakta, pecahKueri, namaDalamKueri, kataTakDikenal, jumlahEntri, versiFakta, capTersimpan, capBasi, kategoriTersedia, cariFakta, hitungCocok, formatHasil, cariKode, BATAS_KARAKTER_SUNTIK, BATAS_HASIL_SUNTIK, ukuranCacheSuntikSesi, bersihkanCacheSuntikSesi, kepalaSuntikanIndeks, petaIndeks, OpsiSuntikan, suntikanIndeks"],
   ["kode","src/lib/zephyrDokumen.ts","512 baris · zephyrDokumen.ts - pencarian LOKAL atas isi dokumen Zephyr yang dibundel. · ekspor: BATAS_HASIL_BAWAAN, BATAS_HASIL_MAKS, BATAS_KARAKTER_HASIL, BATAS_POTONGAN, BATAS_POTONGAN_BARU, BATAS_KATA_KUERI, BATAS_HASIL_SUNTIK, BATAS_KARAKTER_SUNTIK, BATAS_BARU_BAWAAN, CaraCocokDokumen, HasilDokumen, MetaDokumen, OpsiCariDokumen, rapikanBaris, potongPotongan, pecahKueri, barisTeksPertama, barisJudulBagian, cariDokumen, hitungCocok, kataTakDikenal, kataKunciDokumen, pertanyaanBaru, versiTeratas, apaYangBaru, jawabApaYangBaru, formatHasilDokumen, suntikanDokumen, daftarBerkas, metaBerkas, jumlahBerkas, jumlahBagian, versiDokumen, bundelKosong"],
   ["kode","src/lib/zephyrDokumenData.ts","1838 baris · BERKAS HASIL GENERATE - jangan disunting tangan. · ekspor: DokumenBagian, DokumenBerkas, DOKUMEN_VERSI, DOKUMEN_BERKAS, DOKUMEN_BAGIAN"],
-  ["kode","src/lib/zephyrRuntime.ts","265 baris · Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. · ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
+  ["kode","src/lib/zephyrRuntime.ts","309 baris · Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. · ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
   ["kode","src/lib/zephyrTools/ambilWeb.ts","736 baris · ambilWeb.ts — rumah satu-satunya untuk kemampuan \"AMBIL-WEB\" agen Zephyr. · ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb"],
   ["kode","src/lib/zephyrTools/awalan.ts","33 baris · Satu-satunya definisi awalan nama tool. · ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
   ["kode","src/lib/zephyrTools/builtins.ts","2030 baris · Tool bawaan - implementasi untuk 40 nama pertama di katalog. · ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
@@ -2429,6 +2429,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["label","Scope","label antarmuka · EN: Scope · ID: Cakupan · +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
   ["label","Screen reader mode","label antarmuka · EN: Screen reader mode · ID: Screen reader mode · +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
   ["label","Screenshot attached","label antarmuka · EN: Screenshot attached · ID: Gambar terlampir · +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+  ["label","Screenshot attached ({path})","label antarmuka · EN: Screenshot attached ({path}) · ID: Screenshot dilampirkan ({path}) · +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
   ["label","Screenshot ditempel sebagai lampiran","label antarmuka · EN: Screenshot pasted as an attachment"],
   ["label","Screenshot pasted as an attachment","label antarmuka · EN: Screenshot pasted as an attachment · ID: Screenshot ditempel sebagai lampiran · +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
   ["label","Scroll lock: hentikan auto-scroll saat baris baru masuk","label antarmuka · EN: Scroll lock: stop auto-scrolling when new lines arrive"],
@@ -3973,7 +3974,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AiHost","src/components/ai/AiHost.tsx · 1 label: Agent · 4 data-testid: ai-host, ai-host-pane-chat, ai-host-tab-chat, ai-host-tabs"],
   ["layar","AiModelsModal","src/components/settings/AiModelsModal.tsx · 4 label: Close, Maximize, Restore size, settings.models · 5 data-testid: aim-pop, aim-pop-close, aim-pop-content, aim-pop-dialog, aim-pop-max"],
   ["layar","AiModelsTable","src/components/settings/AiModelsTable.tsx · 7 label: Capabilities, Context Size, Name, Research preview, Tools, Vision, the app picks the model and the workflow per task · 2 data-testid: aim-table, aim-table-row"],
-  ["layar","AiPanel","src/components/ai/AiPanel.tsx · 85 label: \"{name}\" is larger than 3.5 MB - skipped, 1 step done, Add a file, an image or dictate, Add an API key for, Add to queue, Agent is working…, Allow, Ask about this code., Attach, Attached {name}, Cadence, Cancel, Checking the result, Clear the queue, Continue from where it stopped, Could not read that folder, Could not read {name}, Delete, Deny, Edit the queued message, Enter sends · Shift+Enter new line · Ctrl+I focuses here., Files in this workspace, Files…, Folder…, Go to the newest, Image attachment {n}, Images…, Just stop, Message for the AI, Move down in the queue, Move up in the queue, No chats match., No image on the clipboard, On branch {name}, Open AI Models, Paste image, Planning the next step, Prompt commands, Prompt snippets…, Reading the files that matter · 64 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-botbar, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-jump-bottom, ai-msg-count, ai-nokey, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus, ai-plus-file · teks: Ctrl+Enter"],
+  ["layar","AiPanel","src/components/ai/AiPanel.tsx · 86 label: \"{name}\" is larger than 3.5 MB - skipped, 1 step done, Add a file, an image or dictate, Add an API key for, Add to queue, Agent is working…, Allow, Ask about this code., Attach, Attached {name}, Cadence, Cancel, Checking the result, Clear the queue, Continue from where it stopped, Could not read that folder, Could not read {name}, Delete, Deny, Edit the queued message, Enter sends · Shift+Enter new line · Ctrl+I focuses here., Files in this workspace, Files…, Folder…, Go to the newest, Image attachment {n}, Images…, Just stop, Message for the AI, Move down in the queue, Move up in the queue, No chats match., No image on the clipboard, On branch {name}, Open AI Models, Paste image, Planning the next step, Prompt commands, Prompt snippets…, Reading the files that matter · 64 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-botbar, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-jump-bottom, ai-msg-count, ai-nokey, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus, ai-plus-file · teks: Ctrl+Enter"],
   ["layar","AiWindow","src/AiWindow.tsx · 1 data-testid: ai-window-root"],
   ["layar","Allow &amp; run","teks elemen di layar · dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
   ["layar","Allow memories from tool-assisted chats","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],

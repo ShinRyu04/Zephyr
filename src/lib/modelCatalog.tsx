@@ -163,6 +163,50 @@ export const PROVIDERS: ProviderInfo[] = [
         freeText: true,
         models: [{ id: 'custom2-model', label: 'Type a model name', note: 'gateway kedua, bebas', maxOut: 4096 }],
       },
+      /*
+       * Slots 3-5: the same reasoning as `custom2`, generalised.
+       *
+       * Two slots covered "two gateways at once". The readers who asked for more
+       * are running more than two: a hosted gateway, a work gateway, and a local
+       * one that is not Ollama's default port, for example. Each needs its own
+       * id because the id is the API key's storage slot (`secrets.rs`) and the
+       * value `activeProvider` holds - sharing one would make the entries
+       * overwrite each other's key and make `activeProvider` ambiguous.
+       *
+       * `baseUrl` is empty on purpose, exactly like `custom` and `custom2`: an
+       * OpenAI-compatible endpoint has no default, and guessing one would send a
+       * key to a host the reader never chose.
+       *
+       * The `models` entries are placeholders (`freeText`), so they cost one row
+       * each in the picker and never appear as a real model to run.
+       */
+      {
+        id: 'custom3',
+        label: 'Custom 3 (OpenAI-compatible)',
+        baseUrl: '',
+        envKey: 'OPENAI_API_KEY',
+        logo: 'generic',
+        freeText: true,
+        models: [{ id: 'custom3-model', label: 'Type a model name', note: 'gateway ketiga, bebas', maxOut: 4096 }],
+      },
+      {
+        id: 'custom4',
+        label: 'Custom 4 (OpenAI-compatible)',
+        baseUrl: '',
+        envKey: 'OPENAI_API_KEY',
+        logo: 'generic',
+        freeText: true,
+        models: [{ id: 'custom4-model', label: 'Type a model name', note: 'gateway keempat, bebas', maxOut: 4096 }],
+      },
+      {
+        id: 'custom5',
+        label: 'Custom 5 (OpenAI-compatible)',
+        baseUrl: '',
+        envKey: 'OPENAI_API_KEY',
+        logo: 'generic',
+        freeText: true,
+        models: [{ id: 'custom5-model', label: 'Type a model name', note: 'gateway kelima, bebas', maxOut: 4096 }],
+      },
     ];
 
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));

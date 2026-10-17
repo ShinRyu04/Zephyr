@@ -161,15 +161,19 @@ pub struct PublicModel {
  * reports `hasKey: false` for one that has never been configured instead of
  * omitting it (the frontend reads `undefined` as "unknown", not "no key").
  *
- * Two custom slots on purpose: a user driving two OpenAI-compatible gateways
- * needs two keys, and an id is the key's storage slot. `custom2` MUST stay
- * distinct from `custom` — sharing an id would make the two entries overwrite
- * each other's key and make `activeProvider: 'custom'` ambiguous.
+ * Five custom slots on purpose: a reader driving several OpenAI-compatible
+ * gateways needs one key each, and an id is the key's storage slot. Every
+ * `customN` MUST stay distinct from the others — sharing an id would make the
+ * entries overwrite each other's key and make `activeProvider` ambiguous.
+ *
+ * This list must stay in step with `PROVIDERS` in `src/lib/modelCatalog.tsx`.
+ * A provider missing here does not disappear from the UI; it reports `hasKey`
+ * as `undefined`, which the frontend reads as "unknown" rather than "no key".
  *
  * `xai` is deliberately absent: the catalogue no longer offers it. A key left
  * over in secrets.json under that name is simply never read.
  */
-const KNOWN_PROVIDERS: [&str; 7] = [
+const KNOWN_PROVIDERS: [&str; 10] = [
     "gemini",
     "openai",
     "anthropic",
@@ -177,6 +181,9 @@ const KNOWN_PROVIDERS: [&str; 7] = [
     "local",
     "custom",
     "custom2",
+    "custom3",
+    "custom4",
+    "custom5",
 ];
 
 #[tauri::command(async)]
