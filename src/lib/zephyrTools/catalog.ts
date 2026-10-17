@@ -152,6 +152,14 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
    * `read`: hanya membaca indeks yang sudah ada di bundel.
    */
   ['peta', 'Aplikasi', 'read', false, 'Cari di peta Zephyr: label, setelan, perintah, pintasan, panel, tool, berkas'],
+  /*
+   * `execute` - Code Mode: satu skrip memanggil banyak tool.
+   *
+   * `read` karena tool ini SENDIRI tidak menulis apa pun; yang menulis adalah
+   * tool yang dipanggilnya, dan tiap panggilan lewat gate yang sama. Efek
+   * sebenarnya ditentukan oleh tool di dalam skrip, bukan oleh pembungkusnya.
+   */
+  ['execute', 'Aplikasi', 'read', false, 'Jalankan skrip yang memanggil beberapa tool sekaligus (Code Mode)'],
 
   /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
@@ -648,6 +656,20 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    */
   'lsp',
   'apply_patch',
+  /*
+   * `execute` (Code Mode), `peta`, dan `kotak` juga selalu ikut.
+   *
+   * `execute` adalah jalur utama tugas panjang: satu skrip menggantikan banyak
+   * langkah. Kalau ia harus dicari dulu, model tidak akan menemukannya justru
+   * pada tugas yang paling butuh - dan `tool_search` sendiri memakan satu
+   * langkah yang seharusnya dihemat.
+   *
+   * `peta` menjawab "di mana X di Zephyr", pertanyaan yang bisa datang kapan
+   * saja; `kotak` adalah bentuk jawaban, bukan fitur yang dicari.
+   */
+  'execute',
+  'peta',
+  'kotak',
   /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
