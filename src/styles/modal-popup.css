@@ -27,16 +27,19 @@
   top: 50%;
   left: 50%;
   /*
-   * Centred with `left`/`top` + calc, and the DRAG transform is added on top.
+   * Centring is `translate: -50% -50%` (below), NOT negative margins.
    *
-   * The element's own `transform` is what `useDragPopup` writes to, so the
-   * centring cannot also live there - an inline `transform` replaces the
-   * stylesheet's, and a `translate(-50%, -50%)` that centred the box was
-   * silently dropped. The overrides below are the whole reason the frame is
-   * built on `--drag-x`/`--drag-y`.
+   * A percentage margin resolves against the CONTAINING block - here the
+   * viewport - so `margin-top: -50%` pushed the card up by half the WINDOW
+   * height on top of the centring, and the popup landed off-screen with only
+   * its bottom edge visible. `translate` resolves against the element's own
+   * size, which is what "centre this box" means.
+   *
+   * It stays on the `translate` property rather than in `transform` because
+   * `transform` is what `useDragPopup` writes (via the inline style in
+   * ModalPopup) - an inline transform would silently drop the centring.
    */
-  margin-left: -50%;
-  margin-top: -50%;
+  translate: -50% -50%;
   max-width: 96vw;
   max-height: 92vh;
   display: flex;
@@ -49,19 +52,6 @@
   overflow: hidden;
 }
 
-/*
- * The centring trick above needs `left: 50%` plus a negative margin of half the
- * box. Because the box width is set inline with `min(...)`, the margin cannot
- * know it - so instead of `margin-left: -50%` (which resolves against the
- * CONTAINING block, not the box) the transform is applied on an inner wrapper
- * that the drag hook never touches.
- *
- * Kept as a separate rule rather than folded into `.mpop` so the drag offset
- * stays the only transform on the element the hook writes to.
- */
-.mpop {
-  translate: -50% -50%;
-}
 
 .mpop-head {
   display: flex;
