@@ -33,6 +33,7 @@
     "verify:28": "node scripts/verify28.mjs",
     "verify:29": "node scripts/verify29.mjs",
     "verify:30": "node scripts/verify30.mjs",
+    "verify:tema-marketplace": "node scripts/verify-tema-marketplace.mjs",
     "verify:31": "node scripts/verify31.mjs",
     "verify:32": "node scripts/verify32.mjs",
     "verify:33": "node scripts/verify33.mjs",
