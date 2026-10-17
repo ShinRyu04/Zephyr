@@ -216,9 +216,27 @@ console.log('\n5. pintasan');
 const pintasanSrc = baca('src/lib/shortcuts.ts');
 const barisPintasan = [...pintasanSrc.matchAll(/\{\s*id:\s*'([^']+)'[^}]*?\}/g)].map((m) => m[0]);
 const pintasan = setKat('pintasan');
+/*
+ * Tombol yang ISINYA backtick dicocokkan dalam bentuk yang DIEJA, bukan bentuk
+ * mentahnya.
+ *
+ * Generator sengaja menulis `Ctrl+backtick` di indeks, bukan `Ctrl+` + karakter
+ * backtick: satu backtick mentah di bahan sumber pernah mengajari model bahwa
+ * backtick nyasar setelah `Ctrl+` itu wajar, lalu model menulisnya ke jawaban,
+ * renderer menelan sisa kalimatnya jadi kartu kode, dan pembaca menerima
+ * paragraf yang terpotong (lihat komentar di gen-fakta-zephyr.mjs, PINTASAN_INTI
+ * dan blok `tambah('pintasan', tombol, ...)`).
+ *
+ * Pemeriksa ini dulu membandingkan bentuk MENTAH dengan isi indeks, jadi
+ * `Ctrl+backtick` tidak pernah cocok dan laporannya berbunyi "33/34 - Ctrl+`"
+ * padahal indeksnya benar. Yang salah adalah pemeriksanya: ia menuntut indeks
+ * memuat bentuk yang justru sengaja dihindari. Ejaan di bawah menyamakan
+ * keduanya, dan tetap menerima bentuk mentah kalau suatu saat generator berubah.
+ */
+const ejaanTombol = (t) => (t === 'Ctrl+`' ? 'Ctrl+backtick' : t);
 const pintasanHilang = barisPintasan
   .map((b) => /default:\s*'([^']*)'/.exec(b)?.[1] ?? '')
-  .filter((t) => t && !pintasan.has(t));
+  .filter((t) => t && !pintasan.has(t) && !pintasan.has(ejaanTombol(t)));
 periksa(
   `semua tombol bawaan ada di indeks (${barisPintasan.length - pintasanHilang.length}/${barisPintasan.length})`,
   barisPintasan.length > 0 && pintasanHilang.length === 0,
