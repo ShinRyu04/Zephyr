@@ -2567,8 +2567,18 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null; act
      * the last 20, or deleted on another window) falls back to the primary —
      * a surface pointing at a missing session would render an empty transcript
      * with no way to tell why.
+     *
+     * `agents` is seeded here for the same reason `''` is: the Agents window
+     * mounts its own panel with `composerId="agents"` (see AgentsLayout ->
+     * AiHost), and every reader downstream resolves through
+     * `activeIds[composerId] ?? (composerId === '' ? activeId : null)`. Without
+     * this key that expression yields `null` for a window that is not the
+     * primary one, so the transcript comes up empty on first run - the panel is
+     * mounted and working, it just has no chat to show. Seeding it with the
+     * primary id means the Agents window opens on the conversation the reader
+     * was last in, which is also the behaviour they expect when they pop it out.
      */
-    const activeIds: Record<string, string | null> = { '': activeId };
+    const activeIds: Record<string, string | null> = { '': activeId, agents: activeId };
     for (const [k, v] of Object.entries(parsed.activeIds ?? {})) {
       if (k === '') continue;
       activeIds[k] = sessions.some((s) => s.id === v) ? v : activeId;
@@ -4477,6 +4487,18 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     set((s) => ({
       sessions: s.sessions.map((x) => (x.id === baru ? { ...x, workspace: target } : x)),
+      /*
+       * Point EVERY surface at the new chat, not just the primary.
+       *
+       * `newChat()` was called without a composer id, so it only wrote
+       * `activeIds['']`. A surface whose key was absent - the Agents window on
+       * first run - was left with no chat at all, and its panel rendered an
+       * empty transcript even though a chat existed. `agents` is included
+       * explicitly because it may not be in `activeIds` yet.
+       */
+      activeIds: Object.fromEntries(
+        [...new Set([...Object.keys(s.activeIds), 'agents'])].map((k) => [k, baru]),
+      ),
     }));
     persist(get());
   },

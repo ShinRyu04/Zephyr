@@ -798,6 +798,32 @@ const bukaModels = () => useAiModels.getState().buka();
         case 'bantuan':
           void runCommand('help.shortcuts');
           break;
+        /*
+         * `/browser` — a browser pane INSIDE Zephyr.
+         *
+         * Two targets, because the reader can be in either window:
+         *
+         *   - Agents window: the right column already has a Browser view
+         *     (`AgentsRight`, Ctrl+Shift+B). Firing the same keydown the
+         *     shortcut fires reuses that one code path instead of a second
+         *     "open the browser tab" implementation that could drift from it.
+         *
+         *   - Main window: there is no such column, so the pane goes into the
+         *     bottom panel beside the terminal — `terminal.splitBrowser` is the
+         *     registered command for exactly that, and it already carries the
+         *     default URL.
+         *
+         * The event is dispatched rather than called directly because
+         * `AgentsRight` binds its shortcut on `window`; a synthetic
+         * `keydown` is the only thing that reaches it from here without
+         * lifting the tab state out of that component.
+         */
+        case 'browser':
+          window.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'B', ctrlKey: true, shiftKey: true, bubbles: true }),
+          );
+          void runCommand('terminal.splitBrowser');
+          break;
 
         /*
          * These three stay in the composer as COMMANDS, not as replacement text.

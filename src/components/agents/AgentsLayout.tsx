@@ -64,7 +64,21 @@ export default function AgentsLayout() {
         {!maks && (
           <main className="ag-col ag-center" aria-label="Chat">
             <Suspense fallback={null}>
-              <AiHost />
+              {/*
+                * `composerId="agents"` — this window gets its OWN composer.
+                *
+                * Without it the panel fell back to `''`, the primary surface's
+                * key, so the Agents window and the main window shared one draft,
+                * one active chat and one run state: typing here overwrote what
+                * was typed there, and `/new` here switched the main window's
+                * conversation too. Every reader in `AiPanel` resolves through
+                * `activeIds[composerId]` / `drafts[composerId]` / `pendings[composerId]`,
+                * so the id is the whole fix.
+                *
+                * `AiWindow` keeps `''` on purpose: it is a separate WebView with
+                * its own store, so there it IS the primary surface.
+                */}
+              <AiHost composerId="agents" />
             </Suspense>
           </main>
         )}
