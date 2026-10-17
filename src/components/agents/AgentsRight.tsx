@@ -65,6 +65,27 @@ export default function AgentsRight({
    */
   const [detailBuka, setDetailBuka] = useState(true);
 
+  /*
+   * The editor half belongs to Files and Changes ONLY.
+   *
+   * The split is not a property of the column, it is a property of the VIEW:
+   * Files and Changes hand a file to the editor beside them, so half the column
+   * is the point. Search and Browser are full-width surfaces — VS Code draws
+   * them across the whole panel — and splitting them left a dead
+   * "Open a file from Files or Changes" box taking half the width while the
+   * page it was meant to show was squeezed into the other half.
+   *
+   * Deliberately NOT folded together with `detailBuka`: they are two different
+   * things. `detailBuka` hides the LIST and gives the editor the whole column
+   * (that is what "Toggle Details" means, and V12b measures it). This decides
+   * whether there is an editor half at all. Merging them made turning Details
+   * off delete the editor instead of widening it.
+   *
+   * Derived from `aktif` rather than stored, so switching tabs cannot leave the
+   * split out of step with the view.
+   */
+  const bisaBelah = aktif === 'changes' || aktif === 'files';
+
   const jumlah = useGit((s) => s.status?.changes.length ?? 0);
   const isRepo = useGit((s) => s.status?.isRepo ?? false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -401,6 +422,9 @@ export default function AgentsRight({
           aria-label={tx('Toggle Details')}
           aria-pressed={!detailBuka}
           onClick={() => setDetailBuka((v) => !v)}
+          /* Hidden on Search/Browser: there is no details half to toggle there,
+             and a control that changes nothing is a dead control. */
+          style={bisaBelah ? undefined : { display: 'none' }}
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
@@ -428,19 +452,26 @@ export default function AgentsRight({
         * tried and put the two panes through each other in a narrow column,
         * where "left" and "first" stopped agreeing with what was drawn.
         *
-        * The split is the DEFAULT state, not something a click turns on: the
-        * column opens as editor + list every time. Gating it on an open file
-        * meant the column grew a second pane the moment a file was clicked,
-        * which moved the file the reader had just aimed at — the layout
-        * changed under the pointer. The editor's own empty state says where
-        * files come from, so an idle half is informative, not dead space.
+        * The split is the DEFAULT state for Files and Changes, not something a
+        * click turns on: those two views open as editor + list every time.
+        * Gating it on an open file meant the column grew a second pane the
+        * moment a file was clicked, which moved the file the reader had just
+        * aimed at — the layout changed under the pointer. The editor's own
+        * empty state says where files come from, so an idle half is
+        * informative, not dead space.
+        *
+        * Search and Browser do NOT get the split at all (see `bisaBelah`
+        * above): they are full-width surfaces, and an idle editor half beside
+        * them was neither informative nor usable.
         */}
-      <div className={`ag-tab-body is-belah${detailBuka ? '' : ' no-detail'}`}>
-        <div className="ag-body-ed" data-testid="ag-body-editor">
-          <Suspense fallback={null}>
-            <AgentsEditor tanpaBar />
-          </Suspense>
-        </div>
+      <div className={`ag-tab-body${bisaBelah ? ' is-belah' : ''}${detailBuka ? '' : ' no-detail'}`}>
+        {bisaBelah && (
+          <div className="ag-body-ed" data-testid="ag-body-editor">
+            <Suspense fallback={null}>
+              <AgentsEditor tanpaBar />
+            </Suspense>
+          </div>
+        )}
         {detailBuka && (
           <div className="ag-body-list" data-testid="ag-body-list">
             <Suspense fallback={null}>

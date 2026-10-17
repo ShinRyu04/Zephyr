@@ -139,12 +139,12 @@ interface Potongan {
 const BARIS_CONTOH: Potongan[][] = [
   [
     { tok: '--syn-keyword', teks: 'export function' },
-    { tok: '--syn-function', teks: ' hitung' },
+    { tok: '--syn-function', teks: ' sum' },
     { tok: '--syn-variable', teks: '(total' },
     { tok: '--syn-type', teks: ': number' },
     { tok: '--syn-operator', teks: ') {' },
   ],
-  [{ tok: '--syn-comment', teks: '  // jumlahkan hanya angka' }],
+  [{ tok: '--syn-comment', teks: '  // add up the numbers only' }],
   [
     { tok: '--syn-keyword', teks: '  const' },
     { tok: '--syn-variable', teks: ' label' },
@@ -167,10 +167,10 @@ const BARIS_CONTOH: Potongan[][] = [
   ],
   [
     { tok: '--syn-keyword', teks: '  const' },
-    { tok: '--syn-variable', teks: ' sisa' },
+    { tok: '--syn-variable', teks: ' rest' },
     { tok: '--syn-operator', teks: ' = ' },
     { tok: '--syn-number', teks: '0.5' },
-    { tok: '--syn-comment', teks: '  // sisanya dibulatkan' },
+    { tok: '--syn-comment', teks: '  // the rest is rounded' },
   ],
 ];
 

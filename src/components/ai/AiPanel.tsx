@@ -22,6 +22,7 @@ import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import TodoPanel from './TodoPanel';
 import ComposerTip from './ComposerTip';
+import BrowserContextChip from './BrowserContextChip';
 import ContextMeter from './ContextMeter';
 import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
@@ -1785,6 +1786,13 @@ const bukaModels = () => useAiModels.getState().buka();
             <span>{gitBranch}</span>
           </div>
         )}
+        {/*
+          * The browser page currently open in the Agents window, as context the
+          * message can carry. Same row and shape as the branch chip: both name a
+          * piece of context the prompt will be attached to, so they read as one
+          * family rather than two features.
+          */}
+        <BrowserContextChip onSisip={(t) => setDraft(draft ? `${draft} ${t}` : t)} />
         {draftImages.length > 0 && (
           <div className="ai-imgstrip" data-testid="ai-imgstrip">
             {draftImages.map((src, i) => (

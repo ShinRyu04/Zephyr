@@ -193,6 +193,16 @@ export class Cdp {
       }
       if (kandidat.length) break;
     }
+    /*
+     * The Agents window is a SECOND app target with the SAME title and origin
+     * (`.../index.html#agents`), so a title match alone picks whichever the
+     * devtools server listed first. A harness written for the main window then
+     * attached to the Agents window and every check failed for the wrong reason
+     * ("the button is in the DOM but not visible"). `attach` is the main-window
+     * entry point, so non-`#agents` candidates are tried first; the Agents one
+     * stays as a fallback rather than being excluded.
+     */
+    kandidat.sort((a, b) => Number((a.url ?? '').includes('#agents')) - Number((b.url ?? '').includes('#agents')));
     // Jaring terakhir: kalau judulnya tidak dikenal sama sekali, pakai halaman
     // Tauri yang ada. Menyerah di sini membuat harness mustahil dijalankan
     // pada build dengan judul lain.

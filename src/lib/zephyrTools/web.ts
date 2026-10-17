@@ -17,6 +17,11 @@ import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import { potong, wajib } from './builtins';
 import {
+  daftarPaneAgents,
+  paneAgents,
+  mintaPaneAgents,
+} from '../agentsBrowserStore';
+import {
   ambilIsiWeb,
   batasByteBerlaku,
   batasiByte,
@@ -113,14 +118,19 @@ function pesanTolakGerbang(alasan: string): string {
     return (
       alasan +
       ' - the web-content permission is OFF, so every web/browser tool is closed. ' +
-      'The user must turn it on (Chat Settings > Konten web, settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
+      'The reader can turn it on without leaving the browser: open the Agents window, load the page in the ' +
+      'Browser view, and use its `…` menu -> "Allow this site for the agent". It can also be set by hand ' +
+      '(Chat Settings > Konten web, settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
     );
   }
   if (alasan.startsWith('host-luar-allowlist:')) {
     const host = alasan.slice('host-luar-allowlist:'.length);
     return (
       alasan +
-      ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb; edited in Chat Settings > Konten web). ` +
+      ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb). ` +
+      'The reader can add it from where they already are: open the page in the Agents window Browser view, ' +
+      'then use its `…` menu -> "Allow this site for the agent" (that turns the permission on and adds the host). ' +
+      'It can also be edited in Chat Settings > Konten web. ' +
       'Tell the user the exact host and ask whether to add it. Do NOT retry and do NOT try another web tool - ' +
       'web_fetch, browser_read and download use this same gate and fail the same way. ' +
       'If the task allows another already-allowed source, use that instead and say so.'
@@ -186,6 +196,62 @@ async function evalPane<T>(paneId: string, ekspresi: string): Promise<T | null> 
     galatEvalTerakhir = pesanGalat(e);
     return null;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * The Agents window's browser pane
+ * ------------------------------------------------------------------ */
+
+/** True for ids owned by the Agents window's browser view. */
+function idAgents(paneId: string): boolean {
+  return paneId.startsWith('agents-');
+}
+
+/**
+ * Wait until the Agents window reports the page loaded.
+ *
+ * The pane is created and navigated by its own component, so this only watches
+ * the shared registry: `siap` plus the URL it reports. Polling the registry
+ * (rather than the webview) is deliberate — `browser_pane_eval` from this
+ * window would work, but the address bar of the pane has not changed yet on the
+ * first frames, so a successful eval would not prove the requested page loaded.
+ */
+async function tungguHalamanAgents(url: string, paneId: string, batasMs = 15000): Promise<boolean> {
+  const mulai = Date.now();
+  for (;;) {
+    const p = paneAgents(paneId);
+    if (p?.siap && p.url && samaUrl(p.url, url)) return true;
+    /*
+     * The registry is written by the other window on its own schedule, so a
+     * freshly requested page can be fully loaded while the entry still shows the
+     * previous one — that is what made the FIRST `browser_open` answer "did not
+     * confirm within 15s" for a page that was on screen. Ask the webview
+     * directly as a second source: `browser_pane_info` is app-wide (keyed by
+     * pane id), so this window can read the child webview's real URL and title.
+     */
+    if (Date.now() - mulai > 1200) {
+      try {
+        const info = await cmd.browserPaneInfo(paneId);
+        if (info?.url && samaUrl(info.url, url)) return true;
+      } catch {
+        /* pane not created yet — the loop keeps waiting */
+      }
+    }
+    if (Date.now() - mulai > batasMs) return false;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+
+/**
+ * Route a read/click/type at the pane that actually exists.
+ *
+ * The Agents window's browser lives in another WebView, so it is not in
+ * `useTerminal` and the terminal resolver cannot see it. Both are checked, and
+ * an explicitly named Agents pane always wins so `pane_id` is honoured.
+ */
+function idBrowserEfektif(idAtauUrl?: string): string | null {
+  if (idAtauUrl && idAgents(idAtauUrl)) return paneAgents(idAtauUrl) ? idAtauUrl : null;
+  return paneBrowserId(idAtauUrl) ?? paneAgents(idAtauUrl)?.id ?? null;
 }
 
 /**
@@ -560,6 +626,38 @@ export const TOOL_WEB: AgentTool[] = [
          jadi tidak ada halaman yang dimuat atas nama agen di luar daftar. */
       const gerbang = gerbangIsiKonten(url, kebijakan());
       if (!gerbang.ok) return `(browser_open ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
+      /*
+       * The Agents window's browser comes FIRST when it is the only pane open.
+       *
+       * That window is a separate WebView with its own browser in the right
+       * column, and the agent could not reach it: every `browser_open` landed in
+       * the main window's terminal panel, so asking for a page from the Agents
+       * window put it in a place the reader was not looking at while the browser
+       * in front of them stayed blank. The pane there is created by its own
+       * component (only it knows the rectangle), so the request travels through
+       * `mintaPaneAgents` and the component loads it.
+       */
+      const pAg = paneAgents();
+      const adaTerminal = useTerminal.getState().allPanes().some((p) => p.kind === 'browser');
+      if (pAg && !adaTerminal) {
+        if (pAg.url && samaUrl(pAg.url, url)) {
+          return `URL ${url} is already open in the Agents window's browser (${pAg.id}), and the page is readable.`;
+        }
+        if (!mintaPaneAgents(pAg.id, url)) {
+          return (
+            `Could not reach the Agents window's browser (${pAg.id}): it is not refreshing its state. ` +
+            'Ask the user to bring the Agents window forward, then retry with the same URL.'
+          );
+        }
+        const siapAg = await tungguHalamanAgents(url, pAg.id);
+        return siapAg
+          ? `Browser pane ${pAg.id} (Agents window) navigated to ${url} (page loaded, ready to read).`
+          : (
+              `Asked the Agents window's browser (${pAg.id}) to load ${url}, but it did not confirm the page ` +
+              'within 15s. Keep using THIS pane id - do not open another pane. The window may be hidden or the ' +
+              'page may be slow; retry browser_read on the same pane.'
+            );
+      }
       const t = useTerminal.getState();
       /*
        * Pane browser yang sudah membawa URL INI dipakai ulang; selain itu
@@ -684,7 +782,7 @@ export const TOOL_WEB: AgentTool[] = [
       },
     },
     run: async (a) => {
-      const id = paneBrowserId(a.pane_id ? String(a.pane_id) : undefined);
+      const id = idBrowserEfektif(a.pane_id ? String(a.pane_id) : undefined);
       if (!id) throw new Error('No browser pane is currently open. Open one first with browser_open.');
       const konten = await bacaHalaman(id, kebijakan());
       return potong(konten);
@@ -705,7 +803,7 @@ export const TOOL_WEB: AgentTool[] = [
     },
     run: async (a) => {
       const sel = wajib(a, 'selector');
-      const id = paneBrowserId();
+      const id = idBrowserEfektif();
       if (!id) throw new Error('No browser pane is active.');
       /*
        * Klik dijalankan DI DALAM halaman (browser_pane_eval), bukan lewat
@@ -743,7 +841,7 @@ export const TOOL_WEB: AgentTool[] = [
     run: async (a) => {
       const sel = wajib(a, 'selector');
       const teks = wajib(a, 'text');
-      const id = paneBrowserId();
+      const id = idBrowserEfektif();
       if (!id) throw new Error('No browser pane is active.');
       /* Sama seperti browser_click: pengisian kolom harus terjadi di dalam
        * halaman, bukan di iframe yang tidak ada. */
@@ -771,13 +869,19 @@ export const TOOL_WEB: AgentTool[] = [
     },
     run: async () => {
       const tabs = useTerminal.getState().terminalTabs;
-      const browserPanes: Array<{ id: string; url?: string; title?: string }> = [];
+      const browserPanes: Array<{ id: string; url?: string; title?: string; window?: string }> = [];
       for (const t of tabs) {
         for (const p of t.panes) {
           if (p.kind === 'browser') {
             browserPanes.push({ id: p.id, url: p.url, title: p.title });
           }
         }
+      }
+      /* The Agents window's browser is published separately (another WebView),
+         so it has to be added here or the tool reports "none open" while a
+         browser is plainly on screen. */
+      for (const p of daftarPaneAgents()) {
+        browserPanes.push({ id: p.id, url: p.url || undefined, title: p.title || undefined, window: 'agents' });
       }
       if (!browserPanes.length) return 'No browser pane is currently open.';
       return JSON.stringify(browserPanes, null, 2);
@@ -796,8 +900,18 @@ export const TOOL_WEB: AgentTool[] = [
       },
     },
     run: async (a) => {
-      const id = paneBrowserId(a.pane_id ? String(a.pane_id) : undefined);
+      const id = idBrowserEfektif(a.pane_id ? String(a.pane_id) : undefined);
       if (!id) return 'No browser pane found to close.';
+      /*
+       * An Agents-window pane is owned by its component, not by the terminal
+       * store: `closePane` would not know the id. Asking it to blank the pane is
+       * the same thing the × in its own toolbar does — the component then closes
+       * the child webview and unpublishes the entry.
+       */
+      if (idAgents(id)) {
+        if (!mintaPaneAgents(id, '')) return `Could not reach the Agents window's browser (${id}).`;
+        return `Browser pane ${id} (Agents window) closed successfully.`;
+      }
       await useTerminal.getState().closePane(id);
       return `Browser pane ${id} closed successfully.`;
     },

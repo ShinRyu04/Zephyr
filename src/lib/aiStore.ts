@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subagentOnChunk } from './subagentStore';
 import {
   HYDRA_ID_PREFIX,
+  HYDRA_MAKS_ESKALASI,
   bacaPengaturan,
   hydraAmbil,
   hydraCatat,
@@ -9,10 +10,21 @@ import {
   hydraLupakan,
   hydraSiapkan,
   jalankanHydra,
+  kandidatHydra,
   rencanaHydra,
   type HydraLapor,
   type HydraTerakhir,
 } from './hydraFusion';
+import {
+  BATAS_LEG_MS,
+  bacaPutusanKritik,
+  jumlahkanPemakaian,
+  legHarusBerhenti,
+  pesanKritik,
+  pesanRevisi,
+  pilihKritikus,
+  type HydraPemakaian,
+} from './hydraAgent';
 import {
   mengulangDominan,
   mengulangPelarian,
@@ -20,7 +32,7 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
-import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID, PROVIDERS, providerSiap } from './modelCatalog';
+import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
 import { buatJendela, jatahJendela, JENDELA_PROVIDER, type JendelaKredensial } from './providerTahan';
 import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
@@ -4955,17 +4967,19 @@ export const useAi = create<AiStore>((set0, get) => {
     const hydraSet = bacaPengaturan(useStore.getState().settings.hydrafusion);
     if (hydraSet.enabled) {
       /* Candidates are the providers that are actually usable right now — a key
-         AND an endpoint. Offering a rung that cannot be reached would turn an
-         escalation into an instant failure. */
-      const kandidat = PROVIDERS.flatMap((p) => {
-        const ready = providerSiap(p, get().hasKey(p.id), useStore.getState().settings.models.providers);
-        return ready ? p.models.map((m) => ({ ...m, provider: p.id, available: true })) : [];
-      });
+         AND an endpoint — and, for a free-text provider, the model the reader
+         actually configured rather than the catalogue's placeholder row. See
+         `kandidatHydra` for why that distinction is the whole feature. */
+      const kandidat = kandidatHydra(
+        useStore.getState().settings.models.providers,
+        (id) => get().hasKey(id),
+      );
       const rencana = rencanaHydra({
         teks: content,
         kandidat,
         cadangan: { provider: def.provider, model: def.id },
         pengaturan: hydraSet,
+        providerSiap: (p) => get().hasKey(p),
       });
       /*
        * Only a ONE-request plan streams straight into the bubble. Any other pass
@@ -5434,6 +5448,82 @@ export const useAi = create<AiStore>((set0, get) => {
       }
     }
 
+    /*
+     * ── HydraFusion on the AGENT path ────────────────────────────────────────
+     *
+     * WHY IT ALSO LIVES HERE. The chat branch above (`send`) has its own
+     * HydraFusion block, but that branch only runs when the reader sets the mode
+     * to `chat`. The app's default is `agent`, and in that mode `send()` hands
+     * the turn to `sendAgent()` before reaching its own Hydra block — so with
+     * the setting on and the default mode, the reader got no stage strip, no
+     * "last route" and no cost cap. Measured, not assumed:
+     * `node scripts/cek-hydra-live.mjs` reported "mode saat kirim: agent" and
+     * three failures, and a grep of this file showed every Hydra reference
+     * sitting above the `sendAgent` call.
+     *
+     * The two blocks are NOT copies: the chat one is a text-only
+     * draft/critique/revise pipeline (`jalankanHydra`), which cannot work here
+     * because an agent turn reads files and runs tools — a draft pass with no
+     * tools could only narrate. So this path does the thing that IS meaningful
+     * for a loop: the plan picks WHICH MODEL runs the turn (the tier), and the
+     * ladder is what a provider failure escalates along, up to the cost cap.
+     * That is the module's own promise — "the plan, not the picker, chooses the
+     * model" — made real on the path the reader actually uses.
+     *
+     * `hydraRencana` is null whenever the setting is off, and every block below
+     * is guarded by it, so switching the setting off restores the old path.
+     */
+    const hydraSet = bacaPengaturan(useStore.getState().settings.hydrafusion);
+    let hydraRencana: ReturnType<typeof rencanaHydra> | null = null;
+    if (hydraSet.enabled) {
+      const kandidat = kandidatHydra(
+        useStore.getState().settings.models.providers,
+        (id) => get().hasKey(id),
+      );
+      hydraRencana = rencanaHydra({
+        teks: content,
+        kandidat,
+        cadangan: { provider: def.provider, model: def.id },
+        pengaturan: hydraSet,
+        providerSiap: (p) => get().hasKey(p),
+      });
+      /*
+       * Validated routing: a plan that cannot run is reported and dropped, so the
+       * turn falls back to the reader's own model with the reason visible instead
+       * of spending a request that was always going to fail inside the ladder.
+       */
+      if (hydraRencana.tolak) {
+        set({ hydraTerakhir: null, toast: hydraRencana.tolak });
+        hydraRencana = null;
+      }
+    }
+    if (hydraRencana) {
+      const mulai = hydraRencana.langkah[0];
+      /* Report the plan BEFORE the first request, so a long turn shows what it
+         decided instead of going quiet and then printing an answer. */
+      set({
+        hydraTahap: {
+          request: 1,
+          total: hydraRencana.langkah.length,
+          jalur: hydraRencana.jalur,
+          peran: 'draft',
+          provider: mulai.provider,
+          model: mulai.model,
+          catatan: hydraRencana.alasan,
+        },
+      });
+    }
+    /* Model actually used by the loop, and the escalations it took — both needed
+       after the loop, where the per-step locals are gone. */
+    let hydraDipakai = hydraRencana
+      ? { provider: hydraRencana.langkah[0].provider, model: hydraRencana.langkah[0].model }
+      : { provider: def.provider, model: def.id };
+    let hydraEskalasi: string[] = [];
+    /* Token usage per leg, so the run can report what it actually cost. */
+    const hydraPemakaian: (HydraPemakaian | undefined)[] = [];
+    let hydraKritik: string | null = null;
+    let hydraPutusan: string | null = null;
+
     let akhir = '';
     let taskComplete = false;
     let navigationOpened = false;
@@ -5588,6 +5678,19 @@ export const useAi = create<AiStore>((set0, get) => {
     try {
       for (; langkah < MAX_AGENT_STEPS; langkah++) {
         if (agentBatal) break;
+        /*
+         * HydraFusion decides the model for THIS step. `activeDef` starts from
+         * the plan's first rung instead of the reader's picked model, and the
+         * escalation below walks the plan's ladder rather than the static
+         * `MODEL_FALLBACK` catalogue — that is what makes the setting mean
+         * something on the agent path.
+         */
+        const hydraRung = hydraRencana
+          ? (hydraRencana.tangga.find(
+              (l) => l.provider === hydraDipakai.provider && l.model === hydraDipakai.model,
+            ) ?? hydraRencana.langkah[0])
+          : null;
+        const defLangkah = hydraRung ? findModel(hydraRung.model, hydraRung.provider) : def;
         set((s) => ({
           agentSteps: [...s.agentSteps, { kind: 'mulai', at: Date.now() }],
 
@@ -5928,7 +6031,7 @@ export const useAi = create<AiStore>((set0, get) => {
                   at: Date.now(),
                 };
                 set((s) => ({
-                  toast: tf('Context auto-compacted (tanpa model): {n} messages summarized', { n: murni.diringkas }),
+                  toast: tf('Context auto-compacted (no model): {n} messages summarized', { n: murni.diringkas }),
                   sessions: s.sessions.map((x) => {
                     if (x.id !== sessionId) return x;
                     const idx = x.messages.findIndex((m) => m.id === botMsg.id);
@@ -6001,8 +6104,10 @@ export const useAi = create<AiStore>((set0, get) => {
          * Active model definition for this step, mutable so a provider failure
          * can switch to a fallback model without losing the run.
          */
-        let activeDef = def;
-        let activeCfg = cfg;
+        let activeDef = defLangkah;
+        let activeCfg = hydraRung
+          ? useStore.getState().settings.models.providers[hydraRung.provider] ?? {}
+          : cfg;
         let sudahFallback = false;
         for (let retry = 0; ; retry++) {
           /*
@@ -6436,13 +6541,64 @@ export const useAi = create<AiStore>((set0, get) => {
              * is replayed and no local write is duplicated.
              */
             if (bolehRetry && !retryableToolResponse && !sudahFallback) {
-              const cadangan = pilihModelCadangan(
-                activeDef,
-                MODEL_FALLBACK,
-                (p) => useSettingsUi.getState().hasKey(p),
-              );
+              /*
+               * HydraFusion's own ladder comes FIRST when the plan is active.
+               *
+               * The static catalogue fallback (`pilihModelCadangan`) knows
+               * nothing about the plan, so using it here would silently ignore
+               * the rungs the reader's setting defines — and on a free-text
+               * provider it refuses to switch at all ("the model IS their
+               * input"), which is exactly the case HydraFusion exists to serve.
+               * The ladder is bounded by the plan's cost cap, and past its last
+               * rung the run fails honestly instead of spending more than the
+               * reader allowed.
+               */
+              const idxSekarang = hydraRencana
+                ? hydraRencana.tangga.findIndex(
+                    (l) => l.provider === activeDef.provider && l.model === activeDef.id,
+                  )
+                : -1;
+              const rungBerikut =
+                hydraRencana &&
+                idxSekarang >= 0 &&
+                idxSekarang + 1 < hydraRencana.tangga.length &&
+                hydraEskalasi.length < HYDRA_MAKS_ESKALASI &&
+                idxSekarang + 1 < hydraRencana.batasRequest
+                  ? hydraRencana.tangga[idxSekarang + 1]
+                  : null;
+              const cadangan = rungBerikut
+                ? {
+                    provider: rungBerikut.provider,
+                    id: rungBerikut.model,
+                    alasan: ` (HydraFusion rung "${rungBerikut.tier}")`,
+                  }
+                : hydraRencana
+                  ? /* Plan active: never step outside its ladder. */
+                    null
+                  : pilihModelCadangan(
+                      activeDef,
+                      MODEL_FALLBACK,
+                      (p) => useSettingsUi.getState().hasKey(p),
+                    );
               if (cadangan) {
                 sudahFallback = true;
+                if (rungBerikut) {
+                  hydraEskalasi.push(
+                    `${activeDef.id} failed (${labelRetryAgent(res.error!)}) → ${rungBerikut.model} [${rungBerikut.tier}]`,
+                  );
+                  hydraDipakai = { provider: rungBerikut.provider, model: rungBerikut.model };
+                  set({
+                    hydraTahap: {
+                      request: Math.min(hydraEskalasi.length + 1, hydraRencana!.batasRequest),
+                      total: hydraRencana!.langkah.length,
+                      jalur: hydraRencana!.jalur,
+                      peran: 'draft',
+                      provider: rungBerikut.provider,
+                      model: rungBerikut.model,
+                      catatan: rungBerikut.kenapa,
+                    },
+                  });
+                }
                 // Say the switch out loud: a silent model change would leave
                 // the user reading a run that suddenly answers differently
                 // with no idea a fallback happened.
@@ -6454,6 +6610,9 @@ export const useAi = create<AiStore>((set0, get) => {
                 });
                 activeDef = findModel(cadangan.id, cadangan.provider);
                 activeCfg = useStore.getState().settings.models.providers[cadangan.provider] ?? {};
+                if (rungBerikut) {
+                  hydraDipakai = { provider: rungBerikut.provider, model: rungBerikut.model };
+                }
                 /*
                  * Kandidat pengganti dicatat SEBELUM dicoba, bukan sesudah
                  * gagal: pesan akhir yang hanya mencatat kandidat yang sudah
@@ -6590,6 +6749,12 @@ export const useAi = create<AiStore>((set0, get) => {
          * ada, sehingga kalimat sebelumnya ikut terbawa ke jawaban akhir.
          */
         if (res.content && res.content.trim()) akhir = res.content;
+        /*
+         * Token usage for this leg, carried into the run's accounting. `undefined`
+         * means the provider did not report it, which is not the same as zero —
+         * `jumlahkanPemakaian` skips those rather than counting them as free.
+         */
+        hydraPemakaian.push(res.usage);
 
         // A provider may return several speculative actions in one response.
         // Navigation is a single action: keep only its first browser open and
@@ -6726,6 +6891,170 @@ export const useAi = create<AiStore>((set0, get) => {
               ],
             }));
             continue;
+          }
+          /*
+           * ── HydraFusion: the critique and the revision, on the AGENT path ──
+           *
+           * The loop just finished the WORK — it read files and called tools. On
+           * the `kritik-revisi` route that work is the draft, and the two stages
+           * the route is named after had never run here: the plan chose the model
+           * and the ladder, and nothing else. So the route announced three stages
+           * and executed one. This is where the other two happen.
+           *
+           * Only when the plan says so (`kritik-revisi`), only with something to
+           * review, and never after a cancel. The review is an ISOLATED pass: its
+           * own messages, no tools, so the critic cannot change the repository
+           * while judging it.
+           */
+          if (
+            hydraRencana &&
+            hydraRencana.jalur === 'kritik-revisi' &&
+            !agentBatal &&
+            akhir.trim().length > 0 &&
+            hydraKritik === null
+          ) {
+            const { kritikus, berbeda } = pilihKritikus(hydraDipakai, hydraRencana.tangga);
+            const idKritik = `${HYDRA_ID_PREFIX}agent-kritik-${langkah}`;
+            /*
+             * Bounded execution, per leg. The provider's own timeout is generous
+             * (it has to be: a long answer is not a hang), so a review that never
+             * closes would pin the turn. This deadline abandons THAT LEG and
+             * keeps the answer the run already produced — a critique is an
+             * improvement, never a precondition.
+             */
+            const mulaiKritik = Date.now();
+            const pengawasKritik = window.setTimeout(() => {
+              if (legHarusBerhenti(agentBatal, mulaiKritik, BATAS_LEG_MS)) {
+                void cmd.aiCancel(idKritik).catch(() => {});
+              }
+            }, BATAS_LEG_MS + 50);
+            set({
+              hydraTahap: {
+                request: hydraEskalasi.length + 2,
+                total: Math.min(hydraRencana.batasRequest, hydraEskalasi.length + 3),
+                jalur: 'kritik-revisi',
+                peran: 'kritik',
+                provider: kritikus.provider,
+                model: kritikus.model,
+                catatan: berbeda
+                  ? 'Independent review by another family.'
+                  : 'Review by the same family (no other family on the ladder).',
+              },
+            });
+            try {
+              hydraSiapkan(idKritik, false);
+              const pk = useStore.getState().settings.models.providers[kritikus.provider] ?? {};
+              try {
+                await cmd.aiToolChat({
+                  provider: kritikus.provider,
+                  model: kritikus.model,
+                  messages: pesanKritik(content, akhir),
+                  tools: [],
+                  baseUrl: pk.baseUrl || undefined,
+                  maxTokens: findModel(kritikus.model, kritikus.provider).maxOut ?? 2048,
+                  effort: get().reasoningEffort ?? undefined,
+                  sessionId: get().activeSession()?.id,
+                });
+              } finally {
+                window.clearTimeout(pengawasKritik);
+              }
+              const b = hydraLihat(idKritik);
+              hydraPemakaian.push(b?.usage);
+              const teksKritik = (b?.teks ?? '').trim();
+              const putusan = bacaPutusanKritik(teksKritik);
+              hydraKritik = teksKritik;
+              hydraPutusan = putusan;
+              hydraEskalasi.push(
+                `critique by ${kritikus.model}${berbeda ? '' : ' (same family)'}: ${putusan}`,
+              );
+              set((s) => ({
+                agentSteps: [
+                  ...s.agentSteps,
+                  {
+                    kind: 'tool',
+                    name: '(hydra: critique)',
+                    args: '{}',
+                    result:
+                      putusan === 'tak-terbaca'
+                        ? 'The reviewer did not return a verdict; the answer stands.'
+                        : `Reviewer verdict: ${putusan.toUpperCase()}.`,
+                    ok: true,
+                    at: Date.now(),
+                  },
+                ],
+              }));
+              /*
+               * FIX verdict: the drafting model gets the review and produces the
+               * final answer. This pass MAY use tools, because a real defect can
+               * need a real edit.
+               */
+              if (putusan === 'fix' && !legHarusBerhenti(agentBatal, Date.now(), BATAS_LEG_MS)) {
+                const idRevisi = `${HYDRA_ID_PREFIX}agent-revisi-${langkah}`;
+                set({
+                  hydraTahap: {
+                    request: hydraEskalasi.length + 2,
+                    total: Math.min(hydraRencana.batasRequest, hydraEskalasi.length + 3),
+                    jalur: 'kritik-revisi',
+                    peran: 'revisi',
+                    provider: hydraDipakai.provider,
+                    model: hydraDipakai.model,
+                    catatan: 'Fixing the defects the review found.',
+                  },
+                });
+                hydraSiapkan(idRevisi, false);
+                const pd = useStore.getState().settings.models.providers[hydraDipakai.provider] ?? {};
+                /* Same per-leg deadline as the critique: bounded, and abandoning
+                   it keeps the answer the run already had. */
+                const mulaiRevisi = Date.now();
+                const pengawasRevisi = window.setTimeout(() => {
+                  if (legHarusBerhenti(agentBatal, mulaiRevisi, BATAS_LEG_MS)) {
+                    void cmd.aiCancel(idRevisi).catch(() => {});
+                  }
+                }, BATAS_LEG_MS + 50);
+                try {
+                  await cmd.aiToolChat({
+                    provider: hydraDipakai.provider,
+                    model: hydraDipakai.model,
+                    messages: pesanRevisi(content, akhir, teksKritik),
+                    tools: [],
+                    baseUrl: pd.baseUrl || undefined,
+                    maxTokens: findModel(hydraDipakai.model, hydraDipakai.provider).maxOut ?? 2048,
+                    effort: get().reasoningEffort ?? undefined,
+                    sessionId: get().activeSession()?.id,
+                  });
+                } finally {
+                  window.clearTimeout(pengawasRevisi);
+                }
+                const br = hydraLihat(idRevisi);
+                hydraPemakaian.push(br?.usage);
+                const teksRevisi = (br?.teks ?? '').trim();
+                if (teksRevisi) {
+                  akhir = teksRevisi;
+                  set((s) => ({
+                    agentSteps: [
+                      ...s.agentSteps,
+                      {
+                        kind: 'tool',
+                        name: '(hydra: revision)',
+                        args: '{}',
+                        result: 'The drafting model revised its answer after the review.',
+                        ok: true,
+                        at: Date.now(),
+                      },
+                    ],
+                  }));
+                }
+              }
+            } catch (e) {
+              /* A failed review costs the run its critique, never its answer. */
+              const m = cmd.asZephyrError(e).message;
+              hydraEskalasi.push(`critique skipped (${m})`);
+              hydraKritik = '';
+              hydraPutusan = 'gagal';
+            } finally {
+              hydraLupakan(idKritik);
+              set({ hydraTahap: null });
+            }
           }
           break;
         }
@@ -7633,6 +7962,46 @@ export const useAi = create<AiStore>((set0, get) => {
         category: classifyAgentFailure(message),
         message: detail ? `${message}\n\n${detail}` : message,
       };
+    }
+
+    /*
+     * HydraFusion: close the stage strip and record the route that produced this
+     * answer, in the same shape the chat path used so the settings row
+     * ("HydraFusion last route") and the stage strip read identically whichever
+     * path ran. `request` counts the rung actually used plus every escalation.
+     */
+    if (hydraRencana) {
+      const pakai = jumlahkanPemakaian(hydraPemakaian);
+      set({
+        hydraTahap: null,
+        hydraTerakhir: {
+          jalur: hydraRencana.jalur,
+          tingkat: hydraRencana.tingkat,
+          kategori: hydraRencana.kategori,
+          provider: hydraDipakai.provider,
+          model: hydraDipakai.model,
+          alasan: hydraRencana.alasan,
+          request: 1 + hydraEskalasi.length,
+          berhenti: agentFailure ? 'gagal' : agentBatal ? 'batal' : 'selesai',
+          catatanTahap: [
+            `rung: ${hydraDipakai.model} (${hydraRencana.tingkat})`,
+            ...(hydraKritik !== null
+              ? [`critique: ${hydraPutusan ?? 'tak-terbaca'}`]
+              : hydraRencana.jalur === 'kritik-revisi'
+                ? ['critique: not run (nothing to review)']
+                : []),
+          ],
+          eskalasi: hydraEskalasi,
+          /*
+           * Complete accounting: every leg's tokens, summed. The two counters are
+           * the only cost figures that can be reported honestly here — Zephyr
+           * does not know the provider's price list, so it does not invent a
+           * money number. `0/0` means the provider reported no usage at all,
+           * which is why the UI says so instead of showing "$0.00".
+           */
+          pemakaian: pakai,
+        },
+      });
     }
 
     const runWasCancelled = agentBatal;

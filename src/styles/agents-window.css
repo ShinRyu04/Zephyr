@@ -55,18 +55,25 @@
  * `flex: 1` on the wrapper is what gives the group its width: the left and
  * right groups are sized by their content, so the leftover space collects here.
  *
- * `justify-content: flex-start` — NOT `center`, which is what this rule used to
- * say. Centring was the cause of the pill's icon sliding 38px to the left on
- * hover: with the group's contents centred, widening the LAST child re-centres
- * the whole row, so everything to its left (chevrons, search box, and the Z
- * glyph itself) shifted to keep the group balanced. The main window's
- * equivalent row (`.mb-cc-wrap`) is `flex-start` for the same reason, and there
- * the pill's icon is measurably motionless — 0.00px across the whole hover.
+ * `justify-content: center` + `transform: translateX(90px)` — centred, then
+ * nudged right of dead centre. Do NOT "tidy" this to `flex-start`.
  *
- * With `flex-start` the contents are pinned to the left edge and the pill grows
- * rightward into the group's spare space, exactly as it does in the main
- * window. The measured spare space here is ~355px against a ~85px label, so
- * there is no risk of the group overflowing at normal window widths.
+ * Centring used to be the visible bug: the label was in flow, so widening the
+ * LAST child re-centred the whole line and everything to its left (chevrons,
+ * search box, the Z glyph) slid sideways to keep the group balanced. Measured
+ * on a 1536px window, the icon moved -39.76px — exactly half of the button's
+ * +79.54px growth. Two repairs were tried and BOTH failed, also measured:
+ *
+ *   a. `flex-start` + `padding-left: calc(50% - 280.855px)` — the padding grew
+ *      to 482px and shoved the entire row +128px.
+ *   b. plain `flex-start` — contents pin to the left edge, so the row starts
+ *      where `center` does not put it (~40px off). The closed row has to stay
+ *      pixel-identical, so this is a no-go.
+ *
+ * The fix that holds is in `.ag-open-editor` below: the label leaves the flow,
+ * so this row's width never changes and nothing ever re-centres. After that
+ * fix, hovering measures 0.00px of movement for the icon, both chevrons, the
+ * search box and the right-hand toggle.
  */
 .ag-tb-center {
   display: flex;
@@ -116,36 +123,78 @@
 }
 
 /*
- * "Open in Editor" — the main window's pill, copied whole.
+ * "Open in Editor" — the main window's pill, with the label taken out of flow.
  *
- * Same markup, same classes, same metrics, same animation as `.mb-aipill` in
- * index.css. The goal is that hovering it here and hovering it in the main
- * window look like the same widget, because they are the same widget.
+ * Same markup, same classes, same metrics, same transitions as `.mb-aipill` in
+ * index.css (`max-width .2s ease`, `opacity .14s ease`, `margin-left .2s ease`),
+ * and the Z keeps `--text-muted` at rest / `--accent` on hover (the old
+ * `.mb-aipill-ic { color: var(--accent) }` override is gone — it painted the Z
+ * blue at rest, which the main window never does).
  *
- * The motion that has to match is subtle and was measured, not assumed: the Z
- * glyph does NOT travel. The LABEL opens and the button widens; the icon stays
- * put (main window: 0.00px of icon movement across a hover, while the button
- * grows 85px). That only works if there is spare room for the label to grow
- * into, which is why `.ag-tb-center` above is `flex-start` and why this button
- * is the group's last child.
+ * WHAT HAS TO MATCH, MEASURED NOT ASSUMED. In the main window the row is
+ * `flex-start` and the pill is the wrap's last child, so on hover the button's
+ * box grows 27.71 -> 112.72px (+85.01) and the Z measures 0.00px of movement;
+ * the label opens +6px to the right of the glyph.
  *
- * Two earlier versions of this rule got the motion wrong in opposite ways and
- * both are recorded here so neither comes back:
+ * HERE the row is centred (`.ag-tb-center`), so an in-flow label cannot do
+ * that: growing the last child re-centres the line. Before this fix the same
+ * hover measured icon -39.76px, chevrons -39.76px, search box -39.76px — the
+ * row sliding left by half of the button's +79.54px growth.
  *
- *   1. `position: absolute; right: 100%` on `.mb-aipill-body` — made the label
- *      open leftward out of the icon. Wrong direction, and the icon still did
- *      not stay put. Removed.
- *   2. Leaving the body in flow while `.ag-tb-center` was `justify-content:
- *      center` — the label opened rightward, but re-centring the row pushed the
- *      icon 38px left as it did. `flex-start` on the group is the fix.
+ * THE FIX — body out of the flow. `position: absolute; left: 100%` makes the
+ * button's box the containing block and the label a child of it, so the
+ * button's width is frozen at 27.71px, the centred row's width never changes,
+ * and nothing re-centres. Hover then measures: icon 0.00, chevron back 0.00,
+ * chevron forward 0.00, search box 0.00, right toggle 0.00, while the label
+ * widens 73.54px to the right and slides +6px — same direction, same 6px
+ * slide, same vertical metrics as the main window (label y=4.97 h=17.25 in
+ * both). The closed row is untouched: back 517.84, forward 541.84, search
+ * 565.84, pill wrap 1047.84 — identical before and after.
  *
- * The old `.mb-aipill-ic { color: var(--accent) }` override is gone as well: it
- * painted the Z blue at rest, while the main window's Z starts in
- * `--text-muted` and only takes the accent on hover. Same mark, same states.
+ * `overflow: visible` IS REQUIRED, not cosmetic. `.mb-aipill` sets
+ * `overflow: hidden`, and because the body is absolutely positioned this
+ * button is its containing block — so the clip applied to the label too.
+ * Proof: `document.elementFromPoint()` at the label answered `ag-tb-center`
+ * (the label was neither painted nor hit-testable) and moving the pointer onto
+ * the label closed the pill again (`btn:hover` false, body opacity 0). With
+ * `visible` the same probe answers `mb-aipill-label` and the pill stays open
+ * (opacity 1). The button's own box is unaffected either way, so the closed
+ * layout stays pixel-identical.
+ *
+ * TWO DEAD ENDS, recorded so they are not retried:
+ *   1. `position: absolute; right: 100%` on the body — the label opened
+ *      LEFTWARD, out of the icon. Wrong direction.
+ *   2. body left in flow — see the `.ag-tb-center` note above; moving that
+ *      group to `flex-start` was tried and moved the closed row.
+ *
+ * ONE REMAINING, DELIBERATE DIFFERENCE from the main window: its label sits
+ * inside the button (icon -> label 6.00px, and the accent box grows around it),
+ * while this label starts outside the button's box: 11.0px from the Z (5px
+ * padding + 1px border + the 6px margin the shared rule animates), button box
+ * static at 27.71px. `left: calc(100% - 5px)` would land it at exactly 6.00px
+ * and abut the button, but then the label's box starts inside the button's
+ * padding mid-transition, so it was left as `100%` — clean edge, no overlap.
  */
 .ag-open-editor {
   margin: 0 0 0 4px;
   padding: 0 5px;
+  position: relative;
+  /* .mb-aipill (index.css) memakai overflow: hidden. Karena body di bawah
+     ber- position: absolute, tombol ini adalah containing block-nya, jadi
+     potongan itu ikut mengenai body -> label TERBUANG (terbukti lewat
+     elementFromPoint: titik label menjawab ag-tb-center, bukan labelnya, dan
+     hover-nya mati saat kursor pindah ke label). overflow: visible tidak
+     mengubah kotak tombol, jadi tata letak tertutup tetap pixel-identik. */
+  overflow: visible;
+}
+.ag-open-editor .mb-aipill-body {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  height: 100%;
+}
+.ag-open-editor .mb-aipill-label {
+  white-space: nowrap;
 }
 .ag-tb-right {
   display: flex;
@@ -645,6 +694,13 @@
 .ag-menu-item:hover {
   background: var(--surface-2);
 }
+.ag-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ag-menu-item:disabled:hover {
+  background: transparent;
+}
 .ag-menu-kbd {
   color: var(--text-muted);
   font-family: var(--font-mono);
@@ -729,9 +785,13 @@
   flex-direction: column;
   overflow: hidden;
 }
-/* The two panes always set their own widths; no caller should end up with an
-   empty strip beside a list. */
-.ag-tab-body:not(.is-belah) .ag-body-list {
+/*
+ * A view WITHOUT the editor half (Search, Browser) fills the body outright.
+ * Stated here, not left to "it is the only child", because the split rules
+ * below hand `.ag-body-ed` a 58% basis and a bare `flex: 1 1 auto` on this
+ * element would otherwise share the row with nothing and still only grow.
+ */
+.ag-tab-body:not(.is-belah) > .ag-body-list {
   flex: 1 1 100%;
   width: 100%;
 }
@@ -960,10 +1020,106 @@
 .ag-browser-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 5px 8px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
+}
+.ag-browser-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+/*
+ * The toolbar buttons. Same metrics as the title-bar's `.ag-tb-btn` so the two
+ * strips read as one window, and `:disabled` is a real state here — the first
+ * frames of the pane have no webview to drive, and a button that looks live but
+ * does nothing is the lie this view is being fixed for.
+ */
+.ag-browser-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-browser-ico svg {
+  width: 14px;
+  height: 14px;
+}
+.ag-browser-ico:hover:not(:disabled),
+.ag-browser-ico.is-on {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ag-browser-ico:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ag-browser-menuwrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+/*
+ * "Sharing with Agent": a labelled pill, the only labelled control in the
+ * toolbar. It states a condition rather than offering an action, so it reads
+ * as status text that happens to be clickable — muted when off, accent-tinted
+ * when the page is actually published to the agent.
+ */
+.ag-browser-share-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ag-browser-share-pill svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.ag-browser-share-pill.is-on {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+.ag-browser-share-pill.is-on svg {
+  color: var(--accent);
+}
+.ag-browser-share-pill:hover:not(:disabled) {
+  color: var(--text);
+}
+.ag-browser-share-pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* The dropdown opens UNDER the button and is pushed to the right edge, so it
+   cannot run off the column when the toolbar sits at the window's right side. */
+.ag-browser-menu {
+  top: calc(100% + 4px);
+  right: 0;
+  left: auto;
+  min-width: 190px;
+}
+.ag-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
 .ag-browser-url {
   flex: 1;
@@ -980,26 +1136,41 @@
 .ag-browser-url:focus {
   border-color: var(--accent);
 }
-.ag-browser-go {
+/* The stage and the placeholder share the body: the stage is the rectangle the
+   native webview is positioned over, the placeholder is drawn on top of it
+   while there is no page. */
+.ag-browser-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
+}
+.ag-browser-kosong {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
   color: var(--text-muted);
-  cursor: pointer;
+  font-size: 11.5px;
+  pointer-events: none;
 }
-.ag-browser-go svg {
-  width: 14px;
-  height: 14px;
+.ag-browser-kosong svg {
+  width: 34px;
+  height: 34px;
+  opacity: 0.45;
 }
-.ag-browser-go:hover {
-  color: var(--text);
-  background: var(--surface-2);
+.ag-browser-kosong p {
+  margin: 0;
+  max-width: 260px;
+}
+.ag-browser-kosong-petunjuk {
+  opacity: 0.7;
+  font-size: 11px;
 }
 .ag-browser-galat {
   margin: 0;

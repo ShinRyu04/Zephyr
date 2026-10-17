@@ -78,7 +78,7 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     id: 'context7',
     nama: 'Context7 MCP Server',
     deskripsi:
-      'Dokumentasi pustaka versi terbaru langsung di dalam prompt: resolusi id pustaka, lalu kutipan API-nya.',
+      'Up-to-date library docs straight into the prompt: resolve a library id, then quote its API.',
     transport: 'http',
     url: 'https://mcp.context7.com/mcp',
     publisher: 'Upstash',
@@ -87,13 +87,13 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     butuhToken: true,
     rumah: 'https://github.com/upstash/context7',
     catatan:
-      'Tanpa API key tetap bisa dipakai dengan batas laju lebih rendah; token pribadi menaikkannya.',
+      'Works without an API key at a lower rate limit; a personal token raises it.',
   },
   {
     id: 'github',
     nama: 'GitHub MCP Server',
     deskripsi:
-      'Repo, issue, pull request, dan pencarian kode GitHub - server resmi GitHub yang di-host.',
+      'Repos, issues, pull requests and GitHub code search — the official hosted GitHub server.',
     transport: 'http',
     url: 'https://api.githubcopilot.com/mcp/',
     publisher: 'GitHub',
@@ -101,25 +101,25 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     butuhToken: true,
     rumah: 'https://github.com/github/github-mcp-server',
     catatan:
-      'Butuh autentikasi. Di klien lain lewat OAuth; di sini token personal (PAT) ditempel di kolom token.',
+      'Needs authentication. Other clients use OAuth; here you paste a personal access token (PAT) into the token field.',
   },
   {
     id: 'deepwiki',
     nama: 'DeepWiki MCP Server',
     deskripsi:
-      'Tanya jawab tentang sebuah repo GitHub: struktur wiki, isi dokumentasi, dan tanya bebas.',
+      'Ask questions about a GitHub repo: wiki structure, documentation contents, and free-form questions.',
     transport: 'http',
     url: 'https://mcp.deepwiki.com/mcp',
     publisher: 'Cognition',
     kategori: 'Documentation',
     rumah: 'https://mcp.deepwiki.com/',
-    catatan: 'Hanya repo publik, dan tidak butuh akun maupun token.',
+    catatan: 'Public repos only, and no account or token needed.',
   },
   {
     id: 'sequential-thinking',
     nama: 'Sequential Thinking MCP Server',
     deskripsi:
-      'Memecah masalah jadi langkah berpikir yang bisa direvisi dan dicabang, bukan satu lompatan.',
+      'Breaks a problem into thinking steps that can be revised and branched, instead of one leap.',
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
@@ -132,7 +132,7 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     id: 'brave-search',
     nama: 'Brave Search MCP Server',
     deskripsi:
-      'Pencarian web, berita, gambar, dan video lewat Brave Search API, termasuk konteks siap-LLM.',
+      'Web, news, image and video search through the Brave Search API, including LLM-ready context.',
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@brave/brave-search-mcp-server'],
@@ -142,43 +142,43 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     unduhan: 21507,
     butuhToken: true,
     rumah: 'https://github.com/brave/brave-search-mcp-server',
-    catatan: 'Wajib BRAVE_API_KEY; tanpa itu server menyala tetapi tidak menjawab pencarian.',
+    catatan: 'BRAVE_API_KEY is required; without it the server starts but answers no searches.',
   },
   {
     id: 'postgres',
     nama: 'PostgreSQL MCP Server',
     deskripsi:
-      'Akses baca-saja ke PostgreSQL: periksa skema, daftar tabel, dan jalankan kueri analisis.',
+      'Read-only access to PostgreSQL: inspect the schema, list tables, and run analytical queries.',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://localhost/nama_db'],
+    args: ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://localhost/your_db'],
     publisher: 'Model Context Protocol',
     kategori: 'Database',
     unduhan: 127894,
     rumah: 'https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres',
     catatan:
-      'Argumen terakhir adalah string koneksi - ganti sebelum dipakai. Paket ini sudah diarsipkan di npm, tetapi masih berfungsi dan masih banyak dipakai.',
+      'The last argument is the connection string — change it before use. This package is archived on npm, but it still works and is still widely used.',
   },
   {
     id: 'filesystem',
     nama: 'Filesystem MCP Server',
     deskripsi:
-      'Operasi berkas dengan batas akses yang bisa diatur: baca, tulis, cari, dan telusuri folder.',
+      'File operations with a configurable access boundary: read, write, search and walk folders.',
     transport: 'stdio',
     command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-filesystem', '<direktori-yang-diizinkan>'],
+    args: ['-y', '@modelcontextprotocol/server-filesystem', '<allowed-directory>'],
     publisher: 'Model Context Protocol',
     kategori: 'Filesystem',
     unduhan: 584188,
     rumah: 'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
     catatan:
-      'Argumen terakhir adalah direktori yang diizinkan; tanpa itu server menolak menyala.',
+      'The last argument is the directory it may access; without it the server refuses to start.',
   },
   {
     id: 'memory',
     nama: 'Memory MCP Server',
     deskripsi:
-      'Memori lintas sesi berbentuk graf pengetahuan: simpan entitas, relasi, dan catatan yang bertahan.',
+      'Cross-session memory as a knowledge graph: store entities, relations and notes that persist.',
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-memory'],
@@ -191,7 +191,7 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     id: 'puppeteer',
     nama: 'Puppeteer MCP Server',
     deskripsi:
-      'Otomasi browser lewat Chrome DevTools Protocol: navigasi, screenshot, dan evaluasi JavaScript.',
+      'Browser automation through the Chrome DevTools Protocol: navigate, screenshot, evaluate JavaScript.',
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-puppeteer'],
@@ -199,13 +199,13 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     kategori: 'Browser',
     unduhan: 24297,
     rumah: 'https://github.com/modelcontextprotocol/servers-archived/tree/main/src/puppeteer',
-    catatan: 'Paket ini sudah diarsipkan di npm; masih berfungsi, tetapi tidak lagi diperbarui.',
+    catatan: 'This package is archived on npm; it still works but is no longer updated.',
   },
   {
     id: 'browser-tools',
     nama: 'BrowserTools MCP Server',
     deskripsi:
-      'Console, lalu lintas jaringan, screenshot, dan audit Lighthouse dari sesi Chrome asli yang sedang login.',
+      'Console, network traffic, screenshots and Lighthouse audits from a real, logged-in Chrome session.',
     transport: 'stdio',
     command: 'npx',
     args: ['-y', '@agentdeskai/browser-tools-mcp@latest'],
@@ -214,7 +214,7 @@ export const KATALOG_MCP_SERVER: KatalogMcpEntry[] = [
     unduhan: 3108,
     rumah: 'https://github.com/AgentDeskAI/browser-tools-mcp',
     catatan:
-      'Butuh Node 22.19+ dan ekstensi Chrome BrowserToolsMCP yang harus dipasang manual lebih dulu.',
+      'Needs Node 22.19+ and the BrowserToolsMCP Chrome extension installed manually first.',
   },
 ];
 

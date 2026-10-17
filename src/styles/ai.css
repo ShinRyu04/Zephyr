@@ -1755,6 +1755,13 @@
 }
 
 /* ── model dropdown ── */
+/*
+ * The menu is anchored to the LEFT edge of the model button by default; the
+ * component flips it to the button's RIGHT edge (inline style) when opening to
+ * the right would push it off screen. See the measuring effect in
+ * `ModelSelector` — the anchor cannot be decided from a CSS class because
+ * `AiPanel` hard-codes `is-kanan` off so every home shares one layout.
+ */
 .ai-model-wrap {
   position: relative;
   display: flex;
@@ -6529,6 +6536,37 @@
   min-width: 0;
   flex-wrap: wrap;
   justify-content: flex-start;
+}
+
+/*
+ * The AI Models pop-up needs the same un-capping as `.agc-pane`.
+ *
+ * WHY, measured: the modal's content column is 1278px wide, but the section
+ * inside it still carried `.set-section { max-width: 780px }` from the Settings
+ * page — so every control and every provider card was 780px and ~500px of the
+ * modal sat empty on the right. That is the reported "space kanan masih kosong".
+ *
+ * The cap is right on the Settings PAGE (a long form reads better narrow). In a
+ * 1280px modal it is just unused room, so the section is released here and the
+ * provider cards spread to two columns, which is what the width is for.
+ */
+.agc-content .set-section {
+  max-width: none;
+}
+
+.agc-content .prov-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+}
+
+/*
+ * A single card must not stretch to the whole width: one provider would read as
+ * a different kind of object from the same card in a two-column row. This is the
+ * same rule `.agc-card` already uses for the same reason.
+ */
+.agc-content .prov-list > .prov-card:only-child {
+  max-width: 640px;
 }
 
 /*

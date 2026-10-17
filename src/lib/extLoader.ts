@@ -392,6 +392,40 @@ function muatBahasa(
 export const ikonUntukExt = (ext: string) => ikonFileExt(ext);
 export const adaIconTheme = () => jumlahIkonExt() > 0;
 
+/**
+ * Decode a VS Code `fontCharacter` into the single character it draws.
+ *
+ * The field is a string holding one or more codepoints, written as `"\\e001"`,
+ * `"\\uE001"`, or a literal character. It is what an icon-font theme uses
+ * instead of Zephyr's `glyph`, and it is the difference between a VS Code pack
+ * changing the tree and being refused. Multi-codepoint strings (ligatures) are
+ * kept whole — the font resolves them, and truncating would break the ligature.
+ */
+function glyphDariFontChar(s: string): string {
+  const t = s.trim();
+  if (!t) return '';
+  /* "\\e001" / "\\uE001" / "\\u{E001}": parse every escape, keep any literal. */
+  const out: string[] = [];
+  const re = /\\(?:u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|([0-9a-fA-F]+))/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t))) {
+    if (m.index > last) out.push(t.slice(last, m.index));
+    const hex = m[1] ?? m[2] ?? m[3] ?? m[4] ?? '';
+    const cp = parseInt(hex, 16);
+    if (Number.isFinite(cp) && cp > 0) {
+      try {
+        out.push(String.fromCodePoint(cp));
+      } catch {
+        /* Out of range: drop the escape rather than throw mid-load. */
+      }
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < t.length) out.push(t.slice(last));
+  return out.join('');
+}
+
 async function muatIconTheme(
   m: ExtManifest,
   gagal: Array<{ id: string; alasan: string }>,
@@ -400,13 +434,36 @@ async function muatIconTheme(
   for (const it of m.contributes.iconThemes) {
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, it.path)) as Record<string, unknown>;
-      
+
       const peta = (raw.icons ?? raw) as Record<string, unknown>;
+      let dariZephyr = 0;
       for (const [ext, def] of Object.entries(peta)) {
         const d = def as { glyph?: unknown; color?: unknown };
         const glyph = String(d.glyph ?? '').slice(0, 3);
         if (!glyph) continue;
         setIkonExt(ext, glyph, String(d.color ?? 'var(--fg2)').slice(0, 40));
+        dariZephyr++;
+        n++;
+      }
+      if (dariZephyr > 0) continue;
+
+      /*
+       * VS Code shape: `iconDefinitions` + `fileExtensions`/`fileNames`.
+       *
+       * WHY this is read at all: a VS Code icon theme used to be refused as
+       * "0 icon definitions" because its glyph lives in `fontCharacter`, not in
+       * a `glyph` key. The colour comes from `fontColor` on the same
+       * definition. Registering it here is what makes the pack actually change
+       * the file tree, instead of being an install that does nothing.
+       */
+      const defs = (raw.iconDefinitions ?? {}) as Record<string, { fontCharacter?: unknown; fontColor?: unknown }>;
+      const daftar = (raw.fileExtensions ?? raw.fileNames ?? {}) as Record<string, unknown>;
+      for (const [ext, idDef] of Object.entries(daftar)) {
+        const def = defs[String(idDef)];
+        if (!def) continue;
+        const glyph = glyphDariFontChar(String(def.fontCharacter ?? ''));
+        if (!glyph) continue;
+        setIkonExt(ext, glyph, String(def.fontColor ?? 'var(--fg2)').slice(0, 40));
         n++;
       }
     } catch (e) {

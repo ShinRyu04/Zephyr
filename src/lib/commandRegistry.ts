@@ -2111,7 +2111,7 @@ export const COMMANDS: CommandDef[] = [
       const txt = v.state.sliceDoc(from, to);
       if (!txt) return;
       await clipboardWrite(txt);
-      notifyInfo(tx('Disalin ke clipboard'), { source: 'editor' });
+      notifyInfo(tx('Copied to clipboard'), { source: 'editor' });
     },
   },
   {

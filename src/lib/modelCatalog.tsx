@@ -173,6 +173,45 @@ export const PLACEHOLDER_MODEL_IDS: ReadonlySet<string> = new Set(
   PROVIDERS.flatMap((p) => (p.freeText ? (p.models ?? []).map((m) => m.id) : [])),
 );
 
+/**
+ * Every model id a provider can actually run right now.
+ *
+ * WHY this is shared instead of re-derived per component: the picker learned
+ * (one bug at a time) that a usable id comes from FOUR places — the ids the
+ * provider reported over the API, the ids the reader typed before, the ids
+ * remembered in localStorage, and the catalogue's real entries — and that the
+ * catalogue's "type a name" rows (`custom-model`, `local-default`) are prompts,
+ * not models. Two components deriving that list separately is how the
+ * HydraFusion tier rows ended up offering a single placeholder for a
+ * custom gateway while the picker listed eighteen real models.
+ *
+ * `remote` is the live API list, `uiRemote` the settings page's copy of it,
+ * `saved` the typed-and-remembered ids.
+ */
+export function modelTersedia(
+  providerId: string,
+  remote: readonly string[] = [],
+  uiRemote: readonly string[] = [],
+  saved: readonly string[] = [],
+): Array<{ id: string; label: string; note?: string; ctx?: number }> {
+  const p = PROVIDER_BY_ID.get(providerId);
+  if (!p) return [];
+  const live = [...remote, ...uiRemote].filter((id, i, a) => !!id && a.indexOf(id) === i);
+  const dariApi = live
+    .filter((id) => !MODEL_BY_ID.has(id) && !isPlaceholderModel(id))
+    .map((id) => ({ id, label: id, note: 'from provider' }));
+  const tersimpan = saved
+    .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id) && !isPlaceholderModel(id))
+    .map((id) => ({ id, label: id }));
+  const katalog = (p.models ?? [])
+    .filter((m) => !isPlaceholderModel(m.id))
+    .map((m) => ({ id: m.id, label: m.label, note: m.note, ctx: m.ctx }));
+  const semua = [...dariApi, ...tersimpan, ...katalog];
+  const uniq = new Map<string, { id: string; label: string; note?: string; ctx?: number }>();
+  for (const m of semua) if (!uniq.has(m.id)) uniq.set(m.id, m);
+  return [...uniq.values()];
+}
+
 export function isPlaceholderModel(id: string | null | undefined): boolean {
   return !!id && PLACEHOLDER_MODEL_IDS.has(id.trim());
 }

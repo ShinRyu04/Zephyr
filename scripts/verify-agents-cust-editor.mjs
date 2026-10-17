@@ -33,7 +33,21 @@ if (!adaAgents) {
   process.exit(1);
 }
 
-const { cdp } = await Cdp.attach(PORT, ['Zephyr', 'localhost', 'http://localhost:5173']);
+/*
+ * Attach to the Agents target EXPLICITLY.
+ *
+ * `Cdp.attach` is the main-window entry point and deliberately prefers targets
+ * whose URL does NOT contain `#agents` (a harness written for the main window
+ * once attached to the Agents one and every check failed for the wrong reason).
+ * This harness is the opposite case: it measures ONLY the Agents window, so the
+ * target is chosen here and handed to `Cdp.connect`.
+ */
+const targetAgents = daftar.find((t) => t.type === 'page' && (t.url ?? '').includes('#agents'));
+if (!targetAgents) {
+  console.log(`== ${lulus}/${lulus + gagal} lulus ==`);
+  process.exit(1);
+}
+const cdp = await Cdp.connect(targetAgents.webSocketDebuggerUrl);
 await tungguBridge(cdp, '__ZEPHYR__', 30000);
 
 /*
@@ -91,6 +105,26 @@ await cdp.json(`return JSON.stringify(await (async () => {
   }
   /* Customizations: pastikan terbuka (run lalu bisa menutupnya). */
   if (q('[data-testid="ag-customizations"]')?.classList.contains('is-tutup')) q('[data-testid="ag-cust-toggle"]')?.click();
+  /*
+   * Close every open file AND dismiss any diff.
+   *
+   * V6b opens package.json and nothing closed it, so the NEXT run started with
+   * a file already open and V6a ("without a file the body is still split, with
+   * an EMPTY editor") read a populated editor and failed.
+   *
+   * The diff matters just as much: AgentsEditor renders DiffViewer when
+   * gitStore.diff is set, and a diff WINS over the plain editor. The Changes
+   * check in verify-agen-fix.mjs (or a reader clicking a row) leaves one
+   * behind, so V7 found a diff where it expected CodeMirror.
+   *
+   * NOTE: no backticks in this block - it lives inside a template literal.
+   */
+  try { window.__ZEPHYR_GIT__?.store?.getState?.().closeDiff?.(); } catch {}
+  const tabs = window.__ZEPHYR__?.getState?.().tabs ?? [];
+  for (const t of [...tabs]) {
+    try { window.__ZEPHYR__.getState().closeTab?.(t.id ?? t.path); } catch {}
+  }
+  await sleep(400);
   return 'bersih';
 })())`);
 await sleep(700);

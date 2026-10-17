@@ -533,6 +533,71 @@
 }
 
 /*
+ * The browser-context chip: the page open in the Agents window, offered as
+ * context for the message. Deliberately the same row metrics as the branch chip
+ * above (padding, hairline, size) so the two read as one family of "what this
+ * message will be attached to" — the only differences are that this one is
+ * interactive and that its icon carries the accent, because a live page is the
+ * more surprising piece of context.
+ */
+.ai-browser-chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 3px 6px 3px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--fg2);
+  min-width: 0;
+}
+.ai-browser-chip-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ai-browser-chip-main:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.ai-browser-chip-main svg {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+.ai-browser-chip-teks {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-browser-chip-x {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ai-browser-chip-x:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/*
  * The composer field itself.
  *
  * WHY it is not transparent any more: this file loads after `ai.css`, so these
@@ -931,15 +996,27 @@
   white-space: nowrap;
 }
 
+/*
+ * The badge wraps instead of being cut.
+ *
+ * WHY: the "HydraFusion (auto)" row carries the explainer "the app picks the
+ * model and the workflow per task" — 224px of text measured, inside a 185px
+ * box, so `text-overflow: ellipsis` turned a sentence the reader needs into
+ * "the app picks the model and the wo". One clipped word is fine; a clipped
+ * explanation of what the feature DOES is not. Wrapping keeps the whole note and
+ * costs one extra line on the few rows that have one.
+ *
+ * `overflow-wrap: anywhere` is what lets a long unbroken model name break too,
+ * so a narrow panel cannot push the row wider than the menu.
+ */
 .ai-mi-badge {
   flex-shrink: 0;
   max-width: 55%;
   font-size: 10px;
   line-height: 1.35;
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Legacy two-line block, kept for the subagent picker rows. */
