@@ -1121,7 +1121,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     spec: {
       name: 'bash_run',
       description:
-        'Jalankan perintah dan tunggu sampai selesai. Perintah dijalankan di folder berkas yang sedang dibuka; tanpa berkas terbuka, di folder yang dibuka. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), pakai bash_background. Perintah berat (build, install, test suite) boleh berjalan sampai 5 menit; isi `timeout` (milidetik) bila perintahnya butuh lebih lama lagi.',
+        'Jalankan perintah dan tunggu sampai selesai. Perintah dijalankan di folder berkas yang sedang dibuka; tanpa berkas terbuka, di folder yang dibuka. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), jalankan perintahnya di latar lewat shell-nya sendiri (`start`, `&`, `--watch`) - tidak ada tool latar terpisah, dan tool ini tidak akan menunggu proses yang sudah dilepas. Perintah berat (build, install, test suite) boleh berjalan sampai 5 menit; isi `timeout` (milidetik) bila perintahnya butuh lebih lama lagi.',
       parameters: {
         type: 'object',
         properties: {
