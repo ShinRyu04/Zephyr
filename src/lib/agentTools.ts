@@ -17,6 +17,7 @@ import { TOOL_ZEPHYR_SELF } from './zephyrTools/zephyrSelf';
 import { tunjukTool as TOOL_TUNJUK } from './zephyrTools/tunjuk';
 import { TOOL_BROWSER, TOOL_BROWSER_LAMA } from './zephyrTools/browser';
 import { kotakTool as TOOL_KOTAK } from './zephyrTools/kotak';
+import { petaTool as TOOL_PETA } from './zephyrTools/peta';
 import { TOOL_WEB_SATU, TOOL_WEB_LAMA } from './zephyrTools/webSatu';
 import { TOOL_INGAT } from './zephyrTools/zephyrIngat';
 import { TOOL_MCP } from './zephyrTools/mcp';
@@ -103,6 +104,15 @@ export const AGENT_TOOLS: AgentTool[] = [
    * sebagai bingkai kosong ke pembaca.
    */
   TOOL_KOTAK,
+  /*
+   * `peta` - cari indeks fakta dengan kata-kata model sendiri.
+   *
+   * Prompt sudah membawa IRISAN indeks yang dipilih dari kata-kata user. Yang
+   * tidak tercakup: pembaca yang menjelaskan GEJALA ("AI-nya lupa instruksi
+   * saya") sementara entri yang menjawabnya memakai kata yang tidak pernah ia
+   * sebut. Tool ini memberi model percobaan kedua dengan kuerinya sendiri.
+   */
+  TOOL_PETA,
   ...TOOL_MCP,
   /*
    * `browser` replaces the seven `browser_*` entries.

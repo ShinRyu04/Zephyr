@@ -146,6 +146,12 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
    * can do is make the model's own output clearer.
    */
   ['kotak', 'Aplikasi', 'read', false, 'Gambar kotak terstruktur di jawaban: judul, ringkasan, baris label/nilai'],
+  /*
+   * `peta` - cari di indeks fakta Zephyr dengan kata-kata model sendiri.
+   *
+   * `read`: hanya membaca indeks yang sudah ada di bundel.
+   */
+  ['peta', 'Aplikasi', 'read', false, 'Cari di peta Zephyr: label, setelan, perintah, pintasan, panel, tool, berkas'],
 
   /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
