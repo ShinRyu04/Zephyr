@@ -50,6 +50,26 @@
   --modified: #d29922;
   --added: #3fb950;
   --deleted: #f85149;
+  /*
+   * Diff line washes, DERIVED from --added/--deleted rather than fixed values.
+   *
+   * The app ships 19 themes and each declares its own green and red. Hard-coding
+   * rgba() here would make every theme except the default show a diff tint in
+   * colours that do not belong to it - a Dracula diff with GitHub's green.
+   * Deriving with color-mix keeps the wash in step with whatever the theme chose.
+   *
+   * The rgba() beside it is the FALLBACK, not decoration: WebView2 here is an
+   * older Chromium and drops an unsupported color-mix declaration, which would
+   * leave the rows untinted - the exact failure this file exists to prevent.
+   *
+   * Two steps per side: the row fill and the gutter fill. The darker gutter is
+   * what makes the number/sign column read as part of the change instead of as a
+   * separate table beside it, and it is the detail VSCode's own diff relies on.
+   */
+  --diff-add-bg: color-mix(in srgb, var(--added) 26%, transparent);
+  --diff-add-gutter: color-mix(in srgb, var(--added) 40%, transparent);
+  --diff-del-bg: color-mix(in srgb, var(--deleted) 26%, transparent);
+  --diff-del-gutter: color-mix(in srgb, var(--deleted) 40%, transparent);
 
   /* editor */
   --editor-bg: #0d1117;

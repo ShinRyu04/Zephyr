@@ -7716,17 +7716,65 @@
   color: var(--text);
   white-space: pre;
 }
+/*
+ * Added / removed lines, green and red.
+ *
+ * ## Why the tint is a full wash, not a hint
+ *
+ * These rows used `color-mix(in srgb, var(--success) 15%, transparent)` — a 15%
+ * wash. On a dark panel that reads as "slightly lighter row", not as "this line
+ * was added", and the reader compared it to VSCode and asked for the real thing:
+ * "warna diff sih agent AI dia blm kek gini, bisa dibikin kek gni jga ga?"
+ *
+ * VSCode's own diff uses a two-layer background: a solid-ish fill for the line
+ * plus a stronger tint on the character gutter. That is what makes a diff
+ * scannable from across the room — the colour IS the signal, not a decoration on
+ * top of it. So the wash goes to 28% and the sign column gets its own darker
+ * step, which is the detail that makes the gutter read as part of the change.
+ *
+ * The tint is a fixed rgba fallback rather than only `color-mix`: WebView2 here
+ * is an older Chromium, and a rule the engine drops would leave the rows
+ * untinted again — the exact failure this comment exists to prevent.
+ */
 .cli-diff-row.is-add {
-  background: color-mix(in srgb, var(--success) 15%, transparent);
+  background: var(--diff-add-bg, rgba(63, 185, 80, 0.28));
+}
+.cli-diff-row.is-add .cli-diff-num {
+  background: var(--diff-add-gutter, rgba(63, 185, 80, 0.22));
+  color: var(--added, var(--success));
+  opacity: 1;
+}
+.cli-diff-row.is-add .cli-diff-sign {
+  background: var(--diff-add-gutter, rgba(63, 185, 80, 0.34));
 }
 .cli-diff-row.is-add .cli-diff-sign,
-.cli-diff-row.is-add .cli-diff-text { color: var(--success); }
+.cli-diff-row.is-add .cli-diff-text { color: var(--added, var(--success)); }
 .cli-diff-row.is-del {
-  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  background: var(--diff-del-bg, rgba(248, 81, 73, 0.28));
+}
+.cli-diff-row.is-del .cli-diff-num {
+  background: var(--diff-del-gutter, rgba(248, 81, 73, 0.22));
+  color: var(--deleted, var(--danger));
+  opacity: 1;
+}
+.cli-diff-row.is-del .cli-diff-sign {
+  background: var(--diff-del-gutter, rgba(248, 81, 73, 0.34));
 }
 .cli-diff-row.is-del .cli-diff-sign,
-.cli-diff-row.is-del .cli-diff-text { color: var(--danger); }
+.cli-diff-row.is-del .cli-diff-text { color: var(--deleted, var(--danger)); }
 .cli-diff-row.is-same { background: transparent; }
+/*
+ * A rejected hunk stays dimmed even though it is still an add/del row — the
+ * reader has to be able to see at a glance which changes will NOT be applied.
+ */
+.cli-diff-row[data-rejected='1'] {
+  background: transparent;
+}
+.cli-diff-row[data-rejected='1'] .cli-diff-text,
+.cli-diff-row[data-rejected='1'] .cli-diff-sign {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
 
 /*
  * Side-by-side: the before on the left, the after on the right.
@@ -7761,12 +7809,28 @@
    lines up, but do not tint it, or an insertion looks like it deleted
    something on the other side. */
 .cli-diff-half.is-void { background: color-mix(in srgb, var(--border) 22%, transparent); }
-.cli-diff-half.is-add { background: color-mix(in srgb, var(--success) 15%, transparent); }
+.cli-diff-half.is-add { background: var(--diff-add-bg, rgba(63, 185, 80, 0.28)); }
+.cli-diff-half.is-add .cli-diff-num {
+  background: var(--diff-add-gutter, rgba(63, 185, 80, 0.22));
+  color: var(--added, var(--success));
+  opacity: 1;
+}
+.cli-diff-half.is-add .cli-diff-sign {
+  background: var(--diff-add-gutter, rgba(63, 185, 80, 0.34));
+}
 .cli-diff-half.is-add .cli-diff-sign,
-.cli-diff-half.is-add .cli-diff-text { color: var(--success); }
-.cli-diff-half.is-del { background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.cli-diff-half.is-add .cli-diff-text { color: var(--added, var(--success)); }
+.cli-diff-half.is-del { background: var(--diff-del-bg, rgba(248, 81, 73, 0.28)); }
+.cli-diff-half.is-del .cli-diff-num {
+  background: var(--diff-del-gutter, rgba(248, 81, 73, 0.22));
+  color: var(--deleted, var(--danger));
+  opacity: 1;
+}
+.cli-diff-half.is-del .cli-diff-sign {
+  background: var(--diff-del-gutter, rgba(248, 81, 73, 0.34));
+}
 .cli-diff-half.is-del .cli-diff-sign,
-.cli-diff-half.is-del .cli-diff-text { color: var(--danger); }
+.cli-diff-half.is-del .cli-diff-text { color: var(--deleted, var(--danger)); }
 .cli-diff-half .cli-diff-text { overflow: hidden; text-overflow: ellipsis; }
 
 /* The bottom strip carries the collapse button and the view toggle. */
