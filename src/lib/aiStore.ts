@@ -15,6 +15,7 @@ import {
   type HydraLapor,
   type HydraTerakhir,
 } from './hydraFusion';
+import { pilihHydra, HYDRA_MODEL_ID } from './hydraModel';
 import {
   BATAS_LEG_MS,
   bacaPutusanKritik,
@@ -3411,6 +3412,17 @@ export const useAi = create<AiStore>((set0, get) => {
   },
 
   sinkronProvider: () => {
+    /*
+     * HydraFusion is a selection, not a provider default.
+     *
+     * `sinkronProvider` exists to pull the panel onto the provider+model saved
+     * in settings. But the HydraFusion sentinel is deliberately NEVER written to
+     * settings (it would 404 every request), so the saved model is always a real
+     * one — and this function would immediately undo the reader's pick. That is
+     * exactly what made selecting HydraFusion silently do nothing: the model
+     * snapped back to the previous real model within one settings write.
+     */
+    if (pilihHydra(get().model)) return;
     const models = useStore.getState().settings.models;
     const target = models?.activeProvider;
     if (!target) return;
@@ -3467,11 +3479,21 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     const def = findModel(modelId, providerId ?? get().provider);
-    set({ model: def.id, provider: def.provider, modelMenuOpen: false });
+    /*
+     * The HydraFusion sentinel is a ROUTING choice, never a model name.
+     *
+     * Storing it in `settings.models.providers[...].model` would make every
+     * request name a model no provider serves (404), and it would survive a
+     * restart as the "last model". Only the in-memory selection carries it; the
+     * persisted model stays whatever real model the reader had, which is also
+     * the fallback HydraFusion needs when a plan cannot run.
+     */
+    const hydra = pilihHydra(modelId);
+    set({ model: hydra ? HYDRA_MODEL_ID : def.id, provider: def.provider, modelMenuOpen: false });
 
     set((s) => ({
       sessions: s.sessions.map((x) =>
-        x.id === s.activeId ? { ...x, model: def.id, provider: def.provider } : x,
+        x.id === s.activeId ? { ...x, model: hydra ? HYDRA_MODEL_ID : def.id, provider: def.provider } : x,
       ),
     }));
     persist(get());
@@ -3481,10 +3503,12 @@ export const useAi = create<AiStore>((set0, get) => {
     await useStore.getState().applySettings({
       models: {
         activeProvider: def.provider,
-        providers: {
-          ...providers,
-          [def.provider]: { ...(providers[def.provider] ?? {}), model: def.id },
-        },
+        providers: hydra
+          ? providers
+          : {
+              ...providers,
+              [def.provider]: { ...(providers[def.provider] ?? {}), model: def.id },
+            },
       },
     });
   },
@@ -4947,7 +4971,20 @@ export const useAi = create<AiStore>((set0, get) => {
       return true;
     }
 
-    const def = findModel(get().model, get().provider);
+    let def = findModel(get().model, get().provider);
+    /*
+     * The same sentinel resolution as the agent path: `hydrafusion` is a
+     * routing signal, not a model any provider serves. Resolve it to the
+     * reader's configured model so the plan always has a real fallback.
+     */
+    const hydraAktif = pilihHydra(get().model);
+    if (hydraAktif) {
+      const s2 = useStore.getState().settings.models;
+      def = findModel(
+        (s2.providers[s2.activeProvider] ?? {}).model ?? get().model,
+        s2.activeProvider,
+      );
+    }
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
 
     /*
@@ -4965,7 +5002,7 @@ export const useAi = create<AiStore>((set0, get) => {
      * quiet and then printing a finished answer.
      */
     const hydraSet = bacaPengaturan(useStore.getState().settings.hydrafusion);
-    if (hydraSet.enabled) {
+    if (hydraAktif) {
       /* Candidates are the providers that are actually usable right now — a key
          AND an endpoint — and, for a free-text provider, the model the reader
          actually configured rather than the catalogue's placeholder row. See
@@ -5325,7 +5362,30 @@ export const useAi = create<AiStore>((set0, get) => {
     agentStopReason = null;
     resetAutoCompact();
 
-    const def = findModel(get().model, get().provider);
+    let def = findModel(get().model, get().provider);
+    /*
+     * HydraFusion is a PICKER ENTRY, not a hidden switch.
+     *
+     * When the reader selects it, the stored model is the `hydrafusion`
+     * sentinel — a name no provider serves. `findModel` would otherwise hand
+     * that string to the provider and every request would 404. Resolving it to
+     * the reader's configured model here keeps the sentinel purely a routing
+     * signal: HydraFusion still needs a real fallback model for plans that
+     * cannot run, and `def` is exactly that fallback everywhere below.
+     *
+     * `hydraAktif` is the single answer to "does HydraFusion route this turn?"
+     * and it is read from the SELECTION, never from `settings.hydrafusion.enabled`.
+     * The old flag-based gate is what made HydraFusion engage on its own for
+     * readers who never picked it.
+     */
+    const hydraAktif = pilihHydra(get().model);
+    if (hydraAktif) {
+      const s2 = useStore.getState().settings.models;
+      def = findModel(
+        (s2.providers[s2.activeProvider] ?? {}).model ?? get().model,
+        s2.activeProvider,
+      );
+    }
     const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
 
     const history: AgentMsg[] = [];
@@ -5475,7 +5535,7 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     const hydraSet = bacaPengaturan(useStore.getState().settings.hydrafusion);
     let hydraRencana: ReturnType<typeof rencanaHydra> | null = null;
-    if (hydraSet.enabled) {
+    if (hydraAktif) {
       const kandidat = kandidatHydra(
         useStore.getState().settings.models.providers,
         (id) => get().hasKey(id),
@@ -7972,6 +8032,22 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     if (hydraRencana) {
       const pakai = jumlahkanPemakaian(hydraPemakaian);
+      const ringkasHydra = {
+        jalur: hydraRencana.jalur,
+        provider: hydraDipakai.provider,
+        model: hydraDipakai.model,
+        request: 1 + hydraEskalasi.length,
+        berhenti: agentFailure ? 'gagal' : agentBatal ? 'batal' : 'selesai',
+        pemakaian: pakai,
+        catatanTahap: [
+          `rung: ${hydraDipakai.model} (${hydraRencana.tingkat})`,
+          ...(hydraKritik !== null
+            ? [`critique: ${hydraPutusan ?? 'tak-terbaca'}`]
+            : hydraRencana.jalur === 'kritik-revisi'
+              ? ['critique: not run (nothing to review)']
+              : []),
+        ],
+      };
       set({
         hydraTahap: null,
         hydraTerakhir: {
@@ -8001,6 +8077,20 @@ export const useAi = create<AiStore>((set0, get) => {
            */
           pemakaian: pakai,
         },
+        /*
+         * The same facts on the bubble itself, so the receipt sits under the
+         * answer it explains. `hydraTerakhir` alone only describes the NEWEST
+         * run: scrolling back would print the newest route beside every older
+         * answer. Written only when this turn actually ran a plan.
+         */
+        sessions: get().sessions.map((x) =>
+          x.id === sessionId
+            ? {
+                ...x,
+                messages: x.messages.map((m) => (m.id === botMsg.id ? { ...m, hydra: ringkasHydra } : m)),
+              }
+            : x,
+        ),
       });
     }
 

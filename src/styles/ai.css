@@ -2289,6 +2289,23 @@
   background: var(--bg-elevated);
   border-color: var(--border);
 }
+
+/* The receipt of a HydraFusion turn: what routed it and what it spent.
+   Sits in the collapsed action row, so it costs no vertical space. */
+.ai-msg-hydra {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: help;
+}
+.ai-msg-hydra:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
 @keyframes ai-blink {
   50% {
     opacity: 0.25;
