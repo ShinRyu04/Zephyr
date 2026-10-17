@@ -54,6 +54,17 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const setToast = useAi((s) => s.setToast);
   const isShell = SHELL_LANGS.has(lang);
 
+  /*
+   * `kotak` is a BOX, not code.
+   *
+   * The model produces it with the `kotak` tool: a title, an optional one-line
+   * summary, then rows of `label | value`. Rendering it through the code path
+   * would give it a language chip, Apply/Insert/Copy buttons and monospace - all
+   * wrong for what is a formatted answer block. So it is drawn as its own thing
+   * and returns before any of that machinery runs.
+   */
+  if (lang === 'kotak') return <KotakKotak teks={code} />;
+
   const [pratinjau, setPratinjau] = useState<DiffRow[] | null>(null);
 
   const terapkan = () => {
@@ -231,6 +242,55 @@ const MdTabel: NonNullable<Components['table']> = ({ children }) => (
 );
 
 const KODE_LANG = /language-([\w-]+)/;
+
+/**
+ * A `kotak` block: title, optional summary, then `label | value` rows.
+ *
+ * The parser lives HERE rather than in the tool because the tool's job is to
+ * emit a string and this component's job is to read it - two places that both
+ * parse would be two places to disagree. A row without `|` is a SECTION heading,
+ * which is what lets one box group a long list without nesting.
+ *
+ * Malformed input never throws: a fence the model wrote by hand (wrong separator,
+ * stray text) degrades to the plain lines it actually contains, because a broken
+ * box is worse than an unstyled one.
+ */
+function KotakKotak({ teks }: { teks: string }) {
+  const baris = teks.split(/\r?\n/);
+  const pisah = baris.findIndex((b) => b.trim() === '---');
+  const kepala = (pisah >= 0 ? baris.slice(0, pisah) : baris).filter((b) => b.trim());
+  const isi = pisah >= 0 ? baris.slice(pisah + 1).filter((b) => b.trim()) : [];
+  const judul = kepala[0] ?? '';
+  const ringkas = kepala.slice(1).join(' ');
+
+  return (
+    <div className="ai-kotak" data-testid="ai-kotak">
+      <div className="ai-kotak-head">
+        <span className="ai-kotak-judul">{judul}</span>
+        {ringkas && <span className="ai-kotak-ringkas">{ringkas}</span>}
+      </div>
+      <div className="ai-kotak-isi">
+        {isi.map((b, i) => {
+          /* Split on the FIRST unescaped pipe: a value may itself contain one. */
+          const m = /^(.*?[^\\])\|(.*)$/.exec(b);
+          if (!m) {
+            return (
+              <div className="ai-kotak-bagian" key={i}>
+                {b.replace(/\\\|/g, '|')}
+              </div>
+            );
+          }
+          return (
+            <div className="ai-kotak-baris" key={i}>
+              <span className="ai-kotak-label">{m[1].replace(/\\\|/g, '|').trim()}</span>
+              <span className="ai-kotak-nilai">{m[2].replace(/\\\|/g, '|').trim()}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Narration between tool rows.

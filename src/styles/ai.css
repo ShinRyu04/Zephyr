@@ -2381,6 +2381,74 @@
 .ai-body th {
   background: var(--surface-2);
 }
+
+/*
+ * `kotak` - the formatted answer box the `kotak` tool produces.
+ *
+ * A bordered card with a title strip, then rows of label/value. The label column
+ * is fixed-width and the value takes the rest, so a long value WRAPS inside the
+ * panel instead of forcing a horizontal scroll the way a table does.
+ *
+ * Colours are theme tokens only: this sits in the transcript next to code cards
+ * and diff rows, and a hard-coded tint would be the one block that ignores the
+ * reader's theme.
+ */
+.ai-kotak {
+  margin: 0 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.ai-kotak-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.ai-kotak-judul {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.ai-kotak-ringkas {
+  font-size: 11.5px;
+  color: var(--text-muted, var(--text-secondary));
+}
+.ai-kotak-isi {
+  display: flex;
+  flex-direction: column;
+}
+.ai-kotak-baris {
+  display: grid;
+  grid-template-columns: minmax(88px, 34%) 1fr;
+  gap: 10px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+/* The first row sits directly under the header, which already draws a border. */
+.ai-kotak-baris:first-child {
+  border-top: none;
+}
+.ai-kotak-label {
+  color: var(--text-secondary);
+}
+.ai-kotak-nilai {
+  color: var(--text);
+  /* Long values wrap; they must not push the panel sideways. */
+  overflow-wrap: anywhere;
+}
+/* A row with no value groups the rows under it - not a data row. */
+.ai-kotak-bagian {
+  padding: 6px 10px 3px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, var(--text-secondary));
+}
 .ai-inline {
   font-family: var(--font-mono);
   font-size: 11.5px;

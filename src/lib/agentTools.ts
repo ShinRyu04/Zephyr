@@ -16,6 +16,7 @@ import { TOOL_BAWAAN } from './zephyrTools/builtins';
 import { TOOL_ZEPHYR_SELF } from './zephyrTools/zephyrSelf';
 import { tunjukTool as TOOL_TUNJUK } from './zephyrTools/tunjuk';
 import { TOOL_BROWSER, TOOL_BROWSER_LAMA } from './zephyrTools/browser';
+import { kotakTool as TOOL_KOTAK } from './zephyrTools/kotak';
 import { TOOL_WEB_SATU, TOOL_WEB_LAMA } from './zephyrTools/webSatu';
 import { TOOL_INGAT } from './zephyrTools/zephyrIngat';
 import { TOOL_MCP } from './zephyrTools/mcp';
@@ -93,6 +94,15 @@ export const AGENT_TOOLS: AgentTool[] = [
    * bukan datang sebagai kalimat yang terdengar yakin.
    */
   TOOL_TUNJUK,
+  /*
+   * `kotak` - jawaban sebagai kotak, bukan paragraf.
+   *
+   * Instruksi "jawab pakai kotak" adalah permintaan yang bisa dilewati model saat
+   * terdesak; tool adalah bentuk yang harus diisi, dan hasilnya divalidasi
+   * sebelum dikembalikan - kotak tanpa baris ditolak di sini, bukan ditampilkan
+   * sebagai bingkai kosong ke pembaca.
+   */
+  TOOL_KOTAK,
   ...TOOL_MCP,
   /*
    * `browser` replaces the seven `browser_*` entries.
