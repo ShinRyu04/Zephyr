@@ -1455,6 +1455,15 @@ export interface PaneInfo {
   label: string;
   url: string;
   title: string;
+  /**
+   * Whether the child webview is currently shown.
+   *
+   * The pane is a native child window that always paints above the HTML, so a
+   * menu can only appear over it while the pane is HIDDEN. This is the
+   * observable fact behind the overlay fix — `verify-agen-fix.mjs` asserts it,
+   * instead of trusting the frontend effect that calls `browser_pane_visible`.
+   */
+  visible: boolean;
 }
 
 export const browserPaneOpen = (opts: {
@@ -1511,6 +1520,18 @@ export const webSearch = (query: string, maxResults?: number) =>
   invoke<HasilCari[]>('web_search', { query, maxResults });
 export const browserPaneCursor = (paneId: string, selector: string) =>
   invoke<string>('browser_pane_cursor', { paneId, selector });
+
+/** Open WebView2 DevTools for a browser pane (the child webview's own tools). */
+export const browserPaneDevtools = (paneId: string) =>
+  invoke<boolean>('browser_pane_devtools', { paneId });
+
+/** Zoom the pane's page. 1 = 100%. */
+export const browserPaneZoom = (paneId: string, faktor: number) =>
+  invoke<boolean>('browser_pane_zoom', { paneId, faktor });
+
+/** Drop cookies / cache / storage for the pane's origin. */
+export const browserPaneClearData = (paneId: string) =>
+  invoke<boolean>('browser_pane_clear_data', { paneId });
 
 /** Dev Environment: what is actually installed. Read-only; never installs. */
 export interface DevenvRuntime {

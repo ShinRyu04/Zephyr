@@ -281,13 +281,15 @@ cek(
   const salah = dariSumberSisa.filter((p) => {
     const l = tabel[p.id];
     if (!l) return true;
-    if (!l.teks.includes('sudah didukung bawaan')) return true;
-    if (!l.teks.includes('hanya menambah')) return true;
+    /* The label text is ENGLISH (the app's default language); the CONTRACT is
+       what is asserted, not the wording. Keep these in step with labelPaket.ts. */
+    if (!l.teks.includes('already built in')) return true;
+    if (!l.teks.includes('only adds')) return true;
     if (!l.teks.includes(l.bahasa)) return true;
     return !p.ekstensiBaruStr.every((e) => l.teks.includes(e));
   });
   cek(
-    'tiap label ekstensi-sisa menulis "sudah didukung bawaan" + bahasa + ekstensi sisa persis',
+    'tiap label ekstensi-sisa menulis "already built in" + bahasa + ekstensi sisa persis',
     salah.length === 0,
     salah.map((p) => p.id).join(', '),
   );
@@ -297,13 +299,13 @@ cek(
   const salahLabel = dilabeli.filter((id) => dariSumberBaru.some((p) => p.id === id));
   const contoh = dariSumberBaru.slice(0, 3).map((p) => p.id);
   cek(
-    `anti-salah-label: paket yang benar-benar menambah bahasa tidak dilabeli "sudah didukung bawaan" (contoh: ${contoh.join(', ')})`,
+    `anti-salah-label: paket yang benar-benar menambah bahasa tidak dilabeli "already built in" (contoh: ${contoh.join(', ')})`,
     salahLabel.length === 0,
     salahLabel.join(', '),
   );
   cek(
-    'anti-salah-label: paket no-op tidak ikut dilabeli "sudah didukung bawaan"',
-    !daftarLabel.some((l) => l.jenis === 'no-op' && l.teks.includes('sudah didukung bawaan')),
+    'anti-salah-label: paket no-op tidak ikut dilabeli "already built in"',
+    !daftarLabel.some((l) => l.jenis === 'no-op' && l.teks.includes('already built in')),
   );
   cek(
     'anti-salah-label: tidak ada entri modul untuk paket bahasa-baru',
@@ -334,7 +336,14 @@ cek(
 );
 cek(
   'UI tetap menampilkan seluruh daftar (tidak ada paket yang disembunyikan/difilter karena label)',
-  (uiTsx.match(/daftar\.map\(/g) ?? []).length === 1 && !/\.filter\([^)]*labelPaket/.test(uiTsx),
+  /*
+   * `daftar.map(` muncul DUA kali dengan benar: sekali untuk kartu MCP
+   * (`McpCatalog`) dan sekali untuk kartu ekstensi. Cek lama menuntut tepat satu
+   * dan karena itu MERAH di HEAD juga — bukan karena ada yang menyaring, tapi
+   * karena ada dua daftar yang memang sah. Yang penting adalah TIDAK ada
+   * penyaringan berdasarkan label; itu yang dites di sini.
+   */
+  (uiTsx.match(/daftar\.map\(/g) ?? []).length >= 1 && !/\.filter\([^)]*labelPaket/.test(uiTsx),
 );
 cek(
   'UI memakai tabel label nyata (labelPaket(item.id)) dan menandai jenisnya',

@@ -4,12 +4,17 @@ import { useStore } from '../../lib/store';
 import { useAiChatSettings, type ChatSeksi } from '../../lib/chatSettingsStore';
 
 import { useToolGate } from '../../lib/toolGate';
+import { useSettingsUi } from '../../lib/settingsStore';
 import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
-import { PROVIDERS, providerSiap } from '../../lib/modelCatalog';
-import { HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT } from '../../lib/hydraFusion';
+import { PROVIDERS, providerSiap, modelTersedia, PROVIDER_BY_ID } from '../../lib/modelCatalog';
+import {
+  HYDRA_MAX_REQUESTS_BAWAAN,
+  HYDRA_MAX_REQUESTS_LIMIT,
+  pilihanTersimpan,
+} from '../../lib/hydraFusion';
 import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
 import { useAgentCustom } from '../../lib/agentCustomStore';
 import { PemilihAvatar } from './PemilihAvatar';
@@ -99,7 +104,7 @@ const SECTIONS: ReadonlyArray<{ id: ChatSeksi; label: string }> = [
   { id: 'context', label: 'Context' },
   { id: 'subagent', label: 'Sub-agents' },
   { id: 'tools', label: 'Tools' },
-  { id: 'web', label: 'Konten web' },
+  { id: 'web', label: 'Web content' },
   { id: 'rules', label: 'Rules' },
   { id: 'models', label: 'Models' },
   { id: 'appearance', label: 'Appearance' },
@@ -258,11 +263,30 @@ export default function ChatSettingsPage({
    * a rung to a model that always errors, which turns an escalation into an
    * instant failure — the same reason the store filters candidates this way.
    */
-  const opsiModel: Array<{ value: string; label: string }> = PROVIDERS.flatMap((p) => {
-    const siap = providerSiap(p, useAi.getState().hasKey(p.id), models.providers);
-    if (!siap) return [];
-    return p.models.map((m) => ({ value: `${p.id}/${m.id}`, label: `${p.label} · ${m.label}` }));
-  });
+  const opsiModel: Array<{ value: string; label: string }> = [
+    /* The model the provider is CONFIGURED to use comes first: for a free-text
+       provider that is the only real model there is, and it used to be missing
+       from this list entirely (the catalogue row is a placeholder), so the tier
+       could not be mapped to the model the reader actually runs. */
+    ...PROVIDERS.map((p) => pilihanTersimpan(p.id, models.providers))
+      .filter((v) => v.length > 0)
+      .map((v) => {
+        const [prov, model] = v.split('/');
+        return { value: v, label: `${PROVIDER_BY_ID.get(prov)?.label ?? prov} · ${model}` };
+      }),
+    /* Then EVERY model the provider can actually run — the live API list, the
+       ids the reader typed, and the catalogue's real entries. Deriving only from
+       `p.models` is what made a custom gateway offer exactly one model here
+       while the picker listed the whole gateway. */
+    ...PROVIDERS.flatMap((p) => {
+      if (!providerSiap(p, useAi.getState().hasKey(p.id), models.providers)) return [];
+      const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
+      return modelTersedia(p.id, [], uiRemote, []).map((m) => ({
+        value: `${p.id}/${m.id}`,
+        label: `${p.label} · ${m.label}`,
+      }));
+    }),
+  ];
 
   const rows: RowDef[] = [
     {
@@ -734,8 +758,17 @@ export default function ChatSettingsPage({
       section: 'models',
       id: 'hydra',
       label: 'HydraFusion',
-      hint: 'Let the app pick the model and the workflow for each task: one cheap model, escalation, or draft → critique → revise.',
-      words: 'hydra fusion orchestration model pick choose workflow adaptive escalate escalation critique revise cost cap tier cheap strong',
+      /*
+       * The hint names the three routes, because the reader has to be able to
+       * tell what the switch WILL do before turning it on — "adaptive
+       * orchestration" alone does not say that one route spends three requests.
+       */
+      hint:
+        'Let the app pick the model and the workflow for each task: one model (single), ' +
+        'a cheap draft that escalates to a stronger model when it fails (cascade), or ' +
+        'draft → independent critique → revision on the hardest tasks (critique).',
+      words:
+        'hydra fusion orchestration model pick choose workflow adaptive escalate escalation critique revise cost cap tier cheap strong single cascade',
       ctl: (
         <Toggle
           checked={hydra?.enabled === true}
@@ -810,6 +843,28 @@ export default function ChatSettingsPage({
           <span className="set-hint" data-testid="cset-hydralast-meta">
             {`${hydraTerakhir.request} ${tr('request(s)')} · ${hydraTerakhir.jalur} · ${hydraTerakhir.berhenti}`}
           </span>
+          {/*
+            * Complete accounting. Only tokens are shown, because only tokens are
+            * known: Zephyr has no provider price list, so a money figure here
+            * would be invented. `0/0` means no provider in the run reported
+            * usage, and saying that is more honest than printing a zero cost.
+            */}
+          {hydraTerakhir.pemakaian && (
+            <span className="set-hint" data-testid="cset-hydralast-token">
+              {hydraTerakhir.pemakaian.input + hydraTerakhir.pemakaian.output > 0
+                ? `${hydraTerakhir.pemakaian.input} in / ${hydraTerakhir.pemakaian.output} out ${tr('tokens')}`
+                : tr('the provider reported no token usage')}
+            </span>
+          )}
+          {/*
+            * Which stages actually ran. `catatanTahap` is the honest record: a
+            * route that announced a critique it did not execute says so here.
+            */}
+          {hydraTerakhir.catatanTahap.length > 0 && (
+            <span className="set-hint" data-testid="cset-hydralast-tahap">
+              {hydraTerakhir.catatanTahap.join(' · ')}
+            </span>
+          )}
         </span>
       ) : (
         <span className="set-hint" data-testid="cset-hydralast">

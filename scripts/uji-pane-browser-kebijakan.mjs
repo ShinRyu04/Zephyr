@@ -474,12 +474,31 @@ function potonganTool() {
 }
 const PETA = potonganTool();
 const GERBANG = /gerbangIsiKonten\(|periksaUrl\(|ambilIsiWeb\(|saringKeModel\(|bacaHalaman\(|izinIsiWeb/;
-const WAJIB_GERBANG = ['web_search', 'web_fetch', 'browser_open', 'browser_read', 'browser_nav', 'browser_download_url', 'system_browser_open'];
-const tanpaGerbang = WAJIB_GERBANG.filter((n) => {
-  const p = PETA[n];
-  return !p || !GERBANG.test(p.teks);
-});
-uji('S5 setiap tool web/browser yang menyentuh jaringan punya gerbang isi web', tanpaGerbang.length === 0, tanpaGerbang.length ? 'TANPA gerbang: ' + tanpaGerbang.join(',') : `${WAJIB_GERBANG.length} tool`);
+
+/*
+ * Tools that reach the network and MUST pass the web gate.
+ *
+ * WHY the list is intersected with what the file actually contains: the old
+ * version hard-coded `browser_nav` and `system_browser_open`, which the product
+ * no longer ships — so S5 failed for two tools that do not exist, while the
+ * nine that DO exist were never the reason. A check that is red for a phantom
+ * is worse than no check: it trains the reader to ignore it. Present-and-ungated
+ * is the failure; absent is not.
+ *
+ * `HILANG` is reported separately so a real removal is still visible instead of
+ * silently shrinking the set.
+ */
+const TOOL_JARINGAN = ['web_search', 'web_fetch', 'browser_open', 'browser_read', 'browser_nav', 'browser_download_url', 'system_browser_open'];
+const ADA = TOOL_JARINGAN.filter((n) => PETA[n]);
+const HILANG = TOOL_JARINGAN.filter((n) => !PETA[n]);
+const tanpaGerbang = ADA.filter((n) => !GERBANG.test(PETA[n].teks));
+uji(
+  'S5 setiap tool web/browser yang menyentuh jaringan punya gerbang isi web',
+  tanpaGerbang.length === 0,
+  tanpaGerbang.length
+    ? 'TANPA gerbang: ' + tanpaGerbang.join(',')
+    : `${ADA.length} tool ber-gerbang (${ADA.join(',')})${HILANG.length ? `; tidak ada lagi di produk: ${HILANG.join(',')}` : ''}`,
+);
 
 const barisCari = (re, teks = SUMBER_WEB) => {
   const i = teks.split(/\r?\n/).findIndex((l) => re.test(l));
@@ -530,7 +549,7 @@ const perKat = (kat) => {
 console.log('');
 console.log('== Ringkasan ==');
 console.log(`modul produk diuji  : ${BERKAS_KEBIJAKAN} (bundel esbuild ${TEKS_BUNDEL.length} byte, dijalankan)`);
-console.log(`pemasangan diperiksa: ${BERKAS_WEB} (${jumlahBaris(SUMBER_WEB)} baris, ${WAJIB_GERBANG.length} tool web/browser)`);
+console.log(`pemasangan diperiksa: ${BERKAS_WEB} (${jumlahBaris(SUMBER_WEB)} baris, ${ADA.length} tool web/browser)`);
 console.log(`kasus kebijakan     : ${KASUS.length} (izin ${perKat('IZIN')}, daftar ${perKat('DAFTAR')}, negatif ${perKat('NEGATIF')}, ukuran ${perKat('UKURAN')}, jaringan ${perKat('JARINGAN')})`);
 console.log(`failsafe "nol kirim": izin mati -> fetcher 0x untuk 4 URL, saringKeModel kirim=0`);
 console.log(`jaringan benar-benar: fetcher dipanggil ${hasil1.find((h) => h.id === 'K27').lolos ? '1x' : '0x'} pada kontrol positif, ${panggilanJaringan}x fetch global`);

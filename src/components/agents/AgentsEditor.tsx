@@ -1,10 +1,12 @@
 import { Suspense, lazy } from 'react';
 import { useStore, useActiveTab } from '../../lib/store';
+import { useGit } from '../../lib/gitStore';
 import { useT } from '../../lib/i18n';
 import EditorTabBar from '../editor/EditorTabBar';
 import ZephyrLogo from '../shell/ZephyrLogo';
 
 const CodeMirrorEditor = lazy(() => import('../editor/CodeMirrorEditor'));
+const DiffViewer = lazy(() => import('../scm/DiffViewer'));
 
 /*
  * The editor half of the right column: a real editor, in the agents window.
@@ -38,12 +40,29 @@ export default function AgentsEditor({ tanpaBar = false }: { tanpaBar?: boolean 
   const tr = useT();
   const tab = useActiveTab();
   const adaTab = useStore((s) => s.tabs.length > 0);
+  /*
+   * A diff WINS over the plain editor.
+   *
+   * This is what makes clicking a row in Changes do something. `openDiff`
+   * (gitStore) only fills `diff` — it never opened a tab — and this half used
+   * to render `tabs` alone, so a changed file was selected and the editor stayed
+   * on its empty state. The main window shows a diff in `SplitEditor`
+   * (`SplitEditor.tsx:242,345`); the agents column had no equivalent, so the
+   * click was a no-op here. Rendering `DiffViewer` in the same half closes that
+   * gap, and Changes now also opens the real file (see `AgentsChanges`), so the
+   * diff can be dismissed and the file is still there.
+   */
+  const adaDiff = useGit((s) => s.diff !== null);
 
   return (
     <div className="ag-ed" data-testid="ag-editor">
       {!tanpaBar && <EditorTabBar />}
       <div className="ag-ed-body">
-        {!adaTab ? (
+        {adaDiff ? (
+          <Suspense fallback={null}>
+            <DiffViewer />
+          </Suspense>
+        ) : !adaTab ? (
           <div className="ag-ed-kosong" data-testid="ag-editor-empty">
             <ZephyrLogo size={34} />
             <p>{tr('Open a file from Files or Changes to see it here.')}</p>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useDragEverywhere } from '../../lib/useDragPopup';
+import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
 import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
 import { usePersona } from '../../lib/personaStore';
@@ -300,7 +301,7 @@ function Isi({ section }: { section: AgentCustomSection }) {
         <div className="agc-pane">
           <h2 className="agc-pane-title">{tr('Instructions')}</h2>
           <p className="agc-pane-desc">
-            {tr('Rules attached to a file pattern. Aturan repositori yang selalu menyala ada di AGENTS.md.')}
+            {tr('Rules attached to a file pattern. Repository-wide rules that are always on live in AGENTS.md.')}
           </p>
           <AgcInstructions />
         </div>
@@ -411,6 +412,17 @@ export default function AgentCustomModal() {
   const section = useAgentCustom((s) => s.section);
   const setSection = useAgentCustom((s) => s.setSection);
   const tutup = useAgentCustom((s) => s.tutup);
+  /*
+   * Escape closes it and Tab stays inside, like every other dialog in the app.
+   *
+   * This is the largest overlay Zephyr has (1280x880, eleven sections) and it
+   * was the only one without a keyboard exit: a reader who opened it from the
+   * Skills panel had to find the mouse to get out, and a modal left open by
+   * anything else then sat over the window with no way to dismiss it. The trap
+   * is armed only while `open` is true, so the Escape handler cannot leak into
+   * the editor after the dialog closes.
+   */
+  const trapRef = useFocusTrap<HTMLDivElement>({ aktif: open, onEscape: () => tutup() });
   const jumlahTool = useToolGate((s) => s.aktif.size);
   /* Fills the viewport instead of the fixed 1280x880 card. */
   const [besar, setBesar] = useState(false);
@@ -421,7 +433,13 @@ export default function AgentCustomModal() {
     <div className="modal-backdrop agc-backdrop" role="presentation" data-testid="agent-custom">
       <div
         className={`modal agc-modal${besar ? ' is-besar' : ''}`}
-        ref={popupRef}
+        ref={(el) => {
+          /* Both refs on one node: the focus trap keeps Tab inside and Escape
+             exits, the drag hook moves it. A wrapper would break the trap's own
+             bounds. */
+          trapRef.current = el;
+          popupRef.current = el;
+        }}
         style={{ transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))' }}
         onPointerDown={onPointerDown}
         role="dialog"

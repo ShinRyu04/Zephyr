@@ -543,13 +543,31 @@
   height: 100vh;
 }
 
+/*
+ * Maximised: the content column is allowed to USE the extra width.
+ *
+ * WHY, measured: the card already filled the viewport (1536x912), but
+ * `.cset-content .set-section` stayed pinned at `max-width: 980px`. Inside a
+ * 1338px content column that left ~360px of dead space on the right and pushed
+ * everything to the left — the reported "yang kiri ga ketimpa". Nothing was
+ * overlapping; the content was simply capped while the frame was not.
+ *
+ * The cap exists for the NORMAL card, where 980px is a good measure. Maximised
+ * there is no reason to keep it, so the section is released to the column's own
+ * width (which the card's padding already bounds).
+ */
+.cset-pop:has(.cset-page.is-besar) .cset-content .set-section {
+  max-width: none;
+}
+
 /* Give the three model tiers equal room in the popup instead of sizing each
    select to its longest option. At narrower widths they wrap cleanly. */
 .cset-hydra-tiers {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  width: min(100%, 720px);
+  width: 100%;
+  max-width: 720px;
   min-width: 0;
 }
 
@@ -558,12 +576,30 @@
   width: 100%;
 }
 
+/*
+ * The tier row STACKS: label and hint on top, the three selects underneath at
+ * full width.
+ *
+ * WHY, measured: side by side, the label column took 395px of the 980px row and
+ * the control only 565px, so each of the three selects was 176px wide. The
+ * selected value ("Custom (OpenAI-compatible)") is wider than that, and a native
+ * `<select>` clips its own displayed text with no ellipsis — which is the
+ * "Custom (OpenAI-compatib" the reader saw. `scrollWidth` on a `<select>` does
+ * not report option text, so this cannot be detected the usual way; the fix is
+ * simply to give the selects the width the text needs.
+ *
+ * Stacked, the grid gets the full 720px: ~234px per select, which fits the
+ * longest model name in the list.
+ */
 .cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .cset-content .set-row:has(> .set-row-control .cset-hydra-tiers) .set-row-control {
-  flex: 1 1 60%;
+  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGit } from '../../lib/gitStore';
+import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
 import * as cmd from '../../lib/commands';
 
@@ -33,11 +34,35 @@ export default function AgentsChanges() {
   const status = useGit((s) => s.status);
   const refresh = useGit((s) => s.refresh);
   const openDiff = useGit((s) => s.openDiff);
-
   const [numstat, setNumstat] = useState<Record<string, [number, number]>>({});
 
   const changes = useMemo(() => status?.changes ?? [], [status]);
   const isRepo = status?.isRepo ?? false;
+  const repoRoot = status?.repoRoot ?? null;
+
+  /*
+   * Clicking a changed file does TWO things, on purpose.
+   *
+   * 1. `openDiff` fills `gitStore.diff`, which the editor half renders as a
+   *    diff (see `AgentsEditor`). This is the click's primary meaning: "show me
+   *    what changed".
+   * 2. `openPath` opens the real file as a tab. Without it, closing the diff
+   *    left the column empty even though the reader had picked a file, and the
+   *    editor's own tab strip never saw the file. The diff is dismissed with the
+   *    DiffViewer's own close button, and the file underneath is what remains.
+   *
+   * The path is made absolute against the repo root because git reports it
+   * relative and `openPath`/Rust resolve against the workspace root, which is
+   * the repo root for the case this list is built for.
+   */
+  const buka = (c: { path: string; staged: boolean }) => {
+    void openDiff(c as Parameters<typeof openDiff>[0]);
+    const abs =
+      repoRoot && !/^[a-zA-Z]:[\\/]/.test(c.path)
+        ? `${repoRoot.replace(/[\\/]+$/, '')}\\${c.path.replace(/\//g, '\\')}`
+        : c.path;
+    void useStore.getState().openPath(abs);
+  };
 
   /* Recount whenever the file set changes — the counts belong to those exact
      files, and a stale "+92" next to a file that is now clean is a lie. */
@@ -103,7 +128,7 @@ export default function AgentsChanges() {
               className="ag-changes-row"
               data-testid={`ag-changes-${c.path}`}
               title={c.path}
-              onClick={() => void openDiff(c)}
+              onClick={() => buka(c)}
             >
               <span className="ag-changes-nama">
                 {nama}

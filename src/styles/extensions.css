@@ -467,6 +467,17 @@
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 15%, transparent);
 }
+/* Enabled/Disabled chip: the card's honest state, separate from the action
+   button. On = accent, Off = muted, so a disabled package is visible at a
+   glance instead of only being implied by the button's label. */
+.xc-tag.is-on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.xc-tag.is-off {
+  color: var(--text-muted);
+  background: var(--surface-3);
+}
 .xc-desc {
   font-size: 11px;
   line-height: 1.3;
@@ -708,6 +719,25 @@
   text-overflow: clip;
   font-size: 10.5px;
   color: var(--text-muted);
+}
+
+/*
+ * "Where did it go?" — the destination line under an installed MCP server.
+ *
+ * Wraps like the other notes: `.xc-desc` is `nowrap` + ellipsis (right for a
+ * one-line description), and this is a full sentence whose END is the useful
+ * part, so ellipsis would cut exactly the answer the line exists to give.
+ */
+.xc-mcp-tujuan {
+  grid-column: 1 / -1;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 2px;
 }
 
 /* Kategori MCP lebih panjang daripada kategori ekstensi ("Documentation"),

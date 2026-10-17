@@ -12,6 +12,7 @@ import {
   findModel,
   isPlaceholderModel,
   MODEL_BY_ID,
+  modelTersedia,
   PROVIDERS,
   PROVIDER_BY_ID,
   ProviderLogo,
@@ -48,7 +49,9 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const setAiModel = useAi((s) => s.setModel);
   const applySettings = useStore((s) => s.applySettings);
   const subCfg = useStore((s) => s.settings.subagent);
+  const hydraOn = useStore((s) => s.settings.hydrafusion?.enabled === true);
   const wrap = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const sub = target === 'subagent';
   const pfx = sub ? 'sub' : 'ai';
@@ -197,6 +200,39 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     for (const p of providerSiap) await loadRemote(p.id);
   };
 
+  /*
+   * Flip the menu to the button's RIGHT edge when opening left would leave the
+   * screen.
+   *
+   * WHY measured instead of a CSS class: the button sits in the chat header,
+   * which is at the window's right edge whenever the chat is docked right or
+   * maximised (measured: button x=1211 of a 1536 viewport). A 361px menu anchored
+   * to the button's LEFT edge ends at 1572 — 36px past the window — and the row
+   * badges are clipped. That is the reported "terlalu ujung ga kliatan". The old
+   * `.ai-panel.is-kanan` class cannot carry this fix: `AiPanel` hard-codes that
+   * class OFF so every home shares one layout.
+   *
+   * Measured at open time and written as an inline style, so it is right in all
+   * four homes (bottom dock, right column, editor tab, popped-out window) without
+   * a flag per home. It re-runs when the query changes because the result list
+   * (and so the menu's width) changes with it.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const el = menuRef.current;
+    const anchor = wrap.current;
+    if (!el || !anchor) return;
+    /* Start from the CSS default so a re-open cannot inherit the previous flip. */
+    el.style.left = '0';
+    el.style.right = 'auto';
+    const w = el.getBoundingClientRect().width;
+    const a = anchor.getBoundingClientRect();
+    if (a.left + w > window.innerWidth - 8) {
+      el.style.left = 'auto';
+      el.style.right = '0';
+    }
+  }, [open, cari, typed]);
+
   const commitTyped = (p: string) => {
     const v = typed.trim();
     if (!v) return;
@@ -271,34 +307,17 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     () =>
       providerSiap.map((p) => {
         const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
-        const live = [...(remote[p.id] ?? []), ...uiRemote].filter(
-          (id, i, a) => id && a.indexOf(id) === i,
-        );
-        const dariApi = live
-          .filter((id) => !MODEL_BY_ID.has(id) && !isPlaceholderModel(id))
-          .map((id) => ({ id, label: id, note: tr('from provider'), ctx: '' }));
-        const tersimpan = (saved[p.id] ?? [])
-          .filter((id) => !MODEL_BY_ID.has(id) && !live.includes(id) && !isPlaceholderModel(id))
-          // No note: a saved id IS the model name, and "saved" said nothing
-          // about it that the list position did not already say.
-          .map((id) => ({ id, label: id, note: '', ctx: '' }));
-        // The catalogue's "type a name" rows (`custom-model`, `local-default`)
-        // are prompts, not models: listing them made a dead click that wrote
-        // the placeholder into settings and 404'd on send.
-        const katalog = (p.models ?? [])
-          .filter((m) => !isPlaceholderModel(m.id))
-          .map((m) => ({
-            id: m.id,
-            label: m.label,
-            note: tr(m.note ?? ''),
-            ctx: m.ctx ? fmtCtx(m.ctx) : '',
-          }));
+        const items = modelTersedia(p.id, remote[p.id] ?? [], uiRemote, saved[p.id] ?? []).map((m) => ({
+          ...m,
+          note: m.note ? tr(m.note) : '',
+          ctx: m.ctx ? fmtCtx(m.ctx) : '',
+        }));
         return {
           provider: p.id,
           label: p.label,
           freeText: !!p.freeText,
-          perluPilih: !!p.freeText && dariApi.length + tersimpan.length + katalog.length === 0,
-          items: [...dariApi, ...tersimpan, ...katalog],
+          perluPilih: !!p.freeText && items.length === 0,
+          items,
         };
       }),
     [providerSiap, remote, saved, tr],
@@ -326,6 +345,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       {open && (
         <div
           className="ai-model-menu"
+          ref={menuRef}
           role="listbox"
           data-testid={`${pfx}-model-menu`}
           data-tahap={modeCari ? 'cari' : 'daftar'}
@@ -398,6 +418,37 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             </div>
           ) : (
             <>
+              {/*
+                * HydraFusion, when it is ON, is a first-class entry of this list.
+                *
+                * WHY it belongs in the PICKER and not only in Chat Settings: the
+                * reader thinks in terms of "which model answers this", and with
+                * HydraFusion enabled the honest answer is "the app decides". The
+                * setting alone left the picker still naming one model, so the
+                * column showed `custom · deepseek-chat` while a different model
+                * per stage was doing the work — the header contradicted what ran.
+                * Selecting this row leaves the model as it is (HydraFusion reads
+                * the whole list) and states the mode.
+                */}
+              {hydraOn && !sub && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  className="ai-model-item is-hydra"
+                  data-testid="ai-model-hydra"
+                  onClick={() => {
+                    void applySettings({ hydrafusion: { enabled: true } });
+                    setOpen(false);
+                  }}
+                >
+                  <span className="ai-mi-name">{tr('HydraFusion (auto)')}</span>
+                  <span className="ai-mi-badge">
+                    {tr('the app picks the model and the workflow per task')}
+                  </span>
+                </button>
+              )}
+
               {sub && (
                 <button
                   type="button"
