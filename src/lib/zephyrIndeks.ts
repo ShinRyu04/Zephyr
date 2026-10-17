@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6362 entri
- * (bridge=1, dokumen=121, ekstensi=17, kode=447, label=3084, layar=2088, menu=122, panel=22, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=49).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6375 entri
+ * (bridge=1, dokumen=121, ekstensi=17, kode=449, label=3084, layar=2099, menu=122, panel=22, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=49).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.14 · hash sumber: 3b956941aa175b99
+ * Versi app: 1.1.14 · hash sumber: 0b4215003c452370
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '3b956941aa175b99' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '0b4215003c452370' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -79,6 +79,7 @@ export const FAKTA_HASH_BERKAS: readonly string[] = [
   "src/components/agents/AgentsRight.tsx",
   "src/components/agents/AgentsSessions.tsx",
   "src/components/agents/AgentsTitlebar.tsx",
+  "src/components/agents/SessionContextMenu.tsx",
   "src/components/ai/AgentMap.tsx",
   "src/components/ai/AgentMapPanel.tsx",
   "src/components/ai/AiHost.tsx",
@@ -472,8 +473,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/agents/AgentsEditor.tsx","86 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsLayout.tsx","85 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsRight.tsx","489 baris · tanpa ekspor"],
-  ["kode","src/components/agents/AgentsSessions.tsx","216 baris · tanpa ekspor"],
+  ["kode","src/components/agents/AgentsSessions.tsx","384 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsTitlebar.tsx","239 baris · tanpa ekspor"],
+  ["kode","src/components/agents/SessionContextMenu.tsx","124 baris · ekspor: AksiSesi"],
   ["kode","src/components/ai/AgentMap.tsx","201 baris · ekspor: kelompokkanSubagent, IsiSubagent, AgentMap"],
   ["kode","src/components/ai/AgentMapPanel.tsx","506 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiHost.tsx","137 baris · tanpa ekspor"],
@@ -654,7 +656,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","29 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","9977 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
+  ["kode","src/lib/aiStore.ts","10174 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, …(+34)"],
   ["kode","src/lib/aiTabsStore.ts","113 baris · ekspor: CLI_TABS, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -703,6 +705,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/fileIcons.ts","103 baris · File-type icons for the composer's \"@\" picker, the editor gutter and the · ekspor: FileIkon, ikonFile, ikonFolder"],
   ["kode","src/lib/fileRefs.ts","142 baris · ekspor: FileRef, tokenAt, saringFile, muatFileWorkspace, lupakanFileWorkspace"],
   ["kode","src/lib/formatters.ts","113 baris · External formatters, chained on save. · ekspor: FormatterCmd, HasilFormat, berlaku, rangkaiFormat"],
+  ["kode","src/lib/gambarKecil.ts","176 baris · Shrink an image before it becomes an attachment. · ekspor: OpsiKecil, HasilKecil, adalahDataUrlGambar, kecilkanGambar"],
   ["kode","src/lib/ghostPemasok.ts","439 baris · ghostPemasok.ts — seam PENYEDIA saran inline (ghost text) untuk item 175. · ekspor: BATAS_PANJANG_SARAN, BATAS_KONTEKS_KARAKTER, BATAS_KONTEKS_BARIS, PANJANG_MINIMUM, PENANDA_RAHASIA, KunciKonteks, PermintaanSaran, UsulanInline, SaranMentah, PemasokSaran, potongKonteks, saringRahasia, potongSaran, bahasaNormal, PEMASOK_LOKAL, PEMASOK_MATI, setPemasokSaran, pemasokSaran, setGhostAktif, ghostAktif, aturUlangGhost, ambilSaran, KeadaanSaran, keadaanAwal, pasangSaran, HasilKeputusan, terimaSaran, tolakSaran"],
   ["kode","src/lib/ghostText.ts","438 baris · ekspor: lepasListenerGhost, buangGhost, ghostTextKeymap, ghostText, lepasGhost"],
   ["kode","src/lib/gitBars.ts","193 baris · Git change bars in the gutter — added, modified and deleted lines. · ekspor: JenisBaris, BarisUbah, parseDiff, barsField, gitBarGutter, setBarsEffect"],
@@ -776,7 +779,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/snippetStore.ts","386 baris · ekspor: KonteksVar, nilaiVariabel, parseBody, terjemahBody, konteksDari, keCompletion, sisipkanSnippet, useSnip"],
   ["kode","src/lib/sshArgv.ts","597 baris · sshArgv — penyusun argumen MURNI untuk ssh / scp / sftp. · ekspor: ModeSsh, KebijakanHostKey, TargetSsh, OpsiSsh, JalurSsh, KodeGalatSsh, GalatSsh, PORT_MIN, PORT_MAX, TIMEOUT_MS_BAWAAN, TIMEOUT_MS_MIN, TIMEOUT_MS_MAX, SERVER_ALIVE_DETIK, SERVER_ALIVE_MAKS, OPSI_DILARANG, OPSI_DIIZINKAN, hostSah, userSah, portSah, kunciSah, fingerprintSah, berkasOpsiSah, validasiTarget, kutipNilaiOpsi, kutipTokenRujukan, teksPerintah, jagaArgv, susunArgv, susunJalur, susunArgvJalankan, susunArgvSkripMentah, susunArgvSalin, teksArgv, FIELD_TERLARANG_DI_TARGET, targetMembawaRahasia"],
   ["kode","src/lib/sshRedaksi.ts","211 baris · sshRedaksi — penyaring rahasia untuk keluaran SSH dan catatan log. · ekspor: PENANDA, PENANDA_KUNCI_PRIVAT, AturanRedaksi, ATURAN_REDAKSI, DILARANG_LOG, BOLEH_LOG, sensorRahasia, namaAturanCocok, adaRahasia, sensorArgv, sensorUntukLog"],
-  ["kode","src/lib/store.ts","1776 baris · ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
+  ["kode","src/lib/store.ts","1789 baris · ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
   ["kode","src/lib/subagentCustom.ts","358 baris · ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
   ["kode","src/lib/subagentIcons.ts","236 baris · The icon set for custom sub-agents. · ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
   ["kode","src/lib/subagentRoles.ts","330 baris · ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
@@ -797,7 +800,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/themes.ts","331 baris · Tokens the Theme Builder may override. · ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
   ["kode","src/lib/toolGate.ts","564 baris · Sekat tool untuk agen di dalam editor. · ekspor: ToolSection, SECTION_URUTAN, sectionOf, EKSTENSI_ADA, ToolGroup, setToolEkstensi, grupEkstensi, namaToolEkstensi, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
   ["kode","src/lib/toolRules.ts","164 baris · Per-tool permission rules. · ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
-  ["kode","src/lib/types.ts","1994 baris · ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, …(+78)"],
+  ["kode","src/lib/types.ts","2003 baris · ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, …(+78)"],
   ["kode","src/lib/unduhInstal.ts","697 baris · UNDUH-INSTAL - jalur \"unduh -> periksa -> pasang\" untuk paket EKSTENSI. · ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, hitungBinding, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal"],
   ["kode","src/lib/updaterStore.ts","251 baris · ekspor: UpdateStatus, useUpdater, labelStatus"],
   ["kode","src/lib/useAiChunkListener.ts","48 baris · ekspor: useAiChunkListener"],
@@ -3964,7 +3967,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AgentsEditor","src/components/agents/AgentsEditor.tsx · 2 label: Open a file from Files or Changes to see it here., Select a tab to open it. · 3 data-testid: ag-editor, ag-editor-empty, ag-editor-nopick"],
   ["layar","AgentsLayout","src/components/agents/AgentsLayout.tsx · aria-label: Changes and files, Chat, Sessions · 3 data-testid: agents-layout, agents-left, agents-right"],
   ["layar","AgentsRight","src/components/agents/AgentsRight.tsx · 8 label: Browser, Changes, Close, Files, Open View, Search, Toggle Details, View Options · 14 data-testid: ag-body-editor, ag-body-list, ag-close-view, ag-maximize, ag-menu-more, ag-menu-plus, ag-open-browser, ag-open-changes, ag-open-files, ag-open-search, ag-right, ag-tab-more, ag-tab-plus, ag-toggle-details · teks: Ctrl+Shift+G · Ctrl+Shift+E · Ctrl+Shift+B · Ctrl+Shift+F"],
-  ["layar","AgentsSessions","src/components/agents/AgentsSessions.tsx · 6 label: Customizations, New, No conversations yet, Search, Sessions, Untitled · 5 data-testid: ag-cust-toggle, ag-customizations, ag-new-session, ag-sessions, ag-sessions-search"],
+  ["layar","AgentsSessions","src/components/agents/AgentsSessions.tsx · 7 label: Chats, Customizations, New, No conversations yet, Search, Sessions, Untitled · 8 data-testid: ag-cust-toggle, ag-customizations, ag-new-session, ag-sesi-grup-head, ag-sesi-pin, ag-sesi-rename-input, ag-sessions, ag-sessions-search"],
   ["layar","AgentsTitlebar","src/components/agents/AgentsTitlebar.tsx · 9 label: Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P), Go Back, Go Forward, Open in Editor, Open in Editor Window, Search files & commands…, Sign in to GitHub, Toggle changes and files column, Toggle sessions column · 8 data-testid: ag-command-center, ag-nav-back, ag-nav-forward, ag-open-editor, ag-tb-gh, ag-toggle-left, ag-toggle-right, agents-titlebar"],
   ["layar","AgentsWindow","src/AgentsWindow.tsx · 1 data-testid: agents-window-root"],
   ["layar","AiHost","src/components/ai/AiHost.tsx · 1 label: Agent · 4 data-testid: ai-host, ai-host-pane-chat, ai-host-tab-chat, ai-host-tabs"],
@@ -4011,6 +4014,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","ChatSettingsPage","src/components/ai/ChatSettingsPage.tsx · 40 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do…, Auto (from the model list), Chat Settings, Clear all chats…, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets…, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings…, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay · placeholder: http://localhost:7777 · 25 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace…"],
   ["layar","ChatSettingsPopup","src/components/ai/ChatSettingsPopup.tsx · aria-label: Chat Settings · 2 data-testid: cset-pop, cset-scrim"],
   ["layar","ChatStamp","src/components/ai/ChatStamp.tsx · 3 label: Today, Tomorrow, Yesterday · 2 data-testid: ai-day-div, ai-msg-time"],
+  ["layar","Chats","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
   ["layar","Choose a model: type a name below or press Refresh.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ModelSelector.tsx"],
   ["layar","Choose when Enter sends a prompt or inserts a new line","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Choose which reasoning levels appear in model controls. Availability varies by model","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
@@ -4066,7 +4070,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","ContextMeter","src/components/ai/ContextMeter.tsx · 12 label: Compact Conversation, Context usage, Context usage (estimate), Context used, Context window, Estimated cost, Estimated from the visible chat contents and tool payloads., Model, Reserved for response, Session Info, Session tokens, The cost is an estimate, not an official provider bill. · 8 data-testid: ctx-angka, ctx-biaya, ctx-compact, ctx-judul, ctx-meter, ctx-persen, ctx-pop, ctx-token-sesi"],
   ["layar","ContextRing","src/components/ai/ContextRing.tsx · 1 data-testid: ctx-ring"],
   ["layar","Conversation copied ({n} characters)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
+  ["layar","Copy session ID","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","Copy status","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+  ["layar","Copy title","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","Copy usage","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","Could not read the host from this address.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/AgentsBrowser.tsx"],
   ["layar","Could not save the skill. See the message above.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -4123,6 +4129,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Draft a hook from a description","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","Draft a skill from a description","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","Draft from this","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+  ["layar","Duplicate","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","Edit project memory","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","Edit the AGENTS.md file on the selected machine. Repository instructions may also apply.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Edit user memory","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -4343,6 +4350,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Pick a branch…","teks elemen di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar","Pick a model","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Pick an entry to preview and install it into ~/.claude.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+  ["layar","Pin","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","Pinned","label/label tanpa kamus di layar · dirender 1 berkas: src/components/editor/EditorTabBar.tsx"],
   ["layar","Plugins","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/CodexSettings.tsx, src/components/settings/AgcSections.tsx"],
   ["layar","Pop latest stash","teks elemen di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
@@ -4377,6 +4385,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Remove this server from Zephyr","label/label tanpa kamus di layar · dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar","Rename Symbol","aria-label di layar · dirender 1 berkas: src/components/editor/LspOverlay.tsx"],
   ["layar","Rename Tab","teks elemen di layar · dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
+  ["layar","Rename…","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","Replace all","teks elemen di layar · dirender 1 berkas: src/components/editor/FindBar.tsx"],
   ["layar","Requests served","teks elemen di layar · dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar","Reset now","teks elemen di layar · dirender 1 berkas: src/components/settings/SettingsNav.tsx"],
@@ -4429,6 +4438,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Separate window","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
   ["layar","Servers","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Session history","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/CliChat.tsx, src/components/ai/CodexChat.tsx"],
+  ["layar","SessionContextMenu","src/components/agents/SessionContextMenu.tsx · 7 label: Copy session ID, Copy title, Delete, Duplicate, Pin, Rename…, Unpin · 1 data-testid: ag-session-ctx"],
   ["layar","SessionsPanel","src/components/ai/SessionsPanel.tsx · 7 label: Delete, Hide sessions, New chat, No chats match., No chats yet., Search chats…, Sessions · 4 data-testid: ai-sessions-hide, ai-sessions-list, ai-sessions-panel, ai-sessions-search"],
   ["layar","SettingsControls","src/components/settings/SettingsControls.tsx · 1 label: (number)"],
   ["layar","SettingsNav","src/components/settings/SettingsNav.tsx · 5 label: All settings return to default. API keys are not deleted. Continue?, Are you sure? The theme, shortcuts, and all preferences will be lost., common.cancel, settings.resetAll, settings.title · 5 data-testid: set-reset, set-reset-c1, set-reset-c2, set-reset-yes1, set-reset-yes2 · teks: Reset now"],
@@ -4614,6 +4624,10 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","ag-open-files","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
   ["layar","ag-open-search","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
   ["layar","ag-right","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
+  ["layar","ag-sesi-grup-head","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
+  ["layar","ag-sesi-pin","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
+  ["layar","ag-sesi-rename-input","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
+  ["layar","ag-session-ctx","data-testid di layar · dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
   ["layar","ag-sessions","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
   ["layar","ag-sessions-search","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
   ["layar","ag-tab-more","data-testid di layar · dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
