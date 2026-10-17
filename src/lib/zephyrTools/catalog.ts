@@ -129,6 +129,15 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
      shell-nya sendiri; jadi satu pintu cukup, dan tiga nama tambahan itu hanya
      menambah pilihan yang harus ditebak model. */
   ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai (termasuk perintah latar)'],
+  /*
+   * Navigasi aplikasi: keluhan pembaca -> halaman yang benar-benar terbuka.
+   *
+   * `read` karena ia tidak mengubah berkas dan tidak menjalankan perintah; ia
+   * memindahkan layar, dan itu bisa dibatalkan pembaca dengan satu klik. Efeknya
+   * `appWrite` supaya gate tahu ia MENGUBAH keadaan aplikasi (panel/seksi aktif),
+   * bukan sekadar membaca.
+   */
+  ['tunjuk', 'Aplikasi', 'appWrite', false, 'Buka halaman atau panel yang pembaca maksud, dari keluhan berbahasa bebas'],
 
   /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
@@ -585,6 +594,13 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'zephyr_self',
   'tool_search',
   'tool_call',
+  /*
+   * `tunjuk` ikut SETIAP giliran karena pertanyaan "di mana X" bisa datang kapan
+   * saja, dan justru saat pembaca bingung. Kalau ia harus dicari dulu lewat
+   * `tool_search`, bantuannya datang dua langkah terlambat - dan pembaca yang
+   * tidak tahu letaknya juga tidak akan tahu harus menunggu.
+   */
+  'tunjuk',
   /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,

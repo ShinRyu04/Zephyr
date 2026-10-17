@@ -14,6 +14,7 @@
 import type { AgentToolSpec } from './types';
 import { TOOL_BAWAAN } from './zephyrTools/builtins';
 import { TOOL_ZEPHYR_SELF } from './zephyrTools/zephyrSelf';
+import { tunjukTool as TOOL_TUNJUK } from './zephyrTools/tunjuk';
 import { TOOL_INGAT } from './zephyrTools/zephyrIngat';
 import { TOOL_MCP } from './zephyrTools/mcp';
 import { TOOL_WEB } from './zephyrTools/web';
@@ -80,6 +81,16 @@ export const AGENT_TOOLS: AgentTool[] = [
    * dari akar yang ditebak.
    */
   TOOL_BACA_KODE,
+  /*
+   * `tunjuk` - keluhan pembaca jadi halaman yang TERBUKA.
+   *
+   * Bukan `peta` dan bukan `run_command`: keduanya sudah ada, dan merangkainya
+   * berarti model harus menerjemahkan "AI-nya boros token" jadi nama seksi
+   * sendiri - langkah yang justru sering salah. Tool ini menerjemahkan lalu
+   * membuka, jadi jawaban yang salah langsung terlihat (halaman keliru terbuka),
+   * bukan datang sebagai kalimat yang terdengar yakin.
+   */
+  TOOL_TUNJUK,
   ...TOOL_MCP,
   ...TOOL_WEB,
 ];
