@@ -8,6 +8,9 @@ import { useStore } from './lib/store';
 const AiPanel = lazy(() => import('./components/ai/AiHost'));
 const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
 const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
+/* Separate WebView, separate stores: the main window's centre cannot draw here.
+   See the same note in AgentsWindow.tsx. */
+const NotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
 
 /**
  * The pop-out AI window (Copilot "Move Chat into New Window").
@@ -56,6 +59,9 @@ export default function AiWindow() {
       </Suspense>
       <Suspense fallback={null}>
         <Toast />
+      </Suspense>
+      <Suspense fallback={null}>
+        <NotificationCenter />
       </Suspense>
       <LiveRegion />
     </div>
