@@ -80,6 +80,10 @@ export const IKON_CMD: Record<IkonCmd, string> = {
   // Question mark in a ring: the help card.
   bantuan: 'M8 2.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11z M6.4 6.4a1.7 1.7 0 113 1.1c-.6.5-1.4.8-1.4 1.7 M8 11.3v.1',
 
+  // Window frame with a globe inside: a page shown inside Zephyr, not the
+  // system browser. The frame is what tells it apart from a plain link glyph.
+  browser: 'M2 3.5h12v9H2z M2 6h12 M8 7.6a2.1 2.1 0 100 4.2 2.1 2.1 0 000-4.2z M6.2 7.8h3.6 M6.2 11.6h3.6',
+
   // Speech bubble pushed to the side: an aside, not the main thread.
   sisip: 'M2 4h9v6H6l-2.5 2.5V10H2z M12.5 2.5l2 2 M13 6.5h2.5',
 };
@@ -126,6 +130,7 @@ export const WARNA_CMD: Record<IkonCmd, string> = {
   jadwal: 'var(--syn-variable)',
   riwayat: 'var(--syn-function)',
   bantuan: 'var(--accent)',
+  browser: 'var(--accent)',
   sisip: 'var(--text-secondary)',
 };
 

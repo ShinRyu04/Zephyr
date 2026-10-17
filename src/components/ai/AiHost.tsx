@@ -19,7 +19,7 @@ const CliSessionTab = lazy(() => import('./CliSessionTab'));
  * is kept MOUNTED when a CLI tab is in front (hidden with CSS, not unmounted),
  * so switching back is instant and a streaming answer is never thrown away.
  */
-export default function AiHost() {
+export default function AiHost({ composerId = '' }: { composerId?: string }) {
   const tr = useT();
   const active = useAiTabs((s) => s.active);
   const setActive = useAiTabs((s) => s.setActive);
@@ -121,7 +121,7 @@ export default function AiHost() {
           data-testid="ai-host-pane-chat"
           hidden={current !== 'chat'}
         >
-          <AiPanel />
+          <AiPanel composerId={composerId} />
         </div>
         {current !== 'chat' && (
           <div className="ai-host-pane" data-testid={`ai-host-pane-${current}`}>

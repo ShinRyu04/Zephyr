@@ -14,6 +14,20 @@ import { fokusEditorWindow } from './lib/agentsWindow';
 const AgentsLayout = lazy(() => import('./components/agents/AgentsLayout'));
 const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
 const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
+/*
+ * The notification centre is a SEPARATE mount per window, not a global.
+ *
+ * Each pop-out is its own WebView with its own zustand instances, so the main
+ * window's `<NotificationCenter/>` cannot draw here. Without this mount a run
+ * that finished while the reader was away did notify - `aiStore` pushes the
+ * notification when the window is unfocused - and the notification went into
+ * this window's store where nothing rendered it. The toast that did appear
+ * disappears after a few seconds, so the history was effectively lost.
+ *
+ * Lazy like the rest: the panel is only mounted on screen when the bell is
+ * clicked, and the module is small.
+ */
+const NotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
 
 /**
  * The "Open in Agents" window — Zephyr's 3-column agents workspace.
@@ -199,6 +213,9 @@ export default function AgentsWindow() {
       </Suspense>
       <Suspense fallback={null}>
         <Toast />
+      </Suspense>
+      <Suspense fallback={null}>
+        <NotificationCenter />
       </Suspense>
       {/*
         * Unsaved-close confirmation, for both ways a file is opened here:

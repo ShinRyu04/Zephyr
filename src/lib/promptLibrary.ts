@@ -18,6 +18,7 @@ export interface PromptItem {
     | 'jadwal'
     | 'riwayat'
     | 'bantuan'
+    | 'browser'
     | 'btw';
   /**
    * Glyph id for the command list.
@@ -60,6 +61,8 @@ export type IkonCmd =
   | 'jadwal'
   | 'riwayat'
   | 'bantuan'
+  /* The browser pane: a window inside Zephyr, not a page in the system browser. */
+  | 'browser'
   /* Off-topic aside: a side note that should not derail the thread. */
   | 'sisip';
 
@@ -181,6 +184,13 @@ export const BUILTIN_PROMPTS: PromptItem[] = [
     body: '',
     aksi: 'bantuan',
     ikon: 'bantuan',
+  },
+  {
+    cmd: 'browser',
+    label: 'Buka panel browser',
+    body: '',
+    aksi: 'browser',
+    ikon: 'colok',
   },
   {
     cmd: 'btw',

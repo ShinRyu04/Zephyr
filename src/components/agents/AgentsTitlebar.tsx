@@ -6,6 +6,7 @@ import { useT } from '../../lib/i18n';
 import { fokusEditorWindow } from '../../lib/agentsWindow';
 import Tip from '../shell/Tip';
 import WindowControls from '../shell/WindowControls';
+import { NotifBell } from '../notifications/NotificationCenter';
 
 /** Last path segment, for the folder name shown in the middle of the bar. */
 function namaFolder(p: string | null | undefined): string {
@@ -176,6 +177,20 @@ export default function AgentsTitlebar({
       </div>
 
       <div className="ag-tb-right">
+        {/*
+          * The bell, so the notification centre can actually be OPENED here.
+          *
+          * Mounting `<NotificationCenter/>` alone was not enough: the panel only
+          * renders while `centerOpen` is true, and the only control that flips
+          * it lived in the main window's status bar. In this window the
+          * notifications were recorded and unreachable - the reader would have
+          * had to go back to the editor to see that a run had finished.
+          *
+          * `NotifBell` is the same component the status bar uses, so the unread
+          * count, the DND state and the badge behaviour are identical.
+          */}
+        <NotifBell />
+
         <button
           className={`ag-tb-btn${kananBuka ? ' is-on' : ''}`}
           data-testid="ag-toggle-right"
