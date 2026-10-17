@@ -1,0 +1,144 @@
+/*
+ * Floating panel frame for Settings, Extensions and Dev Tools.
+ *
+ * These three used to replace the whole editor area. The reader lost the file
+ * they were reading to look at a preference, and getting back meant finding the
+ * tab they had. They now float over the work, like VS Code's Settings and Zed's
+ * centred panels: the editor stays visible behind the scrim, Escape closes, a
+ * click outside closes.
+ *
+ * Everything here is scoped to `.mpop*` so it cannot leak into the pages it
+ * hosts. The pages themselves are unchanged - same sections, same controls - so
+ * a setting can never exist in one home and not the other.
+ */
+
+.mpop-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  background: color-mix(in srgb, var(--bg0) 52%, transparent);
+  backdrop-filter: blur(3px) saturate(0.92);
+  -webkit-backdrop-filter: blur(3px) saturate(0.92);
+}
+
+.mpop {
+  position: fixed;
+  z-index: 701;
+  top: 50%;
+  left: 50%;
+  /*
+   * Centred with `left`/`top` + calc, and the DRAG transform is added on top.
+   *
+   * The element's own `transform` is what `useDragPopup` writes to, so the
+   * centring cannot also live there - an inline `transform` replaces the
+   * stylesheet's, and a `translate(-50%, -50%)` that centred the box was
+   * silently dropped. The overrides below are the whole reason the frame is
+   * built on `--drag-x`/`--drag-y`.
+   */
+  margin-left: -50%;
+  margin-top: -50%;
+  max-width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg1);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+
+/*
+ * The centring trick above needs `left: 50%` plus a negative margin of half the
+ * box. Because the box width is set inline with `min(...)`, the margin cannot
+ * know it - so instead of `margin-left: -50%` (which resolves against the
+ * CONTAINING block, not the box) the transform is applied on an inner wrapper
+ * that the drag hook never touches.
+ *
+ * Kept as a separate rule rather than folded into `.mpop` so the drag offset
+ * stays the only transform on the element the hook writes to.
+ */
+.mpop {
+  translate: -50% -50%;
+}
+
+.mpop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+  cursor: grab;
+  user-select: none;
+  flex: none;
+}
+
+.mpop-head:active {
+  cursor: grabbing;
+}
+
+.mpop-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.mpop-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mpop-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/*
+ * Settings is a two-column page: its nav on the left, the section on the right.
+ * The nav used to live in the side bar; inside a floating panel it has to travel
+ * with the page, or the panel would show a section with no way to change it.
+ */
+.mpop-settings-nav {
+  flex: none;
+  width: 210px;
+  min-width: 170px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  background: var(--bg2);
+}
+
+.mpop-settings-body {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* The pages already fill their own host; inside the frame they must not try to
+   own the viewport height as well. */
+.mpop-body > .xv,
+.mpop-body > .tools-root {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Extensions-as-a-tab reuses the same page; give it a scroll container. */
+.mpop-body > .xv {
+  overflow: auto;
+}
+
+/* Narrow windows: the nav becomes a strip above the section instead of a
+   column that eats the page. */
+@media (max-width: 760px) {
+  .mpop-settings-nav {
+    width: 150px;
+    min-width: 120px;
+  }
+}

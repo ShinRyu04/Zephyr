@@ -14,9 +14,10 @@ import ZephyrLogo from './ZephyrLogo';
 import { ErrorBoundary } from './ErrorBoundary';
 import DiffViewer from '../scm/DiffViewer';
 import { useAiChatSettings } from '../../lib/chatSettingsStore';
-const SettingsPage = lazy(() => import('../settings/SettingsPage'));
 const AiChatView = lazy(() => import('../ai/AiPanel'));
 const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
+const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
+const ToolsView = lazy(() => import('./ToolsView'));
 const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 // Dev Environment, API Client and SFTP are full-page views: each carries its own
 // header and row layout. They take over the middle area the same way Settings
@@ -26,7 +27,6 @@ const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
 const TestsView = lazy(() => import('../shell/TestsView'));
 const ApiClientView = lazy(() => import('../api/ApiClientView'));
 const SftpView = lazy(() => import('../sftp/SftpView'));
-const ToolsView = lazy(() => import('../shell/ToolsView'));
 import { useGit } from '../../lib/gitStore';
 import { useT, tx } from '../../lib/i18n';
 function EmptyState() {
@@ -171,6 +171,22 @@ function EditorPane({ gid }: { gid: string }) {
               </Suspense>
             </ErrorBoundary>
           </div>
+        ) : tab?.view === 'extensions' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-extensions">
+            <ErrorBoundary nama="Extensions">
+              <Suspense fallback={null}>
+                <ExtensionsView />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'tools' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-tools">
+            <ErrorBoundary nama="Tools">
+              <Suspense fallback={null}>
+                <ToolsView />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
         ) : tab?.view === 'search-editor' ? (
           <div className="ai-view-tab" data-testid="ai-view-tab-search-editor">
             <ErrorBoundary nama="SearchEditor">
@@ -235,9 +251,6 @@ function GroupDivider() {
 }
 
 export default function SplitEditor() {
-  const tr = useT();
-  const settingsOpen = useStore((s) => s.settingsOpen);
-  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const activity = useStore((s) => s.activity);
   const hasDiff = useGit((s) => s.diff !== null);
   const split = useLayout((s) => s.split);
@@ -283,7 +296,6 @@ export default function SplitEditor() {
   }, [migrasiChatEditor, applySettings]);
 
   if (
-    activity === 'tools' ||
     activity === 'devenv' ||
     activity === 'api' ||
     activity === 'sftp' ||
@@ -300,7 +312,6 @@ export default function SplitEditor() {
               {/* The rail has one entry for all four; the single-activity
                   branches stay so the palette can still jump straight to one
                   of them without going through the tab strip. */}
-              {activity === 'tools' && <ToolsView />}
               {activity === 'devenv' && <DevEnvView />}
               {activity === 'api' && <ApiClientView />}
               {activity === 'sftp' && <SftpView />}
@@ -312,30 +323,11 @@ export default function SplitEditor() {
     );
   }
 
-  if (settingsOpen) {    return (
-      <section className="editor-area">
-        <RestrictedBanner />
-        <div className="set-topbar">
-          <span className="set-topbar-title">{tr('Settings')}</span>
-          <button
-            className="btn btn-sm"
-            data-testid="set-close"
-            onClick={() => setSettingsOpen(false)}
-          >
-            {tr('Close')}
-          </button>
-        </div>
-        <div className="editor-host">
-          <ErrorBoundary nama="Settings">
-            <Suspense fallback={null}>
-              <SettingsPage />
-            </Suspense>
-          </ErrorBoundary>
-        </div>
-      </section>
-    );
-  }
-
+  /*
+   * Settings no longer takes over this area: it floats (see ShellPopups).
+   * The branch that drew it full-bleed with its own top bar is gone, so the
+   * file the reader was working on stays visible behind the popup.
+   */
   if (hasDiff) {
     return (
       <section className="editor-area">
