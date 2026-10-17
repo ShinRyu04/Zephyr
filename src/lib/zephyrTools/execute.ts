@@ -93,13 +93,21 @@ export interface ExecuteBridge {
 export const executeTool = (bridge: ExecuteBridge): AgentTool => ({
   spec: {
     name: 'execute',
+    /*
+     * Short here, full grammar in the conditional block - same reason as
+     * `apply_patch`: this schema described every binding and every refusal in
+     * detail, which is a paragraph the model pays for on EVERY turn even though
+     * most turns never write a script.
+     *
+     * What stays: what it is for, that it is sandboxed, that the gate still
+     * applies, and where the details are.
+     */
     description:
       'Jalankan SKRIP yang memanggil beberapa tool sekaligus - satu panggilan menggantikan banyak langkah. ' +
-      'Skrip adalah badan fungsi async; yang tersedia hanya: call(nama, args) untuk memanggil satu tool dan mendapat hasil string-nya, tools (array nama tool yang boleh dipanggil sekarang), dan log(...) untuk mencatat. ' +
-      'TIDAK ada window, document, fetch, import, require, atau process - skrip yang menyentuhnya DITOLAK sebelum dijalankan. ' +
-      'Semua panggilan lewat gate yang sama dengan panggilan tool biasa: tool yang dimatikan pembaca tetap ditolak. ' +
-      'Contoh: const a = await call("read_file", {path:"src/a.ts"}); const b = await call("grep", {pattern:"TODO",path:"src"}); log(a.length + b.length); return b; ' +
-      'Pakai untuk urutan panjang (baca banyak berkas, patch banyak berkas, lalu uji). Untuk satu langkah, panggil tool-nya langsung - skrip hanya menambah lapisan.',
+      'Binding yang tersedia hanya call(nama, args), tools, dan log(...); window/document/fetch/import/require/process DITOLAK sebelum skrip berjalan. ' +
+      'Semua panggilan lewat gate yang sama dengan panggilan tool biasa. ' +
+      'Detail dan contoh ada di blok "execute" pada prompt giliran ini. ' +
+      'Untuk satu langkah, panggil tool-nya langsung - skrip hanya menambah lapisan.',
     parameters: {
       type: 'object',
       properties: {
