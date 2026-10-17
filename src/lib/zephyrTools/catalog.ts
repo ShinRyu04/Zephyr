@@ -138,6 +138,14 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
    * bukan sekadar membaca.
    */
   ['tunjuk', 'Aplikasi', 'appWrite', false, 'Buka halaman atau panel yang pembaca maksud, dari keluhan berbahasa bebas'],
+  /*
+   * `kotak` - a formatted answer box instead of a paragraph or a table.
+   *
+   * `read` because it changes nothing outside the answer: it returns a string
+   * the transcript draws. That is why it needs no approval - the only thing it
+   * can do is make the model's own output clearer.
+   */
+  ['kotak', 'Aplikasi', 'read', false, 'Gambar kotak terstruktur di jawaban: judul, ringkasan, baris label/nilai'],
 
   /* Sub-agents - 1 */
   ['run_subagent', 'Sub-agents', 'exec', true, 'Jalankan satu subagent untuk tugas mandiri'],
