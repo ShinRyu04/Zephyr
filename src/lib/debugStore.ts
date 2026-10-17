@@ -792,7 +792,7 @@ export const catatExceptionKeProblems = (path: string, line: number, teks: strin
       source: 'debug',
     },
   ]);
-  notifyInfo(tx('Exception dicatat di Problems'), { source: 'debug' });
+  notifyInfo(tx('Exception recorded in Problems'), { source: 'debug' });
 };
 
 export type { DebugConfig, LaunchFile, AdapterSpec };

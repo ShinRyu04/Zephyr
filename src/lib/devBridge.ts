@@ -10,6 +10,8 @@ import { useAiCli } from './aiCliStore';
 import { useAgentExtras } from './agentExtrasStore';
 import { usePlugins } from './pluginsStore';
 import { useSettingsUi, SECTION_ORDER } from './settingsStore';
+import { useAiChatSettings } from './chatSettingsStore';
+import { useAiModels } from './aiModelsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT, jalurKonteksKerja, jejakPemadatan } from './aiStore';
@@ -1019,6 +1021,38 @@ export function installDevBridge(): void {
     },
     tutup: () => useStore.getState().setSettingsOpen(false),
     section: () => useSettingsUi.getState().section,
+  };
+
+  /*
+   * Chat Settings (the floating overlay), so a harness can open it without
+   * clicking through the "…" menu.
+   *
+   * WHY it must go through the bridge: `import('/src/lib/chatSettingsStore')`
+   * inside Runtime.evaluate builds a SECOND module instance with its own zustand
+   * store (verified: `lainBuka: false` while the live store said `true`), so
+   * flipping `buka` there never reaches the mounted component and the popup
+   * never appears. Every other store in this file is exposed for the same
+   * reason.
+   */
+  w.__ZEPHYR_CSET__ = {
+    store: useAiChatSettings,
+    buka: () => useAiChatSettings.getState().buka,
+    seksi: () => useAiChatSettings.getState().seksi,
+    bukaDi: (seksi: string) => useAiChatSettings.getState().bukaDi(seksi as never),
+    setBuka: (v: boolean) => useAiChatSettings.getState().setBuka(v),
+    keEditor: () => useAiChatSettings.getState().keEditor(),
+    tutup: () => useAiChatSettings.getState().tutup(),
+  };
+
+  /*
+   * The AI Models pop-up, for the same reason as Chat Settings: its store has to
+   * be the LIVE instance or `buka()` flips a flag the mounted modal never reads.
+   */
+  w.__ZEPHYR_AIMODELS__ = {
+    store: useAiModels,
+    open: () => useAiModels.getState().open,
+    buka: () => useAiModels.getState().buka(),
+    tutup: () => useAiModels.getState().tutup(),
   };
 
   w.__ZEPHYR_SUBSET__ = {

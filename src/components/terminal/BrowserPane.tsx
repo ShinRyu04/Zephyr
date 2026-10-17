@@ -5,6 +5,7 @@ import { useTerminal } from '../../lib/terminalStore';
 import * as cmd from '../../lib/commands';
 import type { PaneMeta } from '../../lib/types';
 import { tx } from '../../lib/i18n';
+import { paneHarusTampil } from '../../lib/nativeOverlay';
 
 export function normalizeUrl(input: string): string {
   const t = input.trim();
@@ -220,18 +221,14 @@ export default function BrowserPane({ pane }: { pane: PaneMeta }) {
     const tik = () => {
       raf = 0;
       const r = el.getBoundingClientRect();
-      const adaModal = !!document.querySelector(
-        '.modal-backdrop, .cp-overlay, .trust-overlay, [data-modal-terbuka]',
-      );
-      const terlihat =
-        !adaModal &&
-        el.offsetParent !== null &&
-        r.width > 4 &&
-        r.height > 4 &&
-        r.bottom > 0 &&
-        r.right > 0 &&
-        r.top < window.innerHeight &&
-        r.left < window.innerWidth;
+      /*
+       * The overlay test lives in `lib/nativeOverlay.ts` so this pane and the
+       * Agents browser pane cannot drift apart. It was a shorter selector list
+       * here (`.modal-backdrop, .cp-overlay, .trust-overlay, [data-modal-terbuka]`),
+       * which missed every dropdown menu — so a menu opened over the pane was
+       * covered by the page and the reader saw it "disappear".
+       */
+      const terlihat = paneHarusTampil(el);
 
       if (terlihat !== terlihatLalu) {
         terlihatLalu = terlihat;

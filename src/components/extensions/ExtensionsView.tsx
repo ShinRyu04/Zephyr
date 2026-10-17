@@ -343,6 +343,26 @@ function ExtensionCard({
           {item.bundled && <span className="xc-tag">OFFLINE</span>}
           {item.perluRuntime && <span className="xc-tag is-err">needs runtime</span>}
           {rusak && <span className="xc-tag is-err">broken</span>}
+          {/*
+            * ENABLED / DISABLED, stated.
+            *
+            * WHY this chip exists: the only thing on the card that reflected the
+            * switch was the ACTION BUTTON, which reads "Disable" while the
+            * package is on. A reader scanning the list took that for a status
+            * badge — "it says Disable, so it must be off" — and then reported
+            * that installed extensions did nothing. The button says what a click
+            * will do; this chip says what is true right now. Two different
+            * questions, so two different places.
+            */}
+          {terpasang && !rusak && (
+            <span
+              className={`xc-tag${aktif ? ' is-on' : ' is-off'}`}
+              data-testid={`xc-status-${item.id}`}
+              data-enabled={aktif ? '1' : '0'}
+            >
+              {tr(aktif ? 'Enabled' : 'Disabled')}
+            </span>
+          )}
           {kosong && <span className="xc-tag is-err">no effect</span>}
           {jenisBerlaku.length > 0 && (
             <span
@@ -536,8 +556,29 @@ function McpServerCard({
         <span className="xc-nama">
           <span className="xc-nama-txt">{entri.nama}</span>
           {terpasang && <span className="xc-tag">INSTALLED</span>}
+          {/*
+            * WHERE it went, stated.
+            *
+            * WHY: pressing Install used to change the button to "Uninstall" and
+            * nothing else — no line anywhere said where the server now lives, so
+            * the fair question "masuk ke mana?" had no answer on screen. A server
+            * installed from here is not an extension: Zephyr stores it in its own
+            * settings and runs/connects to it itself, which is exactly the fact
+            * the reader needs. The optional second hop (writing the same config
+            * into the external CLIs' files) lives in Settings > MCP, and the chip
+            * says so instead of leaving the reader to find it.
+            */}
+          {terpasang && (
+            <span
+              className="xc-tag is-on"
+              data-testid={`xc-mcp-tujuan-${entri.id}`}
+              title={tr('Stored in Zephyr settings (mcp.servers); Zephyr runs/connects to it. Settings > MCP can also write it into the CLI config files.')}
+            >
+              {tr('in Zephyr · settings.json')}
+            </span>
+          )}
           {entri.butuhToken && <span className="xc-tag is-err">needs token</span>}
-          {!bolehPasang && <span className="xc-tag is-err">butuh transport stdio</span>}
+          {!bolehPasang && <span className="xc-tag is-err">{tr('needs stdio transport')}</span>}
           <span className="xc-pub-badge">{entri.publisher}</span>
           <span className="xc-cat-badge">{entri.kategori}</span>
           <span className="xc-ver-badge" data-mcp-transport-badge={entri.transport}>
@@ -592,6 +633,21 @@ function McpServerCard({
           </button>
         )}
       </div>
+
+      {/*
+        * The destination, spelled out under the card once it is installed.
+        *
+        * WHY a second line and not only the chip: the chip answers "is it in?" at
+        * a glance; this answers "and then what?" — including the fact that the
+        * server becomes usable by the agent right away, with no reload, and that
+        * pushing the same config into the external CLI files is a SEPARATE,
+        * optional step with its own button.
+        */}
+      {terpasang && (
+        <p className="xc-desc xc-mcp-tujuan" data-testid={`xc-mcp-tujuan-teks-${entri.id}`}>
+          {tr('Saved in Zephyr (settings.json → mcp.servers) and connected by Zephyr itself, so the agent can use it now. Settings → MCP can also copy it into the CLI config files (Claude Code, Cursor, opencode, …).')}
+        </p>
+      )}
     </article>
   );
 }

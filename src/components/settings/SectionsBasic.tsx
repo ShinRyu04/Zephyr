@@ -754,7 +754,7 @@ export function ThemeSection() {
     <Section title={tr('settings.theme')}>
       <p className="set-note">{tr('theme.description')}</p>
 
-      <Row label={tr('nav.search')} hint="nama, jenis (gelap/terang), id, atau teks petunjuk">
+      <Row label={tr('nav.search')} hint={tr('Search by name, kind (dark/light), id, or hint text')}>
         <span className="set-cari-tema" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextInput
             label={tr('nav.search')}
@@ -769,9 +769,9 @@ export function ThemeSection() {
             value={jenis}
             onChange={(v) => setJenis(v as JenisTema)}
             options={[
-              { value: 'semua', label: 'Semua' },
-              { value: 'dark', label: 'Gelap' },
-              { value: 'light', label: 'Terang' },
+              { value: 'semua', label: tr('All') },
+              { value: 'dark', label: tr('Dark') },
+              { value: 'light', label: tr('Light') },
             ]}
           />
         </span>

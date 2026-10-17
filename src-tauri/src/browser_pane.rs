@@ -20,7 +20,7 @@ use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl};
 
 /// Labels of the live child webviews, mapped from the pane id.
 static PANES: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
@@ -35,6 +35,35 @@ fn label_untuk(pane_id: &str) -> String {
 
 fn daftar() -> std::sync::MutexGuard<'static, Option<HashMap<String, String>>> {
     PANES.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Visibility of each child webview, as last set through `browser_pane_visible`.
+///
+/// WHY a side table instead of asking the OS: `tauri::Webview` exposes `show()`
+/// and `hide()` but no getter, so there is nothing to ask. Keeping the answer at
+/// the ONE place visibility changes means it cannot disagree with what the
+/// command did, and `browser_pane_info` can report it — which is what lets a
+/// harness assert "the pane was hidden while the menu was open" (the overlay
+/// fix) instead of trusting the frontend effect. A pane that was hidden and
+/// never shown again is also visible from here.
+static TERLIHAT: Mutex<Option<HashMap<String, bool>>> = Mutex::new(None);
+
+fn visibilitas() -> std::sync::MutexGuard<'static, Option<HashMap<String, bool>>> {
+    TERLIHAT.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn set_terlihat(pane_id: &str, on: bool) {
+    visibilitas()
+        .get_or_insert_with(HashMap::new)
+        .insert(pane_id.to_string(), on);
+}
+
+fn apakah_terlihat(pane_id: &str) -> bool {
+    /* No entry = the pane was just created, and a new child webview is shown. */
+    visibilitas()
+        .as_ref()
+        .and_then(|m| m.get(pane_id).copied())
+        .unwrap_or(true)
 }
 
 /// Gerbang setiap navigasi DI DALAM webview pane.
@@ -69,12 +98,33 @@ pub struct PaneInfo {
     pub label: String,
     pub url: String,
     pub title: String,
+    /// Whether the child webview is currently shown.
+    ///
+    /// WHY it is reported: the pane is a native child window that always paints
+    /// ABOVE the HTML, so the only way a menu can appear over it is for the pane
+    /// to be HIDDEN while the menu is up. That makes visibility the observable
+    /// fact behind the overlay fix — a harness (or a human) can assert "hidden
+    /// while the menu is open" instead of trusting the frontend effect, and a
+    /// pane left hidden after a crash is visible from here too.
+    pub visible: bool,
 }
 
 /// Create a child webview for one browser pane.
+///
+/// `pemanggil` is the webview that ISSUED the call, injected by Tauri. The pane
+/// is attached to THAT webview's window, not to `main`.
+///
+/// WHY it cannot be hardcoded to "main": the Agents window is a second window
+/// with its own browser pane, and `add_child` positions the child in the
+/// PARENT WINDOW's coordinate space. Attaching the Agents pane to `main` put
+/// the page over the MAIN window's AI column — the reader saw the browser
+/// appear in the wrong window entirely, at coordinates that had nothing to do
+/// with the column it belonged to. The terminal pane passes the main window's
+/// webview, so that path is unchanged; the Agents window passes its own.
 #[tauri::command(async)]
 pub fn browser_pane_open(
     app: AppHandle,
+    pemanggil: Webview,
     pane_id: String,
     url: String,
     x: f64,
@@ -132,12 +182,11 @@ pub fn browser_pane_open(
             label,
             url: u.to_string(),
             title: String::new(),
+            visible: true,
         });
     }
 
-    let jendela = app
-        .get_window("main")
-        .ok_or_else(|| ZephyrError::InvalidInput("main window not found".into()))?;
+    let jendela = pemanggil.window();
 
     let kb = kebijakan(&app);
     let builder = tauri::webview::WebviewBuilder::new(&label, WebviewUrl::External(tujuan.clone()))
@@ -180,6 +229,7 @@ pub fn browser_pane_open(
         label,
         url: u.to_string(),
         title: String::new(),
+        visible: true,
     })
 }
 
@@ -214,6 +264,7 @@ pub fn browser_pane_visible(app: AppHandle, pane_id: String, visible: bool) -> Z
     };
     if visible { w.show() } else { w.hide() }
         .map_err(|e| ZephyrError::InvalidInput(format!("changing visibility failed: {e}")))?;
+    set_terlihat(&pane_id, visible);
     Ok(true)
 }
 
@@ -223,12 +274,76 @@ pub fn browser_pane_close(app: AppHandle, pane_id: String) -> ZResult<bool> {
     let label = label_untuk(&pane_id);
     let ada = app.get_webview(&label).is_some();
     if ada {
-        let _ = app.get_webview(&label).map(|w| w.close());
+        if let Some(w) = app.get_webview(&label) {
+            /*
+             * Hide BEFORE closing.
+             *
+             * `close()` destroys the child window, but the OS tears the surface
+             * down a frame or two later. In that window the pane is still
+             * painting over the HTML with nothing left to position it, so the
+             * reader sees the page "flash" on top of the UI — the same symptom
+             * as the overlay bug, but on teardown. `hide()` removes the surface
+             * first, so there is never a frame where a dead page covers the app.
+             */
+            let _ = w.hide();
+            let _ = w.close();
+        }
     }
     if let Some(m) = daftar().as_mut() {
         m.remove(&pane_id);
     }
+    /* Drop the visibility record too, so a pane id reused later starts shown. */
+    if let Some(m) = visibilitas().as_mut() {
+        m.remove(&pane_id);
+    }
     Ok(ada)
+}
+
+/// Open the WebView2 developer tools for this pane.
+///
+/// WHY it lives here rather than in the frontend: DevTools is a property of the
+/// CHILD webview, and the frontend has no handle to it — `open_devtools` on the
+/// main window would inspect Zephyr's own UI, which is not what the button in
+/// the browser toolbar is for. The `devtools` cargo feature is already on, so
+/// this works in release builds too.
+#[tauri::command(async)]
+pub fn browser_pane_devtools(app: AppHandle, pane_id: String) -> ZResult<bool> {
+    let label = label_untuk(&pane_id);
+    let Some(w) = app.get_webview(&label) else {
+        return Ok(false);
+    };
+    w.open_devtools();
+    Ok(true)
+}
+
+/// Zoom the page in this pane. `faktor` is the usual CSS scale: 1.0 = 100%.
+///
+/// Clamped rather than rejected: a zoom of 0 (or negative) would make the page
+/// invisible with no way back, and the toolbar only ever sends the fixed steps.
+#[tauri::command(async)]
+pub fn browser_pane_zoom(app: AppHandle, pane_id: String, faktor: f64) -> ZResult<bool> {
+    let label = label_untuk(&pane_id);
+    let Some(w) = app.get_webview(&label) else {
+        return Ok(false);
+    };
+    if !faktor.is_finite() {
+        return Err(ZephyrError::InvalidInput("zoom factor is not a number".into()));
+    }
+    w.set_zoom(faktor.clamp(0.25, 5.0))
+        .map_err(|e| ZephyrError::InvalidInput(format!("zoom failed: {e}")))?;
+    Ok(true)
+}
+
+/// Drop this pane's cookies, cache and local storage.
+#[tauri::command(async)]
+pub fn browser_pane_clear_data(app: AppHandle, pane_id: String) -> ZResult<bool> {
+    let label = label_untuk(&pane_id);
+    let Some(w) = app.get_webview(&label) else {
+        return Ok(false);
+    };
+    w.clear_all_browsing_data()
+        .map_err(|e| ZephyrError::InvalidInput(format!("clearing browsing data failed: {e}")))?;
+    Ok(true)
 }
 
 /// Navigation: a new url, or the 'back' / 'forward' / 'reload' command.
@@ -358,11 +473,13 @@ pub fn browser_pane_info(app: AppHandle, pane_id: String) -> ZResult<PaneInfo> {
         })
         .unwrap_or(mentah);
 
+    let terlihat = apakah_terlihat(&pane_id);
     Ok(PaneInfo {
         pane_id,
         label,
         url,
         title,
+        visible: terlihat,
     })
 }
 

@@ -30,6 +30,7 @@
  */
 
 import { capabilityScore, classifySubagentTask, type SubagentModelCandidate, type SubagentTaskCategory } from './subagentRouter';
+import { PROVIDERS, providerSiap, isPlaceholderModel } from './modelCatalog';
 import type { AiMessage, AiChunk } from './types';
 
 export type HydraTier = 'cheap' | 'mid' | 'strong';
@@ -103,6 +104,71 @@ export interface HydraLangkah {
   kenapa: string;
 }
 
+/* ------------------------------------------------------------------ *
+ * Candidates
+ * ------------------------------------------------------------------ */
+
+/**
+ * Every model HydraFusion may route to, in the shape the router expects.
+ *
+ * WHY this lives HERE and not in the store. The store used to build the list as
+ * `PROVIDERS.flatMap(p => p.models.map(...))`, and that is the catalogue's
+ * PLACEHOLDER rows for the free-text providers: `custom` ships exactly one
+ * model, literally called "Type a model name" (`custom-model`), and `local`
+ * ships "Type a local model name". A reader driving HydraFusion through a custom
+ * OpenAI-compatible gateway — the common case — therefore handed the router a
+ * single fake entry per provider: every rung resolved to that placeholder, the
+ * ladder collapsed to one rung, and a "strong" task with a 3-request cap could
+ * not build draft → critique → revision at all. The feature looked broken while
+ * it was running correctly on an empty candidate list.
+ *
+ * The configured model ids are the real ones: they are what the reader typed and
+ * what `models.providers[provider].model` stores. Placeholder ids are dropped so
+ * they can never be picked as a rung.
+ */
+export function kandidatHydra(
+  providers: Record<string, { baseUrl?: string; model?: string } | undefined>,
+  adaKey: (id: string) => boolean,
+): HydraKandidat[] {
+  const out: HydraKandidat[] = [];
+  for (const p of PROVIDERS) {
+    if (!providerSiap(p, adaKey(p.id), providers)) continue;
+    const konfigurasi = providers[p.id];
+    const ids: string[] = [];
+    const pilih = (konfigurasi?.model ?? '').trim();
+    if (pilih && !isPlaceholderModel(pilih)) ids.push(pilih);
+    for (const m of p.models ?? []) {
+      if (!isPlaceholderModel(m.id)) ids.push(m.id);
+    }
+    for (const id of new Set(ids)) {
+      const meta = (p.models ?? []).find((m) => m.id === id);
+      out.push({
+        id,
+        provider: p.id,
+        label: meta?.label || id,
+        note: meta?.note,
+        available: true,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * The `provider/model` a provider is configured to use, for the settings rows.
+ *
+ * Returns `''` when it is still the placeholder, so the row shows the derived
+ * value instead of "custom/custom-model".
+ */
+export function pilihanTersimpan(
+  provider: string,
+  providers: Record<string, { model?: string } | undefined>,
+): string {
+  const m = (providers[provider]?.model ?? '').trim();
+  if (!m || isPlaceholderModel(m)) return '';
+  return `${provider}/${m}`;
+}
+
 export interface HydraRencana {
   jalur: HydraJalur;
   kategori: SubagentTaskCategory;
@@ -115,6 +181,17 @@ export interface HydraRencana {
   kuat: HydraLangkah | null;
   batasRequest: number;
   alasan: string;
+  /**
+   * The plan cannot run as designed, and this says why in words the reader can
+   * act on. `null` means the plan is valid.
+   *
+   * WHY the plan is validated BEFORE it executes (GitHub's "validated routing"):
+   * a route can name a model whose provider has no key, or a model the catalogue
+   * no longer carries. Starting anyway spends the first request only to fail
+   * inside the ladder, and the reader sees a provider error instead of "you have
+   * no key for this provider" — a diagnosis that points at the wrong thing.
+   */
+  tolak: string | null;
 }
 
 export interface HydraLapor {
@@ -154,6 +231,16 @@ export interface HydraTerakhir {
   berhenti: string;
   catatanTahap: string[];
   eskalasi: string[];
+  /**
+   * Tokens spent by every leg of this run, summed.
+   *
+   * WHY it is here and not only in a log: "complete accounting" is the promise
+   * that makes a multi-model run trustworthy — the reader paid for the critique
+   * and the revision too. Only token counts are reported; Zephyr does not know
+   * any provider's price list, so it does not invent a money figure. Absent or
+   * `0/0` means the provider reported no usage, which is stated as such.
+   */
+  pemakaian?: { input: number; output: number };
 }
 
 /* ------------------------------------------------------------------ *
@@ -297,6 +384,12 @@ export interface HydraMasuk {
   /** The chat's own model, used when a rung has no candidate. */
   cadangan: { provider: string; model: string };
   pengaturan: HydraPengaturan;
+  /**
+   * Is this provider usable right now (key present, or an endpoint that needs
+   * none)? Optional: without it the plan is not pre-flighted, which is the old
+   * behaviour and keeps the pure tests able to call this without a key store.
+   */
+  providerSiap?: (provider: string) => boolean;
 }
 
 function langkahTier(
@@ -331,6 +424,36 @@ function langkahTier(
 const samaLangkah = (a: HydraLangkah, b: HydraLangkah) => a.provider === b.provider && a.model === b.model;
 
 /**
+ * Is the plan runnable right now? Returns a reader-facing reason, or null.
+ *
+ * Checks the things that can be known BEFORE the first request: every rung's
+ * provider must be usable (a key, or a local endpoint that needs none), and its
+ * model must not be the catalogue's placeholder row. A plan that fails this is
+ * refused up front with the provider named — see `HydraRencana.tolak`.
+ */
+export function periksaRencana(
+  tangga: HydraLangkah[],
+  siapProvider: (provider: string) => boolean,
+): string | null {
+  if (tangga.length === 0) return 'No model is available to run this task.';
+  const tidakSiap = [...new Set(tangga.filter((l) => !siapProvider(l.provider)).map((l) => l.provider))];
+  if (tidakSiap.length > 0) {
+    return (
+      `HydraFusion cannot run: no usable key/endpoint for ${tidakSiap.join(', ')}. ` +
+      'Add a key for that provider, or map the tiers to a provider that has one.'
+    );
+  }
+  const kosong = tangga.filter((l) => !l.model.trim() || isPlaceholderModel(l.model));
+  if (kosong.length > 0) {
+    return (
+      'HydraFusion cannot run: a tier resolves to a placeholder model name. ' +
+      'Pick a real model for that tier (or leave it on Auto).'
+    );
+  }
+  return null;
+}
+
+/**
  * Decide the route. Pure: same input, same plan — which is what makes the
  * ladder and the cap testable without an app.
  */
@@ -348,6 +471,27 @@ export function rencanaHydra(masuk: HydraMasuk): HydraRencana {
     if (tangga.length === 0 || !tangga.some((x) => samaLangkah(x, l))) tangga.push(l);
   }
 
+  /*
+   * Validate BEFORE choosing a route, so a refused plan never claims a route it
+   * was never going to run. `masuk.providerSiap` is optional: a caller that does
+   * not pass it gets the old behaviour (no pre-flight check) rather than a
+   * verdict based on an assumption.
+   */
+  const tolak = masuk.providerSiap ? periksaRencana(tangga, masuk.providerSiap) : null;
+  if (tolak) {
+    return {
+      jalur: 'satu',
+      kategori: k.kategori,
+      tingkat: k.tingkat,
+      langkah: [],
+      tangga,
+      kuat,
+      batasRequest: maxRequests,
+      alasan: tolak,
+      tolak,
+    };
+  }
+
   if (k.tingkat === 'cheap') {
     const satu = { ...murah, peran: 'draft' as const };
     return {
@@ -359,6 +503,7 @@ export function rencanaHydra(masuk: HydraMasuk): HydraRencana {
       kuat,
       batasRequest: maxRequests,
       alasan: `${k.alasan} One request, no escalation.`,
+      tolak: null,
     };
   }
 
@@ -381,6 +526,7 @@ export function rencanaHydra(masuk: HydraMasuk): HydraRencana {
       kuat,
       batasRequest: maxRequests,
       alasan: `${k.alasan} Draft → critique → revision on ${drafter.label} and ${kritikus.label}.`,
+      tolak: null,
     };
   }
 
@@ -396,6 +542,7 @@ export function rencanaHydra(masuk: HydraMasuk): HydraRencana {
     alasan:
       `${k.alasan} Ladder: ${tanggaDipakai.map((l) => l.label).join(' → ')}` +
       (k.tingkat === 'strong' && maxRequests < 3 ? ` (cost cap ${maxRequests} is below the 3 a critique-revision needs).` : '.'),
+    tolak: null,
   };
 }
 
@@ -617,6 +764,14 @@ interface HydraBuf {
   err: string | null;
   selesai: boolean;
   /**
+   * Token usage the provider reported for this pass, if any.
+   *
+   * Kept per buffer so a caller can sum every leg of a run — the promise behind
+   * "complete accounting". `undefined` means the provider did not report it,
+   * which is not the same as zero.
+   */
+  usage?: { input: number; output: number };
+  /**
    * A LIVE pass: this one is also being rendered in the chat bubble, so its
    * chunks must be recorded here AND passed on. A single-request plan is always
    * live — nothing can supersede it, so the reader gets normal token streaming.
@@ -641,6 +796,8 @@ export function hydraCatat(c: AiChunk): boolean {
   if (!buf) return false;
   if (c.text) buf.teks += c.text;
   if (c.err) buf.err = buf.err ?? c.err;
+  /* Last report wins: providers that send usage repeatedly send a running total. */
+  if (c.usage) buf.usage = c.usage;
   if (c.done) buf.selesai = true;
   return !buf.live;
 }
@@ -652,9 +809,13 @@ export function hydraCatat(c: AiChunk): boolean {
  * the terminal frame has landed yet needs this: it polls until `selesai` is
  * true and only then takes the result.
  */
-export function hydraLihat(id: string): { teks: string; err: string | null; selesai: boolean; live: boolean } | undefined {
+export function hydraLihat(id: string):
+  | { teks: string; err: string | null; selesai: boolean; live: boolean; usage?: { input: number; output: number } }
+  | undefined {
   const buf = hydraBuf.get(id);
-  return buf ? { teks: buf.teks, err: buf.err, selesai: buf.selesai, live: buf.live } : undefined;
+  return buf
+    ? { teks: buf.teks, err: buf.err, selesai: buf.selesai, live: buf.live, usage: buf.usage }
+    : undefined;
 }
 
 /** What a finished pass produced. Never throws: a missing buffer reads empty. */

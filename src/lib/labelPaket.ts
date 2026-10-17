@@ -52,8 +52,8 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiTidakEfek: ['.pp'],
     pemilikLain: 'zephyr.lang-pascal',
     teks:
-      'NO-OP — ekstensi .pp sudah diklaim paket Pascal yang dimuat lebih dulu, jadi paket ini tidak ' +
-      'menambah dukungan bahasa apa pun; tetap bisa dipasang/dilepas',
+      'NO-OP — the .pp extension is already claimed by the Pascal pack, which loads first, so this pack ' +
+      'adds no language support at all; it can still be installed and removed',
   },
   'zephyr.lang-perl': {
     id: 'zephyr.lang-perl',
@@ -62,7 +62,7 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiDitambah: ['.t', '.pod'],
     ekstensiTidakEfek: [],
     pemilikLain: null,
-    teks: 'sudah didukung bawaan — Perl sudah ada di Zephyr; paket ini hanya menambah ekstensi sisa .t, .pod',
+    teks: 'already built in — Perl ships with Zephyr; this pack only adds the remaining extensions .t, .pod',
   },
   'zephyr.lang-python': {
     id: 'zephyr.lang-python',
@@ -71,7 +71,7 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiDitambah: ['.pyi'],
     ekstensiTidakEfek: [],
     pemilikLain: null,
-    teks: 'sudah didukung bawaan — Python sudah ada di Zephyr; paket ini hanya menambah ekstensi sisa .pyi',
+    teks: 'already built in — Python ships with Zephyr; this pack only adds the remaining extension .pyi',
   },
   'zephyr.lang-ruby': {
     id: 'zephyr.lang-ruby',
@@ -80,7 +80,7 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiDitambah: ['.erb', '.gemspec'],
     ekstensiTidakEfek: [],
     pemilikLain: null,
-    teks: 'sudah didukung bawaan — Ruby sudah ada di Zephyr; paket ini hanya menambah ekstensi sisa .erb, .gemspec',
+    teks: 'already built in — Ruby ships with Zephyr; this pack only adds the remaining extensions .erb, .gemspec',
   },
   'zephyr.lang-shell': {
     id: 'zephyr.lang-shell',
@@ -89,7 +89,7 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiDitambah: ['.fish'],
     ekstensiTidakEfek: [],
     pemilikLain: null,
-    teks: 'sudah didukung bawaan — Shell / Bash sudah ada di Zephyr; paket ini hanya menambah ekstensi sisa .fish',
+    teks: 'already built in — Shell / Bash ships with Zephyr; this pack only adds the remaining extension .fish',
   },
   'zephyr.lang-xml': {
     id: 'zephyr.lang-xml',
@@ -99,7 +99,7 @@ export const LABEL_PAKET: Record<string, LabelPaket> = {
     ekstensiTidakEfek: [],
     pemilikLain: null,
     teks:
-      'sudah didukung bawaan — XML / HTML sudah ada di Zephyr; paket ini hanya menambah ekstensi sisa ' +
+      'already built in — XML / HTML ships with Zephyr; this pack only adds the remaining extensions ' +
       '.xsd, .xsl, .xhtml',
   },
 };

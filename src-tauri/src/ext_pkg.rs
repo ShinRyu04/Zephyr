@@ -606,10 +606,21 @@ fn hitung_binding(v: &Value) -> usize {
 ///
 /// `muatIconTheme` (`extLoader.ts`) reads `raw.icons ?? raw` and only draws
 /// entries that carry a `glyph`. A VS Code icon theme (`iconDefinitions` +
-/// `fileExtensions`) has no `glyph` anywhere, so it changes no pixel; counting
-/// `iconDefinitions` as support is what let a package be reported as
-/// "19 icons" while applying none. This is the number that decides whether the
-/// contribution is real.
+/// `fileExtensions`) has no `glyph` key anywhere, so counting
+/// `iconDefinitions` alone is what let a package be reported as "19 icons"
+/// while applying none.
+///
+/// TWO shapes now count, because both are drawn:
+///
+///  1. Zephyr's own `{"icons":{".ext":{"glyph","color"}}}`.
+///  2. VS Code's `{iconDefinitions, fileExtensions}`, where each definition
+///     carries a `fontCharacter` (the glyph from an icon font). `muatIconTheme`
+///     decodes that character into the same `glyph` the first shape uses, so a
+///     VS Code pack now changes the file tree instead of being refused.
+///
+/// A VS Code theme that maps extensions to `iconPath` images and has NO
+/// `fontCharacter` still counts zero: Zephyr draws a glyph, not an image, and
+/// claiming support for one would be the same lie as before.
 fn jumlah_ikon_dapat_digambar(v: &Value) -> usize {
     let peta = match v.get("icons") {
         Some(Value::Object(o)) => o,
@@ -618,14 +629,45 @@ fn jumlah_ikon_dapat_digambar(v: &Value) -> usize {
             None => return 0,
         },
     };
-    peta.values()
+    let dari_zephyr = peta
+        .values()
         .filter(|e| {
             e.get("glyph")
                 .and_then(|g| g.as_str())
                 .map(|g| !g.trim().is_empty())
                 .unwrap_or(false)
         })
-        .count()
+        .count();
+    if dari_zephyr > 0 {
+        return dari_zephyr;
+    }
+    jumlah_ikon_vscode(v)
+}
+
+/// VS Code icon themes: extensions whose definition has a usable font glyph.
+///
+/// The count is over `fileExtensions` (one file kind = one drawn icon), and a
+/// definition qualifies only when it names a non-empty `fontCharacter`. That is
+/// the exact test `muatIconTheme` uses before it registers a glyph.
+fn jumlah_ikon_vscode(v: &Value) -> usize {
+    let defs = match v.get("iconDefinitions").and_then(|d| d.as_object()) {
+        Some(d) => d,
+        None => return 0,
+    };
+    let punya_glyph = |id: &str| -> bool {
+        defs.get(id)
+            .and_then(|d| d.get("fontCharacter"))
+            .and_then(|g| g.as_str())
+            .map(|g| !g.trim().is_empty())
+            .unwrap_or(false)
+    };
+    let mut n = 0usize;
+    for key in ["fileExtensions", "fileNames"] {
+        if let Some(map) = v.get(key).and_then(|m| m.as_object()) {
+            n += map.values().filter_map(|x| x.as_str()).filter(|id| punya_glyph(id)).count();
+        }
+    }
+    n
 }
 
 /// Read a contribution file inside the package, bounded to the same size
@@ -756,14 +798,18 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                 let n_gambar = jumlah_ikon_dapat_digambar(&v);
                 let n_vscode = hitung(&v, "iconDefinitions");
                 if n_gambar == 0 {
-                    /* Say WHY when the file is a real VS Code theme: "0 icon
-                       definitions" reads as a broken package, and it is not. */
+                    /* Say WHY when the file is a real VS Code theme whose icons
+                       are IMAGES: "0 icon definitions" reads as a broken
+                       package, and it is not — Zephyr draws a glyph, and a
+                       theme that only ships PNG/SVG iconPath files has no glyph
+                       to draw. A VS Code theme that carries `fontCharacter`
+                       glyphs is NOT refused; it is counted above. */
                     if n_vscode > 0 {
                         p.diabaikan.push(ki(
                             "iconTheme",
                             &label,
                             format!(
-                                "{} in {} use the VS Code format (iconDefinitions); Zephyr draws only its own {{\"icons\":{{\".ext\":{{\"glyph\",\"color\"}}}}}} format, so the file tree keeps its default icons",
+                                "{} in {} map files to IMAGE paths (iconPath) and carry no fontCharacter glyph, so there is nothing to draw — the file tree keeps its default icons",
                                 jumlah_nama(n_vscode, "1 icon definition", "icon definitions"),
                                 i.path
                             ),
@@ -2630,6 +2676,55 @@ mod tests_unduh {
     fn izin_unduh_menerima_openvsx_https_saja() {
         assert!(izin_unduh("https://open-vsx.org/api/acme/paket/1.0.0/file/acme.paket.zext").is_ok());
         assert!(izin_unduh("https://www.open-vsx.org/api/x").is_ok());
+    }
+
+    /*
+     * Icon themes: BOTH shapes must be counted as drawable, and only when a
+     * glyph actually exists.
+     *
+     * WHY this is the test that matters: the whole complaint was "I installed an
+     * extension and nothing changed". A VS Code icon theme used to be refused as
+     * "0 icon definitions" because its glyph lives in `fontCharacter`, not in a
+     * `glyph` key — so the fix has to be held still: a fontCharacter theme now
+     * counts, an iconPath-only theme still does not (Zephyr draws a glyph, not
+     * an image, and claiming otherwise would be the same lie).
+     */
+    #[test]
+    fn ikon_zephyr_dihitung_dari_glyph() {
+        let v = json!({ "icons": { "ts": { "glyph": "TS", "color": "#3178c6" } } });
+        assert_eq!(jumlah_ikon_dapat_digambar(&v), 1);
+    }
+
+    #[test]
+    fn ikon_vscode_fontcharacter_dihitung() {
+        let v = json!({
+            "iconDefinitions": {
+                "_ts": { "fontCharacter": "\\ue001", "fontColor": "#3178c6" },
+                "_js": { "fontCharacter": "\\ue002" }
+            },
+            "fileExtensions": { "ts": "_ts", "js": "_js", "mjs": "_js" },
+            "fileNames": { "package.json": "_js" }
+        });
+        assert_eq!(jumlah_ikon_dapat_digambar(&v), 4);
+    }
+
+    #[test]
+    fn ikon_vscode_tanpa_fontcharacter_tidak_dihitung() {
+        /* iconPath-only: no glyph to draw, so it must stay at zero. */
+        let v = json!({
+            "iconDefinitions": { "_ts": { "iconPath": "./ts.svg" } },
+            "fileExtensions": { "ts": "_ts" }
+        });
+        assert_eq!(jumlah_ikon_dapat_digambar(&v), 0);
+    }
+
+    #[test]
+    fn ikon_vscode_fontcharacter_kosong_tidak_dihitung() {
+        let v = json!({
+            "iconDefinitions": { "_ts": { "fontCharacter": "   " } },
+            "fileExtensions": { "ts": "_ts" }
+        });
+        assert_eq!(jumlah_ikon_dapat_digambar(&v), 0);
     }
 
     #[test]
