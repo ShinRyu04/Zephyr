@@ -39,8 +39,20 @@ const CUSTOMS: Custom[] = [
   { label: 'Tools', section: 'tools', icon: 'wrench' },
 ];
 
-export default function AgentsSessions() {
-  const tr = useT();
+/*
+ * Last path segment of a workspace, for the group header.
+ *
+ * A full `D:\Zephyr\src-tauri\target` in a 200px column would leave no room for
+ * the session titles, and the last segment is what a reader uses to tell two
+ * projects apart anyway. The full path stays available as the row's tooltip.
+ */
+function namaFolder(label: string): string {
+  const bersih = label.replace(/[\\/]+$/, '');
+  const bagian = bersih.split(/[\\/]/).filter(Boolean);
+  return bagian[bagian.length - 1] || label;
+}
+
+export default function AgentsSessions() {  const tr = useT();
   const sesi = useAi((s) => s.sessions);
   const activeId = useAi((s) => s.activeId);
   const selectChat = useAi((s) => s.selectChat);
@@ -64,6 +76,15 @@ export default function AgentsSessions() {
   const [menu, setMenu] = useState<{ id: string; judul: string; dipin: boolean; x: number; y: number } | null>(null);
   /* Inline rename: the id being edited and its draft text. */
   const [gantiNama, setGantiNama] = useState<{ id: string; teks: string } | null>(null);
+  /*
+   * Folded groups, by label.
+   *
+   * Per-label rather than a single "all folded" flag: a reader who folds
+   * `Talos` while working in `Zephyr` expects `Zephyr` to stay open. The ACTIVE
+   * folder's group is never folded — folding it would hide the conversation the
+   * reader is sitting in.
+   */
+  const [lipat, setLipat] = useState<Record<string, boolean>>({});
 
   /* Newest activity first — a conversation you just had is the one you want. */
   const urut = useMemo(() => {
@@ -86,19 +107,27 @@ export default function AgentsSessions() {
   });
 
   /*
-   * Group by the workspace folder each conversation belongs to, newest group
-   * first — the way the reference design lists "Zephyr", "ZephyrCLI", "Talos"
-   * as their own blocks.
+   * Group by the workspace folder each conversation belongs to.
    *
-   * A session created before `workspace` existed has none recorded; those fall
-   * under the folder that is OPEN right now, because that is the context they
-   * were almost certainly had in, and it keeps them visible instead of
-   * dropping them into a nameless bucket.
+   * Two buckets, deliberately separate:
+   *
+   *  - a session that RECORDED a folder belongs to that folder, full stop;
+   *  - a session with no recorded folder goes to "Chats", never to whichever
+   *    folder happens to be open. The previous version fell back to the active
+   *    workspace, which made old conversations silently MOVE from group to
+   *    group as the reader switched folders — the list then claimed a history
+   *    it did not have.
+   *
+   * Empty conversations are left out entirely: a blank "New chat" row carries
+   * no information and pushes the real history down. The active one is kept so
+   * the row the reader is sitting in never vanishes from under them.
    */
   const grup = useMemo(() => {
     const peta = new Map<string, typeof tersaring>();
     for (const s of tersaring) {
-      const label = s.workspace || workspaceAktif || 'Chats';
+      const kosong = s.messages.length === 0;
+      if (kosong && s.id !== activeId) continue;
+      const label = s.workspace || tr('Chats');
       const arr = peta.get(label);
       if (arr) arr.push(s);
       else peta.set(label, [s]);
@@ -107,11 +136,14 @@ export default function AgentsSessions() {
       /* The active folder first: it is the one being worked in. */
       if (a[0] === workspaceAktif) return -1;
       if (b[0] === workspaceAktif) return 1;
+      /* "Chats" (no folder) last: it is a leftover bucket, not a workspace. */
+      if (a[0] === tr('Chats')) return 1;
+      if (b[0] === tr('Chats')) return -1;
       const terbaru = (arr: typeof tersaring) =>
         Math.max(...arr.map((s) => s.messages[s.messages.length - 1]?.at ?? s.createdAt));
       return terbaru(b[1]) - terbaru(a[1]);
     });
-  }, [tersaring, workspaceAktif]);
+  }, [tersaring, workspaceAktif, activeId, tr]);
 
   return (
     <div className="ag-sesi" data-testid="ag-sessions">
@@ -146,19 +178,61 @@ export default function AgentsSessions() {
 
       <div className="ag-sesi-list">
         {grup.length === 0 && <p className="ag-sesi-kosong">{tr('No conversations yet')}</p>}
-        {grup.map(([label, items]) => (
-          <div key={label} className="ag-sesi-grup">
+        {grup.map(([label, items]) => {
+          /*
+           * The active folder's group cannot be folded shut.
+           *
+           * It holds the conversation the reader is sitting in; folding it
+           * would hide the row that is currently open, which reads as "my chat
+           * disappeared". Every other group folds freely.
+           */
+          const terlipat = !!lipat[label] && label !== workspaceAktif;
+          return (
+          <div key={label} className="ag-sesi-grup" data-grup={label}>
             {/*
-              * No folder header.
+              * Folder header, shown.
               *
-              * The reader asked for the folder name to go: in a column this
-              * narrow the name was the widest thing on the row and it named a
-              * fact nobody was choosing between — every conversation below it
-              * belongs to the folder that is already open in the title bar. The
-              * grouping is kept (it still orders sessions by folder, active one
-              * first); only the label is gone, so nothing is hidden.
+              * It used to be hidden because the reasoning was "every session
+              * below belongs to the folder open in the title bar". That is only
+              * true while the list holds ONE folder; as soon as the reader opens
+              * a second project the list mixes both, and without a header there
+              * is no way to tell which conversation belongs to which project.
+              * The name is shortened to its last path segment so a deep path does
+              * not push the session titles off the row.
               */}
-            {items.map((s) => (
+            <div
+              className="ag-sesi-grup-head"
+              data-testid="ag-sesi-grup-head"
+              data-grup={label}
+              data-terlipat={terlipat ? 'ya' : 'tidak'}
+              title={label}
+              role="button"
+              tabIndex={0}
+              aria-expanded={!terlipat}
+              onClick={() => setLipat((s) => ({ ...s, [label]: !terlipat }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setLipat((s) => ({ ...s, [label]: !terlipat }));
+                }
+              }}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true" className={`ag-sesi-grup-chev${terlipat ? '' : ' is-buka'}`}>
+                <path d="M6 3.6L10.4 8L6 12.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-grup-ic">
+                <path
+                  d="M1.8 4.6A1.2 1.2 0 0 1 3 3.4h3l1.2 1.4h5.8A1.2 1.2 0 0 1 14.2 6v5.4A1.2 1.2 0 0 1 13 12.6H3a1.2 1.2 0 0 1-1.2-1.2z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="ag-sesi-grup-nama">{namaFolder(label)}</span>
+              <span className="ag-sesi-grup-jml">{items.length}</span>
+            </div>
+            {!terlipat && items.map((s) => (
               <button
                 key={s.id}
                 className={`ag-sesi-row${s.id === activeId ? ' is-aktif' : ''}`}
@@ -218,7 +292,8 @@ export default function AgentsSessions() {
               </button>
             ))}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {menu && (

@@ -2994,6 +2994,12 @@ interface AiActions {
     renameChat: (id: string, title: string) => void;
     duplicateChat: (id: string) => string | null;
     setChatPinned: (id: string, pinned: boolean) => void;
+    /**
+     * Point the chat surfaces at the conversation belonging to this folder.
+     * Called when a workspace is opened, so the transcript on screen is never
+     * another project's history.
+     */
+    ikutiWorkspace: (dir: string | null) => void;
 
     clearAllChats: () => void;
 
@@ -4409,6 +4415,68 @@ export const useAi = create<AiStore>((set0, get) => {
   setChatPinned: (id, pinned) => {
     set((s) => ({
       sessions: s.sessions.map((x) => (x.id === id ? { ...x, pinned } : x)),
+    }));
+    persist(get());
+  },
+
+  /*
+   * Point the chat surfaces at the conversation that belongs to this folder.
+   *
+   * WHY this is a store action and not something the Agents list does: the chat
+   * is shown in three places (editor tab, right column, Agents window), and all
+   * three read `activeIds`. If each surface picked a session for itself, opening
+   * a folder would leave two of them on a conversation from the PREVIOUS
+   * project — which is exactly the reported bug: "buka folder Zephyr, tapi yang
+   * kebaca folder lain".
+   *
+   * Order of preference:
+   *   1. the newest session recorded for this folder;
+   *   2. the session already active, when it has no folder recorded (old data
+   *      predating `workspace`; keeping it avoids yanking the reader elsewhere);
+   *   3. a fresh chat, stamped with this folder.
+   *
+   * It never selects a session that belongs to a DIFFERENT folder. That is the
+   * whole point: showing another project's transcript under this folder's title
+   * is a lie about what is open.
+   */
+  ikutiWorkspace: (dir) => {
+    const target = (dir ?? '').trim();
+    if (!target) return;
+    const sesi = get().sessions;
+    const milik = sesi
+      .filter((s) => s.workspace === target)
+      .sort(
+        (a, b) =>
+          (b.messages[b.messages.length - 1]?.at ?? b.createdAt) -
+          (a.messages[a.messages.length - 1]?.at ?? a.createdAt),
+      );
+    const aktifSekarang = get().activeId;
+    const aktif = sesi.find((s) => s.id === aktifSekarang);
+    const kandidat =
+      milik[0] ??
+      (aktif && !aktif.workspace ? aktif : null);
+
+    if (kandidat) {
+      set((s) => ({
+        activeId: kandidat.id,
+        /* Every surface follows: leaving one on another folder's chat is the bug. */
+        activeIds: Object.fromEntries(Object.keys(s.activeIds).map((k) => [k, kandidat.id])),
+      }));
+      persist(get());
+      return;
+    }
+    /* Nothing for this folder yet: open a fresh chat so the reader can start. */
+    const baru = get().newChat();
+    /*
+     * Stamp the folder EXPLICITLY.
+     *
+     * `newChat` reads `useStore.workspace`, but `ikutiWorkspace` is called from
+     * `syncWorkspaceLokal` in the same tick the folder changes, so that read can
+     * still see the PREVIOUS folder — measured: a chat opened for `D:\FolderBaru`
+     * came out stamped `D:\Zephyr`. The caller knows the folder; pass it.
+     */
+    set((s) => ({
+      sessions: s.sessions.map((x) => (x.id === baru ? { ...x, workspace: target } : x)),
     }));
     persist(get());
   },
