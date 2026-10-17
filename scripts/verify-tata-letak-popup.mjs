@@ -32,6 +32,37 @@ const hasil = await cdp.json(
   const q = (s) => document.querySelector(s);
   const out = {};
 
+  /*
+   * Geometry, not just existence.
+   *
+   * The first version of this harness only asked "is the popup in the DOM?".
+   * It passed while every popup was rendered OFF-SCREEN: the card was centred
+   * with negative percentage margins (which resolve against the viewport) on
+   * top of a translate, so it sat half a window too high and the reader saw
+   * nothing but its bottom edge. "In the DOM" is not "the user can see it".
+   */
+  const ukur = (testid) => {
+    const el = q('[data-testid="' + testid + '"]');
+    if (!el) return { ada: false };
+    const r = el.getBoundingClientRect();
+    return {
+      ada: true,
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      top: Math.round(r.top),
+      left: Math.round(r.left),
+      /* Fully inside the viewport, with no edge cut off. */
+      diLayar:
+        r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth,
+      /* Centre within a few pixels of the viewport centre. */
+      tengah:
+        Math.abs((r.top + r.bottom) / 2 - window.innerHeight / 2) < 24 &&
+        Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 24,
+      /* Body actually has height: a card with a collapsed body is empty. */
+      bodyH: Math.round(q('[data-testid="' + testid + '"] .mpop-body')?.getBoundingClientRect().height ?? 0),
+    };
+  };
+
   /* Bersihkan sisa uji sebelumnya. */
   for (const t of S.getState().tabs.filter((x) => x.view === 'extensions' || x.view === 'tools')) {
     S.getState().requestCloseTab(t.id);
@@ -52,6 +83,7 @@ const hasil = await cdp.json(
   tombol[gearIdx]?.click();
   await tunggu(900);
   out.settings = {
+    ukuran: ukur('settings-pop'),
     pop: !!q('[data-testid="settings-pop"]'),
     scrim: !!q('[data-testid="settings-pop-scrim"]'),
     nav: document.querySelectorAll('[data-testid^="set-nav-"]').length,
@@ -77,6 +109,7 @@ const hasil = await cdp.json(
   S.getState().setExtensionsOpen(true);
   await tunggu(1000);
   out.extensions = {
+    ukuran: ukur('extensions-pop'),
     pop: !!q('[data-testid="extensions-pop"]'),
     view: !!q('[data-testid="extensions-view"]'),
     tombolEditor: !!q('[data-testid="extensions-pop-open-editor"]'),
@@ -96,6 +129,7 @@ const hasil = await cdp.json(
   S.getState().setToolsOpen(true);
   await tunggu(1000);
   out.tools = {
+    ukuran: ukur('tools-pop'),
     pop: !!q('[data-testid="tools-pop"]'),
     view: !!q('[data-testid="tools-view"]'),
     tab: document.querySelectorAll('[data-testid^="tools-tab-"]').length,
@@ -134,6 +168,10 @@ cek('halaman Setelan dirender', h.settings.page === true);
 cek('bukan lagi penuh-area', h.settings.bukanPenuhArea === true);
 cek('editor tetap ada di belakang', h.settings.editorMasihAda === true);
 cek('role=dialog', h.settings.role === 'dialog');
+cek('popup SEPENUHNYA terlihat di layar', h.settings.ukuran.diLayar === true,
+  `${h.settings.ukuran.w}x${h.settings.ukuran.h} @ top=${h.settings.ukuran.top}`);
+cek('popup terpusat di jendela', h.settings.ukuran.tengah === true);
+cek('isi popup punya tinggi', h.settings.ukuran.bodyH > 100, `body=${h.settings.ukuran.bodyH}px`);
 cek('Escape menutup', h.escMenutup === true);
 cek('klik scrim menutup', h.scrimMenutup === true);
 
@@ -142,6 +180,9 @@ cek('popup Extensions terbuka', h.extensions.pop === true);
 cek('isi marketplace dirender', h.extensions.view === true);
 cek('tombol Open in Editor ada', h.extensions.tombolEditor === true);
 cek('tidak lagi di side bar', h.extensions.bukanDiSidebar === true);
+cek('popup Extensions terlihat penuh', h.extensions.ukuran.diLayar === true,
+  `${h.extensions.ukuran.w}x${h.extensions.ukuran.h} @ top=${h.extensions.ukuran.top}`);
+cek('popup Extensions terpusat', h.extensions.ukuran.tengah === true);
 cek('tombol menutup popup', h.openInEditor.popTutup === true);
 cek('tombol membuka tab editor', h.openInEditor.tabAda === true);
 cek('halaman ikut pindah ke tab', h.openInEditor.viewDiTab === true);
@@ -150,6 +191,9 @@ console.log('\nC4 — Dev Tools melayang:');
 cek('popup Tools terbuka', h.tools.pop === true);
 cek('isi tools dirender', h.tools.view === true);
 cek('empat tab tetap ada', h.tools.tab === 4, `${h.tools.tab} tab`);
+cek('popup Tools terlihat penuh', h.tools.ukuran.diLayar === true,
+  `${h.tools.ukuran.w}x${h.tools.ukuran.h} @ top=${h.tools.ukuran.top}`);
+cek('popup Tools terpusat', h.tools.ukuran.tengah === true);
 cek('popup bisa ditutup', h.toolsTutup === true);
 
 console.log('\nSemua lulus.');
