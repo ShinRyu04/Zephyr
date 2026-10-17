@@ -878,6 +878,19 @@ export const TOOL_BAWAAN: AgentTool[] = [
           glob: { type: ['array', 'string'], items: { type: 'string' }, description: 'Batasi ke pola jalur tertentu.' },
           root: { type: 'string', description: 'Akar pencarian. Bawaannya workspace.' },
           dryRun: { type: ['boolean', 'string'], description: 'Hanya laporkan, jangan ubah apa pun.' },
+          /*
+           * The ceiling is Rust's (200 files per call), but the MODEL is the one
+           * who can stay under it: a workspace-wide replace can match hundreds of
+           * files, and until this parameter existed the only way to find out was
+           * to be refused at the very end, after the search had already run.
+           * Optional on purpose — the default stays 200, so nothing changes for
+           * callers that never mention it.
+           */
+          maksBerkas: {
+            type: ['number', 'string'],
+            description:
+              'Batas jumlah berkas yang boleh disentuh satu panggilan (bawaan 200, maksimum 2000). Daftar yang lebih panjang dipotong dan pemotongannya dilaporkan.',
+          },
         },
         required: ['pattern', 'replacement'],
       },
@@ -912,8 +925,22 @@ export const TOOL_BAWAAN: AgentTool[] = [
       /* Daftar berkas harus dikumpulkan sendiri: `search_replace` mengganti di
          dalam berkas yang DIKIRIM, ia tidak menyisir workspace. Itu disebut di
          kepala berkas ini supaya tidak ada yang menebaknya dari nama. */
-      const berkas = await kumpulkanBerkas(opsi);
-      if (!berkas.length) return 'Tidak ada berkas yang cocok, jadi tidak ada yang diubah.';
+      const semuaBerkas = await kumpulkanBerkas(opsi);
+      if (!semuaBerkas.length) return 'Tidak ada berkas yang cocok, jadi tidak ada yang diubah.';
+
+      /*
+       * Cut the list HERE, before the call, and say so.
+       *
+       * Rust refuses more than 200 files outright (`search.rs`), and that refusal
+       * arrives after the whole search already ran — the model learns the limit
+       * only by hitting it. Trimming locally keeps the promise visible: the
+       * report names how many files were left out, so a partial replace is never
+       * mistaken for a complete one. The ceiling stays 200 by default because
+       * that is what the backend enforces.
+       */
+      const batas = Math.min(Math.max(Number(a.maksBerkas ?? 200) || 200, 1), 2000);
+      const berkas = semuaBerkas.slice(0, batas);
+      const dipotong = semuaBerkas.length - berkas.length;
 
       const hasil = await cmd.searchReplace(berkas, opsi, replacement);
       const berubah = hasil.filter((h) => h.jumlah > 0);
@@ -922,8 +949,11 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const galat = hasil.filter((h) => h.error);
       const total = berubah.reduce((n, h) => n + h.jumlah, 0);
       const kepala = `Diganti di ${berubah.length} berkas, ${total} penggantian.`;
+      const catatanPotong = dipotong > 0
+        ? `\nDaftar dipotong: ${dipotong} berkas lain TIDAK disentuh (batas ${batas} per panggilan). Jalankan lagi untuk sisanya.`
+        : '';
       const kaki = galat.length ? '\nGagal:\n' + galat.map((h) => `  ${h.path}: ${h.error}`).join('\n') : '';
-      return potong(kepala + '\n' + baris.join('\n') + kaki);
+      return potong(kepala + '\n' + baris.join('\n') + catatanPotong + kaki);
     },
   },
 
