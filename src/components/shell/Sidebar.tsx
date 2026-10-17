@@ -5,7 +5,6 @@ const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
 const OutlinePanel = lazy(() => import('../explorer/OutlinePanel'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const SourceControlPanel = lazy(() => import('../scm/SourceControlPanel'));
-const SettingsNav = lazy(() => import('../settings/SettingsNav'));
 const TerminalPanel = lazy(() => import('./TerminalPanel'));
 
 export default function Sidebar() {
@@ -50,8 +49,16 @@ export default function Sidebar() {
          squeezed beside a marketplace. */
       case 'extensions':
         return null;
+      /*
+       * Settings no longer draws its nav here.
+       *
+       * The nav lives INSIDE the Settings popup now (ShellPopups). Rendering it
+       * in the side bar as well is what made pressing the gear show the same
+       * column twice - once docked on the left, once inside the card - and the
+       * docked copy was the one that stayed visible after the popup closed.
+       */
       case 'settings':
-        return <SettingsNav />;
+        return null;
       default:
         return null;
     }

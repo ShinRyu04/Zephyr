@@ -72,6 +72,10 @@ const hasil = await cdp.json(
   S.getState().setToolsOpen(false);
   await tunggu(400);
 
+  /* Mulai dari keadaan rapi: sidebar tertutup, tak ada popup. */
+  S.getState().setSidebarVisible(false);
+  await tunggu(300);
+
   /* C2a: gear di bawah avatar. */
   const rail = q('nav.activitybar');
   const tombol = [...(rail?.querySelectorAll('button') ?? [])];
@@ -92,6 +96,25 @@ const hasil = await cdp.json(
     editorMasihAda: !!q('.editor-area'),
     role: q('[data-testid="settings-pop"]')?.getAttribute('role'),
   };
+
+  /* Sidebar: tidak boleh ada <aside> kosong, nav tidak boleh dobel. */
+  out.sidebar = {
+    aside: !!q('aside.sidebar'),
+    navDiSidebar: document.querySelectorAll('aside.sidebar [data-testid^="set-nav-"]').length,
+    navDiPopup: document.querySelectorAll('[data-testid="settings-pop"] [data-testid^="set-nav-"]').length,
+  };
+
+  /* Maximize: ukur sebelum, klik, ukur sesudah, lalu Escape. */
+  const tombolMax = q('[data-testid="settings-pop-max"]');
+  out.maximize = { adaTombol: !!tombolMax, sebelum: ukur('settings-pop') };
+  tombolMax?.click();
+  await tunggu(600);
+  out.maximize.setelah = ukur('settings-pop');
+  out.maximize.label = q('[data-testid="settings-pop-max"]')?.textContent?.trim() ?? null;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await tunggu(500);
+  out.maximize.escMasihTerbuka = !!q('[data-testid="settings-pop"]');
+  out.maximize.escUkuran = ukur('settings-pop');
 
   /* C2c: Escape menutup. */
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -114,6 +137,8 @@ const hasil = await cdp.json(
     view: !!q('[data-testid="extensions-view"]'),
     tombolEditor: !!q('[data-testid="extensions-pop-open-editor"]'),
     bukanDiSidebar: !q('aside.sidebar [data-testid="extensions-view"]'),
+    sidebarAside: !!q('aside.sidebar'),
+    adaMax: !!q('[data-testid="extensions-pop-max"]'),
   };
 
   /* C3b: "Open in Editor" menutup popup dan membuka tab. */
@@ -133,6 +158,8 @@ const hasil = await cdp.json(
     pop: !!q('[data-testid="tools-pop"]'),
     view: !!q('[data-testid="tools-view"]'),
     tab: document.querySelectorAll('[data-testid^="tools-tab-"]').length,
+    sidebarAside: !!q('aside.sidebar'),
+    adaMax: !!q('[data-testid="tools-pop-max"]'),
   };
 
   /* C4b: tutup lagi. */
@@ -175,11 +202,38 @@ cek('isi popup punya tinggi', h.settings.ukuran.bodyH > 100, `body=${h.settings.
 cek('Escape menutup', h.escMenutup === true);
 cek('klik scrim menutup', h.scrimMenutup === true);
 
+/*
+ * Side bar tidak boleh ikut terbuka.
+ *
+ * Settings dulu adalah view side bar, jadi membuka panel ini sekalian
+ * menampilkan kolom kiri. Sekarang nav-nya ada DI DALAM kartu: kolom kiri yang
+ * tetap dirender hanya menyisakan strip kosong ber-border yang terbaca sebagai
+ * bayangan panel. Yang diuji: tidak ada <aside class=sidebar>, dan tidak ada
+ * satu pun nav Settings di luar popup.
+ */
+cek('side bar TIDAK ikut terbuka', h.sidebar.aside === false);
+cek('nav Settings tidak dobel di kiri', h.sidebar.navDiSidebar === 0,
+  `${h.sidebar.navDiSidebar} nav di sidebar`);
+cek('nav Settings ada di dalam popup', h.sidebar.navDiPopup > 0,
+  `${h.sidebar.navDiPopup} nav di popup`);
+
+console.log('\nC2e - Maximize:');
+cek('tombol Maximize ada', h.maximize.adaTombol === true);
+cek('maximize memperbesar kotak',
+  h.maximize.setelah.w > h.maximize.sebelum.w && h.maximize.setelah.h > h.maximize.sebelum.h,
+  `${h.maximize.sebelum.w}x${h.maximize.sebelum.h} -> ${h.maximize.setelah.w}x${h.maximize.setelah.h}`);
+cek('maximize tetap di layar', h.maximize.setelah.diLayar === true);
+cek('label berubah jadi Restore', h.maximize.label === 'Restore', String(h.maximize.label));
+cek('Escape saat maximize: kembali, bukan menutup',
+  h.maximize.escMasihTerbuka === true && h.maximize.escUkuran.w === h.maximize.sebelum.w);
+
 console.log('\nC3 — Extensions melayang + Open in Editor:');
 cek('popup Extensions terbuka', h.extensions.pop === true);
 cek('isi marketplace dirender', h.extensions.view === true);
 cek('tombol Open in Editor ada', h.extensions.tombolEditor === true);
 cek('tidak lagi di side bar', h.extensions.bukanDiSidebar === true);
+cek('Extensions TIDAK membuka side bar', h.extensions.sidebarAside === false);
+cek('Extensions punya Maximize', h.extensions.adaMax === true);
 cek('popup Extensions terlihat penuh', h.extensions.ukuran.diLayar === true,
   `${h.extensions.ukuran.w}x${h.extensions.ukuran.h} @ top=${h.extensions.ukuran.top}`);
 cek('popup Extensions terpusat', h.extensions.ukuran.tengah === true);
@@ -191,6 +245,8 @@ console.log('\nC4 — Dev Tools melayang:');
 cek('popup Tools terbuka', h.tools.pop === true);
 cek('isi tools dirender', h.tools.view === true);
 cek('empat tab tetap ada', h.tools.tab === 4, `${h.tools.tab} tab`);
+cek('Tools TIDAK membuka side bar', h.tools.sidebarAside === false);
+cek('Tools punya Maximize', h.tools.adaMax === true);
 cek('popup Tools terlihat penuh', h.tools.ukuran.diLayar === true,
   `${h.tools.ukuran.w}x${h.tools.ukuran.h} @ top=${h.tools.ukuran.top}`);
 cek('popup Tools terpusat', h.tools.ukuran.tengah === true);

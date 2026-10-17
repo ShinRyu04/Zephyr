@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useDragPopup } from '../../lib/useDragPopup';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT } from '../../lib/i18n';
@@ -52,6 +52,20 @@ export default function ModalPopup({
   const tr = useT();
   const { popupRef, onPointerDown } = useDragPopup();
 
+  /*
+   * Maximize is local to the frame, not a saved preference: it describes how
+   * the reader is looking at the panel RIGHT NOW, and a panel that reopens
+   * full-screen days later because of a forgotten click is a surprise, not a
+   * convenience. Closing the panel resets it (the component unmounts).
+   */
+  const [maksimal, setMaksimal] = useState(false);
+
+  /* Escape from maximized restores the window size first, closes second:
+   * losing the panel because you wanted your editor back is the wrong order. */
+  useEffect(() => {
+    if (!open) setMaksimal(false);
+  }, [open]);
+
   /* Focus trap: owns its own ref, so the same node must be handed to it. The
      drag hook needs the SAME element - one ref, passed to both. */
   const trapRef = useFocusTrap<HTMLDivElement>({ aktif: open, onEscape: onClose });
@@ -66,14 +80,20 @@ export default function ModalPopup({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      /* Maximized: Escape restores the window first. Closing the panel
+       * because the reader wanted their editor back would lose the place
+       * they were in. */
+      if (maksimal) {
+        setMaksimal(false);
+        return;
       }
+      onClose();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open, onClose]);
+  }, [open, onClose, maksimal]);
 
   if (!open) return null;
 
@@ -95,16 +115,38 @@ export default function ModalPopup({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        style={{
-          width,
-          height,
-          transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))',
-        }}
+        style={
+          maksimal
+            ? {
+                /* Full-screen: the inline width/height win over the card's
+                 * own, so the same element can be either size without a
+                 * second copy in the DOM. The drag offset is dropped - a
+                 * maximized panel that can be dragged off-screen is worse
+                 * than one that cannot move. */
+                width: 'calc(100vw - 16px)',
+                height: 'calc(100vh - 16px)',
+                translate: '-50% -50%',
+              }
+            : {
+                width,
+                height,
+                transform: 'translate(var(--drag-x, 0), var(--drag-y, 0))',
+              }
+        }
         onPointerDown={onPointerDown}
       >
         <div className="mpop-head" data-drag-handle>
           <span className="mpop-title">{title}</span>
           <span className="mpop-head-actions">
+            <button
+              className="btn btn-sm"
+              data-testid={`${testid}-max`}
+              aria-pressed={maksimal}
+              title={maksimal ? tr('Restore size') : tr('Maximize')}
+              onClick={() => setMaksimal((v) => !v)}
+            >
+              {maksimal ? tr('Restore') : tr('Maximize')}
+            </button>
             {onOpenEditor && (
               <button
                 className="btn btn-sm"

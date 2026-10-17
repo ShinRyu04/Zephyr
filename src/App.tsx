@@ -272,10 +272,29 @@ async function cekUpdateStartup() {
 export default function App() {
   const tr = useT();
   const sidebarVisible = useStore((s) => s.sidebarVisible);
+
   const sidebarWidth = useStore((s) => s.sidebarWidth);
   const sidebarHeight = useStore((s) => s.sidebarHeight);
   const pos = useStore((s) => s.settings.sidebar) ?? 'left';
   const activity = useStore((s) => s.activity);
+  /*
+   * Activities whose Sidebar content is null.
+   *
+   * The <aside> wrapper used to be rendered for every activity, so an empty
+   * panel still drew its background, border and resizer: a blank strip that
+   * looked like a ghost of the side bar left behind, and it stole width from
+   * the editor. Settings and Extensions are floating panels now, and the four
+   * workspace tools fill the editor on their own, so none of them needs a dock.
+   */
+  const activityTanpaPanel = [
+    'settings',
+    'extensions',
+    'tools',
+    'devenv',
+    'api',
+    'sftp',
+    'tests',
+  ].includes(activity);
 
   const zen = useTampilan((s) => s.mode === 'zen');
 
@@ -397,9 +416,15 @@ export default function App() {
       return;
     }
 
-    const open = !intent.wasOpen;
-    store.setSettingsOpen(open);
-    store.setSidebarVisible(open);
+    /*
+     * Settings is a floating panel: it must NOT touch the side bar.
+     *
+     * `setSidebarVisible(open)` used to open the left column with the gear,
+     * because Settings WAS a side-bar view. Now the nav lives inside the card,
+     * so opening the dock as well only puts a blank column (or an unrelated
+     * panel) beside the popup - the "tab kiri kebuka sendiri" complaint.
+     */
+    store.setSettingsOpen(!intent.wasOpen);
   }, []);
 
   useEffect(() => {
@@ -1421,7 +1446,7 @@ export default function App() {
           {pos !== 'bottom' && L.activityBar && <ActivityBar />}
 
           {/* Posisi ATAS: panel di atas editor, divider horizontal. */}
-          {pos === 'top' && sidebarVisible && L.sidebar && (
+          {pos === 'top' && sidebarVisible && L.sidebar && !activityTanpaPanel && (
             <>
               <aside
                 className="sidebar sidebar-h"
@@ -1447,7 +1472,7 @@ export default function App() {
           {(pos === 'left' || pos === 'right') &&
             sidebarVisible &&
             L.sidebar &&
-            !['tools', 'devenv', 'api', 'sftp', 'tests'].includes(activity) && (
+            !activityTanpaPanel && (
             <>
               <aside className="sidebar" style={{ width: sidebarWidth }} aria-label="Sidebar">
                 <Sidebar />
@@ -1586,7 +1611,7 @@ export default function App() {
           )}
 
           {/* Posisi BAWAH: divider horizontal + panel di bawah editor. */}
-          {pos === 'bottom' && sidebarVisible && L.sidebar && (
+          {pos === 'bottom' && sidebarVisible && L.sidebar && !activityTanpaPanel && (
             <>
               <div
                 className="resizer resizer-h"
