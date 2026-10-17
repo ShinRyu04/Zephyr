@@ -8722,10 +8722,26 @@ export const useAi = create<AiStore>((set0, get) => {
           const isi = agentFailure
             ? String(agentFailure.message).split('\n')[0].slice(0, 120)
             : (akhir || '').trim().split('\n')[0].slice(0, 120) || tx('No summary was produced.');
+          /*
+           * The button is the point of notifying at all.
+           *
+           * A reader who left the window gets "Agent run finished" and then has
+           * to find the chat themselves. `ai.panel` is the registered command
+           * that brings the chat back - the same one the Command Palette runs -
+           * so the notification is a way BACK to the work, not just a report
+           * that it happened. Failures get it too: the run that died is exactly
+           * the one worth reopening.
+           *
+           * `runCommand` is the registry's own runner, imported lazily like the
+           * store above, so this path adds nothing to the boot bundle.
+           */
+          const aksi = [
+            { label: tx('Open chat'), command: 'ai.panel' },
+          ];
           if (agentFailure) {
-            m.notifyError(judul, { detail: isi, source: 'AI' });
+            m.notifyError(judul, { detail: isi, source: 'AI', actions: aksi });
           } else {
-            m.notifyInfo(judul, { detail: isi, source: 'AI' });
+            m.notifyInfo(judul, { detail: isi, source: 'AI', actions: aksi });
           }
         });
       }

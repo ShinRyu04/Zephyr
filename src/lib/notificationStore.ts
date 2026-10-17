@@ -167,13 +167,35 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
   unread: () => get().items.filter((x) => !x.read).length,
 }));
 
-export const notifyInfo = (message: string, opts?: { detail?: string; source?: string }) =>
+/*
+ * Every helper takes the SAME options, `actions` included.
+ *
+ * `actions` used to exist only on `notifyError`. That made the useful case
+ * impossible: "the run finished, open the chat" is an INFO notification with a
+ * button, and the only way to get a button was to report a failure. Callers
+ * either lied about the severity or dropped the action - and `NotificationCenter`
+ * has always been able to render `actions`, so the UI was ready and the store
+ * would not fill it.
+ *
+ * One shared shape rather than three drifting ones: a fourth helper (or a new
+ * option) can then be added in one place, and a caller can pass `actions` to any
+ * severity without discovering that only one of them accepts it.
+ */
+export interface NotifOpts {
+  detail?: string;
+  source?: string;
+  actions?: NotifAction[];
+  /** 0..1, or 'indeterminate' for work whose length is unknown. */
+  progress?: number | 'indeterminate';
+  /** Keep it in the centre until dismissed, even for info. */
+  sticky?: boolean;
+}
+
+export const notifyInfo = (message: string, opts?: NotifOpts) =>
   useNotif.getState().notify({ severity: 'info', message, ...opts });
 
-export const notifyWarn = (message: string, opts?: { detail?: string; source?: string }) =>
+export const notifyWarn = (message: string, opts?: NotifOpts) =>
   useNotif.getState().notify({ severity: 'warn', message, ...opts });
 
-export const notifyError = (
-  message: string,
-  opts?: { detail?: string; source?: string; actions?: NotifAction[] },
-) => useNotif.getState().notify({ severity: 'error', message, ...opts });
+export const notifyError = (message: string, opts?: NotifOpts) =>
+  useNotif.getState().notify({ severity: 'error', message, ...opts });
