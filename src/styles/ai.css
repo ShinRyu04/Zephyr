@@ -6587,6 +6587,73 @@
 }
 
 /*
+ * The model table: Name / Context Size / Capabilities.
+ *
+ * Deliberately quiet — a hairline under the header and no zebra striping. The
+ * reader is scanning capability chips, not reading rows, and banding would fight
+ * the chips for attention.
+ */
+.aim-table-wrap {
+  margin: 0 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.aim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.aim-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg0);
+  white-space: nowrap;
+}
+.aim-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.aim-table tr:last-child td {
+  border-bottom: none;
+}
+.aim-table tr.is-hydra td {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.aim-td-name {
+  color: var(--text);
+  display: block;
+}
+.aim-td-sub {
+  color: var(--text-muted);
+  font-size: 11px;
+  display: block;
+}
+.aim-td-ctx {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.aim-caps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.aim-cap {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/*
  * The two-column CLI grid needs a floor, or it collapses to slivers once the
  * control is allowed to shrink. `minmax(0, 1fr)` keeps the columns equal while
  * allowing their contents to ellipsis rather than forcing the grid wider.
