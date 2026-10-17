@@ -2,6 +2,7 @@ import { snippetCompletion } from '@codemirror/autocomplete';
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import type { Extension } from '@codemirror/state';
 import * as cmd from './commands';
+import { tf } from './i18n';
 import { setToolEkstensi } from './toolGate';
 import type {
   ContribLanguage,
@@ -372,11 +373,24 @@ function muatBahasa(
       const key = e.toLowerCase().replace(/^\./, '');
       if (!key) continue;
       if (langByExt.has(key)) {
-        const pemilik = langPemilik.get(key) ?? 'paket lain';
+        const pemilik = langPemilik.get(key) ?? 'another package';
         tidakDidukung.push({
           id: m.id,
           fitur: 'bahasa',
-          alasan: `ekstensi .${key} (bahasa "${l.id}") diabaikan: .${key} sudah dipakai "${pemilik}"`,
+          /*
+           * Translated, not a literal Indonesian sentence.
+           *
+           * This string is RENDERED in the Marketplace panel, so it has to
+           * follow `uiLang` like every other visible line. It used to be built
+           * inline in Indonesian, which meant an English reader saw Indonesian
+           * text in the middle of the extension card - measured by
+           * `verify-bahasa-ui` as "Marketplace bocor".
+           */
+          alasan: tf('extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}', {
+            ext: `.${key}`,
+            lang: l.id,
+            owner: `"${pemilik}"`,
+          }),
         });
         continue;
       }
