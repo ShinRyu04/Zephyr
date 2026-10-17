@@ -5427,9 +5427,11 @@ export const useAi = create<AiStore>((set0, get) => {
      *      indeks 11 - delapan pesan `user` di antaranya. Bagi gateway
      *      OpenAI-compatible itu graf yang tidak sah.
      *
-     * Batasnya giliran TERAKHIR saja (satu user + satu asisten) - cukup untuk
-     * menjaga kesinambungan ("perbaiki yang tadi" tetap punya acuan) tanpa
-     * menyeret riwayat panjang ke konteks tugas baru.
+     * Batasnya sekarang GILIRAN TERAKHIR yang muat (40 pesan ≈ 20 giliran),
+     * bukan dua pesan: tugas yang diset tiga pesan lalu dulu hilang tanpa jejak.
+     * Ukuran tetap dijaga `ringkasRiwayat` pada salinan yang dikirim, dan
+     * `capUntukPesan` sekarang realistis (lihat contextBudget.ts), jadi riwayat
+     * panjang tidak lagi memaksa jalur potong-terakhir menyala tiap giliran.
      *
      * Ditambah satu saringan: pesan yang bunyinya SAMA dengan perintah yang baru
      * saja diketik dibuang. Percobaan ulang meninggalkan pesan user sebelumnya
@@ -5444,7 +5446,21 @@ export const useAi = create<AiStore>((set0, get) => {
         m.id !== botMsg.id &&
         !(m.role === 'user' && m.content.trim() === (tampilBubble ?? content).trim()),
     );
-    const prev = prevSemua.slice(-2);
+    /*
+     * Window: the last turns, not the last two MESSAGES.
+     *
+     * `slice(-2)` was one user turn plus one assistant turn, and it silently
+     * dropped anything asked earlier: a task set three messages ago simply did
+     * not reach the model, with nothing on screen saying so. The window is
+     * wider now and SIZE is what bounds it — `ringkasRiwayat` trims the outgoing
+     * copy to `capUntukPesan` and protects the newest turn, so a long history
+     * costs nothing until it actually does not fit.
+     *
+     * Images travel with the turn that carried them (see the push below): a
+     * window that drops them would reintroduce the "model cannot see the image"
+     * bug through the back door.
+     */
+    const prev = prevSemua.slice(-40);
     for (const m of prev) {
       if (m.role === 'user' || m.role === 'assistant') {
         const banyak = m.images?.length ? m.images : m.image ? [m.image] : [];
