@@ -429,6 +429,11 @@ const ID: Dict = {
   'settings.memori.jenisPreferensi': 'Preferensi',
   'settings.memori.jenisKerja': 'Kerja',
   'settings.memori.jenisLain': 'Lain',
+  'Main pass': 'Lintasan utama',
+  'Review': 'Telaah',
+  'Revision': 'Revisi',
+  'Research preview': 'Pratinjau riset',
+  'no token usage reported': 'pemakaian token tidak dilaporkan',
 };
 
 const EN: Dict = {
@@ -856,6 +861,11 @@ const EN: Dict = {
   'settings.memori.jenisPreferensi': 'Preference',
   'settings.memori.jenisKerja': 'Work',
   'settings.memori.jenisLain': 'Other',
+  'Main pass': 'Main pass',
+  'Review': 'Review',
+  'Revision': 'Revision',
+  'Research preview': 'Research preview',
+  'no token usage reported': 'no token usage reported',
 };
 
 const JA: Dict = {
@@ -1275,6 +1285,11 @@ const JA: Dict = {
   'settings.memori.jenisPreferensi': '好み',
   'settings.memori.jenisKerja': '作業',
   'settings.memori.jenisLain': 'その他',
+  'Main pass': 'メインパス',
+  'Review': 'レビュー',
+  'Revision': '改訂',
+  'Research preview': 'リサーチプレビュー',
+  'no token usage reported': 'トークン使用量の報告なし',
 };
 
 const KO: Dict = {
@@ -1694,6 +1709,11 @@ const KO: Dict = {
   'settings.memori.jenisPreferensi': '선호',
   'settings.memori.jenisKerja': '작업',
   'settings.memori.jenisLain': '기타',
+  'Main pass': '메인 패스',
+  'Review': '검토',
+  'Revision': '수정',
+  'Research preview': '리서치 프리뷰',
+  'no token usage reported': '토큰 사용량 보고 없음',
 };
 
 const ZH: Dict = {
@@ -2113,6 +2133,11 @@ const ZH: Dict = {
   'settings.memori.jenisPreferensi': '偏好',
   'settings.memori.jenisKerja': '工作',
   'settings.memori.jenisLain': '其他',
+  'Main pass': '主流程',
+  'Review': '审查',
+  'Revision': '修订',
+  'Research preview': '研究预览',
+  'no token usage reported': '未报告 token 使用量',
 };
 
 const ES: Dict = {
@@ -2532,6 +2557,11 @@ const ES: Dict = {
   'settings.memori.jenisPreferensi': 'Preferencia',
   'settings.memori.jenisKerja': 'Trabajo',
   'settings.memori.jenisLain': 'Otro',
+  'Main pass': 'Pase principal',
+  'Review': 'Revisión',
+  'Revision': 'Revisión',
+  'Research preview': 'Vista previa de investigación',
+  'no token usage reported': 'no se informó uso de tokens',
 };
 
 const FR: Dict = {
@@ -2951,6 +2981,11 @@ const FR: Dict = {
   'settings.memori.jenisPreferensi': 'Préférence',
   'settings.memori.jenisKerja': 'Travail',
   'settings.memori.jenisLain': 'Autre',
+  'Main pass': 'Passe principale',
+  'Review': 'Revue',
+  'Revision': 'Révision',
+  'Research preview': 'Aperçu de recherche',
+  'no token usage reported': 'aucune utilisation de jetons signalée',
 };
 
 const DE: Dict = {
@@ -3370,6 +3405,11 @@ const DE: Dict = {
   'settings.memori.jenisPreferensi': 'Vorliebe',
   'settings.memori.jenisKerja': 'Arbeit',
   'settings.memori.jenisLain': 'Sonstiges',
+  'Main pass': 'Hauptdurchlauf',
+  'Review': 'Prüfung',
+  'Revision': 'Überarbeitung',
+  'Research preview': 'Forschungsvorschau',
+  'no token usage reported': 'kein Token-Verbrauch gemeldet',
 };
 
 const PT: Dict = {
@@ -3789,6 +3829,11 @@ const PT: Dict = {
   'settings.memori.jenisPreferensi': 'Preferência',
   'settings.memori.jenisKerja': 'Trabalho',
   'settings.memori.jenisLain': 'Outro',
+  'Main pass': 'Passagem principal',
+  'Review': 'Revisão',
+  'Revision': 'Revisão',
+  'Research preview': 'Prévia de pesquisa',
+  'no token usage reported': 'nenhum uso de tokens informado',
 };
 
 const AR: Dict = {
@@ -4208,6 +4253,11 @@ const AR: Dict = {
   'settings.memori.jenisPreferensi': 'تفضيل',
   'settings.memori.jenisKerja': 'عمل',
   'settings.memori.jenisLain': 'أخرى',
+  'Main pass': 'المرور الرئيسي',
+  'Review': 'مراجعة',
+  'Revision': 'تنقيح',
+  'Research preview': 'معاينة بحثية',
+  'no token usage reported': 'لم يُبلَّغ عن استخدام الرموز',
 };
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };

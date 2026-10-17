@@ -326,6 +326,24 @@ export interface ChatMsg extends AiMessage {
    * one.
    */
   checkpoint?: import('./checkpoint').Checkpoint;
+
+  /*
+   * What HydraFusion decided for THIS turn, when it routed it.
+   *
+   * Carried on the message rather than read from `hydraTerakhir` because that
+   * store field only describes the LAST run: scrolling back would show the
+   * newest route beside every older answer, which is a lie about what produced
+   * them. Present only on assistant turns HydraFusion actually routed.
+   */
+  hydra?: {
+    jalur: string;
+    provider: string;
+    model: string;
+    request: number;
+    berhenti: string;
+    pemakaian?: { input: number; output: number };
+    catatanTahap: string[];
+  };
 }
 
 export interface AgentToolRun {

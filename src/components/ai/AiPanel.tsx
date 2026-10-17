@@ -1321,17 +1321,29 @@ const bukaModels = () => useAiModels.getState().buka();
             * run does: it is a state, not a receipt.
             */}
           {hydraTahap && (
-            <div className="ai-work-hydra" data-testid="ai-work-hydra">
+            <div
+              className="ai-work-hydra"
+              data-testid="ai-work-hydra"
+              title={[
+                `HydraFusion phase: ${tf(hydraTahap.peran === 'draft' ? 'Main pass' : hydraTahap.peran === 'kritik' ? 'Review' : 'Revision', {})}`,
+                `Phase is running`,
+                `Model: ${hydraTahap.model}`,
+                `Route: ${hydraTahap.jalur} (${hydraTahap.request} of ${hydraTahap.total})`,
+                hydraTahap.catatan,
+              ]
+                .filter(Boolean)
+                .join('\n')}
+            >
               <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M8 1.8 14 5 8 8.2 2 5z" />
                 <path d="M2.6 8.4 8 11.4l5.4-3" />
                 <path d="M2.6 11.4 8 14.4l5.4-3" />
               </svg>
               <span data-testid="ai-work-hydra-tahap">
-                {tf('Stage {n} of {m}', { n: hydraTahap.request, m: hydraTahap.total })}
+                {`${tf(hydraTahap.peran === 'draft' ? 'Main pass' : hydraTahap.peran === 'kritik' ? 'Review' : 'Revision', {})} · ${hydraTahap.model}`}
               </span>
               <span className="ai-work-meta" data-testid="ai-work-hydra-peran">
-                {`${hydraTahap.peran} · ${hydraTahap.model}`}
+                {`${tf('Stage {n} of {m}', { n: hydraTahap.request, m: hydraTahap.total })}${runElapsedSec > 0 ? ` · ${fmtDur(runElapsedSec)}` : ''}`}
               </span>
             </div>
           )}
