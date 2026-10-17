@@ -97,6 +97,10 @@ const tokenTerpakai = new Set<string>();
 export const themesEkstensi = (): ThemeInfo[] => daftarThemeInfo.slice();
 const daftarThemeInfo: ThemeInfo[] = [];
 
+/* Guard id tema memakai Set: O(1), dan tidak bisa bocor dua entri
+ * ber-id sama walau dua pemuatan saling berselang-seling di tengah await. */
+const idTemaTerdaftar = new Set<string>();
+
 /*
  * Cari `tokenColors` di berkas tema.
  *
@@ -136,8 +140,8 @@ async function muatTema(
     // manifests with the same id (a bundled copy and an installed copy) would
     // otherwise register the same theme twice and the picker would list it
     // twice.
+    if (idTemaTerdaftar.has(id)) continue;
     if (THEMES.some((x) => x.id === id)) continue;
-    if (daftarThemeInfo.some((x) => x.id === id)) continue;
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, t.path)) as Record<string, unknown>;
       
@@ -168,6 +172,7 @@ async function muatTema(
         continue;
       }
       themeTokens.set(id, tok);
+      idTemaTerdaftar.add(id);
       daftarThemeInfo.push({
         id,
         label: `${t.label || m.name} (${m.name})`,
@@ -493,7 +498,30 @@ export const commandsEkstensi = () => extCommands.slice();
 /* Tool dari paket, dirakit selama pemuatan lalu diserahkan sekali di akhir. */
 const hasilToolEkstensi: Array<{ id: string; label: string; tools: string[] }> = [];
 
-export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
+/*
+ * B2 - pemuatan bersifat serial.
+ *
+ * `muatSemuaEkstensi()` dipanggil dari paling tidak dua tempat yang bisa
+ * tumpang-tindih: pemuatan awal app dan `refresh()` setelah pasang/aktif.
+ * Seluruh state modul (daftarThemeInfo, themeTokens, extCommands) di-reset
+ * di awal lalu diisi ulang lewat beberapa await - dua pemuatan yang
+ * bersinggungan bisa menimpa satu sama lain dan mendaftarkan tema yang
+ * sama dua kali (kartu tema tampil dobel di picker) atau kehilangan token.
+ * Antrean di bawah menjamin hanya satu pemuatan aktif pada satu waktu;
+ * pemanggil berikutnya tetap mendapat jalankan sendiri yang segar, bukan
+ * hasil basi dari pemuatan sebelum pasang.
+ */
+let antreMuat: Promise<unknown> = Promise.resolve();
+export function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
+  const jalan = antreMuat.then(
+    () => muatSemuaEkstensiAsli(),
+    () => muatSemuaEkstensiAsli(),
+  );
+  antreMuat = jalan.catch(() => {});
+  return jalan;
+}
+
+async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
   /*
    * Guarantee the id set is complete before a single extension keymap is
    * validated.
@@ -508,6 +536,7 @@ export async function muatSemuaEkstensi(): Promise<LoaderRingkasan> {
 
   themeTokens.clear();
   daftarThemeInfo.length = 0;
+  idTemaTerdaftar.clear();
   langByExt.clear();
   snippetsByLang.clear();
   extKeymap.length = 0;
