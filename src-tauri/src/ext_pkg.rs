@@ -587,6 +587,19 @@ fn hitung(v: &Value, k: &str) -> usize {
     }
 }
 
+/// Keys named `--syn-*` inside `colors` are syntax tokens in Zephyr's native
+/// theme shape, not UI chrome. `hitung("colors")` counted them as UI colors,
+/// so a Zephyr-shaped theme reported e.g. "35 UI colors + 0 code colors" -
+/// the install report claimed the theme carried no code palette at all while
+/// the editor was in fact recoloured. Counting them here splits the two
+/// halves honestly: UI keys shrink, code keys grow.
+fn hitung_syn(v: &Value) -> usize {
+    match v.get("colors") {
+        Some(Value::Object(o)) => o.keys().filter(|k| k.starts_with("--syn-")).count(),
+        _ => 0,
+    }
+}
+
 /// Key bindings a keymap file actually carries.
 ///
 /// The loader (`muatKeymap` in `extLoader.ts`) accepts TWO shapes: a bare array
@@ -730,8 +743,10 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                 ),
             )),
             Some(v) => {
-                let ui = hitung(&v, "colors");
-                let kode = hitung(&v, "tokenColors");
+                /* B5: kunci `--syn-*` di `colors` adalah token kode, bukan UI. */
+                let kode_syn = hitung_syn(&v);
+                let ui = hitung(&v, "colors") - kode_syn;
+                let kode = hitung(&v, "tokenColors") + kode_syn;
                 if ui == 0 {
                     p.diabaikan.push(ki(
                         "theme",

@@ -222,6 +222,54 @@ export const KATALOG_BUNDLED: KatalogItem[] = [
     logo: '🌙',
     bundled: true,
   },
+
+  /*
+   * The four bundled themes below ship in the binary (ext_bundled.rs) and
+   * must appear in the Marketplace list - without entries here the cards
+   * are invisible and the packages cannot be installed at all, even though
+   * the loader can serve them. Keep name/description in sync with the
+   * manifests in ext_bundled_extra.rs.
+   */
+  {
+    id: 'zephyr.tema-samudra',
+    name: 'Tema Samudra',
+    publisher: 'zephyr',
+    version: '1.0.0',
+    description: 'Deep blue dark theme with cool accents, for long reading on an OLED panel.',
+    categories: ['Themes'],
+    logo: '🌊',
+    bundled: true,
+  },
+  {
+    id: 'zephyr.tema-hutan',
+    name: 'Tema Hutan',
+    publisher: 'zephyr',
+    version: '1.0.0',
+    description: 'Muted forest green, low glare, for daylight work on a dark screen.',
+    categories: ['Themes'],
+    logo: '🌲',
+    bundled: true,
+  },
+  {
+    id: 'zephyr.tema-senja-muda',
+    name: 'Tema Senja Muda',
+    publisher: 'zephyr',
+    version: '1.0.0',
+    description: 'Soft warm light theme, gentle on the eyes after sunset.',
+    categories: ['Themes'],
+    logo: '🌅',
+    bundled: true,
+  },
+  {
+    id: 'zephyr.tema-monokrom',
+    name: 'Tema Monokrom',
+    publisher: 'zephyr',
+    version: '1.0.0',
+    description: 'Grayscale dark theme, no hue - shapes and spacing do the talking.',
+    categories: ['Themes'],
+    logo: '⬛',
+    bundled: true,
+  },
 ];
 
 export const katalogById = (id: string) => KATALOG_BUNDLED.find((x) => x.id === id) ?? null;
