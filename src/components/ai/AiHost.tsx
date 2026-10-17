@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAiTabs, CLI_TABS } from '../../lib/aiTabsStore';
+import { useAiTabs, cliTabs as cliTabsUntuk } from '../../lib/aiTabsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import { useStore } from '../../lib/store';
 import AiPanel from './AiPanel';
@@ -25,10 +25,9 @@ export default function AiHost({ composerId = '' }: { composerId?: string }) {
   const setActive = useAiTabs((s) => s.setActive);
 
   /* Which CLI tabs to show: the catalogue entries that are actually detected.
-     Read as a primitive-ish derived list is fine here — the agents array
-     identity is stable in terminalStore between loads. */
+     Built from the LIVE detection result, not a fixed list - see `cliTabs`. */
   const agents = useTerminal((s) => s.agents);
-  const cliTabs = CLI_TABS.filter((c) => agents.some((a) => a.id === c.id));
+  const cliTabs = cliTabsUntuk(agents);
 
   /* If the active CLI tab's CLI disappeared (rescan), fall back to chat. */
   const activeValid = active === 'chat' || cliTabs.some((c) => c.id === active);

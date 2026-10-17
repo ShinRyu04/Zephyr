@@ -1,4 +1,4 @@
-import { CLI_TABS } from '../../lib/aiTabsStore';
+import { cliTabs } from '../../lib/aiTabsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import CliChat from './CliChat';
 import CodexChat from './CodexChat';
@@ -15,11 +15,17 @@ import { useT, useTf } from '../../lib/i18n';
 export default function CliSessionTab({ agentId }: { agentId: string }) {
   const tr = useT();
   const tf = useTf();
-  const meta = CLI_TABS.find((c) => c.id === agentId);
+  /*
+   * The label comes from the DETECTION result, not a fixed table: `cliTabs`
+   * builds it from `list_agents()`, so a CLI the catalogue never listed still
+   * gets its own name here.
+   */
+  const agents = useTerminal((s) => s.agents);
+  const meta = cliTabs(agents).find((c) => c.id === agentId);
   const label = meta?.label ?? agentId;
 
   /* Is the CLI detected on PATH? `terminalStore` loads this at startup. */
-  const detected = useTerminal((s) => s.agents.some((a) => a.id === agentId));
+  const detected = agents.some((a) => a.id === agentId);
 
   if (!detected) {
     const docs: Record<string, string> = {
