@@ -24,6 +24,7 @@ import { useStore } from './store';
 import { useExtensions } from './extensionStore';
 import { useLsp } from './lspStore';
 import { useMcp } from './mcpStore';
+import { mcpRingkas } from './mcpTools';
 import { usePanel } from './panelStore';
 import { useUpdater } from './updaterStore';
 
@@ -171,7 +172,28 @@ function barisLsp(): string {
   return `- LSP: running ${jalan}; probe: ${probe.length ? daftar(probe, MAKS_PROBE_LSP) : 'not run yet'}`;
 }
 
-/** Server MCP Zephyr: hidup/tidak + port yang benar-benar dipakai. */
+/**
+ * Server MCP Zephyr: hidup/tidak + port yang benar-benar dipakai, DAN tool luar
+ * yang bisa dipanggil.
+ *
+ * ## Kenapa daftar tool ikut ditulis
+ *
+ * Baris ini dulu hanya berbunyi "3 external server(s): context7, github,
+ * deepwiki" - nama server, tanpa satu pun nama tool. Model membacanya sebagai
+ * keterangan keadaan, bukan sebagai izin: ia tahu ada server terpasang, dan
+ * tidak tahu bahwa toolnya ADA DI GUDANGNYA.
+ *
+ * Padahal jalurnya sudah lengkap ujung ke ujung (`mcpStore` -> `mcpTools` ->
+ * `agentTools` -> `mcpClientCall` -> `mcp_client.rs`), dan `mcpExternalSpecs()`
+ * mengirim tool luar SELALU - bukan lewat `tool_search`. Jadi tool itu benar
+ * benar bisa dipanggil; satu-satunya yang tidak tahu adalah modelnya, karena
+ * tidak ada satu kalimat pun yang menyebutkannya.
+ *
+ * Yang ditulis adalah jumlah yang BENAR-BENAR dikirim (`mcpRingkas()` ->
+ * `dipakai`, sudah dipotong `BATAS_TOOL_PER_SERVER`), bukan seluruh isi katalog
+ * server. Menyebut tool yang tidak ikut dikirim sama salahnya dengan tidak
+ * menyebut apa pun: model akan memanggilnya lalu gagal.
+ */
 function barisMcp(): string {
   const m = useMcp.getState();
   const cfg = useStore.getState().settings?.mcp;
@@ -187,11 +209,33 @@ function barisMcp(): string {
     .map((s) => s.label || s.id)
     .filter(Boolean)
     .sort();
-  return (
+  const kepala =
     `- MCP: ${hidup}` +
     (srv.length
       ? `; ${srv.length} external server(s): ${daftar(srv, MAKS_SERVER_MCP)}`
-      : '; no external MCP servers configured')
+      : '; no external MCP servers configured');
+
+  /*
+   * Nama tool yang dikirim. `mcpRingkas()` adalah hitungan yang SAMA dengan yang
+   * dipakai `mcpExternalSpecs()`, jadi angka "dipakai" di sini identik dengan
+   * jumlah skema yang benar-benar sampai ke model - bukan perkiraan.
+   *
+   * Impor statis, bukan dinamis: `blokKeadaanPrompt()` sinkron dan dipanggil
+   * tiap giliran, jadi jalur async di sini hanya akan membuat blok ini kadang
+   * kosong pada giliran pertama. `mcpTools` kecil (8 KB, tanpa impor melingkar -
+   * `mcpClientCall` di dalamnya dimuat dinamis saat dipakai).
+   */
+  const denganTool = mcpRingkas().filter((r) => r.dipakai > 0);
+  if (denganTool.length === 0) return kepala;
+  const rincian = denganTool
+    .slice(0, MAKS_SERVER_MCP)
+    .map((r) => `${r.serverLabel || r.serverId} ${r.dipakai}/${r.total}`)
+    .join(', ');
+  return (
+    kepala +
+    `. Their tools ARE in your tool list as mcp__<server>__<tool> and you may call them directly: ${rincian}` +
+    (denganTool.length > MAKS_SERVER_MCP ? ` and ${denganTool.length - MAKS_SERVER_MCP} more` : '') +
+    '. Use one when the task matches; never claim a server listed here is unreachable.'
   );
 }
 
