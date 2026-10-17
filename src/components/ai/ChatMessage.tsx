@@ -653,6 +653,43 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             */}
           {showStamps && <MsgTime at={msg.at} />}
           {/*
+            * The receipt for a HydraFusion turn, beside the timestamp exactly
+            * where the reference product puts it ("11:49 AM · HydraFusion ·
+            * 444 credits").
+            *
+            * WHY here and not only in Chat Settings: `hydraTerakhir` describes
+            * the newest run, so a reader scrolling an old answer would see the
+            * newest route attached to it. The message carries its own copy, so
+            * every bubble tells the truth about what produced it.
+            *
+            * The figure is TOKENS, not credits: Zephyr has no billing and does
+            * not know any provider's price list, so inventing a money number
+            * would be a lie the reader cannot check. `0/0` is stated as "not
+            * reported" rather than printed as zero spend.
+            */}
+          {!isUser && msg.hydra && (
+            <span
+              className="ai-msg-hydra"
+              data-testid="ai-msg-hydra"
+              data-jalur={msg.hydra.jalur}
+              title={[
+                'Response details',
+                `Model: ${msg.hydra.model}`,
+                `Route: ${msg.hydra.jalur} · ${msg.hydra.request} request(s) · ${msg.hydra.berhenti}`,
+                msg.hydra.pemakaian && msg.hydra.pemakaian.input + msg.hydra.pemakaian.output > 0
+                  ? `Tokens: ${msg.hydra.pemakaian.input} in / ${msg.hydra.pemakaian.output} out`
+                  : 'Tokens: the provider reported no token usage',
+                ...(msg.hydra.catatanTahap ?? []),
+              ].join('\n')}
+            >
+              {(() => {
+                const t = msg.hydra.pemakaian;
+                const total = t ? t.input + t.output : 0;
+                return total > 0 ? `${total} ${tr('tokens')}` : tr('no token usage reported');
+              })()}
+            </span>
+          )}
+          {/*
             * Undo everything THIS turn changed.
             *
             * Sits on the turn rather than in a global toolbar because the reader

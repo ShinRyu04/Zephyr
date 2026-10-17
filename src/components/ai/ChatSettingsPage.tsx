@@ -809,7 +809,11 @@ export default function ChatSettingsPage({
       section: 'models',
       id: 'hydrabiaya',
       label: 'HydraFusion cost cap',
-      hint: 'Requests one run may spend. Escalation and critique stop at this limit.',
+      hint:
+        'Requests one run may spend. Escalation and critique stop at this limit.' +
+        (Number(hydra?.maxRequests ?? HYDRA_MAX_REQUESTS_BAWAAN) < 3
+          ? ' Below 3, the critique-and-revise route cannot run at all (it needs draft, review and revision), so every task falls back to a single model.'
+          : ''),
       words: 'hydra fusion cost cap budget limit requests spend escalation stop',
       ctl: (
         <Select

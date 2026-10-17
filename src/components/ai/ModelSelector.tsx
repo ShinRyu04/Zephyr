@@ -18,6 +18,7 @@ import {
   ProviderLogo,
   ModelLogo,
 } from '../../lib/modelCatalog';
+import { HYDRA_MODEL_ID, pilihHydra } from '../../lib/hydraModel';
 import AiIkon from './AiIkon';
 
 const LS_SAVED = 'zephyr.ai.custommodels.v1';
@@ -49,7 +50,12 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const setAiModel = useAi((s) => s.setModel);
   const applySettings = useStore((s) => s.applySettings);
   const subCfg = useStore((s) => s.settings.subagent);
-  const hydraOn = useStore((s) => s.settings.hydrafusion?.enabled === true);
+  /*
+   * HydraFusion is SELECTED, not enabled. Reading the model selection (not the
+   * `hydrafusion.enabled` flag) is what keeps the picker, the chip and the send
+   * paths telling the reader the same story.
+   */
+  const hydraDipilih = !target || target === 'chat' ? pilihHydra(aiModel) : false;
   const wrap = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -337,7 +343,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       >
         <ProviderLogo id={efektif.provider} size={15} />
         <span className="ai-model-name">
-          {ikutChat ? tr('Follow chat') : efektif.label}
+          {ikutChat ? tr('Follow chat') : hydraDipilih ? 'HydraFusion' : efektif.label}
         </span>
         <AiIkon name="chev-up" size={11} />
       </button>
@@ -419,33 +425,42 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           ) : (
             <>
               {/*
-                * HydraFusion, when it is ON, is a first-class entry of this list.
+                * HydraFusion is a MODEL, and it is always in this list.
                 *
-                * WHY it belongs in the PICKER and not only in Chat Settings: the
-                * reader thinks in terms of "which model answers this", and with
-                * HydraFusion enabled the honest answer is "the app decides". The
-                * setting alone left the picker still naming one model, so the
-                * column showed `custom · deepseek-chat` while a different model
-                * per stage was doing the work — the header contradicted what ran.
-                * Selecting this row leaves the model as it is (HydraFusion reads
-                * the whole list) and states the mode.
+                * The reference product states the contract plainly: "you select
+                * HydraFusion like any other model, and it chooses a workflow".
+                * It is therefore a row here, not a switch in another panel.
+                *
+                * WHY it used to be gated behind `hydraOn`: the row only rendered
+                * when the setting was ALREADY on, so the only way to reach it was
+                * to turn the setting on first — and with the setting on, every
+                * turn was routed whether or not the reader ever picked it. That
+                * circularity is exactly the "HydraFusion engages by itself"
+                * complaint. Selecting this row now SETS THE MODEL (the
+                * `hydrafusion` sentinel); the send paths read the selection, not
+                * the flag.
                 */}
-              {hydraOn && !sub && (
+              {!sub && (
                 <button
                   type="button"
                   role="option"
-                  aria-selected={false}
-                  className="ai-model-item is-hydra"
+                  aria-selected={hydraDipilih}
+                  className={`ai-model-item is-hydra${hydraDipilih ? ' is-active' : ''}`}
                   data-testid="ai-model-hydra"
+                  title={tr(
+                    'Routes the first eligible turn and may use several models. Premium usage varies with the selected route.',
+                  )}
                   onClick={() => {
-                    void applySettings({ hydrafusion: { enabled: true } });
+                    setAiModel(HYDRA_MODEL_ID, aiProvider || undefined);
                     setOpen(false);
                   }}
                 >
-                  <span className="ai-mi-name">{tr('HydraFusion (auto)')}</span>
+                  <span className="ai-mi-name">HydraFusion</span>
+                  <span className="ai-mi-badge">{tr('Research preview')}</span>
                   <span className="ai-mi-badge">
                     {tr('the app picks the model and the workflow per task')}
                   </span>
+                  {hydraDipilih && <span className="pick-check">✓</span>}
                 </button>
               )}
 
