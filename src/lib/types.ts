@@ -924,7 +924,7 @@ export interface Tab {
    * skips them. `view` is what routes them to their own component; a tab with
    * no `view` and no path is still the ordinary untitled buffer.
    */
-  view?: 'ai-chat' | 'chat-settings' | 'search-editor';
+  view?: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools';
 
   loaded?: boolean;
 

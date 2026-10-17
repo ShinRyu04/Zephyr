@@ -100,6 +100,15 @@ interface StoreState {
 
   settingsOpen: boolean;
 
+  /*
+   * Dua permukaan yang dulu memakai seluruh area editor kini melayang:
+   * Extensions dan Dev Tools. Flag-nya terpisah dari `settingsOpen` karena
+   * ketiganya bisa dibuka dari rail yang sama dan tidak boleh saling
+   * menutup tanpa perintah.
+   */
+  extensionsOpen: boolean;
+  toolsOpen: boolean;
+
   activeTheme: string;
 }
 
@@ -121,6 +130,8 @@ interface StoreActions {
   setFindOpen: (open: boolean) => void;
 
   setSettingsOpen: (open: boolean) => void;
+  setExtensionsOpen: (open: boolean) => void;
+  setToolsOpen: (open: boolean) => void;
   setUpdateBanner: (b: { version: string; notes: string } | null) => void;
   setDonateOpen: (v: boolean) => void;
   setNavBack: (v: NavLoc[]) => void;
@@ -161,7 +172,7 @@ interface StoreActions {
    * is at most ONE chat tab and ONE Chat Settings tab, so pressing the button
    * twice focuses rather than stacking duplicates.
    */
-  bukaViewAi: (view: 'ai-chat' | 'chat-settings' | 'search-editor') => void;
+  bukaViewAi: (view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools') => void;
 
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
@@ -521,6 +532,8 @@ export const useStore = create<Store>((set, get) => ({
   navSuppress: false,
   lastClosed: null,
   settingsOpen: false,
+  extensionsOpen: false,
+  toolsOpen: false,
   activeTheme: 'zephyr-dark',
 
   setActivity: (a) => set({ activity: a }),
@@ -541,8 +554,27 @@ export const useStore = create<Store>((set, get) => ({
   setSettingsOpen: (open) =>
     set((s) => ({
       settingsOpen: open,
+      extensionsOpen: open ? false : s.extensionsOpen,
+      toolsOpen: open ? false : s.toolsOpen,
 
       activity: open ? 'settings' : s.activity === 'settings' ? 'explorer' : s.activity,
+    })),
+  /*
+   * Ketiga permukaan modal saling meniadakan: hanya satu yang boleh
+   * terlihat pada satu waktu, jadi membuka salah satu menutup yang lain.
+   * Tanpa ini, dua scrim bertumpuk dan yang di bawah tidak bisa diklik.
+   */
+  setExtensionsOpen: (open) =>
+    set((s) => ({
+      extensionsOpen: open,
+      settingsOpen: open ? false : s.settingsOpen,
+      toolsOpen: open ? false : s.toolsOpen,
+    })),
+  setToolsOpen: (open) =>
+    set((s) => ({
+      toolsOpen: open,
+      settingsOpen: open ? false : s.settingsOpen,
+      extensionsOpen: open ? false : s.extensionsOpen,
     })),
   setUpdateBanner: (b) => set({ updateBanner: b }),
   setDonateOpen: (v) => set({ donateOpen: v }),
@@ -957,7 +989,15 @@ export const useStore = create<Store>((set, get) => ({
       id: nextId(),
       path: null,
       name:
-        view === 'ai-chat' ? 'Chat' : view === 'chat-settings' ? 'Chat Settings' : 'Search Results',
+        view === 'ai-chat'
+          ? 'Chat'
+          : view === 'chat-settings'
+            ? 'Chat Settings'
+            : view === 'extensions'
+              ? 'Extensions'
+              : view === 'tools'
+                ? 'Tools'
+                : 'Search Results',
       encoding: 'utf8' as Encoding,
       lineEnding: 'crlf' as LineEnding,
       unsaved: false,

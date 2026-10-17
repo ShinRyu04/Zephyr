@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { useStore } from '../../lib/store';
 const DebugView = lazy(() => import('../debug/DebugView'));
 const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
-const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
 const OutlinePanel = lazy(() => import('../explorer/OutlinePanel'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const SourceControlPanel = lazy(() => import('../scm/SourceControlPanel'));
@@ -46,8 +45,11 @@ export default function Sidebar() {
          own header switcher. So 'ai' no longer renders anything on the left. */
       case 'terminal':
         return <TerminalPanel />;
+      /* Extensions is a floating panel now (ShellPopups), not a side-bar
+         view: it needs the width, and taking the side bar left the editor
+         squeezed beside a marketplace. */
       case 'extensions':
-        return <ExtensionsView />;
+        return null;
       case 'settings':
         return <SettingsNav />;
       default:

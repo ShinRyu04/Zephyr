@@ -190,6 +190,15 @@ const LABEL: Record<ActivityId, string> = {
   settings: 'Settings',
 };
 
+/*
+ * Order matches VS Code's rail: the file-centric views first, then Extensions,
+ * then the machine-side Tools.
+ *
+ * Settings is NOT here: it sits at the very bottom, under the GitHub avatar,
+ * which is where VS Code puts it and where a reader looks for it last. The
+ * gear used to be a normal rail entry between Tools and the avatar, which
+ * made it read as a fifth view rather than as the settings of the app.
+ */
 const ORDER: ActivityId[] = [
   'explorer',
   'search',
@@ -199,7 +208,6 @@ const ORDER: ActivityId[] = [
   'extensions',
   'terminal',
   'tools',
-  'settings',
 ];
 
 export default function ActivityBar() {
@@ -210,6 +218,11 @@ export default function ActivityBar() {
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const settingsOpen = useStore((s) => s.settingsOpen);
+  const setExtensionsOpen = useStore((s) => s.setExtensionsOpen);
+  const setToolsOpen = useStore((s) => s.setToolsOpen);
+  const extensionsOpen = useStore((s) => s.extensionsOpen);
+  const toolsOpen = useStore((s) => s.toolsOpen);
   const gh = useGit((s) => s.gh);
   const loadGh = useGit((s) => s.loadGh);
   const loginDevice = useGit((s) => s.loginDevice);
@@ -268,7 +281,9 @@ export default function ActivityBar() {
       <nav className="activitybar" aria-label="Activity Bar">
       {ORDER.map((id) => {
         const Icon = Icons[id];
-        const isActive = activity === id && sidebarVisible;
+        const popupTerbuka =
+          (id === 'extensions' && extensionsOpen) || (id === 'tools' && toolsOpen);
+        const isActive = popupTerbuka || (activity === id && sidebarVisible);
         return (
           <button
             key={id}
@@ -281,13 +296,26 @@ export default function ActivityBar() {
             onClick={() => {
               setSettingsOpen(false);
 
+              /*
+               * Extensions and Tools are floating panels, not side-bar
+               * views: they need the width, and docking them left the
+               * editor squeezed beside a marketplace. They toggle their own
+               * flag instead of switching `activity`.
+               */
+              if (id === 'extensions') {
+                setExtensionsOpen(!useStore.getState().extensionsOpen);
+                return;
+              }
+              if (id === 'tools') {
+                setToolsOpen(!useStore.getState().toolsOpen);
+                return;
+              }
+
               if (activity === id) toggleSidebar();
               else {
                 setActivity(id);
                 if (!sidebarVisible) toggleSidebar();
               }
-
-              if (id === 'settings' && activity !== id) setSettingsOpen(true);
             }}
           >
             <Icon />
@@ -338,6 +366,28 @@ export default function ActivityBar() {
             />
           </svg>
         )}
+      </button>
+
+      {/*
+        * Settings sits UNDER the avatar, at the very bottom of the rail.
+        *
+        * VS Code's rail ends with the account button and the gear; the gear
+        * is the last thing, because it is the least frequently pressed and
+        * the most disruptive when pressed by accident. It used to sit among
+        * the views, between Tools and the avatar, where it read as a fifth
+        * view of the editor rather than as the settings of the app.
+        */}
+      <button
+        className={`ab-btn ab-gear${settingsOpen ? ' is-active' : ''}`}
+        data-testid="ab-settings"
+        data-activity="settings"
+        title={tr(LABEL.settings)}
+        aria-label={tr(LABEL.settings)}
+        aria-pressed={settingsOpen}
+        onClick={() => setSettingsOpen(!settingsOpen)}
+      >
+        <Icons.settings />
+        {settingsOpen && <span className="ab-indicator" aria-hidden="true" />}
       </button>
       </nav>
     </>
