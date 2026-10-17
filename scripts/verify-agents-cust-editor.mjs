@@ -552,18 +552,32 @@ cek(
   JSON.stringify(lewatShortcut),
 );
 
-/* ── V9: tidak ada header folder di daftar sesi ─────────────────────────── */
+/* ── V9: header folder DITAMPILKAN di daftar sesi ──────────────────────────
+ *
+ * This assertion used to require the opposite ("header sudah hilang"): the
+ * reader had asked for the folder name to go while the list only ever held one
+ * project. That changed when sessions became grouped per workspace — with two
+ * projects open, a list without headers cannot say which conversation belongs
+ * to which folder, which is the bug the reader then reported ("sesi dari Zephyr
+ * pindah ke ZephyrDesktop"). The header is now the thing that makes the
+ * grouping visible, so the check locks its presence AND that it is clickable
+ * (fold/unfold), not just painted.
+ */
 const header = await cdp.json(`return JSON.stringify(await (async () => ({
-  labelGrup: document.querySelectorAll('.ag-sesi-grup-label').length,
+  kepala: document.querySelectorAll('[data-testid="ag-sesi-grup-head"]').length,
   namaGrup: document.querySelectorAll('.ag-sesi-grup-nama').length,
   chevGrup: document.querySelectorAll('.ag-sesi-grup-chev').length,
   baris: document.querySelectorAll('.ag-sesi-row').length,
+  bisaDilipat: [...document.querySelectorAll('[data-testid="ag-sesi-grup-head"]')].every(
+    (h) => h.getAttribute('role') === 'button' && h.hasAttribute('aria-expanded'),
+  ),
 }))())`);
 cek(
-  'V9. header nama folder sudah hilang, baris sesi tetap ada',
-  (header?.labelGrup ?? -1) === 0 &&
-    (header?.namaGrup ?? -1) === 0 &&
-    (header?.chevGrup ?? -1) === 0 &&
+  'V9. header folder tampil dan bisa dilipat, baris sesi tetap ada',
+  (header?.kepala ?? 0) > 0 &&
+    (header?.namaGrup ?? 0) > 0 &&
+    (header?.chevGrup ?? 0) > 0 &&
+    header?.bisaDilipat === true &&
     (header?.baris ?? 0) > 0,
   JSON.stringify(header),
 );
