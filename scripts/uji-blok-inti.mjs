@@ -81,6 +81,16 @@ const CONTOH = [
   { pesan: 'show me a comparison table of my settings', kelas: ['tabel'] },
   { pesan: 'ubah tata letak panel AI di sidebar', kelas: ['jendela'] },
   { pesan: 'berapa anggaran token subagent paralel', kelas: ['subagent'] },
+  /*
+   * The two newest classes need a sample each - the harness refuses a class with
+   * no example, which is what caught them missing.
+   *
+   * The wordings are the ones a reader actually uses: "refactor" and "ubah
+   * beberapa berkas" for `patch`, "skrip"/"sekaligus" for `eksekusi`. A sample
+   * that only matched the class NAME would prove nothing.
+   */
+  { pesan: 'refactor beberapa berkas sekaligus jadi satu patch', kelas: ['subagent', 'patch', 'eksekusi'] },
+  { pesan: 'jalankan skrip untuk baca banyak berkas lalu ringkas', kelas: ['subagent', 'eksekusi'] },
 ];
 
 /* ------------------------------------------------------------------ *
