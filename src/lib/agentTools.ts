@@ -18,6 +18,7 @@ import { tunjukTool as TOOL_TUNJUK } from './zephyrTools/tunjuk';
 import { TOOL_BROWSER, TOOL_BROWSER_LAMA } from './zephyrTools/browser';
 import { kotakTool as TOOL_KOTAK } from './zephyrTools/kotak';
 import { petaTool as TOOL_PETA } from './zephyrTools/peta';
+import { executeTool } from './zephyrTools/execute';
 import { TOOL_WEB_SATU, TOOL_WEB_LAMA } from './zephyrTools/webSatu';
 import { TOOL_INGAT } from './zephyrTools/zephyrIngat';
 import { TOOL_MCP } from './zephyrTools/mcp';
@@ -113,6 +114,21 @@ export const AGENT_TOOLS: AgentTool[] = [
    * sebut. Tool ini memberi model percobaan kedua dengan kuerinya sendiri.
    */
   TOOL_PETA,
+  /*
+   * `execute` - Code Mode.
+   *
+   * `panggil` sengaja `jalankanAgentTool` ITU SENDIRI, bukan dispatcher kedua:
+   * gate tool, penjaga jalur, dan alur persetujuan jadi tetap berlaku tanpa
+   * perlu diingat ulang di sini. Dispatcher kedua adalah cara paling pasti
+   * membuat satu jalur lupa memeriksa sesuatu.
+   *
+   * `tersedia` membaca daftar yang SAMA dengan yang dikirim ke model, jadi skrip
+   * tidak bisa memanggil tool yang tidak ditawarkan.
+   */
+  executeTool({
+    panggil: (nama, args) => jalankanAgentTool(nama, args),
+    tersedia: () => agentToolSpecs().map((s) => s.name),
+  }),
   ...TOOL_MCP,
   /*
    * `browser` replaces the seven `browser_*` entries.
