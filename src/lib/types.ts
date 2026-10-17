@@ -420,6 +420,15 @@ export interface ChatSession {
    */
   workspace?: string;
 
+  /*
+   * Pinned conversations sort above everything else in the Agents list.
+   *
+   * Optional because every transcript written before this existed has no such
+   * field; `undefined` means "not pinned", which is the correct default and
+   * keeps old data loading without a migration.
+   */
+  pinned?: boolean;
+
   approval?: ApprovalMode;
 }
 

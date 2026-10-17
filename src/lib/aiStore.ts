@@ -2982,6 +2982,18 @@ interface AiActions {
   newChat: (id?: string) => string;
     selectChat: (id: string, composerId?: string) => void;
     deleteChat: (id: string) => void;
+    /*
+     * Session actions the Agents window's context menu offers.
+     *
+     * WHY in the store and not in the component: the same operations are
+     * reachable from more than one surface (the Agents list, and later a
+     * palette command), and a second implementation would drift on the details
+     * that matter — whether a rename survives a restart, whether a duplicate
+     * copies the workspace, whether pinning reorders the list.
+     */
+    renameChat: (id: string, title: string) => void;
+    duplicateChat: (id: string) => string | null;
+    setChatPinned: (id: string, pinned: boolean) => void;
 
     clearAllChats: () => void;
 
@@ -4355,8 +4367,53 @@ export const useAi = create<AiStore>((set0, get) => {
     persist(get());
   },
 
-  clearAllChats: () => {
-    /* Every surface loses its chat here, not just the primary — the sessions
+  renameChat: (id, title) => {
+    const bersih = String(title ?? '').trim().slice(0, 120);
+    if (!bersih) return;
+    set((s) => ({
+      sessions: s.sessions.map((x) => (x.id === id ? { ...x, title: bersih } : x)),
+    }));
+    persist(get());
+  },
+
+  duplicateChat: (id) => {
+    const asal = get().sessions.find((x) => x.id === id);
+    if (!asal) return null;
+    const baru = get().newChat();
+    /*
+     * Copy the transcript AND the folder it belongs to.
+     *
+     * The workspace is what the Agents list groups by, so a duplicate that lost
+     * it would jump into "Chats" and look like a different conversation. The
+     * title gets a suffix because two identically-named rows in one group are
+     * indistinguishable.
+     */
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === baru
+          ? {
+              ...x,
+              title: `${asal.title} (copy)`,
+              messages: asal.messages.map((m) => ({ ...m })),
+              workspace: asal.workspace,
+              model: asal.model,
+              provider: asal.provider,
+            }
+          : x,
+      ),
+    }));
+    persist(get());
+    return baru;
+  },
+
+  setChatPinned: (id, pinned) => {
+    set((s) => ({
+      sessions: s.sessions.map((x) => (x.id === id ? { ...x, pinned } : x)),
+    }));
+    persist(get());
+  },
+
+  clearAllChats: () => {    /* Every surface loses its chat here, not just the primary — the sessions
        themselves are gone, so any id left in `activeIds` would be a dangling
        reference to a chat that no longer exists. */
     set({ sessions: [], activeId: null, activeIds: {}, clearAllOpen: false });
