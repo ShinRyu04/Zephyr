@@ -1305,6 +1305,34 @@ const PAKET: &[Paket] = &[
             ("themes/malam.json", extra::TEMA_MALAM_JSON),
         ],
     ),
+    (
+        "zephyr.tema-samudra",
+        &[
+            ("zephyr-extension.json", extra::TEMA_SAMUDRA),
+            ("themes/samudra.json", extra::TEMA_SAMUDRA_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-hutan",
+        &[
+            ("zephyr-extension.json", extra::TEMA_HUTAN),
+            ("themes/hutan.json", extra::TEMA_HUTAN_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-senja-muda",
+        &[
+            ("zephyr-extension.json", extra::TEMA_SENJA_MUDA),
+            ("themes/senja-muda.json", extra::TEMA_SENJA_MUDA_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-monokrom",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MONOKROM),
+            ("themes/monokrom.json", extra::TEMA_MONOKROM_JSON),
+        ],
+    ),
 ];
 
 fn cari_paket(id: &str) -> Option<Paket> {

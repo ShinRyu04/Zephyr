@@ -539,3 +539,257 @@ pub(super) const TEMA_MALAM_JSON: &str = r##"{
     "--syn-invalid": "#e06c75"
   }
 }"##;
+
+pub(super) const TEMA_SAMUDRA: &str = r##"{
+  "id": "zephyr.tema-samudra",
+  "name": "Tema Samudra",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Deep blue dark theme with cool accents, for long reading on an OLED panel.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Samudra",
+        "kind": "dark",
+        "path": "./themes/samudra.json"
+      }
+    ]
+  }
+}"##;
+
+pub(super) const TEMA_SAMUDRA_JSON: &str = r##"{
+  "colors": {
+    "--bg": "#0a1420",
+    "--fg": "#d6e4f0",
+    "--bg0": "#0a1420",
+    "--bg1": "#0f1c2b",
+    "--bg2": "#142436",
+    "--bg3": "#1b3047",
+    "--fg0": "#d6e4f0",
+    "--fg1": "#a9c0d6",
+    "--fg2": "#7891a8",
+    "--accent": "#4a9eff",
+    "--border": "#1e3a52",
+    "--surface": "#0f1c2b",
+    "--surface-2": "#142436",
+    "--surface-3": "#1b3047",
+    "--text": "#d6e4f0",
+    "--text-secondary": "#a9c0d6",
+    "--text-muted": "#7891a8",
+    "--danger": "#ff6b6b",
+    "--warning": "#ffc857",
+    "--terminal-ansi-0": "#0a1420",
+    "--editor-bg": "#0a1420",
+    "--editor-gutter": "#4a6a85",
+    "--editor-active-line": "#122436",
+    "--editor-selection": "#1e4a70",
+    "--syn-comment": "#5f7a91",
+    "--syn-keyword": "#7cc4ff",
+    "--syn-string": "#7fd6a0",
+    "--syn-number": "#ffc857",
+    "--syn-function": "#4a9eff",
+    "--syn-variable": "#a9c0d6",
+    "--syn-type": "#5fd3c4",
+    "--syn-operator": "#7891a8",
+    "--syn-tag": "#5fd3c4",
+    "--syn-attr": "#7cc4ff",
+    "--syn-invalid": "#ff6b6b"
+  }
+}"##;
+
+pub(super) const TEMA_HUTAN: &str = r##"{
+  "id": "zephyr.tema-hutan",
+  "name": "Tema Hutan",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Muted forest green, low glare, for daylight work on a dark screen.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Hutan",
+        "kind": "dark",
+        "path": "./themes/hutan.json"
+      }
+    ]
+  }
+}"##;
+
+pub(super) const TEMA_HUTAN_JSON: &str = r##"{
+  "colors": {
+    "--bg": "#0e1512",
+    "--fg": "#d8e8dc",
+    "--bg0": "#0e1512",
+    "--bg1": "#141d18",
+    "--bg2": "#1a2620",
+    "--bg3": "#223229",
+    "--fg0": "#d8e8dc",
+    "--fg1": "#a8c4b0",
+    "--fg2": "#7a9a84",
+    "--accent": "#6ecf8e",
+    "--border": "#24382c",
+    "--surface": "#141d18",
+    "--surface-2": "#1a2620",
+    "--surface-3": "#223229",
+    "--text": "#d8e8dc",
+    "--text-secondary": "#a8c4b0",
+    "--text-muted": "#7a9a84",
+    "--danger": "#e8716b",
+    "--warning": "#d9b45a",
+    "--terminal-ansi-0": "#0e1512",
+    "--editor-bg": "#0e1512",
+    "--editor-gutter": "#4f6b58",
+    "--editor-active-line": "#16211b",
+    "--editor-selection": "#2a4436",
+    "--syn-comment": "#63796a",
+    "--syn-keyword": "#8fd6a4",
+    "--syn-string": "#b8d98a",
+    "--syn-number": "#d9b45a",
+    "--syn-function": "#6ecf8e",
+    "--syn-variable": "#a8c4b0",
+    "--syn-type": "#79c9c0",
+    "--syn-operator": "#7a9a84",
+    "--syn-tag": "#79c9c0",
+    "--syn-attr": "#8fd6a4",
+    "--syn-invalid": "#e8716b"
+  }
+}"##;
+
+pub(super) const TEMA_SENJA_MUDA: &str = r##"{
+  "id": "zephyr.tema-senja-muda",
+  "name": "Tema Senja Muda",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Warm light theme with a soft peach cast, easier on the eyes than pure white.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Senja Muda",
+        "kind": "light",
+        "path": "./themes/senja-muda.json"
+      }
+    ]
+  }
+}"##;
+
+pub(super) const TEMA_SENJA_MUDA_JSON: &str = r##"{
+  "colors": {
+    "--bg": "#fdf6f0",
+    "--fg": "#3a2e28",
+    "--bg0": "#fdf6f0",
+    "--bg1": "#f8ede3",
+    "--bg2": "#f2e2d4",
+    "--bg3": "#e8d3c1",
+    "--fg0": "#3a2e28",
+    "--fg1": "#5c4a40",
+    "--fg2": "#8a7364",
+    "--accent": "#c2612f",
+    "--border": "#e0ccb8",
+    "--surface": "#f8ede3",
+    "--surface-2": "#f2e2d4",
+    "--surface-3": "#e8d3c1",
+    "--text": "#3a2e28",
+    "--text-secondary": "#5c4a40",
+    "--text-muted": "#8a7364",
+    "--danger": "#b3352f",
+    "--warning": "#9a6b12",
+    "--terminal-ansi-0": "#3a2e28",
+    "--editor-bg": "#fdf6f0",
+    "--editor-gutter": "#b09a88",
+    "--editor-active-line": "#f7e9dc",
+    "--editor-selection": "#efd9c6",
+    "--syn-comment": "#9c8574",
+    "--syn-keyword": "#8a3fa0",
+    "--syn-string": "#4f7a28",
+    "--syn-number": "#c2612f",
+    "--syn-function": "#2f6ba2",
+    "--syn-variable": "#7a5c2e",
+    "--syn-type": "#1f7a6f",
+    "--syn-operator": "#8a7364",
+    "--syn-tag": "#1f7a6f",
+    "--syn-attr": "#2f6ba2",
+    "--syn-invalid": "#b3352f"
+  }
+}"##;
+
+pub(super) const TEMA_MONOKROM: &str = r##"{
+  "id": "zephyr.tema-monokrom",
+  "name": "Tema Monokrom",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Greyscale only - no hue anywhere, for readers who want the text to be the only signal.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Monokrom",
+        "kind": "dark",
+        "path": "./themes/monokrom.json"
+      }
+    ]
+  }
+}"##;
+
+pub(super) const TEMA_MONOKROM_JSON: &str = r##"{
+  "colors": {
+    "--bg": "#111111",
+    "--fg": "#e8e8e8",
+    "--bg0": "#111111",
+    "--bg1": "#181818",
+    "--bg2": "#202020",
+    "--bg3": "#2a2a2a",
+    "--fg0": "#e8e8e8",
+    "--fg1": "#b8b8b8",
+    "--fg2": "#888888",
+    "--accent": "#d0d0d0",
+    "--border": "#2e2e2e",
+    "--surface": "#181818",
+    "--surface-2": "#202020",
+    "--surface-3": "#2a2a2a",
+    "--text": "#e8e8e8",
+    "--text-secondary": "#b8b8b8",
+    "--text-muted": "#888888",
+    "--danger": "#d8d8d8",
+    "--warning": "#c0c0c0",
+    "--terminal-ansi-0": "#111111",
+    "--editor-bg": "#111111",
+    "--editor-gutter": "#5a5a5a",
+    "--editor-active-line": "#1c1c1c",
+    "--editor-selection": "#3a3a3a",
+    "--syn-comment": "#7a7a7a",
+    "--syn-keyword": "#f0f0f0",
+    "--syn-string": "#c8c8c8",
+    "--syn-number": "#d8d8d8",
+    "--syn-function": "#e0e0e0",
+    "--syn-variable": "#b8b8b8",
+    "--syn-type": "#cccccc",
+    "--syn-operator": "#9a9a9a",
+    "--syn-tag": "#cccccc",
+    "--syn-attr": "#e0e0e0",
+    "--syn-invalid": "#f0f0f0"
+  }
+}"##;
+
+
