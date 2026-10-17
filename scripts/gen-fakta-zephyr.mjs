@@ -686,12 +686,19 @@ function panelTampilan() {
   if (tab.length < 4) throw new Error(`panelStore.ts: cuma ${tab.length} tab panel terbaca`);
 
   const ai = baca('src/lib/aiTabsStore.ts');
-  const blokAi = /export const CLI_TABS[^=]*=\s*\[([\s\S]*?)\n\];/.exec(ai);
-  if (!blokAi) throw new Error('aiTabsStore.ts: CLI_TABS[] tidak ditemukan');
-  const cli = [...blokAi[1].matchAll(/\{\s*id:\s*'([^']+)',\s*label:\s*'([^']*)'\s*\}/g)].map((m) => ({
-    id: m[1],
-    label: m[2],
-  }));
+  /*
+   * The tab list is now `TAB_PANEL` + a `cliTabs()` builder, not a literal
+   * `CLI_TABS[]` array. Reading the CONSTANT is still the right thing: it is the
+   * closed list of CLIs that get a tab in the AI panel, and the labels come from
+   * `list_agents()` at runtime so there is nothing else to read here.
+   *
+   * This generator used to demand `CLI_TABS[]` and failed outright when that
+   * name went away - a reminder that a source-reading generator has to be
+   * updated with the source it reads, not just the app.
+   */
+  const blokAi = /const TAB_PANEL: readonly string\[\] = \[([^\]]*)\]/.exec(ai);
+  if (!blokAi) throw new Error('aiTabsStore.ts: TAB_PANEL[] tidak ditemukan');
+  const cli = [...blokAi[1].matchAll(/'([a-z0-9-]+)'/g)].map((m) => ({ id: m[1], label: m[1] }));
   if (!cli.length) throw new Error('aiTabsStore.ts: tidak ada tab CLI yang terbaca');
 
   const bar = baca('src/components/shell/ActivityBar.tsx');

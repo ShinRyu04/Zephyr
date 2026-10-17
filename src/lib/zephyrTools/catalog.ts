@@ -657,19 +657,25 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'lsp',
   'apply_patch',
   /*
-   * `execute` (Code Mode), `peta`, dan `kotak` juga selalu ikut.
+   * `execute` (Code Mode) selalu ikut: satu skrip menggantikan banyak langkah,
+   * dan kalau ia harus dicari dulu, `tool_search` memakan langkah yang seharusnya
+   * dihemat oleh Code Mode itu sendiri.
    *
-   * `execute` adalah jalur utama tugas panjang: satu skrip menggantikan banyak
-   * langkah. Kalau ia harus dicari dulu, model tidak akan menemukannya justru
-   * pada tugas yang paling butuh - dan `tool_search` sendiri memakan satu
-   * langkah yang seharusnya dihemat.
+   * `peta` dan `kotak` TIDAK di sini.
    *
-   * `peta` menjawab "di mana X di Zephyr", pertanyaan yang bisa datang kapan
-   * saja; `kotak` adalah bentuk jawaban, bukan fitur yang dicari.
+   * Keduanya sempat masuk, dan hasil pengukuran membalikkan alasan saya
+   * memasukkannya: spec tool naik 8.639 -> 16.433 char (+90%) dan giliran yang
+   * kehilangan ekor pesannya naik 14/44 -> 22/44. Menambah nama ke daftar ini
+   * berarti menambah BYTE ke setiap permintaan, dan itu ongkos yang dibayar
+   * semua giliran - termasuk yang tidak bertanya tentang Zephyr dan tidak butuh
+   * kotak.
+   *
+   * Keduanya tetap terjangkau lewat `tool_search` -> `tool_call`, dan keduanya
+   * bukan jalur kritis: `peta` menjawab pertanyaan yang bisa juga dijawab
+   * irisan indeks di prompt, dan `kotak` adalah bentuk jawaban yang bisa dipilih
+   * model kapan saja setelah ia menemukannya sekali.
    */
   'execute',
-  'peta',
-  'kotak',
   /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,

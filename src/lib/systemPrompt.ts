@@ -961,6 +961,94 @@ const KONDISIONAL: AturanKondisional[] = [
         ? '# Aturan tambahan: subagent & kerja paralel\n- Memakai subagent butuh alasan: pekerjaannya memang paralel, atau panjang dan user memintanya. Pekerjaan yang diminta ke kamu diselesaikan di giliran ini, bukan diserahkan.\n- Sebelum memanggil: sebut anggarannya (`subagent.maxParallel`, `agents.maxPanes`) dan apakah anak boleh menulis berkas (`subagent.allowWrite`). Anak yang tidak boleh menulis itu peneliti, bukan pelaksana.'
         : '# Extra rule: subagents & parallel work\n- Reaching for subagents takes a reason: the work is genuinely parallel, or long and the user asked for it. Work the user asked YOU to do is done in this turn, not delegated.\n- Before spawning: name the budget (`subagent.maxParallel`, `agents.maxPanes`) and whether the child may write files (`subagent.allowWrite`). A child that cannot write is a researcher, not an implementer.',
   },
+  {
+    /*
+     * The `apply_patch` grammar, sent ONLY when the turn is about editing files.
+     *
+     * It used to live in the tool's own schema, which made that one entry the
+     * largest in the catalogue and pushed the per-turn spec from 8.6k to 16.4k
+     * characters - paid on every turn, including the ones that never touch a
+     * patch. Here it costs nothing until a turn mentions editing.
+     */
+    kelas: 'patch',
+    cocok:
+      /\b(patch|apply_patch|ubah (banyak )?berkas|edit (banyak )?berkas|multi[- ]?file|beberapa berkas|refactor|pindah(kan)? berkas|hapus berkas|buat berkas)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? [
+            '# Aturan tambahan: format apply_patch (bahan sumber, bahasa Inggris)',
+            '```',
+            '*** Begin Patch',
+            '*** Add File: src/baru.ts',
+            '+baris pertama',
+            '+baris kedua',
+            '*** Update File: src/lama.ts',
+            '@@ label konteks (nama fungsi/bagian, BUKAN nomor baris)',
+            ' baris konteks yang tidak berubah (awali satu spasi)',
+            '-baris lama yang dihapus',
+            '+baris baru penggantinya',
+            '*** Delete File: src/basi.ts',
+            '*** Move to: src/pindah.ts      (setelah "*** Update File:", untuk memindahkan)',
+            '*** End Patch',
+            '```',
+            '- Baris isi berkas baru SELALU diawali `+`. Baris hunk diawali spasi (konteks), `-` (hapus), atau `+` (tambah).',
+            '- Hunk memakai LABEL, bukan nomor baris: nomor baris basi begitu hunk sebelumnya mengubah berkasnya.',
+            '- Konteks harus cocok TEPAT SATU tempat. Nol = berkas sudah berubah; dua = ambigu. Keduanya membuat SELURUH patch ditolak tanpa menulis apa pun - itu memang yang diinginkan, jadi jangan coba menambal dengan patch kedua yang menebak.',
+            '- Satu patch untuk semua berkas yang saling bergantung; jangan pecah jadi beberapa panggilan kalau perubahannya harus konsisten.',
+          ].join('\n')
+        : [
+            '# Extra rule: apply_patch format (source material)',
+            '```',
+            '*** Begin Patch',
+            '*** Add File: src/new.ts',
+            '+first line',
+            '+second line',
+            '*** Update File: src/old.ts',
+            '@@ context label (function/section name, NOT a line number)',
+            ' unchanged context line (one leading space)',
+            '-removed line',
+            '+replacement line',
+            '*** Delete File: src/stale.ts',
+            '*** Move to: src/moved.ts      (after "*** Update File:", to move)',
+            '*** End Patch',
+            '```',
+            '- Lines of a new file ALWAYS start with `+`. Hunk lines start with a space (context), `-` (remove), or `+` (add).',
+            '- A hunk uses a LABEL, not line numbers: numbers go stale the moment an earlier hunk changes the file.',
+            '- Context must match EXACTLY ONCE. Zero = the file changed; two = ambiguous. Either way the WHOLE patch is refused and nothing is written - that is the intent, so do not try to patch around it with a second patch that guesses.',
+            '- One patch for all files that depend on each other; do not split into several calls when the change has to stay consistent.',
+          ].join('\n'),
+  },
+  {
+    /*
+     * The Code Mode contract, sent ONLY when the turn looks like a long sequence.
+     *
+     * Same trade as `patch`: the binding list and the refusal list are a
+     * paragraph, and most turns never write a script.
+     */
+    kelas: 'eksekusi',
+    cocok:
+      /\b(execute|code mode|skrip|script|banyak langkah|banyak tool|otomatis(kan)?|sekaligus|berulang|loop|batch)\b/i,
+    teks: (bahasa) =>
+      bahasa === 'id'
+        ? [
+            '# Aturan tambahan: execute (Code Mode)',
+            '- Bentuk: `execute({ skrip: "..." })` di mana `skrip` adalah BADAN fungsi async. `return` menentukan hasil yang dilihat model.',
+            '- Hanya tiga binding: `call(nama, args)` menjalankan satu tool dan mengembalikan string hasilnya; `tools` berisi nama tool yang boleh dipanggil sekarang; `log(...)` mencatat pesan untuk balasan.',
+            '- `window`, `document`, `fetch`, `import()`, `require`, `process`, `globalThis`, `localStorage` DITOLAK sebelum skrip berjalan. Jangan menulis skrip yang menyentuhnya.',
+            '- Setiap `call` lewat gate yang sama dengan panggilan tool biasa: tool yang dimatikan pembaca tetap ditolak dari dalam skrip.',
+            '- Contoh: `const a = await call("read_file", { path: "src/a.ts" }); const b = await call("grep", { pattern: "TODO", path: "src" }); log("ok"); return b;`',
+            '- Pakai untuk URUTAN panjang (baca banyak berkas, patch, lalu uji). Untuk satu langkah, panggil tool-nya langsung - skrip hanya menambah lapisan.',
+          ].join('\n')
+        : [
+            '# Extra rule: execute (Code Mode)',
+            '- Shape: `execute({ skrip: "..." })` where `skrip` is the BODY of an async function. `return` decides what the model sees.',
+            '- Only three bindings: `call(name, args)` runs one tool and returns its string result; `tools` lists the names callable right now; `log(...)` collects notes for the reply.',
+            '- `window`, `document`, `fetch`, `import()`, `require`, `process`, `globalThis`, `localStorage` are REFUSED before the script runs. Do not write a script that touches them.',
+            '- Every `call` goes through the same gate as a normal tool call: a tool the reader disabled stays refused from inside a script.',
+            '- Example: `const a = await call("read_file", { path: "src/a.ts" }); const b = await call("grep", { pattern: "TODO", path: "src" }); log("ok"); return b;`',
+            '- Use it for long SEQUENCES (read many files, patch, then test). For one step, call the tool directly - a script only adds a layer.',
+          ].join('\n'),
+  },
 ];
 
 /** Kelas kondisional yang cocok dengan pesan user giliran ini (urut, bisa lebih dari satu). */

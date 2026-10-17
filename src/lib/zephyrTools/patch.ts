@@ -250,12 +250,26 @@ export function buatApplyPatchTool(bridge: PatchBridge): AgentTool {
   return {
     spec: {
       name: 'apply_patch',
+      /*
+       * The description is deliberately SHORT.
+       *
+       * The full grammar used to live here - every directive, every rule about
+       * `+` prefixes and `@@` labels - which made this one schema the largest in
+       * the catalogue and pushed the per-turn spec from 8.6k to 16.4k
+       * characters. The grammar is now sent by the CONDITIONAL prompt block when
+       * the turn is about editing files, so it costs nothing on the turns that
+       * never touch a patch.
+       *
+       * What stays here is what the model must know BEFORE deciding to call it:
+       * that it edits many files at once, atomically, and where the full syntax
+       * is written down.
+       */
       description:
-        'Ubah BANYAK berkas dalam SATU panggilan, memakai format patch OpenCode. ' +
-        'Direktif: "*** Begin Patch" lalu satu atau lebih dari "*** Add File: <path>" (tiap baris isi diawali "+"), "*** Update File: <path>" (hunks dengan "@@ label" lalu baris konteks diawali spasi, "-" untuk hapus, "+" untuk tambah), "*** Delete File: <path>", dan "*** Move to: <path>" setelah Update File untuk memindahkan. Ditutup "*** End Patch". ' +
-        'ATOMIK: semua berkas divalidasi dulu; kalau satu gagal, TIDAK ADA yang ditulis. ' +
-        'Konteks hunk harus cocok tepat satu tempat - kalau tidak, patch ditolak dan tidak ada yang berubah. ' +
-        'Pakai ini untuk perubahan yang menyentuh beberapa berkas sekaligus; untuk satu berkas kecil, multi_edit lebih ringkas.',
+        'Ubah BANYAK berkas dalam SATU panggilan (format patch OpenCode: "*** Begin Patch" ... "*** End Patch", direktif Add/Update/Delete/Move File). ' +
+        'ATOMIK: semua berkas divalidasi dulu - kalau satu gagal, tidak ada yang ditulis. ' +
+        'Konteks hunk harus cocok tepat satu tempat, kalau tidak patch ditolak tanpa mengubah apa pun. ' +
+        'Sintaks lengkap ada di blok "apply_patch" pada prompt giliran ini. ' +
+        'Untuk satu berkas kecil, multi_edit lebih ringkas.',
       parameters: {
         type: 'object',
         properties: {
