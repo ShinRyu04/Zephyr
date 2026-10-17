@@ -211,6 +211,59 @@ export const PROVIDERS: ProviderInfo[] = [
 
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
 
+/**
+ * `'auto'` — let Zephyr pick the provider.
+ *
+ * Not a provider id: it is the ABSENCE of a choice. The complaint was having to
+ * pick one before anything worked, and picking is the wrong shape for a reader
+ * who has filled in three gateways and just wants whichever answers.
+ *
+ * A string sentinel rather than an empty value because `activeProvider` is read
+ * as a primitive in several places (`aiStore` init, `sinkronProvider`,
+ * `aiZephyrState`), and `undefined` already means "settings not loaded yet" -
+ * two different meanings on one value would make "no choice" and "not ready"
+ * indistinguishable.
+ *
+ * `PROVIDER_BY_ID.has('auto')` is FALSE on purpose: every existing guard that
+ * asks "is this a real provider?" keeps working and simply skips normalisation,
+ * so `auto` cannot be mistaken for something to send a request to.
+ */
+export const PROVIDER_AUTO = 'auto';
+
+/**
+ * The provider to actually use, resolved from `activeProvider` and what has keys.
+ *
+ * Order, and why:
+ *   1. An explicit provider that HAS a key wins. A deliberate choice must never
+ *      be overridden by the resolver - that would make the setting a lie.
+ *   2. Otherwise the first provider with a key, in catalogue order. Catalogue
+ *      order, not `hasKey` order, so the same setup resolves the same way on
+ *      every launch and on every machine with the same keys.
+ *   3. Otherwise the explicit provider even without a key, so the UI can say
+ *      "this one needs a key" instead of silently pointing somewhere else.
+ *   4. Otherwise `'custom'`, the historical fallback.
+ *
+ * Pure: no store reads, no network. That is what lets the harness drive it.
+ */
+export function providerEfektif(
+  activeProvider: string | null | undefined,
+  punyaKunci: (id: string) => boolean,
+): string {
+  const aktif = (activeProvider ?? '').trim();
+  const auto = !aktif || aktif === PROVIDER_AUTO;
+
+  /* A real, deliberate choice that can actually send: honour it. */
+  if (!auto && PROVIDER_BY_ID.has(aktif) && punyaKunci(aktif)) return aktif;
+
+  /* Auto (or a choice with no key): the first provider in catalogue order. */
+  const siap = PROVIDERS.find((p) => punyaKunci(p.id));
+  if (siap) return siap.id;
+
+  /* Nothing has a key. Keep a real choice so the UI can name what is missing. */
+  if (!auto && PROVIDER_BY_ID.has(aktif)) return aktif;
+  return 'custom';
+}
+
 /** Ids the catalogue ships as "type a name" slots, not real models. Derived
  *  from `freeText` providers so adding one cannot forget to update this. */
 export const PLACEHOLDER_MODEL_IDS: ReadonlySet<string> = new Set(

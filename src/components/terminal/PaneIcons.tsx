@@ -6,6 +6,7 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
 
   switch (id) {
     case 'opencode':
+    case 'opencode2':
       /*
        * The square mark from the project's own brand kit
        * (`packages/console/app/src/asset/brand/opencode-logo-light-square.svg`).
@@ -92,6 +93,66 @@ export function AgentLogo({ id, size = 14 }: { id: string; size?: number }) {
       return (
         <svg {...p} viewBox="0 0 16 16" aria-label="Grok">
           <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="var(--text)" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case 'dsh':
+    case 'dsh-tui':
+      /*
+       * DeepSeek's mark: the blue whale.
+       *
+       * Drawn here rather than imported from the package. The only SVG the npm
+       * tarball ships belongs to its own PLUGIN packages (the
+       * dsh-experimental-* icon.svg files), not the DeepSeek brand - and
+       * the bundled @deepseek-ai/sdk carries Anthropic's logo because dsh
+       * vendors that SDK. Using either would put another product's mark on
+       * DeepSeek's row.
+       *
+       * So this is the whale silhouette in DeepSeek's brand blue (#4D6BFE),
+       * simplified to read at 14px: body, tail fluke, and the eye notch that
+       * makes it a whale rather than a blob.
+       */
+      return (
+        <svg {...p} viewBox="0 0 16 16" aria-label="DeepSeek Harness">
+          <path
+            d="M1.6 9.4c0-2.6 2.1-4.6 4.8-4.6 1.2 0 2.1.3 2.9.9.5-.5 1.2-.8 2-.8h2.5l-1.1 1.3h1.7c-.2 1.9-1.4 3.3-3.2 3.8v1.3c0 .5-.4.9-.9.9H8.9c-2.9 0-5.1-1.1-6-2.5-.2-.1-.3-.2-.3-.3z"
+            fill="#4D6BFE"
+          />
+          <circle cx="5.6" cy="8" r="0.85" fill="#fff" />
+          <circle cx="5.85" cy="8" r="0.4" fill="#4D6BFE" />
+        </svg>
+      );
+    case 'omp':
+      /*
+       * OMP's mark, which is the Pi glyph - the same shape the `pi` entry uses,
+       * in the violet the project ships it in. Kept as its own case rather than
+       * aliased to `pi`: they are two separate CLIs and a future divergence
+       * should not silently recolour the other one.
+       */
+      return (
+        <svg {...p} viewBox="0 0 16 16" aria-label="OMP">
+          <path d="M3.2 5h9.6M5.8 5v6.4M10.4 5v6.4" fill="none" stroke="#8b5cf6" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case 'qoder':
+    case 'qodercli':
+      /*
+       * Qoder's mark: a rabbit head in the brand green.
+       *
+       * Two upright ears and a rounded muzzle - the silhouette the product uses
+       * on its own launcher. Simplified to the shapes that survive at 14px; a
+       * detailed rabbit becomes an unreadable blob at this size, and an icon
+       * that cannot be told apart from the others is not doing its job.
+       */
+      return (
+        <svg {...p} viewBox="0 0 16 16" aria-label="Qoder CLI">
+          <path d="M5.4 6.2C5.4 4.4 5.9 2.6 6.6 2.6c.6 0 1 1.3 1.1 2.9" fill="none" stroke="#00C853" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M10.6 6.2c0-1.8-.5-3.6-1.2-3.6-.6 0-1 1.3-1.1 2.9" fill="none" stroke="#00C853" strokeWidth="1.5" strokeLinecap="round" />
+          <path
+            d="M8 5.4c2.1 0 3.7 1.5 3.7 3.4S10.1 12.2 8 12.2 4.3 10.7 4.3 8.8 5.9 5.4 8 5.4z"
+            fill="#00C853"
+          />
+          <circle cx="6.7" cy="8.5" r="0.5" fill="#fff" />
+          <circle cx="9.3" cy="8.5" r="0.5" fill="#fff" />
         </svg>
       );
     case 'pi':

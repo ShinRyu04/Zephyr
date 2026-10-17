@@ -34,7 +34,14 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
-import { findModel, isPlaceholderModel, MODEL_FALLBACK, PROVIDER_BY_ID } from './modelCatalog';
+import {
+  findModel,
+  isPlaceholderModel,
+  MODEL_FALLBACK,
+  PROVIDER_AUTO,
+  PROVIDER_BY_ID,
+  providerEfektif,
+} from './modelCatalog';
 import { buatJendela, jatahJendela, JENDELA_PROVIDER, type JendelaKredensial } from './providerTahan';
 import { useSettingsUi } from './settingsStore';
 import { expandPromptBody } from './promptLibrary';
@@ -3406,18 +3413,15 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     const aktif = st.activeProvider;
-    let prov: string;
-    if (aktif && adaKey.includes(aktif)) {
-
-      prov = aktif;
-    } else if (adaKey.length > 0) {
-
-      prov = adaKey[0];
-    } else if (aktif && dikenal(aktif)) {
-      prov = aktif;
-    } else {
-      prov = 'custom';
-    }
+    /*
+     * `'auto'` resolves to a REAL provider here, so nothing downstream has to
+     * know the sentinel exists. `providerEfektif` honours an explicit choice
+     * that has a key and otherwise takes the first provider in catalogue order
+     * that does - deterministic, so the same keys pick the same provider on
+     * every launch.
+     */
+    let prov = providerEfektif(aktif, (id) => adaKey.includes(id));
+    if (!dikenal(prov)) prov = 'custom';
 
     /*
      * Resolve the model WITHOUT ever landing on a catalogue placeholder.
@@ -3470,8 +3474,14 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     if (pilihHydra(get().model)) return;
     const models = useStore.getState().settings.models;
+    /*
+     * `'auto'` is not a provider, so there is nothing to normalise TOWARDS: the
+     * live provider was already resolved at init and by the picker. Returning
+     * early is what keeps `auto` from snapping the panel onto a provider the
+     * reader never chose - the same failure HydraFusion had.
+     */
     const target = models?.activeProvider;
-    if (!target) return;
+    if (!target || target === PROVIDER_AUTO) return;
 
     // An unknown provider is left as-is: normalising now
     // could actually move the panel to the wrong provider.
