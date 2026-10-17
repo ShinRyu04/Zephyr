@@ -434,6 +434,11 @@ const ID: Dict = {
   'Revision': 'Revisi',
   'Research preview': 'Pratinjau riset',
   'no token usage reported': 'pemakaian token tidak dilaporkan',
+  'Name': 'Nama',
+  'Context Size': 'Ukuran konteks',
+  'Capabilities': 'Kemampuan',
+  'Tools': 'Alat',
+  'Vision': 'Visi',
 };
 
 const EN: Dict = {
@@ -866,6 +871,11 @@ const EN: Dict = {
   'Revision': 'Revision',
   'Research preview': 'Research preview',
   'no token usage reported': 'no token usage reported',
+  'Name': 'Name',
+  'Context Size': 'Context Size',
+  'Capabilities': 'Capabilities',
+  'Tools': 'Tools',
+  'Vision': 'Vision',
 };
 
 const JA: Dict = {
@@ -1290,6 +1300,11 @@ const JA: Dict = {
   'Revision': '改訂',
   'Research preview': 'リサーチプレビュー',
   'no token usage reported': 'トークン使用量の報告なし',
+  'Name': '名前',
+  'Context Size': 'コンテキストサイズ',
+  'Capabilities': '機能',
+  'Tools': 'ツール',
+  'Vision': 'ビジョン',
 };
 
 const KO: Dict = {
@@ -1714,6 +1729,11 @@ const KO: Dict = {
   'Revision': '수정',
   'Research preview': '리서치 프리뷰',
   'no token usage reported': '토큰 사용량 보고 없음',
+  'Name': '이름',
+  'Context Size': '컨텍스트 크기',
+  'Capabilities': '기능',
+  'Tools': '도구',
+  'Vision': '비전',
 };
 
 const ZH: Dict = {
@@ -2138,6 +2158,11 @@ const ZH: Dict = {
   'Revision': '修订',
   'Research preview': '研究预览',
   'no token usage reported': '未报告 token 使用量',
+  'Name': '名称',
+  'Context Size': '上下文大小',
+  'Capabilities': '能力',
+  'Tools': '工具',
+  'Vision': '视觉',
 };
 
 const ES: Dict = {
@@ -2562,6 +2587,11 @@ const ES: Dict = {
   'Revision': 'Revisión',
   'Research preview': 'Vista previa de investigación',
   'no token usage reported': 'no se informó uso de tokens',
+  'Name': 'Nombre',
+  'Context Size': 'Tamaño de contexto',
+  'Capabilities': 'Capacidades',
+  'Tools': 'Herramientas',
+  'Vision': 'Visión',
 };
 
 const FR: Dict = {
@@ -2986,6 +3016,11 @@ const FR: Dict = {
   'Revision': 'Révision',
   'Research preview': 'Aperçu de recherche',
   'no token usage reported': 'aucune utilisation de jetons signalée',
+  'Name': 'Nom',
+  'Context Size': 'Taille du contexte',
+  'Capabilities': 'Capacités',
+  'Tools': 'Outils',
+  'Vision': 'Vision',
 };
 
 const DE: Dict = {
@@ -3410,6 +3445,11 @@ const DE: Dict = {
   'Revision': 'Überarbeitung',
   'Research preview': 'Forschungsvorschau',
   'no token usage reported': 'kein Token-Verbrauch gemeldet',
+  'Name': 'Name',
+  'Context Size': 'Kontextgröße',
+  'Capabilities': 'Fähigkeiten',
+  'Tools': 'Werkzeuge',
+  'Vision': 'Bilderkennung',
 };
 
 const PT: Dict = {
@@ -3834,6 +3874,11 @@ const PT: Dict = {
   'Revision': 'Revisão',
   'Research preview': 'Prévia de pesquisa',
   'no token usage reported': 'nenhum uso de tokens informado',
+  'Name': 'Nome',
+  'Context Size': 'Tamanho do contexto',
+  'Capabilities': 'Capacidades',
+  'Tools': 'Ferramentas',
+  'Vision': 'Visão',
 };
 
 const AR: Dict = {
@@ -4258,6 +4303,11 @@ const AR: Dict = {
   'Revision': 'تنقيح',
   'Research preview': 'معاينة بحثية',
   'no token usage reported': 'لم يُبلَّغ عن استخدام الرموز',
+  'Name': 'الاسم',
+  'Context Size': 'حجم السياق',
+  'Capabilities': 'القدرات',
+  'Tools': 'أدوات',
+  'Vision': 'الرؤية',
 };
 
 const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ar: AR };

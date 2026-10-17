@@ -3,6 +3,7 @@ import { useDragEverywhere } from '../../lib/useDragPopup';
 import { useAiModels } from '../../lib/aiModelsStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
+import AiModelsTable from './AiModelsTable';
 
 /*
  * AI Models - a pop-up of its own, deliberately NOT a Settings section.
@@ -95,6 +96,7 @@ export default function AiModelsModal() {
         </div>
         <div className="agc-body">
           <div className="agc-content" data-testid="aim-pop-content">
+            <AiModelsTable />
             <Suspense fallback={null}>
               <ModelsSection />
             </Suspense>
