@@ -361,7 +361,21 @@ const gTurunEkor = perGiliran.filter((g) => !g.ekorSama);
     masuk.push({ role: 'tool', name: 'read_file', content: `T${i}\n` + 't'.repeat(9000) });
   }
   masuk.push({ role: 'assistant', content: '', toolCalls: [{ name: 'read_file' }] });
-  masuk.push({ role: 'tool', name: 'read_file', content: '# EKOR-BERKAS\n' + 'e'.repeat(25_000) });
+  /*
+   * Ekornya HARUS benar-benar melewati `CAP_PESAN`.
+   *
+   * Versi lama memakai 25.000 karakter, dan itu tidak pernah memaksa jalur
+   * potong-terakhir menyala: pass 2 sudah memendekkan pesan-pesan TUA ke STUB
+   * (1.200 char), jadi totalnya turun di bawah cap sebelum kendali sampai ke
+   * pemotong ekor. Hasilnya ekor dikirim UTUH tanpa catatan, dan B3 merah
+   * selamanya - bukan karena produknya salah, tapi karena fixture-nya terlalu
+   * kecil untuk mencapai jalur yang diuji.
+   *
+   * Terukur: 25.000 char -> ekor utuh, tanpa catatan. 90.000 char -> ekor
+   * 90.014 dipotong jadi 51.520 DENGAN catatan. Angka 90.000 dipakai supaya
+   * kasus ini tetap di atas cap walau STUB berubah.
+   */
+  masuk.push({ role: 'tool', name: 'read_file', content: '# EKOR-BERKAS\n' + 'e'.repeat(90_000) });
   const asli = String(masuk.at(-1).content);
   const keluar = M.ringkasRiwayat(masuk, CAP_PESAN);
   const ekor = String(keluar.filter((m) => m.role !== 'system').at(-1)?.content ?? '');
