@@ -153,7 +153,16 @@ cek(
 );
 cek(
   'extLoader.ts (muatBahasa): klaim ekstensi paket "yang pertama menang" (ekstensi yang sudah dipakai tidak ditimpa)',
-  /langPemilik/.test(loaderTs) && /sudah dipakai/.test(loaderTs) && /dipakai = true/.test(loaderTs),
+  /*
+   * The behaviour is what is locked here, not the sentence: the reason text is
+   * now translated through `tf()` so an English reader does not get an
+   * Indonesian line in the Marketplace card. The assertion therefore looks for
+   * the ownership map, the skip branch, and the translation call that replaced
+   * the old literal.
+   */
+  /langPemilik/.test(loaderTs) &&
+    /tf\(\s*'extension \{ext\} \(language/.test(loaderTs) &&
+    /dipakai = true/.test(loaderTs),
 );
 
 /* ------------------------------------------------- klaim ekstensi, berurut */
