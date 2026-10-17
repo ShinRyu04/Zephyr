@@ -698,8 +698,7 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   syncWorkspaceLokal: async (dir) => {
-    set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
-    /*
+    set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });    /*
      * Drop the Quick Open index. The new root alone would invalidate it, but
      * clearing here means the very next Ctrl+P cannot answer for the previous
      * tree even for an instant — which is exactly when a reader would notice.
@@ -707,6 +706,20 @@ export const useStore = create<Store>((set, get) => ({
     void cmd.clearWorkspaceFileIndex().catch(() => {});
 
     void import('./aiStore').then((m) => m.resetKonteksAgent());
+    /*
+     * Move the chat surfaces to THIS folder's conversation.
+     *
+     * Reported bug, verbatim: "buka folder Zephyr, ganti ke ZephyrDesktop, tapi
+     * sesi dari Zephyr pindah ke ZephyrDesktop". Switching folders changed
+     * `workspace` but never touched `activeId`, so the open conversation kept
+     * belonging to the old project while the title bar and the list header named
+     * the new one. From the reader's side the session looked MOVED, and the
+     * transcript on screen was another project's history.
+     *
+     * `ikutiWorkspace` picks this folder's newest session (or starts a fresh,
+     * correctly-stamped chat) and points every surface at it.
+     */
+    void import('./aiStore').then((m) => m.useAi.getState().ikutiWorkspace(dir));
     void import('./systemPrompt').then((m) => m.resetAturanProyek());
     void import('./projectContext').then((m) => m.resetRingkasanProyek());
 
