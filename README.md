@@ -110,7 +110,3 @@ Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. S
 ## Tech stack
 
 Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.js, Zustand, axum.
-
-## License
-
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
