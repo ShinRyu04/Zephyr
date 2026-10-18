@@ -14,7 +14,6 @@
   <p>
     <img src="https://img.shields.io/github/v/release/ShinRyu04/Zephyr?label=version&color=blue" alt="version" />
     <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="platform" />
-    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="license" />
   </p>
 </div>
 
