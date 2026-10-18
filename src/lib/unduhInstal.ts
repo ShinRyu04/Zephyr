@@ -319,16 +319,35 @@ export function hitungBinding(v: unknown): number {
 }
 
 /**
- * Ikon yang benar-benar BISA DIGAMBAR pemuat Zephyr. `muatIconTheme`
- * (src/lib/extLoader.ts) membaca `raw.icons ?? raw` dan hanya menggambar entri
- * yang punya `glyph`, jadi berkas gaya VS Code (`iconDefinitions`) bisa berisi
- * 5 definisi dan tetap mengubah 0 ikon: laporan "5 icons", aplikasi 0.
- * Angka inilah yang menentukan lulus gerbang; `hitung(v,'iconDefinitions')`
- * hanya dipakai untuk MELAPORKAN apa yang diklaim paketnya.
+ * Ikon yang benar-benar BISA DIGAMBAR pemuat Zephyr.
+ *
+ * DUA bentuk dihitung, karena pemuat menerima keduanya:
+ *   - `iconPath` - gambar SVG asli (bentuk VS Code). Ini yang dipakai semua
+ *     icon theme marketplace sungguhan, dan inilah yang membuat ikonnya
+ *     BENAR-BENAR berubah, bukan cuma huruf di kotak.
+ *   - `glyph` / `fontCharacter` - tanda teks pendek. Masih sah, tapi hasilnya
+ *     huruf berwarna, bukan gambar.
+ *
+ * Sebelum `iconPath` dihitung, setiap paket marketplace dilaporkan "0 icons"
+ * dan ditolak di gerbang walau isinya 200 definisi gambar - kegagalan yang
+ * membuat icon theme "terpasang tapi tidak mengubah apa pun".
  */
 export function jumlahIkonDapatDigambar(v: unknown): number {
   if (!v || typeof v !== 'object') return 0;
   const akar = v as Record<string, unknown>;
+  const defs = akar.iconDefinitions;
+  if (defs && typeof defs === 'object' && !Array.isArray(defs)) {
+    let n = 0;
+    for (const e of Object.values(defs as Record<string, unknown>)) {
+      if (!e || typeof e !== 'object') continue;
+      const d = e as { iconPath?: unknown; glyph?: unknown; fontCharacter?: unknown };
+      const path = typeof d.iconPath === 'string' ? d.iconPath.trim() : '';
+      const glyph = typeof d.glyph === 'string' ? d.glyph.trim() : '';
+      const font = typeof d.fontCharacter === 'string' ? d.fontCharacter.trim() : '';
+      if (path || glyph || font) n += 1;
+    }
+    return n;
+  }
   const peta =
     akar.icons && typeof akar.icons === 'object' && !Array.isArray(akar.icons)
       ? (akar.icons as Record<string, unknown>)
@@ -336,8 +355,10 @@ export function jumlahIkonDapatDigambar(v: unknown): number {
   let n = 0;
   for (const e of Object.values(peta)) {
     if (!e || typeof e !== 'object') continue;
-    const glyph = (e as { glyph?: unknown }).glyph;
-    if (typeof glyph === 'string' && glyph.trim() !== '') n += 1;
+    const d = e as { iconPath?: unknown; glyph?: unknown };
+    const path = typeof d.iconPath === 'string' ? d.iconPath.trim() : '';
+    const glyph = typeof d.glyph === 'string' ? d.glyph.trim() : '';
+    if (path || glyph) n += 1;
   }
   return n;
 }

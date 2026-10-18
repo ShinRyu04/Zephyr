@@ -16,7 +16,7 @@ import {
   pilihanTersimpan,
 } from '../../lib/hydraFusion';
 import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
-import { useAgentCustom } from '../../lib/agentCustomStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { PemilihAvatar } from './PemilihAvatar';
 import CommandPermissions from '../settings/CommandPermissions';
 import AiIkon from './AiIkon';
@@ -118,8 +118,18 @@ export default function ChatSettingsPage({
   onClose,
   onOpenEditor,
   onDragStart,
+  seksiAwal,
 }: {
-  onClose: () => void;
+  /*
+   * Both of these are now OPTIONAL, because the page has a third home.
+   *
+   * It started as an overlay (close + "open in editor") and gained an editor-tab
+   * home (neither). It now also lives in its own OS window, where the platform
+   * draws the close button and there is no editor to move into - so passing
+   * either would put a control on screen that duplicates the window frame or
+   * points at nothing.
+   */
+  onClose?: () => void;
   /*
    * Ask the host to move this page into the editor area.
    *
@@ -137,6 +147,15 @@ export default function ChatSettingsPage({
    * except the buttons at its trailing edge — which the hook excludes itself.
    */
   onDragStart?: (e: React.PointerEvent) => void;
+  /**
+   * The section named by the URL that opened this window
+   * (`#panel=chat-settings&s=context`).
+   *
+   * Needed because the window is a separate WebView: the store's `seksi` field
+   * is set in the OPENING window and is invisible here, so the only way a door
+   * can name a destination across windows is the URL.
+   */
+  seksiAwal?: string | null;
 }) {
   const tr = useT();
   /*
@@ -147,7 +166,9 @@ export default function ChatSettingsPage({
    * are not sections of this page any more: they open the AI Models pop-up.
    */
   const seksiDiminta = useAiChatSettings((s) => s.seksi);
-  const [bagian, setBagian] = useState<SectionId>(seksiDiminta ?? 'mode');
+  const [bagian, setBagian] = useState<SectionId>(
+    ((seksiAwal ?? seksiDiminta) ?? 'mode') as SectionId,
+  );
   useEffect(() => {
     if (!seksiDiminta) return;
     setBagian(seksiDiminta);
@@ -240,8 +261,11 @@ export default function ChatSettingsPage({
      this row from re-rendering on unrelated changes. */
   const jumlahToolAktif = useToolGate((s) => s.aktif.size);
 
-  /* Escape closes the page, like any other editor-area view. */
+  /* Escape closes the page, like any other editor-area view. In the OS-window
+     home there is no `onClose` to call: the platform's own close button is the
+     way out, and a second Escape handler there would fight the window. */
   useEffect(() => {
+    if (!onClose) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -402,7 +426,7 @@ export default function ChatSettingsPage({
           className="cset-value"
           data-testid="cset-agentcustom"
           title={tr('Opens the persona editor')}
-          onClick={() => useAgentCustom.getState().buka('agents')}
+          onClick={() => bukaPanel('agent-custom', 'agents')}
         >
           {tr('Manage personas & sub-agents')}
         </button>
@@ -1361,8 +1385,6 @@ export default function ChatSettingsPage({
    * button would look broken the moment it was used.
    */
   const [abaikan, setAbaikan] = useState(false);
-  /* Only meaningful in the popup; the editor home already fills its host. */
-  const [besar, setBesar] = useState(false);
   const hitungKotor = rows.filter((r) => !r.isDefault).length;
 
   /*
@@ -1382,6 +1404,21 @@ export default function ChatSettingsPage({
   const kotor = jumlahKotor > 0;
 
   /*
+   * Publish the count and the Save action to the window's title bar.
+   *
+   * The bar is a SIBLING above this page (see PanelWindow), so a button drawn
+   * here would be a second header - which is exactly the duplicate the reader
+   * reported. The page knows what "changed" means, so it publishes; the bar
+   * renders. `setSimpan` is cleared on unmount so a stale closure cannot outlive
+   * the page.
+   */
+  const setKotorStore = useAiChatSettings((s) => s.setKotor);
+  const setSimpanStore = useAiChatSettings((s) => s.setSimpan);
+  useEffect(() => {
+    setKotorStore(jumlahKotor);
+  }, [jumlahKotor, setKotorStore]);
+
+  /*
    * Save re-reads the settings from disk.
    *
    * Every row already wrote its value the moment it was flipped — there is no
@@ -1397,12 +1434,28 @@ export default function ChatSettingsPage({
     setAbaikan(true);
   }, []);
 
+  /* Hand the action to the bar, and take it back on unmount. */
+  useEffect(() => {
+    setSimpanStore(simpanSemua);
+    return () => setSimpanStore(null);
+  }, [simpanSemua, setSimpanStore]);
+
   return (
-    <div className={`cset-page${besar ? ' is-besar' : ''}`} data-testid="cset-page">
+    <div className="cset-page" data-testid="cset-page">
+      {/*
+        * NO HEADER BAR HERE when the window frame is drawing one.
+        *
+        * This page used to render `.cset-topbar` with the title "Chat Settings"
+        * and a Save button. In its own window that bar sat directly under the
+        * title bar, which already says "Chat Settings" - so the reader saw the
+        * name twice and two rows of chrome for one window, which is the "ada 2"
+        * report. The window passes `actions` (Save) to `PanelTitleBar` instead,
+        * and this header renders only when a host provides `onDragStart` or
+        * `onClose` (i.e. the old popup frame, which no longer exists).
+        */}
+      {(onDragStart || onClose) && (
       <div
         className="cset-topbar"
-        /* The popup's drag handle when there is one; a plain header in the
-           editor home, where nothing floats and there is nothing to drag. */
         {...(onDragStart ? { 'data-drag-handle': true, onPointerDown: onDragStart } : {})}
         style={onDragStart ? { cursor: 'grab' } : undefined}
       >
@@ -1452,42 +1505,28 @@ export default function ChatSettingsPage({
           {kotor ? tf('Save ({n})', { n: jumlahKotor }) : tr('Saved')}
         </button>
         {/*
-          * Maximise, for the same reason Agent Customizations has one: the page
-          * is 1280x880 and a reader comparing many settings wants the room. Only
-          * in the POPUP - in the editor tab the page already fills its host, so a
-          * second control there would do nothing.
+          * Close used to live HERE, because this page was framed by a popup that
+          * had no close button. In the OS-window home the platform draws one, and
+          * keeping this would put two close buttons on one window - which is
+          * exactly the "there are two of these" report. It renders only when a
+          * host passes `onClose`.
+          *
+          * The maximize button is gone entirely: it existed to grow a floating
+          * card, and there is no card. The window maximizes itself.
           */}
-        {onDragStart && (
+        {onClose && (
           <button
             className="ai-ikon"
-            data-testid="cset-max"
-            title={besar ? tr('Restore size') : tr('Maximize')}
-            aria-label={besar ? tr('Restore size') : tr('Maximize')}
-            aria-pressed={besar}
-            onClick={() => setBesar((v) => !v)}
+            data-testid="cset-close"
+            title={tr('Close')}
+            aria-label={tr('Close')}
+            onClick={onClose}
           >
-            <AiIkon name={besar ? 'restore' : 'maximize'} size={14} />
+            <AiIkon name="close" size={14} />
           </button>
         )}
-        {/*
-          * An icon, matching every other window control in the app.
-          *
-          * This was the only text button in a row of icons - "Tutup" next to a
-          * maximize glyph - so the two read as different kinds of control even
-          * though they act on the same window. The header already carries the
-          * page title, so a word here was also the only thing competing with it
-          * for the reader's attention.
-          */}
-        <button
-          className="ai-ikon"
-          data-testid="cset-close"
-          title={tr('Close')}
-          aria-label={tr('Close')}
-          onClick={onClose}
-        >
-          <AiIkon name="close" size={14} />
-        </button>
       </div>
+      )}
 
       <div className="cset-body">
         {/* Left column: the sections. Hidden while searching, so the results

@@ -3,6 +3,8 @@ import { useExplorer } from '../../lib/explorerStore';
 import { useWs } from '../../lib/workspaceStore';
 import FileTree from './FileTree';
 import TimelineView from './TimelineView';
+import OutlinePanel from './OutlinePanel';
+import SectionLipat from './SectionLipat';
 import ContextMenu from './ContextMenu';
 import RootSection from '../workspace/RootSection';
 import { useT } from '../../lib/i18n';
@@ -174,14 +176,31 @@ export default function ExplorerPanel() {
       </div>
 
       {/*
-        * No Timeline in the agents column.
+        * Outline and Timeline, as COLLAPSIBLE SECTIONS under the tree.
         *
-        * The reader asked for it gone: a Timeline under a tree that is already
-        * half a narrow column leaves neither surface enough height to be read,
-        * and it is a history view — not what this column is for (open a file,
-        * see what changed). The main window's explorer keeps it.
+        * They used to be separate icons in the activity bar - three rail buttons
+        * for one idea ("things about the file I am looking at"). VS Code and
+        * Qoder both put them here, at the bottom of the Explorer, so a reader
+        * coming from either looks for them here rather than in the rail.
+        *
+        * Both start COLLAPSED: the file tree is the reason this column exists,
+        * and an Outline that opens by default takes half the height away from
+        * the thing the reader actually came for.
+        *
+        * Absent in the Agents window for the reason Timeline always was: this
+        * column is already narrow and split, and neither section is what the
+        * Changes/Files column is for.
         */}
-      {!diAgen && <TimelineView />}
+      {!diAgen && (
+        <>
+          <SectionLipat judul={tr('Outline')} testid="sec-outline">
+            <OutlinePanel />
+          </SectionLipat>
+          <SectionLipat judul={tr('Timeline')} testid="sec-timeline">
+            <TimelineView />
+          </SectionLipat>
+        </>
+      )}
 
       <ContextMenu />
     </div>

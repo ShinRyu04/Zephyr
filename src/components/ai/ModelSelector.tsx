@@ -3,7 +3,7 @@ import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { useAiModels } from '../../lib/aiModelsStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
 import {
   baseUrlEfektif,
@@ -269,7 +269,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    */
   const bukaModels = () => {
     setOpen(false);
-    useAiModels.getState().buka();
+    bukaPanel('models');
   };
 
   const hasilCari = useMemo(() => {

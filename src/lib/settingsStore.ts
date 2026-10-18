@@ -7,6 +7,10 @@ export type SectionId =
   | 'general'
   | 'editor'
   | 'theme'
+  /* Icon themes: which pack draws the file-tree marks. Same family as `theme`
+     (both answer "how does the editor look"), which is why it sits right below
+     it in the rail rather than in Extensions. */
+  | 'icons'
   | 'shortcuts'
   | 'agents'
   /* Rules guards WRITES, so it lives beside Permissions - both are about what
@@ -18,7 +22,6 @@ export type SectionId =
   | 'lsp'
   | 'scm'
   | 'mcp'
-  | 'tests'
   | 'devenv'
   | 'devupdate'
   | 'security'
@@ -36,11 +39,15 @@ export const SECTION_ORDER: SectionId[] = [
   'general',
   'editor',
   'theme',
+  /* Icon themes sit directly under Themes: they are the same kind of choice -
+     "how does the editor look" - and a reader who just changed the colours is
+     the one most likely to want the icons to match. A separate top-level section
+     would have been a second place to look for the same question. */
+  'icons',
   'shortcuts',
   'extensions',
   'lsp',
   'scm',
-  'tests',
   'devenv',
   'devupdate',
 

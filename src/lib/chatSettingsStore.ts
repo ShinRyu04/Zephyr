@@ -25,24 +25,27 @@ export type ChatSeksi =
   | 'advanced';
 
 /*
- * Chat Settings: whether the floating overlay is open.
+ * Chat Settings: WHICH WINDOW, not whether an overlay is open.
  *
- * TWO HOMES, one page. VSCode opens its chat settings as a small overlay for a
- * quick change, and offers a button to keep it as a real editor tab when the
- * reader wants to stay.
+ * The page used to have two homes - a floating overlay over the chat and a real
+ * editor tab - and this store owned both flags. It has three now (overlay, tab,
+ * and its own OS window), and the overlay is gone: it was the one that could be
+ * maximized while keeping a leftover drag offset, which painted the left rail
+ * over the content.
  *
- *   overlay — floats over the chat. Opens from the "…" menu.
- *   tab     — a real editor tab, in the tab strip beside the files.
+ * The actions are kept, and they OPEN THE WINDOW. Every door in the app calls
+ * `bukaDi`/`setBuka` (the chat's key banner, the model picker, the sub-agent
+ * panel, the CLI's `/config`), and changing a dozen call sites to a new name is
+ * how one of them gets missed and silently opens nothing. `buka` stays in the
+ * shape only so those call sites keep compiling; it no longer means "overlay is
+ * on screen".
  *
- * The TAB home does not live here any more. It is a real `Tab` in the editor
- * store (`view: 'chat-settings'`), so this store has nothing to say about it:
- * `keEditor` opens that tab and then the overlay is done, and closing the tab
- * is what closes the page — the same way the X on a file tab closes a file.
- * Keeping a second flag here for "the page is open in the editor" is what made
- * the old version unable to say which of the two surfaces owned the screen, and
- * it is why `SplitEditor` had to grow a branch that hid the tab strip.
+ * `seksi` is still tracked, because `ChatSettingsPage` reads it when it is
+ * hosted in the editor tab. For the window it travels in the URL instead - the
+ * window is a separate WebView and cannot see this store.
  */
 interface ChatSettingsState {
+  /** Always false: there is no overlay to open. Kept for older callers. */
   buka: boolean;
   /**
    * The section the page should open on, when a caller asked for one.
@@ -55,10 +58,26 @@ interface ChatSettingsState {
    * reader to find the row is a door that lost the argument for opening at all.
    */
   seksi: ChatSeksi | null;
-  /** Open as the floating overlay (the "…" menu's behaviour). */
+  /** Open the Chat Settings WINDOW. */
   setBuka: (v: boolean) => void;
-  /** Open the floating overlay straight on one section. */
+  /** Open the Chat Settings window straight on one section. */
   bukaDi: (seksi: ChatSeksi) => void;
+  /**
+   * How many rows differ from their defaults, and the action that acknowledges
+   * them. Published by `ChatSettingsPage` so the WINDOW's title bar can draw the
+   * Save button.
+   *
+   * WHY A STORE and not a prop: the page is rendered deep inside `PanelWindow`,
+   * and the title bar is its sibling ABOVE it. Passing a button up through the
+   * tree would mean either duplicating the row-diff calculation (two counts that
+   * can disagree) or threading a ref through four components. The page is the
+   * only thing that knows what "changed" means, so it publishes the answer and
+   * the bar renders it.
+   */
+  kotor: number;
+  setKotor: (n: number) => void;
+  simpan: (() => void) | null;
+  setSimpan: (fn: (() => void) | null) => void;
   /** The page has consumed `seksi`, so a later open starts at the default. */
   seksiTerpakai: () => void;
   /** Move the open page into a real editor tab. */
@@ -69,21 +88,25 @@ interface ChatSettingsState {
 export const useAiChatSettings = create<ChatSettingsState>((set) => ({
   buka: false,
   seksi: null,
-  /*
-   * Opening from the "…" menu clears any target: that row says "Chat Settings"
-   * and names no section, so landing on whatever the last caller asked for would
-   * make the plain door the least predictable one. (Providers, keys and the model
-   * list are not sections of this page at all - they open the AI Models pop-up,
-   * which is a door of its own and goes through `useAiModels`, not this store.)
-   */
-  setBuka: (v) => set({ buka: v, seksi: null }),
-  bukaDi: (seksi) => set({ buka: true, seksi }),
+  kotor: 0,
+  setKotor: (n) => set({ kotor: n }),
+  simpan: null,
+  setSimpan: (fn) => set({ simpan: fn }),
+  setBuka: (v) => {
+    set({ buka: false, seksi: null });
+    if (v) void import('./bukaPanel').then((m) => m.bukaPanel('chat-settings'));
+  },
+  bukaDi: (seksi) => {
+    set({ buka: false, seksi });
+    void import('./bukaPanel').then((m) => m.bukaPanel('chat-settings', seksi));
+  },
   seksiTerpakai: () => set({ seksi: null }),
   keEditor: () => {
-    /* Close the overlay first, then open the tab. The other order leaves the
-       overlay hanging over the editor for a frame, and the reader sees the same
-       page twice. `seksi` survives on purpose: the tab is the same page, and it
-       should open on the section the overlay was asked for. */
+    /* The TAB home is a real `Tab` in the editor store (`view:
+       'chat-settings'`), so this is the one action that still belongs here: it
+       opens that tab and leaves the store alone. `seksi` survives on purpose -
+       the tab is the same page and should open on the section that was asked
+       for. */
     set({ buka: false });
     useStore.getState().bukaViewAi('chat-settings');
   },

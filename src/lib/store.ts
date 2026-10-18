@@ -373,6 +373,52 @@ export function flushSetelanTerakhir(): Promise<void> {
   return flushSetelan();
 }
 
+/*
+ * Cross-window settings sync.
+ *
+ * Every panel (Settings, Extensions, Tools, AI Models, Chat Settings, Agent
+ * Customizations) now lives in its OWN OS window, which means its own WebView
+ * and its own copy of every zustand store. Both copies write the same
+ * `settings.json` through the Rust side, so the FILE is always consistent - but
+ * the editor window's in-memory copy is not, and a theme or language changed in
+ * the Settings window would not repaint the editor until it was restarted.
+ *
+ * The Rust side already emits `settings-changed` after every write
+ * (`settings.rs`, `patch_settings`); nothing was listening. This is that
+ * listener. It is bound once per window, guarded in module scope for the same
+ * reason the event bindings in App.tsx are: React StrictMode mounts the root
+ * twice, and an unguarded `listen()` leaves a second handler behind that the
+ * cleanup of the first mount can no longer reach.
+ *
+ * THE RELOAD IS DEBOUNCED, and deliberately so: `flushSetelan` writes a burst of
+ * keystrokes as one patch, but a slider drag still produces several writes in a
+ * row, and each one would otherwise trigger a full `getSettings()` round trip
+ * plus a theme re-apply. 120ms is under the perceptible threshold for "the
+ * other window caught up" and long enough to collapse a drag.
+ */
+let sinkronSetelanTerpasang = false;
+let timerSinkronSetelan: ReturnType<typeof setTimeout> | null = null;
+
+export function pasangSinkronSetelan(): void {
+  if (sinkronSetelanTerpasang) return;
+  sinkronSetelanTerpasang = true;
+
+  void import('./events')
+    .then((m) =>
+      m.onSettingsChanged(() => {
+        if (timerSinkronSetelan) clearTimeout(timerSinkronSetelan);
+        timerSinkronSetelan = setTimeout(() => {
+          timerSinkronSetelan = null;
+          void useStore.getState().reloadSettings();
+        }, 120);
+      }),
+    )
+    .catch(() => {
+      /* Non-Tauri origin (browser harness): there is no event bus to bind. The
+         flag stays set, because retrying on every mount would just fail again. */
+    });
+}
+
 export const MAX_LOADED_TABS = 12;
 
 export function maxLoadedTabs(): number {
@@ -537,20 +583,30 @@ export const useStore = create<Store>((set, get) => ({
   activeTheme: 'zephyr-dark',
 
   /*
-   * `'settings'` is not a side-bar activity any more - it is a floating panel.
+   * `'settings'` is not a side-bar activity any more, and it is not a popup
+   * either - it is its own window.
    *
    * Ten call sites across the app ask for it (`setActivity('settings')` from
    * the command palette, the MCP panel, Dev Environment, the agent's window
-   * tools...). Making every one of them remember to also call
-   * `setSettingsOpen(true)` was a bug waiting to happen: the activity would
-   * switch, the side bar would go blank, and nothing would open. Opening the
-   * panel HERE keeps all of them working without touching any of them.
+   * tools...). Making every one of them remember to open a window was a bug
+   * waiting to happen: the activity would switch, the side bar would go blank,
+   * and nothing would open. Opening it HERE keeps all of them working without
+   * touching any of them.
+   *
+   * The popup flags are cleared rather than set. They still exist in the store
+   * because saved state and older call sites reference them, but nothing renders
+   * them any more - leaving one true would be a flag that lies about the screen.
    */
-  setActivity: (a) =>
-    set(() =>
-      a === 'settings'
-        ? { activity: a, settingsOpen: true, extensionsOpen: false, toolsOpen: false }
-        : { activity: a }),
+  setActivity: (a) => {
+    if (a === 'settings') {
+      set({ activity: a, settingsOpen: false, extensionsOpen: false, toolsOpen: false });
+      /* Dynamic import: `bukaPanel` imports this module, so a static import
+         here would close the cycle store -> bukaPanel -> store. */
+      void import('./bukaPanel').then((m) => m.bukaPanel('settings'));
+      return;
+    }
+    set({ activity: a });
+  },
   setToolsTab: (v) => set({ toolsTab: v }),
   toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
@@ -565,31 +621,37 @@ export const useStore = create<Store>((set, get) => ({
   setStatus: (m) => set({ statusMessage: m }),
   setCursor: (line, col) => set({ cursor: { line, col } }),
   setFindOpen: (open) => set({ findOpen: open }),
-  setSettingsOpen: (open) =>
-    set((s) => ({
-      settingsOpen: open,
-      extensionsOpen: open ? false : s.extensionsOpen,
-      toolsOpen: open ? false : s.toolsOpen,
-
-      activity: open ? 'settings' : s.activity === 'settings' ? 'explorer' : s.activity,
-    })),
   /*
-   * Ketiga permukaan modal saling meniadakan: hanya satu yang boleh
-   * terlihat pada satu waktu, jadi membuka salah satu menutup yang lain.
-   * Tanpa ini, dua scrim bertumpuk dan yang di bawah tidak bisa diklik.
+   * The three popup flags are now DEAD, and these setters keep their names only
+   * because a dozen call sites still use them.
+   *
+   * Passing `true` opens the panel's WINDOW; passing `false` just clears the
+   * flag. That way no legacy caller can end up doing nothing - which is the
+   * failure mode of a renamed API: the door compiles, the reader presses it, and
+   * nothing happens.
+   *
+   * The flags themselves are always false. They stay in the store because saved
+   * state and older code reference them, but nothing renders them; a `true` here
+   * would be a flag that lies about the screen, and if anything ever rendered it
+   * again the reader would get the popup AND the window ("ada 2").
    */
-  setExtensionsOpen: (open) =>
+  setSettingsOpen: (open) => {
     set((s) => ({
-      extensionsOpen: open,
-      settingsOpen: open ? false : s.settingsOpen,
-      toolsOpen: open ? false : s.toolsOpen,
-    })),
-  setToolsOpen: (open) =>
-    set((s) => ({
-      toolsOpen: open,
-      settingsOpen: open ? false : s.settingsOpen,
-      extensionsOpen: open ? false : s.extensionsOpen,
-    })),
+      settingsOpen: false,
+      extensionsOpen: false,
+      toolsOpen: false,
+      activity: open ? 'settings' : s.activity === 'settings' ? 'explorer' : s.activity,
+    }));
+    if (open) void import('./bukaPanel').then((m) => m.bukaPanel('settings'));
+  },
+  setExtensionsOpen: (open) => {
+    set({ extensionsOpen: false, settingsOpen: false, toolsOpen: false });
+    if (open) void import('./bukaPanel').then((m) => m.bukaPanel('extensions'));
+  },
+  setToolsOpen: (open) => {
+    set({ toolsOpen: false, settingsOpen: false, extensionsOpen: false });
+    if (open) void import('./bukaPanel').then((m) => m.bukaPanel('tools'));
+  },
   setUpdateBanner: (b) => set({ updateBanner: b }),
   setDonateOpen: (v) => set({ donateOpen: v }),
   setNavBack: (v) => set({ navBack: v }),

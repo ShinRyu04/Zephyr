@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiCli, EMPTY_LIST, EMPTY_TASKS, type CliTask } from '../../lib/aiCliStore';
-import { useAiChatSettings } from '../../lib/chatSettingsStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { useSubAgent } from '../../lib/subagentStore';
 import AgentMapPanel from './AgentMapPanel';
 import { useAi } from '../../lib/aiStore';
@@ -727,8 +727,9 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         } else {
           /* "What is sent to the provider" is a chat setting (context), and it
              is edited in the chat's own settings page - not in the editor-area
-             Settings page, which has not owned it since those rows moved. */
-          useAiChatSettings.getState().bukaDi('context');
+             Settings page, which has not owned it since those rows moved. The
+             page is its own window now, so the section travels in the URL. */
+          bukaPanel('chat-settings', 'context');
           setToast(tx('Opened Chat Settings — review what is sent to the provider'));
         }
         setMenu(null);
@@ -785,7 +786,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
       case 'statusline':
         /* The status line is chat chrome, so its switches live in Chat Settings
            (Appearance) with the rest of them. */
-        useAiChatSettings.getState().bukaDi('appearance');
+        bukaPanel('chat-settings', 'appearance');
         setToast(tx('Opened Chat Settings — choose what the status line shows'));
         setMenu(null);
         break;
@@ -879,7 +880,7 @@ export default function CliChat({ agentId, label }: { agentId: string; label: st
         /* The CLI's /config has no single Zephyr equivalent: what it shows is
            split across the chat's settings page. Open that page rather than the
            editor-area Settings page, where half of these rows no longer exist. */
-        useAiChatSettings.getState().setBuka(true);
+        bukaPanel('chat-settings');
         setMenu(null);
         break;
       }
