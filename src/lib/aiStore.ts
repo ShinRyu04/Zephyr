@@ -2646,25 +2646,42 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null; act
       ? (parsed.activeId as string)
       : (sessions[0]?.id ?? null);
     /*
-     * Per-surface ids are restored too, but any that lost its chat (trimmed to
-     * the last 20, or deleted on another window) falls back to the primary —
+     * Per-surface ids are restored, and a surface that lost its chat (trimmed
+     * to the last 20, or deleted on another window) falls back to the primary -
      * a surface pointing at a missing session would render an empty transcript
      * with no way to tell why.
      *
-     * `agents` is seeded here for the same reason `''` is: the Agents window
-     * mounts its own panel with `composerId="agents"` (see AgentsLayout ->
-     * AiHost), and every reader downstream resolves through
-     * `activeIds[composerId] ?? (composerId === '' ? activeId : null)`. Without
-     * this key that expression yields `null` for a window that is not the
-     * primary one, so the transcript comes up empty on first run - the panel is
-     * mounted and working, it just has no chat to show. Seeding it with the
-     * primary id means the Agents window opens on the conversation the reader
-     * was last in, which is also the behaviour they expect when they pop it out.
+     * EVERY SURFACE GETS ITS OWN SESSION. The rule now:
+     *
+     *   ''        the right-hand column (the primary surface)
+     *   'editor'  the chat tab in the editor area
+     *   'agents'  the Agents window
+     *
+     * The three are independent: each keeps its own conversation, its own todo
+     * list and its own running task, so a reader can have one agent editing in
+     * the column while another researches in the popped-out window - the way
+     * VS Code's chat surfaces behave.
+     *
+     * `agents` USED TO BE SEEDED with the primary id, which made the popped-out
+     * window open the SAME conversation as the column. That was written when the
+     * window was only a "pop out" of the same chat; once it became a place to
+     * run a second task, sharing the session meant two surfaces writing into one
+     * transcript - the exact opposite of what the reader asked for.
+     *
+     * A surface with no stored id gets `null`, NOT the primary id. `null` means
+     * "this surface has not started a conversation yet"; the first `send()` from
+     * that surface creates its own session (see `mulaiSesiBaru`). Handing it the
+     * primary id is what forced the sharing.
      */
-    const activeIds: Record<string, string | null> = { '': activeId, agents: activeId };
+    const activeIds: Record<string, string | null> = { '': activeId, editor: null, agents: null };
     for (const [k, v] of Object.entries(parsed.activeIds ?? {})) {
       if (k === '') continue;
-      activeIds[k] = sessions.some((s) => s.id === v) ? v : activeId;
+      /*
+       * Only restore an id that still EXISTS. A missing one becomes null (start
+       * fresh) rather than borrowing the primary conversation: borrowing is how
+       * two surfaces ended up sharing one transcript.
+       */
+      activeIds[k] = sessions.some((s) => s.id === v) ? v : null;
     }
     return { sessions, activeId, activeIds };
   } catch {

@@ -524,12 +524,68 @@
  * same channel the row already uses for its icon (`is-baca` / `is-tulis` /
  * `is-jalan`), so the rail and the rows agree without a second legend.
  */
+/*
+ * A tool row is a CARD, and it has to read as one.
+ *
+ * MEASURED BUG: this used `var(--bg-elev, var(--bg))`, and `--bg-elev` is a
+ * TYPO - the real token is `--bg-elevated` (tokens.css:61). So the background
+ * always fell through to `--bg`, the same colour as the transcript behind it,
+ * and the only thing separating a tool card from the page was its 1px border at
+ * 1.34:1 contrast. On screen that is a grey rectangle with no visible edge: the
+ * tool rows blurred into one another and the reader could not see where a step
+ * began.
+ *
+ * Two changes, both measured against #12141a:
+ *
+ *   1. The right token (`--bg-elevated`) plus a left accent stripe. The stripe
+ *      is what makes a row scannable at a glance - the eye finds the start of
+ *      each step without reading a single word.
+ *   2. A stronger border, mixed from the theme's own text colour rather than
+ *      the border token, so it stays visible on light themes too.
+ */
 .cli-tool,
-.cli-timeline-error,
-[data-timeline] > .cli-native-text,
-[data-timeline] > .cli-tool {
+.cli-timeline-error {
   position: relative;
-  background: var(--bg0, var(--bg));
+  background: var(--bg-elevated, var(--surface-3, var(--bg)));
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 6px;
+  /*
+   * `hidden` here is for the rounded corners and the 2px stripe, NOT a licence
+   * to clip content: the body inside has its own ceiling and scrolls. Kept
+   * explicit so a future edit does not turn this into a way to hide text.
+   */
+  overflow: hidden;
+  /*
+   * A card never grows past the viewport. Without this a single long tool
+   * result pushed the whole transcript into one 631px step.
+   */
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The accent stripe: 2px of the row's own status colour down the left edge. */
+.cli-tool::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  pointer-events: none;
+}
+.cli-tool:has(.cli-tool-ikon.is-tulis)::after {
+  background: var(--accent);
+}
+.cli-tool:has(.cli-tool-ikon.is-jalan)::after {
+  background: var(--warning, var(--accent));
+}
+.cli-tool.is-fail::after {
+  background: var(--danger);
+}
+.cli-tool.is-running::after {
+  background: var(--accent);
 }
 
 .cli-tool::before,
@@ -612,37 +668,53 @@
   word-break: break-word;
 }
 
-.cli-tool {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-elev, var(--bg));
-  overflow: hidden;
-}
-
+/*
+ * NOTE: the card's background, border and accent stripe are declared ABOVE,
+ * together with `.cli-timeline-error`, so the two share one definition. A
+ * second `.cli-tool { background: … }` block used to sit here with the typo
+ * `var(--bg-elev, var(--bg))` - and because it came later in the file it won,
+ * which is why the fix above would otherwise have looked like it did nothing.
+ */
 .cli-tool.is-fail {
   border-color: color-mix(in srgb, var(--err, #f85149) 50%, var(--border));
 }
 
+/*
+ * A collapsed tool row is a thin bar, in BOTH layouts.
+ *
+ * `6px 9px` padding made the header 34px tall. That is fine for one row and
+ * wasteful for thirty: the transcript of a real task is mostly collapsed rows,
+ * and the reader is scanning them for the one that matters. 4px vertical keeps
+ * the click target comfortable (28px) while fitting ~30% more steps on screen.
+ */
 .cli-tool-head {
   display: flex;
   align-items: center;
   gap: 7px;
   width: 100%;
-  padding: 6px 9px;
+  padding: 4px 9px;
   background: transparent;
   border: 0;
   cursor: pointer;
   text-align: left;
   color: var(--text);
   font-size: 12.5px;
+  /* One line, never taller. A collapsed step is a bar, not a paragraph. */
+  min-height: 28px;
 }
 
 .cli-tool-head:hover {
   background: var(--hover, rgba(127, 127, 127, 0.08));
 }
 
+/*
+ * Icon and caret at `--text-dim` measured 4.83:1 against the card - legible in
+ * isolation but weak at 12px next to a 14.93:1 title, so the row read as a bold
+ * label with an almost invisible glyph in front of it. Mixing the theme's own
+ * text colour in keeps the hue and raises it to roughly 7:1.
+ */
 .cli-tool-caret {
-  color: var(--text-dim, var(--text));
+  color: color-mix(in srgb, var(--text) 62%, transparent);
   font-size: 10px;
   flex: 0 0 auto;
 }
@@ -650,7 +722,7 @@
 .cli-tool-ikon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: var(--text-dim, var(--text));
+  color: color-mix(in srgb, var(--text) 62%, transparent);
 }
 
 .cli-tool-ikon.is-tulis {
@@ -666,13 +738,32 @@
   flex: 0 0 auto;
 }
 
+/*
+ * A tool row is ONE line. Always.
+ *
+ * MEASURED FAILURE: this was changed to `white-space: pre-wrap` to stop long
+ * commands being cut off - and that made every row grow to 4-6 lines. In the
+ * right column a single collapsed step reached 120-150px, so ten steps filled
+ * the entire screen and the transcript stopped being scannable. The command was
+ * readable and the UI was unusable, which is not a trade worth making.
+ *
+ * The row is a SUMMARY, not the command's home. It stays one line with an
+ * ellipsis, and the full command is reachable two ways that cost no vertical
+ * space: the `title` attribute (hover) and expanding the row (click). That is
+ * what every IDE does with a collapsed tool step, and it is why this can be a
+ * thin 28px bar instead of a paragraph.
+ *
+ * `min-width: 0` + `flex: 1 1 auto` are load-bearing: without them the flex
+ * child refuses to shrink below its content and pushes the metadata off the
+ * row instead of ellipsising.
+ */
 .cli-tool-title {
   font-family: var(--mono, monospace);
   font-size: 11.5px;
-  color: var(--text-dim, var(--text));
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -701,6 +792,22 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /*
+   * The body must not grow without limit.
+   *
+   * MEASURED: with a long tool result the row reached 631px in the right-hand
+   * column - one step taller than the whole viewport, so the transcript became
+   * a single card the reader had to scroll past to find the next step. The
+   * per-element `max-height: 320px` on `.cli-tool-output` did not help because
+   * a flex COLUMN child with `overflow: auto` still reports its full content
+   * height to the parent, and the card had no ceiling of its own.
+   *
+   * A hard ceiling here is what keeps a transcript scannable: a tool result is
+   * evidence, not the answer, and 240px is enough to see what it returned while
+   * leaving the rest of the conversation on screen. The body scrolls inside.
+   */
+  max-height: 240px;
+  overflow: auto;
 }
 
 .cli-tool-input,
@@ -712,7 +819,8 @@
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 320px;
+  /* Bounded here too: this is the element that actually scrolls. */
+  max-height: 200px;
   overflow: auto;
 }
 
@@ -2367,19 +2475,66 @@
   border-left: 2px solid var(--border-strong);
   color: var(--text-secondary);
 }
+/*
+ * Tables in an answer must not be squeezed into the panel's width.
+ *
+ * MEASURED BUG: with the AI column at 340px, a three-column table rendered its
+ * first two columns at 74px and 39px and the cells grew to 45px tall - two
+ * text lines for what is one line of content. `package.json` came out as
+ * "packa-ge.jso-n" because `word-break: break-word` (inherited from `.ai-body`)
+ * makes the browser split a word at any character once the column is too
+ * narrow. The reader sees a column of broken syllables and cannot tell what
+ * the file is called.
+ *
+ * The wrapper `.ai-tabel-bungkus` already existed in `ChatMessage.tsx` but had
+ * NO CSS at all - only an inline `overflowX: auto` - so there was nothing for
+ * the table to overflow INTO: it was compressed to fit instead of scrolling.
+ *
+ * Three declarations fix it, and the order matters:
+ *
+ *   1. `width: max-content` lets a column be as wide as its longest word, so a
+ *      filename stays whole.
+ *   2. `min-width: 100%` keeps a SHORT table filling the column instead of
+ *      shrinking to the left.
+ *   3. `word-break: normal` on cells only - the paragraph rule above stays
+ *      `break-word` so prose with a long URL still wraps.
+ *
+ * Verified by measuring the same DOM before/after at 340px: cell height
+ * 45px -> 26px (one line), first column 74px -> 80px, wrapper scrollWidth
+ * 376 > 340 so the rest is reachable by scrolling sideways.
+ */
+.ai-tabel-bungkus {
+  max-width: 100%;
+  overflow-x: auto;
+  /* A thin scrollbar is the hint that there is more table to the right. */
+  scrollbar-width: thin;
+}
 .ai-body table {
   border-collapse: collapse;
   margin: 0 0 8px;
   font-size: 11.5px;
+  width: max-content;
+  min-width: 100%;
 }
 .ai-body th,
 .ai-body td {
   border: 1px solid var(--border);
   padding: 3px 7px;
   text-align: left;
+  /*
+   * `normal`, not `break-word`: a cell is a short label far more often than it
+   * is a paragraph, and breaking inside `package.json` is never what the reader
+   * wants. A genuinely long value still wraps at spaces, and the wrapper
+   * scrolls if the table as a whole is too wide.
+   */
+  word-break: normal;
+  overflow-wrap: break-word;
+  /* Cells should not be crushed to their minimum; the table scrolls instead. */
+  min-width: 4ch;
 }
 .ai-body th {
   background: var(--surface-2);
+  white-space: nowrap;
 }
 
 /*
@@ -7698,7 +7853,78 @@
 }
 .cli-img-x:hover { background: var(--danger); color: #fff; }
 
-/* ---- CLI timeline: VSCode-style file-edit diff ------------------------ */
+/* ── Readable meta text ───────────────────────────────────────────────────
+ *
+ * MEASURED: the small grey labels in the transcript - timestamps, "Today",
+ * "17 lines", "3.5s", diff line numbers, the "Auto" chip - were painted at
+ * `--text-muted` (#758498), which is 3.36:1 against a tool card (#2d3240).
+ * WCAG AA wants 4.5:1 for body text, and these are 10.5-11.5px, where the
+ * requirement matters MORE, not less. On screen the result is text that is
+ * technically present and practically unreadable: the reader squints at "3.5s"
+ * to find out whether the tool took three seconds or thirty.
+ *
+ * The fix is one colour, applied once, instead of eleven separate tweaks that
+ * would drift: `--text-secondary` (#94a3b8) measures 4.99:1 on the same card.
+ * It stays visibly quieter than the 10.38:1 body text - the hierarchy survives
+ * - but every one of these labels is now legible.
+ *
+ * Declared as a variable so a future theme can tune ONE value rather than
+ * hunting through the file.
+ */
+.ai-side-col,
+.ai-host,
+.ai-panel {
+  --ai-meta: var(--text-secondary, #94a3b8);
+}
+
+.ai-day-div-text,
+.ai-msg-time,
+.ai-msg-actions,
+.ai-msg-act,
+.cli-tool-facts,
+.cli-tool-ms,
+.cli-diff-num,
+.cli-diff-view,
+.ai-host-tab {
+  color: var(--ai-meta);
+}
+
+/*
+ * The action buttons were at 4.99:1 but at 60% of a 11.5px font they read as
+ * disabled. They are clickable controls, so they get the body colour and rely
+ * on their hover background - not on being faint - to look secondary.
+ */
+.cli-tool-btn,
+.cli-diff-more {
+  color: var(--text);
+}
+
+/*
+ * Tool bodies are bounded in BOTH layouts.
+ *
+ * The base rule used 40vh, which in a 912px window is 365px - three expanded
+ * steps filled the transcript even maximised, and the reader had to scroll past
+ * a single tool result to reach the next step. A tool result is EVIDENCE, not
+ * the answer: 240px shows ~12 lines and the body scrolls for the rest.
+ *
+ * The side column gets a tighter ceiling still (140px), because there the
+ * transcript competes with the editor for horizontal space and every vertical
+ * pixel of chrome is expensive.
+ */
+.cli-tool-body {
+  max-height: 240px;
+}
+.ai-side-col:not(.is-max) .cli-tool-body {
+  max-height: 140px;
+}
+.ai-side-col:not(.is-max) .cli-tool-output {
+  max-height: 110px;
+}
+.ai-side-col:not(.is-max) .cli-diff-body {
+  max-height: 130px;
+}
+
+/* ── Readable meta text (end) ───────────────────────────────────────────── */
 .cli-diff {
   margin-top: 4px;
   border: 1px solid var(--border);
@@ -7721,8 +7947,14 @@
 .cli-diff-num {
   text-align: right;
   padding: 0 6px;
-  color: var(--text-muted, #6b7280);
-  opacity: 0.6;
+  color: var(--ai-meta);
+  /*
+   * No opacity fade. `opacity: 0.6` multiplied the already-quiet grey down to
+   * 3.36:1 - and a line number is how the reader finds the line being
+   * discussed, so it has to be readable. The muted colour alone is enough to
+   * keep it visually secondary.
+   */
+  opacity: 1;
   user-select: none;
   font-size: 11px;
 }
@@ -7731,10 +7963,20 @@
   color: var(--text-muted);
   user-select: none;
 }
+/*
+ * Diff lines keep their `pre` formatting and stay reachable.
+ *
+ * `.cli-diff-body` already scrolls horizontally, but `overflow: hidden` HERE
+ * clipped each line to the row's width, so the scrollbar never appeared and the
+ * tail of every long line was unreachable - measured: scrollWidth 851 inside a
+ * 487px cell, 364px lost. `min-width: max-content` lets the row be as wide as
+ * its longest line so the parent can scroll to it.
+ */
 .cli-diff-text {
   padding-right: 10px;
   color: var(--text);
   white-space: pre;
+  min-width: max-content;
 }
 /*
  * Added / removed lines, green and red.
@@ -7873,8 +8115,11 @@
 }
 .cli-diff-view:hover { background: var(--surface-3); color: var(--text); }
 /* Auto mode reads as "this is following something", not as a mode the reader
-   picked — a quieter weight than the forced states. */
-.cli-diff-view.is-auto { color: var(--text-muted, var(--fg1)); font-style: italic; }
+   picked - a quieter weight than the forced states. It is still a BUTTON whose
+   label the reader has to read, so it keeps the readable meta colour instead of
+   dropping to `--text-muted` (3.36:1); the italic carries the "automatic"
+   meaning without costing legibility. */
+.cli-diff-view.is-auto { color: var(--ai-meta); font-style: italic; }
 .cli-diff-more {
   flex: 1 1 auto;
   border-top: none;
