@@ -65,7 +65,8 @@
     "verify:semua": "node scripts/verify-semua.mjs",
     "verify:tema-layar": "node scripts/verify-tema-layar.mjs",
     "verify:tema-aktif": "node scripts/verify-tema-aktif.mjs",
-    "verify:sftp-keluar-editor": "node scripts/verify-sftp-keluar-editor.mjs"
+    "verify:sftp-keluar-editor": "node scripts/verify-sftp-keluar-editor.mjs",
+    "verify:sinkron-ikon": "node scripts/verify-sinkron-ikon.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",
