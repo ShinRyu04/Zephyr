@@ -325,6 +325,7 @@ pub fn run() {
             browser_pane::browser_pane_devtools,
             browser_pane::browser_pane_zoom,
             browser_pane::browser_pane_clear_data,
+    browser_pane::browser_clear_data,
             web::web_fetch,
             web::web_search,
             rag::rag_search,

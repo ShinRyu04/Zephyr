@@ -554,3 +554,95 @@
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/* -- Hooks ----------------------------------------------------------------
+ * A hook row holds two editable controls (name + event) instead of a single
+ * label, so the row grows taller than an agent row. The inputs are bare - a
+ * bordered field inside a bordered card is two boxes for one value.
+ */
+.agx-hook-nama {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 1px 0;
+  font-family: inherit;
+}
+.agx-hook-nama:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.agx-hook-ev {
+  margin-top: 3px;
+  max-width: 260px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+}
+.agx-hook-warn {
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: var(--warning, #d29922);
+  line-height: 1.35;
+}
+
+.agx-pil {
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  max-width: 320px;
+}
+
+.agx-log-baris {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.agx-log {
+  margin: 8px 0 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg0, var(--surface));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.agx-btn-hapus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.agx-btn-hapus:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+}
+.agx-btn-hapus:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

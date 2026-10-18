@@ -1,0 +1,77 @@
+﻿{
+ "mountHooks": {
+  "ok": true
+ },
+ "hooks": {
+  "adaPane": true,
+  "adaTabGlobal": true,
+  "adaTabProyek": true,
+  "adaImpor": true,
+  "adaCreate": true,
+  "adaMode": true,
+  "adaLog": true,
+  "jumlahAwal": 1
+ },
+ "hooks2": {
+  "jumlahSesudah": 2,
+  "adaDaftar": true,
+  "adaBaris": 4,
+  "adaWarn": false
+ },
+ "sebelumMode": {
+  "nilai": null
+ },
+ "sesudahMode": {
+  "nilai": "lokal"
+ },
+ "log": {
+  "ada": true
+ },
+ "mountBrowser": {
+  "ok": true
+ },
+ "browser": {
+  "adaPane": true,
+  "adaBawaan": true,
+  "adaAutoShot": true,
+  "adaLokal": true,
+  "adaLuar": true,
+  "adaClear": true
+ },
+ "sebelumBr": {
+  "nilai": null
+ },
+ "sesudahBr": {
+  "nilai": "sistem"
+ },
+ "sebelumShot": {
+  "nilai": null
+ },
+ "sesudahShot": {
+  "nilai": true
+ },
+ "klikClear": {
+  "ok": true
+ },
+ "pesanClear": {
+  "pesan": "Browser data cleared."
+ }
+}
+
+Bukti ΓÇö Hooks:
+  LULUS  H1 pane Hooks merender dengan tab
+  LULUS  H2 tab Global + Project dan toggle Import Claude
+  LULUS  H3 Create menambah hook ke store  1 -> 2
+  LULUS  H4 hook muncul di daftar  baris=4
+  GAGAL  H5 event yang belum tersambung memberi peringatan
+  LULUS  H6 Execution Mode menulis ke setelan  null -> lokal
+  LULUS  H7 View Logs membuka panel
+
+Bukti ΓÇö Browser:
+  LULUS  B1 pane Browser merender
+  LULUS  B2 Default Browser menulis ke setelan  null -> sistem
+  LULUS  B3 Auto Screenshot menulis ke setelan  null -> true
+  LULUS  B4 Local + External URL terpisah
+  LULUS  B5 Clear bisa diklik dan melaporkan hasil  Browser data cleared.
+
+== 11/12 lulus ==
