@@ -1,6 +1,6 @@
 // src/lib/zephyrIndeks.ts
 var FAKTA_KATEGORI = ["bridge", "dokumen", "ekstensi", "kode", "label", "layar", "menu", "panel", "perintah", "pintasan", "port", "seksi", "setelan", "tool"];
-var FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "8f6013ad6acc2b24" };
+var FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "00d68d2f6950a4f0" };
 var FAKTA_HASH_BERKAS = [
   "package.json",
   "src-tauri/tauri.conf.json",
@@ -455,7 +455,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/components/ai/AiPanel.tsx", "2547 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/BrowserContextChip.tsx", "88 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatHeadActions.tsx", "213 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/ai/ChatMessage.tsx", "1159 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/ai/ChatMessage.tsx", "1268 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatSettingsPage.tsx", "1743 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatStamp.tsx", "139 baris \xB7 ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode", "src/components/ai/ClearChatsDialog.tsx", "89 baris \xB7 tanpa ekspor"],
@@ -4005,7 +4005,7 @@ var FAKTA_INDEKS = [
   ["layar", "Changes and files", "aria-label di layar \xB7 dirender 1 berkas: src/components/agents/AgentsLayout.tsx"],
   ["layar", 'Channel "{name}" is still empty.', "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/OutputView.tsx"],
   ["layar", "ChatHeadActions", "src/components/ai/ChatHeadActions.tsx \xB7 16 label: Agent Customizations\u2026, Chat Settings, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models \xB7 18 data-testid: ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
-  ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 35 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 27 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
+  ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 41 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, Worked for {t}, Working\u2026 {t}, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} commands, {n} failed, {n} files, {n} lines, {n} steps \xB7 31 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-kerja, ai-kerja-baris, ai-kerja-isi, ai-kerja-toggle, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns"],
   ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 38 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 24 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
   ["layar", "ChatStamp", "src/components/ai/ChatStamp.tsx \xB7 3 label: Today, Tomorrow, Yesterday \xB7 2 data-testid: ai-day-div, ai-msg-time"],
   ["layar", "Chats", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
@@ -4562,7 +4562,9 @@ var FAKTA_INDEKS = [
   ["layar", "Word Wrap", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
   ["layar", "Work in", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexChat.tsx"],
   ["layar", "Work locally", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexChat.tsx"],
+  ["layar", "Worked for {t}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "Working\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+  ["layar", "Working\u2026 {t}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "Workspace Trust", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
   ["layar", "Write(*)", "placeholder di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar", "You are good to go!", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
@@ -4834,6 +4836,10 @@ var FAKTA_INDEKS = [
   ["layar", "ai-izin-menu", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ModeMenu.tsx"],
   ["layar", "ai-izin-pop", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ModeMenu.tsx"],
   ["layar", "ai-jump-bottom", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
+  ["layar", "ai-kerja", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
+  ["layar", "ai-kerja-baris", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
+  ["layar", "ai-kerja-isi", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
+  ["layar", "ai-kerja-toggle", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "ai-kotak", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "ai-lb-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
   ["layar", "ai-lb-zoom", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
@@ -6044,7 +6050,9 @@ var FAKTA_INDEKS = [
   ["layar", "{n} Queued", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar", "{n} available", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "{n} changes - close the window and they stay", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/PanelWindow.tsx"],
+  ["layar", "{n} commands", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "{n} errors, {m} warnings - open Problems", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/StatusBar.tsx"],
+  ["layar", "{n} files", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar", "{n} files written", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "{n} hooks", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar", "{n} image attachments", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],

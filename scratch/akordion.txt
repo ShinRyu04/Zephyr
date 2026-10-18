@@ -1,0 +1,31 @@
+﻿{
+ "adaSesi": true,
+ "jumlahAkordion": 1,
+ "akordion": {
+  "judul": "Worked for 19s",
+  "ringkas": "8 files ┬╖ 5 commands ┬╖ 1 steps",
+  "open": "0",
+  "tinggiHead": 28,
+  "baris": 0,
+  "punyaCaret": true
+ },
+ "setelahBuka": {
+  "open": "1",
+  "baris": 21,
+  "kartuDiDalam": 0
+ },
+ "interleaved": 9,
+ "pakaiAkordion": 1,
+ "adaGrupGagal": 0
+}
+
+Bukti ΓÇö tools berkelompok ala TRAE:
+  LULUS  A1 ada transcript berisi tool  akordion=1
+  LULUS  A2 akordion tipis dan tertutup setelah selesai  tinggi=28px open=0
+  LULUS  A3 judul menyebut durasi kerja  Worked for 19s
+  LULUS  A4 ringkasan menyebut apa yang disentuh  8 files ┬╖ 5 commands ┬╖ 1 steps
+  LULUS  A5 dibuka: langkah tampil sebagai baris datar, bukan kartu  baris=21 kartu=0
+  LULUS  A6 pesan dengan narasi tetap interleaved (teks tidak hilang)  interleaved=9 akordion=1
+  LULUS  A7 ada mekanisme penanda grup gagal  gagal=0
+
+== 7/7 lulus ==
