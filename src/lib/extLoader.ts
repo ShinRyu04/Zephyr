@@ -544,11 +544,16 @@ async function muatIconTheme(
        * falls back to for anything it does not name, and they are the icons the
        * reader sees most - a pack that changes only these has still changed the
        * whole tree.
+       *
+       * `raw.folderExpanded` is the VS Code spelling; `raw['folder-open']` is
+       * Zephyr's own. Both are accepted because a pack may be written either way
+       * and refusing one spelling silently leaves every folder on the default
+       * drawing - the exact complaint this path exists to fix.
        */
       for (const [kunci, idDef] of [
         ['file', raw.file],
         ['folder', raw.folder],
-        ['folder-open', raw.folderExpanded],
+        ['folder-open', raw.folderExpanded ?? raw['folder-open']],
       ] as const) {
         if (typeof idDef !== 'string') continue;
         const ik = await ikonDari(idDef);
@@ -581,6 +586,26 @@ async function muatIconTheme(
           const glyph = String(d.glyph ?? '').slice(0, 3);
           if (!glyph) continue;
           tambah(ext, { glyph, color: String(d.color ?? 'var(--fg2)').slice(0, 40) });
+        }
+
+        /*
+         * `folderNames` BELONGS HERE TOO, and leaving it out was the bug.
+         *
+         * A pack in Zephyr's shape carries its generic folder marks inside
+         * `icons` (as `folder` / `folder-open`), which the loop above already
+         * picked up - but the PER-NAME folder map is a separate key, and this
+         * branch never read it. The result was that installing a pack changed
+         * file icons and left every folder on Zephyr's default drawing, which
+         * reads exactly as "the icon theme does not change folders".
+         *
+         * The keys are stored as `folder:<name>` so they cannot collide with a
+         * file extension that happens to share the name.
+         */
+        for (const [nama, def] of Object.entries((raw.folderNames ?? {}) as Record<string, unknown>)) {
+          const d = def as { glyph?: unknown; color?: unknown };
+          const glyph = String(d.glyph ?? '').slice(0, 3);
+          if (!glyph) continue;
+          tambah(`folder:${nama}`, { glyph, color: String(d.color ?? 'var(--accent)').slice(0, 40) });
         }
       }
 

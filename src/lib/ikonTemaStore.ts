@@ -60,6 +60,15 @@ interface IkonTemaState {
   /** Extension id of the active pack, or null for Zephyr's own icons. */
   aktif: string | null;
   /**
+   * Whether the reader has ever picked something on the Icons page.
+   *
+   * This is what separates "never chose" from "chose Zephyr's own icons". Both
+   * leave `aktif` null, and without this flag the auto-activate below would
+   * override a deliberate choice on every reload - a setting that quietly
+   * changes itself back is worse than no default at all.
+   */
+  dipilihManual: boolean;
+  /**
    * Replace the pack list. Called by the loader after it reads the installed
    * extensions; the active choice is kept if that pack still exists.
    */
@@ -71,14 +80,38 @@ interface IkonTemaState {
 export const useIkonTema = create<IkonTemaState>((set, get) => ({
   packs: [],
   aktif: null,
+  dipilihManual: false,
   setPacks: (packs) => {
-    const aktif = get().aktif;
-    /* A pack that was uninstalled cannot stay active: keeping the id would leave
-       `aktif` pointing at nothing, and the render map would keep that pack's
-       icons with no way to see why. Falling back to the built-in set is the
-       honest outcome - the reader sees Zephyr's own icons, not a ghost. */
+    const { aktif, dipilihManual } = get();
+    /*
+     * A pack that was uninstalled cannot stay active: keeping the id would leave
+     * `aktif` pointing at nothing, and the render map would keep that pack's
+     * icons with no way to see why. Falling back to the built-in set is the
+     * honest outcome - the reader sees Zephyr's own icons, not a ghost.
+     */
     const masihAda = aktif && packs.some((p) => p.extId === aktif);
-    set({ packs, aktif: masihAda ? aktif : null });
+
+    /*
+     * AUTO-ACTIVATE THE FIRST PACK when none is chosen and the reader has never
+     * chosen anything.
+     *
+     * WHY: with no pack selected the render map stays empty, so installing an
+     * icon theme changed NOTHING until the reader also found the Icons page and
+     * clicked a card. That reads as "the icon theme does not work" - and it was
+     * reported as exactly that. Installing a pack is a request to use it, so the
+     * first one becomes active on its own.
+     *
+     * `dipilihManual` is what keeps this from overriding a deliberate choice of
+     * the built-in set: once the reader has pressed anything on the Icons page,
+     * this never fires again.
+     */
+    const baru = masihAda
+      ? aktif
+      : !dipilihManual && aktif === null && packs.length > 0
+        ? packs[0].extId
+        : null;
+
+    set({ packs, aktif: baru });
   },
-  pilih: (extId) => set({ aktif: extId }),
+  pilih: (extId) => set({ aktif: extId, dipilihManual: true }),
 }));
