@@ -120,7 +120,7 @@ for (const s of d.perPaket ?? []) {
 }
 
 console.log('\nBukti:');
-cek('ada 8 paket', (d.paket ?? []).length === 8, String((d.paket ?? []).length));
+cek('ada 11 paket', (d.paket ?? []).length === 11, String((d.paket ?? []).length));
 cek('setiap paket punya SVG (bukan glyph)', (d.paket ?? []).every((p) => p.svg > 0), (d.paket ?? []).map((p) => p.svg).join(','));
 
 const sidik = (d.perPaket ?? []).map((s) => s.sidik);
