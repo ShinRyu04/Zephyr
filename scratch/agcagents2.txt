@@ -1,0 +1,74 @@
+﻿mount: {"ok":true}
+{
+ "adaPane": true,
+ "judul": "Agents ?",
+ "seksi": [
+  "Custom Agents",
+  "Built-In Agents"
+ ],
+ "baris": [
+  "Chat",
+  "Agent"
+ ],
+ "adaCreate": true,
+ "menu": {
+  "adaMenu": true,
+  "adaViewDetails": true
+ },
+ "detail": {
+  "adaDetail": true,
+  "judul": "Agent",
+  "alat": [
+   "read_file",
+   "multi_edit",
+   "bash_run",
+   "browser",
+   "web_search"
+  ],
+  "adaKotakMCP": true,
+  "adaKotakBuiltIn": true
+ },
+ "editor": {
+  "adaEditor": true,
+  "adaNama": true,
+  "adaPrompt": true,
+  "adaSmart": true,
+  "alat": [
+   "read_file",
+   "multi_edit",
+   "bash_run",
+   "browser",
+   "web_search"
+  ],
+  "delegasiTersembunyi": true
+ },
+ "delegasi": {
+  "adaIdInggris": true,
+  "adaKapan": true
+ },
+ "sebelum": {
+  "jumlah": 0
+ },
+ "sesudah": {
+  "jumlah": 1,
+  "nama": [
+   "Uji Agen"
+  ],
+  "adaDiDom": true
+ }
+}
+
+Bukti ΓÇö halaman Agents berbentuk referensi:
+  LULUS  A1 komponen merender pane  judul=Agents ? 
+  LULUS  A2 ada seksi Custom Agents dan Built-In Agents  Custom Agents | Built-In Agents
+  LULUS  A3 built-in Chat dan Agent tampil  Chat, Agent
+  LULUS  A4 menu punya View Details
+  LULUS  A5 View Details menampilkan tool agent  alat=read_file,multi_edit,bash_run,browser,web_search
+  LULUS  A5b detail punya kotak MCP dan Built-In
+  LULUS  A6 Create membuka editor (Name + Prompt + Smart Generate)
+  LULUS  A7 checklist tool tampil (>= 5)  read_file,multi_edit,bash_run,browser,web_search
+  LULUS  A8 field delegasi tersembunyi sampai dicentang
+  LULUS  A8b mencentang Callable memunculkan Identifier + When to Call
+  LULUS  A9 membuat agent benar-benar menambah daftar  0 -> 1
+
+== 11/11 lulus ==
