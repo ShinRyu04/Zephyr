@@ -1,6 +1,6 @@
 // src/lib/zephyrIndeks.ts
 var FAKTA_KATEGORI = ["bridge", "dokumen", "ekstensi", "kode", "label", "layar", "menu", "panel", "perintah", "pintasan", "port", "seksi", "setelan", "tool"];
-var FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "ed29371a1c5fe62f" };
+var FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "8f6013ad6acc2b24" };
 var FAKTA_HASH_BERKAS = [
   "package.json",
   "src-tauri/tauri.conf.json",
@@ -455,7 +455,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/components/ai/AiPanel.tsx", "2547 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/BrowserContextChip.tsx", "88 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatHeadActions.tsx", "213 baris \xB7 tanpa ekspor"],
-  ["kode", "src/components/ai/ChatMessage.tsx", "1152 baris \xB7 tanpa ekspor"],
+  ["kode", "src/components/ai/ChatMessage.tsx", "1159 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatSettingsPage.tsx", "1743 baris \xB7 tanpa ekspor"],
   ["kode", "src/components/ai/ChatStamp.tsx", "139 baris \xB7 ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode", "src/components/ai/ClearChatsDialog.tsx", "89 baris \xB7 tanpa ekspor"],
@@ -632,7 +632,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/aiDebugStore.ts", "107 baris \xB7 ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode", "src/lib/aiMemori.ts", "983 baris \xB7 MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). \xB7 ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, \u2026(+12)"],
   ["kode", "src/lib/aiModelsStore.ts", "41 baris \xB7 ekspor: useAiModels"],
-  ["kode", "src/lib/aiStore.ts", "10669 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, AGENT_MALFORMED_RETRY, IZIN_TIMEOUT_MS, \u2026(+38)"],
+  ["kode", "src/lib/aiStore.ts", "10686 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, AGENT_MALFORMED_RETRY, IZIN_TIMEOUT_MS, \u2026(+38)"],
   ["kode", "src/lib/aiTabsStore.ts", "147 baris \xB7 ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode", "src/lib/aiWindow.ts", "43 baris \xB7 ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode", "src/lib/aiZephyrState.ts", "1000 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -769,7 +769,7 @@ var FAKTA_INDEKS = [
   ["kode", "src/lib/subsetTugas.ts", "885 baris \xB7 Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). \xB7 ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
   ["kode", "src/lib/suntikKonteks.ts", "581 baris \xB7 suntikKonteks.ts \u2014 menyusun SATU giliran agen dari tiga sumber. \xB7 ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
   ["kode", "src/lib/symbolTree.ts", "201 baris \xB7 ekspor: SimpulSimbol, ikonKind, labelKind, pohonSimbol, jalurKe, barisSticky, sebaya"],
-  ["kode", "src/lib/systemPrompt.ts", "1541 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
+  ["kode", "src/lib/systemPrompt.ts", "1556 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
   ["kode", "src/lib/systemPromptLanguages.ts", "457 baris \xB7 Translated prompt blocks for the UI languages other than English and \xB7 ekspor: BlokPromptSebagian, LANGS"],
   ["kode", "src/lib/tampilanStore.ts", "57 baris \xB7 ekspor: ModeTampilan, useTampilan, EXT_GAMBAR, apakahGambar, mimeGambar"],
   ["kode", "src/lib/tasksStore.ts", "572 baris \xB7 ekspor: isiKonteks, TaskState, channelUntuk, sumberUntuk, useTasks, bindTaskListeners"],

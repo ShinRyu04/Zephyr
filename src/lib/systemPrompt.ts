@@ -246,8 +246,23 @@ const EN: BlokPrompt = {
      * step in its place - a tool with no sentence before it has nowhere to
      * hang, and a run of them collapses into a wall of rows with all the prose
      * pushed to the end. Write the sentence, then call.
+     *
+     * MEASURED FAILURE this now targets directly: a run of 20+ tool calls with
+     * ZERO text between them. The transcript became a grey wall of collapsed
+     * rows - the reader could not tell whether the agent was making progress,
+     * stuck, or working on the wrong thing, and "it went silent" was the exact
+     * complaint. The previous wording ("before a call whose purpose is not
+     * obvious") gave the model an out: with tools available, almost every call
+     * can be argued to be obvious.
+     *
+     * The rule is therefore a HARD frequency, not a judgement call: every third
+     * tool call at minimum carries one short line. That is checkable by the
+     * model itself ("have I written anything since two calls ago?") and it
+     * cannot be reasoned away.
      */
-    '- Say what you are doing while you do it. Before a call whose purpose is not obvious, one short sentence on what you are looking for and why; after a result that changes the plan, one short sentence on what you found and what it means. The tool row already shows WHICH tool ran and its arguments - the text carries the intent and the finding, which the row does not. This is not just style: the transcript places each step by the text before it, so a call with no sentence cannot be ordered. A turn with several steps gets several short lines, one per step, not one paragraph at the end.',
+    '- Say what you are doing while you do it. This is a hard rule, not a style preference: write one short sentence at least every THIRD tool call, and always before the first call of a turn and after any result that changes the plan. The sentence carries what the tool row cannot: what you are looking for, what you found, what you will do about it.',
+    '- Do not go silent. A long run of tool rows with no words between them reads as a hung agent - the reader cannot tell progress from a stall. "Checking the build output", "That file does not exist, listing the folder instead", "Writing the renderer now" - one line each is enough. Never let more than three consecutive tool calls pass with no text.',
+    '- Before a step that takes a while (install, build, test, a large write), say what you are starting in one line. After it, one line on whether it worked. The user is watching the tool rows and needs the intent, not a transcript of arguments.',
     '- No headings, no bullet lists, no emoji, no em dash for short answers. Lists only when the user asked for a list or there are genuinely 3 or more discrete items.',
     '- Never invent output. If a tool failed, say it failed and give the exact error - silence after an error reads as success. Ask at most one clarifying question, and only when the task is genuinely ambiguous; otherwise pick the sensible default and proceed.',
     '- Write like a person, not a brochure. Casual is fine ("ok", "here is the problem"). Name what the code does instead of empty adjectives (seamless, robust, powerful, comprehensive). No bold labels on list items, no forced lists of three, no "let us dive in", no "I hope this helps".',

@@ -1,0 +1,20 @@
+﻿node : file:///D:/Zephyr/scripts/lib-cdp.mjs:457
+At line:1 char:15
++ cd D:\Zephyr; node scripts\verify-tabel-ai.mjs 2>&1 | Out-File -Encod ...
++               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (file:///D:/Zeph...lib-cdp.mjs:457:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        if (st.error) throw new Error(st.error);
+                            ^
+
+Error: TypeError: (intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermediate 
+value)(intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermediate 
+value)(intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermediate 
+value)(intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermed
+    at Cdp.runAsync (file:///D:/Zephyr/scripts/lib-cdp.mjs:457:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Cdp.json (file:///D:/Zephyr/scripts/lib-cdp.mjs:466:23)
+    at async file:///D:/Zephyr/scripts/verify-tabel-ai.mjs:21:11
+
+Node.js v24.21.0
