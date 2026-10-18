@@ -1,0 +1,72 @@
+﻿{
+ "kanan": [
+  {
+   "tag": "aside",
+   "kelas": "ai-side-col",
+   "id": null,
+   "kiri": 1056,
+   "lebar": 480,
+   "teks": "Agent\nClaude Code\nCodex CLI\nNew chat\n\nAs"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-side-row",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "Agent\nClaude Code\nCodex CLI\nNew chat\n\nAs"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-host",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "Agent\nClaude Code\nCodex CLI\nNew chat\n\nAs"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-host-body",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "New chat\n\nAsk about this code.\n\nEnter se"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-host-pane",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "New chat\n\nAsk about this code.\n\nEnter se"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-panel",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "New chat\n\nAsk about this code.\n\nEnter se"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-chat",
+   "id": null,
+   "kiri": 1057,
+   "lebar": 479,
+   "teks": "Ask about this code.\n\nEnter sends ┬╖ Shif"
+  },
+  {
+   "tag": "div",
+   "kelas": "ai-empty",
+   "id": null,
+   "kiri": 1069,
+   "lebar": 455,
+   "teks": "Ask about this code.\n\nEnter sends ┬╖ Shif"
+  }
+ ],
+ "aiKolomVisible": true,
+ "aiWidth": 480,
+ "aiMax": false,
+ "lebarJendela": 1536
+}

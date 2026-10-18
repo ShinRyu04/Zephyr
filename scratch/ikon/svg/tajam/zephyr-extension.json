@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-tajam",
+  "name": "Ikon Tajam",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Sudut siku dan tab persegi — kaku dan rapi.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Tajam",
+        "path": "./icons/tajam.json"
+      }
+    ]
+  }
+}

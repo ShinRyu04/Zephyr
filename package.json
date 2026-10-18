@@ -59,7 +59,10 @@
     "mock:ai": "node scripts/mock-ai.mjs 8098",
     "soak": "node scripts/soak.mjs",
     "bundle": "tauri build --config src-tauri/tauri.release.conf.json --bundles msi,nsis",
-    "verify:notif-ai": "node scripts/verify-notif-ai.mjs"
+    "verify:notif-ai": "node scripts/verify-notif-ai.mjs",
+    "verify:tema-folder": "node scripts/verify-tema-folder.mjs",
+    "verify:beban": "node scripts/verify-beban.mjs",
+    "verify:semua": "node scripts/verify-semua.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",

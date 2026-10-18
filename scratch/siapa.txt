@@ -1,0 +1,29 @@
+﻿{
+ "indukKelas": "main-area",
+ "lebarInduk": 1004,
+ "anak": [
+  {
+   "tag": "section",
+   "kelas": "editor-area",
+   "lebar": 1004,
+   "kiri": 48,
+   "display": "flex",
+   "flex": "1 1 0%"
+  },
+  {
+   "tag": "button",
+   "kelas": "term-collapsed",
+   "lebar": 1004,
+   "kiri": 48,
+   "display": "flex",
+   "flex": "0 0 auto"
+  }
+ ],
+ "semuaResizer": [
+  {
+   "kelas": "resizer",
+   "lebar": 4,
+   "kiri": 1052
+  }
+ ]
+}

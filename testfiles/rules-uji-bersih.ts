@@ -1,0 +1,1 @@
+export const tambah = (a: number, b: number): number => a + b;

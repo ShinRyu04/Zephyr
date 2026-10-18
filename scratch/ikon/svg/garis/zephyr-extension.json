@@ -3,7 +3,7 @@
   "name": "Ikon Garis",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Garis — icon theme with real SVG art for files and folders",
+  "description": "Hanya garis luar, tanpa isi — ringan dan tenang.",
   "engines": {
     "zephyr": ">=1.0"
   },
