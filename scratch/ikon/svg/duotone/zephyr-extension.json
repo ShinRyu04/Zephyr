@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-duotone",
-  "name": "Ikon Duotone",
+  "name": "Ikon Duotone Accent",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Badan pekat, tab dan tanda lebih terang — dua nada.",
+  "description": "Badan pekat dengan tab dan tanda lebih terang — dua nada warna dalam satu ikon.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Duotone",
+        "label": "Duotone Accent",
         "path": "./icons/duotone.json"
       }
     ]

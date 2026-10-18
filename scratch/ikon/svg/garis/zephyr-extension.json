@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-garis",
-  "name": "Ikon Garis",
+  "name": "Ikon Clean Outline",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Hanya garis luar, tanpa isi — ringan dan tenang.",
+  "description": "Hanya garis kontur luar tanpa isi — bersih, ringan, dan tidak menarik perhatian.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Garis",
+        "label": "Clean Outline",
         "path": "./icons/garis.json"
       }
     ]

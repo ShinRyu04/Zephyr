@@ -169,6 +169,25 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
       await get().refresh();
 
       /*
+       * TELL THE OTHER WINDOWS a package appeared.
+       *
+       * Installing happens here, in the Extensions window - its own WebView with
+       * its own copy of every module. The pack lands on disk and in THIS window's
+       * `packs`, while the main window's list stays as it was: the theme is
+       * installed, its card never appears in the main window's picker, and
+       * choosing it does nothing because `packs.find()` returns undefined.
+       *
+       * The event is the only signal that crosses that boundary - localStorage
+       * carries a CHOSEN pack, not "a pack exists now". The main window listens
+       * for it (see App.tsx) and re-reads the extension folder.
+       */
+      try {
+        window.dispatchEvent(new CustomEvent('zephyr-extensions-changed', { detail: { id: h.id } }));
+      } catch {
+        /* no window (harness/node): the store is still updated in-process */
+      }
+
+      /*
        * The install result answers the question the panel could not answer
        * before: what changed? The counts come from Rust reading the files the
        * package shipped, so "installed" now carries evidence, and a package
@@ -258,6 +277,13 @@ export const useExt19 = create<Ext19Store>((set, get) => ({
 
       const ok = await cmd.extensionsUninstall(id);
       await get().refresh();
+      /* Same boundary as install: the main window has to drop the pack, or its
+         picker keeps offering a theme whose files no longer exist. */
+      try {
+        window.dispatchEvent(new CustomEvent('zephyr-extensions-changed', { detail: { id, dihapus: true } }));
+      } catch {
+        /* no window (harness/node) */
+      }
       set({
         info: ok ? `${id} deleted` : `${id} not found`,
         err: null,

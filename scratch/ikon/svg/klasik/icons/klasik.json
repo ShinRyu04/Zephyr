@@ -1,13 +1,31 @@
 {
   "iconDefinitions": {
-    "_f_kode": {
-      "iconPath": "./icons/file-kode.svg"
+    "_f_ts": {
+      "iconPath": "./icons/file-ts.svg"
     },
-    "_f_uji": {
-      "iconPath": "./icons/file-uji.svg"
+    "_f_rust": {
+      "iconPath": "./icons/file-rust.svg"
     },
-    "_f_dokumen": {
-      "iconPath": "./icons/file-dokumen.svg"
+    "_f_python": {
+      "iconPath": "./icons/file-python.svg"
+    },
+    "_f_js": {
+      "iconPath": "./icons/file-js.svg"
+    },
+    "_f_json": {
+      "iconPath": "./icons/file-json.svg"
+    },
+    "_f_css": {
+      "iconPath": "./icons/file-css.svg"
+    },
+    "_f_md": {
+      "iconPath": "./icons/file-md.svg"
+    },
+    "_f_teks": {
+      "iconPath": "./icons/file-teks.svg"
+    },
+    "_f_data": {
+      "iconPath": "./icons/file-data.svg"
     },
     "_f_aset": {
       "iconPath": "./icons/file-aset.svg"
@@ -18,32 +36,68 @@
     "_f_konfig": {
       "iconPath": "./icons/file-konfig.svg"
     },
-    "_f_teks": {
-      "iconPath": "./icons/file-teks.svg"
+    "_f_kode": {
+      "iconPath": "./icons/file-kode.svg"
     },
-    "_f_data": {
-      "iconPath": "./icons/file-data.svg"
+    "_f_uji": {
+      "iconPath": "./icons/file-uji.svg"
     },
-    "_f_gaya": {
-      "iconPath": "./icons/file-gaya.svg"
+    "_f_dokumen": {
+      "iconPath": "./icons/file-dokumen.svg"
     },
-    "_d_kode": {
-      "iconPath": "./icons/folder-kode.svg"
+    "_d_ts": {
+      "iconPath": "./icons/folder-ts.svg"
     },
-    "_d_kodeOpen": {
-      "iconPath": "./icons/folder-kode-open.svg"
+    "_d_tsOpen": {
+      "iconPath": "./icons/folder-ts-open.svg"
     },
-    "_d_uji": {
-      "iconPath": "./icons/folder-uji.svg"
+    "_d_rust": {
+      "iconPath": "./icons/folder-rust.svg"
     },
-    "_d_ujiOpen": {
-      "iconPath": "./icons/folder-uji-open.svg"
+    "_d_rustOpen": {
+      "iconPath": "./icons/folder-rust-open.svg"
     },
-    "_d_dokumen": {
-      "iconPath": "./icons/folder-dokumen.svg"
+    "_d_python": {
+      "iconPath": "./icons/folder-python.svg"
     },
-    "_d_dokumenOpen": {
-      "iconPath": "./icons/folder-dokumen-open.svg"
+    "_d_pythonOpen": {
+      "iconPath": "./icons/folder-python-open.svg"
+    },
+    "_d_js": {
+      "iconPath": "./icons/folder-js.svg"
+    },
+    "_d_jsOpen": {
+      "iconPath": "./icons/folder-js-open.svg"
+    },
+    "_d_json": {
+      "iconPath": "./icons/folder-json.svg"
+    },
+    "_d_jsonOpen": {
+      "iconPath": "./icons/folder-json-open.svg"
+    },
+    "_d_css": {
+      "iconPath": "./icons/folder-css.svg"
+    },
+    "_d_cssOpen": {
+      "iconPath": "./icons/folder-css-open.svg"
+    },
+    "_d_md": {
+      "iconPath": "./icons/folder-md.svg"
+    },
+    "_d_mdOpen": {
+      "iconPath": "./icons/folder-md-open.svg"
+    },
+    "_d_teks": {
+      "iconPath": "./icons/folder-teks.svg"
+    },
+    "_d_teksOpen": {
+      "iconPath": "./icons/folder-teks-open.svg"
+    },
+    "_d_data": {
+      "iconPath": "./icons/folder-data.svg"
+    },
+    "_d_dataOpen": {
+      "iconPath": "./icons/folder-data-open.svg"
     },
     "_d_aset": {
       "iconPath": "./icons/folder-aset.svg"
@@ -63,23 +117,251 @@
     "_d_konfigOpen": {
       "iconPath": "./icons/folder-konfig-open.svg"
     },
-    "_d_teks": {
-      "iconPath": "./icons/folder-teks.svg"
+    "_d_kode": {
+      "iconPath": "./icons/folder-kode.svg"
     },
-    "_d_teksOpen": {
-      "iconPath": "./icons/folder-teks-open.svg"
+    "_d_kodeOpen": {
+      "iconPath": "./icons/folder-kode-open.svg"
     },
-    "_d_data": {
-      "iconPath": "./icons/folder-data.svg"
+    "_d_uji": {
+      "iconPath": "./icons/folder-uji.svg"
     },
-    "_d_dataOpen": {
-      "iconPath": "./icons/folder-data-open.svg"
+    "_d_ujiOpen": {
+      "iconPath": "./icons/folder-uji-open.svg"
     },
-    "_d_gaya": {
-      "iconPath": "./icons/folder-gaya.svg"
+    "_d_dokumen": {
+      "iconPath": "./icons/folder-dokumen.svg"
     },
-    "_d_gayaOpen": {
-      "iconPath": "./icons/folder-gaya-open.svg"
+    "_d_dokumenOpen": {
+      "iconPath": "./icons/folder-dokumen-open.svg"
+    },
+    "_n_src": {
+      "iconPath": "./icons/fn-src.svg"
+    },
+    "_n_srcOpen": {
+      "iconPath": "./icons/fn-src-open.svg"
+    },
+    "_n_lib": {
+      "iconPath": "./icons/fn-lib.svg"
+    },
+    "_n_libOpen": {
+      "iconPath": "./icons/fn-lib-open.svg"
+    },
+    "_n_app": {
+      "iconPath": "./icons/fn-app.svg"
+    },
+    "_n_appOpen": {
+      "iconPath": "./icons/fn-app-open.svg"
+    },
+    "_n_components": {
+      "iconPath": "./icons/fn-components.svg"
+    },
+    "_n_componentsOpen": {
+      "iconPath": "./icons/fn-components-open.svg"
+    },
+    "_n_hooks": {
+      "iconPath": "./icons/fn-hooks.svg"
+    },
+    "_n_hooksOpen": {
+      "iconPath": "./icons/fn-hooks-open.svg"
+    },
+    "_n_store": {
+      "iconPath": "./icons/fn-store.svg"
+    },
+    "_n_storeOpen": {
+      "iconPath": "./icons/fn-store-open.svg"
+    },
+    "_n_stores": {
+      "iconPath": "./icons/fn-stores.svg"
+    },
+    "_n_storesOpen": {
+      "iconPath": "./icons/fn-stores-open.svg"
+    },
+    "_n_api": {
+      "iconPath": "./icons/fn-api.svg"
+    },
+    "_n_apiOpen": {
+      "iconPath": "./icons/fn-api-open.svg"
+    },
+    "_n_scripts": {
+      "iconPath": "./icons/fn-scripts.svg"
+    },
+    "_n_scriptsOpen": {
+      "iconPath": "./icons/fn-scripts-open.svg"
+    },
+    "_n_tools": {
+      "iconPath": "./icons/fn-tools.svg"
+    },
+    "_n_toolsOpen": {
+      "iconPath": "./icons/fn-tools-open.svg"
+    },
+    "_n_docs": {
+      "iconPath": "./icons/fn-docs.svg"
+    },
+    "_n_docsOpen": {
+      "iconPath": "./icons/fn-docs-open.svg"
+    },
+    "_n_doc": {
+      "iconPath": "./icons/fn-doc.svg"
+    },
+    "_n_docOpen": {
+      "iconPath": "./icons/fn-doc-open.svg"
+    },
+    "_n_documentation": {
+      "iconPath": "./icons/fn-documentation.svg"
+    },
+    "_n_documentationOpen": {
+      "iconPath": "./icons/fn-documentation-open.svg"
+    },
+    "_n_test": {
+      "iconPath": "./icons/fn-test.svg"
+    },
+    "_n_testOpen": {
+      "iconPath": "./icons/fn-test-open.svg"
+    },
+    "_n_tests": {
+      "iconPath": "./icons/fn-tests.svg"
+    },
+    "_n_testsOpen": {
+      "iconPath": "./icons/fn-tests-open.svg"
+    },
+    "_n__tests_": {
+      "iconPath": "./icons/fn-_tests_.svg"
+    },
+    "_n__tests_Open": {
+      "iconPath": "./icons/fn-_tests_-open.svg"
+    },
+    "_n_spec": {
+      "iconPath": "./icons/fn-spec.svg"
+    },
+    "_n_specOpen": {
+      "iconPath": "./icons/fn-spec-open.svg"
+    },
+    "_n_specs": {
+      "iconPath": "./icons/fn-specs.svg"
+    },
+    "_n_specsOpen": {
+      "iconPath": "./icons/fn-specs-open.svg"
+    },
+    "_n_public": {
+      "iconPath": "./icons/fn-public.svg"
+    },
+    "_n_publicOpen": {
+      "iconPath": "./icons/fn-public-open.svg"
+    },
+    "_n_static": {
+      "iconPath": "./icons/fn-static.svg"
+    },
+    "_n_staticOpen": {
+      "iconPath": "./icons/fn-static-open.svg"
+    },
+    "_n_assets": {
+      "iconPath": "./icons/fn-assets.svg"
+    },
+    "_n_assetsOpen": {
+      "iconPath": "./icons/fn-assets-open.svg"
+    },
+    "_n_images": {
+      "iconPath": "./icons/fn-images.svg"
+    },
+    "_n_imagesOpen": {
+      "iconPath": "./icons/fn-images-open.svg"
+    },
+    "_n_img": {
+      "iconPath": "./icons/fn-img.svg"
+    },
+    "_n_imgOpen": {
+      "iconPath": "./icons/fn-img-open.svg"
+    },
+    "_n_icons": {
+      "iconPath": "./icons/fn-icons.svg"
+    },
+    "_n_iconsOpen": {
+      "iconPath": "./icons/fn-icons-open.svg"
+    },
+    "_n_media": {
+      "iconPath": "./icons/fn-media.svg"
+    },
+    "_n_mediaOpen": {
+      "iconPath": "./icons/fn-media-open.svg"
+    },
+    "_n__git": {
+      "iconPath": "./icons/fn-_git.svg"
+    },
+    "_n__gitOpen": {
+      "iconPath": "./icons/fn-_git-open.svg"
+    },
+    "_n__github": {
+      "iconPath": "./icons/fn-_github.svg"
+    },
+    "_n__githubOpen": {
+      "iconPath": "./icons/fn-_github-open.svg"
+    },
+    "_n__zephyr": {
+      "iconPath": "./icons/fn-_zephyr.svg"
+    },
+    "_n__zephyrOpen": {
+      "iconPath": "./icons/fn-_zephyr-open.svg"
+    },
+    "_n__claude": {
+      "iconPath": "./icons/fn-_claude.svg"
+    },
+    "_n__claudeOpen": {
+      "iconPath": "./icons/fn-_claude-open.svg"
+    },
+    "_n_release": {
+      "iconPath": "./icons/fn-release.svg"
+    },
+    "_n_releaseOpen": {
+      "iconPath": "./icons/fn-release-open.svg"
+    },
+    "_n_dist": {
+      "iconPath": "./icons/fn-dist.svg"
+    },
+    "_n_distOpen": {
+      "iconPath": "./icons/fn-dist-open.svg"
+    },
+    "_n_build": {
+      "iconPath": "./icons/fn-build.svg"
+    },
+    "_n_buildOpen": {
+      "iconPath": "./icons/fn-build-open.svg"
+    },
+    "_n_out": {
+      "iconPath": "./icons/fn-out.svg"
+    },
+    "_n_outOpen": {
+      "iconPath": "./icons/fn-out-open.svg"
+    },
+    "_n_target": {
+      "iconPath": "./icons/fn-target.svg"
+    },
+    "_n_targetOpen": {
+      "iconPath": "./icons/fn-target-open.svg"
+    },
+    "_n_config": {
+      "iconPath": "./icons/fn-config.svg"
+    },
+    "_n_configOpen": {
+      "iconPath": "./icons/fn-config-open.svg"
+    },
+    "_n_configs": {
+      "iconPath": "./icons/fn-configs.svg"
+    },
+    "_n_configsOpen": {
+      "iconPath": "./icons/fn-configs-open.svg"
+    },
+    "_n__vscode": {
+      "iconPath": "./icons/fn-_vscode.svg"
+    },
+    "_n__vscodeOpen": {
+      "iconPath": "./icons/fn-_vscode-open.svg"
+    },
+    "_n__idea": {
+      "iconPath": "./icons/fn-_idea.svg"
+    },
+    "_n__ideaOpen": {
+      "iconPath": "./icons/fn-_idea-open.svg"
     },
     "_folder": {
       "iconPath": "./icons/folder.svg"
@@ -95,15 +377,17 @@
   "folder": "_folder",
   "folderExpanded": "_folderOpen",
   "fileExtensions": {
-    "ts": "_f_kode",
-    "tsx": "_f_kode",
-    "js": "_f_kode",
-    "jsx": "_f_kode",
-    "mjs": "_f_kode",
-    "cjs": "_f_kode",
-    "rs": "_f_kode",
+    "ts": "_f_ts",
+    "tsx": "_f_ts",
+    "mts": "_f_ts",
+    "cts": "_f_ts",
+    "js": "_f_js",
+    "jsx": "_f_js",
+    "mjs": "_f_js",
+    "cjs": "_f_js",
+    "rs": "_f_rust",
     "go": "_f_kode",
-    "py": "_f_kode",
+    "py": "_f_python",
     "java": "_f_kode",
     "kt": "_f_kode",
     "c": "_f_kode",
@@ -117,11 +401,12 @@
     "sh": "_f_kode",
     "ps1": "_f_kode",
     "lua": "_f_kode",
-    "md": "_f_teks",
+    "md": "_f_md",
     "txt": "_f_teks",
     "rst": "_f_teks",
     "log": "_f_teks",
-    "json": "_f_data",
+    "json": "_f_json",
+    "jsonc": "_f_json",
     "yml": "_f_data",
     "yaml": "_f_data",
     "toml": "_f_data",
@@ -136,10 +421,10 @@
     "webp": "_f_aset",
     "ico": "_f_aset",
     "bmp": "_f_aset",
-    "css": "_f_gaya",
-    "scss": "_f_gaya",
-    "sass": "_f_gaya",
-    "less": "_f_gaya",
+    "css": "_f_css",
+    "scss": "_f_css",
+    "sass": "_f_css",
+    "less": "_f_css",
     "lock": "_f_konfig",
     "pem": "_f_konfig",
     "key": "_f_konfig",
@@ -189,125 +474,125 @@
     "favicon.ico": "_f_aset"
   },
   "folderNames": {
-    "src": "_d_kode",
-    "lib": "_d_kode",
-    "app": "_d_kode",
-    "components": "_d_kode",
-    "hooks": "_d_kode",
-    "store": "_d_kode",
-    "stores": "_d_kode",
+    "src": "_n_src",
+    "lib": "_n_lib",
+    "app": "_n_app",
+    "components": "_n_components",
+    "hooks": "_n_hooks",
+    "store": "_n_store",
+    "stores": "_n_stores",
     "utils": "_d_kode",
     "core": "_d_kode",
     "server": "_d_kode",
     "client": "_d_kode",
-    "api": "_d_kode",
+    "api": "_n_api",
     "cmd": "_d_kode",
-    "test": "_d_uji",
-    "tests": "_d_uji",
-    "__tests__": "_d_uji",
-    "spec": "_d_uji",
-    "specs": "_d_uji",
+    "test": "_n_test",
+    "tests": "_n_tests",
+    "__tests__": "_n__tests_",
+    "spec": "_n_spec",
+    "specs": "_n_specs",
     "e2e": "_d_uji",
     "fixtures": "_d_uji",
     "testfiles": "_d_uji",
     "bench": "_d_uji",
     "benches": "_d_uji",
-    "docs": "_d_dokumen",
-    "doc": "_d_dokumen",
-    "documentation": "_d_dokumen",
+    "docs": "_n_docs",
+    "doc": "_n_doc",
+    "documentation": "_n_documentation",
     "wiki": "_d_dokumen",
     "guides": "_d_dokumen",
     "examples": "_d_dokumen",
-    "assets": "_d_aset",
-    "images": "_d_aset",
-    "img": "_d_aset",
-    "icons": "_d_aset",
+    "assets": "_n_assets",
+    "images": "_n_images",
+    "img": "_n_img",
+    "icons": "_n_icons",
     "fonts": "_d_aset",
-    "media": "_d_aset",
+    "media": "_n_media",
     "screenshots": "_d_aset",
-    "public": "_d_aset",
-    "static": "_d_aset",
-    "dist": "_d_hasil",
-    "build": "_d_hasil",
-    "out": "_d_hasil",
-    "target": "_d_hasil",
-    "release": "_d_hasil",
+    "public": "_n_public",
+    "static": "_n_static",
+    "dist": "_n_dist",
+    "build": "_n_build",
+    "out": "_n_out",
+    "target": "_n_target",
+    "release": "_n_release",
     "coverage": "_d_hasil",
     "vendor": "_d_hasil",
     "node_modules": "_d_hasil",
     ".next": "_d_hasil",
     ".cache": "_d_hasil",
-    ".git": "_d_konfig",
-    ".github": "_d_konfig",
-    ".vscode": "_d_konfig",
-    ".idea": "_d_konfig",
-    ".zephyr": "_d_konfig",
-    ".claude": "_d_konfig",
-    "scripts": "_d_konfig",
-    "tools": "_d_konfig",
-    "config": "_d_konfig",
-    "configs": "_d_konfig",
+    ".git": "_n__git",
+    ".github": "_n__github",
+    ".vscode": "_n__vscode",
+    ".idea": "_n__idea",
+    ".zephyr": "_n__zephyr",
+    ".claude": "_n__claude",
+    "scripts": "_n_scripts",
+    "tools": "_n_tools",
+    "config": "_n_config",
+    "configs": "_n_configs",
     "ci": "_d_konfig"
   },
   "folderNamesExpanded": {
-    "src": "_d_kodeOpen",
-    "lib": "_d_kodeOpen",
-    "app": "_d_kodeOpen",
-    "components": "_d_kodeOpen",
-    "hooks": "_d_kodeOpen",
-    "store": "_d_kodeOpen",
-    "stores": "_d_kodeOpen",
+    "src": "_n_srcOpen",
+    "lib": "_n_libOpen",
+    "app": "_n_appOpen",
+    "components": "_n_componentsOpen",
+    "hooks": "_n_hooksOpen",
+    "store": "_n_storeOpen",
+    "stores": "_n_storesOpen",
     "utils": "_d_kodeOpen",
     "core": "_d_kodeOpen",
     "server": "_d_kodeOpen",
     "client": "_d_kodeOpen",
-    "api": "_d_kodeOpen",
+    "api": "_n_apiOpen",
     "cmd": "_d_kodeOpen",
-    "test": "_d_ujiOpen",
-    "tests": "_d_ujiOpen",
-    "__tests__": "_d_ujiOpen",
-    "spec": "_d_ujiOpen",
-    "specs": "_d_ujiOpen",
+    "test": "_n_testOpen",
+    "tests": "_n_testsOpen",
+    "__tests__": "_n__tests_Open",
+    "spec": "_n_specOpen",
+    "specs": "_n_specsOpen",
     "e2e": "_d_ujiOpen",
     "fixtures": "_d_ujiOpen",
     "testfiles": "_d_ujiOpen",
     "bench": "_d_ujiOpen",
     "benches": "_d_ujiOpen",
-    "docs": "_d_dokumenOpen",
-    "doc": "_d_dokumenOpen",
-    "documentation": "_d_dokumenOpen",
+    "docs": "_n_docsOpen",
+    "doc": "_n_docOpen",
+    "documentation": "_n_documentationOpen",
     "wiki": "_d_dokumenOpen",
     "guides": "_d_dokumenOpen",
     "examples": "_d_dokumenOpen",
-    "assets": "_d_asetOpen",
-    "images": "_d_asetOpen",
-    "img": "_d_asetOpen",
-    "icons": "_d_asetOpen",
+    "assets": "_n_assetsOpen",
+    "images": "_n_imagesOpen",
+    "img": "_n_imgOpen",
+    "icons": "_n_iconsOpen",
     "fonts": "_d_asetOpen",
-    "media": "_d_asetOpen",
+    "media": "_n_mediaOpen",
     "screenshots": "_d_asetOpen",
-    "public": "_d_asetOpen",
-    "static": "_d_asetOpen",
-    "dist": "_d_hasilOpen",
-    "build": "_d_hasilOpen",
-    "out": "_d_hasilOpen",
-    "target": "_d_hasilOpen",
-    "release": "_d_hasilOpen",
+    "public": "_n_publicOpen",
+    "static": "_n_staticOpen",
+    "dist": "_n_distOpen",
+    "build": "_n_buildOpen",
+    "out": "_n_outOpen",
+    "target": "_n_targetOpen",
+    "release": "_n_releaseOpen",
     "coverage": "_d_hasilOpen",
     "vendor": "_d_hasilOpen",
     "node_modules": "_d_hasilOpen",
     ".next": "_d_hasilOpen",
     ".cache": "_d_hasilOpen",
-    ".git": "_d_konfigOpen",
-    ".github": "_d_konfigOpen",
-    ".vscode": "_d_konfigOpen",
-    ".idea": "_d_konfigOpen",
-    ".zephyr": "_d_konfigOpen",
-    ".claude": "_d_konfigOpen",
-    "scripts": "_d_konfigOpen",
-    "tools": "_d_konfigOpen",
-    "config": "_d_konfigOpen",
-    "configs": "_d_konfigOpen",
+    ".git": "_n__gitOpen",
+    ".github": "_n__githubOpen",
+    ".vscode": "_n__vscodeOpen",
+    ".idea": "_n__ideaOpen",
+    ".zephyr": "_n__zephyrOpen",
+    ".claude": "_n__claudeOpen",
+    "scripts": "_n_scriptsOpen",
+    "tools": "_n_toolsOpen",
+    "config": "_n_configOpen",
+    "configs": "_n_configsOpen",
     "ci": "_d_konfigOpen"
   }
 }

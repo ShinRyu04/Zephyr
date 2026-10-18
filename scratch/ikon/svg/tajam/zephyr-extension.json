@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-tajam",
-  "name": "Ikon Tajam",
+  "name": "Ikon Sharp Grid",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Sudut siku dan tab persegi — kaku dan rapi.",
+  "description": "Sudut siku dan tab persegi — presisi dan rapi untuk tampilan teknis.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Tajam",
+        "label": "Sharp Grid",
         "path": "./icons/tajam.json"
       }
     ]

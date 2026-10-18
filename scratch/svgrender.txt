@@ -1,0 +1,30 @@
+﻿
+=== duotone (Duotone Accent) ===
+  data-ikon: ext:Duotone Accent:folder:.claude
+  panjang DOM: 689
+  DOM : <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.55"stroke="cu
+  PETA: <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.55"stroke="cu
+  DOM == PETA? false
+
+=== garis (Clean Outline) ===
+  data-ikon: ext:Clean Outline:folder:.claude
+  panjang DOM: 666
+  DOM : <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="none"stroke="currentColor"stroke-widt
+  PETA: <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="none"stroke="currentColor"stroke-widt
+  DOM == PETA? false
+
+=== klasik (Classic Folder) ===
+  data-ikon: ext:Classic Folder:folder:.claude
+  panjang DOM: 691
+  DOM : <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.22"stroke="cu
+  PETA: <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.22"stroke="cu
+  DOM == PETA? false
+
+=== terbuka (Expanded Dynamic) ===
+  data-ikon: ext:Expanded Dynamic:folder:.claude
+  panjang DOM: 691
+  DOM : <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.18"stroke="cu
+  PETA: <svgxmlns="http://www.w3.org/2000/svg"viewBox="001616"><pathd="M1.65.4Q1.64.22.84.2H6.2L7.62.6H13.2Q14.42.614.43.8V11.2Q14.412.413.212.4H2.8Q1.612.41.611.2Z"fill="currentColor"opacity="0.18"stroke="cu
+  DOM == PETA? false
+
+unik DOM: 4 / 4

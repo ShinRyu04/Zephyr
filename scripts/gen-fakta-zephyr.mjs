@@ -105,6 +105,12 @@ function daftarSeksi() {
    benar-benar memanggil buka()). Nama berkas yang dihapus, pintu yang ditambah,
    dan grup setelan yang hilang sama-sama membuat generator GAGAL - bukan
    diam-diam menghasilkan kalimat yang menunjuk tempat yang salah. */
+/* Pola "pintu masuk AI Models". Sejak 1.1.14 permukaan ini jendela OS, jadi
+   pintunya memanggil `bukaPanel('models')`, BUKAN `useAiModels.getState().buka()`
+   lagi. Kedua bentuk diterima supaya fakta tidak menunjuk tempat yang salah dan
+   generator tidak gagal hanya karena pemanggilnya berpindah API. */
+const POLA_PINTU_MODELS = /(?:bukaPanel\(\s*['"]models['"]\s*\)|useAiModels\.getState\(\)\.buka\(\))/;
+
 const PINTU_POPUP = [
   {
     berkas: 'src/components/ai/AiPanel.tsx',
@@ -160,7 +166,7 @@ function pintuPerintahPopup(judul) {
   const teks = baca('src/lib/commandRegistry.ts');
   const batas = [...teks.matchAll(/\{\s*id:\s*'([^']+)',\s*title:\s*'((?:[^'\\]|\\.)*)',\s*group:\s*'([^']+)'/g)];
   const pembuka = batas.filter((m, i) =>
-    /useAiModels\.getState\(\)\.buka\(\)/.test(teks.slice(m.index, batas[i + 1]?.index ?? teks.length)),
+    POLA_PINTU_MODELS.test(teks.slice(m.index, batas[i + 1]?.index ?? teks.length)),
   );
   if (pembuka.length !== 1)
     throw new Error(
@@ -258,7 +264,7 @@ function popupSetelan() {
         !HASIL_SENDIRI.has(e.name) &&
         !JEMBATAN.has(e.name) &&
         r !== store &&
-        /useAiModels\.getState\(\)\.buka\(\)/.test(baca(r))
+        POLA_PINTU_MODELS.test(baca(r))
       )
         pemanggil.push(r);
     }

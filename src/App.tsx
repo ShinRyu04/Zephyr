@@ -355,7 +355,16 @@ export default function App() {
    */
   const aiWindow = aiPanelPos === 'window';
   const aiKolomVisible = useStore((s) => s.aiKolomVisible);
-  const aiKanan = aiPanelPos === 'right' && aiKolomVisible && !aiWindow;
+  /*
+   * A full-width workspace view gets the whole window.
+   *
+   * Dev Environment, API Client and SFTP are not editor tabs - they are their
+   * own screens, and squeezing them between a rail and a 480px chat column
+   * meant the panel they exist for was the smallest thing on screen. The chat
+   * column is hidden for them, the same way their sidebar already is; the
+   * reader who wants the agent can still open the Agents window (Ctrl+Shift+A).
+   */
+  const aiKanan = aiPanelPos === 'right' && aiKolomVisible && !aiWindow && !activityTanpaPanel;
 
   useEffect(() => {
     if (layoutTerminal && !panelBawahVisible) useTerminal.getState().setVisible(true);
@@ -1360,15 +1369,47 @@ export default function App() {
      * "clicking an icon theme changes nothing", which is exactly how it was
      * reported. `storage` fires only in other windows, so the writer does not
      * hear its own echo.
+     *
+     * A NEW PACK also has to arrive here. Installing happens in the Extensions
+     * window, which is a third WebView: the pack lands on disk and in THAT
+     * window's `packs`, while this window's list stayed stale - the theme was
+     * installed, the picker here did not show it, and choosing it did nothing
+     * because `packs.find()` returned undefined. `muatSemuaEkstensi` re-reads the
+     * folder and hands the packs over, which is the only way this window can
+     * learn that a pack appeared or vanished.
      */
+    let sibukMuatUlang = false;
+    const muatUlangPaket = () => {
+      /* Guard: `storage` fires once per key, and a single install writes several.
+         Without this, three events meant three full extension loads. */
+      if (sibukMuatUlang) return;
+      sibukMuatUlang = true;
+      void muatSemuaEkstensi()
+        .catch(() => {})
+        .finally(() => {
+          sibukMuatUlang = false;
+        });
+    };
+
     void import('./lib/ikonTemaStore').then((m) => {
       m.sinkronPilihanIkon();
       window.addEventListener('storage', (e) => {
         if (e.key === null || /^zephyr\.ikonTema\./.test(e.key ?? '')) {
           m.sinkronPilihanIkon();
+          muatUlangPaket();
         }
       });
     });
+
+    /*
+     * The same refresh, driven by the APP instead of by localStorage.
+     *
+     * Installing an extension emits `zephyr-extensions-changed` from the window
+     * that did it (see extLoader), and this listener is what makes the file tree
+     * in the MAIN window pick the new pack up without a restart. localStorage is
+     * only written when a choice is made, so it cannot carry "a pack appeared".
+     */
+    window.addEventListener('zephyr-extensions-changed', muatUlangPaket);
 
     const openPalette = (e: Event) => {
       const q = (e as CustomEvent<{ query?: string }>).detail?.query;
@@ -1523,7 +1564,13 @@ export default function App() {
           {/* Posisi KIRI/KANAN: panel di samping editor, divider vertikal.
               Dev Environment, API Client and SFTP use the full width, so their
               sidebar (whose contents are null for those activities) does not need
-              mengambil ruang sama sekali. */}
+              mengambil ruang sama sekali.
+
+              `!activityTanpaPanel` guards the DIVIDER too, not just the aside:
+              hiding the sidebar while leaving its 4px resizer behind left a
+              draggable seam against nothing, and the editor still started 4px
+              in from the rail. Measured in the running app: `.resizer` at
+              left=1052 with no `aside.sidebar` beside it. */}
           {(pos === 'left' || pos === 'right') &&
             sidebarVisible &&
             L.sidebar &&

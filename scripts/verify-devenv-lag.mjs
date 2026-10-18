@@ -21,7 +21,7 @@ const wrap = `
     }
   }
   window.__DV_COUNT__.detect = 0; window.__DV_COUNT__.services = 0; window.__DV_COUNT__.projects = 0;
-  return JSON.stringify({ ok: true, sudahMuat: DV.state().sudahMuat });
+  return JSON.stringify({ ok: true, sudahMuat: DV.getState().sudahMuat });
 `;
 const w = await cdp.runAsync(wrap, 20000);
 console.log('wrap:', w);
