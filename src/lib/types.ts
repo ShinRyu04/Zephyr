@@ -1617,6 +1617,25 @@ export interface Settings {
 
   panel: { visibleTabs: string[]; activeTab: string; height: number };
 
+  /*
+   * How the agent opens and captures web pages.
+   *
+   * Separate from `izinIsiWeb` / `allowlistWeb` (the SECURITY gate): those decide
+   * WHETHER a page may load at all. This block decides WHERE it opens and
+   * whether a screenshot is taken afterwards, which is a preference, not a
+   * permission.
+   *
+   * `bawaan` is the browser AI tasks use by default; `urlLokal` and `urlLuar`
+   * override it per link kind, because "open my own dev server inside the app"
+   * and "open a public link in my browser" are different promises.
+   */
+  browser?: {
+    bawaan?: 'builtin' | 'sistem';
+    autoScreenshot?: boolean;
+    urlLokal?: 'builtin' | 'sistem';
+    urlLuar?: 'builtin' | 'sistem';
+  };
+
   lsp: {
     enabled: boolean;
     idleSeconds: number;

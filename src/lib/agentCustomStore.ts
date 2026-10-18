@@ -26,6 +26,7 @@ export type AgentCustomSection =
   | 'instructions'
   | 'agents'
   | 'hooks'
+  | 'browser'
   | 'permissions'
   | 'tools'
   | 'migrations';
