@@ -77,6 +77,84 @@ fn root_global(state: &AppState) -> PathBuf {
     state.data_dir.join("skills")
 }
 
+/**
+ * Plant the bundled skills into the global folder, ONCE per bundle revision.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Skills are files on disk, which is right for skills the reader writes. It was
+ * wrong for the SHIPPED ones: they lived in the source tree's `.zephyr/skills/`,
+ * so a machine that installed Zephyr got none of them. Measured on a clean
+ * install, `skills_list` returned 0 - the app shipped with no skills at all.
+ *
+ * The contents are compiled into the binary (`skill_bundled.rs`), so an install
+ * carries them. They are written to `%APPDATA%\zephyr\skills` on first run and
+ * then become ordinary files: the reader can edit or delete them, and the app
+ * never fights them.
+ *
+ * Two rules keep that promise honest:
+ *
+ *  1. A skill folder that ALREADY exists is never touched. Re-seeding would
+ *     silently revert every edit the reader made to a shipped skill - the worst
+ *     kind of "helpful" behaviour, because the loss is invisible until they
+ *     look.
+ *  2. The stamp file records WHICH bundle revision was planted. A new app
+ *     version with new skills adds the new ones without rewriting the old, and
+ *     a skill the reader deleted on purpose is not resurrected on every launch.
+ */
+pub fn tanam_skill_bawaan(state: &AppState) -> usize {
+    let root = root_global(state);
+    let stamp = root.join(".bundle-hash");
+    let hash = crate::skill_bundled::SKILL_BAWAAN_HASH;
+
+    /*
+     * Already planted at this revision: nothing to do. This is the common path
+     * on every launch after the first, so it must be a single small read.
+     */
+    if std::fs::read_to_string(&stamp).map(|s| s.trim() == hash).unwrap_or(false) {
+        return 0;
+    }
+
+    let mut ditulis = 0;
+    for (nama, berkas) in crate::skill_bundled::SKILL_BAWAAN {
+        let dir = root.join(nama);
+        /*
+         * Rule 1: an existing folder is the reader's now. Skip it entirely -
+         * not even a single file inside it.
+         */
+        if dir.exists() {
+            continue;
+        }
+        let mut ok = true;
+        for (rel, isi) in *berkas {
+            let f = dir.join(rel);
+            if let Some(p) = f.parent() {
+                if std::fs::create_dir_all(p).is_err() {
+                    ok = false;
+                    break;
+                }
+            }
+            if std::fs::write(&f, isi).is_err() {
+                ok = false;
+                break;
+            }
+        }
+        if ok {
+            ditulis += 1;
+        } else {
+            /* A half-written skill is worse than none: remove the remains so
+               the next launch retries cleanly instead of leaving a folder that
+               rule 1 will then protect forever. */
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
+    if std::fs::create_dir_all(&root).is_ok() {
+        let _ = std::fs::write(&stamp, hash);
+    }
+    ditulis
+}
+
 fn root_workspace(state: &AppState) -> Option<PathBuf> {
     state
         .workspace_path()

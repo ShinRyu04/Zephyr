@@ -7,8 +7,6 @@ import { useDragEverywhere } from '../../lib/useDragPopup';
 import AiIkon from '../ai/AiIkon';
 import type { NamaAiIkon } from '../ai/AiIkon';
 
-import { useTerminal } from '../../lib/terminalStore';
-
 /*
  * Customize Layout.
  *
@@ -360,9 +358,24 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
                           } else {
                             void import('../../lib/aiWindow').then((m) => m.tutupAiWindow());
                           }
-                          /* None of the remaining homes live in the bottom
-                             dock, so the terminal panel is always freed up. */
-                          useTerminal.getState().setVisible(false);
+                          /*
+                           * Do NOT hide the terminal here.
+                           *
+                           * This line used to call `setVisible(false)` on every
+                           * AI-position change, with the note "the terminal
+                           * panel is always freed up". That note confused
+                           * FREEING SPACE with KILLING THE PANEL: choosing where
+                           * the chat lives says nothing about whether the reader
+                           * wants their terminal, and the panel never came back
+                           * afterwards - it stayed gone until it was toggled by
+                           * hand. That is the reported "the bottom panel
+                           * disappeared".
+                           *
+                           * The AI column and the bottom dock are independent
+                           * regions of the layout, so there is nothing to free:
+                           * leaving `visible` alone keeps the reader's panel
+                           * exactly as they left it.
+                           */
                         }}
                       >
                         {label}

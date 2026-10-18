@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useIkonTema } from '../../lib/ikonTemaStore';
-import { ikonFolder, ikonFile } from '../../lib/fileIcons';
 import { Section } from './SettingsControls';
 
 /*

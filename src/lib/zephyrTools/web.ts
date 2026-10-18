@@ -34,7 +34,6 @@ import {
   type KebijakanIsiWeb,
   type KeputusanUrl,
 } from './kebijakanIsiWeb';
-
 /**
  * Kebijakan ISI WEB yang berlaku sekarang - dibaca dari setelan tersimpan.
  *
@@ -513,6 +512,56 @@ export function lantaiHttpsWeb(urlStr: unknown, kb: KebijakanIsiWeb): KeputusanU
 }
 
 export const TOOL_WEB: AgentTool[] = [
+  {
+    /*
+     * `open_link` - show a link INSIDE Zephyr, in the browser pane.
+     *
+     * Asked for directly, and the reason is sound: the terminal panel already
+     * splits, so a page opened next to the code is visible while the reader
+     * keeps working - and, unlike the OS browser, Zephyr can then READ that
+     * same page (`browser_read`) instead of guessing what it says.
+     *
+     * This used to call the OS opener, which put the page in whatever browser
+     * the machine defaults to: a different window, out of reach of the agent,
+     * and a context switch for the reader. The pane is the better home for a
+     * link that arrived in a conversation about code.
+     *
+     * It dispatches to `browser_open` rather than reimplementing it, so the
+     * allowlist gate, the Agents-window routing and the pane-reuse rules stay
+     * in exactly one place.
+     */
+    spec: {
+      name: 'open_link',
+      description:
+        'Open a URL in Zephyr\'s own browser pane (split beside the terminal, or the browser column of the Agents window) so the user can SEE it and you can READ it afterwards with `browser`. ' +
+        'Use this whenever the user shares a link or asks to open a page - sharing a link IS the request, so open it in the same turn instead of printing the URL. ' +
+        'The same allowlist gate applies: if the result says the host is outside the allowlist, tell the user the host name instead of retrying.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'The full URL to open.' },
+          new_pane: {
+            type: 'boolean',
+            description: 'Open a separate pane instead of reusing the existing browser pane (default false).',
+          },
+        },
+        required: ['url'],
+      },
+    },
+    run: async (a) => {
+      const url = wajib(a, 'url');
+      const buka = TOOL_WEB.find((t) => t.spec.name === 'browser_open');
+      if (!buka) {
+        throw new Error('ERROR: open_link butuh "browser_open" yang tidak ada di build ini.');
+      }
+      /*
+       * The refusal wording from `browser_open` already names the host and the
+       * setting, so it is passed through unchanged - a second phrasing of the
+       * same gate would be one more thing to keep in sync.
+       */
+      return buka.run({ url, new_pane: a.new_pane === true });
+    },
+  },
   {
     spec: {
       name: 'web_search',

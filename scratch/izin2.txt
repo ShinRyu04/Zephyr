@@ -1,0 +1,13 @@
+﻿sebelum : {"jumlahTab":0,"tabAktif":null,"namaTab":[],"adaTabChat":false}
+sesudah : {"jumlahTab":0,"tabAktif":null,"namaTab":[],"adaTabChat":false,"adaKonfirmasi":true}
+timeout : {"hasil":false,"ms":2507}
+
+Bukti ΓÇö izin tidak merebut editor dan tidak menggantung:
+  LULUS  TIDAK menambah tab di editor  0 -> 0
+  LULUS  TIDAK membuka tab Chat  false
+  LULUS  tab aktif TIDAK berubah  null -> null
+  LULUS  dialog konfirmasi tetap diset
+  LULUS  jawaban store menyelesaikan  true
+  LULUS  permintaan tanpa jawaban SELESAI sendiri  2507 ms
+
+== 6/6 lulus ==

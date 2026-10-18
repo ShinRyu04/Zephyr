@@ -1,0 +1,26 @@
+﻿=== Fase 5 ΓÇö tugas Electron oleh Zeph AI ===
+workspace: D:\ZephyrDesktop
+model    : deepseek
+batas    : 20 menit
+
+model: deepseek-v4.1-flash | provider: custom | key: true | ws: D:\ZephyrDesktop
+node : file:///D:/Zephyr/scripts/lib-cdp.mjs:310
+At line:1 char:15
++ ... d D:\Zephyr; node scripts\uji-fase5-electron.mjs 9223 20 2>&1 | Out-F ...
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (file:///D:/Zeph...lib-cdp.mjs:310:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        reject(new Error(`socket CDP tidak terbuka (readyState=${this.#ws.readyState}): ${method}`));
+               ^
+
+Error: socket CDP tidak terbuka (readyState=3): Runtime.evaluate
+    at file:///D:/Zephyr/scripts/lib-cdp.mjs:310:16
+    at new Promise (<anonymous>)
+    at Cdp.send (file:///D:/Zephyr/scripts/lib-cdp.mjs:299:12)
+    at Cdp.eval (file:///D:/Zephyr/scripts/lib-cdp.mjs:330:26)
+    at Cdp.runAsync (file:///D:/Zephyr/scripts/lib-cdp.mjs:374:16)
+    at Cdp.json (file:///D:/Zephyr/scripts/lib-cdp.mjs:466:34)
+    at file:///D:/Zephyr/scripts/uji-fase5-electron.mjs:219:28
+
+Node.js v24.21.0

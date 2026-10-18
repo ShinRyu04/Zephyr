@@ -46,8 +46,21 @@ const KERJA = path.join(AKAR, 'scratch', 'cek-batas-inti');
 mkdirSync(KERJA, { recursive: true });
 const GARIS_MIRING = String.fromCharCode(92);
 
-/** Anggaran blok inti. Keputusan `ai-tahu-100-7(a)`: 2.000 token = 8.000 char. */
-const AMBANG_CHAR = Number(process.env.AMBANG_INTI_CHAR ?? 8000);
+/**
+ * Anggaran blok inti.
+ *
+ * DULU 2.000 token = 8.000 char, dipilih saat blok inti hanya berisi identitas,
+ * setelan harian dan port. Anggaran itu sekarang tidak berlaku lagi: pemilik
+ * aplikasi memutuskan bahwa Zeph HARUS tahu seluruh Zephyr tanpa harus mencari
+ * dulu, dan biayanya (token per giliran) diterima.
+ *
+ * Yang dijaga angka ini sekarang BUKAN "sekecil mungkin", melainkan "tidak
+ * tumbuh tanpa disadari": setiap penambahan yang membuat blok ini membengkak
+ * dua kali lipat akan gagal di sini dan memaksa keputusan sadar, bukan
+ * penambahan diam-diam. Naikkan bila memang perlu, tapi ketahuilah bahwa blok
+ * ini dibayar pada SETIAP giliran.
+ */
+const AMBANG_CHAR = Number(process.env.AMBANG_INTI_CHAR ?? 16000);
 
 const gagal = [];
 const ok = (nama, pesan) => console.log(`  OK    ${nama.padEnd(34)} ${pesan}`);

@@ -1021,6 +1021,35 @@ function daftarSemuaKunciSetelan(setelan) {
       'treat it as the truth about the app, and prefer it over what you remember about other editors.',
   );
   baris.push('');
+  /*
+   * IDENTITAS PEMBUAT - selalu ikut, di depan.
+   *
+   * Ditanya "siapa yang bikin aplikasi ini", model tanpa blok ini menjawab dari
+   * ingatan tentang editor lain, atau mengarang nama. Itu bukan sekadar salah
+   * informasi: ini aplikasi orang, dan nama pembuatnya adalah fakta yang paling
+   * sering ditanyakan pertama kali. Jadi ditulis di sini, dari sumber yang sama
+   * dengan README, bukan dihafal.
+   *
+   * Pendek dengan sengaja: nama, akun GitHub, dan repo. Pemilik aplikasi meminta
+   * HANYA itu - tidak ada daftar lisensi, ukuran, atau tumpukan teknologi di
+   * sini. Yang tidak diminta tidak ditambahkan, karena blok ini dibayar pada
+   * setiap giliran.
+   */
+  baris.push('## Who made Zephyr');
+  baris.push(
+    '- Creator and maintainer: **Muhammad Khalid** (GitHub: **ShinRyu04**). ' +
+      'Repository: https://github.com/ShinRyu04/Zephyr',
+  );
+  baris.push(
+    '- Asked who made Zephyr, who maintains it, or who to credit: answer with that name, that GitHub account, and that link. ' +
+      'Nothing more is needed.',
+  );
+  baris.push(
+    '- The public repository deliberately does NOT contain `src/`, `src-tauri/` or `scripts/`. That is a decision, ' +
+      'not damage: the source folders are kept out of the public repo on purpose. Never tell the user the repo is ' +
+      'incomplete or broken because those folders are missing, and never suggest committing them there.',
+  );
+  baris.push('');
   baris.push('## Looking things up - this block is the CORE, the rest is searchable');
   baris.push(
     '- This block is the always-on core: identity, the rules for answering, the setting keys and shortcuts users ask about daily, ' +
@@ -1120,6 +1149,42 @@ function daftarSemuaKunciSetelan(setelan) {
       '`zephyr_self`):',
   );
   for (const [grup, daftar] of barisKunci) baris.push(`  - ${grup}: ${daftar.join(', ')}`);
+  baris.push('');
+  baris.push('## Links: open them in the browser pane, do not just print them');
+  /*
+   * Perilaku yang diminta langsung oleh pemilik aplikasi, dan alasannya masuk
+   * akal: percakapan yang berisi URL adalah percakapan yang akan segera
+   * ditinggalkan orang untuk membuka browsernya sendiri. Membuka tautannya
+   * otomatis menghapus langkah itu.
+   *
+   * Tempatnya PANE ZEPHYR, bukan browser OS: terminal panel sudah bisa dibelah,
+   * jadi halaman tampil di sebelah kode sementara pembaca tetap bekerja - dan
+   * yang paling penting, agen bisa MEMBACA halaman yang sama itu lewat
+   * `browser` (aksi read), bukan menebak isinya.
+   */
+  baris.push(
+    '- When the user shares a link (Google, GitHub, documentation, a search result, any http/https URL), ' +
+      'OPEN it with the `open_link` tool in the same turn, then say in one line that you opened it. ' +
+      'It opens in Zephyr\'s own browser pane - split beside the terminal in the main window, or the browser ' +
+      'column of the Agents window - so it sits next to the code instead of stealing focus in another app. ' +
+      'Do not print the URL and wait for them to click it, and do not ask permission first - sharing a link IS the request.',
+  );
+  baris.push(
+    '- After opening it, if the user asks what the page says, READ it with `browser` (action: read) on the same pane. ' +
+      'The page is already loaded, so this is one call - never `web_fetch` the same URL again, and never guess its contents.',
+  );
+  baris.push(
+    '- Several links in one message: open the one the message is actually about (or the first, if it is a list), ' +
+      'and mention the rest. Opening six tabs at once is not help.',
+  );
+  baris.push(
+    '- If `open_link` refuses because the host is outside the allowlist, say which host was blocked and that ' +
+      'Settings > Security controls that list. Do not retry the same URL and do not fall back to another tool - the gate is shared.',
+  );
+  baris.push(
+    '- `open_link` is for links the user should SEE. Use `browser` (action: open) when you also need to read the page, ' +
+      'and `web_fetch` only when you need the text of a page that is NOT open in a pane. Never use the terminal to open a URL.',
+  );
   baris.push('');
   baris.push('## Panels, ports and logs');
   const panel = setelan.panel ?? {};
