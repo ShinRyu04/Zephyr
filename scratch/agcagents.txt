@@ -1,0 +1,41 @@
+﻿mount: {"ok":false,"galat":"TypeError: createRoot is not a function"}
+{
+ "adaPane": false,
+ "menu": {
+  "adaMenu": false,
+  "adaViewDetails": false
+ },
+ "detail": {
+  "adaDetail": false
+ },
+ "editor": {
+  "adaEditor": false
+ },
+ "delegasi": {
+  "adaIdInggris": false,
+  "adaKapan": false
+ },
+ "sebelum": {
+  "jumlah": 0
+ },
+ "sesudah": {
+  "jumlah": 0,
+  "nama": [],
+  "adaDiDom": false
+ }
+}
+
+Bukti ΓÇö halaman Agents berbentuk referensi:
+  GAGAL  A1 komponen merender pane  judul=- TypeError: createRoot is not a function
+  GAGAL  A2 ada seksi Custom Agents dan Built-In Agents
+  GAGAL  A3 built-in Chat dan Agent tampil
+  GAGAL  A4 menu punya View Details
+  GAGAL  A5 View Details menampilkan tool agent  alat=
+  GAGAL  A5b detail punya kotak MCP dan Built-In
+  GAGAL  A6 Create membuka editor (Name + Prompt + Smart Generate)
+  GAGAL  A7 checklist tool tampil (>= 5)
+  GAGAL  A8 field delegasi tersembunyi sampai dicentang
+  GAGAL  A8b mencentang Callable memunculkan Identifier + When to Call
+  GAGAL  A9 membuat agent benar-benar menambah daftar  0 -> 0
+
+== 0/11 lulus ==

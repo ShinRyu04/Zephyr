@@ -1,11 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
 import { useToolGate, SEMUA_TOOL } from '../../lib/toolGate';
-import { usePersona } from '../../lib/personaStore';
-import { buatDraft, type DraftHasil } from '../../lib/agentDraft';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
+import AgcAgents from './AgcAgents';
 import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions, AgcPermissions } from './AgcSections';
 
 /*
@@ -31,185 +30,7 @@ import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions, AgcPer
  */
 
 const McpPanel = lazy(() => import('../settings/McpPanel'));
-const PersonaCard = lazy(() => import('../settings/PersonaCard'));
 
-/*
- * "Create with AI" for a persona.
- *
- * The draft is shown in a form, and Save writes it through `personaStore.simpan`
- * — the same action the manual editor uses, so a generated persona is an
- * ordinary persona with nothing special about it afterwards.
- *
- * The persona is created but NOT activated. Applying a persona changes how every
- * later answer is written, and switching that on as a side effect of pressing
- * Save would be a surprise; the reader picks it in the list, where activation
- * already lives.
- */
-function PanelAiAgent() {
-  const tr = useT();
-  const [buka, setBuka] = useState(false);
-  const [permintaan, setPermintaan] = useState('');
-  const [sibuk, setSibuk] = useState(false);
-  const [galat, setGalat] = useState<string | null>(null);
-  const [draft, setDraft] = useState<DraftHasil | null>(null);
-  const [nama, setNama] = useState('');
-  const [deskripsi, setDeskripsi] = useState('');
-  const [identitas, setIdentitas] = useState('');
-  const [aturan, setAturan] = useState('');
-  const simpan = usePersona((s) => s.simpan);
-
-  const kirim = async () => {
-    setSibuk(true);
-    setGalat(null);
-    try {
-      const d = await buatDraft({ kind: 'agent', permintaan });
-      setDraft(d);
-      setNama(d.name);
-      setDeskripsi(d.description);
-      /*
-       * The body carries the working style AND the constraints; a persona keeps
-       * them in separate fields. Splitting on a heading would guess at the
-       * model's formatting, so the whole body goes to `identitas` (which is the
-       * block that replaces the identity) and the reader can move a paragraph
-       * into the rules field themselves — both are editable right here.
-       */
-      setIdentitas(d.body);
-      setAturan((d.tools ?? []).length > 0 ? `Tools disarankan: ${(d.tools ?? []).join(', ')}` : '');
-    } catch (e) {
-      setGalat(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSibuk(false);
-    }
-  };
-
-  const bersihkan = () => {
-    setBuka(false);
-    setDraft(null);
-    setPermintaan('');
-    setGalat(null);
-  };
-
-  if (!buka) {
-    return (
-      <div className="agc-ai-aksi">
-        <button
-          className="btn btn-sm"
-          data-testid="agc-agent-ai"
-          onClick={() => setBuka(true)}
-        >
-          <AiIkon name="thought" size={12} /> {tr('Create with AI')}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="agc-ai" data-testid="agc-ai-agent">
-      <div className="agc-ai-head">
-        <AiIkon name="thought" size={13} />
-        <span>{tr('Describe the role in plain language')}</span>
-      </div>
-      <textarea
-        className="agc-field agc-field-area"
-        data-testid="agc-ai-input-agent"
-        rows={4}
-        disabled={sibuk}
-        placeholder={tr('An agent that reviews code for bugs and security issues, changes nothing, and starts from the least privilege.')}
-        value={permintaan}
-        onChange={(e) => setPermintaan(e.target.value)}
-      />
-      {galat && (
-        <p className="agc-error" data-testid="agc-ai-error-agent" role="alert">
-          {galat}
-        </p>
-      )}
-      <div className="agc-editor-actions">
-        <button className="btn btn-sm" onClick={bersihkan} disabled={sibuk}>
-          {tr('Cancel')}
-        </button>
-        <button
-          className="btn btn-sm btn-primary"
-          data-testid="agc-ai-generate-agent"
-          disabled={sibuk || permintaan.trim() === ''}
-          onClick={() => void kirim()}
-        >
-          {sibuk ? tr('Generating…') : tr('Generate draft')}
-        </button>
-      </div>
-
-      {draft && (
-        <div className="agc-editor agc-editor-draft" data-testid="agc-draft-agent">
-          <p className="agc-draft-note">
-            {tr('This is a draft from the model. Check it before saving - it shapes every answer the assistant gives.')}
-          </p>
-          <label className="agc-label" htmlFor="agc-da-nama">
-            {tr('Name')}
-          </label>
-          <input
-            id="agc-da-nama"
-            className="agc-field"
-            data-testid="agc-da-nama"
-            value={nama}
-            onChange={(e) => setNama(e.target.value)}
-          />
-          <label className="agc-label" htmlFor="agc-da-desc">
-            {tr('Description')}
-          </label>
-          <input
-            id="agc-da-desc"
-            className="agc-field"
-            data-testid="agc-da-desc"
-            value={deskripsi}
-            onChange={(e) => setDeskripsi(e.target.value)}
-          />
-          <label className="agc-label" htmlFor="agc-da-identitas">
-            {tr('Identity and way of working')}
-          </label>
-          <textarea
-            id="agc-da-identitas"
-            className="agc-field agc-field-area"
-            data-testid="agc-da-identitas"
-            rows={8}
-            value={identitas}
-            onChange={(e) => setIdentitas(e.target.value)}
-          />
-          <label className="agc-label" htmlFor="agc-da-aturan">
-            {tr('Extra rules')}
-          </label>
-          <textarea
-            id="agc-da-aturan"
-            className="agc-field agc-field-area"
-            data-testid="agc-da-aturan"
-            rows={4}
-            value={aturan}
-            onChange={(e) => setAturan(e.target.value)}
-          />
-          <div className="agc-editor-actions">
-            <button className="btn btn-sm" onClick={bersihkan}>
-              {tr('Discard draft')}
-            </button>
-            <button
-              className="btn btn-sm btn-primary"
-              data-testid="agc-da-simpan"
-              disabled={sibuk || nama.trim() === '' || identitas.trim() === ''}
-              onClick={() => {
-                void simpan({
-                  nama: nama.trim(),
-                  deskripsi: deskripsi.trim(),
-                  identitas: identitas.trim(),
-                  caraKerja: '',
-                  aturan: aturan.trim(),
-                }).then(bersihkan);
-              }}
-            >
-              {tr('Save')}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface NavItem {
   id: AgentCustomSection;
@@ -320,25 +141,19 @@ function Isi({ section }: { section: AgentCustomSection }) {
         </div>
       );
     case 'agents':
-      return (
-        <div className="agc-pane">
-          <h2 className="agc-pane-title">{tr('Agents')}</h2>
-          <p className="agc-pane-desc">
-            {tr('Configure the AI persona: identity, way of working, and rules.')}
-          </p>
-          {/*
-            * A persona changes WHO the assistant is — identity, way of working,
-            * standing rules. It is not a subagent with its own tool allowlist,
-            * and this pane deliberately does not pretend otherwise: the model is
-            * asked for the three text blocks a persona actually has, so a draft
-            * here cannot silently grant anything.
-            */}
-          <PanelAiAgent />
-          <Suspense fallback={null}>
-            <PersonaCard />
-          </Suspense>
-        </div>
-      );
+      /*
+       * The Agents pane is now the TRAE-shaped page: a list of custom and
+       * built-in agents, a details view showing the tools each one may use, and
+       * an editor with an avatar picker, delegation fields and a tool checklist.
+       *
+       * The old persona composer (`PanelAiAgent` + `PersonaCard`) is GONE from
+       * here on purpose. A persona and an agent are different things: a persona
+       * changes the assistant's voice, an agent is a reusable role with its own
+       * prompt and tools. Showing both in one pane made the reader guess which
+       * one "Agent" referred to, and the reference layout has no such ambiguity.
+       * Personas are still editable in Chat Settings, where they always were.
+       */
+      return <AgcAgents />;
     case 'plugins':
       return <AgcPlugins />;
     case 'skills':
