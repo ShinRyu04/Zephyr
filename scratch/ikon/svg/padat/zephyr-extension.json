@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-padat",
-  "name": "Ikon Padat",
+  "name": "Ikon Solid Modern",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Isi penuh tanpa garis dalam — tegas dan mudah dibaca.",
+  "description": "Bodi folder terisi penuh tanpa garis dalam — tegas dan jelas di ukuran kecil.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Padat",
+        "label": "Solid Modern",
         "path": "./icons/padat.json"
       }
     ]

@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-hanzi",
+  "name": "Ikon Hanzi",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Ikon aksara Hanzi China Sederhana: 型 TypeScript, 锈 Rust, 蛇 Python. Folder tetap folder.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Hanzi",
+        "path": "./icons/hanzi.json"
+      }
+    ]
+  }
+}

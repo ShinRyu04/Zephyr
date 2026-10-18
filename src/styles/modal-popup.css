@@ -315,6 +315,35 @@
   gap: 5px 10px;
 }
 
+/*
+ * The folder row.
+ *
+ * This is the row that actually distinguishes the themes, so it is drawn larger
+ * than the file samples and separated from them by a hairline. Without it every
+ * card showed the same six file marks and read as "all themes are identical" -
+ * which is exactly what was reported.
+ */
+.ikt-folder-baris {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 7px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ikt-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ikt-folder-item .ikt-svg {
+  width: 22px;
+  height: 22px;
+}
+
 .ikt-contoh-item {
   display: flex;
   align-items: center;

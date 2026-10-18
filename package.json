@@ -62,7 +62,9 @@
     "verify:notif-ai": "node scripts/verify-notif-ai.mjs",
     "verify:tema-folder": "node scripts/verify-tema-folder.mjs",
     "verify:beban": "node scripts/verify-beban.mjs",
-    "verify:semua": "node scripts/verify-semua.mjs"
+    "verify:semua": "node scripts/verify-semua.mjs",
+    "verify:tema-layar": "node scripts/verify-tema-layar.mjs",
+    "verify:tema-aktif": "node scripts/verify-tema-aktif.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",
