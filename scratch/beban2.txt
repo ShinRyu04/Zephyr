@@ -1,0 +1,21 @@
+﻿=== Fase 5 ΓÇö beban & stabilitas ===
+
+Terminal : {"ada":true,"sebelumPane":0,"msBuka":1272,"sesudahPane":6,"batas":6,"msTulis":791,"paneAkhir":6}
+Stream AI: {"ada":true,"ms":3,"n":3000,"jalur":"onChunk","galat":null,"pesan":10}
+Frame    : {"sampel":181,"terburukMs":17,"medianMs":17}
+Memori   : {"dipakaiMB":72,"totalMB":79,"batasMB":288}
+Hidup    : true  galat konsol: 38
+
+Bukti:
+  GAGAL  8 pane terminal terbuka  0 -> 6
+  LULUS  membuka 8 pane < 2 detik  1272 ms
+  LULUS  20x output ke semua pane < 2 detik  791 ms
+  LULUS  3000 chunk diproses < 3 detik  3 ms
+  LULUS  stream tidak melempar  -
+  LULUS  tidak ada frame tersumbat > 300 ms  17 ms
+  LULUS  median frame wajar (< 40 ms)  17 ms
+  LULUS  heap di bawah 80% batas  72/288 MB
+  LULUS  app masih hidup
+  GAGAL  tidak ada galat konsol  38
+
+== 8/10 lulus ==
