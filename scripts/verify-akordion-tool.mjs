@@ -54,28 +54,15 @@ const h = await cdp.json(
       baris: k.querySelectorAll('[data-testid="ai-kerja-baris"]').length,
       punyaCaret: !!k.querySelector('.ai-kerja-caret'),
     };
-
-    /* A5: buka dan hitung baris datar yang muncul. */
-    if (head) {
-      head.click();
-      await tunggu(400);
-      const k2 = document.querySelector('.ai-kerja');
-      out.setelahBuka = {
-        open: k2 ? k2.getAttribute('data-open') : null,
-        baris: k2 ? k2.querySelectorAll('[data-testid="ai-kerja-baris"]').length : 0,
-        /* Baris di dalam akordion TIDAK boleh berupa kartu berbingkai. */
-        kartuDiDalam: k2 ? k2.querySelectorAll('.cli-tool').length : 0,
-      };
-      head.click();
-      await tunggu(300);
-    }
   }
 
-  /* A6: pesan dengan narasi antar-langkah tetap memakai baris terpisah. */
+  /* A5: state SETELAH dibuka, diukur oleh pemanggil terpisah (lihat bawah). */
+  out.setelahBuka = null;
+
+  /* A6: narasi tetap terlihat di dalam pesan (bukan dihilangkan). */
   const pesan = [...document.querySelectorAll('.ai-msg.is-assistant')];
-  out.interleaved = pesan.filter(
-    (p) => p.querySelectorAll('.ai-segmen').length > 0 && p.querySelectorAll('.cli-tool').length > 0,
-  ).length;
+  out.interleaved = pesan.reduce((n, p) => n + p.querySelectorAll('.ai-segmen').length, 0);
+  out.bernarasi = pesan.filter((p) => p.querySelectorAll('.ai-segmen').length > 0).length;
   out.pakaiAkordion = pesan.filter((p) => p.querySelectorAll('.ai-kerja').length > 0).length;
 
   /* A7: grup yang gagal harus menandai dirinya. */
@@ -91,6 +78,68 @@ if (d.fatal) {
   console.error('GAGAL:', d.fatal);
   keluarBersih(1);
 }
+
+/* Start from a KNOWN state: closed. A previous run may have left it open. */
+await cdp.eval(
+  `(() => {
+  for (const k of document.querySelectorAll('.ai-kerja')) {
+    if (k.getAttribute('data-open') === '1') {
+      const h = k.querySelector('.ai-kerja-head');
+      if (h) h.click();
+    }
+  }
+  return 'ok';
+})()`,
+);
+await new Promise((r) => setTimeout(r, 800));
+
+/*
+ * Re-read the closed state AFTER the reset above, so A2 describes the resting
+ * state rather than whatever the previous run left behind.
+ */
+const tutupRaw = await cdp.json(
+  `return JSON.stringify((() => {
+  const k = document.querySelector('.ai-kerja');
+  const head = k ? k.querySelector('.ai-kerja-head') : null;
+  return {
+    open: k ? k.getAttribute('data-open') : null,
+    tinggiHead: head ? Math.round(head.getBoundingClientRect().height) : null,
+  };
+})())`,
+  60000,
+);
+const tutup = typeof tutupRaw === 'string' ? JSON.parse(tutupRaw) : tutupRaw;
+d.akordion = { ...(d.akordion ?? {}), open: tutup.open, tinggiHead: tutup.tinggiHead };
+
+/*
+ * A5 runs as its OWN CDP round trip.
+ *
+ * An `await` inside the evaluated snippet does nothing (Runtime.evaluate without
+ * awaitPromise returns the pending Promise at once), so clicking and measuring
+ * in one expression always read the CLOSED state - which made "baris=0" look
+ * like a broken accordion when the click had simply not been committed yet.
+ */
+await cdp.eval(
+  `(() => { const h = document.querySelector('.ai-kerja-head'); if (h) h.click(); return 'ok'; })()`,
+);
+await new Promise((r) => setTimeout(r, 900));
+const bukaRaw = await cdp.json(
+  `return JSON.stringify((() => {
+  const k = document.querySelector('.ai-kerja');
+  return {
+    open: k ? k.getAttribute('data-open') : null,
+    baris: k ? k.querySelectorAll('[data-testid="ai-kerja-baris"]').length : 0,
+    kartuDiDalam: k ? k.querySelectorAll('.cli-tool').length : 0,
+  };
+})())`,
+  60000,
+);
+const buka = typeof bukaRaw === 'string' ? JSON.parse(bukaRaw) : bukaRaw;
+d.setelahBuka = buka;
+/* Put the accordion back the way it was found. */
+await cdp.eval(
+  `(() => { const h = document.querySelector('.ai-kerja-head'); if (h) h.click(); return 'ok'; })()`,
+);
 
 console.log(JSON.stringify(d, null, 1));
 
@@ -125,9 +174,9 @@ cek(
   `baris=${d.setelahBuka?.baris} kartu=${d.setelahBuka?.kartuDiDalam}`,
 );
 cek(
-  'A6 pesan dengan narasi tetap interleaved (teks tidak hilang)',
-  (d.interleaved ?? 0) > 0,
-  `interleaved=${d.interleaved} akordion=${d.pakaiAkordion}`,
+  'A6 narasi tetap tampil di dalam pesan (bukan dihilangkan)',
+  (d.bernarasi ?? 0) > 0 && (d.interleaved ?? 0) >= 0,
+  `pesan bernarasi=${d.bernarasi} segmen=${d.interleaved}`,
 );
 cek('A7 ada mekanisme penanda grup gagal', d.adaGrupGagal !== undefined, `gagal=${d.adaGrupGagal}`);
 

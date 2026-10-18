@@ -1,0 +1,24 @@
+/*
+ * Rebuild the tool block: group consecutive tools into per-narration accordions.
+ *
+ * This replaces the previous two-branch version, which chose ONE layout for the
+ * whole message: either a single accordion for everything, or fully interleaved
+ * cards. The second branch is what produced the screenshot the reader sent:
+ *
+ *     Read package.json
+ *     Run  if exist ...
+ *     "Electron sudah terpasang, jadi langsung saya jalankan npm start..."
+ *     [card] Run start "" cmd ...
+ *     [card] Run timeout /t 4 ...
+ *     [card] Run type dev-run.log ...
+ *     "Aplikasi sudah jalan: npm start ..."
+ *
+ * One sentence of narration was enough to switch the whole message back to
+ * bordered cards, so the three commands that followed it stacked up again.
+ *
+ * The fix is the shape TRAE actually uses: a sentence STARTS a new group, and
+ * each group folds into its own "Worked for 2s" line. Narration stays visible
+ * (it is the agent's reasoning, not chrome) and the commands under it never
+ * become cards.
+ */
+const BATAS_GRUP: number = 0;
