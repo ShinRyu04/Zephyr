@@ -7436,6 +7436,64 @@ let autoLanjut = 0;
            * selesai.
            */
           const sisaTodo = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
+          /*
+           * A todo marked `done` is a CLAIM, and claims are checked.
+           *
+           * Measured in Fase 5: the plan had ten items, all marked done, and
+           * `README.md` was never written. The model had marked "Tulis
+           * README.md" as done without calling write_file, then reported "eight
+           * files written" - and the run ended successfully with 7 files on
+           * disk. The reader sees a confident summary and a missing file, which
+           * is worse than an honest failure.
+           *
+           * The check is deliberately narrow: only todos whose text NAMES a file
+           * that does not exist are reopened. A todo about anything else ("run
+           * the tests") is left alone - this is not a general fact-checker, it
+           * is a guard against the specific lie that a file exists.
+           */
+          const todosBohong: string[] = [];
+          for (const t of useAi.getState().agentTodos) {
+            if (t.status !== 'done') continue;
+            /* Path-looking tokens in the todo text, e.g. `README.md`. */
+            const calon = String(t.content ?? '').match(/[A-Za-z0-9_.\-/\\]+\.(?:md|js|ts|tsx|jsx|json|css|html|py|rs|toml|yml|yaml)/g);
+            if (!calon) continue;
+            for (const nama of calon) {
+              const adaDi = berkasDitulisGiliran.has(nama) || berkasDitulisGiliran.has(nama.replace(/^\.\//, ''));
+              if (!adaDi) {
+                todosBohong.push(t.content);
+                break;
+              }
+            }
+          }
+          if (todosBohong.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL && !agentBatal) {
+            /*
+             * Reopen them as pending and demand the work. The model cannot
+             * finish a run by writing a summary over a file it never created.
+             */
+            lanjutTanpaTool += 1;
+            const daftar = todosBohong.map((c) => `- ${c}`).join('\n');
+            history.push({
+              role: 'user',
+              content:
+                `These items are marked done but the file they name was NEVER written this turn:\n${daftar}\n\n` +
+                'Write them now with write_file (or multi_edit for an existing file), then mark them done again. ' +
+                'A todo is only done when the tool result proves it - not when you intended to do it.',
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(verifikasi todo)',
+                  args: '{}',
+                  result: `Tugas ditandai selesai padahal berkasnya belum ditulis: ${todosBohong.length} item. Diminta menulis sekarang.`,
+                  ok: false,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            continue;
+          }
           if (sisaTodo.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL && !agentBatal) {
             lanjutTanpaTool += 1;
             const daftar = sisaTodo
