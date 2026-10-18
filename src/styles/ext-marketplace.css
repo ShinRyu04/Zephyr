@@ -186,6 +186,37 @@
   color: var(--accent);
   font-size: 10.5px;
   font-weight: 700;
+  overflow: hidden;
+}
+
+/*
+ * Extension packages bring their OWN artwork: a theme's swatches, a language's
+ * file mark, a keymap's keyboard. Those marks are drawn at 16px and were sized
+ * for the tall cards, so they are scaled to fit this box rather than inheriting
+ * the initials' font sizing. `xc-gambar` and friends come from the extension
+ * stylesheet; only the box is defined here.
+ */
+.xmkt-logo-ext {
+  background: transparent;
+}
+.xmkt-logo-ext svg,
+.xmkt-logo-ext img,
+.xmkt-logo-ext .xc-gambar,
+.xmkt-logo-ext .xc-gambar-asli {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.xmkt-logo-ext .xc-inisial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .xmkt-info {
