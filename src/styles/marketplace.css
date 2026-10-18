@@ -1,0 +1,283 @@
+/*
+ * Marketplace — the TRAE-shaped grid.
+ *
+ * The layout is a responsive grid of CARDS rather than a table, because a
+ * marketplace is browsed by recognition (logo, name, one line) and a table row
+ * gives the eye no anchor. The card is the smallest unit that can carry all
+ * three without wrapping.
+ */
+.mkt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 18px 20px 24px;
+  overflow: auto;
+  background: var(--bg, var(--surface));
+}
+
+.mkt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.mkt-judul {
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mkt-sub {
+  margin: 0;
+  max-width: 620px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mkt-kelola {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mkt-kelola:hover {
+  border-color: var(--accent);
+}
+
+/* ── Tab row + search ───────────────────────────────────────────────────── */
+.mkt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.mkt-tab {
+  display: inline-flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.mkt-tab-btn {
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.mkt-tab-btn:hover {
+  color: var(--text);
+}
+.mkt-tab-btn.is-on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.mkt-cari {
+  width: 220px;
+  max-width: 40vw;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.mkt-cari:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Category chips ─────────────────────────────────────────────────────── */
+.mkt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.mkt-chip {
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mkt-chip:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.mkt-chip.is-on {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Grid of cards ──────────────────────────────────────────────────────── */
+.mkt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.mkt-kartu {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  transition: border-color 120ms, background 120ms;
+}
+.mkt-kartu:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.mkt-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mkt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.mkt-nama {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mkt-ket {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  /* Two lines, then ellipsis: a marketplace card is a summary. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mkt-pasang {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mkt-pasang:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.mkt-pasang.is-terpasang {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.mkt-pasang:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mkt-chip-kecil {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.mkt-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 44px 16px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ── MCP hover popover ──────────────────────────────────────────────────────
+ * A server can expose thirty tools; printing them in the card would turn the
+ * grid into a wall of names. The popover shows them on hover, which is exactly
+ * how the reference does it.
+ */
+.mkt-kartu-mcp .mkt-pop {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: none;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2, var(--surface));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+.mkt-kartu-mcp:hover .mkt-pop,
+.mkt-kartu-mcp:focus-within .mkt-pop {
+  display: block;
+}
+.mkt-pop-head {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.mkt-pop-list {
+  margin: 0;
+  padding-left: 15px;
+  max-height: 160px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
