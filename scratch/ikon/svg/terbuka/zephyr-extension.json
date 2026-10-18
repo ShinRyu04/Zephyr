@@ -3,7 +3,7 @@
   "name": "Ikon Expanded Dynamic",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Penutup folder terlihat terlipat — memberi kesan isi dan kedalaman.",
+  "description": "Penutup folder terlipat TERLIHAT sebagai bidang tersendiri.",
   "engines": {
     "zephyr": ">=1.0"
   },

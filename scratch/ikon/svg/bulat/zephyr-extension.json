@@ -3,7 +3,7 @@
   "name": "Ikon Soft Rounded",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Sudut sangat melengkung dan tab membulat — paling lembut dari kedelapan tema.",
+  "description": "Badan bulat penuh dengan tab melengkung — bukan kotak.",
   "engines": {
     "zephyr": ">=1.0"
   },

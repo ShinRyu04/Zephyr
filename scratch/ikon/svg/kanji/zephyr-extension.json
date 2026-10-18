@@ -3,7 +3,7 @@
   "name": "Ikon Kanji",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Ikon aksara Kanji Jepang: 型 untuk TypeScript, 錆 untuk Rust, 蛇 untuk Python. Folder tetap folder.",
+  "description": "Aksara Kanji Jepang: 型 TypeScript, 錆 Rust, 蛇 Python. Bentuk folder bersudut tegas.",
   "engines": {
     "zephyr": ">=1.0"
   },

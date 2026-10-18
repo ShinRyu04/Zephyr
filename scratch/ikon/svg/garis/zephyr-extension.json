@@ -3,7 +3,7 @@
   "name": "Ikon Clean Outline",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Hanya garis kontur luar tanpa isi — bersih, ringan, dan tidak menarik perhatian.",
+  "description": "Hanya garis kontur, tanpa isi sama sekali — bersih dan ringan.",
   "engines": {
     "zephyr": ">=1.0"
   },
