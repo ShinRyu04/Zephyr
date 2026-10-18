@@ -6,7 +6,9 @@ import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
 import AgcAgents from './AgcAgents';
 import AgcRulesMemories from './AgcRulesMemories';
-import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
+import AgcHooks from './AgcHooks';
+import AgcBrowser from './AgcBrowser';
+import { AgcSkills, AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
 
 /*
  * Agent Customizations — a PAGE, in its own window.
@@ -89,6 +91,12 @@ const NAV: NavItem[] = [
     desc: 'Run automated commands at key points in the agent lifecycle. Use hooks to validate, format, or coordinate work.',
   },
   {
+    id: 'browser',
+    label: 'Browser',
+    icon: 'web',
+    desc: 'Choose how the agent opens and captures web pages, and clear the built-in browser data.',
+  },
+  {
     id: 'permissions',
     label: 'Permissions',
     icon: 'shield',
@@ -161,6 +169,8 @@ function Isi({ section }: { section: AgentCustomSection }) {
       return <AgcSkills />;
     case 'hooks':
       return <AgcHooks />;
+    case 'browser':
+      return <AgcBrowser />;
     case 'permissions':
       return <AgcPermissions />;
     case 'migrations':

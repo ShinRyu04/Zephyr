@@ -346,6 +346,35 @@ pub fn browser_pane_clear_data(app: AppHandle, pane_id: String) -> ZResult<bool>
     Ok(true)
 }
 
+/// Clear browsing data for EVERY browser pane in the app.
+///
+/// The per-pane command above needs an id, and the Settings page has no pane to
+/// point at - it is a global "clear my browsing data" button. Rather than making
+/// the UI enumerate panes (and miss any it does not know about), this walks the
+/// known pane labels and clears each one.
+///
+/// Returns how many panes were cleared. `0` is a valid, honest answer: no pane
+/// has been opened this session, so there is nothing to clear.
+#[tauri::command(async)]
+pub fn browser_clear_data(app: AppHandle) -> ZResult<usize> {
+    let mut jumlah = 0usize;
+    for w in app.webview_windows().values() {
+        /*
+         * Only the panes this module owns. The main window and the AI/panel
+         * windows are ordinary UI: clearing THEIR storage would wipe the
+         * reader's sessions and settings, which is the opposite of what this
+         * button promises.
+         */
+        if !w.label().starts_with("browser-") {
+            continue;
+        }
+        if w.clear_all_browsing_data().is_ok() {
+            jumlah += 1;
+        }
+    }
+    Ok(jumlah)
+}
+
 /// Navigation: a new url, or the 'back' / 'forward' / 'reload' command.
 #[tauri::command(async)]
 pub fn browser_pane_nav(app: AppHandle, pane_id: String, aksi: String) -> ZResult<String> {
