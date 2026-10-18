@@ -1,0 +1,24 @@
+﻿paket: 11
+
+Sidik layar per tema (baris pohon pertama):
+  bulat::Soft Rounded .claude      ext:Soft Rounded:folder:.claude
+  duotone::Duotone Accent .claude      ext:Duotone Accent:folder:.claude
+  garis::Clean Outline .claude      ext:Clean Outline:folder:.claude
+  hanzi::Hanzi .claude      ext:Hanzi:folder:.claude
+  hiragana::Hiragana .claude      ext:Hiragana:folder:.claude
+  kanji::Kanji .claude      ext:Kanji:folder:.claude
+  klasik::Classic Folder .claude      ext:Classic Folder:folder:.claude
+  minimal::Minimal Slim .claude      ext:Minimal Slim:folder:.claude
+  padat::Solid Modern .claude      ext:Solid Modern:folder:.claude
+  tajam::Sharp Grid .claude      ext:Sharp Grid:folder:.claude
+  terbuka::Expanded Dynamic .claude      ext:Expanded Dynamic:folder:.claude
+
+Bukti:
+  LULUS  11 tema ada  11
+  LULUS  setiap baris punya SVG
+  GAGAL  layar BERBEDA antar tema  8/11 unik
+
+  Tema yang layarnya SAMA:
+    duotone::Duotone Accent, garis::Clean Outline, klasik::Classic Folder, terbuka::Expanded Dynamic
+
+== 2/3 lulus ==

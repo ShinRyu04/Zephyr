@@ -47,6 +47,12 @@ export default function FileIcon({
    * dependency, not data the drawing needs.
    */
   useIkonTema((s) => s.aktif);
+  /*
+   * AND the version counter, which is the one that actually fires when the map
+   * is swapped. `aktif` changes first (before the map exists) and zustand skips
+   * a repeated value, so subscribing to it alone left the tree one theme behind.
+   */
+  useIkonTema((s) => s.versiIkon);
 
   const ikon = folder ? ikonFolder(name, folderOpen) : ikonFile(name ?? '', lang);
 
@@ -88,7 +94,7 @@ export default function FileIcon({
     <span
       className="tree-fikon"
       data-ikon={ikon.id}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, color: ikon.color }}
       aria-hidden="true"
       // The SVG comes from a build-time generated table (scripts/gen-file-icons.mjs),
       // not from user input.

@@ -30,32 +30,107 @@ fs.rmSync(AKAR, { recursive: true, force: true });
 fs.mkdirSync(AKAR, { recursive: true });
 
 /* ── tanda isi: dipakai di dalam badan folder dan di lembar berkas ─────────── */
+/*
+ * ONE MARK PER FILE KIND, and they must look different at 14px.
+ *
+ * The previous version drew `<>` for every language, so TSX, Rust and Python
+ * were the same grey chevron - which is why the picker's cards looked identical
+ * no matter which theme was selected. A theme can only be judged by looking, and
+ * there was nothing to look at.
+ *
+ * Each entry now carries a COLOUR as well: the drawing alone is not enough at
+ * this size, and a TypeScript blue next to a Rust orange is recognisable before
+ * the shape is.
+ */
 const TANDA = {
-  kode: (x, y, s) =>
-    `<path d="M${x + s * 0.34} ${y + s * 0.22} ${x + s * 0.06} ${y + s * 0.5} ${x + s * 0.34} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `<path d="M${x + s * 0.66} ${y + s * 0.22} ${x + s * 0.94} ${y + s * 0.5} ${x + s * 0.66} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>`,
-  uji: (x, y, s) =>
-    `<path d="M${x + s * 0.3} ${y + s * 0.18}v${s * 0.34}L${x + s * 0.12} ${y + s * 0.8}h${s * 0.76}L${x + s * 0.7} ${y + s * 0.52}V${y + s * 0.18}" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` +
-    `<path d="M${x + s * 0.22} ${y + s * 0.18}h${s * 0.56}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
-  dokumen: (x, y, s) =>
-    `<path d="M${x + s * 0.18} ${y + s * 0.22}h${s * 0.64}M${x + s * 0.18} ${y + s * 0.46}h${s * 0.64}M${x + s * 0.18} ${y + s * 0.7}h${s * 0.4}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
-  aset: (x, y, s) =>
-    `<circle cx="${x + s * 0.34}" cy="${y + s * 0.34}" r="${s * 0.11}" fill="currentColor"/>` +
-    `<path d="M${x + s * 0.12} ${y + s * 0.82} ${x + s * 0.4} ${y + s * 0.52} ${x + s * 0.58} ${y + s * 0.68} ${x + s * 0.88} ${y + s * 0.4}v${s * 0.42}Z" fill="currentColor" opacity="0.85"/>`,
-  hasil: (x, y, s) =>
-    `<path d="M${x + s * 0.5} ${y + s * 0.16} ${x + s * 0.86} ${y + s * 0.36}v${s * 0.3}L${x + s * 0.5} ${y + s * 0.86} ${x + s * 0.14} ${y + s * 0.66}v${-s * 0.3}Z" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round"/>`,
-  konfig: (x, y, s) =>
-    `<circle cx="${x + s * 0.5}" cy="${y + s * 0.5}" r="${s * 0.17}" fill="none" stroke="currentColor" stroke-width="1.1"/>` +
-    `<path d="M${x + s * 0.5} ${y + s * 0.14}v${s * 0.12}M${x + s * 0.5} ${y + s * 0.74}v${s * 0.12}M${x + s * 0.14} ${y + s * 0.5}h${s * 0.12}M${x + s * 0.74} ${y + s * 0.5}h${s * 0.12}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
-  teks: (x, y, s) =>
-    `<path d="M${x + s * 0.2} ${y + s * 0.26}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.5}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.74}h${s * 0.38}" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>`,
-  data: (x, y, s) =>
-    `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.26}" rx="${s * 0.32}" ry="${s * 0.13}" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
-    `<path d="M${x + s * 0.18} ${y + s * 0.26}v${s * 0.46}M${x + s * 0.82} ${y + s * 0.26}v${s * 0.46}" stroke="currentColor" stroke-width="1.05"/>` +
-    `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.72}" rx="${s * 0.32}" ry="${s * 0.13}" fill="none" stroke="currentColor" stroke-width="1.05"/>`,
-  gaya: (x, y, s) =>
-    `<path d="M${x + s * 0.24} ${y + s * 0.18} ${x + s * 0.5} ${y + s * 0.5} ${x + s * 0.24} ${y + s * 0.82}" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `<circle cx="${x + s * 0.7}" cy="${y + s * 0.5}" r="${s * 0.14}" fill="currentColor"/>`,
+  ts: {
+    warna: '#3178c6',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.12} ${y + s * 0.28}h${s * 0.5}M${x + s * 0.37} ${y + s * 0.28}v${s * 0.5}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
+      `<path d="M${x + s * 0.72} ${y + s * 0.36}c${-s * 0.16} ${-s * 0.1} ${-s * 0.24} ${s * 0.04} ${-s * 0.12} ${s * 0.12}s${s * 0.14} ${s * 0.06} ${s * 0.02} ${s * 0.18}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>`,
+  },
+  rust: {
+    warna: '#dea584',
+    gambar: (x, y, s) =>
+      `<circle cx="${x + s * 0.5}" cy="${y + s * 0.5}" r="${s * 0.22}" fill="none" stroke="currentColor" stroke-width="1.5"/>` +
+      `<path d="M${x + s * 0.5} ${y + s * 0.16}v${s * 0.1}M${x + s * 0.5} ${y + s * 0.74}v${s * 0.1}M${x + s * 0.16} ${y + s * 0.5}h${s * 0.1}M${x + s * 0.74} ${y + s * 0.5}h${s * 0.1}" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>`,
+  },
+  python: {
+    warna: '#ffd43b',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.34} ${y + s * 0.18}h${s * 0.3}a${s * 0.14} ${s * 0.14} 0 0 1 ${s * 0.14} ${s * 0.14}v${s * 0.22}h${-s * 0.44}z" fill="currentColor" opacity="0.9"/>` +
+      `<path d="M${x + s * 0.66} ${y + s * 0.82}h${-s * 0.3}a${s * 0.14} ${s * 0.14} 0 0 1 ${-s * 0.14} ${-s * 0.14}v${-s * 0.22}h${s * 0.44}z" fill="currentColor" opacity="0.65"/>`,
+  },
+  js: {
+    warna: '#f7df1e',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.3} ${y + s * 0.26}v${s * 0.34}a${s * 0.12} ${s * 0.12} 0 0 1 ${-s * 0.24} 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>` +
+      `<path d="M${x + s * 0.72} ${y + s * 0.34}c${-s * 0.14} ${-s * 0.1} ${-s * 0.22} ${s * 0.06} ${-s * 0.1} ${s * 0.14}s${s * 0.12} ${s * 0.1} 0 ${s * 0.2}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  },
+  json: {
+    warna: '#cbcb41',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.34} ${y + s * 0.2}c${-s * 0.16} 0 ${-s * 0.14} ${s * 0.16} ${-s * 0.14} ${s * 0.3}s${-s * 0.02} ${s * 0.3} ${-s * 0.14} ${s * 0.3}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>` +
+      `<path d="M${x + s * 0.66} ${y + s * 0.2}c${s * 0.16} 0 ${s * 0.14} ${s * 0.16} ${s * 0.14} ${s * 0.3}s${s * 0.02} ${s * 0.3} ${s * 0.14} ${s * 0.3}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+  },
+  css: {
+    warna: '#42a5f5',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.22} ${y + s * 0.24}h${s * 0.56}l${-s * 0.06} ${s * 0.46}a${s * 0.2} ${s * 0.2} 0 0 1 ${-s * 0.22} 0z" fill="currentColor" opacity="0.85"/>` +
+      `<path d="M${x + s * 0.34} ${y + s * 0.4}h${s * 0.32}" stroke="var(--bg,#111)" stroke-width="1.3" stroke-linecap="round"/>`,
+  },
+  md: {
+    warna: '#42a5f5',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.2} ${y + s * 0.7}v${-s * 0.4}l${s * 0.16} ${s * 0.2} ${s * 0.16} ${-s * 0.2}v${s * 0.4}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<path d="M${x + s * 0.66} ${y + s * 0.3}v${s * 0.4}M${x + s * 0.58} ${y + s * 0.62}l${s * 0.08} ${s * 0.08} ${s * 0.08} ${-s * 0.08}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  },
+  teks: {
+    warna: '#9e9e9e',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.2} ${y + s * 0.26}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.5}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.74}h${s * 0.38}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
+  },
+  data: {
+    warna: '#a1887f',
+    gambar: (x, y, s) =>
+      `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.26}" rx="${s * 0.32}" ry="${s * 0.13}" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
+      `<path d="M${x + s * 0.18} ${y + s * 0.26}v${s * 0.46}M${x + s * 0.82} ${y + s * 0.26}v${s * 0.46}" stroke="currentColor" stroke-width="1.05"/>` +
+      `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.72}" rx="${s * 0.32}" ry="${s * 0.13}" fill="none" stroke="currentColor" stroke-width="1.05"/>`,
+  },
+  aset: {
+    warna: '#ba68c8',
+    gambar: (x, y, s) =>
+      `<circle cx="${x + s * 0.34}" cy="${y + s * 0.34}" r="${s * 0.11}" fill="currentColor"/>` +
+      `<path d="M${x + s * 0.12} ${y + s * 0.82} ${x + s * 0.4} ${y + s * 0.52} ${x + s * 0.58} ${y + s * 0.68} ${x + s * 0.88} ${y + s * 0.4}v${s * 0.42}Z" fill="currentColor" opacity="0.85"/>`,
+  },
+  hasil: {
+    warna: '#ffa726',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.5} ${y + s * 0.16} ${x + s * 0.86} ${y + s * 0.36}v${s * 0.3}L${x + s * 0.5} ${y + s * 0.86} ${x + s * 0.14} ${y + s * 0.66}v${-s * 0.3}Z" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round"/>`,
+  },
+  konfig: {
+    warna: '#8d9db6',
+    gambar: (x, y, s) =>
+      `<circle cx="${x + s * 0.5}" cy="${y + s * 0.5}" r="${s * 0.17}" fill="none" stroke="currentColor" stroke-width="1.1"/>` +
+      `<path d="M${x + s * 0.5} ${y + s * 0.14}v${s * 0.12}M${x + s * 0.5} ${y + s * 0.74}v${s * 0.12}M${x + s * 0.14} ${y + s * 0.5}h${s * 0.12}M${x + s * 0.74} ${y + s * 0.5}h${s * 0.12}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
+  },
+  kode: {
+    warna: '#90a4ae',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.34} ${y + s * 0.22} ${x + s * 0.06} ${y + s * 0.5} ${x + s * 0.34} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<path d="M${x + s * 0.66} ${y + s * 0.22} ${x + s * 0.94} ${y + s * 0.5} ${x + s * 0.66} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>`,
+  },
+  uji: {
+    warna: '#66bb6a',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.3} ${y + s * 0.18}v${s * 0.34}L${x + s * 0.12} ${y + s * 0.8}h${s * 0.76}L${x + s * 0.7} ${y + s * 0.52}V${y + s * 0.18}" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` +
+      `<path d="M${x + s * 0.22} ${y + s * 0.18}h${s * 0.56}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
+  },
+  dokumen: {
+    warna: '#64b5f6',
+    gambar: (x, y, s) =>
+      `<path d="M${x + s * 0.2} ${y + s * 0.24}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.46}h${s * 0.6}M${x + s * 0.2} ${y + s * 0.68}h${s * 0.4}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>`,
+  },
 };
 
 /*
@@ -120,60 +195,172 @@ function berkas(style, tanda) {
   );
 }
 
+/*
+ * ── TEMA AKSARA (Jepang / China) ──────────────────────────────────────────
+ *
+ * Ikonnya aksara, bukan bentuk geometri. Setiap jenis berkas mendapat aksara
+ * yang benar-benar berarti jenisnya, jadi tema ini bisa dibaca - bukan sekadar
+ * hiasan:
+ *
+ *   型 type/shape (TS)   錆 rust (Rust)      蛇 snake (Python)
+ *   花 flower (JSON)     装 style (CSS)      文 text (Markdown)
+ *
+ * Dua keluarga aksara disediakan karena keduanya terlihat berbeda dan orang
+ * mengenali miliknya sendiri: Kanji (Jepang) dan Hanzi (China Sederhana), plus
+ * Hiragana untuk yang ingin paling Jepang.
+ *
+ * CARA MENGGAMBAR: `<text>` di dalam SVG, dengan daftar font yang dijamin ada
+ * di sistem target (Yu Gothic / Meiryo / MS Gothic di Windows, Noto CJK di
+ * Linux, PingFang di macOS). Menggambar tiap aksara sebagai path akan berarti
+ * membundel font CJK sebesar puluhan MB - itu harga yang tidak sepadan untuk
+ * ikon 14px.
+ *
+ * `currentColor` tetap dipakai supaya warna tema aplikasi berlaku; warna per
+ * bahasa hanya dipakai untuk berkas, seperti tema lainnya.
+ */
+function aksaraTanda(peta) {
+  const hasil = {};
+  for (const [jenis, { huruf, warna }] of Object.entries(peta)) {
+    hasil[jenis] = {
+      warna,
+      gambar: (x, y, s) =>
+        `<text x="${x + s * 0.5}" y="${y + s * 0.5}" text-anchor="middle" dominant-baseline="central" ` +
+        `font-family="'Yu Gothic UI','Yu Gothic','Meiryo','MS Gothic','Noto Sans CJK JP','PingFang SC','Microsoft YaHei',sans-serif" ` +
+        `font-size="${(s * 0.92).toFixed(2)}" font-weight="600" fill="currentColor">${huruf}</text>`,
+    };
+  }
+  return hasil;
+}
+
+const AKSARA_KANJI = aksaraTanda({
+  ts: { huruf: '型', warna: '#3178c6' },
+  js: { huruf: '式', warna: '#f7df1e' },
+  rust: { huruf: '錆', warna: '#dea584' },
+  python: { huruf: '蛇', warna: '#ffd43b' },
+  json: { huruf: '花', warna: '#cbcb41' },
+  css: { huruf: '装', warna: '#42a5f5' },
+  md: { huruf: '文', warna: '#42a5f5' },
+  teks: { huruf: '紙', warna: '#9e9e9e' },
+  data: { huruf: '庫', warna: '#a1887f' },
+  aset: { huruf: '絵', warna: '#ba68c8' },
+  hasil: { huruf: '箱', warna: '#ffa726' },
+  konfig: { huruf: '鍵', warna: '#8d9db6' },
+  kode: { huruf: '源', warna: '#90a4ae' },
+  uji: { huruf: '験', warna: '#66bb6a' },
+  dokumen: { huruf: '書', warna: '#64b5f6' },
+});
+
+const AKSARA_HANZI = aksaraTanda({
+  ts: { huruf: '型', warna: '#3178c6' },
+  js: { huruf: '式', warna: '#f7df1e' },
+  rust: { huruf: '锈', warna: '#dea584' },
+  python: { huruf: '蛇', warna: '#ffd43b' },
+  json: { huruf: '花', warna: '#cbcb41' },
+  css: { huruf: '装', warna: '#42a5f5' },
+  md: { huruf: '文', warna: '#42a5f5' },
+  teks: { huruf: '纸', warna: '#9e9e9e' },
+  data: { huruf: '库', warna: '#a1887f' },
+  aset: { huruf: '图', warna: '#ba68c8' },
+  hasil: { huruf: '箱', warna: '#ffa726' },
+  konfig: { huruf: '键', warna: '#8d9db6' },
+  kode: { huruf: '源', warna: '#90a4ae' },
+  uji: { huruf: '验', warna: '#66bb6a' },
+  dokumen: { huruf: '书', warna: '#64b5f6' },
+});
+
+const AKSARA_HIRAGANA = aksaraTanda({
+  ts: { huruf: 'か', warna: '#3178c6' },
+  js: { huruf: 'し', warna: '#f7df1e' },
+  rust: { huruf: 'さ', warna: '#dea584' },
+  python: { huruf: 'へ', warna: '#ffd43b' },
+  json: { huruf: 'は', warna: '#cbcb41' },
+  css: { huruf: 'す', warna: '#42a5f5' },
+  md: { huruf: 'も', warna: '#42a5f5' },
+  teks: { huruf: 'と', warna: '#9e9e9e' },
+  data: { huruf: 'く', warna: '#a1887f' },
+  aset: { huruf: 'え', warna: '#ba68c8' },
+  hasil: { huruf: 'は', warna: '#ffa726' },
+  konfig: { huruf: 'か', warna: '#8d9db6' },
+  kode: { huruf: 'こ', warna: '#90a4ae' },
+  uji: { huruf: 'て', warna: '#66bb6a' },
+  dokumen: { huruf: 'ふ', warna: '#64b5f6' },
+});
+
 /* ── delapan tema, semuanya FOLDER, hanya gayanya berbeda ──────────────────── */
 const TEMA = {
   klasik: {
-    label: 'Klasik',
-    ket: 'Folder isi penuh dengan tab, sudut membulat kecil — gaya paling akrab.',
+    label: 'Classic Folder',
+    ket: 'Folder standar modern: bodi terisi lembut dengan tab tegas dan sudut membulat kecil.',
     style: { r: 1.2, sw: 1.15, op: 0.22, join: 'round', cap: 'round', fold: true },
   },
   garis: {
-    label: 'Garis',
-    ket: 'Hanya garis luar, tanpa isi — ringan dan tenang.',
+    label: 'Clean Outline',
+    ket: 'Hanya garis kontur luar tanpa isi — bersih, ringan, dan tidak menarik perhatian.',
     style: { r: 1.2, sw: 1.3, op: 0, join: 'round', cap: 'round', outlineOnly: true, fold: true },
   },
   padat: {
-    label: 'Padat',
-    ket: 'Isi penuh tanpa garis dalam — tegas dan mudah dibaca.',
+    label: 'Solid Modern',
+    ket: 'Bodi folder terisi penuh tanpa garis dalam — tegas dan jelas di ukuran kecil.',
     style: { r: 0.8, sw: 0, op: 0.85, join: 'miter', cap: 'butt', tab: 'none', fold: false, fillOnly: true },
   },
   duotone: {
-    label: 'Duotone',
-    ket: 'Badan pekat, tab dan tanda lebih terang — dua nada.',
+    label: 'Duotone Accent',
+    ket: 'Badan pekat dengan tab dan tanda lebih terang — dua nada warna dalam satu ikon.',
     style: { r: 1.2, sw: 1.1, op: 0.55, join: 'round', cap: 'round', fold: true },
   },
   bulat: {
-    label: 'Bulat',
-    ket: 'Sudut sangat membulat, tab melengkung.',
+    label: 'Soft Rounded',
+    ket: 'Sudut sangat melengkung dan tab membulat — paling lembut dari kedelapan tema.',
     style: { r: 2.4, sw: 1.2, op: 0.24, join: 'round', cap: 'round', fold: true },
   },
   tajam: {
-    label: 'Tajam',
-    ket: 'Sudut siku dan tab persegi — kaku dan rapi.',
+    label: 'Sharp Grid',
+    ket: 'Sudut siku dan tab persegi — presisi dan rapi untuk tampilan teknis.',
     style: { r: 0.1, sw: 1.25, op: 0.2, join: 'miter', cap: 'butt', fold: true },
   },
   terbuka: {
-    label: 'Terbuka',
-    ket: 'Penutup folder terlipat terlihat — memberi kesan isi.',
+    label: 'Expanded Dynamic',
+    ket: 'Penutup folder terlihat terlipat — memberi kesan isi dan kedalaman.',
     style: { r: 1.2, sw: 1.15, op: 0.18, join: 'round', cap: 'round', fold: true },
   },
   minimal: {
-    label: 'Minimal',
-    ket: 'Garis tipis satu warna, tanpa isi dan tanpa tab.',
+    label: 'Minimal Slim',
+    ket: 'Garis tipis satu warna tanpa isi dan tanpa tab — seminimal mungkin.',
     style: { r: 1.4, sw: 0.9, op: 0, join: 'round', cap: 'round', outlineOnly: true, tab: 'none', fold: false },
+  },
+  /* Tiga tema AKSARA. Bentuk foldernya sama dengan Klasik; yang membedakan
+     aksara di dalamnya. `tanda` menimpa tabel TANDA geometri untuk tema ini. */
+  kanji: {
+    label: 'Kanji',
+    ket: 'Ikon aksara Kanji Jepang: 型 untuk TypeScript, 錆 untuk Rust, 蛇 untuk Python. Folder tetap folder.',
+    style: { r: 0.9, sw: 1.45, op: 0.14, join: 'miter', cap: 'square', fold: true },
+    tanda: AKSARA_KANJI,
+  },
+  hanzi: {
+    label: 'Hanzi',
+    ket: 'Ikon aksara Hanzi China Sederhana: 型 TypeScript, 锈 Rust, 蛇 Python. Folder tetap folder.',
+    style: { r: 0.4, sw: 1.25, op: 0.26, join: 'miter', cap: 'butt', fold: true },
+    tanda: AKSARA_HANZI,
+  },
+  hiragana: {
+    label: 'Hiragana',
+    ket: 'Ikon aksara Hiragana Jepang: か TypeScript, さ Rust, へ Python. Paling ringan dari ketiga tema aksara.',
+    style: { r: 2.2, sw: 1.05, op: 0.16, join: 'round', cap: 'round', fold: false },
+    tanda: AKSARA_HIRAGANA,
   },
 };
 
-/* Ekstensi -> jenis tanda. */
+/* Ekstensi -> jenis tanda. Setiap bahasa punya tanda SENDIRI. */
 const JENIS = {
-  ts: 'kode', tsx: 'kode', js: 'kode', jsx: 'kode', mjs: 'kode', cjs: 'kode',
-  rs: 'kode', go: 'kode', py: 'kode', java: 'kode', kt: 'kode', c: 'kode',
+  ts: 'ts', tsx: 'ts', mts: 'ts', cts: 'ts',
+  js: 'js', jsx: 'js', mjs: 'js', cjs: 'js',
+  rs: 'rust', go: 'kode', py: 'python', java: 'kode', kt: 'kode', c: 'kode',
   cpp: 'kode', h: 'kode', hpp: 'kode', cs: 'kode', rb: 'kode', php: 'kode',
   swift: 'kode', sh: 'kode', ps1: 'kode', lua: 'kode',
-  md: 'teks', txt: 'teks', rst: 'teks', log: 'teks',
-  json: 'data', yml: 'data', yaml: 'data', toml: 'data', xml: 'data', csv: 'data', sql: 'data',
+  md: 'md', txt: 'teks', rst: 'teks', log: 'teks',
+  json: 'json', jsonc: 'json', yml: 'data', yaml: 'data', toml: 'data', xml: 'data', csv: 'data', sql: 'data',
   png: 'aset', jpg: 'aset', jpeg: 'aset', gif: 'aset', svg: 'aset', webp: 'aset', ico: 'aset', bmp: 'aset',
-  css: 'gaya', scss: 'gaya', sass: 'gaya', less: 'gaya',
+  css: 'css', scss: 'css', sass: 'css', less: 'css',
   lock: 'konfig', pem: 'konfig', key: 'konfig',
   zip: 'hasil', tar: 'hasil', gz: 'hasil', '7z': 'hasil', rar: 'hasil',
 };
@@ -185,6 +372,91 @@ const KELOMPOK = {
   aset: ['assets', 'images', 'img', 'icons', 'fonts', 'media', 'screenshots', 'public', 'static'],
   hasil: ['dist', 'build', 'out', 'target', 'release', 'coverage', 'vendor', 'node_modules', '.next', '.cache'],
   konfig: ['.git', '.github', '.vscode', '.idea', '.zephyr', '.claude', 'scripts', 'tools', 'config', 'configs', 'ci'],
+};
+
+/*
+ * ── IKON KHUSUS PER NAMA FOLDER ────────────────────────────────────────────
+ *
+ * Kelompok saja tidak cukup. `src`, `lib`, `app`, dan `components` semuanya
+ * masuk kelompok `kode`, jadi keempatnya memakai SATU gambar - dan pohon berkas
+ * berisi belasan folder yang terlihat identik. Itu yang membuat "tema sudah
+ * berganti tapi ikonnya masih sama".
+ *
+ * Setiap nama penting sekarang punya tanda sendiri, digambar di dalam bentuk
+ * folder tema. Yang dipilih adalah tanda yang benar-benar berarti:
+ *
+ *   src       kode ( < > )        components  kotak tersusun
+ *   lib       buku                hooks       kait
+ *   app       jendela             store       silinder data
+ *   api       awan/server         scripts     terminal
+ *   docs      dokumen             tests       tabung uji
+ *   public    globe               assets      gambar
+ *   .github   cabang git          .zephyr     berlian
+ *   release   kotak paket         config      roda gigi
+ */
+const TANDA_NAMA = {
+  src: { warna: '#4fc3f7', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.34} ${y + s * 0.22} ${x + s * 0.06} ${y + s * 0.5} ${x + s * 0.34} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M${x + s * 0.66} ${y + s * 0.22} ${x + s * 0.94} ${y + s * 0.5} ${x + s * 0.66} ${y + s * 0.78}" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>` },
+  lib: { warna: '#a5d6a7', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.2} ${y + s * 0.2}h${s * 0.28}v${s * 0.6}h${-s * 0.28}z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` +
+    `<path d="M${x + s * 0.52} ${y + s * 0.2}h${s * 0.28}v${s * 0.6}h${-s * 0.28}z" fill="currentColor" opacity="0.75"/>` },
+  components: { warna: '#ffb74d', gambar: (x, y, s) =>
+    `<rect x="${x + s * 0.16}" y="${y + s * 0.16}" width="${s * 0.3}" height="${s * 0.3}" rx="0.7" fill="none" stroke="currentColor" stroke-width="1.1"/>` +
+    `<rect x="${x + s * 0.54}" y="${y + s * 0.54}" width="${s * 0.3}" height="${s * 0.3}" rx="0.7" fill="currentColor" opacity="0.8"/>` },
+  hooks: { warna: '#ba68c8', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.36} ${y + s * 0.16}v${s * 0.26}a${s * 0.2} ${s * 0.2} 0 0 0 ${s * 0.4} 0v${-s * 0.1}" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` +
+    `<path d="M${x + s * 0.36} ${y + s * 0.66}v${s * 0.18}" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>` },
+  app: { warna: '#64b5f6', gambar: (x, y, s) =>
+    `<rect x="${x + s * 0.14}" y="${y + s * 0.18}" width="${s * 0.72}" height="${s * 0.64}" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/>` +
+    `<path d="M${x + s * 0.14} ${y + s * 0.36}h${s * 0.72}" stroke="currentColor" stroke-width="1.1"/>` },
+  store: { warna: '#4db6ac', gambar: (x, y, s) =>
+    `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.26}" rx="${s * 0.28}" ry="${s * 0.11}" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
+    `<path d="M${x + s * 0.22} ${y + s * 0.26}v${s * 0.46}M${x + s * 0.78} ${y + s * 0.26}v${s * 0.46}" stroke="currentColor" stroke-width="1.05"/>` +
+    `<ellipse cx="${x + s * 0.5}" cy="${y + s * 0.72}" rx="${s * 0.28}" ry="${s * 0.11}" fill="none" stroke="currentColor" stroke-width="1.05"/>` },
+  api: { warna: '#81c784', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.28} ${y + s * 0.66}a${s * 0.16} ${s * 0.16} 0 0 1 0 ${-s * 0.3} ${s * 0.16} ${s * 0.16} 0 0 1 ${s * 0.02} ${-s * 0.16}h${s * 0.4}a${s * 0.14} ${s * 0.14} 0 0 1 ${s * 0.02} ${s * 0.16} ${s * 0.16} ${s * 0.16} 0 0 1 0 ${s * 0.3}z" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round"/>` },
+  scripts: { warna: '#90a4ae', gambar: (x, y, s) =>
+    `<rect x="${x + s * 0.12}" y="${y + s * 0.2}" width="${s * 0.76}" height="${s * 0.6}" rx="1" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
+    `<path d="M${x + s * 0.28} ${y + s * 0.42} ${x + s * 0.4} ${y + s * 0.52} ${x + s * 0.28} ${y + s * 0.62}M${x + s * 0.5} ${y + s * 0.64}h${s * 0.2}" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>` },
+  docs: { warna: '#64b5f6', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.2} ${y + s * 0.18}h${s * 0.4}v${s * 0.64}h${-s * 0.4}z" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
+    `<path d="M${x + s * 0.62} ${y + s * 0.18}h${s * 0.18}v${s * 0.64}h${-s * 0.18}z" fill="currentColor" opacity="0.7"/>` },
+  test: { warna: '#66bb6a', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.36} ${y + s * 0.16}v${s * 0.3}L${x + s * 0.18} ${y + s * 0.8}h${s * 0.64}L${x + s * 0.64} ${y + s * 0.46}V${y + s * 0.16}" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>` },
+  public: { warna: '#4dd0e1', gambar: (x, y, s) =>
+    `<circle cx="${x + s * 0.5}" cy="${y + s * 0.5}" r="${s * 0.3}" fill="none" stroke="currentColor" stroke-width="1.05"/>` +
+    `<path d="M${x + s * 0.2} ${y + s * 0.5}h${s * 0.6}M${x + s * 0.5} ${y + s * 0.2}c${s * 0.16} ${s * 0.18} ${s * 0.16} ${s * 0.42} 0 ${s * 0.6}" fill="none" stroke="currentColor" stroke-width="0.95"/>` },
+  assets: { warna: '#ba68c8', gambar: (x, y, s) =>
+    `<circle cx="${x + s * 0.34}" cy="${y + s * 0.34}" r="${s * 0.1}" fill="currentColor"/>` +
+    `<path d="M${x + s * 0.14} ${y + s * 0.8} ${x + s * 0.4} ${y + s * 0.54} ${x + s * 0.58} ${y + s * 0.68} ${x + s * 0.86} ${y + s * 0.42}v${s * 0.38}Z" fill="currentColor" opacity="0.8"/>` },
+  git: { warna: '#f4511e', gambar: (x, y, s) =>
+    `<circle cx="${x + s * 0.32}" cy="${y + s * 0.28}" r="${s * 0.11}" fill="currentColor"/>` +
+    `<circle cx="${x + s * 0.32}" cy="${y + s * 0.72}" r="${s * 0.11}" fill="currentColor"/>` +
+    `<circle cx="${x + s * 0.7}" cy="${y + s * 0.5}" r="${s * 0.11}" fill="currentColor"/>` +
+    `<path d="M${x + s * 0.32} ${y + s * 0.39}v${s * 0.22}M${x + s * 0.41} ${y + s * 0.5}h${s * 0.2}" stroke="currentColor" stroke-width="1.1"/>` },
+  zephyr: { warna: '#4fc3f7', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.5} ${y + s * 0.16} ${x + s * 0.84} ${y + s * 0.5} ${x + s * 0.5} ${y + s * 0.84} ${x + s * 0.16} ${y + s * 0.5}Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>` +
+    `<path d="M${x + s * 0.5} ${y + s * 0.34} ${x + s * 0.66} ${y + s * 0.5} ${x + s * 0.5} ${y + s * 0.66} ${x + s * 0.34} ${y + s * 0.5}Z" fill="currentColor" opacity="0.8"/>` },
+  release: { warna: '#ffa726', gambar: (x, y, s) =>
+    `<path d="M${x + s * 0.5} ${y + s * 0.14} ${x + s * 0.84} ${y + s * 0.34}v${s * 0.32}L${x + s * 0.5} ${y + s * 0.86} ${x + s * 0.16} ${y + s * 0.66}V${y + s * 0.34}Z" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round"/>` },
+  config: { warna: '#8d9db6', gambar: (x, y, s) =>
+    `<circle cx="${x + s * 0.5}" cy="${y + s * 0.5}" r="${s * 0.16}" fill="none" stroke="currentColor" stroke-width="1.1"/>` +
+    `<path d="M${x + s * 0.5} ${y + s * 0.16}v${s * 0.1}M${x + s * 0.5} ${y + s * 0.74}v${s * 0.1}M${x + s * 0.16} ${y + s * 0.5}h${s * 0.1}M${x + s * 0.74} ${y + s * 0.5}h${s * 0.1}" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>` },
+};
+
+/* Nama folder -> kunci TANDA_NAMA. Yang tidak ada di sini memakai kelompoknya. */
+const NAMA_KHUSUS = {
+  src: 'src', lib: 'lib', app: 'app', components: 'components', hooks: 'hooks',
+  store: 'store', stores: 'store', api: 'api', scripts: 'scripts', tools: 'scripts',
+  docs: 'docs', doc: 'docs', documentation: 'docs',
+  test: 'test', tests: 'test', __tests__: 'test', spec: 'test', specs: 'test',
+  public: 'public', static: 'public',
+  assets: 'assets', images: 'assets', img: 'assets', icons: 'assets', media: 'assets',
+  '.git': 'git', '.github': 'git',
+  '.zephyr': 'zephyr', '.claude': 'zephyr',
+  release: 'release', dist: 'release', build: 'release', out: 'release', target: 'release',
+  config: 'config', configs: 'config', '.vscode': 'config', '.idea': 'config',
 };
 
 const NAMA_BERKAS = {
@@ -210,25 +482,48 @@ for (const [kunci, t] of Object.entries(TEMA)) {
   const folderIkon = path.join(folderPaket, 'icons');
   fs.mkdirSync(folderIkon, { recursive: true });
 
+  /* Tema aksara membawa tabel tandanya sendiri; tema geometri memakai TANDA. */
+  const TABEL = t.tanda ?? TANDA;
+
   const iconDefinitions = {};
   const fileExtensions = {};
   const fileNames = {};
   const folderNames = {};
   const folderNamesExpanded = {};
 
-  /* Berkas: satu per jenis tanda. */
-  for (const [jenis, gambar] of Object.entries(TANDA)) {
+  /* Berkas: satu per jenis tanda. Warna ikut ditulis ke SVG supaya TS biru,
+     Rust oranye, Python kuning - bukan semua abu-abu. */
+  for (const [jenis, t2] of Object.entries(TABEL)) {
     const namaFile = `file-${jenis}.svg`;
-    fs.writeFileSync(path.join(folderIkon, namaFile), berkas(t.style, gambar), 'utf8');
+    const svg = berkas(t.style, t2.gambar).replace(/currentColor/g, t2.warna);
+    fs.writeFileSync(path.join(folderIkon, namaFile), svg, 'utf8');
     iconDefinitions[`_f_${jenis}`] = { iconPath: `./icons/${namaFile}` };
   }
 
-  /* Folder: per kelompok, tertutup dan terbuka. */
-  for (const jenis of Object.keys(TANDA)) {
+  /* Folder: per kelompok, tertutup dan terbuka. Folder memakai currentColor
+     supaya warnanya ikut tema aplikasi, bukan warna bahasa. */
+  for (const [jenis, t2] of Object.entries(TABEL)) {
     for (const buka of [false, true]) {
       const nama = `folder-${jenis}${buka ? '-open' : ''}.svg`;
-      fs.writeFileSync(path.join(folderIkon, nama), folder(t.style, buka, TANDA[jenis]), 'utf8');
+      fs.writeFileSync(path.join(folderIkon, nama), folder(t.style, buka, t2.gambar), 'utf8');
       iconDefinitions[`_d_${jenis}${buka ? 'Open' : ''}`] = { iconPath: `./icons/${nama}` };
+    }
+  }
+
+  /*
+   * Folder BERNAMA: satu gambar per nama penting, bukan satu gambar per
+   * kelompok. Tanpa ini `src`, `lib`, `app` dan `components` semuanya memakai
+   * tanda `kode` yang sama, dan pohon berkas berisi belasan folder identik -
+   * terbaca sebagai "ikonnya tidak berubah" walaupun temanya sudah berganti.
+   */
+  for (const [kunciNama, kunciTanda] of Object.entries(NAMA_KHUSUS)) {
+    const tanda = TANDA_NAMA[kunciTanda];
+    if (!tanda) continue;
+    for (const buka of [false, true]) {
+      const aman = kunciNama.replace(/[^a-z0-9]+/gi, '_');
+      const nama = `fn-${aman}${buka ? '-open' : ''}.svg`;
+      fs.writeFileSync(path.join(folderIkon, nama), folder(t.style, buka, tanda.gambar), 'utf8');
+      iconDefinitions[`_n_${aman}${buka ? 'Open' : ''}`] = { iconPath: `./icons/${nama}` };
     }
   }
 
@@ -240,15 +535,29 @@ for (const [kunci, t] of Object.entries(TEMA)) {
   }
 
   /* Berkas umum. */
-  fs.writeFileSync(path.join(folderIkon, 'file.svg'), berkas(t.style, TANDA.teks), 'utf8');
+  fs.writeFileSync(
+    path.join(folderIkon, 'file.svg'),
+    berkas(t.style, TABEL.teks.gambar).replace(/currentColor/g, TABEL.teks.warna),
+    'utf8',
+  );
   iconDefinitions._file = { iconPath: './icons/file.svg' };
 
   for (const [ext, jenis] of Object.entries(JENIS)) fileExtensions[ext] = `_f_${jenis}`;
   for (const [nama, jenis] of Object.entries(NAMA_BERKAS)) fileNames[nama] = `_f_${jenis}`;
+
+  /* Nama KHUSUS menang atas kelompoknya: `src` memakai tanda kode-nya sendiri,
+     bukan tanda kelompok `kode` yang dipakai bersama sepuluh folder lain. */
   for (const [jenis, nama] of Object.entries(KELOMPOK)) {
     for (const n of nama) {
-      folderNames[n] = `_d_${jenis}`;
-      folderNamesExpanded[n] = `_d_${jenis}Open`;
+      const khusus = NAMA_KHUSUS[n];
+      if (khusus) {
+        const aman = n.replace(/[^a-z0-9]+/gi, '_');
+        folderNames[n] = `_n_${aman}`;
+        folderNamesExpanded[n] = `_n_${aman}Open`;
+      } else {
+        folderNames[n] = `_d_${jenis}`;
+        folderNamesExpanded[n] = `_d_${jenis}Open`;
+      }
     }
   }
 

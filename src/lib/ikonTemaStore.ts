@@ -69,6 +69,14 @@ interface IkonTemaState {
    */
   dipilihManual: boolean;
   /**
+   * Bumped every time the render map is actually swapped.
+   *
+   * `aktif` cannot carry this signal: zustand skips a `set` whose value is
+   * unchanged, so writing the same id after the map arrives never re-rendered
+   * anything. Subscribers watch this counter instead - see `pilih`.
+   */
+  versiIkon: number;
+  /**
    * Replace the pack list. Called by the loader after it reads the installed
    * extensions; the active choice is kept if that pack still exists.
    */
@@ -157,6 +165,41 @@ export function sinkronPilihanIkon(): void {
    */
   if (s.aktif === aktif) return;
 
+  /*
+   * A CHOICE ARRIVING BEFORE THE PACKS IS NOT "NO PACK".
+   *
+   * This was the bug behind "the main window never changes, it stays on the
+   * built-in icons". The Settings window writes the choice to localStorage and
+   * fires `storage`; this window hears it and calls this function - but its own
+   * `packs` list is still empty, because the extension loader has not finished
+   * (or the pack was installed in a third window). `find()` then returned
+   * undefined, `terapkanPaketIkon(null)` CLEARED the render map, and the tree
+   * fell back to Zephyr's built-in art. Every click in Settings therefore RESET
+   * the main window to the defaults instead of applying the theme.
+   *
+   * So: when the id is set but the pack is not here yet, load the extensions and
+   * apply afterwards. The id is recorded either way, so the choice is not lost.
+   */
+  if (aktif && !s.packs.some((p) => p.extId === aktif)) {
+    useIkonTema.setState({ aktif, dipilihManual });
+    void import('./extLoader')
+      .then((m) => m.muatSemuaEkstensi())
+      .then(() => {
+        /* Re-read AFTER the load: `packs` is now filled by the loader. */
+        const segar = useIkonTema.getState();
+        const ada = segar.packs.find((p) => p.extId === aktif);
+        if (!ada) return;
+        return import('./extIkonFile').then((m) => {
+          m.setIdPaketAktif(ada.label);
+          m.terapkanPaketIkon(ada.ikon, ada.label);
+        });
+      })
+      .catch(() => {
+        /* The loader could not read extensions; the id stays recorded. */
+      });
+    return;
+  }
+
   const paket = aktif ? s.packs.find((p) => p.extId === aktif) : null;
 
   /*
@@ -166,10 +209,6 @@ export function sinkronPilihanIkon(): void {
    * paint one frame with the new id and the OLD icons - a flash of the previous
    * theme, and on a slow frame the wrong set for long enough to notice. Pack
    * first means the paint that the id triggers already has the right art.
-   *
-   * If the pack is not in this window's list yet (the loader has not finished
-   * reading extensions), the id is still recorded so the next load applies it;
-   * that is honest - the choice is remembered even when it cannot be drawn yet.
    */
   void import('./extIkonFile').then((m) => {
     m.setIdPaketAktif(paket ? paket.label : '');
@@ -201,6 +240,7 @@ function buatStore() {
     packs: [],
     aktif: muatPilihan().aktif,
     dipilihManual: muatPilihan().dipilihManual,
+    versiIkon: 0,
   setPacks: (packs) => {
     const { aktif, dipilihManual } = get();
     /*
@@ -282,17 +322,20 @@ function buatStore() {
       m.setIdPaketAktif(paket ? paket.label : '');
       m.terapkanPaketIkon(paket ? paket.ikon : null, paket ? paket.label : '');
       /*
-       * Re-render AFTER the map has been swapped.
+       * BUMP A COUNTER - do not re-set `aktif` to itself.
        *
-       * `FileIcon` subscribes to `aktif`, and that already fired - but the map
-       * write is what changes the DRAWING, and it happens in this continuation.
-       * Bumping `aktif` again (via a fresh object) is not needed: the dynamic
-       * import resolves in the same task queue as the click, so React's
-       * re-render for the state change and this write are ordered correctly.
-       * The extra notification covers the case where the map arrives LATER than
-       * the first paint (a cold import on the very first click).
+       * The map write above is what changes the DRAWING, and it happens in this
+       * continuation, after the state change that already fired. The old code
+       * "notified" by writing `aktif: s.aktif`, and zustand compares values:
+       * setting the same string is a no-op, so React never re-rendered and the
+       * tree kept the PREVIOUS theme until something unrelated repainted it.
+       * That is exactly the "always one theme behind" behaviour that was
+       * measured: pick Duotone, the tree shows Soft Rounded.
+       *
+       * `versiIkon` is a number that always changes, so every consumer that
+       * subscribes to it re-renders at the moment the map is ready.
        */
-      set((s) => ({ aktif: s.aktif }));
+      set((s) => ({ versiIkon: (s.versiIkon ?? 0) + 1 }));
     });
   },
   }));

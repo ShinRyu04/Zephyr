@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-hiragana",
+  "name": "Ikon Hiragana",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Ikon aksara Hiragana Jepang: か TypeScript, さ Rust, へ Python. Paling ringan dari ketiga tema aksara.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Hiragana",
+        "path": "./icons/hiragana.json"
+      }
+    ]
+  }
+}

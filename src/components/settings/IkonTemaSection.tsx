@@ -40,17 +40,39 @@ const CONTOH = [
   { nama: 'README.md', ext: 'md', label: 'Markdown' },
 ];
 
+/*
+ * FOLDER examples, drawn from the SAME pack the card is selling.
+ *
+ * This is the fix for "the cards all look the same". The card used to show six
+ * FILE icons only, and in the pack those six files were drawn from the same few
+ * marks - so eight visibly different themes produced eight identical-looking
+ * cards. An icon theme is mostly about folders, and the folder is the one shape
+ * that actually differs between the themes, so it belongs on the card.
+ *
+ * Three folders are shown: one per-name folder (`src`, which every pack draws
+ * specially), one group folder (`docs`), and the generic folder with its OPEN
+ * variant - because open/closed is a second thing the themes differ on.
+ */
+const CONTOH_FOLDER: { nama: string; label: string; buka?: boolean }[] = [
+  { nama: 'src', label: 'src' },
+  { nama: 'docs', label: 'docs' },
+  { nama: 'assets', label: 'assets', buka: true },
+];
+
 /** One icon drawn from a pack, or a dash when the pack has nothing for it. */
 function ContohIkon({
   ikon,
+  size = 16,
 }: {
   ikon?: { glyph?: string; color?: string; svg?: string };
+  size?: number;
 }) {
   if (!ikon) return <span className="ikt-kosong">—</span>;
   if (ikon.svg) {
     return (
       <span
         className="ikt-svg"
+        style={{ width: size, height: size, color: ikon.color }}
         aria-hidden="true"
         /* From the pack's own JSON, sanitised in `normalisasiSvg`
            (extLoader.ts) before it is ever stored. */
@@ -59,7 +81,11 @@ function ContohIkon({
     );
   }
   return (
-    <span className="ikt-glif" style={{ color: ikon.color ?? 'var(--fg2)' }} aria-hidden="true">
+    <span
+      className="ikt-glif"
+      style={{ color: ikon.color ?? 'var(--fg2)', fontSize: Math.max(9, Math.round(size * 0.8)) }}
+      aria-hidden="true"
+    >
       {ikon.glyph}
     </span>
   );
@@ -161,6 +187,24 @@ export default function IkonTemaSection() {
               <span className="ikt-card-head">
                 <span className="ikt-card-nama">{p.label}</span>
                 {aktifIni && <span className="ikt-badge">{tr('Active')}</span>}
+              </span>
+              {/*
+                * The FOLDER row first, and large.
+                *
+                * This is the whole difference between the themes - the folder
+                * body, its corners, whether it is filled, and what the open lid
+                * looks like. Showing only file marks made every card look alike.
+                */}
+              <span className="ikt-folder-baris">
+                {CONTOH_FOLDER.map((c) => (
+                  <span className="ikt-folder-item" key={c.nama}>
+                    <ContohIkon
+                      ikon={p.ikon[`folder-open:${c.nama}`] ?? p.ikon[`folder:${c.nama}`] ?? p.ikon[c.buka ? 'folder-open' : 'folder']}
+                      size={22}
+                    />
+                    <span className="ikt-contoh-nama">{c.nama}</span>
+                  </span>
+                ))}
               </span>
               <span className="ikt-contoh">
                 {CONTOH.map((c) => (

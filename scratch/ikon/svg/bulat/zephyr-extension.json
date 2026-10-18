@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-bulat",
-  "name": "Ikon Bulat",
+  "name": "Ikon Soft Rounded",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Sudut sangat membulat, tab melengkung.",
+  "description": "Sudut sangat melengkung dan tab membulat — paling lembut dari kedelapan tema.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Bulat",
+        "label": "Soft Rounded",
         "path": "./icons/bulat.json"
       }
     ]

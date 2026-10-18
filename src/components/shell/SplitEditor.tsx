@@ -19,14 +19,15 @@ const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
 const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
 const ToolsView = lazy(() => import('./ToolsView'));
 const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
-// Dev Environment, API Client and SFTP are full-page views: each carries its own
-// header and row layout. They take over the middle area the same way Settings
-// does below, instead of sitting in the sidebar, where they were squeezed into a
-// narrow column while the editor stayed empty beside them.
-const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
+/*
+ * Dev Environment, API Client and SFTP are NO LONGER editor views.
+ *
+ * They live inside the Tools window as tabs (see ToolsView). The per-activity
+ * imports were removed with the branch that rendered them here - leaving the
+ * imports behind is how a "removed" feature keeps a bundle chunk and an
+ * unused-symbol error around for a year.
+ */
 const TestsView = lazy(() => import('../shell/TestsView'));
-const ApiClientView = lazy(() => import('../api/ApiClientView'));
-const SftpView = lazy(() => import('../sftp/SftpView'));
 import { useGit } from '../../lib/gitStore';
 import { useT, tx } from '../../lib/i18n';
 function EmptyState() {
@@ -299,27 +300,26 @@ export default function SplitEditor() {
     void applySettings({ general: { aiPanel: 'right' } } as never);
   }, [migrasiChatEditor, applySettings]);
 
-  if (
-    activity === 'devenv' ||
-    activity === 'api' ||
-    activity === 'sftp' ||
-    activity === 'tests'
-  ) {
+  /*
+   * Dev Environment, API Client and SFTP live INSIDE the Tools view as tabs.
+   *
+   * They used to be activities of their own, each rendering straight into the
+   * editor area - so `activity === 'sftp'` put an SFTP client where the reader's
+   * code was supposed to be, and the same surface was reachable two different
+   * ways. The rail has ONE entry for all of them (`tools`), and this branch
+   * deliberately no longer has a per-activity arm: a stale profile, a keybinding
+   * or the palette naming `sftp` now lands on the Tools tab through
+   * `setToolsTab`, not on a full-bleed editor takeover.
+   *
+   * `tests` stays because it is not part of Tools any more - it is its own view.
+   */
+  if (activity === 'tests') {
     return (
       <section className="editor-area">
-        {/* editor-host is what gives its child the full height (it carries
-            flex: 1 + min-height: 0). Without it each view collapsed to its own
-            content height: 212px for the API client, 39px for SFTP. */}
         <div className="editor-host">
           <ErrorBoundary nama="Panel">
             <Suspense fallback={null}>
-              {/* The rail has one entry for all four; the single-activity
-                  branches stay so the palette can still jump straight to one
-                  of them without going through the tab strip. */}
-              {activity === 'devenv' && <DevEnvView />}
-              {activity === 'api' && <ApiClientView />}
-              {activity === 'sftp' && <SftpView />}
-              {activity === 'tests' && <TestsView />}
+              <TestsView />
             </Suspense>
           </ErrorBoundary>
         </div>

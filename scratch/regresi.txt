@@ -76,3 +76,406 @@ harness  : 136
   verify-rules-hidup2.mjs            LEWAT     243 ms
   verify-rules.mjs                   LULUS     237 ms
   verify-screenshot-ui.mjs           LEWAT     184 ms
+  verify-semua.mjs                   LEWAT  240026 ms
+  verify-sesi-per-folder.mjs         GAGAL    5099 ms
+  verify-shared-rail.mjs             LEWAT     219 ms
+  verify-sidebar-aktivitas.mjs       LEWAT     204 ms
+  verify-skill-memory.mjs            GAGAL     198 ms
+  verify-slash-actions.mjs           LEWAT     250 ms
+  verify-slash-palette.mjs           LEWAT     193 ms
+  verify-sub-custom.mjs              LEWAT     231 ms
+  verify-subagent-model.mjs          LEWAT     225 ms
+  verify-subagent-orchestration.mjs  LEWAT     247 ms
+  verify-subagent-real.mjs           LEWAT     225 ms
+  verify-tabel-model.mjs             LEWAT     198 ms
+  verify-tata-letak-popup.mjs        LEWAT     201 ms
+  verify-tema-marketplace.mjs        LEWAT     206 ms
+  verify-think-stream.mjs            GAGAL     207 ms
+  verify-thinking-default.mjs        LEWAT     201 ms
+  verify-thinking-live.mjs           LEWAT     200 ms
+  verify-thinking-ui.mjs             LEWAT     228 ms
+  verify-todo-card.mjs               LEWAT     205 ms
+  verify-todo-float.mjs              LEWAT     208 ms
+  verify-tool-gate.mjs               GAGAL     201 ms
+  verify-tool-hidup.mjs              LULUS     134 ms
+  verify-tool-inti.mjs               LEWAT     174 ms
+  verify-tool-picker-51.mjs          LEWAT     172 ms
+  verify-tool-sections.mjs           LEWAT     169 ms
+  verify-tools-g7.mjs                LEWAT     177 ms
+  verify-tools-runtime.mjs           LEWAT     186 ms
+  verify-tunjuk-live.mjs             LEWAT     175 ms
+  verify-tunjuk.mjs                  LULUS     112 ms
+  verify-update.mjs                  GAGAL     138 ms
+  verify-usage.mjs                   LEWAT     173 ms
+  verify-voice.mjs                   LEWAT     184 ms
+  verify-wallpaper.mjs               LEWAT     191 ms
+  verify04.mjs                       GAGAL     199 ms
+  verify05.mjs                       GAGAL     201 ms
+  verify06.mjs                       LEWAT     206 ms
+  verify08.mjs                       GAGAL     194 ms
+  verify09.mjs                       GAGAL     486 ms
+  verify10.mjs                       GAGAL    1186 ms
+  verify11.mjs                       GAGAL     174 ms
+  verify12.mjs                       GAGAL     174 ms
+  verify13.mjs                       GAGAL     200 ms
+  verify14.mjs                       GAGAL     190 ms
+  verify15-setup.mjs                 LULUS     137 ms
+  verify15.mjs                       GAGAL    3030 ms
+  verify16.mjs                       GAGAL     235 ms
+  verify18.mjs                       GAGAL     194 ms
+  verify19.mjs                       GAGAL     175 ms
+  verify20.mjs                       GAGAL     194 ms
+  verify21.mjs                       GAGAL     170 ms
+  verify22.mjs                       LEWAT  182947 ms
+  verify23.mjs                       GAGAL   45920 ms
+  verify24.mjs                       GAGAL   68881 ms
+  verify25.mjs                       GAGAL   51382 ms
+  verify26.mjs                       GAGAL   49294 ms
+  verify27.mjs                       GAGAL   38794 ms
+  verify28.mjs                       GAGAL   15256 ms
+  verify29.mjs                       GAGAL   42407 ms
+  verify30.mjs                       GAGAL   38179 ms
+  verify31.mjs                       LEWAT   41561 ms
+  verify32.mjs                       GAGAL     270 ms
+  verify33.mjs                       LULUS    1796 ms
+
+== 40 lulus, 32 lewat, 64 gagal ==
+
+Yang GAGAL (bukan masalah lingkungan):
+
+--- verify-agents-browser.mjs (exit 1) ---
+GAGAL  D1   browser_open: THROW: Tool tidak ditemukan atau tidak didukung: "browser_open"
+GAGAL  D2   pane window Agents memuat alamatnya: {"url":"","kosong":true,"galat":null}
+GAGAL  D4   browser_list melihat pane Agents: THROW: Tool tidak ditemukan atau tidak didukung: "browser_list"
+GAGAL  D5   browser_read membaca halaman Agents: THROW: Tool tidak ditemukan atau tidak didukung: "browser_read"
+GAGAL  E1   OFF berhenti membagikan: aria true -> true, daftar=THROW: Tool tidak ditemukan atau tidak didukung: "browser_list"
+GAGAL  E2   ON membagikan lagi: THROW: Tool tidak ditemukan atau tidak didukung: "browser_list"
+
+--- verify-agents-cust-editor.mjs (exit 1) ---
+i tetap ada ΓÇö {"kepala":1,"namaGrup":1,"chevGrup":1,"baris":1,"bisaDilipat":true}
+  OK   V10. Timeline tidak dirender di kolom kanan ΓÇö {"timeline":0}
+  OK   V11a. maximize aktif, kolom kiri & chat hilang ΓÇö {"maksAktif":true,"kiriAda":false,"tengahAda":false,"edW":1275,"listW":260,"edKiri":true}
+  OK   V11b. maximize: tree tetap ~260px, editor ambil sisanya ΓÇö editor=1275 tree=260
+== 22/23 lulus ==
+
+
+--- verify-antrean-gagap.mjs (exit 1) ---
+  GAGAL draft dikosongkan setelah parkir
+error console: (tidak ada)
+
+--- verify-avatar-chat.mjs (exit 1) ---
+  GAGAL baris foto avatar ada
+  GAGAL pembungkus .set-avatar dirender
+  GAGAL tombol reset ada
+  GAGAL pratinjau FOTO dirender (bukan placeholder kosong)  [{"adaImg":false,"srcCocok":false,"panjangSrc":0,"masihKosong":false}]
+  GAGAL reset mengembalikan ke placeholder  [{"img":false,"kosong":false}]
+error console: (tidak ada)
+
+--- verify-bookmarks.mjs (exit 1) ---
+GAGAL  B4   control=false confirmationShown=false
+
+--- verify-commands.mjs (exit 1) ---
+GAGAL  C3   palette lists undefined commands
+GAGAL  C4   /skills opened a sheet: clicked=tidak-ada sheet=0
+
+--- verify-compact-ring.mjs (exit 1) ---
+GAGAL  R1   ring element present: 0
+SyntaxError: Unexpected token 'i', "tidak ada" is not valid JSON
+
+--- verify-devenv-lag.mjs (exit 1) ---
+        if (st.error) throw new Error(st.error);
+Error: TypeError: DV.state is not a function
+
+--- verify-diff-auto.mjs (exit 1) ---
+GAGAL  W2   no-diff-on-screen
+GAGAL  W3   n/a
+
+--- verify-fakta-zephyr.mjs (exit 1) ---
+  GAGAL gen-fakta-zephyr --check - file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:180
+    throw new Error(
+Error: pop-up setelan tidak utuh: src/lib/aiModelsStore.ts ada, src/components/settings/AiModelsModal.tsx tidak - tempat setelan ini tidak boleh ditebak
+node:internal/errors:986
+  const err = new Error(message);
+Error: Command failed: C:\Program Files\nodejs\node.exe scripts/gen-fakta-zephyr.mjs --print-keys
+
+--- verify-features.mjs (exit 1) ---
+GAGAL  MCP health  (fetch failed)
+GAGAL  MCP initialize  (fetch failed)
+GAGAL  MCP tools/list  (fetch failed)
+GAGAL  MCP tools/call  (fetch failed)
+GAGAL  agent tools (shell_exec/file_patch)  (MISSING:shell_exec,file_patch,terminal_exec,file_read)
+GAGAL  Test Explorer render  (activeTab=tests attr=undefined render=false)
+
+--- verify-gambar-ke-provider.mjs (exit 1) ---
+
+
+--- verify-gelombang7.mjs (exit 1) ---
+GAGAL  G7-1b ikon AI tidak ketemu. Label tersedia: Explorer | Search | Source Control | Run & Debug (Ctrl+Shift+D) | Extensions (Ctrl+Shift+X) | Terminal | Tools ΓÇö Dev Environment, API Client, SFTP, Tests | Sign in to GitHub | Settings
+GAGAL  G7-4 menu subagent tidak muncul ({"ada":false})
+
+--- verify-hydra-picker.mjs (exit 1) ---
+GAGAL  P1   flag=false, baris picker=false, badge "Research preview"=false
+GAGAL  P2   model=hydrafusion, chip=null
+
+--- verify-i18n-dom.mjs (exit 1) ---
+bahasa aktif : en
+simpul teks  : 236
+teks Indonesia: 4
+
+  [span.todo-label] Tugas contoh untuk uji timer
+  [span.todo-label] Tugas yang masih berjalan
+
+
+--- verify-i18n-undangan.mjs (exit 1) ---
+Teks Indonesia mentah di tr()/tf()/tx(): 9 panggilan di 5 berkas.
+
+src/components/ai/SubAgentPanel.tsx (3)
+  110: Gagal
+  570: Selesai
+  570: Gagal
+
+src/components/ai/StatusArea.tsx (2)
+  83: Selesai
+  84: Gagal
+
+src/components/ai/SubAgentInfo.tsx (2)
+  72: Selesai
+  74: Gagal
+
+src/components/ai/ComposerStatusStack.tsx (1)
+  90: Selesai
+
+src/components/ai/DebugPanel.tsx (1)
+  143: Gagal
+
+TOTAL: 9
+
+
+--- verify-ikon-berubah.mjs (exit 1) ---
+GAGAL: TypeError: Cannot read properties of undefined (reading 'extId')
+  GAGAL  ada 8 paket  0
+  GAGAL  ganti cepat 4x -> paket terakhir menang  undefined (harap undefined)
+  GAGAL  SEMUA baris pohon pakai ikon paket  0/0
+  GAGAL  ikon dirender sebagai SVG di layar  0/0
+
+--- verify-ikon-folder.mjs (exit 1) ---
+  GAGAL  ada paket dengan ikon folder
+  GAGAL  id folder BERUBAH  undefined -> undefined
+  GAGAL  folder punya glif  undefined
+  GAGAL  folder terbuka BERUBAH
+  GAGAL  berkas punya glif  undefined
+  GAGAL  SETIAP baris folder di pohon memakai ikon paket  0/0
+
+--- verify-ikon-persist.mjs (exit 1) ---
+  GAGAL  paket yang dipilih dipulihkan  null
+  GAGAL  peta ikon terisi setelah restart  0
+  GAGAL  folder memakai ikon paket  folder-src
+  GAGAL  berkas memakai ikon paket  typescript
+
+--- verify-katalog-mcp-server.mjs (exit 1) ---
+  GAGAL  katalog berisi 6-10 entri (permintaan produk)  -> {"dapat":24}
+
+--- verify-katalog-mcp.mjs (exit 1) ---
+  GAGAL  9 tool web/browser  -> {"dapat":3}
+  GAGAL  bawaan di katalog = bawaan berhandler  -> {"katalog":27,"handler":25}
+  GAGAL  tidak ada nama ganda  -> {"ganda":["web"]}
+  GAGAL  jumlah nama bawaan cocok (25)  -> {"diharapkan":25,"dapat":30}
+  GAGAL  tidak ada nama bawaan yang hilang  -> {"hilang":["lsp_call_hierarchy","lsp_definition","lsp_diagnostics","lsp_hover","lsp_references","lsp_symbols"]}
+  GAGAL  tidak ada nama bawaan tambahan  -> {"lebih":["apply_patch","browser","execute","ingat","kotak","lsp","peta","tunjuk","web","web","zephyr_kode"]}
+
+--- verify-lanjut2.mjs (exit 1) ---
+  GAGAL tombol resume muncul  [false]
+error console: (tidak ada)
+
+--- verify-log-folder.mjs (exit 1) ---
+GAGAL  LOG-V1  tombol aktif; logFile=undefined; dir=undefined
+
+--- verify-lsp-mati-nota.mjs (exit 1) ---
+GAGAL: saklar lsp-global tidak ada - halaman LSP tidak terbuka
+
+--- verify-lsp-terax.mjs (exit 13) ---
+== Verifikasi Language Server ala Terax ==
+
+Warning: Detected unsettled top-level await at file:///D:/Zephyr/scripts/verify-lsp-terax.mjs:114
+  penanda = await evalJs(`(() => document.querySelectorAll('[data-testid$="-siap"]').length)()`);
+            ^
+
+
+
+
+
+--- verify-mcp-connect.mjs (exit 1) ---
+        reject(new Error(`socket CDP tidak terbuka (readyState=${this.#ws.readyState}): ${method}`));
+Error: socket CDP tidak terbuka (readyState=3): Runtime.evaluate
+
+--- verify-mcp-katalog.mjs (exit 1) ---
+        reject(new Error(`socket CDP tidak terbuka (readyState=${this.#ws.readyState}): ${method}`));
+Error: socket CDP tidak terbuka (readyState=3): Runtime.evaluate
+
+--- verify-model-provider-gate.mjs (exit 1) ---
+GAGAL  PROV-V1  ditawarkan: [] | seharusnya: [custom] | hilang: custom
+
+--- verify-newfile-diff.mjs (exit 1) ---
+    if (st.done) { if (st.error) throw new Error(st.error); return st.value; }
+Error: failed to acquire webview reference
+
+--- verify-notif-ai.mjs (exit 1) ---
+  GAGAL  run pendek DICATAT  4
+  GAGAL  run panjang DICATAT  5
+
+--- verify-panels-ui.mjs (exit 1) ---
+GAGAL  U1   sheet=false addButton=false
+GAGAL  U2   {"form":false,"event":false,"matcher":false,"command":false,"save":false}
+GAGAL  U3   refused with: "no-error"
+GAGAL  U5   mcp add button present=false, rows=0
+GAGAL  U6   refused with: "no-error"
+GAGAL  U7   bad name refused: "no-error"
+
+--- verify-plugin-browser.mjs (exit 1) ---
+    if (st.done) { if (st.error) throw new Error(st.error); return st.value; }
+Error: failed to acquire webview reference
+
+--- verify-repo-scan.mjs (exit 1) ---
+   (K1 raw error: "failed to acquire webview reference")
+GAGAL  K1   bad repo rejected: NO clear reason
+GAGAL  K2   scan failed: Error: failed to acquire webview reference
+    if (st.done) { if (st.error) throw new Error(st.error); return st.value; }
+Error: failed to acquire webview reference
+
+--- verify-resume.mjs (exit 13) ---
+GAGAL  R1   no cliSessionId after turn 1
+
+--- verify-rules-hidup.mjs (exit 13) ---
+  berkas terlarang -> tidak ada
+  OK    berkas berbahaya tidak pernah mendarat di disk  [tidak ada]
+     teks bersih -> DITULIS, dibaca ulang 15 byte
+  OK    teks bersih tetap bisa ditulis  [DITULIS, dibaca ulang 15 byte]
+Warning: Detected unsettled top-level await at file:///D:/Zephyr/scripts/verify-rules-hidup.mjs:154
+const hasilWarn = await runAsync(`(async () => {
+                  ^
+
+
+
+
+
+--- verify-sesi-per-folder.mjs (exit 1) ---
+        reject(new Error(`socket CDP tidak terbuka (readyState=${this.#ws.readyState}): ${method}`));
+Error: socket CDP tidak terbuka (readyState=3): Runtime.evaluate
+
+--- verify-skill-memory.mjs (exit 1) ---
+== verifikasi skill + memori + cron (1.1.11) ==
+
+FATAL: fetch failed
+
+
+--- verify-think-stream.mjs (exit 1) ---
+GAGAL: fetch failed
+
+--- verify-tool-gate.mjs (exit 2) ---
+BUTUH APP: aplikasi Zephyr tidak bisa dihubungi di 127.0.0.1:9223 (fetch failed) ΓÇö sekat tool hanya bisa diukur dengan app hidup.
+
+
+--- verify-update.mjs (exit 1) ---
+Error: ENOENT: no such file or directory, open 'D:\Zephyr\latest.json'
+
+--- verify04.mjs (exit 2) ---
+verify04 error: fetch failed
+
+--- verify05.mjs (exit 2) ---
+verify05 error: fetch failed
+
+--- verify08.mjs (exit 2) ---
+verify08 error: TypeError: fetch failed
+
+--- verify09.mjs (exit 2) ---
+verify09 error: fetch failed
+
+--- verify10.mjs (exit 2) ---
+verify10 error: fetch failed
+
+--- verify11.mjs (exit 2) ---
+verify11 error: fetch failed
+
+--- verify12.mjs (exit 1) ---
+verify12 error: fetch failed
+
+--- verify13.mjs (exit 1) ---
+verify13 error: fetch failed
+
+--- verify14.mjs (exit 1) ---
+verify14 error: fetch failed
+
+--- verify15.mjs (exit 1) ---
+verify15 error: fetch failed
+
+--- verify16.mjs (exit 1) ---
+verify16 error: fetch failed
+
+--- verify18.mjs (exit 1) ---
+verify18 error: fetch failed
+
+--- verify19.mjs (exit 1) ---
+verify19 error: fetch failed
+
+--- verify20.mjs (exit 1) ---
+verify20 error: fetch failed
+
+--- verify21.mjs (exit 1) ---
+verify21 error: fetch failed
+
+--- verify23.mjs (exit 1) ---
+GAGAL  V1   tsc --noEmit exit 2; cargo test --lib exit 0 (557 uji lulus, 10 di antaranya milik tasks.rs)
+src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(28,7): error TS6133: 'ApiClientView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(29,7): error TS6133: 'SftpView' is declared but its value is never read.
+LULUS  V2   tasks.json (JSONC + komentar) ΓåÆ 8 task valid dari 9 entri; 1 entri rusak ditolak: ["task \"uji: rusak\": requires \"command\" or \"dependsOn\""]. Build default = "uji: build tsc" matcher ["$tsc"]. Run: status=failed exit=2, 3 baris masuk channel "task:uji: build tsc" (ada=true). Problems dari matcher: [{"f":"uji23/geometry.ts","l":12,"c":31,"s":"error","code":"TS2322","src":"task:uji: build tsc"},{"f":"uji23/geometry.ts","l":18,"c":14,"s":"error","code":"TS2322","src":"task:uji: build tsc"},{"f":"uji23/geometry.ts","l":21,"c":10,"s":"error","code":"TS2345","src":"task:uji: build tsc"}]. Klik file:line membuka tab: {"path":"D:\\Zephyr\\scripts/uji23/geometry.ts","ada":true,"baris":23}. 8 task terdaftar di palette, recent=["uji: build tsc"]
+LULUS  V3   dependsOn sequence jalan URUT ["uji: langkah satu","uji: langkah dua","uji: rantai"] (6175ms), tiap langkah mencetak tepat 1 baris penanda. Watch isBackground: status=running (tetap hidup) setelah 8 baris. endsPattern ronde 1 ΓåÆ siap=true, ronde 2 ΓåÆ siap=true. Ronde 1 "Found 1 errors"=true, ronde 2 "Found 0 errors"=true, problem tersisa=0 (beginsPattern ronde 2 membersihkan error ronde 1)
+
+--- verify24.mjs (exit 1) ---
+GAGAL  V1   tsc --noEmit exit 2 (sebelum fixture ditulis); cargo build exit 0, 0 error
+src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(28,7): error TS6133: 'ApiClientView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(29,7): error TS6133: 'SftpView' is declared but its value is never read.
+GAGAL  V3   File 5003 baris: minimap 1 canvas 105├ù677px (CSS 84px├ù542px) dengan 24680 piksel tergambar ΓÇö bukan elemen kosong. DOM tetap 36 node .cm-line (viewport saja, bukan 5003). Scroll 40 langkah: frame median 98ms, terburuk 153ms (batas median 34ms Γëê 30fps). Kotak viewport ikut bergerak (true: "matrix(1, 0, 0, 1, 0, 511.787)" ΓåÆ "matrix(1, 0, 0, 1, 0, 0)"). Marker error baris 2500 terbaca sebagai pita merah di canvas (false). RAM 46 MB
+GAGAL  V6   Semua ON: breadcrumbs+minimap dirender, 35 indent guide, 3 swatch, 122 bracket. 6 command toggle dijalankan ΓåÆ 6 setting false dan DOM benar-benar bersih (breadcrumbs false, minimap false, guide 0, swatch 0, bracket 0, unicode 0) ΓÇö dilepas, bukan disembunyikan. PERSIST: get_settings dari DISK membaca breadcrumbs=false, minimap=false, indentGuides=false. Klik toggle UI Settings: aria-checked null ΓåÆ null, breadcrumbs dirender lagi (false); 0/9 baris setting ada. Menu View ΓåÆ Appearance: 12 item, ke-7 command extras ada semua (true) dan semuanya terdaftar di registry (true)
+
+--- verify25.mjs (exit 1) ---
+GAGAL  V1   tsc --noEmit exit 2; cargo test --lib exit 0 (557 uji lulus, 12 milik search.rs)
+src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(28,7): error TS6133: 'ApiClientView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(29,7): error TS6133: 'SftpView' is declared but its value is never read.
+GAGAL  V2   cari "kunciPath" di D:\Zephyr ΓåÆ 0 match / 0 file, rg 359ms, total UI 372ms (< 2000); grup=8 (kosong 0); klik baris pertama ΓåÆ tab D:\Zephyr\scratch\probe-angka\entri.mjs kursor 537:130 (hit 537:130), sorotan ["kunciPath"], rg=(internal), err=null
+GAGAL  V3   .gitignore: hormat=["a.txt","diabaikan.txt"] (3 match) vs --no-ignore=["a.txt","diabaikan.txt"] (3 match); regex "nama: (\w+)" ΓåÆ 3 match di 1 file, replace all "$1" ΓåÆ 3 penggantian, isi jadi "siswa: Budi\nsiswa: Ani\nsiswa: Cakra\n"
+
+--- verify26.mjs (exit 1) ---
+GAGAL  V1   tsc --noEmit exit 2; cargo test --lib exit 0 (557 uji lulus, 8 milik history.rs)
+src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(28,7): error TS6133: 'ApiClientView' is declared but its value is never read.
+src/components/shell/SplitEditor.tsx(29,7): error TS6133: 'SftpView' is declared but its value is never read.
+GAGAL  V2   3x edit+save lewat jalur produk (saveTab [true,true,true]) ΓåÆ 3 snapshot di disk, reason ["save","save","save"], folder history ada=true. Timeline gabungan: 33 entri = 3 snapshot + 30 commit git, urut terbaruΓåÆlama=true. DOM merender 0 baris (badge hitung "")
+GAGAL  V3   Klik entri Timeline ΓåÆ DiffViewer terisi (null): 0 baris '-' (riwayat, memuat "versi awal"=false) vs 0 baris '+' (kini, memuat "versi tiga"=false) ΓÇö kiri=riwayat kanan=kini. Restore snapshot tertua: buffer editor berubah dari "versi tigaΓÇª" ke "versi awalΓÇª" dan tab jadi DIRTY (unsaved falseΓåÆtrue) tanpa menulis disk
+
+--- verify27.mjs (exit 1) ---
+LULUS  V2   info auto-hide setelah 4,2s (toast 2ΓåÆerror saja), error STICKY dengan role="alert" dan tetap tampil; riwayat tetap 2 entri; klik tombol aksi menjalankan command notifications.show ΓåÆ center terbuka (true)
+GAGAL  V5   grep alert/confirm/prompt native di src/ = 16 temuan (src\lib\aiMemori.ts:358: /** Teks ringkas aturan yang layak disuntik ke prompt (dipakai bila pe | src\lib\aiMemori.ts:976: /** Nama yang dipakai baris penyambung di perakit prompt (lihat lapora | src\lib\zephyrDokumenData.ts:303: ["docs/ALUR-VERIFIKASI-MANDIRI.md", "6. Yang belum: integrasi (berkas  | src\lib\zephyrDokumenData.ts:836: ["docs/LAPORAN-LARANGAN-BLOK.md", "3. Aturan mana yang terbukti ada di | src\lib\zephyrDokumenData.ts:837: ["docs/LAPORAN-LARANGAN-BLOK.md", "4. Keluaran nyata harness (38/38, e | src\lib\zephyrDokumenData.ts:1026: ["docs/LAPORAN-SUBSET-SAMBUNG.md", "4. Keluaran nyata + kode exit", 81 | src\lib\zephyrDokumenData.ts:1030: ["docs/LAPORAN-SUBSET-SAMBUNG.md", "8. Verifikasi ulang (perintah dija | src\lib\zephyrDokumenData.ts:1128: ["docs/LAPORAN-VONIS-IZIN.md", "4.4 Verifikasi pendukung ΓåÆ semua exit  | src\lib\zephyrDokumenData.ts:1305: ["docs/STATUS-ITEM-KANONIK.md", "Daftar lengkap (urut pelacak, apa ada | src\lib\zephyrDokumenData.ts:1331: ["docs/STATUS-ITEM-KANONIK.md", "`harness-pengetahuan-2lapis` ΓÇö pendin | src\lib\zephyrDokumenData.ts:1334: ["docs/STATUS-ITEM-KANONIK.md", "`zeph-format-tabel` ΓÇö pending ΓÇö verdi | src\lib\zephyrDokumenData.ts:1391: ["docs/UKUR-MUTU-JAWABAN.md", "Item 161 ΓÇö aturan klaim nilai", 193, 19 | src\lib\zephyrDokumenData.ts:1583: ["docs/USULAN-PANE-BROWSER-TAMBAL.md", "S1. Penegakan runtime `on_navi | src\lib\zephyrDokumenData.ts:1663: ["docs/USULAN-RETRIEVAL-OTOMATIS.md", "U1 - Sambungkan lapis dokumen k | src\lib\zephyrDokumenData.ts:1750: ["docs/VERIFIKASI-SISA-2026-10-14.md", "7.2 BELUM TERBUKTI (ada skripn | src\lib\zephyrTools\zephyrIngat.ts:136: const disuntik = blok ? `${blok.split('\n').length - 1} entri ikut di ); dialog hapus dalam-app: "Delete "hapus-aku.txt"?" dengan kata PERMANEN, Batal ΓåÆ file tetap ada, konfirmasi 2 file (daftar 2 item) ΓåÆ keduanya terhapus, file lain aman (true), notifikasi "2 items deleted"
+GAGAL  V6   tsc --noEmit exit 2 tanpa output; 0 console error sepanjang V1ΓÇôV5; 3 command notifikasi terdaftar di palette (notifications.show, notifications.clear, notifications.toggleDnd); state bersih
+
+--- verify28.mjs (exit 1) ---
+GAGAL  F28-V1  --version pipe: "zephyr 1.1.14" (ansi false); --help 26 baris, memuat opsi true; "zephyr ." stdout ""
+LULUS  F28-V2  target ["folder"]; workspace D:/Zephyr -> D:/Zephyr/.zephyr/uji28/sebagai-workspace; jalan 1x, errors 0
+GAGAL  F28-V5  exe kedua exit 0; proses zephyr 1 -> 1; jumlahJalan 0 -> 2; tab 0 -> 1 baris 7
+GAGAL  F28-V6  shim tidak ada
+
+--- verify29.mjs (exit 1) ---
+GAGAL  F29-V1  tsc exit 2, 3 error: src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its
+GAGAL  F29-V2  1 root -> 0 header (tanpa section); tambah root -> 2 root ["root-b","root-a"], isRepo [false,true], DOM 2 header; tree a=3 b=4 baris
+GAGAL  F29-V5  awal trust=["unknown"] boleh=false banner="This folder is not trusted ΓÇö tasks, debu" dialog(yes=true no=true tutup=false); blokir task=ditolak debug=ditolak lsp=ditolak ext=ditolak; setelah Trust: ["trusted"] boleh=true banner=null task=JALAN; trust.json=ada
+
+--- verify30.mjs (exit 1) ---
+GAGAL  F30-V1  tsc exit 2, 3 error: src/components/shell/SplitEditor.tsx(26,7): error TS6133: 'DevEnvView' is declared but its
+
+--- verify32.mjs (exit 1) ---
+FAIL  V4 require("fs") dipakai ΓåÆ error jelas (tertahan, bukan ReferenceError)  ΓåÆ notify[warn]:cannot be loaded: fs.readFileSync is not supported in the Zephyr extension sandbox
+FAIL  V5b modul tak dikenal DIPAKAI ΓåÆ error jelas  ΓåÆ notify[warn]:cannot be loaded: Modul "pkg-tidak-ada" is not supported in the Zephyr extension sandbox
+PASS  V5e kode CJS polos dimuat tanpa ReferenceError
+FAIL  V6c require relatif file hilang ΓåÆ error jelas "tidak ditemukan"  ΓåÆ notify[warn]:cannot be loaded: file "./tidak-ada" was not found inside the extension (looked for: tidak-ada)

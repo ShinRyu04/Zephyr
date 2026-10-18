@@ -1,9 +1,9 @@
 {
   "id": "zephyr.ikon-terbuka",
-  "name": "Ikon Terbuka",
+  "name": "Ikon Expanded Dynamic",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Penutup folder terlipat terlihat — memberi kesan isi.",
+  "description": "Penutup folder terlihat terlipat — memberi kesan isi dan kedalaman.",
   "engines": {
     "zephyr": ">=1.0"
   },
@@ -13,7 +13,7 @@
   "contributes": {
     "iconThemes": [
       {
-        "label": "Terbuka",
+        "label": "Expanded Dynamic",
         "path": "./icons/terbuka.json"
       }
     ]
