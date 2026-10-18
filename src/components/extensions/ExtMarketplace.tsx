@@ -31,6 +31,7 @@ import {
 } from '../../lib/katalogMcpServer';
 import { KATALOG_BUNDLED } from '../../lib/extCatalog';
 import { useExt19 } from '../../lib/extensionsStore19';
+import IkonExt from './IkonExt';
 
 type Tab = 'plugins' | 'skills' | 'mcp' | 'extensions';
 
@@ -491,8 +492,16 @@ export default function ExtMarketplace({
                   data-testid={`xmkt-kartu-${k.id}`}
                   title={k.description}
                 >
-                  <span className="xmkt-logo" aria-hidden="true">
-                    {k.name.slice(0, 2).toUpperCase()}
+                  {/*
+                    * The package's REAL artwork, not initials.
+                    *
+                    * `IkonExt` is the same component the Installed list uses, so
+                    * a theme shows its own mark here too. Drawing two letters
+                    * instead made the marketplace look like a different product
+                    * from the list it was supposed to be a view of.
+                    */}
+                  <span className="xmkt-logo xmkt-logo-ext" aria-hidden="true">
+                    <IkonExt item={k} logoUrl={k.logoUrl} />
                   </span>
                   <div className="xmkt-info">
                     <span className="xmkt-nama">{k.name}</span>
