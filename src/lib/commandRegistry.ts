@@ -7,7 +7,7 @@ import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
 import { useExplorer } from './explorerStore';
 import { useSettingsUi } from './settingsStore';
-import { useAiModels } from './aiModelsStore';
+import { bukaPanel } from './bukaPanel';
 import { useExtensions } from './extensionStore';
 import { commandsEkstensi } from './extLoader';
 import { sandboxCommands, runEkstensiCommand } from './extHost';
@@ -142,11 +142,15 @@ function openSide(
 }
 
 function openSettingsSection(section: Parameters<ReturnType<typeof useSettingsUi.getState>['setSection']>[0]) {
-  const s = S();
-  s.setActivity('settings');
-  s.setSettingsOpen(true);
+  /* The section is chosen in THIS window's store, which the Settings window
+     cannot see (separate WebView, separate stores). It is therefore written
+     before the window opens: `SettingsNav` reads it on mount, and a window that
+     is already open picks it up on its next render. */
   useSettingsUi.getState().setSection(section);
-  if (!s.sidebarVisible) s.toggleSidebar();
+  /* `setActivity('settings')` is the door: it clears the dead popup flags and
+     opens the window (see store.ts). Calling `setSettingsOpen(true)` here as
+     well would set a flag nothing renders. */
+  S().setActivity('settings');
 }
 
 export const COMMANDS: CommandDef[] = [
@@ -567,11 +571,11 @@ export const COMMANDS: CommandDef[] = [
     title: 'AI: Configure Models & API Keys',
     group: 'AI',
     keywords: 'api key provider',
-    /* Models, providers and API keys are their own pop-up now (`AiModelsModal`),
-       so this command opens it directly. Sending the reader to the chat's Models
-       section - or, before that, to the editor-area Settings page - would land
-       them on a surface that no longer holds providers or keys. */
-    run: () => useAiModels.getState().buka(),
+    /* Models, providers and API keys are their own window now, so this command
+       opens it directly. Sending the reader to the chat's Models section - or,
+       before that, to the editor-area Settings page - would land them on a
+       surface that no longer holds providers or keys. */
+    run: () => bukaPanel('models'),
   },
   {
     id: 'ai.compact',
@@ -2053,9 +2057,7 @@ export const COMMANDS: CommandDef[] = [
     group: 'File',
     keywords: 'trust daftar list security settings',
     run: async () => {
-      const s = S();
-      s.setActivity('settings');
-      s.setSettingsOpen(true);
+      S().setActivity('settings');
       await useWs.getState().muatDaftarTrust();
     },
   },

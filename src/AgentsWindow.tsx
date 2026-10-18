@@ -12,7 +12,6 @@ import { muatSemuaEkstensi } from './lib/extLoader';
 import { fokusEditorWindow } from './lib/agentsWindow';
 
 const AgentsLayout = lazy(() => import('./components/agents/AgentsLayout'));
-const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
 const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 /*
  * The notification centre is a SEPARATE mount per window, not a global.
@@ -204,9 +203,6 @@ export default function AgentsWindow() {
     <div className="agents-window-root" data-testid="agents-window-root">
       <Suspense fallback={null}>
         <AgentsLayout />
-      </Suspense>
-      <Suspense fallback={null}>
-        <AgentCustomModal />
       </Suspense>
       <Suspense fallback={null}>
         <ToolGatePanel />

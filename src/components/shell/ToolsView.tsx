@@ -4,13 +4,20 @@ import { useT } from '../../lib/i18n';
 import { ErrorBoundary } from './ErrorBoundary';
 
 /*
- * The four workspace tools behind one rail entry.
+ * The three workspace tools behind one rail entry.
  *
- * Dev Environment, API Client, SFTP and Tests all act on the local machine
- * rather than on the open file, and each already fills the editor area on its
- * own — none of them uses the side bar. Four rail icons for that was four
- * entries doing the same kind of job, so they share one entry and switch with
- * a tab strip instead.
+ * Dev Environment, API Client and SFTP all act on the local machine rather than
+ * on the open file, and each already fills the editor area on its own — none of
+ * them uses the side bar. Three rail icons for that was three entries doing the
+ * same kind of job, so they share one entry and switch with a tab strip instead.
+ *
+ * TESTS WAS REMOVED, on request. It was a runner whose purpose was never
+ * explained anywhere in the UI: a tab that listed commands nobody had written
+ * yet, next to three tools that each do one obvious thing. A surface that has to
+ * be asked about ("gunanya apa?") is a surface that has not earned its place, so
+ * the tab is gone rather than documented. The command palette entry and the
+ * Settings section went with it - three doors to a room nobody uses is worse
+ * than no room.
  *
  * The views stay lazy: opening Tools costs one tab strip, and a view is only
  * fetched when its tab is first shown.
@@ -19,15 +26,13 @@ import { ErrorBoundary } from './ErrorBoundary';
 const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
 const ApiClientView = lazy(() => import('../api/ApiClientView'));
 const SftpView = lazy(() => import('../sftp/SftpView'));
-const TestsView = lazy(() => import('./TestsView'));
 
-type Tab = 'devenv' | 'api' | 'sftp' | 'tests';
+type Tab = 'devenv' | 'api' | 'sftp';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'devenv', label: 'Dev Environment' },
   { id: 'api', label: 'API Client' },
   { id: 'sftp', label: 'SFTP' },
-  { id: 'tests', label: 'Tests' },
 ];
 
 export default function ToolsView() {
@@ -35,17 +40,22 @@ export default function ToolsView() {
   const [tab, setTab] = useState<Tab>('devenv');
 
   /*
-   * Another part of the app can ask for a specific tab — the command palette
-   * opens "Tests" directly, and the Dev Environment view jumps to its own
-   * settings. `toolsTab` is that request; it is consumed once and then cleared
-   * so switching tabs by hand afterwards is not overridden on the next render.
+   * Another part of the app can ask for a specific tab — the Dev Environment view
+   * jumps to its own settings. `toolsTab` is that request; it is consumed once
+   * and then cleared so switching tabs by hand afterwards is not overridden on
+   * the next render.
+   *
+   * A request for the removed 'tests' tab is IGNORED rather than throwing: a
+   * saved layout or an old palette entry can still carry it, and a Tools window
+   * that refuses to open because of a stale value is worse than one that opens
+   * on Dev Environment.
    */
   const minta = useStore((s) => s.toolsTab);
   const setToolsTab = useStore((s) => s.setToolsTab);
 
   useEffect(() => {
     if (!minta) return;
-    setTab(minta as Tab);
+    if (TABS.some((t) => t.id === minta)) setTab(minta as Tab);
     setToolsTab(null);
   }, [minta, setToolsTab]);
 
@@ -76,7 +86,6 @@ export default function ToolsView() {
             {tab === 'devenv' && <DevEnvView />}
             {tab === 'api' && <ApiClientView />}
             {tab === 'sftp' && <SftpView />}
-            {tab === 'tests' && <TestsView />}
           </Suspense>
         </ErrorBoundary>
       </div>

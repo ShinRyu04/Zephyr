@@ -12,6 +12,7 @@ import { usePlugins } from './pluginsStore';
 import { useSettingsUi, SECTION_ORDER } from './settingsStore';
 import { useAiChatSettings } from './chatSettingsStore';
 import { useAiModels } from './aiModelsStore';
+import { useWiki } from './wikiStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT, jalurKonteksKerja, jejakPemadatan } from './aiStore';
@@ -1054,6 +1055,16 @@ export function installDevBridge(): void {
     buka: () => useAiModels.getState().buka(),
     tutup: () => useAiModels.getState().tutup(),
   };
+
+  /*
+   * Repo Wiki.
+   *
+   * A harness has to be able to read the GENERATED result, not just see that a
+   * button was pressed. Without this bridge a probe can only assert "the button
+   * exists", which passes whether or not the generator produced anything - the
+   * exact kind of claim this codebase refuses to make.
+   */
+  w.__ZEPHYR_WIKI__ = useWiki;
 
   w.__ZEPHYR_SUBSET__ = {
     baca: () => useStore.getState().settings.subagent,

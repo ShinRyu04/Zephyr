@@ -1,20 +1,26 @@
-// verify-tata-letak-popup.mjs — C2/C3/C4/C5: Settings, Extensions, Dev Tools melayang.
+// verify-tata-letak-popup.mjs — C2/C3/C4/C5: Settings, Extensions, Dev Tools
+// adalah JENDELA, bukan popup.
 //
-// Latar (rilis 1.1.14): ketiga permukaan ini dulu menelan seluruh area editor /
-// side bar. Pembaca kehilangan berkas yang sedang dibuka hanya untuk melihat
-// preferensi, dan "kembali" berarti mencari tabnya. Sekarang ketiganya melayang
-// di atas pekerjaan, dengan scrim, Escape, dan klik-luar untuk menutup; gear
-// pindah ke slot paling bawah ActivityBar, DI BAWAH avatar GitHub.
+// LATAR (rilis 1.1.14, putaran kedua): ketiga permukaan ini sempat dibuat
+// melayang di dalam app. Melayang berarti bingkai, scrim, drag offset, dan
+// tombol maximize buatan sendiri — dan justru kombinasi itu yang bermasalah:
+// kartu yang di-maximize sambil menyisakan offset drag menimpa isinya sendiri
+// dengan rail kirinya. Keputusannya: ketiganya jadi jendela OS sungguhan.
 //
-// Uji ini mengunci janji itu:
-//   C2a gear ada di rail dan berada SETELAH tombol avatar (paling bawah),
-//   C2b klik gear membuka popup Settings berisi nav + halaman, dan editor tetap ada,
-//   C2c Escape menutup popup,
-//   C2d klik scrim menutup popup,
-//   C3a Extensions membuka popup (bukan side bar) dengan tombol "Open in Editor",
-//   C3b tombol itu menutup popup lalu membuka tab editor yang sama,
-//   C4a Dev Tools membuka popup dengan empat tab,
-//   C4b popup Tools bisa ditutup dan ikonnya tidak lagi menelan area editor.
+// Uji ini mengunci janji itu, dan yang diuji adalah hal-hal yang TIDAK bisa
+// dijamin type checker:
+//
+//   C2a gear ada di rail dan berada SETELAH avatar (paling bawah),
+//   C2b klik gear TIDAK membuka popup di dalam app (tidak ada `settings-pop`,
+//       tidak ada scrim) — jendelanya sendiri tidak bisa diperiksa dari sini
+//       karena ia WebView terpisah; yang diperiksa adalah "tidak ada salinan
+//       kedua di dalam app", yaitu keluhan "ada 2"-nya,
+//   C2c Extensions dan Tools juga tidak membuka salinan di dalam app,
+//   C2d tidak ada <aside> kosong yang tersisa setelah gear ditekan.
+//
+// Pemeriksaan "jendelanya benar-benar terbuka" ada di
+// `verify-jendela-panel.mjs` (statis) dan diukur live lewat CDP ke target
+// `#panel=...` bila app hidup.
 import { Cdp, keluarBersih } from './lib-cdp.mjs';
 
 const cek = (nama, ok, info = '') => {
@@ -23,7 +29,7 @@ const cek = (nama, ok, info = '') => {
 };
 
 const { cdp } = await Cdp.attach(9223, 'Zephyr');
-console.log('=== Tata letak popup (C2-C5) ===\n');
+console.log('=== Tata letak panel: JENDELA, bukan popup (C2-C5) ===\n');
 
 const hasil = await cdp.json(
   `return JSON.stringify(await (async () => {
@@ -32,148 +38,88 @@ const hasil = await cdp.json(
   const q = (s) => document.querySelector(s);
   const out = {};
 
-  /*
-   * Geometry, not just existence.
-   *
-   * The first version of this harness only asked "is the popup in the DOM?".
-   * It passed while every popup was rendered OFF-SCREEN: the card was centred
-   * with negative percentage margins (which resolve against the viewport) on
-   * top of a translate, so it sat half a window too high and the reader saw
-   * nothing but its bottom edge. "In the DOM" is not "the user can see it".
-   */
-  const ukur = (testid) => {
-    const el = q('[data-testid="' + testid + '"]');
-    if (!el) return { ada: false };
-    const r = el.getBoundingClientRect();
-    return {
-      ada: true,
-      w: Math.round(r.width),
-      h: Math.round(r.height),
-      top: Math.round(r.top),
-      left: Math.round(r.left),
-      /* Fully inside the viewport, with no edge cut off. */
-      diLayar:
-        r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth,
-      /* Centre within a few pixels of the viewport centre. */
-      tengah:
-        Math.abs((r.top + r.bottom) / 2 - window.innerHeight / 2) < 24 &&
-        Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 24,
-      /* Body actually has height: a card with a collapsed body is empty. */
-      bodyH: Math.round(q('[data-testid="' + testid + '"] .mpop-body')?.getBoundingClientRect().height ?? 0),
-    };
-  };
-
-  /* Bersihkan sisa uji sebelumnya. */
+  /* Bersihkan sisa uji sebelumnya: tab view dan flag popup yang mati. */
   for (const t of S.getState().tabs.filter((x) => x.view === 'extensions' || x.view === 'tools')) {
     S.getState().requestCloseTab(t.id);
   }
   S.getState().setSettingsOpen(false);
   S.getState().setExtensionsOpen(false);
   S.getState().setToolsOpen(false);
+  S.getState().setSidebarVisible(false);
   await tunggu(400);
 
-  /* Mulai dari keadaan rapi: sidebar tertutup, tak ada popup. */
-  S.getState().setSidebarVisible(false);
-  await tunggu(300);
-
-  /* C2a: gear di bawah avatar. */
+  /* C2a: gear di rail, SETELAH avatar GitHub (paling bawah). */
   const rail = q('nav.activitybar');
   const tombol = [...(rail?.querySelectorAll('button') ?? [])];
   const ghIdx = tombol.findIndex((b) => b.getAttribute('data-testid') === 'ab-gh');
   const gearIdx = tombol.findIndex((b) => b.getAttribute('data-testid') === 'ab-settings');
   out.gear = { ada: gearIdx >= 0, diBawahAvatar: gearIdx > ghIdx, total: tombol.length };
 
-  /* C2b: klik gear -> popup berisi nav + halaman, editor tetap hidup. */
+  /*
+   * C2b: klik gear TIDAK boleh menyisakan salinan di dalam app.
+   *
+   * Inilah keluhan "pas buka settings dia ada 2": popup lama masih dirender
+   * bersama jendela barunya. Jendelanya sendiri adalah WebView lain, jadi dari
+   * sini yang bisa dan HARUS diperiksa adalah ketiadaan salinan lokal.
+   */
   tombol[gearIdx]?.click();
-  await tunggu(900);
+  await tunggu(1200);
   out.settings = {
-    ukuran: ukur('settings-pop'),
-    pop: !!q('[data-testid="settings-pop"]'),
-    scrim: !!q('[data-testid="settings-pop-scrim"]'),
-    nav: document.querySelectorAll('[data-testid^="set-nav-"]').length,
-    page: !!q('[data-testid="settings-page"]'),
-    bukanPenuhArea: !q('.set-topbar'),
+    popupLokal: !!q('[data-testid="settings-pop"]'),
+    scrimLokal: !!q('[data-testid="settings-pop-scrim"]'),
+    /* Nav Settings tidak boleh muncul di dalam window ini sama sekali. */
+    navLokal: document.querySelectorAll('[data-testid^="set-nav-"]').length,
+    pageLokal: !!q('[data-testid="settings-page"]'),
+    /* Flag store tidak boleh dinyalakan: itu jalur popup lama. */
+    flagSettingsOpen: S.getState().settingsOpen === true,
     editorMasihAda: !!q('.editor-area'),
-    role: q('[data-testid="settings-pop"]')?.getAttribute('role'),
   };
 
-  /* Sidebar: tidak boleh ada <aside> kosong, nav tidak boleh dobel. */
+  /* Tidak ada <aside> kosong yang tertinggal. */
   out.sidebar = {
     aside: !!q('aside.sidebar'),
     navDiSidebar: document.querySelectorAll('aside.sidebar [data-testid^="set-nav-"]').length,
-    navDiPopup: document.querySelectorAll('[data-testid="settings-pop"] [data-testid^="set-nav-"]').length,
   };
 
-  /* Maximize: ukur sebelum, klik, ukur sesudah, lalu Escape. */
-  const tombolMax = q('[data-testid="settings-pop-max"]');
-  out.maximize = { adaTombol: !!tombolMax, sebelum: ukur('settings-pop') };
-  tombolMax?.click();
-  await tunggu(600);
-  out.maximize.setelah = ukur('settings-pop');
-  out.maximize.label = q('[data-testid="settings-pop-max"]')?.textContent?.trim() ?? null;
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  await tunggu(500);
-  out.maximize.escMasihTerbuka = !!q('[data-testid="settings-pop"]');
-  out.maximize.escUkuran = ukur('settings-pop');
-
-  /* C2c: Escape menutup. */
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  await tunggu(500);
-  out.escMenutup = !q('[data-testid="settings-pop"]');
-
-  /* C2d: klik scrim menutup. */
-  S.getState().setSettingsOpen(true);
-  await tunggu(600);
-  q('[data-testid="settings-pop-scrim"]')?.click();
-  await tunggu(500);
-  out.scrimMenutup = !q('[data-testid="settings-pop"]');
-
-  /* C3a: Extensions popup, bukan side bar. */
+  /* C2c: Extensions — juga tidak boleh ada salinan lokal. */
   S.getState().setExtensionsOpen(true);
-  await tunggu(1000);
+  await tunggu(900);
   out.extensions = {
-    ukuran: ukur('extensions-pop'),
-    pop: !!q('[data-testid="extensions-pop"]'),
-    view: !!q('[data-testid="extensions-view"]'),
-    tombolEditor: !!q('[data-testid="extensions-pop-open-editor"]'),
-    bukanDiSidebar: !q('aside.sidebar [data-testid="extensions-view"]'),
-    sidebarAside: !!q('aside.sidebar'),
-    adaMax: !!q('[data-testid="extensions-pop-max"]'),
+    popupLokal: !!q('[data-testid="extensions-pop"]'),
+    viewLokal: !!q('[data-testid="extensions-view"]'),
+    flagNyala: S.getState().extensionsOpen === true,
+    diSidebar: !!q('aside.sidebar [data-testid="extensions-view"]'),
   };
 
-  /* C3b: "Open in Editor" menutup popup dan membuka tab. */
-  q('[data-testid="extensions-pop-open-editor"]')?.click();
-  await tunggu(1100);
-  out.openInEditor = {
-    popTutup: !q('[data-testid="extensions-pop"]'),
-    tabAda: !!q('[data-testid="ai-view-tab-extensions"]'),
-    viewDiTab: !!q('[data-testid="ai-view-tab-extensions"] [data-testid="extensions-view"]'),
-  };
-
-  /* C4a: Dev Tools popup dengan empat tab. */
+  /* C2d: Tools — idem. */
   S.getState().setToolsOpen(true);
-  await tunggu(1000);
+  await tunggu(900);
   out.tools = {
-    ukuran: ukur('tools-pop'),
-    pop: !!q('[data-testid="tools-pop"]'),
-    view: !!q('[data-testid="tools-view"]'),
-    tab: document.querySelectorAll('[data-testid^="tools-tab-"]').length,
-    sidebarAside: !!q('aside.sidebar'),
-    adaMax: !!q('[data-testid="tools-pop-max"]'),
+    popupLokal: !!q('[data-testid="tools-pop"]'),
+    viewLokal: !!q('[data-testid="tools-view"]'),
+    flagNyala: S.getState().toolsOpen === true,
+    diSidebar: !!q('aside.sidebar [data-testid="tools-view"]'),
   };
 
-  /* C4b: tutup lagi. */
-  S.getState().setToolsOpen(false);
-  await tunggu(400);
-  out.toolsTutup = !q('[data-testid="tools-pop"]');
+  /*
+   * setActivity('settings') — pintu yang dipakai 10 pemanggil lama — harus
+   * membuka JENDELA, bukan menyalakan flag popup. Kalau flag-nya menyala,
+   * salinan lokal akan muncul lagi di build yang masih merender popup.
+   */
+  S.getState().setActivity('settings');
+  await tunggu(700);
+  out.setActivity = {
+    flagSettingsOpen: S.getState().settingsOpen === true,
+    popupLokal: !!q('[data-testid="settings-pop"]'),
+  };
 
   /* Pulihkan. */
-  for (const t of S.getState().tabs.filter((x) => x.view === 'extensions' || x.view === 'tools')) {
-    S.getState().requestCloseTab(t.id);
-  }
   S.getState().setSettingsOpen(false);
   S.getState().setExtensionsOpen(false);
   S.getState().setToolsOpen(false);
+  for (const t of S.getState().tabs.filter((x) => x.view === 'extensions' || x.view === 'tools')) {
+    S.getState().requestCloseTab(t.id);
+  }
   return out;
 })().catch((e) => ({ fatal: String(e) })))`,
   90000,
@@ -185,72 +131,35 @@ if (h.fatal) {
   keluarBersih(1);
 }
 
-console.log('C2 — Settings melayang, gear di bawah avatar:');
+console.log('C2 — Gear membuka JENDELA, bukan popup:');
 cek('gear ada di rail', h.gear.ada === true);
-cek('gear DI BAWAH avatar GitHub', h.gear.diBawahAvatar === true, `gear=#${h.gear.total}, total=${h.gear.total}`);
-cek('popup Settings terbuka', h.settings.pop === true);
-cek('scrim ada', h.settings.scrim === true);
-cek('nav ikut di dalam popup', h.settings.nav > 0, `${h.settings.nav} nav`);
-cek('halaman Setelan dirender', h.settings.page === true);
-cek('bukan lagi penuh-area', h.settings.bukanPenuhArea === true);
-cek('editor tetap ada di belakang', h.settings.editorMasihAda === true);
-cek('role=dialog', h.settings.role === 'dialog');
-cek('popup SEPENUHNYA terlihat di layar', h.settings.ukuran.diLayar === true,
-  `${h.settings.ukuran.w}x${h.settings.ukuran.h} @ top=${h.settings.ukuran.top}`);
-cek('popup terpusat di jendela', h.settings.ukuran.tengah === true);
-cek('isi popup punya tinggi', h.settings.ukuran.bodyH > 100, `body=${h.settings.ukuran.bodyH}px`);
-cek('Escape menutup', h.escMenutup === true);
-cek('klik scrim menutup', h.scrimMenutup === true);
+cek('gear DI BAWAH avatar GitHub', h.gear.diBawahAvatar === true, `total tombol=${h.gear.total}`);
+cek('TIDAK ada popup Settings di dalam app', h.settings.popupLokal === false);
+cek('TIDAK ada scrim popup', h.settings.scrimLokal === false);
+cek('nav Settings tidak dirender di window ini', h.settings.navLokal === 0, `${h.settings.navLokal} nav`);
+cek('halaman Settings tidak dirender di window ini', h.settings.pageLokal === false);
+cek('flag settingsOpen TIDAK dinyalakan', h.settings.flagSettingsOpen === false);
+cek('editor tetap ada (window utama utuh)', h.settings.editorMasihAda === true);
 
-/*
- * Side bar tidak boleh ikut terbuka.
- *
- * Settings dulu adalah view side bar, jadi membuka panel ini sekalian
- * menampilkan kolom kiri. Sekarang nav-nya ada DI DALAM kartu: kolom kiri yang
- * tetap dirender hanya menyisakan strip kosong ber-border yang terbaca sebagai
- * bayangan panel. Yang diuji: tidak ada <aside class=sidebar>, dan tidak ada
- * satu pun nav Settings di luar popup.
- */
-cek('side bar TIDAK ikut terbuka', h.sidebar.aside === false);
-cek('nav Settings tidak dobel di kiri', h.sidebar.navDiSidebar === 0,
-  `${h.sidebar.navDiSidebar} nav di sidebar`);
-cek('nav Settings ada di dalam popup', h.sidebar.navDiPopup > 0,
-  `${h.sidebar.navDiPopup} nav di popup`);
+console.log('\nC2b — Tidak ada kolom kiri yang tertinggal:');
+cek('tidak ada <aside class=sidebar> kosong', h.sidebar.aside === false);
+cek('tidak ada nav Settings di side bar', h.sidebar.navDiSidebar === 0);
 
-console.log('\nC2e - Maximize:');
-cek('tombol Maximize ada', h.maximize.adaTombol === true);
-cek('maximize memperbesar kotak',
-  h.maximize.setelah.w > h.maximize.sebelum.w && h.maximize.setelah.h > h.maximize.sebelum.h,
-  `${h.maximize.sebelum.w}x${h.maximize.sebelum.h} -> ${h.maximize.setelah.w}x${h.maximize.setelah.h}`);
-cek('maximize tetap di layar', h.maximize.setelah.diLayar === true);
-cek('label berubah jadi Restore', h.maximize.label === 'Restore', String(h.maximize.label));
-cek('Escape saat maximize: kembali, bukan menutup',
-  h.maximize.escMasihTerbuka === true && h.maximize.escUkuran.w === h.maximize.sebelum.w);
+console.log('\nC3 — Extensions juga jendela:');
+cek('TIDAK ada popup Extensions', h.extensions.popupLokal === false);
+cek('marketplace tidak dirender di window ini', h.extensions.viewLokal === false);
+cek('flag extensionsOpen TIDAK dinyalakan', h.extensions.flagNyala === false);
+cek('tidak lagi di side bar', h.extensions.diSidebar === false);
 
-console.log('\nC3 — Extensions melayang + Open in Editor:');
-cek('popup Extensions terbuka', h.extensions.pop === true);
-cek('isi marketplace dirender', h.extensions.view === true);
-cek('tombol Open in Editor ada', h.extensions.tombolEditor === true);
-cek('tidak lagi di side bar', h.extensions.bukanDiSidebar === true);
-cek('Extensions TIDAK membuka side bar', h.extensions.sidebarAside === false);
-cek('Extensions punya Maximize', h.extensions.adaMax === true);
-cek('popup Extensions terlihat penuh', h.extensions.ukuran.diLayar === true,
-  `${h.extensions.ukuran.w}x${h.extensions.ukuran.h} @ top=${h.extensions.ukuran.top}`);
-cek('popup Extensions terpusat', h.extensions.ukuran.tengah === true);
-cek('tombol menutup popup', h.openInEditor.popTutup === true);
-cek('tombol membuka tab editor', h.openInEditor.tabAda === true);
-cek('halaman ikut pindah ke tab', h.openInEditor.viewDiTab === true);
+console.log('\nC4 — Dev Tools juga jendela:');
+cek('TIDAK ada popup Tools', h.tools.popupLokal === false);
+cek('tools tidak dirender di window ini', h.tools.viewLokal === false);
+cek('flag toolsOpen TIDAK dinyalakan', h.tools.flagNyala === false);
+cek('tidak lagi di side bar', h.tools.diSidebar === false);
 
-console.log('\nC4 — Dev Tools melayang:');
-cek('popup Tools terbuka', h.tools.pop === true);
-cek('isi tools dirender', h.tools.view === true);
-cek('empat tab tetap ada', h.tools.tab === 4, `${h.tools.tab} tab`);
-cek('Tools TIDAK membuka side bar', h.tools.sidebarAside === false);
-cek('Tools punya Maximize', h.tools.adaMax === true);
-cek('popup Tools terlihat penuh', h.tools.ukuran.diLayar === true,
-  `${h.tools.ukuran.w}x${h.tools.ukuran.h} @ top=${h.tools.ukuran.top}`);
-cek('popup Tools terpusat', h.tools.ukuran.tengah === true);
-cek('popup bisa ditutup', h.toolsTutup === true);
+console.log("\nC5 — setActivity('settings') membuka jendela:");
+cek('tidak menyalakan flag popup', h.setActivity.flagSettingsOpen === false);
+cek('tidak memunculkan salinan lokal', h.setActivity.popupLokal === false);
 
 console.log('\nSemua lulus.');
 keluarBersih(0);

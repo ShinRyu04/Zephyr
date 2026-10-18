@@ -81,6 +81,10 @@ export const KONTROL_SETELAN: Record<SectionId, string> = {
   general: 'view.settings',
   editor: PEMBUKA_STORE,
   theme: 'settings.theme',
+  /* Icon themes: no command of its own, the section is opened by the store.
+     `tests` used to sit here and is gone with the section - a door to a room
+     that no longer exists is worse than no door. */
+  icons: PEMBUKA_STORE,
   shortcuts: 'shortcut.list',
   agents: PEMBUKA_STORE,
   rules: PEMBUKA_STORE,
@@ -90,7 +94,6 @@ export const KONTROL_SETELAN: Record<SectionId, string> = {
   lsp: PEMBUKA_STORE,
   scm: PEMBUKA_STORE,
   mcp: PEMBUKA_STORE,
-  tests: PEMBUKA_STORE,
   devenv: PEMBUKA_STORE,
   devupdate: PEMBUKA_STORE,
   security: PEMBUKA_STORE,
@@ -201,11 +204,12 @@ export async function bukaPanel(which: string): Promise<string> {
 /* ------------------------------------------------------------------ */
 
 function bukaSetelanLangsung(bagian: SectionId): void {
-  const s = useStore.getState();
-  s.setActivity('settings');
-  s.setSettingsOpen(true);
+  /* The section is written into THIS window's store first: `SettingsNav` in the
+     Settings window reads the same store, but that window is a separate WebView
+     with its own instances, so this only sets the default a freshly opened
+     window starts from. `setActivity('settings')` is what opens the window. */
   useSettingsUi.getState().setSection(bagian);
-  if (!s.sidebarVisible) s.toggleSidebar();
+  useStore.getState().setActivity('settings');
 }
 
 /**

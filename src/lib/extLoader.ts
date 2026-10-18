@@ -411,6 +411,21 @@ function muatBahasa(
 export const ikonUntukExt = (ext: string) => ikonFileExt(ext);
 export const adaIconTheme = () => jumlahIkonExt() > 0;
 
+/*
+ * The packs read by the last load, and which one is active.
+ *
+ * Module-level because the loader writes it and the picker reads it; it is not
+ * React state. `useIkonTema` (ikonTemaStore.ts) is what the UI subscribes to -
+ * the loader hands its result over after each load, so the picker always shows
+ * exactly what is installed rather than a list assembled somewhere else.
+ */
+const paketIkon: Array<{
+  extId: string;
+  label: string;
+  ikon: Record<string, { glyph?: string; color?: string; svg?: string }>;
+  jumlahSvg: number;
+}> = [];
+
 /**
  * Decode a VS Code `fontCharacter` into the single character it draws.
  *
@@ -454,42 +469,174 @@ async function muatIconTheme(
     try {
       const raw = (await cmd.extensionsReadContrib(m.id, it.path)) as Record<string, unknown>;
 
-      const peta = (raw.icons ?? raw) as Record<string, unknown>;
-      let dariZephyr = 0;
-      for (const [ext, def] of Object.entries(peta)) {
-        const d = def as { glyph?: unknown; color?: unknown };
-        const glyph = String(d.glyph ?? '').slice(0, 3);
-        if (!glyph) continue;
-        setIkonExt(ext, glyph, String(d.color ?? 'var(--fg2)').slice(0, 40));
-        dariZephyr++;
-        n++;
-      }
-      if (dariZephyr > 0) continue;
+      /*
+       * VS Code shape first, because it is what the marketplace actually ships.
+       *
+       * An icon theme from open-vsx declares `iconDefinitions` (each with either
+       * `iconPath` pointing at an SVG file, or a `fontCharacter`), plus the
+       * `fileExtensions` / `fileNames` / `folderNames` maps that point at them.
+       * Reading only Zephyr's own `glyph` shape - which is what this did - meant
+       * every real pack registered zero icons and the tree never changed.
+       *
+       * Order matters: a DRAWING beats a text mark. A pack that has both should
+       * show its art, not its letter.
+       */
+      const defs = (raw.iconDefinitions ?? {}) as Record<
+        string,
+        { fontCharacter?: unknown; fontColor?: unknown; iconPath?: unknown }
+      >;
+
+      /* SVG bodies are read once per distinct path, not once per mapping: a pack
+         maps dozens of extensions onto one `_file` definition. */
+      const svgCache = new Map<string, string | null>();
+      const bacaSvg = async (rel: string): Promise<string | null> => {
+        if (svgCache.has(rel)) return svgCache.get(rel) ?? null;
+        let isi: string | null = null;
+        try {
+          /* Reuse the contributor reader: same sandbox, same 512KB cap, same
+             path guard (`resolve_in_ext` rejects `..` and absolute paths). */
+          const teks = await cmd.extensionsReadMain(m.id, rel);
+          isi = normalisasiSvg(teks);
+        } catch {
+          /* An unreadable icon file is not a reason to fail the whole pack: the
+             other definitions still load. The count below reports what landed. */
+          isi = null;
+        }
+        svgCache.set(rel, isi);
+        return isi;
+      };
+
+      const ikonDari = async (
+        idDef: string,
+      ): Promise<{ glyph?: string; color?: string; svg?: string } | null> => {
+        const def = defs[idDef];
+        if (!def) return null;
+        const color = String(def.fontColor ?? '').slice(0, 40) || undefined;
+        const path = typeof def.iconPath === 'string' ? def.iconPath : '';
+        if (path) {
+          const svg = await bacaSvg(path);
+          if (svg) return { svg, ...(color ? { color } : {}) };
+        }
+        const glyph = glyphDariFontChar(String(def.fontCharacter ?? ''));
+        if (glyph) return { glyph, ...(color ? { color } : {}) };
+        return null;
+      };
 
       /*
-       * VS Code shape: `iconDefinitions` + `fileExtensions`/`fileNames`.
+       * Collected into a PACK, not written straight into the render map.
        *
-       * WHY this is read at all: a VS Code icon theme used to be refused as
-       * "0 icon definitions" because its glyph lives in `fontCharacter`, not in
-       * a `glyph` key. The colour comes from `fontColor` on the same
-       * definition. Registering it here is what makes the pack actually change
-       * the file tree, instead of being an install that does nothing.
+       * The render map holds one set of icons, so writing every pack into it as
+       * it loads made the last pack win - with three installed there was no way
+       * to choose, and switching away from one left its icons behind for every
+       * extension the next pack did not name. A pack is kept whole so the picker
+       * can switch between them.
        */
-      const defs = (raw.iconDefinitions ?? {}) as Record<string, { fontCharacter?: unknown; fontColor?: unknown }>;
-      const daftar = (raw.fileExtensions ?? raw.fileNames ?? {}) as Record<string, unknown>;
-      for (const [ext, idDef] of Object.entries(daftar)) {
-        const def = defs[String(idDef)];
-        if (!def) continue;
-        const glyph = glyphDariFontChar(String(def.fontCharacter ?? ''));
-        if (!glyph) continue;
-        setIkonExt(ext, glyph, String(def.fontColor ?? 'var(--fg2)').slice(0, 40));
-        n++;
+      const ikon: Record<string, { glyph?: string; color?: string; svg?: string }> = {};
+      let jumlahSvg = 0;
+      const tambah = (kunci: string, ik: { glyph?: string; color?: string; svg?: string }) => {
+        ikon[kunci.toLowerCase().replace(/^\./, '')] = ik;
+        if (ik.svg) jumlahSvg += 1;
+        n += 1;
+      };
+
+      /*
+       * The generic slots. `file` / `folder` / `folderExpanded` are what a pack
+       * falls back to for anything it does not name, and they are the icons the
+       * reader sees most - a pack that changes only these has still changed the
+       * whole tree.
+       */
+      for (const [kunci, idDef] of [
+        ['file', raw.file],
+        ['folder', raw.folder],
+        ['folder-open', raw.folderExpanded],
+      ] as const) {
+        if (typeof idDef !== 'string') continue;
+        const ik = await ikonDari(idDef);
+        if (ik) tambah(kunci, ik);
+      }
+
+      /* Exact file names, then extensions, then folder names. */
+      for (const [nama, idDef] of Object.entries((raw.fileNames ?? {}) as Record<string, unknown>)) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah(nama, ik);
+      }
+      for (const [ext, idDef] of Object.entries((raw.fileExtensions ?? {}) as Record<string, unknown>)) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah(ext, ik);
+      }
+      for (const [nama, idDef] of Object.entries((raw.folderNames ?? {}) as Record<string, unknown>)) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah(`folder:${nama}`, ik);
+      }
+
+      if (Object.keys(ikon).length === 0) {
+        /*
+         * Zephyr's own compact shape: `icons` (or the file itself) mapping an
+         * extension straight to `{ glyph, color }`. Kept as the LAST branch so
+         * the VS Code shape above wins when a pack somehow carries both.
+         */
+        const peta = (raw.icons ?? raw) as Record<string, unknown>;
+        for (const [ext, def] of Object.entries(peta)) {
+          const d = def as { glyph?: unknown; color?: unknown };
+          const glyph = String(d.glyph ?? '').slice(0, 3);
+          if (!glyph) continue;
+          tambah(ext, { glyph, color: String(d.color ?? 'var(--fg2)').slice(0, 40) });
+        }
+      }
+
+      if (Object.keys(ikon).length > 0) {
+        const label = String((it as { label?: unknown }).label ?? m.name ?? m.id);
+        paketIkon.push({
+          extId: `${m.id}::${label}`,
+          label,
+          ikon,
+          jumlahSvg,
+        });
       }
     } catch (e) {
       gagal.push({ id: m.id, alasan: `icon theme ${it.path}: ${cmd.asZephyrError(e).message}` });
     }
   }
   return n;
+}
+
+/**
+ * Apply the CHOSEN pack to the render map.
+ *
+ * Clearing first is the whole point: the map holds one set of icons, and a
+ * switch has to remove the previous pack's entries rather than layer on top of
+ * them. Without the clear, choosing pack B after pack A left A's icons for every
+ * extension B did not name - a hybrid belonging to no pack, with nothing on
+ * screen to say so.
+ */
+export function terapkanIkonTema(extId: string | null): void {
+  kosongkanIkonExt();
+  if (!extId) return;
+  const paket = paketIkon.find((p) => p.extId === extId);
+  if (!paket) return;
+  for (const [kunci, ik] of Object.entries(paket.ikon)) {
+    setIkonExt(kunci, ik);
+  }
+}
+
+/** The packs read by the last load, for the picker. */
+export const daftarPaketIkon = () => paketIkon.slice();
+
+function normalisasiSvg(teks: string): string | null {
+  const t = teks.trim();
+  if (!t.startsWith('<svg') && !t.startsWith('<?xml')) return null;
+  const bersih = t
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
+    .replace(/javascript:/gi, '');
+  /* Keep only the svg element itself: an XML prolog or a DOCTYPE would be
+     invalid inside innerHTML. */
+  const mulai = bersih.indexOf('<svg');
+  if (mulai < 0) return null;
+  const akhir = bersih.lastIndexOf('</svg>');
+  if (akhir < mulai) return null;
+  return bersih.slice(mulai, akhir + '</svg>'.length);
 }
 
 const extCommands: Array<{ id: string; title: string; description: string; extId: string }> = [];
@@ -541,6 +688,9 @@ async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
   snippetsByLang.clear();
   extKeymap.length = 0;
   kosongkanIkonExt();
+  /* The pack list is rebuilt on every load: a pack that was uninstalled must be
+     gone from the picker, not left over from the previous load. */
+  paketIkon.length = 0;
   langPemilik.clear();
   extCommands.length = 0;
 
@@ -704,6 +854,23 @@ async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
     await muatEkstensiRuntime(daftar);
   } catch {
     /* non-fatal */
+  }
+
+  /*
+   * Hand the packs to the picker, and apply whichever one is chosen.
+   *
+   * The loader no longer writes icons straight into the render map - it collects
+   * packs, and this is the one place that decides which pack the tree draws.
+   * `aktif` survives a reload if that pack is still installed; `terapkanIkonTema`
+   * clears the map first, so a pack that was uninstalled takes its icons with it.
+   */
+  try {
+    const { useIkonTema } = await import('./ikonTemaStore');
+    const store = useIkonTema.getState();
+    store.setPacks(daftarPaketIkon());
+    terapkanIkonTema(useIkonTema.getState().aktif);
+  } catch {
+    /* non-fatal: the tree keeps Zephyr's own icons */
   }
 
   return hasil;

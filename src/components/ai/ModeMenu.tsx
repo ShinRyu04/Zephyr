@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
-import { useAgentCustom } from '../../lib/agentCustomStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
 import type { ApprovalMode } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
@@ -274,7 +274,7 @@ export function ModeMenu() {
                      surface of its own, not a page buried in Settings, so this
                      row opens the editor instead of navigating away from the
                      chat. */
-                  useAgentCustom.getState().buka('agents');
+                  bukaPanel('agent-custom', 'agents');
                 }}
               >
                 <span className="mode-item-teks">

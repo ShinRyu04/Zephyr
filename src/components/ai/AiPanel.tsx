@@ -8,7 +8,7 @@ import {
   type AgentSurfaceState,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { useAiModels } from '../../lib/aiModelsStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
@@ -30,7 +30,6 @@ import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } f
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
-import ChatSettingsPopup from './ChatSettingsPopup';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useGit } from '../../lib/gitStore';
@@ -450,7 +449,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
  * Chat Settings -> Models) meant crossing the whole window to arrive somewhere
  * that no longer owned the row.
  */
-const bukaModels = () => useAiModels.getState().buka();
+const bukaModels = () => bukaPanel('models');
   const providerTanpaKey =
     keys.length > 0 && !keys.some((k) => k.provider === provider && k.hasKey);
 
@@ -1121,10 +1120,9 @@ const bukaModels = () => useAiModels.getState().buka();
 
       </div>
 
-      {/* The Chat Settings overlay, opened from the "…" menu. Rendered here so
-          it floats inside the chat surface; the editor-area home is drawn by
-          SplitEditor, and the store's `mode` keeps the two from overlapping. */}
-      <ChatSettingsPopup />
+      {/* The Chat Settings overlay used to mount here. It is its own window now
+          (`bukaPanel('chat-settings')`), so there is nothing to draw inside the
+          chat surface. */}
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
         {providerTanpaKey && (

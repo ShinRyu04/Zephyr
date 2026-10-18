@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { useAgentCustom } from '../../lib/agentCustomStore';
-import { useAiModels } from '../../lib/aiModelsStore';
 import { useAiDebug } from '../../lib/aiDebugStore';
-import { useAiChatSettings } from '../../lib/chatSettingsStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import AiIkon from './AiIkon';
 import { useT } from '../../lib/i18n';
 
@@ -189,10 +187,10 @@ export default function ChatHeadActions() {
                   <button role="menuitemradio" aria-checked={posAi === 'window'} className="ai-more-item" data-testid="ai-move-window" onClick={() => pindahAi('window')}>{tr('Move Chat into New Window')}</button>
                   <button role="menuitemradio" aria-checked={posAi === 'right'} className="ai-more-item" data-testid="ai-move-right" onClick={() => pindahAi('right')}>{tr('Dock Chat to Right')}</button>
                   <div className="ai-more-sep" />
-                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-customize" onClick={() => { useAgentCustom.getState().buka(); setMenuBuka(false); }}>{tr('Agent Customizations…')}</button>
-                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-models" onClick={() => { useAiModels.getState().buka(); setMenuBuka(false); }}>{tr('settings.models')}</button>
+                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-customize" onClick={() => { bukaPanel('agent-custom'); setMenuBuka(false); }}>{tr('Agent Customizations…')}</button>
+                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-models" onClick={() => { bukaPanel('models'); setMenuBuka(false); }}>{tr('settings.models')}</button>
                   <div className="ai-more-sep" />
-                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-chat-settings" onClick={() => { useAiChatSettings.getState().setBuka(true); setMenuBuka(false); }}>{tr('Chat Settings')}</button>
+                  <button role="menuitem" className="ai-more-item" data-testid="ai-open-chat-settings" onClick={() => { bukaPanel('chat-settings'); setMenuBuka(false); }}>{tr('Chat Settings')}</button>
                   <div className="ai-more-sep" />
                   <button role="menuitemcheckbox" aria-checked={debugBuka} className="ai-more-item" data-testid="ai-toggle-debug" onClick={() => { useAiDebug.getState().toggle(); setMenuBuka(false); }}>{tr('Show Chat Debug View')}</button>
                   <div className="ai-more-sep" />

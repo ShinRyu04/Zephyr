@@ -5,6 +5,7 @@ import { useGit } from '../../lib/gitStore';
 import GhMenu from './GhMenu';
 import { useT, useTf } from '../../lib/i18n';
 import type { ActivityId } from '../../lib/types';
+import { bukaPanel } from '../../lib/bukaPanel';
 
 const Icons: Record<ActivityId, () => JSX.Element> = {
   explorer: () => (
@@ -32,6 +33,23 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
       <circle cx="4" cy="12.5" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <circle cx="12" cy="8" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <path d="M4 5.3v5.4M5.8 11.4C9 11 10.2 9.8 10.4 8.4" stroke="currentColor" strokeWidth="1.3" fill="none" />
+    </svg>
+  ),
+  /*
+   * Repo Wiki: three nodes joined by a line.
+   *
+   * A network, not a book. A book glyph would say "static document", and these
+   * pages are generated FROM the code and linked to it - the same reason the
+   * agent's own map icon is a network. Distinct from `scm` (a branch) because
+   * two rail entries that both look like connected circles would be two entries
+   * the reader has to guess between.
+   */
+  wiki: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <circle cx="8" cy="3.4" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="3.4" cy="12.2" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="12.6" cy="12.2" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 5.1L4.4 10.5M9 5.1l2.6 5.4M5.3 12.2h5.4" stroke="currentColor" strokeWidth="1.3" fill="none" />
     </svg>
   ),
   ai: () => (
@@ -170,6 +188,7 @@ const LABEL: Record<ActivityId, string> = {
   search: 'Search',
   outline: 'Outline',
   scm: 'Source Control',
+  wiki: 'Repo Wiki',
   debug: 'Run & Debug (Ctrl+Shift+D)',
   /*
    * No `ai` entry. The robot icon used to sit in the rail and toggle the chat
@@ -194,16 +213,20 @@ const LABEL: Record<ActivityId, string> = {
  * Order matches VS Code's rail: the file-centric views first, then Extensions,
  * then the machine-side Tools.
  *
- * Settings is NOT here: it sits at the very bottom, under the GitHub avatar,
- * which is where VS Code puts it and where a reader looks for it last. The
- * gear used to be a normal rail entry between Tools and the avatar, which
- * made it read as a fifth view rather than as the settings of the app.
+ * NO `outline` ENTRY. Outline is a section at the BOTTOM of the Explorer now
+ * (see SectionLipat), which is where VS Code and Qoder both put it: it describes
+ * the file that is open, so it belongs beside the tree that opens it, not as a
+ * fourth kind of view in the rail. The `ActivityId` still accepts the value for
+ * saved profiles, and the palette still reaches it.
+ *
+ * Settings is NOT here either: it sits at the very bottom, under the GitHub
+ * avatar, which is where VS Code puts it and where a reader looks for it last.
  */
 const ORDER: ActivityId[] = [
   'explorer',
   'search',
-  'outline',
   'scm',
+  'wiki',
   'debug',
   'extensions',
   'terminal',
@@ -218,11 +241,6 @@ export default function ActivityBar() {
   const setActivity = useStore((s) => s.setActivity);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
-  const settingsOpen = useStore((s) => s.settingsOpen);
-  const setExtensionsOpen = useStore((s) => s.setExtensionsOpen);
-  const setToolsOpen = useStore((s) => s.setToolsOpen);
-  const extensionsOpen = useStore((s) => s.extensionsOpen);
-  const toolsOpen = useStore((s) => s.toolsOpen);
   const gh = useGit((s) => s.gh);
   const loadGh = useGit((s) => s.loadGh);
   const loginDevice = useGit((s) => s.loginDevice);
@@ -281,9 +299,9 @@ export default function ActivityBar() {
       <nav className="activitybar" aria-label="Activity Bar">
       {ORDER.map((id) => {
         const Icon = Icons[id];
-        const popupTerbuka =
-          (id === 'extensions' && extensionsOpen) || (id === 'tools' && toolsOpen);
-        const isActive = popupTerbuka || (activity === id && sidebarVisible);
+        /* Extensions and Tools are windows now, so there is no popup flag to
+           read: the rail's only active state is the side-bar view it opens. */
+        const isActive = activity === id && sidebarVisible;
         return (
           <button
             key={id}
@@ -297,17 +315,20 @@ export default function ActivityBar() {
               setSettingsOpen(false);
 
               /*
-               * Extensions and Tools are floating panels, not side-bar
-               * views: they need the width, and docking them left the
-               * editor squeezed beside a marketplace. They toggle their own
-               * flag instead of switching `activity`.
+               * Extensions and Tools open as WINDOWS, not popups.
+               *
+               * They used to float over the editor, and when maximized their
+               * own chrome fought their layout: the left rail was painted over
+               * the content. A settings or marketplace page is a surface the
+               * reader keeps beside their code, so it gets a real window with
+               * the platform's own maximize/minimize.
                */
               if (id === 'extensions') {
-                setExtensionsOpen(!useStore.getState().extensionsOpen);
+                bukaPanel('extensions');
                 return;
               }
               if (id === 'tools') {
-                setToolsOpen(!useStore.getState().toolsOpen);
+                bukaPanel('tools');
                 return;
               }
 
@@ -376,18 +397,23 @@ export default function ActivityBar() {
         * the most disruptive when pressed by accident. It used to sit among
         * the views, between Tools and the avatar, where it read as a fifth
         * view of the editor rather than as the settings of the app.
+        *
+        * NO ACTIVE STATE, deliberately. It used to light up while the Settings
+        * popup was open, which made sense when the panel lived inside this
+        * window. Settings is now its own window: the rail cannot see whether
+        * that window exists, and a button that claims to be "active" while the
+        * window is closed (or dark while it is open on another monitor) is worse
+        * than a button that simply opens it.
         */}
       <button
-        className={`ab-btn ab-gear${settingsOpen ? ' is-active' : ''}`}
+        className="ab-btn ab-gear"
         data-testid="ab-settings"
         data-activity="settings"
         title={tr(LABEL.settings)}
         aria-label={tr(LABEL.settings)}
-        aria-pressed={settingsOpen}
-        onClick={() => setSettingsOpen(!settingsOpen)}
+        onClick={() => bukaPanel('settings')}
       >
         <Icons.settings />
-        {settingsOpen && <span className="ab-indicator" aria-hidden="true" />}
       </button>
       </nav>
     </>

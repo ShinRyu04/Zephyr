@@ -929,7 +929,9 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
         "Z80 Assembly syntax for the editor (CodeMirror legacy mode).",
         "Z8",
         "#475b9e",
-    ),
+    ),
+
+
 ];
 const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-apl", &[("zephyr-extension.json", LANG_APL)]),
@@ -1243,6 +1245,20 @@ const PAKET: &[Paket] = &[
         ],
     ),
     (
+        "zephyr.ikon-padat",
+        &[
+            ("zephyr-extension.json", extra::IKON_PADAT),
+            ("icons/padat.json", extra::IKON_PADAT_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-bingkai",
+        &[
+            ("zephyr-extension.json", extra::IKON_BINGKAI),
+            ("icons/bingkai.json", extra::IKON_BINGKAI_JSON),
+        ],
+    ),
+    (
         "zephyr.keymap-vim",
         &[
             ("zephyr-extension.json", extra::KEYMAP_VIM),
@@ -1333,6 +1349,197 @@ const PAKET: &[Paket] = &[
             ("themes/monokrom.json", extra::TEMA_MONOKROM_JSON),
         ],
     ),
+/* ══ IKON MARKETPLACE (didaftarkan) ══ */
+    (
+        "zephyr.ikon-kubus",
+        &[
+            ("zephyr-extension.json", extra::IKON_KUBUS),
+            ("icons/kubus.json", extra::IKON_KUBUS_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-berlian",
+        &[
+            ("zephyr-extension.json", extra::IKON_BERLIAN),
+            ("icons/berlian.json", extra::IKON_BERLIAN_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-segitiga",
+        &[
+            ("zephyr-extension.json", extra::IKON_SEGITIGA),
+            ("icons/segitiga.json", extra::IKON_SEGITIGA_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-kisi",
+        &[
+            ("zephyr-extension.json", extra::IKON_KISI),
+            ("icons/kisi.json", extra::IKON_KISI_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-lingkaran",
+        &[
+            ("zephyr-extension.json", extra::IKON_LINGKARAN),
+            ("icons/lingkaran.json", extra::IKON_LINGKARAN_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-kotak-garis",
+        &[
+            ("zephyr-extension.json", extra::IKON_KOTAK_GARIS),
+            ("icons/kotak-garis.json", extra::IKON_KOTAK_GARIS_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-panah",
+        &[
+            ("zephyr-extension.json", extra::IKON_PANAH),
+            ("icons/panah.json", extra::IKON_PANAH_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-bintang",
+        &[
+            ("zephyr-extension.json", extra::IKON_BINTANG),
+            ("icons/bintang.json", extra::IKON_BINTANG_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-berlubang",
+        &[
+            ("zephyr-extension.json", extra::IKON_BERLUBANG),
+            ("icons/berlubang.json", extra::IKON_BERLUBANG_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-blok",
+        &[
+            ("zephyr-extension.json", extra::IKON_BLOK),
+            ("icons/blok.json", extra::IKON_BLOK_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-garis-garis",
+        &[
+            ("zephyr-extension.json", extra::IKON_GARIS_GARIS),
+            ("icons/garis-garis.json", extra::IKON_GARIS_GARIS_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-petir",
+        &[
+            ("zephyr-extension.json", extra::IKON_PETIR),
+            ("icons/petir.json", extra::IKON_PETIR_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-permata",
+        &[
+            ("zephyr-extension.json", extra::IKON_PERMATA),
+            ("icons/permata.json", extra::IKON_PERMATA_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-heksagon",
+        &[
+            ("zephyr-extension.json", extra::IKON_HEKSAGON),
+            ("icons/heksagon.json", extra::IKON_HEKSAGON_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-berlian-garis",
+        &[
+            ("zephyr-extension.json", extra::IKON_BERLIAN_GARIS),
+            ("icons/berlian-garis.json", extra::IKON_BERLIAN_GARIS_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-tanda-tanya",
+        &[
+            ("zephyr-extension.json", extra::IKON_TANDA),
+            ("icons/tanda-tanya.json", extra::IKON_TANDA_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-belah-ketupat",
+        &[
+            ("zephyr-extension.json", extra::IKON_BELAH_KETUPAT),
+            ("icons/belah-ketupat.json", extra::IKON_BELAH_KETUPAT_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-kurung",
+        &[
+            ("zephyr-extension.json", extra::IKON_KURUNG),
+            ("icons/kurung.json", extra::IKON_KURUNG_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-huruf-tebal",
+        &[
+            ("zephyr-extension.json", extra::IKON_HURUF_TEBAL),
+            ("icons/huruf-tebal.json", extra::IKON_HURUF_TEBAL_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-huruf-miring",
+        &[
+            ("zephyr-extension.json", extra::IKON_HURUF_MIRING),
+            ("icons/huruf-miring.json", extra::IKON_HURUF_MIRING_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-kode",
+        &[
+            ("zephyr-extension.json", extra::IKON_KODE),
+            ("icons/kode.json", extra::IKON_KODE_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-simpul",
+        &[
+            ("zephyr-extension.json", extra::IKON_SIMPUL),
+            ("icons/simpul.json", extra::IKON_SIMPUL_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-peluru",
+        &[
+            ("zephyr-extension.json", extra::IKON_PELURU),
+            ("icons/peluru.json", extra::IKON_PELURU_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-belah",
+        &[
+            ("zephyr-extension.json", extra::IKON_BELAH),
+            ("icons/belah.json", extra::IKON_BELAH_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-tanda-plus",
+        &[
+            ("zephyr-extension.json", extra::IKON_TANDA_PLUS),
+            ("icons/tanda-plus.json", extra::IKON_TANDA_PLUS_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-belah-dua",
+        &[
+            ("zephyr-extension.json", extra::IKON_BELAH_DUA),
+            ("icons/belah-dua.json", extra::IKON_BELAH_DUA_JSON),
+        ],
+    ),
+    (
+        "zephyr.ikon-kilau",
+        &[
+            ("zephyr-extension.json", extra::IKON_KILAU),
+            ("icons/kilau.json", extra::IKON_KILAU_JSON),
+        ],
+    ),
+/* ══ AKHIR IKON MARKETPLACE (didaftarkan) ══ */
 ];
 
 fn cari_paket(id: &str) -> Option<Paket> {

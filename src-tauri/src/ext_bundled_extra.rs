@@ -118,8 +118,114 @@ pub(super) const IKON_TITIK_JSON: &str = r##"{
   }
 }"##;
 
-/* ── Keymaps ─────────────────────────────────────────────────────────── */
+/*
+ * Two more icon themes, and why these two.
+ *
+ * The three that shipped (Bulat, Garis, Bahasa) were all the same idea with
+ * different letters: a text mark per extension. A reader trying them out could
+ * not tell them apart at a glance, and none of them looked like the icon packs
+ * people actually install. These add the two shapes that were missing:
+ *
+ *   Padat    solid filled shapes, high contrast - the "chunky" look
+ *   Bingkai  outlined boxes, quiet and thin - the "minimal" look
+ *
+ * Both use characters that render identically on every platform (no emoji, no
+ * font-specific glyphs), so a sample that looks right on the settings card looks
+ * the same in the tree.
+ */
+pub(super) const IKON_PADAT: &str = r##"{
+  "id": "zephyr.ikon-padat",
+  "name": "Ikon Padat",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Solid filled shapes: high contrast marks that stay readable at 14px.",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Padat", "path": "./icons/padat.json" }]
+  }
+}"##;
 
+pub(super) const IKON_PADAT_JSON: &str = r##"{
+  "icons": {
+    "file":   { "glyph": "■", "color": "var(--fg2)" },
+    "folder": { "glyph": "▣", "color": "var(--fg2)" },
+    "ts":     { "glyph": "■", "color": "#3178c6" },
+    "tsx":    { "glyph": "■", "color": "#519aba" },
+    "js":     { "glyph": "■", "color": "#f1e05a" },
+    "jsx":    { "glyph": "■", "color": "#61dafb" },
+    "rs":     { "glyph": "■", "color": "#dea584" },
+    "py":     { "glyph": "■", "color": "#3572a5" },
+    "go":     { "glyph": "■", "color": "#00add8" },
+    "java":   { "glyph": "■", "color": "#b07219" },
+    "rb":     { "glyph": "■", "color": "#cc342d" },
+    "php":    { "glyph": "■", "color": "#4f5d95" },
+    "cs":     { "glyph": "■", "color": "#178600" },
+    "cpp":    { "glyph": "■", "color": "#f34b7d" },
+    "c":      { "glyph": "■", "color": "#555555" },
+    "swift":  { "glyph": "■", "color": "#f05138" },
+    "kt":     { "glyph": "■", "color": "#a97bff" },
+    "json":   { "glyph": "■", "color": "#cbcb41" },
+    "yml":    { "glyph": "■", "color": "#cb171e" },
+    "toml":   { "glyph": "■", "color": "#9c4221" },
+    "css":    { "glyph": "■", "color": "#563d7c" },
+    "scss":   { "glyph": "■", "color": "#c6538c" },
+    "html":   { "glyph": "■", "color": "#e34c26" },
+    "md":     { "glyph": "■", "color": "#519aba" },
+    "sql":    { "glyph": "■", "color": "#e38c00" },
+    "sh":     { "glyph": "■", "color": "#89e051" },
+    "png":    { "glyph": "■", "color": "#a074c4" },
+    "svg":    { "glyph": "■", "color": "#ffb13b" }
+  }
+}"##;
+
+pub(super) const IKON_BINGKAI: &str = r##"{
+  "id": "zephyr.ikon-bingkai",
+  "name": "Ikon Bingkai",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Outlined marks: thin, quiet icons for dense file trees.",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Bingkai", "path": "./icons/bingkai.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BINGKAI_JSON: &str = r##"{
+  "icons": {
+    "file":   { "glyph": "▢", "color": "var(--fg2)" },
+    "folder": { "glyph": "▤", "color": "var(--fg2)" },
+    "ts":     { "glyph": "▢", "color": "#3178c6" },
+    "tsx":    { "glyph": "▢", "color": "#519aba" },
+    "js":     { "glyph": "▢", "color": "#f1e05a" },
+    "jsx":    { "glyph": "▢", "color": "#61dafb" },
+    "rs":     { "glyph": "▢", "color": "#dea584" },
+    "py":     { "glyph": "▢", "color": "#3572a5" },
+    "go":     { "glyph": "▢", "color": "#00add8" },
+    "java":   { "glyph": "▢", "color": "#b07219" },
+    "rb":     { "glyph": "▢", "color": "#cc342d" },
+    "php":    { "glyph": "▢", "color": "#4f5d95" },
+    "cs":     { "glyph": "▢", "color": "#178600" },
+    "cpp":    { "glyph": "▢", "color": "#f34b7d" },
+    "c":      { "glyph": "▢", "color": "#555555" },
+    "swift":  { "glyph": "▢", "color": "#f05138" },
+    "kt":     { "glyph": "▢", "color": "#a97bff" },
+    "json":   { "glyph": "▢", "color": "#cbcb41" },
+    "yml":    { "glyph": "▢", "color": "#cb171e" },
+    "toml":   { "glyph": "▢", "color": "#9c4221" },
+    "css":    { "glyph": "▢", "color": "#563d7c" },
+    "scss":   { "glyph": "▢", "color": "#c6538c" },
+    "html":   { "glyph": "▢", "color": "#e34c26" },
+    "md":     { "glyph": "▢", "color": "#519aba" },
+    "sql":    { "glyph": "▢", "color": "#e38c00" },
+    "sh":     { "glyph": "▢", "color": "#89e051" },
+    "png":    { "glyph": "▢", "color": "#a074c4" },
+    "svg":    { "glyph": "▢", "color": "#ffb13b" }
+  }
+}"##;
+
+/* ── Keymaps ─────────────────────────────────────────────────────────── */
 pub(super) const KEYMAP_VIM: &str = r##"{
   "id": "zephyr.keymap-vim",
   "name": "Keymap ala Vim",
@@ -792,4 +898,4576 @@ pub(super) const TEMA_MONOKROM_JSON: &str = r##"{
   }
 }"##;
 
+/* ══ IKON MARKETPLACE — DIHASILKAN scratch/gen-tema-marketplace.cjs ══ */
+/*
+ * Paket ikon marketplace.
+ *
+ * Tiap paket mendefinisikan `folder`, `folder-open`, dan `folderNames`, jadi
+ * memilihnya benar-benar mengubah ikon FOLDER di pohon berkas - bukan hanya
+ * huruf per ekstensi. Itu inti keluhan "folder nggak berubah sama sekali".
+ */
 
+pub(super) const IKON_KUBUS: &str = r##"{
+  "id": "zephyr.ikon-kubus",
+  "name": "Ikon Kubus",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Solid squares, one colour per language family",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kubus", "path": "./icons/kubus.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KUBUS_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "▪",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◼",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◻",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "▪",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◼",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◻",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◼",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "◼",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "◼",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "◼",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "◼",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "◼",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "◼",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "◼",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "◼",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "◼",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "◼",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "◼",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "◼",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "◼",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "◼",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "◼",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "◼",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "◼",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "◼",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "◼",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "◼",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "◼",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "◼",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "◼",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BERLIAN: &str = r##"{
+  "id": "zephyr.ikon-berlian",
+  "name": "Ikon Berlian",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Diamond marks, sharp and compact",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Berlian", "path": "./icons/berlian.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BERLIAN_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◆",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◈",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◇",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◆",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◈",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◇",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◈",
+      "color": "#5b9dd9"
+    },
+    "tsx": {
+      "glyph": "◈",
+      "color": "#5b9dd9"
+    },
+    "js": {
+      "glyph": "◈",
+      "color": "#e8c547"
+    },
+    "jsx": {
+      "glyph": "◈",
+      "color": "#e8c547"
+    },
+    "rs": {
+      "glyph": "◈",
+      "color": "#c98a6b"
+    },
+    "py": {
+      "glyph": "◈",
+      "color": "#4b8bbe"
+    },
+    "go": {
+      "glyph": "◈",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "◈",
+      "color": "#c07030"
+    },
+    "rb": {
+      "glyph": "◈",
+      "color": "#b03050"
+    },
+    "php": {
+      "glyph": "◈",
+      "color": "#6a72b5"
+    },
+    "cs": {
+      "glyph": "◈",
+      "color": "#3a8a3a"
+    },
+    "cpp": {
+      "glyph": "◈",
+      "color": "#d05070"
+    },
+    "c": {
+      "glyph": "◈",
+      "color": "#707070"
+    },
+    "swift": {
+      "glyph": "◈",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "◈",
+      "color": "#9a7bd0"
+    },
+    "json": {
+      "glyph": "◈",
+      "color": "#b5b53a"
+    },
+    "yml": {
+      "glyph": "◈",
+      "color": "#b03a3a"
+    },
+    "toml": {
+      "glyph": "◈",
+      "color": "#a05a30"
+    },
+    "css": {
+      "glyph": "◈",
+      "color": "#7a4a9a"
+    },
+    "scss": {
+      "glyph": "◈",
+      "color": "#b05080"
+    },
+    "html": {
+      "glyph": "◈",
+      "color": "#d05a3a"
+    },
+    "md": {
+      "glyph": "◈",
+      "color": "#4a8ab5"
+    },
+    "sql": {
+      "glyph": "◈",
+      "color": "#c08020"
+    },
+    "sh": {
+      "glyph": "◈",
+      "color": "#70c060"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_SEGITIGA: &str = r##"{
+  "id": "zephyr.ikon-segitiga",
+  "name": "Ikon Segitiga",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Triangles, geometric and distinct",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Segitiga", "path": "./icons/segitiga.json" }]
+  }
+}"##;
+
+pub(super) const IKON_SEGITIGA_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "▲",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "▴",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "▵",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "▲",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "▴",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "▵",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "▴",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "▴",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "▴",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "▴",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "▴",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "▴",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "▴",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "▴",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "▴",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "▴",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "▴",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "▴",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "▴",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "▴",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "▴",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "▴",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "▴",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "▴",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "▴",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "▴",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "▴",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "▴",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "▴",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "▴",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_KISI: &str = r##"{
+  "id": "zephyr.ikon-kisi",
+  "name": "Ikon Kisi",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Grid marks, technical and neutral",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kisi", "path": "./icons/kisi.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KISI_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "▦",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "▩",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "▨",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "▦",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "▩",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "▨",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "▩",
+      "color": "#4a90c2"
+    },
+    "tsx": {
+      "glyph": "▩",
+      "color": "#4a90c2"
+    },
+    "js": {
+      "glyph": "▩",
+      "color": "#c9b93a"
+    },
+    "jsx": {
+      "glyph": "▩",
+      "color": "#c9b93a"
+    },
+    "rs": {
+      "glyph": "▩",
+      "color": "#c08a6a"
+    },
+    "py": {
+      "glyph": "▩",
+      "color": "#4a80a5"
+    },
+    "go": {
+      "glyph": "▩",
+      "color": "#00a0c8"
+    },
+    "java": {
+      "glyph": "▩",
+      "color": "#a56818"
+    },
+    "rb": {
+      "glyph": "▩",
+      "color": "#b82f40"
+    },
+    "php": {
+      "glyph": "▩",
+      "color": "#4a5a9a"
+    },
+    "cs": {
+      "glyph": "▩",
+      "color": "#2f7a2f"
+    },
+    "cpp": {
+      "glyph": "▩",
+      "color": "#c04a6a"
+    },
+    "c": {
+      "glyph": "▩",
+      "color": "#5a5a5a"
+    },
+    "swift": {
+      "glyph": "▩",
+      "color": "#e04a30"
+    },
+    "kt": {
+      "glyph": "▩",
+      "color": "#8f6fd0"
+    },
+    "json": {
+      "glyph": "▩",
+      "color": "#b0b038"
+    },
+    "yml": {
+      "glyph": "▩",
+      "color": "#b03038"
+    },
+    "toml": {
+      "glyph": "▩",
+      "color": "#905028"
+    },
+    "css": {
+      "glyph": "▩",
+      "color": "#5a3a8a"
+    },
+    "scss": {
+      "glyph": "▩",
+      "color": "#a84a78"
+    },
+    "html": {
+      "glyph": "▩",
+      "color": "#c85430"
+    },
+    "md": {
+      "glyph": "▩",
+      "color": "#4a80a8"
+    },
+    "sql": {
+      "glyph": "▩",
+      "color": "#b87a18"
+    },
+    "sh": {
+      "glyph": "▩",
+      "color": "#68b858"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_LINGKARAN: &str = r##"{
+  "id": "zephyr.ikon-lingkaran",
+  "name": "Ikon Lingkaran",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Circles, the softest of the sets",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Lingkaran", "path": "./icons/lingkaran.json" }]
+  }
+}"##;
+
+pub(super) const IKON_LINGKARAN_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "○",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "●",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◌",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "○",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "●",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◌",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "●",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "●",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "●",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "●",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "●",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "●",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "●",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "●",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "●",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "●",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "●",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "●",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "●",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "●",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "●",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "●",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "●",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "●",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "●",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "●",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "●",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "●",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "●",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "●",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_KOTAK_GARIS: &str = r##"{
+  "id": "zephyr.ikon-kotak-garis",
+  "name": "Ikon Kotak Garis",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Thin outlined boxes, quiet",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kotak Garis", "path": "./icons/kotak-garis.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KOTAK_GARIS_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "▢",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "▣",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "▤",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "▢",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "▣",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "▤",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "▣",
+      "color": "#5a8ab5"
+    },
+    "tsx": {
+      "glyph": "▣",
+      "color": "#5a8ab5"
+    },
+    "js": {
+      "glyph": "▣",
+      "color": "#c2b53a"
+    },
+    "jsx": {
+      "glyph": "▣",
+      "color": "#c2b53a"
+    },
+    "rs": {
+      "glyph": "▣",
+      "color": "#b08060"
+    },
+    "py": {
+      "glyph": "▣",
+      "color": "#4a7595"
+    },
+    "go": {
+      "glyph": "▣",
+      "color": "#0095bb"
+    },
+    "java": {
+      "glyph": "▣",
+      "color": "#9a5a18"
+    },
+    "rb": {
+      "glyph": "▣",
+      "color": "#a82f3a"
+    },
+    "php": {
+      "glyph": "▣",
+      "color": "#48558a"
+    },
+    "cs": {
+      "glyph": "▣",
+      "color": "#2f6f2f"
+    },
+    "cpp": {
+      "glyph": "▣",
+      "color": "#b54560"
+    },
+    "c": {
+      "glyph": "▣",
+      "color": "#5a5a5a"
+    },
+    "swift": {
+      "glyph": "▣",
+      "color": "#d04530"
+    },
+    "kt": {
+      "glyph": "▣",
+      "color": "#8560c0"
+    },
+    "json": {
+      "glyph": "▣",
+      "color": "#a8a838"
+    },
+    "yml": {
+      "glyph": "▣",
+      "color": "#a82f35"
+    },
+    "toml": {
+      "glyph": "▣",
+      "color": "#885028"
+    },
+    "css": {
+      "glyph": "▣",
+      "color": "#553a80"
+    },
+    "scss": {
+      "glyph": "▣",
+      "color": "#9a4570"
+    },
+    "html": {
+      "glyph": "▣",
+      "color": "#bb4f2f"
+    },
+    "md": {
+      "glyph": "▣",
+      "color": "#4a7aa0"
+    },
+    "sql": {
+      "glyph": "▣",
+      "color": "#aa7518"
+    },
+    "sh": {
+      "glyph": "▣",
+      "color": "#60aa50"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_PANAH: &str = r##"{
+  "id": "zephyr.ikon-panah",
+  "name": "Ikon Panah",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Arrow marks, direction per language",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Panah", "path": "./icons/panah.json" }]
+  }
+}"##;
+
+pub(super) const IKON_PANAH_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "›",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "»",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "›",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "›",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "»",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "›",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "»",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "»",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "»",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "»",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "»",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "»",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "»",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "»",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "»",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "»",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "»",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "»",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "»",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "»",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "»",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "»",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "»",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "»",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "»",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "»",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "»",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "»",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "»",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "»",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BINTANG: &str = r##"{
+  "id": "zephyr.ikon-bintang",
+  "name": "Ikon Bintang",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Star marks, bright and legible",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Bintang", "path": "./icons/bintang.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BINTANG_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "✦",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "✧",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "✩",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "✦",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "✧",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "✩",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "✧",
+      "color": "#4a90c2"
+    },
+    "tsx": {
+      "glyph": "✧",
+      "color": "#4a90c2"
+    },
+    "js": {
+      "glyph": "✧",
+      "color": "#d4c33a"
+    },
+    "jsx": {
+      "glyph": "✧",
+      "color": "#d4c33a"
+    },
+    "rs": {
+      "glyph": "✧",
+      "color": "#c89070"
+    },
+    "py": {
+      "glyph": "✧",
+      "color": "#4a80a5"
+    },
+    "go": {
+      "glyph": "✧",
+      "color": "#00a0c8"
+    },
+    "java": {
+      "glyph": "✧",
+      "color": "#a87018"
+    },
+    "rb": {
+      "glyph": "✧",
+      "color": "#b83040"
+    },
+    "php": {
+      "glyph": "✧",
+      "color": "#4a5a9a"
+    },
+    "cs": {
+      "glyph": "✧",
+      "color": "#2f7a2f"
+    },
+    "cpp": {
+      "glyph": "✧",
+      "color": "#c0506a"
+    },
+    "c": {
+      "glyph": "✧",
+      "color": "#606060"
+    },
+    "swift": {
+      "glyph": "✧",
+      "color": "#e04a30"
+    },
+    "kt": {
+      "glyph": "✧",
+      "color": "#8f6fd0"
+    },
+    "json": {
+      "glyph": "✧",
+      "color": "#b5b53a"
+    },
+    "yml": {
+      "glyph": "✧",
+      "color": "#b03038"
+    },
+    "toml": {
+      "glyph": "✧",
+      "color": "#905028"
+    },
+    "css": {
+      "glyph": "✧",
+      "color": "#5a3a8a"
+    },
+    "scss": {
+      "glyph": "✧",
+      "color": "#a84a78"
+    },
+    "html": {
+      "glyph": "✧",
+      "color": "#c85430"
+    },
+    "md": {
+      "glyph": "✧",
+      "color": "#4a80a8"
+    },
+    "sql": {
+      "glyph": "✧",
+      "color": "#b87a18"
+    },
+    "sh": {
+      "glyph": "✧",
+      "color": "#68b858"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BERLUBANG: &str = r##"{
+  "id": "zephyr.ikon-berlubang",
+  "name": "Ikon Berlubang",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Hollow shapes, light and airy",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Berlubang", "path": "./icons/berlubang.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BERLUBANG_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◯",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◉",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◎",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◯",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◉",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◎",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◉",
+      "color": "#5a9ac2"
+    },
+    "tsx": {
+      "glyph": "◉",
+      "color": "#5a9ac2"
+    },
+    "js": {
+      "glyph": "◉",
+      "color": "#cdbf3f"
+    },
+    "jsx": {
+      "glyph": "◉",
+      "color": "#cdbf3f"
+    },
+    "rs": {
+      "glyph": "◉",
+      "color": "#c48e6e"
+    },
+    "py": {
+      "glyph": "◉",
+      "color": "#4f85aa"
+    },
+    "go": {
+      "glyph": "◉",
+      "color": "#00a5cd"
+    },
+    "java": {
+      "glyph": "◉",
+      "color": "#ad701f"
+    },
+    "rb": {
+      "glyph": "◉",
+      "color": "#bb3545"
+    },
+    "php": {
+      "glyph": "◉",
+      "color": "#4f5f9f"
+    },
+    "cs": {
+      "glyph": "◉",
+      "color": "#358035"
+    },
+    "cpp": {
+      "glyph": "◉",
+      "color": "#c55570"
+    },
+    "c": {
+      "glyph": "◉",
+      "color": "#5f5f5f"
+    },
+    "swift": {
+      "glyph": "◉",
+      "color": "#e5553a"
+    },
+    "kt": {
+      "glyph": "◉",
+      "color": "#9475d5"
+    },
+    "json": {
+      "glyph": "◉",
+      "color": "#b8b840"
+    },
+    "yml": {
+      "glyph": "◉",
+      "color": "#b83540"
+    },
+    "toml": {
+      "glyph": "◉",
+      "color": "#955a30"
+    },
+    "css": {
+      "glyph": "◉",
+      "color": "#5f3f8f"
+    },
+    "scss": {
+      "glyph": "◉",
+      "color": "#ad4f7d"
+    },
+    "html": {
+      "glyph": "◉",
+      "color": "#cd5935"
+    },
+    "md": {
+      "glyph": "◉",
+      "color": "#4f85ad"
+    },
+    "sql": {
+      "glyph": "◉",
+      "color": "#bd7f20"
+    },
+    "sh": {
+      "glyph": "◉",
+      "color": "#6dbd5d"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BLOK: &str = r##"{
+  "id": "zephyr.ikon-blok",
+  "name": "Ikon Blok",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Blocky marks, maximum weight",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Blok", "path": "./icons/blok.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BLOK_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "█",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "▉",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "▊",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "█",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "▉",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "▊",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "▉",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "▉",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "▉",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "▉",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "▉",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "▉",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "▉",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "▉",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "▉",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "▉",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "▉",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "▉",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "▉",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "▉",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "▉",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "▉",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "▉",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "▉",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "▉",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "▉",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "▉",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "▉",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "▉",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "▉",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_GARIS_GARIS: &str = r##"{
+  "id": "zephyr.ikon-garis-garis",
+  "name": "Ikon Garis-garis",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Line marks, minimal and fast to scan",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Garis-garis", "path": "./icons/garis-garis.json" }]
+  }
+}"##;
+
+pub(super) const IKON_GARIS_GARIS_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "≡",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "☰",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "≡",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "≡",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "☰",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "≡",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "☰",
+      "color": "#4f95c8"
+    },
+    "tsx": {
+      "glyph": "☰",
+      "color": "#4f95c8"
+    },
+    "js": {
+      "glyph": "☰",
+      "color": "#c8ba3a"
+    },
+    "jsx": {
+      "glyph": "☰",
+      "color": "#c8ba3a"
+    },
+    "rs": {
+      "glyph": "☰",
+      "color": "#c38a68"
+    },
+    "py": {
+      "glyph": "☰",
+      "color": "#4f83a8"
+    },
+    "go": {
+      "glyph": "☰",
+      "color": "#00a2ca"
+    },
+    "java": {
+      "glyph": "☰",
+      "color": "#aa6d1c"
+    },
+    "rb": {
+      "glyph": "☰",
+      "color": "#b83242"
+    },
+    "php": {
+      "glyph": "☰",
+      "color": "#4c5c9c"
+    },
+    "cs": {
+      "glyph": "☰",
+      "color": "#327d32"
+    },
+    "cpp": {
+      "glyph": "☰",
+      "color": "#c3506c"
+    },
+    "c": {
+      "glyph": "☰",
+      "color": "#5c5c5c"
+    },
+    "swift": {
+      "glyph": "☰",
+      "color": "#e25038"
+    },
+    "kt": {
+      "glyph": "☰",
+      "color": "#9170d2"
+    },
+    "json": {
+      "glyph": "☰",
+      "color": "#b3b33c"
+    },
+    "yml": {
+      "glyph": "☰",
+      "color": "#b3323c"
+    },
+    "toml": {
+      "glyph": "☰",
+      "color": "#92552c"
+    },
+    "css": {
+      "glyph": "☰",
+      "color": "#5c3c8c"
+    },
+    "scss": {
+      "glyph": "☰",
+      "color": "#aa4c7a"
+    },
+    "html": {
+      "glyph": "☰",
+      "color": "#ca5632"
+    },
+    "md": {
+      "glyph": "☰",
+      "color": "#4f83aa"
+    },
+    "sql": {
+      "glyph": "☰",
+      "color": "#ba7c1c"
+    },
+    "sh": {
+      "glyph": "☰",
+      "color": "#6aba5a"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_PETIR: &str = r##"{
+  "id": "zephyr.ikon-petir",
+  "name": "Ikon Petir",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Bolt marks, energetic",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Petir", "path": "./icons/petir.json" }]
+  }
+}"##;
+
+pub(super) const IKON_PETIR_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "⚡",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "⚡",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "⚡",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "⚡",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "⚡",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "⚡",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "⚡",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "⚡",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "⚡",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "⚡",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "⚡",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "⚡",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "⚡",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "⚡",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "⚡",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "⚡",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "⚡",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "⚡",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "⚡",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "⚡",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "⚡",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "⚡",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "⚡",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "⚡",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "⚡",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "⚡",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "⚡",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "⚡",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "⚡",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "⚡",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_PERMATA: &str = r##"{
+  "id": "zephyr.ikon-permata",
+  "name": "Ikon Permata",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Gem marks, faceted look",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Permata", "path": "./icons/permata.json" }]
+  }
+}"##;
+
+pub(super) const IKON_PERMATA_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "❖",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "❖",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "❖",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "❖",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "❖",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "❖",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "❖",
+      "color": "#5f9ec5"
+    },
+    "tsx": {
+      "glyph": "❖",
+      "color": "#5f9ec5"
+    },
+    "js": {
+      "glyph": "❖",
+      "color": "#cfc040"
+    },
+    "jsx": {
+      "glyph": "❖",
+      "color": "#cfc040"
+    },
+    "rs": {
+      "glyph": "❖",
+      "color": "#c68f70"
+    },
+    "py": {
+      "glyph": "❖",
+      "color": "#5488aa"
+    },
+    "go": {
+      "glyph": "❖",
+      "color": "#00a8cf"
+    },
+    "java": {
+      "glyph": "❖",
+      "color": "#b07520"
+    },
+    "rb": {
+      "glyph": "❖",
+      "color": "#c03a48"
+    },
+    "php": {
+      "glyph": "❖",
+      "color": "#5464a4"
+    },
+    "cs": {
+      "glyph": "❖",
+      "color": "#3a833a"
+    },
+    "cpp": {
+      "glyph": "❖",
+      "color": "#c85873"
+    },
+    "c": {
+      "glyph": "❖",
+      "color": "#606060"
+    },
+    "swift": {
+      "glyph": "❖",
+      "color": "#e85840"
+    },
+    "kt": {
+      "glyph": "❖",
+      "color": "#9878d8"
+    },
+    "json": {
+      "glyph": "❖",
+      "color": "#bbbb42"
+    },
+    "yml": {
+      "glyph": "❖",
+      "color": "#bb3a42"
+    },
+    "toml": {
+      "glyph": "❖",
+      "color": "#9a5c32"
+    },
+    "css": {
+      "glyph": "❖",
+      "color": "#604090"
+    },
+    "scss": {
+      "glyph": "❖",
+      "color": "#b05280"
+    },
+    "html": {
+      "glyph": "❖",
+      "color": "#d05c38"
+    },
+    "md": {
+      "glyph": "❖",
+      "color": "#5488b0"
+    },
+    "sql": {
+      "glyph": "❖",
+      "color": "#c08222"
+    },
+    "sh": {
+      "glyph": "❖",
+      "color": "#72c062"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_HEKSAGON: &str = r##"{
+  "id": "zephyr.ikon-heksagon",
+  "name": "Ikon Heksagon",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Hexagon marks, honeycomb feel",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Heksagon", "path": "./icons/heksagon.json" }]
+  }
+}"##;
+
+pub(super) const IKON_HEKSAGON_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "⬢",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "⬣",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "⬡",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "⬢",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "⬣",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "⬡",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "⬣",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "⬣",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "⬣",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "⬣",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "⬣",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "⬣",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "⬣",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "⬣",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "⬣",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "⬣",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "⬣",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "⬣",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "⬣",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "⬣",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "⬣",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "⬣",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "⬣",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "⬣",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "⬣",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "⬣",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "⬣",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "⬣",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "⬣",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "⬣",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BERLIAN_GARIS: &str = r##"{
+  "id": "zephyr.ikon-berlian-garis",
+  "name": "Ikon Berlian Garis",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Outlined diamonds, precise",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Berlian Garis", "path": "./icons/berlian-garis.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BERLIAN_GARIS_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◈",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◈",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◇",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◈",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◈",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◇",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◈",
+      "color": "#5a9ac8"
+    },
+    "tsx": {
+      "glyph": "◈",
+      "color": "#5a9ac8"
+    },
+    "js": {
+      "glyph": "◈",
+      "color": "#cabd3a"
+    },
+    "jsx": {
+      "glyph": "◈",
+      "color": "#cabd3a"
+    },
+    "rs": {
+      "glyph": "◈",
+      "color": "#c48b68"
+    },
+    "py": {
+      "glyph": "◈",
+      "color": "#5085a8"
+    },
+    "go": {
+      "glyph": "◈",
+      "color": "#00a3cb"
+    },
+    "java": {
+      "glyph": "◈",
+      "color": "#ab6e1d"
+    },
+    "rb": {
+      "glyph": "◈",
+      "color": "#ba3343"
+    },
+    "php": {
+      "glyph": "◈",
+      "color": "#4e5e9e"
+    },
+    "cs": {
+      "glyph": "◈",
+      "color": "#337e33"
+    },
+    "cpp": {
+      "glyph": "◈",
+      "color": "#c4526e"
+    },
+    "c": {
+      "glyph": "◈",
+      "color": "#5e5e5e"
+    },
+    "swift": {
+      "glyph": "◈",
+      "color": "#e3523a"
+    },
+    "kt": {
+      "glyph": "◈",
+      "color": "#9373d4"
+    },
+    "json": {
+      "glyph": "◈",
+      "color": "#b6b63e"
+    },
+    "yml": {
+      "glyph": "◈",
+      "color": "#b6343e"
+    },
+    "toml": {
+      "glyph": "◈",
+      "color": "#94572e"
+    },
+    "css": {
+      "glyph": "◈",
+      "color": "#5e3e8e"
+    },
+    "scss": {
+      "glyph": "◈",
+      "color": "#ac4e7c"
+    },
+    "html": {
+      "glyph": "◈",
+      "color": "#cc5834"
+    },
+    "md": {
+      "glyph": "◈",
+      "color": "#5085ac"
+    },
+    "sql": {
+      "glyph": "◈",
+      "color": "#bc7e1e"
+    },
+    "sh": {
+      "glyph": "◈",
+      "color": "#6cbc5c"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_TANDA: &str = r##"{
+  "id": "zephyr.ikon-tanda-tanya",
+  "name": "Ikon Tanda",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Punctuation marks, typographic",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Tanda", "path": "./icons/tanda-tanya.json" }]
+  }
+}"##;
+
+pub(super) const IKON_TANDA_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "§",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "¶",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "§",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "§",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "¶",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "§",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "¶",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "¶",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "¶",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "¶",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "¶",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "¶",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "¶",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "¶",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "¶",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "¶",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "¶",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "¶",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "¶",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "¶",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "¶",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "¶",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "¶",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "¶",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "¶",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "¶",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "¶",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "¶",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "¶",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "¶",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BELAH_KETUPAT: &str = r##"{
+  "id": "zephyr.ikon-belah-ketupat",
+  "name": "Ikon Belah Ketupat",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Lozenges, angled and clean",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Belah Ketupat", "path": "./icons/belah-ketupat.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BELAH_KETUPAT_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◊",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◊",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◊",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◊",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◊",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◊",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◊",
+      "color": "#4f95c8"
+    },
+    "tsx": {
+      "glyph": "◊",
+      "color": "#4f95c8"
+    },
+    "js": {
+      "glyph": "◊",
+      "color": "#c8ba3a"
+    },
+    "jsx": {
+      "glyph": "◊",
+      "color": "#c8ba3a"
+    },
+    "rs": {
+      "glyph": "◊",
+      "color": "#c38a68"
+    },
+    "py": {
+      "glyph": "◊",
+      "color": "#4f83a8"
+    },
+    "go": {
+      "glyph": "◊",
+      "color": "#00a2ca"
+    },
+    "java": {
+      "glyph": "◊",
+      "color": "#aa6d1c"
+    },
+    "rb": {
+      "glyph": "◊",
+      "color": "#b83242"
+    },
+    "php": {
+      "glyph": "◊",
+      "color": "#4c5c9c"
+    },
+    "cs": {
+      "glyph": "◊",
+      "color": "#327d32"
+    },
+    "cpp": {
+      "glyph": "◊",
+      "color": "#c3506c"
+    },
+    "c": {
+      "glyph": "◊",
+      "color": "#5c5c5c"
+    },
+    "swift": {
+      "glyph": "◊",
+      "color": "#e25038"
+    },
+    "kt": {
+      "glyph": "◊",
+      "color": "#9170d2"
+    },
+    "json": {
+      "glyph": "◊",
+      "color": "#b3b33c"
+    },
+    "yml": {
+      "glyph": "◊",
+      "color": "#b3323c"
+    },
+    "toml": {
+      "glyph": "◊",
+      "color": "#92552c"
+    },
+    "css": {
+      "glyph": "◊",
+      "color": "#5c3c8c"
+    },
+    "scss": {
+      "glyph": "◊",
+      "color": "#aa4c7a"
+    },
+    "html": {
+      "glyph": "◊",
+      "color": "#ca5632"
+    },
+    "md": {
+      "glyph": "◊",
+      "color": "#4f83aa"
+    },
+    "sql": {
+      "glyph": "◊",
+      "color": "#ba7c1c"
+    },
+    "sh": {
+      "glyph": "◊",
+      "color": "#6aba5a"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_KURUNG: &str = r##"{
+  "id": "zephyr.ikon-kurung",
+  "name": "Ikon Kurung",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Bracket marks, code-native",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kurung", "path": "./icons/kurung.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KURUNG_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "{ }",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "[ ]",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "( )",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "{ }",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "[ ]",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "( )",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "[ ]",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "[ ]",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "[ ]",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "[ ]",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "[ ]",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "[ ]",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "[ ]",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "[ ]",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "[ ]",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "[ ]",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "[ ]",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "[ ]",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "[ ]",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "[ ]",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "[ ]",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "[ ]",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "[ ]",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "[ ]",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "[ ]",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "[ ]",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "[ ]",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "[ ]",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "[ ]",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "[ ]",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_HURUF_TEBAL: &str = r##"{
+  "id": "zephyr.ikon-huruf-tebal",
+  "name": "Ikon Huruf Tebal",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Bold initials, maximum legibility",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Huruf Tebal", "path": "./icons/huruf-tebal.json" }]
+  }
+}"##;
+
+pub(super) const IKON_HURUF_TEBAL_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "F",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "D",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "D",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "F",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "D",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "D",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "D",
+      "color": "#4a90c2"
+    },
+    "tsx": {
+      "glyph": "D",
+      "color": "#4a90c2"
+    },
+    "js": {
+      "glyph": "D",
+      "color": "#c9b93a"
+    },
+    "jsx": {
+      "glyph": "D",
+      "color": "#c9b93a"
+    },
+    "rs": {
+      "glyph": "D",
+      "color": "#c08a6a"
+    },
+    "py": {
+      "glyph": "D",
+      "color": "#4a80a5"
+    },
+    "go": {
+      "glyph": "D",
+      "color": "#00a0c8"
+    },
+    "java": {
+      "glyph": "D",
+      "color": "#a56818"
+    },
+    "rb": {
+      "glyph": "D",
+      "color": "#b82f40"
+    },
+    "php": {
+      "glyph": "D",
+      "color": "#4a5a9a"
+    },
+    "cs": {
+      "glyph": "D",
+      "color": "#2f7a2f"
+    },
+    "cpp": {
+      "glyph": "D",
+      "color": "#c04a6a"
+    },
+    "c": {
+      "glyph": "D",
+      "color": "#5a5a5a"
+    },
+    "swift": {
+      "glyph": "D",
+      "color": "#e04a30"
+    },
+    "kt": {
+      "glyph": "D",
+      "color": "#8f6fd0"
+    },
+    "json": {
+      "glyph": "D",
+      "color": "#b0b038"
+    },
+    "yml": {
+      "glyph": "D",
+      "color": "#b03038"
+    },
+    "toml": {
+      "glyph": "D",
+      "color": "#905028"
+    },
+    "css": {
+      "glyph": "D",
+      "color": "#5a3a8a"
+    },
+    "scss": {
+      "glyph": "D",
+      "color": "#a84a78"
+    },
+    "html": {
+      "glyph": "D",
+      "color": "#c85430"
+    },
+    "md": {
+      "glyph": "D",
+      "color": "#4a80a8"
+    },
+    "sql": {
+      "glyph": "D",
+      "color": "#b87a18"
+    },
+    "sh": {
+      "glyph": "D",
+      "color": "#68b858"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_HURUF_MIRING: &str = r##"{
+  "id": "zephyr.ikon-huruf-miring",
+  "name": "Ikon Huruf Miring",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Italic initials, softer than bold",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Huruf Miring", "path": "./icons/huruf-miring.json" }]
+  }
+}"##;
+
+pub(super) const IKON_HURUF_MIRING_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "f",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "d",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "d",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "f",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "d",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "d",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "d",
+      "color": "#5a8ab5"
+    },
+    "tsx": {
+      "glyph": "d",
+      "color": "#5a8ab5"
+    },
+    "js": {
+      "glyph": "d",
+      "color": "#c2b53a"
+    },
+    "jsx": {
+      "glyph": "d",
+      "color": "#c2b53a"
+    },
+    "rs": {
+      "glyph": "d",
+      "color": "#b08060"
+    },
+    "py": {
+      "glyph": "d",
+      "color": "#4a7595"
+    },
+    "go": {
+      "glyph": "d",
+      "color": "#0095bb"
+    },
+    "java": {
+      "glyph": "d",
+      "color": "#9a5a18"
+    },
+    "rb": {
+      "glyph": "d",
+      "color": "#a82f3a"
+    },
+    "php": {
+      "glyph": "d",
+      "color": "#48558a"
+    },
+    "cs": {
+      "glyph": "d",
+      "color": "#2f6f2f"
+    },
+    "cpp": {
+      "glyph": "d",
+      "color": "#b54560"
+    },
+    "c": {
+      "glyph": "d",
+      "color": "#5a5a5a"
+    },
+    "swift": {
+      "glyph": "d",
+      "color": "#d04530"
+    },
+    "kt": {
+      "glyph": "d",
+      "color": "#8560c0"
+    },
+    "json": {
+      "glyph": "d",
+      "color": "#a8a838"
+    },
+    "yml": {
+      "glyph": "d",
+      "color": "#a82f35"
+    },
+    "toml": {
+      "glyph": "d",
+      "color": "#885028"
+    },
+    "css": {
+      "glyph": "d",
+      "color": "#553a80"
+    },
+    "scss": {
+      "glyph": "d",
+      "color": "#9a4570"
+    },
+    "html": {
+      "glyph": "d",
+      "color": "#bb4f2f"
+    },
+    "md": {
+      "glyph": "d",
+      "color": "#4a7aa0"
+    },
+    "sql": {
+      "glyph": "d",
+      "color": "#aa7518"
+    },
+    "sh": {
+      "glyph": "d",
+      "color": "#60aa50"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_KODE: &str = r##"{
+  "id": "zephyr.ikon-kode",
+  "name": "Ikon Kode",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Angle brackets, the developer default",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kode", "path": "./icons/kode.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KODE_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "< >",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "< / >",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "< / >",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "< >",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "< / >",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "< / >",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "< / >",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "< / >",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "< / >",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "< / >",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "< / >",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "< / >",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "< / >",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "< / >",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "< / >",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "< / >",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "< / >",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "< / >",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "< / >",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "< / >",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "< / >",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "< / >",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "< / >",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "< / >",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "< / >",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "< / >",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "< / >",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "< / >",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "< / >",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "< / >",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_SIMPUL: &str = r##"{
+  "id": "zephyr.ikon-simpul",
+  "name": "Ikon Simpul",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Knot marks, connected feel",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Simpul", "path": "./icons/simpul.json" }]
+  }
+}"##;
+
+pub(super) const IKON_SIMPUL_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "❉",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "❊",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "❋",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "❉",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "❊",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "❋",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "❊",
+      "color": "#4f95c8"
+    },
+    "tsx": {
+      "glyph": "❊",
+      "color": "#4f95c8"
+    },
+    "js": {
+      "glyph": "❊",
+      "color": "#c8ba3a"
+    },
+    "jsx": {
+      "glyph": "❊",
+      "color": "#c8ba3a"
+    },
+    "rs": {
+      "glyph": "❊",
+      "color": "#c38a68"
+    },
+    "py": {
+      "glyph": "❊",
+      "color": "#4f83a8"
+    },
+    "go": {
+      "glyph": "❊",
+      "color": "#00a2ca"
+    },
+    "java": {
+      "glyph": "❊",
+      "color": "#aa6d1c"
+    },
+    "rb": {
+      "glyph": "❊",
+      "color": "#b83242"
+    },
+    "php": {
+      "glyph": "❊",
+      "color": "#4c5c9c"
+    },
+    "cs": {
+      "glyph": "❊",
+      "color": "#327d32"
+    },
+    "cpp": {
+      "glyph": "❊",
+      "color": "#c3506c"
+    },
+    "c": {
+      "glyph": "❊",
+      "color": "#5c5c5c"
+    },
+    "swift": {
+      "glyph": "❊",
+      "color": "#e25038"
+    },
+    "kt": {
+      "glyph": "❊",
+      "color": "#9170d2"
+    },
+    "json": {
+      "glyph": "❊",
+      "color": "#b3b33c"
+    },
+    "yml": {
+      "glyph": "❊",
+      "color": "#b3323c"
+    },
+    "toml": {
+      "glyph": "❊",
+      "color": "#92552c"
+    },
+    "css": {
+      "glyph": "❊",
+      "color": "#5c3c8c"
+    },
+    "scss": {
+      "glyph": "❊",
+      "color": "#aa4c7a"
+    },
+    "html": {
+      "glyph": "❊",
+      "color": "#ca5632"
+    },
+    "md": {
+      "glyph": "❊",
+      "color": "#4f83aa"
+    },
+    "sql": {
+      "glyph": "❊",
+      "color": "#ba7c1c"
+    },
+    "sh": {
+      "glyph": "❊",
+      "color": "#6aba5a"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_PELURU: &str = r##"{
+  "id": "zephyr.ikon-peluru",
+  "name": "Ikon Peluru",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Bullet marks, tiny and fast",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Peluru", "path": "./icons/peluru.json" }]
+  }
+}"##;
+
+pub(super) const IKON_PELURU_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "•",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "‣",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "⁃",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "•",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "‣",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "⁃",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "‣",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "‣",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "‣",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "‣",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "‣",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "‣",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "‣",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "‣",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "‣",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "‣",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "‣",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "‣",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "‣",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "‣",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "‣",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "‣",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "‣",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "‣",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "‣",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "‣",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "‣",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "‣",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "‣",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "‣",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BELAH: &str = r##"{
+  "id": "zephyr.ikon-belah",
+  "name": "Ikon Belah",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Split marks, two-tone feel",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Belah", "path": "./icons/belah.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BELAH_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◐",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◑",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◒",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◐",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◑",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◒",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◑",
+      "color": "#5a9ac8"
+    },
+    "tsx": {
+      "glyph": "◑",
+      "color": "#5a9ac8"
+    },
+    "js": {
+      "glyph": "◑",
+      "color": "#cabd3a"
+    },
+    "jsx": {
+      "glyph": "◑",
+      "color": "#cabd3a"
+    },
+    "rs": {
+      "glyph": "◑",
+      "color": "#c48b68"
+    },
+    "py": {
+      "glyph": "◑",
+      "color": "#5085a8"
+    },
+    "go": {
+      "glyph": "◑",
+      "color": "#00a3cb"
+    },
+    "java": {
+      "glyph": "◑",
+      "color": "#ab6e1d"
+    },
+    "rb": {
+      "glyph": "◑",
+      "color": "#ba3343"
+    },
+    "php": {
+      "glyph": "◑",
+      "color": "#4e5e9e"
+    },
+    "cs": {
+      "glyph": "◑",
+      "color": "#337e33"
+    },
+    "cpp": {
+      "glyph": "◑",
+      "color": "#c4526e"
+    },
+    "c": {
+      "glyph": "◑",
+      "color": "#5e5e5e"
+    },
+    "swift": {
+      "glyph": "◑",
+      "color": "#e3523a"
+    },
+    "kt": {
+      "glyph": "◑",
+      "color": "#9373d4"
+    },
+    "json": {
+      "glyph": "◑",
+      "color": "#b6b63e"
+    },
+    "yml": {
+      "glyph": "◑",
+      "color": "#b6343e"
+    },
+    "toml": {
+      "glyph": "◑",
+      "color": "#94572e"
+    },
+    "css": {
+      "glyph": "◑",
+      "color": "#5e3e8e"
+    },
+    "scss": {
+      "glyph": "◑",
+      "color": "#aa4c7a"
+    },
+    "html": {
+      "glyph": "◑",
+      "color": "#cc5834"
+    },
+    "md": {
+      "glyph": "◑",
+      "color": "#5085ac"
+    },
+    "sql": {
+      "glyph": "◑",
+      "color": "#bc7e1e"
+    },
+    "sh": {
+      "glyph": "◑",
+      "color": "#6cbc5c"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_TANDA_PLUS: &str = r##"{
+  "id": "zephyr.ikon-tanda-plus",
+  "name": "Ikon Tanda Plus",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Cross marks, medical-clean",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Tanda Plus", "path": "./icons/tanda-plus.json" }]
+  }
+}"##;
+
+pub(super) const IKON_TANDA_PLUS_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "✚",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "✚",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "✛",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "✚",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "✚",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "✛",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "✚",
+      "color": "#3178c6"
+    },
+    "tsx": {
+      "glyph": "✚",
+      "color": "#519aba"
+    },
+    "js": {
+      "glyph": "✚",
+      "color": "#f1e05a"
+    },
+    "jsx": {
+      "glyph": "✚",
+      "color": "#61dafb"
+    },
+    "rs": {
+      "glyph": "✚",
+      "color": "#dea584"
+    },
+    "py": {
+      "glyph": "✚",
+      "color": "#3572a5"
+    },
+    "go": {
+      "glyph": "✚",
+      "color": "#00add8"
+    },
+    "java": {
+      "glyph": "✚",
+      "color": "#b07219"
+    },
+    "rb": {
+      "glyph": "✚",
+      "color": "#cc342d"
+    },
+    "php": {
+      "glyph": "✚",
+      "color": "#4f5d95"
+    },
+    "cs": {
+      "glyph": "✚",
+      "color": "#178600"
+    },
+    "cpp": {
+      "glyph": "✚",
+      "color": "#f34b7d"
+    },
+    "c": {
+      "glyph": "✚",
+      "color": "#555555"
+    },
+    "swift": {
+      "glyph": "✚",
+      "color": "#f05138"
+    },
+    "kt": {
+      "glyph": "✚",
+      "color": "#a97bff"
+    },
+    "json": {
+      "glyph": "✚",
+      "color": "#cbcb41"
+    },
+    "yml": {
+      "glyph": "✚",
+      "color": "#cb171e"
+    },
+    "toml": {
+      "glyph": "✚",
+      "color": "#9c4221"
+    },
+    "css": {
+      "glyph": "✚",
+      "color": "#563d7c"
+    },
+    "scss": {
+      "glyph": "✚",
+      "color": "#c6538c"
+    },
+    "html": {
+      "glyph": "✚",
+      "color": "#e34c26"
+    },
+    "md": {
+      "glyph": "✚",
+      "color": "#519aba"
+    },
+    "sql": {
+      "glyph": "✚",
+      "color": "#e38c00"
+    },
+    "sh": {
+      "glyph": "✚",
+      "color": "#89e051"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_BELAH_DUA: &str = r##"{
+  "id": "zephyr.ikon-belah-dua",
+  "name": "Ikon Belah Dua",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Half-filled marks, high contrast",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Belah Dua", "path": "./icons/belah-dua.json" }]
+  }
+}"##;
+
+pub(super) const IKON_BELAH_DUA_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "◧",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "◨",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "◩",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "◧",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "◨",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "◩",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "◨",
+      "color": "#4a90c2"
+    },
+    "tsx": {
+      "glyph": "◨",
+      "color": "#4a90c2"
+    },
+    "js": {
+      "glyph": "◨",
+      "color": "#c9b93a"
+    },
+    "jsx": {
+      "glyph": "◨",
+      "color": "#c9b93a"
+    },
+    "rs": {
+      "glyph": "◨",
+      "color": "#c08a6a"
+    },
+    "py": {
+      "glyph": "◨",
+      "color": "#4a80a5"
+    },
+    "go": {
+      "glyph": "◨",
+      "color": "#00a0c8"
+    },
+    "java": {
+      "glyph": "◨",
+      "color": "#a56818"
+    },
+    "rb": {
+      "glyph": "◨",
+      "color": "#b82f40"
+    },
+    "php": {
+      "glyph": "◨",
+      "color": "#4a5a9a"
+    },
+    "cs": {
+      "glyph": "◨",
+      "color": "#2f7a2f"
+    },
+    "cpp": {
+      "glyph": "◨",
+      "color": "#c04a6a"
+    },
+    "c": {
+      "glyph": "◨",
+      "color": "#5a5a5a"
+    },
+    "swift": {
+      "glyph": "◨",
+      "color": "#e04a30"
+    },
+    "kt": {
+      "glyph": "◨",
+      "color": "#8f6fd0"
+    },
+    "json": {
+      "glyph": "◨",
+      "color": "#b0b038"
+    },
+    "yml": {
+      "glyph": "◨",
+      "color": "#b03038"
+    },
+    "toml": {
+      "glyph": "◨",
+      "color": "#905028"
+    },
+    "css": {
+      "glyph": "◨",
+      "color": "#5a3a8a"
+    },
+    "scss": {
+      "glyph": "◨",
+      "color": "#a84a78"
+    },
+    "html": {
+      "glyph": "◨",
+      "color": "#c85430"
+    },
+    "md": {
+      "glyph": "◨",
+      "color": "#4a80a8"
+    },
+    "sql": {
+      "glyph": "◨",
+      "color": "#b87a18"
+    },
+    "sh": {
+      "glyph": "◨",
+      "color": "#68b858"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+pub(super) const IKON_KILAU: &str = r##"{
+  "id": "zephyr.ikon-kilau",
+  "name": "Ikon Kilau",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Sparkle marks, playful",
+  "engines": { "zephyr": ">=1.0" },
+  "categories": ["Icon Themes"],
+  "contributes": {
+    "iconThemes": [{ "label": "Kilau", "path": "./icons/kilau.json" }]
+  }
+}"##;
+
+pub(super) const IKON_KILAU_JSON: &str = r##"{
+  "_komentar": "Ikon folder WAJIB ada: tanpa folder/folder-open/folderNames, folder di pohon berkas tetap memakai gambar bawaan.",
+  "file": {
+    "glyph": "✳",
+    "color": "var(--fg2)"
+  },
+  "folder": {
+    "glyph": "✴",
+    "color": "var(--accent)"
+  },
+  "folder-open": {
+    "glyph": "✵",
+    "color": "var(--accent)"
+  },
+  "icons": {
+    "file": {
+      "glyph": "✳",
+      "color": "var(--fg2)"
+    },
+    "folder": {
+      "glyph": "✴",
+      "color": "var(--accent)"
+    },
+    "folder-open": {
+      "glyph": "✵",
+      "color": "var(--accent)"
+    },
+    "ts": {
+      "glyph": "✴",
+      "color": "#5f9ec5"
+    },
+    "tsx": {
+      "glyph": "✴",
+      "color": "#5f9ec5"
+    },
+    "js": {
+      "glyph": "✴",
+      "color": "#cfc040"
+    },
+    "jsx": {
+      "glyph": "✴",
+      "color": "#cfc040"
+    },
+    "rs": {
+      "glyph": "✴",
+      "color": "#c68f70"
+    },
+    "py": {
+      "glyph": "✴",
+      "color": "#5488aa"
+    },
+    "go": {
+      "glyph": "✴",
+      "color": "#00a8cf"
+    },
+    "java": {
+      "glyph": "✴",
+      "color": "#b07520"
+    },
+    "rb": {
+      "glyph": "✴",
+      "color": "#c03a48"
+    },
+    "php": {
+      "glyph": "✴",
+      "color": "#5464a4"
+    },
+    "cs": {
+      "glyph": "✴",
+      "color": "#3a833a"
+    },
+    "cpp": {
+      "glyph": "✴",
+      "color": "#c85873"
+    },
+    "c": {
+      "glyph": "✴",
+      "color": "#606060"
+    },
+    "swift": {
+      "glyph": "✴",
+      "color": "#e85840"
+    },
+    "kt": {
+      "glyph": "✴",
+      "color": "#9878d8"
+    },
+    "json": {
+      "glyph": "✴",
+      "color": "#bbbb42"
+    },
+    "yml": {
+      "glyph": "✴",
+      "color": "#bb3a42"
+    },
+    "toml": {
+      "glyph": "✴",
+      "color": "#9a5c32"
+    },
+    "css": {
+      "glyph": "✴",
+      "color": "#604090"
+    },
+    "scss": {
+      "glyph": "✴",
+      "color": "#b05280"
+    },
+    "html": {
+      "glyph": "✴",
+      "color": "#d05c38"
+    },
+    "md": {
+      "glyph": "✴",
+      "color": "#5488b0"
+    },
+    "sql": {
+      "glyph": "✴",
+      "color": "#c08222"
+    },
+    "sh": {
+      "glyph": "✴",
+      "color": "#72c062"
+    }
+  },
+  "fileNames": {
+    "package.json": "json",
+    "tsconfig.json": "json",
+    "zephyr-extension.json": "json",
+    "Dockerfile": "sh",
+    "docker-compose.yml": "yml",
+    "Makefile": "sh",
+    ".gitignore": "sh",
+    "Cargo.toml": "toml",
+    "README.md": "md",
+    "LICENSE": "md"
+  },
+  "folderNames": {
+    "src": "folder",
+    "node_modules": "folder",
+    "dist": "folder",
+    "build": "folder",
+    "test": "folder",
+    "tests": "folder",
+    "docs": "folder",
+    "assets": "folder",
+    "components": "folder",
+    "lib": "folder",
+    "public": "folder",
+    "scripts": "folder",
+    ".git": "folder",
+    ".github": "folder",
+    "target": "folder",
+    "vendor": "folder"
+  }
+}"##;
+
+/* ══ AKHIR IKON MARKETPLACE ══ */
