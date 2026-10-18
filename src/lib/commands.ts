@@ -1357,6 +1357,28 @@ export const skillWrite = (opts: {
 }) => invoke<string>('skill_write', opts);
 export const skillDelete = (name: string) => invoke<void>('skill_delete', { name });
 
+/*
+ * The skill CATALOGUE: what ships with the app.
+ *
+ * `skillsList` answers "what is installed" and can never answer "what could I
+ * install" - the bundled skills are compiled into the binary and only land on
+ * disk after the seeder runs, and a deleted skill is deliberately never
+ * resurrected. Without these two commands a removed skill disappeared from the
+ * UI for good, with no way to bring it back.
+ */
+export interface SkillKatalog {
+  name: string;
+  description: string;
+  /** How many files the folder holds (SKILL.md plus references). */
+  berkas: number;
+  terpasang: boolean;
+  /** Non-empty when the skill needs something outside the app. */
+  catatan: string;
+}
+
+export const skillsKatalog = () => invoke<SkillKatalog[]>('skills_katalog');
+export const skillPasang = (name: string) => invoke<boolean>('skill_pasang', { name });
+
 export interface InstructionInfo {
   name: string;
   scope: 'global' | 'workspace';

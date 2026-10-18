@@ -577,6 +577,8 @@ pub fn run() {
             skills::skill_read,
             skills::skill_write,
             skills::skill_delete,
+            skills::skills_katalog,
+            skills::skill_pasang,
             skills::agent_context,
             plugins::plugins_list,
             plugins::plugins_marketplace,

@@ -1,0 +1,348 @@
+/*
+ * Extensions → Marketplace (Plugins | Skills | MCP | Extensions).
+ *
+ * A grid of CARDS, not a table: a marketplace is browsed by recognition -
+ * logo, name, one line - and a table row gives the eye no anchor. The card is
+ * the smallest unit that carries all three without wrapping.
+ *
+ * The prefix is `xmkt` (extensions-market) so it cannot collide with the `mkt`
+ * rules that belong to the SETTINGS marketplace; the two pages are different
+ * surfaces and must not inherit each other's spacing.
+ */
+.xmkt {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 14px 14px 22px;
+  overflow: auto;
+}
+
+.xmkt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.xmkt-judul {
+  margin: 0 0 3px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.xmkt-sub {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.xmkt-kelola {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xmkt-kelola:hover {
+  border-color: var(--accent);
+}
+
+/* ── Tab row + search ───────────────────────────────────────────────────── */
+.xmkt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.xmkt-tab {
+  display: inline-flex;
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.xmkt-tab::-webkit-scrollbar {
+  display: none;
+}
+.xmkt-tab-btn {
+  padding: 5px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.xmkt-tab-btn:hover {
+  color: var(--text);
+}
+.xmkt-tab-btn.is-on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.xmkt-cari {
+  width: 150px;
+  flex: 0 1 auto;
+  min-width: 90px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: inherit;
+}
+.xmkt-cari:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/*
+ * When the outer rail is the only navigator there is no tab row to sit beside,
+ * so the search box takes the whole width of that line. A 150px box floating
+ * at the left edge of an empty row reads as a mistake.
+ */
+.xmkt-cari-lebar {
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+/* ── Category chips ─────────────────────────────────────────────────────── */
+.xmkt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.xmkt-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xmkt-chip:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.xmkt-chip.is-on {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Grid of cards ──────────────────────────────────────────────────────── */
+.xmkt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+}
+
+.xmkt-kartu {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: border-color 120ms, background 120ms;
+}
+.xmkt-kartu:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.xmkt-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.xmkt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.xmkt-nama {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xmkt-ket {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  /* Two lines, then ellipsis: a marketplace card is a summary. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.xmkt-pasang {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 10.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xmkt-pasang:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.xmkt-pasang.is-terpasang {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.xmkt-pasang:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.xmkt-chip-kecil {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* ── Empty + error ──────────────────────────────────────────────────────── */
+.xmkt-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 36px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.xmkt-galat {
+  margin: 0 0 10px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+/* ── Manage modal ───────────────────────────────────────────────────────── */
+.xmkt-manage {
+  max-width: 620px;
+  width: min(620px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.xmkt-manage-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.xmkt-manage-list li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.xmkt-manage-list li:last-child {
+  border-bottom: 0;
+}
+
+.xmkt-manage-jenis {
+  flex: 0 0 auto;
+  min-width: 62px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.xmkt-manage-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.xmkt-manage-nama {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xmkt-manage-ket {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xmkt-manage-status {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.xmkt-manage-status.is-on {
+  color: var(--success, #3fb950);
+}

@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { skillsList, skillRead, skillWrite, skillDelete, type SkillInfo } from './commands';
+import {
+  skillsList,
+  skillRead,
+  skillWrite,
+  skillDelete,
+  skillsKatalog,
+  skillPasang,
+  type SkillInfo,
+  type SkillKatalog,
+} from './commands';
 
 /*
  * Skills, read from and written to DISK through the Rust backend.
@@ -38,7 +47,20 @@ interface SkillsState {
   /** True while the body is being fetched. */
   memuatIsi: boolean;
 
+  /**
+   * Every skill that SHIPS with the app, with an honest `terpasang` flag.
+   *
+   * Separate from `daftar` on purpose. `daftar` is what is on disk; this is
+   * what COULD be. Merging them would make an uninstalled skill look like an
+   * installed one with an empty body.
+   */
+  katalog: SkillKatalog[];
+
   muat: () => Promise<void>;
+  /** Reload both the installed list and the catalogue. */
+  muatKatalog: () => Promise<void>;
+  /** Plant one bundled skill on disk. Returns false when it already existed. */
+  pasang: (name: string) => Promise<boolean>;
   buka: (name: string | null) => Promise<void>;
   simpan: (opts: {
     name: string;
@@ -57,6 +79,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
   dibuka: null,
   isi: '',
   memuatIsi: false,
+  katalog: [],
 
   muat: async () => {
     set({ sibuk: true, galat: null });
@@ -72,6 +95,42 @@ export const useSkills = create<SkillsState>((set, get) => ({
        * when the truth is "the list could not be read".
        */
       set({ sibuk: false, galat: String(e) });
+    }
+  },
+
+  /*
+   * The catalogue is loaded TOGETHER with the installed list.
+   *
+   * Both come from disk, and both must be re-read after any write - an
+   * "Install" that left the catalogue saying `terpasang: false` would offer to
+   * install the same skill twice, and a delete that left it saying `true` would
+   * hide the row that is actually gone.
+   */
+  muatKatalog: async () => {
+    try {
+      const [daftar, katalog] = await Promise.all([skillsList(), skillsKatalog()]);
+      set({ daftar, katalog });
+    } catch (e) {
+      set({ galat: String(e) });
+    }
+  },
+
+  pasang: async (name) => {
+    set({ sibuk: true, galat: null });
+    try {
+      const ditulis = await skillPasang(name);
+      /*
+       * Same cache drop as `simpan`: the prompt builder holds the skill list
+       * for a minute, and an installed skill that the agent does not know about
+       * for another minute reads as a broken install.
+       */
+      void import('./aiStore').then((m) => m.resetCacheKonteks());
+      await get().muatKatalog();
+      set({ sibuk: false });
+      return ditulis;
+    } catch (e) {
+      set({ sibuk: false, galat: String(e) });
+      return false;
     }
   },
 
