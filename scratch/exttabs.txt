@@ -1,0 +1,74 @@
+﻿{
+ "mount": {
+  "ok": true
+ },
+ "dasar": {
+  "ada": true,
+  "tab": [
+   "installed",
+   "plugins",
+   "skills",
+   "mcp",
+   "recommended",
+   "marketplace"
+  ],
+  "adaManage": true
+ },
+ "plugins": {
+  "adaGrid": true,
+  "kartu": 2,
+  "pakaiKelasBaru": 2,
+  "kartuLama": 0,
+  "adaTabDalam": false,
+  "adaKosong": false
+ },
+ "skills": {
+  "adaGrid": true,
+  "kartu": 21,
+  "pakaiKelasBaru": 21,
+  "kartuLama": 0,
+  "adaTabDalam": false,
+  "adaKosong": false
+ },
+ "mcp": {
+  "adaGrid": true,
+  "kartu": 24,
+  "pakaiKelasBaru": 24,
+  "kartuLama": 0,
+  "adaTabDalam": false,
+  "adaKosong": false
+ },
+ "extensions": {
+  "adaGrid": true,
+  "kartu": 21,
+  "pakaiKelasBaru": 21,
+  "kartuLama": 0,
+  "adaTabDalam": false,
+  "adaKosong": false
+ },
+ "sebelumCari": {
+  "n": 21
+ },
+ "sesudahCari": {
+  "n": 0,
+  "adaKosong": true
+ },
+ "manage": {
+  "ada": true,
+  "adaList": true,
+  "baris": 22
+ }
+}
+
+Bukti ΓÇö Extensions satu tata letak untuk semua jenis:
+  LULUS  X1 rail tab: Installed, Plugins, Skills, MCP, Recommended, Extensions  installed,plugins,skills,mcp,recommended,marketplace
+  LULUS  X2 tab Plugins memakai grid kartu  kartu=2
+  LULUS  X3 tab Skills memakai grid kartu  kartu=21
+  LULUS  X4 tab MCP memakai grid kartu  kartu=24
+  LULUS  X5 tab Extensions memakai grid kartu  kartu=21 kartuLama=0
+  LULUS  X6 keempat tab memakai kelas kartu yang sama (.xmkt-kartu)
+  LULUS  X7 tidak ada baris tab DALAM (tidak ada scroll ekstra)
+  LULUS  X8 Manage membuka daftar terpasang  baris=22
+  LULUS  X9 kotak cari menyaring daftar  21 -> 0
+
+== 9/9 lulus ==

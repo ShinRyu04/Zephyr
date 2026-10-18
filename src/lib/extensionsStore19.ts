@@ -4,7 +4,7 @@ import { KATALOG_BUNDLED, type KatalogItem } from './extCatalog';
 import { muatSemuaEkstensi, ringkasanLoader, type LoaderRingkasan } from './extLoader';
 import type { ExtInstallHasil, ExtKontribItem, ExtManifestStatus, ExtPengaruh } from './types';
 
-export type ExtTab = 'installed' | 'recommended' | 'marketplace' | 'mcp';
+export type ExtTab = 'installed' | 'plugins' | 'skills' | 'mcp' | 'recommended' | 'marketplace';
 
 /**
  * The header Rust puts on a refusal for a package with nothing the app can use

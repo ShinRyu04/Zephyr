@@ -16,15 +16,11 @@ import { useRef, useState } from 'react';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { useT, useTf } from '../../lib/i18n';
 import { grammarTersedia, type LoaderRingkasan } from '../../lib/extLoader';
-import {
-  barisJalan,
-  bisaDipasang,
-  cariMcp,
-  kategoriMcp,
-  KATALOG_MCP_SERVER,
-  type KatalogMcpEntry,
-} from '../../lib/katalogMcpServer';
+import { KATALOG_MCP_SERVER } from '../../lib/katalogMcpServer';
+import { usePlugins } from '../../lib/pluginsStore';
+import { useSkills } from '../../lib/skillsStore';
 import { useMcp } from '../../lib/mcpStore';
+import ExtMarketplace from './ExtMarketplace';
 
 /*
  * Penilai grammar untuk catatan bahasa: fungsi yang SAMA dengan yang dipakai
@@ -44,12 +40,32 @@ const grammarBisaDimuat = (l: BarisGrammar): boolean =>
     label: '',
   });
 
+/*
+ * The top row is a rail of KINDS, in the order the reader meets them:
+ *
+ *   Installed | Plugins | Skills | MCP | Recommended | Extensions
+ *
+ * MCP used to be its own top-level tab beside Marketplace, and Marketplace held
+ * Plugins/Skills/MCP as SUB-tabs. That nested one tab inside another for the
+ * same three kinds, and the reader had to scroll a page that was really a list
+ * of kinds. Now every kind is ONE click away at the same level, and no tab
+ * needs a second row of tabs to be useful.
+ *
+ * `marketplace` stays as an id because a stored session may hold it; it is
+ * labelled "Extensions" because that is what it lists (themes, grammars,
+ * keymaps - the extension PACKAGES).
+ */
 const TAB_LABEL: Record<ExtTab, string> = {
   installed: 'Installed',
+  plugins: 'Plugins',
+  skills: 'Skills',
+  mcp: 'MCP',
   recommended: 'Recommended',
-  marketplace: 'Marketplace',
-  mcp: 'MCP Servers',
+  marketplace: 'Extensions',
 };
+
+/** Which top-level tabs are drawn, in order. */
+const TAB_TAMPIL: ExtTab[] = ['installed', 'plugins', 'skills', 'mcp', 'recommended', 'marketplace'];
 
 function formatUnduhan(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -524,250 +540,6 @@ function ExtensionCard({
  *    yang menyembunyikan perintah yang akan dijalankan meminta kepercayaan
  *    tanpa bukti; baris ini yang menjadikannya bisa diperiksa.
  */
-function McpServerCard({
-  entri,
-  terpasang,
-  sibuk,
-  onInstall,
-  onUninstall,
-}: {
-  entri: KatalogMcpEntry;
-  terpasang: boolean;
-  sibuk: boolean;
-  onInstall: (e: KatalogMcpEntry) => void;
-  onUninstall: (e: KatalogMcpEntry) => void;
-}) {
-  const tr = useT();
-  const tf = useTf();
-  const bolehPasang = bisaDipasang(entri);
-
-  return (
-    <article
-      className="xc"
-      data-mcp-card={entri.id}
-      data-mcp-transport={entri.transport}
-      data-mcp-terpasang={terpasang ? '1' : '0'}
-    >
-      <span className="xc-logo" aria-hidden="true">
-        {entri.transport === 'http' ? '⇄' : '⌘'}
-      </span>
-
-      <div className="xc-body">
-        <span className="xc-nama">
-          <span className="xc-nama-txt">{entri.nama}</span>
-          {terpasang && <span className="xc-tag">INSTALLED</span>}
-          {/*
-            * WHERE it went, stated.
-            *
-            * WHY: pressing Install used to change the button to "Uninstall" and
-            * nothing else — no line anywhere said where the server now lives, so
-            * the fair question "masuk ke mana?" had no answer on screen. A server
-            * installed from here is not an extension: Zephyr stores it in its own
-            * settings and runs/connects to it itself, which is exactly the fact
-            * the reader needs. The optional second hop (writing the same config
-            * into the external CLIs' files) lives in Settings > MCP, and the chip
-            * says so instead of leaving the reader to find it.
-            */}
-          {terpasang && (
-            <span
-              className="xc-tag is-on"
-              data-testid={`xc-mcp-tujuan-${entri.id}`}
-              title={tr('Stored in Zephyr settings (mcp.servers); Zephyr runs/connects to it. Settings > MCP can also write it into the CLI config files.')}
-            >
-              {tr('in Zephyr · settings.json')}
-            </span>
-          )}
-          {entri.butuhToken && <span className="xc-tag is-err">needs token</span>}
-          {!bolehPasang && <span className="xc-tag is-err">{tr('needs stdio transport')}</span>}
-          <span className="xc-pub-badge">{entri.publisher}</span>
-          <span className="xc-cat-badge">{entri.kategori}</span>
-          <span className="xc-ver-badge" data-mcp-transport-badge={entri.transport}>
-            • {entri.transport}
-          </span>
-          {typeof entri.unduhan === 'number' && entri.unduhan > 0 && (
-            <span className="xc-ver-badge" title={tr('Weekly npm downloads')}>
-              • {formatUnduhan(entri.unduhan)}↓
-            </span>
-          )}
-        </span>
-
-        <span className="xc-desc">{tr(entri.deskripsi)}</span>
-
-        <code className="xc-desc xc-mcp-perintah" data-testid={`xc-mcp-jalan-${entri.id}`}>
-          {barisJalan(entri)}
-        </code>
-
-        {entri.catatan && (
-          <span className="xc-desc xc-mcp-catatan" data-testid={`xc-mcp-catatan-${entri.id}`}>
-            {tr(entri.catatan)}
-          </span>
-        )}
-      </div>
-
-      <div className="xc-aksi">
-        {terpasang ? (
-          <button
-            className="btn btn-sm"
-            data-testid={`xc-uninstall-${entri.id}`}
-            disabled={sibuk}
-            title={tr('Remove this server from Zephyr')}
-            onClick={() => onUninstall(entri)}
-          >
-            {tr('Uninstall')}
-          </button>
-        ) : (
-          <button
-            className="btn btn-sm btn-primary"
-            data-testid={`xc-mcp-install-${entri.id}`}
-            disabled={!bolehPasang || sibuk}
-            title={
-              bolehPasang
-                ? entri.transport === 'stdio'
-                  ? tf('Zephyr will run {cmd} on this machine', { cmd: entri.command })
-                  : tr('Add this server to Zephyr')
-                : tr('The stdio transport is not wired up yet — see the note below the list.')
-            }
-            onClick={() => onInstall(entri)}
-          >
-            {bolehPasang ? tr('Install') : tr('Unavailable')}
-          </button>
-        )}
-      </div>
-
-      {/*
-        * The destination, spelled out under the card once it is installed.
-        *
-        * WHY a second line and not only the chip: the chip answers "is it in?" at
-        * a glance; this answers "and then what?" — including the fact that the
-        * server becomes usable by the agent right away, with no reload, and that
-        * pushing the same config into the external CLI files is a SEPARATE,
-        * optional step with its own button.
-        */}
-      {terpasang && (
-        <p className="xc-desc xc-mcp-tujuan" data-testid={`xc-mcp-tujuan-teks-${entri.id}`}>
-          {tr('Saved in Zephyr (settings.json → mcp.servers) and connected by Zephyr itself, so the agent can use it now. Settings → MCP can also copy it into the CLI config files (Claude Code, Cursor, opencode, …).')}
-        </p>
-      )}
-    </article>
-  );
-}
-
-/*
- * Panel tab "MCP Servers": daftar server MCP populer yang bisa dipasang.
- *
- * Daftar terpasang dibaca dari `useMcp.servers` - sumber yang SAMA dengan yang
- * dipakai panel Setelan. Tidak ada daftar salinan di sini, jadi memasang dari
- * sini dan memasang dari Setelan menghasilkan satu keadaan yang sama, bukan dua
- * yang bisa berbeda diam-diam.
- */
-function McpCatalog({ onUninstall }: { onUninstall: (e: KatalogMcpEntry) => void }) {
-  const tr = useT();
-  const q = useExt19((s) => s.q);
-  const servers = useMcp((s) => s.servers);
-  const saveServer = useMcp((s) => s.saveServer);
-  const mcpError = useMcp((s) => s.mcpError);
-  const [kategori, setKategori] = useState('');
-  const [sibuk, setSibuk] = useState<string | null>(null);
-
-  /*
-   * Baca ulang daftar server yang terpasang saat tab ini dibuka.
-   *
-   * `useMcp.init()` - yang jalan sekali saat aplikasi menyala - hanya
-   * menyegarkan status dan daftar CLI, BUKAN `servers`. Tanpa panggilan ini,
-   * membuka aplikasi lalu langsung ke tab "MCP Servers" akan menampilkan
-   * server yang sudah terpasang sebagai belum terpasang: kartunya menawarkan
-   * Install untuk sesuatu yang sudah ada di settings.json. Keadaan yang salah
-   * seperti itu lebih buruk daripada daftar yang kosong, karena ia mengajak
-   * user mengulang pemasangan yang sudah berhasil.
-   *
-   * `refreshServers` adalah aksi yang SUDAH ada - yang sama dipakai panel
-   * Setelan; tidak ada API baru di sini.
-   */
-  useEffect(() => {
-    void useMcp.getState().refreshServers();
-  }, []);
-
-  const idTerpasang = new Set(servers.map((s) => s.id));
-  const daftar = cariMcp(q, kategori || undefined);
-  const kategoriSemua = kategoriMcp();
-
-  /*
-   * Jalur pasang, sadar transport.
-   *
-   * Entri http menyimpan url; entri stdio menyimpan command + args, yang
-   * dijalankan Zephyr sendiri lewat `mcp_stdio.rs`. Keduanya lewat
-   * `useMcp.saveServer` - satu jalur simpan untuk kedua transport, bukan jalur
-   * kedua yang harus dijaga agar sama.
-   *
-   * Cabangnya mengikuti `TRANSPORT_STDIO_TERSAMBUNG`, bukan `transport === 'http'`
-   * yang ditulis langsung: kalau rantai stdio dicabut lagi, tombolnya mati
-   * dengan sendirinya alih-alih memasang server yang tidak akan pernah jalan.
-   * Ini juga yang membuat ketiga nilai (flag, bisaDipasang, dan handler ini)
-   * tidak bisa berbeda diam-diam.
-   */
-  const pasang = async (e: KatalogMcpEntry) => {
-    if (!bisaDipasang(e)) return;
-    setSibuk(e.id);
-    if (e.transport === 'stdio') {
-      await saveServer({
-        id: e.id,
-        label: e.nama,
-        url: '',
-        token: '',
-        command: e.command,
-        args: e.args,
-      });
-    } else {
-      await saveServer({ id: e.id, label: e.nama, url: e.url, token: '' });
-    }
-    setSibuk(null);
-  };
-
-  return (
-    <>
-      {mcpError && (
-        <p className="xv-err" data-testid="ext-mcp-err" role="alert">
-          {mcpError}
-        </p>
-      )}
-
-      <div className="xv-filter" data-testid="ext-mcp-filter">
-        <label htmlFor="ext-mcp-kat">Category</label>
-        <select
-          id="ext-mcp-kat"
-          value={kategori}
-          onChange={(e) => setKategori(e.target.value)}
-          data-testid="ext-mcp-filter-select"
-        >
-          <option value="">All</option>
-          {kategoriSemua.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="xv-list" data-testid="ext-mcp-cards">
-        {daftar.map((e) => (
-          <McpServerCard
-            key={e.id}
-            entri={e}
-            terpasang={idTerpasang.has(e.id)}
-            sibuk={sibuk === e.id}
-            onInstall={(x) => void pasang(x)}
-            onUninstall={onUninstall}
-          />
-        ))}
-        {daftar.length === 0 && (
-          <p className="xv-note" data-testid="ext-mcp-kosong">
-            {tr('No MCP server matches')} “{q}”.
-          </p>
-        )}
-      </div>
-    </>
-  );
-}
 
 function Details({ id }: { id: string }) {
   const tr = useT();
@@ -1140,7 +912,6 @@ export default function ExtensionsView() {
   const daftar = useExt19.getState().hasil();
 
   const remoteBersih = (remote ?? []).filter((it) => !it.perluRuntime);
-  const tersembunyiRuntime = (remote ?? []).filter((it) => it.perluRuntime).length;
 
   /*
    * The Category dropdown lists every category in the whole catalogue, not just
@@ -1169,6 +940,14 @@ export default function ExtensionsView() {
     installed: jmlManifest,
     recommended: useExt19.getState().rekomendasi.length,
     marketplace: remoteBersih.length,
+    /*
+     * The three kind tabs are counted from their own stores. These are read
+     * through `getState()` rather than hooks because `JUMLAH` is a plain object
+     * built during render - calling a hook inside an object literal would make
+     * the hook order depend on the branch, which React forbids.
+     */
+    plugins: usePlugins.getState().daftar.length + usePlugins.getState().pasar.length,
+    skills: useSkills.getState().daftar.length,
     mcp: KATALOG_MCP_SERVER.length,
   };
 
@@ -1242,7 +1021,7 @@ export default function ExtensionsView() {
       </div>
 
       <div className="xv-tabs" role="tablist" aria-label={tr('Extension groups')}>
-        {(Object.keys(TAB_LABEL) as ExtTab[]).map((t) => (
+        {TAB_TAMPIL.map((t) => (
           <button
             key={t}
             role="tab"
@@ -1272,11 +1051,13 @@ export default function ExtensionsView() {
       )}
       {/*
         * The loader report is about EXTENSION packages — how many themes,
-        * languages and snippets the loader took. On the MCP tab it would sit
-        * directly under a list of MCP servers and read as a report about them,
-        * which it is not. Hidden there rather than shown in the wrong place.
+        * languages and snippets the loader took. It belongs on the Extensions
+        * tab only: on Plugins/Skills/MCP it would sit under a list of something
+        * else and read as a report about THAT.
         */}
-      {tab !== 'mcp' && <RingkasLoader ringkasan={ringkasan} />}
+      {(tab === 'installed' || tab === 'marketplace' || tab === 'recommended') && (
+        <RingkasLoader ringkasan={ringkasan} />
+      )}
 
       {/*
         * The bundled catalog lives in this tab, so an empty registry is no
@@ -1318,10 +1099,16 @@ export default function ExtensionsView() {
         </div>
       )}
 
-      {tab === 'mcp' ? (
-        <McpCatalog
-          onUninstall={(e) => setUninstallTarget({ jenis: 'mcp', id: e.id, nama: e.nama })}
-        />
+      {/*
+        * ONE KIND PER TAB, one card layout for all of them.
+        *
+        * The outer rail already names the kind (Plugins, Skills, MCP,
+        * Extensions), so each branch renders that kind alone with no inner tab
+        * row - which is what removes the extra scrolling: a sub-tab row under a
+        * tab row costs vertical space and says nothing the rail did not say.
+        */}
+      {tab === 'plugins' || tab === 'skills' || tab === 'mcp' || tab === 'marketplace' ? (
+        <ExtMarketplace hanya={tab === 'marketplace' ? 'extensions' : tab} />
       ) : (
         <div className="xv-list" data-testid="ext-cards">
           {loading && daftar.length === 0 && <p className="xv-note">Loading…</p>}
@@ -1332,16 +1119,9 @@ export default function ExtensionsView() {
               onUninstall={(x) => setUninstallTarget({ jenis: 'ext', item: x })}
             />
           ))}
-          {!loading && daftar.length === 0 && tab !== 'marketplace' && (
+          {!loading && daftar.length === 0 && (
             <p className="xv-note" data-testid="ext-kosong">
               Nothing matches “{q}”.
-            </p>
-          )}
-          {!loading && daftar.length === 0 && tab === 'marketplace' && remote && (
-            <p className="xv-note" data-testid="ext-market-empty">
-              {tersembunyiRuntime > 0
-                ? `Showing manifest-only extensions. ${tersembunyiRuntime} extensions are hidden because they need an external runtime (Python/Java/Node/Docker) that Zephyr v1 does not support.`
-                : `No manifest-only extension matches “${q}”. Use the bundled catalog or Install from .zext/folder.`}
             </p>
           )}
         </div>

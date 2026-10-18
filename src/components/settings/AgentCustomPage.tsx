@@ -8,7 +8,8 @@ import AgcAgents from './AgcAgents';
 import AgcRulesMemories from './AgcRulesMemories';
 import AgcHooks from './AgcHooks';
 import AgcBrowser from './AgcBrowser';
-import { AgcSkills, AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
+import AgcSkills from './AgcSkills';
+import { AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
 
 /*
  * Agent Customizations — a PAGE, in its own window.

@@ -31,13 +31,15 @@ const TUJUAN = join(akar, 'src-tauri', 'src', 'skill_bundled.rs');
 /*
  * Skill yang TIDAK ikut dibundel.
  *
- * `modlens` butuh `scripts/run.ps1` dan `scripts/run.sh` (23 KB) yang
- * memanggil Python di mesin user, plus 4 dokumen referensi. Menyematkannya
- * berarti membawa alat yang bergantung pada lingkungan yang belum tentu ada -
- * dan gagalnya akan terlihat seperti skill yang rusak, bukan seperti
- * ketergantungan yang tidak terpasang. Ia tetap bisa dipasang dari katalog.
+ * Kosong, dan itu keputusan yang disengaja: `modlens` dulu dilewati karena
+ * `scripts/run.ps1` + `scripts/run.sh` memanggil Python di mesin pembaca.
+ * Melewatinya membuat skill itu TIDAK PERNAH terlihat di daftar - pembaca tidak
+ * bisa memutuskan sendiri apakah mau memasangnya, karena namanya bahkan tidak
+ * muncul. Sekarang ia ikut dibundel apa adanya; `SKILL.md`-nya sudah menyebut
+ * sendiri bahwa ia butuh Python, jadi yang gagal akan terbaca sebagai
+ * ketergantungan yang belum ada - bukan sebagai skill yang hilang.
  */
-const LEWATI = new Set(['modlens']);
+const LEWATI = new Set([]);
 
 function berkasSkill() {
   const out = [];
