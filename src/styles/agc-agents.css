@@ -1,0 +1,459 @@
+/*
+ * Agents page (Agent Customizations) — the TRAE-shaped layout.
+ *
+ * Two decisions worth writing down:
+ *
+ *  1. The list row is a CARD with a hairline border, not a table row. The
+ *     reference uses cards, and a card is what makes the avatar + two lines of
+ *     text + the ⋮ menu read as one object instead of four columns.
+ *  2. The tools checklist reuses the SAME row geometry as the details view, so
+ *     "what this agent can do" looks identical whether it is being read or
+ *     edited. Two different row styles for the same list is what makes an
+ *     editor feel like a different product.
+ */
+.agx-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.agx-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.agx-tanya {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: help;
+  vertical-align: middle;
+}
+
+.agx-btn-utama {
+  padding: 6px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.agx-btn-utama:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-3, var(--surface-2));
+}
+.agx-btn-utama:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.agx-btn-batal {
+  padding: 6px 13px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.agx-btn-batal:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.agx-kembali {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.agx-kembali:hover {
+  color: var(--text);
+}
+
+/* ── Section headings ───────────────────────────────────────────────────── */
+.agx-seksi {
+  margin: 16px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+.agx-seksi:first-of-type {
+  margin-top: 4px;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.agx-kosong {
+  padding: 22px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.agx-tautan {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Agent row ──────────────────────────────────────────────────────────── */
+.agx-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agx-baris {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: border-color 120ms, background 120ms;
+}
+.agx-baris:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.agx-baris.is-mati {
+  opacity: 0.55;
+}
+
+.agx-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.agx-avatar-besar {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+}
+
+.agx-baris-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.agx-baris-nama {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.agx-baris-desk {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-baris-aksi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+/* ── ⋮ menu ─────────────────────────────────────────────────────────────── */
+.agx-menu-wrap {
+  position: relative;
+}
+
+.agx-menu-btn {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.agx-menu-btn:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.1));
+  color: var(--text);
+}
+
+.agx-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-2, var(--surface));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+.agx-menu button {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.agx-menu button:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.12));
+}
+.agx-menu button.is-hapus {
+  color: var(--danger);
+}
+
+/* ── Switch ─────────────────────────────────────────────────────────────── */
+.agx-switch {
+  position: relative;
+  display: inline-flex;
+  width: 30px;
+  height: 17px;
+  cursor: pointer;
+}
+.agx-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.agx-switch span {
+  flex: 1 1 auto;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 140ms;
+}
+.agx-switch span::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 140ms;
+}
+.agx-switch input:checked + span {
+  background: var(--accent);
+}
+.agx-switch input:checked + span::after {
+  transform: translateX(13px);
+}
+
+/* ── Details ────────────────────────────────────────────────────────────── */
+.agx-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 4px;
+}
+
+.agx-kotak {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.agx-kotak-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 11px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.agx-kotak-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 3px 0;
+}
+
+.agx-tool-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.agx-tool-pil {
+  cursor: pointer;
+}
+.agx-tool-pil:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+}
+.agx-tool-ikon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+.agx-tool-nama {
+  flex: 0 0 auto;
+  font-weight: 500;
+}
+.agx-tool-ket {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.agx-muted {
+  padding: 4px 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ── Editor ─────────────────────────────────────────────────────────────── */
+.agx-avatar-baris {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0 16px;
+}
+.agx-avatar-pilih {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.agx-ikon-pil {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.agx-ikon-pil:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.agx-ikon-pil.is-on {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.agx-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.agx-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.agx-field-label b {
+  color: var(--danger);
+  font-weight: 600;
+}
+.agx-field-label em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-field input[type='text'],
+.agx-field input:not([type]),
+.agx-field textarea {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+}
+.agx-field input:focus,
+.agx-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.agx-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.agx-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.agx-aksi {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.agx-galat {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+}

@@ -18,7 +18,24 @@ export type AlatId =
   | 'list_directory'
   | 'grep'
   | 'glob'
-  | 'web_fetch';
+  | 'web_fetch'
+  /*
+   * Write and shell access, available to a CUSTOM AGENT the reader defines.
+   *
+   * The built-in picker above stayed read-only on purpose: a worker spawned by
+   * the orchestrator runs unsupervised, so handing it write access by default is
+   * a foot-gun. An agent the READER creates and names is a different thing - it
+   * is a role they chose, and the reference editor offers Read / Edit / Terminal
+   * / Preview / Web search for exactly that reason.
+   *
+   * The guard is not removed by this: every write still passes the same approval
+   * mode and tool gate as any other call. This only makes the CAPABILITY
+   * selectable.
+   */
+  | 'multi_edit'
+  | 'bash_run'
+  | 'browser'
+  | 'web_search';
 
 export interface AlatInfo {
   id: AlatId;
@@ -38,6 +55,10 @@ export const ALAT: AlatInfo[] = [
   { id: 'grep', label: 'Search text', hint: 'Search file contents across the workspace', ikon: '⌘' },
   { id: 'glob', label: 'Find files', hint: 'Find files by name or path pattern', ikon: '▭' },
   { id: 'web_fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
+  { id: 'multi_edit', label: 'Edit files', hint: 'Change the contents of files', ikon: '✎' },
+  { id: 'bash_run', label: 'Run commands', hint: 'Run a shell command and read its output', ikon: '⌨' },
+  { id: 'browser', label: 'Open a page', hint: 'Load a URL in the built-in browser pane', ikon: '◉' },
+  { id: 'web_search', label: 'Search the web', hint: 'Find pages by query', ikon: '⌕' },
 ];
 
 export interface SubagentCustom {
@@ -67,6 +88,32 @@ export interface SubagentCustom {
    * task list, and only the user knows which one is which.
    */
   ikon: string;
+  /**
+   * Whether OTHER agents may delegate to this one.
+   *
+   * Distinct from `aktif`: `aktif` means "the reader may pick this worker",
+   * this means "another agent may call it as a sub-agent". A worker that is
+   * active but not callable is one the reader launches by hand - a distinction
+   * the agent editor exposes because conflating the two made every worker
+   * delegable, which is how a run ended up fanning out to six subagents.
+   */
+  bisaDipanggil?: boolean;
+  /**
+   * Stable identifier other agents use when calling this one.
+   *
+   * A machine name (`project-analyzer`), separate from the display `nama`,
+   * because a model reading a tool list needs an unambiguous token and the
+   * display name is free text that may contain spaces or change.
+   */
+  idInggris?: string;
+  /**
+   * The sentence that tells another agent WHEN to call this one.
+   *
+   * This is the routing text the orchestrator actually reads, so it is its own
+   * field rather than being folded into `deskripsi` (which is the one-line
+   * badge text shown in the task list).
+   */
+  kapanDipanggil?: string;
 }
 
 /** A blank definition, so the modal and the store agree on the shape. */
