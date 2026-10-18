@@ -1,12 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import LiveRegion from './components/a11y/LiveRegion';
 import Toast from './components/notifications/Toast';
-import { useAiChunkListener } from './lib/useAiChunkListener';
-import { useAi } from './lib/aiStore';
+import { useAiChunkListener } from './lib/useAiChunkListener';import { useAi } from './lib/aiStore';
 import { useStore } from './lib/store';
 
 const AiPanel = lazy(() => import('./components/ai/AiHost'));
-const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
 const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 /* Separate WebView, separate stores: the main window's centre cannot draw here.
    See the same note in AgentsWindow.tsx. */
@@ -50,9 +48,6 @@ export default function AiWindow() {
     <div className="ai-window-root" data-testid="ai-window-root">
       <Suspense fallback={null}>
         <AiPanel />
-      </Suspense>
-      <Suspense fallback={null}>
-        <AgentCustomModal />
       </Suspense>
       <Suspense fallback={null}>
         <ToolGatePanel />

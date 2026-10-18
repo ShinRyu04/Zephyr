@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import AiWindow from './AiWindow';
 import AgentsWindow from './AgentsWindow';
+import PanelWindow from './PanelWindow';
+import { panelDariHash } from './lib/panelWindow';
 import { ErrorBoundary } from './components/shell/ErrorBoundary';
 
 /*
@@ -17,7 +19,19 @@ import { ErrorBoundary } from './components/shell/ErrorBoundary';
  * the layout would silently be the wrong one.
  */
 const hash = window.location.hash.replace(/^#/, '').split('?')[0];
-const Root = hash === 'ai' ? AiWindow : hash === 'agents' ? AgentsWindow : App;
+/*
+ * A panel in its own window (`#panel=settings|extensions|tools`) is the fourth
+ * root. Checked BEFORE the exact-name comparisons so `#panel=` never has to be
+ * added to every one of them, and parsed by the same function the opener uses,
+ * so the two cannot disagree about what a valid id is.
+ */
+const Root = panelDariHash(hash)
+  ? PanelWindow
+  : hash === 'ai'
+    ? AiWindow
+    : hash === 'agents'
+      ? AgentsWindow
+      : App;
 
 if (import.meta.env.DEV) {
   void import('./lib/devBridge').then((m) => m.installDevBridge());

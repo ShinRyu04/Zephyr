@@ -1795,6 +1795,99 @@ body.is-resizing-v {
   user-select: none;
 }
 
+/* ── Collapsible sections under the tree (Outline / Timeline) ─────────────
+ *
+ * Shaped like VS Code's `> OUTLINE` / `> TIMELINE`: a full-width header row with
+ * a chevron that turns, and content that appears below it.
+ *
+ * The header is `flex: none` so it keeps its 22px height no matter how tall the
+ * content is; the content scrolls INSIDE itself rather than pushing the header
+ * off the top, which is what would happen if the section were one scrolling box.
+ */
+.sec-lipat {
+  flex: none;
+  border-top: 1px solid var(--border);
+  min-height: 0;
+}
+
+.sec-lipat[data-buka='1'] {
+  /* An open section takes the space it needs, up to half the column: past that
+     the file tree would be squeezed to a few rows and the reader would have to
+     scroll a section to get back to their files. */
+  display: flex;
+  flex-direction: column;
+  max-height: 50%;
+}
+
+.sec-lipat-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  flex: none;
+}
+
+.sec-lipat-head:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sec-lipat-chev {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  transition: transform 0.12s ease;
+}
+
+.sec-lipat-chev.is-open {
+  transform: rotate(90deg);
+}
+
+.sec-lipat-judul {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sec-lipat-jum {
+  flex: none;
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: none;
+}
+
+.sec-lipat-isi {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sec-lipat-chev {
+    transition: none;
+  }
+}
+
 .tree-error {
   margin: 4px 8px;
   padding: 4px 8px;

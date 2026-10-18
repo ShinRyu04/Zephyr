@@ -3,6 +3,7 @@ import { useStore } from '../../lib/store';
 const DebugView = lazy(() => import('../debug/DebugView'));
 const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
 const OutlinePanel = lazy(() => import('../explorer/OutlinePanel'));
+const WikiPanel = lazy(() => import('../wiki/WikiPanel'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const SourceControlPanel = lazy(() => import('../scm/SourceControlPanel'));
 const TerminalPanel = lazy(() => import('./TerminalPanel'));
@@ -34,6 +35,8 @@ export default function Sidebar() {
         return <SearchPanel />;
       case 'outline':
         return <OutlinePanel />;
+      case 'wiki':
+        return <WikiPanel />;
       case 'scm':
         return <SourceControlPanel />;
       case 'debug':
@@ -44,18 +47,18 @@ export default function Sidebar() {
          own header switcher. So 'ai' no longer renders anything on the left. */
       case 'terminal':
         return <TerminalPanel />;
-      /* Extensions is a floating panel now (ShellPopups), not a side-bar
-         view: it needs the width, and taking the side bar left the editor
-         squeezed beside a marketplace. */
+      /* Extensions is its own WINDOW now (`#panel=extensions`), not a side-bar
+         view and not a floating card: it needs the width, and taking the side
+         bar left the editor squeezed beside a marketplace. */
       case 'extensions':
         return null;
       /*
-       * Settings no longer draws its nav here.
+       * Settings no longer draws anything here.
        *
-       * The nav lives INSIDE the Settings popup now (ShellPopups). Rendering it
-       * in the side bar as well is what made pressing the gear show the same
-       * column twice - once docked on the left, once inside the card - and the
-       * docked copy was the one that stayed visible after the popup closed.
+       * The nav lives inside the Settings WINDOW now. Rendering it in the side
+       * bar as well is what made pressing the gear show the same column twice -
+       * once docked on the left, once in the panel - and the docked copy was the
+       * one that stayed visible after the panel closed.
        */
       case 'settings':
         return null;

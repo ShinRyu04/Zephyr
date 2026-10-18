@@ -5,7 +5,7 @@ import ModelSelector from '../ai/ModelSelector';
 import { useSubAgent, batasParalel, kemampuanTulis } from '../../lib/subagentStore';
 import { useStore } from '../../lib/store';
 import { useAi } from '../../lib/aiStore';
-import { useAiChatSettings } from '../../lib/chatSettingsStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import { useT, useTf } from '../../lib/i18n';
 import { useEffect } from 'react';
 
@@ -134,7 +134,7 @@ export default function SubAgentView() {
         <button
           className="btn btn-sm sav-tulis-setelan"
           data-testid="sav-tulis-setelan"
-          onClick={() => useAiChatSettings.getState().bukaDi('subagent')}
+          onClick={() => bukaPanel('chat-settings', 'subagent')}
         >
           {tr('Open Chat Settings → Sub-agents')}
         </button>

@@ -7,6 +7,7 @@ const NAV_KEY: Record<SectionId, string> = {
   general: 'settings.general',
   editor: 'settings.editor',
   theme: 'settings.theme',
+  icons: 'settings.icons',
   shortcuts: 'settings.shortcuts',
   agents: 'settings.agents',
   rules: 'settings.rules',
@@ -16,7 +17,6 @@ const NAV_KEY: Record<SectionId, string> = {
   lsp: 'settings.lsp',
   scm: 'settings.scm',
   mcp: 'settings.mcp',
-  tests: 'settings.tests',
   devenv: 'settings.devenv',
   devupdate: 'settings.devupdate',
   security: 'settings.security',
@@ -52,6 +52,18 @@ export function NavIcon({ id }: { id: SectionId }) {
           <circle cx="8" cy="8" r="5.4" {...st} />
           <path d="M8 2.6v10.8" {...st} />
           <path d="M8 2.6a5.4 5.4 0 010 10.8z" fill="currentColor" opacity="0.35" />
+        </svg>
+      );
+    case 'icons':
+      /* A grid of squares: "which marks fill the tree". Deliberately not the
+         same glyph as `theme` (a half-filled circle) - two sections that answer
+         the same question still need to be told apart in the rail. */
+      return (
+        <svg {...p}>
+          <rect x="2.4" y="2.4" width="4.6" height="4.6" rx="0.9" {...st} />
+          <rect x="9" y="2.4" width="4.6" height="4.6" rx="0.9" {...st} />
+          <rect x="2.4" y="9" width="4.6" height="4.6" rx="0.9" {...st} />
+          <rect x="9" y="9" width="4.6" height="4.6" rx="0.9" {...st} />
         </svg>
       );
     case 'shortcuts':
@@ -134,14 +146,6 @@ export function NavIcon({ id }: { id: SectionId }) {
           <rect x="1.8" y="9.4" width="12.4" height="4.2" rx="1.1" {...st} />
           <circle cx="4.4" cy="4.5" r="0.8" fill="currentColor" />
           <circle cx="4.4" cy="11.5" r="0.8" fill="currentColor" />
-        </svg>
-      );
-    case 'tests':
-      return (
-        <svg {...p}>
-          <path d="M6.2 2.4h3.6v2.4H6.2z" {...st} />
-          <path d="M6.2 3.6H4.4v10h7.2v-10H9.8" {...st} />
-          <path d="M6 9.2l1.4 1.4 2.8-2.8" {...st} />
         </svg>
       );
     case 'security':

@@ -10,10 +10,10 @@ import SectionsLsp from './SectionsLsp';
 import McpPanel from './McpPanel';
 import SecuritySection from './SecuritySection';
 import AccessibilitySection from './AccessibilitySection';
-import TestsSection from './TestsSection';
 import MemoriPanel from './MemoriPanel';
 import DevEnvSettingsSection from './DevEnvSettingsSection';
 import { DevUpdateSection } from './DevUpdateSection';
+import IkonTemaSection from './IkonTemaSection';
 
 function SectionBody({ id }: { id: SectionId }) {
   switch (id) {
@@ -23,6 +23,8 @@ function SectionBody({ id }: { id: SectionId }) {
       return <EditorSection />;
     case 'theme':
       return <ThemeSection />;
+    case 'icons':
+      return <IkonTemaSection />;
     case 'shortcuts':
       return <ShortcutsSection />;
     case 'agents':
@@ -41,8 +43,6 @@ function SectionBody({ id }: { id: SectionId }) {
       return <ScmSection />;
     case 'mcp':
       return <McpPanel />;
-    case 'tests':
-      return <TestsSection />;
     case 'devenv':
       return <DevEnvSettingsSection />;
     case 'devupdate':

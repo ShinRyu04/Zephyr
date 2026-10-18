@@ -201,8 +201,23 @@ export class Cdp {
      * ("the button is in the DOM but not visible"). `attach` is the main-window
      * entry point, so non-`#agents` candidates are tried first; the Agents one
      * stays as a fallback rather than being excluded.
+     *
+     * PANEL WINDOWS ARE THE SAME PROBLEM, only worse: Settings, Extensions,
+     * Tools, AI Models, Chat Settings and Agent Customizations each open a
+     * WebView with the same title, the same origin and a `#panel=` hash. A
+     * harness that attaches to one of those finds no activity bar at all and
+     * reports "the rail is empty" - a false failure that says nothing about the
+     * app. So the MAIN window (no hash) is tried FIRST, and every hashed root
+     * after it.
      */
-    kandidat.sort((a, b) => Number((a.url ?? '').includes('#agents')) - Number((b.url ?? '').includes('#agents')));
+    const skor = (t) => {
+      const u = t.url ?? '';
+      if (u.includes('#panel=')) return 2;
+      if (u.includes('#agents')) return 2;
+      if (u.includes('#')) return 1;
+      return 0;
+    };
+    kandidat.sort((a, b) => skor(a) - skor(b));
     // Jaring terakhir: kalau judulnya tidak dikenal sama sekali, pakai halaman
     // Tauri yang ada. Menyerah di sini membuat harness mustahil dijalankan
     // pada build dengan judul lain.

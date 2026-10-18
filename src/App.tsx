@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import ActivityBar from './components/shell/ActivityBar';
 import Sidebar from './components/shell/Sidebar';
@@ -26,8 +26,6 @@ const TrustDialog = lazy(() => import('./components/workspace/TrustDialog'));
 const UpdateBanner = lazy(() => import('./components/shell/UpdateBanner'));
 const DonateDialog = lazy(() => import('./components/shell/DonateDialog'));
 const ExtApprovalModal = lazy(() => import('./components/extensions/ExtApprovalModal'));
-const AgentCustomModal = lazy(() => import('./components/settings/AgentCustomModal'));
-const AiModelsModal = lazy(() => import('./components/settings/AiModelsModal'));
 const KeybindingsEditor = lazy(() => import('./components/shell/KeybindingsEditor'));
 const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
 const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
@@ -44,10 +42,9 @@ const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
 const NotesPanel = lazy(() => import('./components/ai/NotesPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
+const WelcomeSetup = lazy(() => import('./components/shell/WelcomeSetup'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
-import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir } from './lib/store';
-import { SettingsPopup, ExtensionsPopup, ToolsPopup } from './components/shell/ShellPopups';
-import { useTampilan } from './lib/tampilanStore';
+import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir, pasangSinkronSetelan } from './lib/store';import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
@@ -83,6 +80,13 @@ import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
 import './styles/themes-extra.css';
+/*
+ * Tema marketplace: 24 palet tambahan, tiap-tiap dengan 11 token `--syn-*`
+ * sendiri. Diimpor SETELAH themes-extra.css supaya blok `[data-theme='...']`
+ * di sini menang atas aturan dasar - sebuah tema harus bisa menimpa warna
+ * sintaks, bukan diabaikan oleh berkas yang lebih dulu dimuat.
+ */
+import './styles/themes-marketplace.css';
 import './styles/tokens.css';
 import './styles/settings.css';
 import './styles/ai.css';
@@ -102,6 +106,17 @@ import './styles/api.css';
 import './styles/sftp.css';
 import './styles/tools.css';
 import './styles/modal-popup.css';
+/*
+ * Repo Wiki: the sidebar pane and the editor-area generator page.
+ */
+import './styles/wiki.css';
+/*
+ * The first-run wizard. Its own file because it owns the whole screen and
+ * deliberately does NOT use the theme tokens for its own surfaces: a new reader
+ * has not chosen a theme yet, so a wizard painted in the current theme would be
+ * dressed in a decision they have not made. Only the theme CARDS show colour.
+ */
+import './styles/welcome-setup.css';
 /*
  * Loaded after ai.css (which is imported above with the other early styles) so
  * the compact panel rules win: this file flattens the AI header into one row of
@@ -417,18 +432,50 @@ export default function App() {
     }
 
     /*
-     * Settings is a floating panel: it must NOT touch the side bar.
+     * Settings is its own WINDOW: it must not touch the side bar, and it must
+     * not set a popup flag either.
      *
      * `setSidebarVisible(open)` used to open the left column with the gear,
-     * because Settings WAS a side-bar view. Now the nav lives inside the card,
-     * so opening the dock as well only puts a blank column (or an unrelated
-     * panel) beside the popup - the "tab kiri kebuka sendiri" complaint.
+     * because Settings WAS a side-bar view. `setSettingsOpen(true)` used to draw
+     * the floating card. Both are wrong now: the gear's own click handler opens
+     * the window (`bukaPanel('settings')`), and this path only has to make sure
+     * nothing is left switched on behind it. A flag set here would be a flag
+     * nothing renders - and if anything ever did render it again, the reader
+     * would get the popup AND the window.
      */
-    store.setSettingsOpen(!intent.wasOpen);
+    store.setSettingsOpen(false);
+    store.setExtensionsOpen(false);
+    store.setToolsOpen(false);
+  }, []);
+
+  /*
+   * First-run wizard: open when the settings land and say `onboarded` is not set.
+   *
+   * Keyed on the SETTINGS ARRIVING rather than on mount, because settings are
+   * loaded asynchronously - a check at mount would read `undefined` (which looks
+   * the same as "not onboarded") on every launch and show the wizard forever.
+   * `bootstrap` flips `settingsLoaded`, and that is the honest signal.
+   */
+  const [welcomeBuka, setWelcomeBuka] = useState(false);
+  useEffect(() => {
+    const cek = () => {
+      if (useStore.getState().settings.general.onboarded !== true) setWelcomeBuka(true);
+    };
+    if (useStore.getState().settingsLoaded) {
+      cek();
+      return;
+    }
+    const unsub = useStore.subscribe((s, prev) => {
+      if (!prev.settingsLoaded && s.settingsLoaded) cek();
+    });
+    return unsub;
   }, []);
 
   useEffect(() => {
     void bootstrap();
+    /* Settings changed in another window (a panel window) must repaint this one:
+       theme, language, zoom. Bound once per window; see store.ts. */
+    pasangSinkronSetelan();
   }, [bootstrap]);
 
   useEffect(() => {
@@ -1666,18 +1713,21 @@ export default function App() {
         {/* Extension external-runtime permissions - global, they can appear at any
             time because execution can be requested from any worker. */}
         <ExtApprovalModal />
-        <AgentCustomModal />
-        <AiModelsModal />
         <KeybindingsEditor />
         <LspOverlay />
         {/*
-          * The three floating panels: Settings, Extensions and Dev Tools.
-          * They used to take over the editor area / side bar; they now float
-          * over the work so the open file stays visible behind them.
+          * The first-run wizard, LAST in the overlay stack so it covers
+          * everything - including the crash dialog, because a new install that
+          * opens a wizard over an empty editor should not have a modal competing
+          * for the screen. It renders nothing once `onboarded` is true.
           */}
-        <SettingsPopup />
-        <ExtensionsPopup />
-        <ToolsPopup />
+        {welcomeBuka && (
+          <WelcomeSetup
+            onSelesai={() => {
+              setWelcomeBuka(false);
+            }}
+          />
+        )}
       </Suspense>
       <Toast />
       {/* phase 31: the a11y live region. Rendered LAST so it does not slip in

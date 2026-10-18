@@ -1,0 +1,273 @@
+/*
+ * Repo Wiki — the sidebar pane and the editor-area page.
+ *
+ * The two surfaces share one idea, so they share the token set: nothing here
+ * introduces a colour of its own. Every value is a theme token, which is what
+ * makes the pane correct in both a dark and a light theme without a second
+ * stylesheet.
+ */
+
+/* ── Sidebar pane ────────────────────────────────────────────────────────── */
+
+.wiki-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.wiki-tabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 6px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.wiki-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wiki-tab:hover {
+  color: var(--text);
+}
+
+/* The underline IS the active state, matching the Chat Settings scope tabs: one
+   way to say "this tab" across the app rather than two. */
+.wiki-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.wiki-cari {
+  flex: none;
+  padding: 8px 8px 6px;
+}
+
+.wiki-cari input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+}
+
+.wiki-cari input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.wiki-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 6px 8px;
+}
+
+.wiki-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wiki-item:hover {
+  background: var(--surface-2);
+}
+
+.wiki-item.is-active {
+  background: var(--surface-3);
+}
+
+.wiki-item-judul {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-item-sumber {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-note {
+  margin: 10px 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* The banner that says which pane is for whom. Bottom of the column, because it
+   describes the whole pane rather than any one row. */
+.wiki-banner {
+  flex: none;
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+/* ── Editor-area page ───────────────────────────────────────────────────── */
+
+.wiki-page {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 30px 48px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wiki-page-head {
+  margin-bottom: 22px;
+}
+
+.wiki-page-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.wiki-page-sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.wiki-page-note {
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.wiki-page-error {
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--danger);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/*
+ * The options block.
+ *
+ * `max-width` here and NOWHERE ELSE on this page: these are labelled controls
+ * with hints, and a row that stretches 1400px puts the label and its switch at
+ * opposite ends of the screen. The article below is prose and keeps its own
+ * measure from `.md-preview`.
+ */
+.wiki-opsi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+
+.wiki-opsi-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.wiki-opsi-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.wiki-opsi-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.wiki-select {
+  min-width: 180px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.wiki-switch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.wiki-aksi {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.wiki-artikel {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.wiki-artikel-judul {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.wiki-artikel-sumber {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.wiki-artikel-sumber code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

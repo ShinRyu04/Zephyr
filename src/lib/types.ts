@@ -1005,6 +1005,14 @@ export type ActivityId =
   | 'ai'
   | 'terminal'
   | 'extensions'
+  /*
+   * Repo Wiki: documentation of this codebase, for the reader AND for the agent.
+   *
+   * A rail entry of its own rather than a section of Settings, because it is a
+   * workspace surface - something the reader opens beside their code and keeps
+   * open, the same way the Explorer is.
+   */
+  | 'wiki'
   | 'devenv'
   | 'api'
   | 'sftp'
@@ -1120,6 +1128,17 @@ export interface GeneralSettings {
     kerapatan?: string;
     subKanan?: boolean;
   };
+
+  /**
+   * Whether the first-run wizard has been completed.
+   *
+   * Absent means "not yet", which is what a fresh install looks like - so the
+   * wizard opens on day one and never again. It is written when the reader
+   * presses Done, and NOT when the window is closed: a wizard that can be
+   * dismissed without recording that it was seen reappears forever, and one that
+   * records a mere glance has been read by nobody.
+   */
+  onboarded?: boolean;
 }
 
 export interface EditorSettings {

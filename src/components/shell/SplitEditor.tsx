@@ -25,6 +25,7 @@ const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 // narrow column while the editor stayed empty beside them.
 const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
 const TestsView = lazy(() => import('../shell/TestsView'));
+const WikiPage = lazy(() => import('../wiki/WikiPage'));
 const ApiClientView = lazy(() => import('../api/ApiClientView'));
 const SftpView = lazy(() => import('../sftp/SftpView'));
 import { useGit } from '../../lib/gitStore';
@@ -268,10 +269,14 @@ export default function SplitEditor() {
    * chat tab the first time it is seen, then is not consulted again.
    */
   /*
-   * The Chat Settings OVERLAY is not drawn here at all — it floats inside the
-   * chat panel (see ChatSettingsPopup). The branch that used to live here drew
-   * the page full-bleed in the editor area with no tab row, which is the
-   * "maximize, not a tab" complaint; it is a real tab now.
+   * The Chat Settings page is NOT drawn here at all. It has three homes - the
+   * editor tab (routed inside `EditorPane`, which gives it the real tab strip),
+   * its own OS window (`#panel=chat-settings`), and nothing else: the floating
+   * overlay that used to live inside the chat panel is gone, because it was the
+   * one that could be maximized while keeping a leftover drag offset and paint
+   * the left rail over the content.
+   *
+   * `buka` is kept in the store for older callers but is always false now.
    */
   const chatSettingsOpen = useAiChatSettings((s) => s.buka);
   void chatSettingsOpen;
@@ -299,7 +304,8 @@ export default function SplitEditor() {
     activity === 'devenv' ||
     activity === 'api' ||
     activity === 'sftp' ||
-    activity === 'tests'
+    activity === 'tests' ||
+    activity === 'wiki'
   ) {
     return (
       <section className="editor-area">
@@ -316,6 +322,7 @@ export default function SplitEditor() {
               {activity === 'api' && <ApiClientView />}
               {activity === 'sftp' && <SftpView />}
               {activity === 'tests' && <TestsView />}
+              {activity === 'wiki' && <WikiPage />}
             </Suspense>
           </ErrorBoundary>
         </div>
