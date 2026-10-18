@@ -36,7 +36,7 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   /*
-   * Repo Wiki: three nodes joined by a line.
+   * Atlas: three nodes joined by a line.
    *
    * A network, not a book. A book glyph would say "static document", and these
    * pages are generated FROM the code and linked to it - the same reason the
@@ -188,7 +188,7 @@ const LABEL: Record<ActivityId, string> = {
   search: 'Search',
   outline: 'Outline',
   scm: 'Source Control',
-  wiki: 'Repo Wiki',
+  wiki: 'Atlas',
   debug: 'Run & Debug (Ctrl+Shift+D)',
   /*
    * No `ai` entry. The robot icon used to sit in the rail and toggle the chat

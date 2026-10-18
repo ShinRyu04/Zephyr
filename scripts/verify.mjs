@@ -690,10 +690,16 @@ const main = async () => {
   );
 
   // ───────── V8: session tersimpan ─────────
+  //
+  // sessionLoad answers with a SessionState ENVELOPE ({ tabs: [...] }) - it used
+  // to answer with the bare array, and the old probe called `.map` on the
+  // envelope and crashed with "list.map is not a function" at the very LAST
+  // check, which read like a failure of everything after it.
   const sess = JSON.parse(
     await cdp.runAsync(`
       await s.persistSession();
-      const list = await window.__ZEPHYR_FS__.sessionLoad();
+      const loaded = await window.__ZEPHYR_FS__.sessionLoad();
+      const list = Array.isArray(loaded) ? loaded : (loaded?.tabs ?? []);
       return JSON.stringify({ n: list.length, files: list.map(x => x.path.split('\\\\').pop()) });
     `),
   );

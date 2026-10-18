@@ -433,8 +433,22 @@
   position: relative;
 }
 
+/*
+ * NO `max-width` here.
+ *
+ * This used to cap every section at 780px, which was right when the page lived
+ * in a 900px editor area: a row of controls that stretches 1400px is hard to
+ * read, and a hard cap kept it sane. In a maximized WINDOW the same cap is what
+ * left a large dead strip down the right-hand side - the reported "masih ada
+ * space kosong di kanan" - because the panel grew and the content did not.
+ *
+ * Prose still has a measure: `.set-note` caps at 68ch and `.set-hint` at 62ch,
+ * which is where readability actually needs a limit. Rows, cards, tables and
+ * grids do not - they are controls, and controls should use the width they are
+ * given. So the cap is released here and kept where it belongs.
+ */
 .set-section {
-  max-width: 780px;
+  max-width: none;
 }
 
 .set-h2 {
@@ -2171,9 +2185,11 @@
 /* ── T4.3: Settings → Prompt AI ────────────────────────────────────────────
    Each prompt section has its own box with a status badge (built-in /
    modified). The badge matters: without it the user does not know whether what they wrote
-   is actually in use or whether the built-in is still in effect. */
+   is actually in use or whether the built-in is still in effect.
+   No `max-width`: it capped the column inside a window that can be much wider,
+   leaving the dead strip on the right. Prose inside caps itself. */
 .sp-root {
-  max-width: 880px;
+  max-width: none;
 }
 
 .sp-ringkas {

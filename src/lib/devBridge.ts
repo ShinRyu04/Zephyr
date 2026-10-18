@@ -1057,7 +1057,7 @@ export function installDevBridge(): void {
   };
 
   /*
-   * Repo Wiki.
+   * Atlas.
    *
    * A harness has to be able to read the GENERATED result, not just see that a
    * button was pressed. Without this bridge a probe can only assert "the button

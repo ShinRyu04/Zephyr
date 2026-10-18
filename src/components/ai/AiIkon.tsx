@@ -18,6 +18,7 @@ export type NamaAiIkon =
     | 'compact'
     | 'export'
     | 'maximize'
+    | 'minimize'
     | 'restore'
     | 'close'
     | 'attach'
@@ -203,6 +204,13 @@ export default function AiIkon({ name, size = 15 }: Props) {
         </svg>
       );
     // Restore: two overlapping squares, the VSCode "restore down" glyph.
+    // Minimize: a single bar, the title-bar glyph.
+    case 'minimize':
+      return (
+        <svg {...box}>
+          <path d="M2.4 8h11.2" />
+        </svg>
+      );
     case 'restore':
       return (
         <svg {...box}>
