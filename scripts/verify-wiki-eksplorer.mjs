@@ -10,8 +10,8 @@
  *    terjadi saat memindahkan: tombolnya dihapus dari rel TAPI seksinya tidak
  *    pernah dipasang - sehingga fiturnya hilang sama sekali, tanpa error.
  *
- * 2. REPO WIKI: DUA ARTEFAK, DUA PEMBACA.
- *    Wiki untuk manusia, Knowledge Card untuk agen. Yang diuji:
+ * 2. ATLAS: DUA ARTEFAK, DUA PEMBACA (Map untuk manusia, Cards untuk agen).
+ *    Map untuk manusia, Cards untuk agen. Yang diuji:
  *      - keduanya dihasilkan dari SATU jalan (bukan dua yang bisa berbeda),
  *      - `Generate` deterministik (nol jaringan, baca disk saja),
  *      - `Create With Plan` mengirim prompt, bukan mengaku sudah membuat,
@@ -192,7 +192,7 @@ cek('Wiki terpasang di Sidebar, ActivityBar, dan area editor', () => {
 
 cek('kunci i18n ada di kesepuluh kamus', () => {
   const i18n = baca('src/lib/i18n.ts');
-  const wajib = ['Repo Wiki', 'Knowledge Card', 'Generate Your Repo Wiki', 'Create With Plan'];
+  const wajib = ['Map', 'Cards', 'Generate Your Atlas', 'Create With Plan'];
   for (const k of wajib) {
     const pola = new RegExp("'" + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "':", 'g');
     const n = (i18n.match(pola) ?? []).length;

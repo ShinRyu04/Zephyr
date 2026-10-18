@@ -1,0 +1,152 @@
+[
+  {
+    "id": "nord",
+    "label": "Nord",
+    "kind": "dark",
+    "hint": "Arctic blue-grey, cool and calm"
+  },
+  {
+    "id": "gruvbox",
+    "label": "Gruvbox",
+    "kind": "dark",
+    "hint": "Warm retro, orange and olive"
+  },
+  {
+    "id": "tokyo-night",
+    "label": "Tokyo Night",
+    "kind": "dark",
+    "hint": "Neon city at midnight"
+  },
+  {
+    "id": "catppuccin",
+    "label": "Catppuccin",
+    "kind": "dark",
+    "hint": "Pastel mocha, soft contrast"
+  },
+  {
+    "id": "dracula",
+    "label": "Dracula",
+    "kind": "dark",
+    "hint": "Purple and pink on charcoal"
+  },
+  {
+    "id": "one-dark",
+    "label": "One Dark",
+    "kind": "dark",
+    "hint": "The Atom classic"
+  },
+  {
+    "id": "monokai",
+    "label": "Monokai",
+    "kind": "dark",
+    "hint": "High-chroma, the editor staple"
+  },
+  {
+    "id": "solarized-dark",
+    "label": "Solarized Dark",
+    "kind": "dark",
+    "hint": "Precision colours on deep teal"
+  },
+  {
+    "id": "ayu-mirage",
+    "label": "Ayu Mirage",
+    "kind": "dark",
+    "hint": "Warm sand on dusk"
+  },
+  {
+    "id": "rose-pine",
+    "label": "Rosé Pine",
+    "kind": "dark",
+    "hint": "Muted rose and iris"
+  },
+  {
+    "id": "kanagawa",
+    "label": "Kanagawa",
+    "kind": "dark",
+    "hint": "Ink wash and gold leaf"
+  },
+  {
+    "id": "everforest",
+    "label": "Everforest",
+    "kind": "dark",
+    "hint": "Forest greens, low strain"
+  },
+  {
+    "id": "synthwave",
+    "label": "Synthwave '84",
+    "kind": "dark",
+    "hint": "Neon sunset grid"
+  },
+  {
+    "id": "cobalt2",
+    "label": "Cobalt2",
+    "kind": "dark",
+    "hint": "Deep blue with bright yellow"
+  },
+  {
+    "id": "material",
+    "label": "Material Palenight",
+    "kind": "dark",
+    "hint": "Material depth, soft violet"
+  },
+  {
+    "id": "night-owl",
+    "label": "Night Owl",
+    "kind": "dark",
+    "hint": "Built for low light"
+  },
+  {
+    "id": "palenight",
+    "label": "Palenight",
+    "kind": "dark",
+    "hint": "Soft indigo, easy on the eyes"
+  },
+  {
+    "id": "github-dark",
+    "label": "GitHub Dark",
+    "kind": "dark",
+    "hint": "The familiar GitHub palette"
+  },
+  {
+    "id": "vesper",
+    "label": "Vesper",
+    "kind": "dark",
+    "hint": "Warm amber on near-black"
+  },
+  {
+    "id": "flexoki",
+    "label": "Flexoki",
+    "kind": "dark",
+    "hint": "Paper-and-ink, warm neutrals"
+  },
+  {
+    "id": "solarized-light",
+    "label": "Solarized Light",
+    "kind": "light",
+    "hint": "Warm paper, precise colours"
+  },
+  {
+    "id": "github-light",
+    "label": "GitHub Light",
+    "kind": "light",
+    "hint": "The familiar GitHub palette, light"
+  },
+  {
+    "id": "catppuccin-latte",
+    "label": "Catppuccin Latte",
+    "kind": "light",
+    "hint": "Pastel cream, gentle contrast"
+  },
+  {
+    "id": "one-light",
+    "label": "One Light",
+    "kind": "light",
+    "hint": "The Atom classic, light"
+  },
+  {
+    "id": "ayu-light",
+    "label": "Ayu Light",
+    "kind": "light",
+    "hint": "Bright and warm"
+  }
+]

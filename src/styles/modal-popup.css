@@ -1,98 +1,196 @@
 /*
- * Floating panel frame for Settings, Extensions and Dev Tools.
+ * Panel WINDOWS.
  *
- * These three used to replace the whole editor area. The reader lost the file
- * they were reading to look at a preference, and getting back meant finding the
- * tab they had. They now float over the work, like VS Code's Settings and Zed's
- * centred panels: the editor stays visible behind the scrim, Escape closes, a
- * click outside closes.
+ * Everything in here belongs to a panel that lives in its own OS window
+ * (`#panel=settings|extensions|tools|models|chat-settings|agent-custom`).
  *
- * Everything here is scoped to `.mpop*` so it cannot leak into the pages it
- * hosts. The pages themselves are unchanged - same sections, same controls - so
- * a setting can never exist in one home and not the other.
+ * WHAT USED TO BE HERE, AND WHY IT IS GONE: this file was the frame for
+ * floating popups - `.mpop-scrim`, `.mpop`, `.mpop.is-max`, the minimized
+ * `.mpop-dock` strip, the drag offset. Every one of those existed to imitate
+ * window chrome inside the page, and every one of them had a failure mode: a
+ * maximized card that kept its centring `translate` painted its own left rail
+ * over its own content, and a leftover drag offset pushed a full-screen card
+ * off the edge. A real window has none of those problems because the platform
+ * owns the frame. The classes were deleted rather than left unused, so nothing
+ * can quietly render a popup again.
+ *
+ * The bar itself is `.ptb` (panel title bar), drawn by `PanelTitleBar.tsx`.
  */
 
-.mpop-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 700;
-  background: color-mix(in srgb, var(--bg0) 52%, transparent);
-  backdrop-filter: blur(3px) saturate(0.92);
-  -webkit-backdrop-filter: blur(3px) saturate(0.92);
-}
+/* ── The window root ─────────────────────────────────────────────────────── */
 
-.mpop {
-  position: fixed;
-  z-index: 701;
-  top: 50%;
-  left: 50%;
-  /*
-   * Centring is `translate: -50% -50%` (below), NOT negative margins.
-   *
-   * A percentage margin resolves against the CONTAINING block - here the
-   * viewport - so `margin-top: -50%` pushed the card up by half the WINDOW
-   * height on top of the centring, and the popup landed off-screen with only
-   * its bottom edge visible. `translate` resolves against the element's own
-   * size, which is what "centre this box" means.
-   *
-   * It stays on the `translate` property rather than in `transform` because
-   * `transform` is what `useDragPopup` writes (via the inline style in
-   * ModalPopup) - an inline transform would silently drop the centring.
-   */
-  translate: -50% -50%;
-  max-width: 96vw;
-  max-height: 92vh;
+/*
+ * One column: the title bar, then the page. `height: 100vh` on the root rather
+ * than `inset: 0` because the root is not positioned - it is the document body
+ * of this window, and a fixed overlay here would cover the bar too.
+ */
+.panel-win-root {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  min-height: 0;
   background: var(--bg1);
   color: var(--fg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
   overflow: hidden;
 }
 
-
-.mpop-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg2);
-  cursor: grab;
-  user-select: none;
-  flex: none;
-}
-
-.mpop-head:active {
-  cursor: grabbing;
-}
-
-.mpop-title {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.mpop-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mpop-body {
+.panel-win {
+  position: relative;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
+  background: var(--bg1);
+  color: var(--fg);
   overflow: hidden;
+}
+
+/* Settings keeps its two columns here, same as it did inside the popup. */
+.panel-win-dua {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 /*
+ * EVERY direct child fills the window.
+ *
+ * This is what caused the "space kosong di kanan" in Chat Settings: `.panel-win`
+ * is a flex row, and `.cset-page` sets `height: 100%` but no width, so as a flex
+ * item it sized to its CONTENT instead of the window - the page stopped at its
+ * widest row and left a dead strip on the right. The three pages named
+ * individually below covered Settings/Extensions/Tools but not the newer ones,
+ * so each new panel had to remember its own rule and Chat Settings did not.
+ * Matching every child once is what stops the next panel from repeating it.
+ */
+.panel-win > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-win > .xv,
+.panel-win > .tools-root {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-win > .xv {
+  overflow: auto;
+}
+
+.panel-win-kosong {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--fg2);
+  font-size: 13px;
+}
+
+/* ── The title bar ───────────────────────────────────────────────────────── */
+
+/*
+ * Colours come from the SAME tokens the main window's bar uses
+ * (`--titlebar-bg`, falling back to `--surface`), so a theme switch repaints
+ * this bar with no code here knowing which theme is on. That is the whole
+ * point of drawing it ourselves instead of accepting the OS one, which is a
+ * fixed pale grey regardless of theme.
+ */
+.ptb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 0 0 12px;
+  background: var(--titlebar-bg, var(--surface));
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  user-select: none;
+  /* The bar is the drag region; the buttons opt out by being buttons. */
+  cursor: default;
+}
+
+/*
+ * The title: plain, no logo, no product name.
+ *
+ * It grows to fill the space between the left padding and the controls, so the
+ * whole strip is draggable and not just the text. `pointer-events: none` is
+ * deliberately NOT set: a drag region needs to receive the pointerdown, and
+ * `data-tauri-drag-region` is on both this span and its parent.
+ */
+.ptb-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ptb-actions {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  align-self: stretch;
+}
+
+/*
+ * Window controls: icons on the same 10px grid as the main window's controls
+ * (`WindowControls.tsx`), sized like a real title bar's buttons - 46x34 hit
+ * areas that reach the window's top-right corner. A 28x22 chip in the middle of
+ * a 34px bar reads as a toolbar button, not as window chrome.
+ */
+.ptb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ptb-btn > svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+.ptb-btn:hover {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+  color: var(--text);
+}
+
+.ptb-btn.is-close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+/*
+ * The edge handles. Invisible, 4px thick, pinned to the window edges by inline
+ * style (see PanelTitleBar) - they exist because a frameless window otherwise
+ * cannot be resized by dragging at all. `z-index` is high enough to sit over the
+ * page's own scrollbars, which is what makes the right edge grabbable when a
+ * long settings list is showing its scrollbar.
+ */
+.ptb-resize:hover {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ── Settings columns ────────────────────────────────────────────────────── */
+
+/*
  * Settings is a two-column page: its nav on the left, the section on the right.
- * The nav used to live in the side bar; inside a floating panel it has to travel
- * with the page, or the panel would show a section with no way to change it.
+ *
+ * `min-width` on the nav is what keeps it from being squeezed by the content
+ * beside it. Without it the flex item shrank below its basis, its labels
+ * overlapped the content pane, and that is the "menu di kiri nimpa" report.
  */
 .mpop-settings-nav {
   flex: none;
@@ -109,26 +207,224 @@
   overflow: auto;
 }
 
-/* The pages already fill their own host; inside the frame they must not try to
-   own the viewport height as well. */
-.mpop-body > .xv,
-.mpop-body > .tools-root {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-}
-
-/* Extensions-as-a-tab reuses the same page; give it a scroll container. */
-.mpop-body > .xv {
-  overflow: auto;
-}
-
-/* Narrow windows: the nav becomes a strip above the section instead of a
-   column that eats the page. */
+/* Narrow windows: the nav becomes a narrow column rather than a column that
+   eats the page. */
 @media (max-width: 760px) {
   .mpop-settings-nav {
     width: 150px;
     min-width: 120px;
   }
+}
+
+/* ── Icon themes (Settings → Icons) ──────────────────────────────────────── */
+
+/*
+ * A grid of CARDS, not a dropdown.
+ *
+ * An icon theme is a look, and a name does not say what it looks like. Each card
+ * draws the same six file types with that pack's icons, so the choice is made by
+ * looking rather than by applying, checking the tree and coming back.
+ *
+ * `auto-fill` with a minimum width rather than a fixed column count: the page
+ * lives in a window that can be resized from 520px to a full screen, and a fixed
+ * count would either squeeze the samples or leave one card per row.
+ */
+.ikt-cari {
+  margin: 4px 0 14px;
+  max-width: 320px;
+}
+
+.ikt-cari input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.ikt-cari input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ikt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.ikt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ikt-card:hover {
+  border-color: var(--accent);
+}
+
+/* The active card is marked by the border AND the badge: colour alone is not a
+   state a colour-blind reader can rely on. */
+.ikt-card.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+}
+
+.ikt-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ikt-card-nama {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ikt-badge {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* The six samples: two columns, so six fit in three rows without shrinking the
+   icons to the point where the differences stop being visible. */
+.ikt-contoh {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
+}
+
+.ikt-contoh-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ikt-contoh-nama {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A pack's own drawing. Sized here rather than by the SVG's own attributes,
+   because packs declare wildly different viewBoxes. */
+.ikt-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.ikt-svg > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ikt-glif {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ikt-kosong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.ikt-card-meta {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Generic page shell ──────────────────────────────────────────────────── */
+
+/*
+ * The chrome for a page that was written as a modal and is now a window's
+ * whole body (AI Models). The page supplies the content; this supplies the
+ * scroll container and the title, so it does not need to know it is in a
+ * window.
+ */
+.panel-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.panel-page-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 18px 20px 28px;
+  /* No max-width. The page is the window now, and a capped column inside a
+     maximized window leaves the dead strip on the right that was reported for
+     Settings and AI Models alike. Prose caps itself (`.set-note`, `.set-hint`);
+     tables, cards and control rows should use the width they are given. */
+}
+
+.panel-page-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── Agent Customizations ────────────────────────────────────────────────── */
+
+/*
+ * `.agc-page` is what `AgentCustomModal`'s outer `.modal.agc-modal` used to be:
+ * a flex column holding the rail and the content pane. The head, the backdrop
+ * and the maximize/close buttons are gone - the window supplies all three.
+ */
+.agc-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }

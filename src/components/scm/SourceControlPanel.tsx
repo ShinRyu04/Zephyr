@@ -661,14 +661,54 @@ function NewBranchDialog() {
 
 function GitGraphSection() {
   const log = useGit((s) => s.log);
+  /*
+   * Collapsed by default, on purpose.
+   *
+   * The graph is reference material - you open it to check where a commit sits
+   * or what got tagged, then close it. Left open it pushed the change list (the
+   * thing you are actually working on) below the fold on every reload, so the
+   * state lives here rather than in settings: it is a view of THIS panel, not a
+   * preference about the editor. `+`/`-` plus a chevron keeps the control
+   * discoverable for people who do not read the header.
+   */
+  const [buka, setBuka] = useState(false);
   if (!log || log.length === 0) return null;
 
   return (
     <div className="scm-graph-wrap" style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 6px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-        <span>Commit History & Graph</span>
-        <span style={{ fontSize: '10px' }}>{log.length} commits</span>
-      </div>
+      <button
+        type="button"
+        className="scm-graph-lipat"
+        data-testid="scm-graph-toggle"
+        aria-expanded={buka}
+        title={buka ? 'Collapse the commit graph' : 'Show the commit graph'}
+        onClick={() => setBuka((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          width: '100%',
+          padding: '0 8px 6px',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontWeight: 600,
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span aria-hidden style={{ fontSize: '10px', width: '10px', textAlign: 'center' }}>
+          {buka ? '−' : '+'}
+        </span>
+        <span aria-hidden style={{ transform: buka ? 'rotate(90deg)' : 'none', transition: 'transform .12s', fontSize: '9px' }}>
+          ▶
+        </span>
+        <span>GRAPH</span>
+        <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 400 }}>{log.length} commits</span>
+      </button>
+      {buka && (
       <div className="scm-graph-list" style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '12px' }}>
         {log.map((c, i) => (
           <div
@@ -704,6 +744,7 @@ function GitGraphSection() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
@@ -742,6 +783,31 @@ export default function SourceControlPanel() {
   
   const stagedCount = useGit((s) => s.status?.changes.filter((c) => c.staged).length ?? 0);
   const [kebab, setKebab] = useState(false);
+  /*
+   * The split-commit dropdown.
+   *
+   * Closed on any click outside it: a menu that stays open after you pick an
+   * action covers the very list you want to read next, and this panel is narrow
+   * enough that a stuck popover is a real obstruction rather than a blemish.
+   * The listener is attached only while the menu is open, so it costs nothing
+   * the rest of the time.
+   */
+  const [commitMenu, setCommitMenu] = useState(false);
+  useEffect(() => {
+    if (!commitMenu) return;
+    const tutup = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest('.scm-split')) setCommitMenu(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCommitMenu(false);
+    };
+    document.addEventListener('mousedown', tutup);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', tutup);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [commitMenu]);
   const [resolvePath, setResolvePath] = useState<string | null>(null);
   const rebaseAktif = useGit((s) => s.rebaseAktif);
 
@@ -1049,21 +1115,91 @@ export default function SourceControlPanel() {
             }
           }}
         />
-        <button
-          className="btn btn-primary btn-block"
-          data-testid="scm-commit"
-          disabled={!canCommit}
-          title={
-            stagedCount === 0
-              ? 'Stage first (click + on a file)'
-              : message.trim()
-                ? 'Commit the staged changes'
-                : tr('Type a commit message first')
-          }
-          onClick={() => void commit()}
-        >
-          Commit{stagedCount > 0 ? ` (${stagedCount})` : ''}
-        </button>
+        {/*
+         * SPLIT COMMIT BUTTON.
+         *
+         * Left half commits, right half opens the variants. One unbroken button
+         * could only ever do one thing, so "commit and push" - the second most
+         * common sequence after plain commit - needed its own trip through the
+         * command palette. The variants run through the SAME `commit()` gate
+         * (message + staged checks, re-entrancy), so a disabled left half means
+         * every item on the right is refused for the same stated reason.
+         */}
+        <div className="scm-split" role="group" aria-label={tr('Commit')}>
+          <button
+            className="btn btn-primary scm-split-main"
+            data-testid="scm-commit"
+            disabled={!canCommit}
+            title={
+              stagedCount === 0
+                ? 'Stage first (click + on a file)'
+                : message.trim()
+                  ? 'Commit the staged changes'
+                  : tr('Type a commit message first')
+            }
+            onClick={() => void commit()}
+          >
+            ✓ Commit{stagedCount > 0 ? ` (${stagedCount})` : ''}
+          </button>
+          <button
+            className="btn btn-primary scm-split-caret"
+            data-testid="scm-commit-menu"
+            aria-haspopup="menu"
+            aria-expanded={commitMenu}
+            aria-label={tr('More commit options')}
+            disabled={busy}
+            title={tr('Commit and push, commit and sync, ...')}
+            onClick={() => setCommitMenu((v) => !v)}
+          >
+            ▾
+          </button>
+          {commitMenu && (
+            <div className="scm-commit-dropdown" role="menu" data-testid="scm-commit-dropdown">
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="scm-commit-plain"
+                disabled={!canCommit}
+                onClick={() => {
+                  setCommitMenu(false);
+                  void commit();
+                }}
+              >
+                {tr('Commit')}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="scm-commit-push"
+                disabled={!canCommit}
+                title={tr('Commit the staged changes, then push to the remote')}
+                onClick={() => {
+                  setCommitMenu(false);
+                  void (async () => {
+                    if (await commit()) await push();
+                  })();
+                }}
+              >
+                {tr('Commit and push')}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="scm-commit-sync"
+                disabled={!canCommit}
+                title={tr('Commit, then pull and push')}
+                onClick={() => {
+                  setCommitMenu(false);
+                  void (async () => {
+                    if (await commit()) await sync();
+                  })();
+                }}
+              >
+                {tr('Commit and sync')}
+              </button>
+            </div>
+          )}
+        </div>
         <button
           className="btn btn-block"
           data-testid="scm-ai-commit"

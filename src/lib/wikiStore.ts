@@ -83,7 +83,15 @@ interface WikiState {
 }
 
 export const useWiki = create<WikiState>((set) => ({
-  tab: 'wiki',
+  /*
+   * Cards opens first, not Map.
+   *
+   * Cards are the durable half: each one is a fact about one file, traceable to
+   * that file, and citable by the agent every session. Map pages are a snapshot
+   * of a walk - useful the day they are generated and quietly ageing after that.
+   * Opening on the half that stays true is the honest default.
+   */
+  tab: 'knowledge',
   setTab: (tab) => set({ tab }),
 
   dipilih: { wiki: null, knowledge: null },

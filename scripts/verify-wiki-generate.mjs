@@ -1,11 +1,11 @@
-// Probe live: jalankan generator Repo Wiki sungguhan, ukur hasilnya.
+// Probe live: jalankan generator Atlas sungguhan, ukur hasilnya.
 //
 // Ini BUKTI, bukan klaim: jumlah halaman, jumlah kartu, dan isi satu halaman
 // dibaca apa adanya. Kalau generator menghasilkan 0, probe ini GAGAL.
 import { Cdp, keluarBersih } from './lib-cdp.mjs';
 
 const { cdp } = await Cdp.attach(9223, 'Zephyr');
-console.log('=== probe live: generator Repo Wiki ===\n');
+console.log('=== probe live: generator Atlas ===\n');
 
 const hasil = await cdp.json(
   `return JSON.stringify(await (async () => {
@@ -21,7 +21,22 @@ const hasil = await cdp.json(
   S.getState().setActivity('wiki');
   await tunggu(800);
 
-  const tombol = q('[data-testid="wiki-generate"]');
+  /*
+   * Wait FOR THE BUTTON instead of assuming 800ms was enough.
+   *
+   * A fixed sleep raced the sidebar render: the second consecutive run found no
+   * button, returned early, and reported "0 pages" as if the generator were
+   * broken. The button is the thing we need, so poll for it - up to 15s, which
+   * is generous for a local render and still fails loudly if it never appears.
+   */
+  let tombol = null;
+  const batasTombol = Date.now() + 15000;
+  for (;;) {
+    tombol = q('[data-testid="wiki-generate"]');
+    if (tombol) break;
+    if (Date.now() > batasTombol) break;
+    await tunggu(300);
+  }
   out.tombolAda = !!tombol;
   if (!tombol) return out;
 
