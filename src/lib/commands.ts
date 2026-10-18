@@ -1090,6 +1090,15 @@ export const extensionsReadContrib = (id: string, rel: string) =>
 export const extensionsReadMain = (id: string, rel: string) =>
   invoke<string>('extensions_read_main', { id, rel });
 
+/**
+ * Show an OS notification. Resolves `false` when the platform refused.
+ *
+ * Best-effort by contract: the caller must never treat `false` as a failed run.
+ * A notification is a courtesy for work that already finished.
+ */
+export const notifyShow = (title: string, body: string) =>
+  invoke<boolean>('notify_show', { title, body }).catch(() => false);
+
 export const extensionsReadFiles = (id: string) =>
   invoke<Record<string, string>>('extensions_read_files', { id });
 

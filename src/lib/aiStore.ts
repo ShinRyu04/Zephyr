@@ -5575,6 +5575,16 @@ export const useAi = create<AiStore>((set0, get) => {
       agentResume: null,
       commandSuggestion: null,
     }));
+
+    /*
+     * Start the clock for the finish notification.
+     *
+     * Recorded here, where `agentBusy` becomes true, so the measured duration is
+     * the RUN's and not the time since the window opened. `catatSelesaiRun`
+     * compares against it and only notifies past a threshold - a two-second
+     * reply does not deserve a toast.
+     */
+    void import('./notifikasiAi').then((m) => m.catatMulaiRun(activeAgentUiId ?? '')).catch(() => {});
     /*
      * Open this turn's file checkpoint.
      *
@@ -8340,6 +8350,30 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     const runWasCancelled = agentBatal;
+
+    /*
+     * Tell the OS the run is over, if the reader has looked away.
+     *
+     * Placed HERE because this is the single exit path of a run - the same
+     * reason the cleanup below lives here. `catatSelesaiRun` decides whether it
+     * is worth a notification at all (length of run, window focus), so this
+     * stays a one-liner rather than growing a condition in the middle of the
+     * exit sequence.
+     *
+     * Failure is silent by contract: the notification is a courtesy for work
+     * that already finished, never the report of it.
+     */
+    try {
+      const { catatSelesaiRun } = await import('./notifikasiAi');
+      catatSelesaiRun(
+        activeAgentUiId ?? '',
+        'Zephyr — run finished',
+        runWasCancelled ? 'Stopped.' : akhir?.trim() || 'Done.',
+      );
+    } catch {
+      /* no notification is not a failed run */
+    }
+
     /*
      * `String(null)` menghasilkan "null", dan itu bukan salah satu alasan yang
      * dikenal. Akibatnya cabang terakhir di bawah menangkap SEMUA run yang

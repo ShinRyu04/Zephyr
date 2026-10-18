@@ -31,6 +31,7 @@ mod ext_lang_icons;
 mod ext_pkg;
 mod ext_registry;
 mod extensions;
+mod notifikasi;
 pub mod fs_utils;
 mod gambar;
 mod git;
@@ -468,6 +469,7 @@ pub fn run() {
             ext_pkg::extensions_download_zext,
             ext_bundled::extensions_write_bundled,
             ext_bundled::extensions_bundled_ids,
+            notifikasi::notify_show,
             ext_registry::ext_registry_list,
             ext_registry::ext_registry_save,
             ext_registry::ext_registry_read,
