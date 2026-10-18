@@ -1,0 +1,55 @@
+          {msg.tools && msg.tools.length > 0 && (
+            /*
+             * Groups, each folding into its own "Worked for Xs" bar.
+             *
+             * A sentence of narration STARTS a group and stays on screen; the
+             * calls that follow it are a flat list behind one thin bar. That is
+             * the shape TRAE uses, and it fixes the case the reader sent: three
+             * shell commands after one sentence no longer become three bordered
+             * cards - they become one "Worked for 4s · 3 commands" row.
+             */
+            <div className="ai-toolruns" data-testid="ai-toolruns">
+              {grupTools.map((g, gi) => {
+                const items = g.items.map((i) => msg.tools![i]);
+                const sibukDiSini = g.items.includes(indeksToolSibuk);
+                return (
+                  <Fragment key={`g-${gi}`}>
+                    {g.narasi ? (
+                      <div className="ai-segmen" data-testid="ai-segmen">
+                        <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                          {g.narasi}
+                        </Markdown>
+                      </div>
+                    ) : null}
+                    {/*
+                     * The call in flight stays a full row: it is the one the
+                     * reader is watching, and folding it away would hide the
+                     * progress they came to see. A finished group folds.
+                     */}
+                    {sibukDiSini ? (
+                      <ToolRow
+                        name={namaPolos(items[0].name)}
+                        labelName={infoAksi(items[0].name).label}
+                        title={sasaranAksi(items[0].args) || perintahAksi(items[0].name, items[0].args)}
+                        input={perintahAksi(items[0].name, items[0].args) ? '' : items[0].args}
+                        output={items[0].result}
+                        status={items[0].ok ? 'ok' : 'fail'}
+                        exitCode={items[0].exitCode}
+                        diffPatch={items[0].result}
+                        stat={statUntuk(items[0], tf)}
+                        ms={items[0].ms}
+                        onImage={setGambarBuka}
+                      />
+                    ) : (
+                      <GrupKerja
+                        tools={items}
+                        tr={tr}
+                        tf={tf}
+                        live={Boolean(msg.streaming) && gi === grupTools.length - 1}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
+            </div>
+          )}

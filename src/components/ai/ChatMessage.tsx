@@ -373,148 +373,6 @@ const MD_JAWABAN: Components = {
   a: MdLink,
 };
 
-/*
- * Read-only tools that get folded together when they run back to back.
- *
- * This is the opencode/Hermes idea (their CONTEXT_GROUP_TOOLS): a run of plain
- * reads - read a file, list a folder, grep, glob, web_fetch - is one act of
- * gathering, not five facts. Drawing five separate rows for it buries the rows
- * that DO matter (the write, the edit with its diff, the command) under a pile
- * of "Read x / Read y / List z". Folding the run into one "Explored 3 files"
- * line keeps the transcript about the work, not the bookkeeping.
- *
- * Deliberately NARROW: only passive reads. `bash_run` is exec (it can change
- * the world), edits/writes carry diffs the reader must see, asking the user
- * and subagents are decisions - none of those fold. A tool that has a diff, failed,
- * or is the newest in flight never joins a group either (see the grouping
- * function), so a broken step is never hidden inside a summary.
- */
-const TOOL_BACA_DIKELOMPOKKAN = new Set([
-  'read_file',
-  'list_directory',
-  'grep',
-  'glob',
-  'web_fetch',
-]);
-
-type SegmenTool =
-  | { jenis: 'tunggal'; i: number }
-  | { jenis: 'baca'; items: number[] };
-
-/*
- * Group consecutive foldable reads into runs; everything else stays its own
- * segment, in place. A run of one is left as a normal row - a "1 file" summary
- * is longer than the row it replaces.
- *
- * `indeksSibuk` is the tool currently running (if any): it must never be folded
- * away into a summary, because it is the one row the reader is watching.
- */
-function kelompokkanTools(
-  tools: readonly AgentToolRun[],
-  indeksSibuk: number,
-): SegmenTool[] {
-  const segmen: SegmenTool[] = [];
-  let run: number[] = [];
-  const tutupRun = () => {
-    if (run.length >= 2) segmen.push({ jenis: 'baca', items: run });
-    else for (const i of run) segmen.push({ jenis: 'tunggal', i });
-    run = [];
-  };
-  for (let i = 0; i < tools.length; i += 1) {
-    const t = tools[i];
-    const bolehGabung =
-      TOOL_BACA_DIKELOMPOKKAN.has(namaPolos(t.name)) &&
-      t.ok &&
-      i !== indeksSibuk;
-    if (bolehGabung) {
-      run.push(i);
-    } else {
-      tutupRun();
-      segmen.push({ jenis: 'tunggal', i });
-    }
-  }
-  tutupRun();
-  return segmen;
-}
-
-/*
- * One row for a run of plain reads: "Explored 3 files".
- *
- * Collapsed it is a single line; expanded it lists each file, so nothing is
- * hidden, just folded. Kept visual weight BELOW a normal tool row (no stat
- * column, muted) so the eye skips it and lands on the edits and commands that
- * matter. The reader who wants the detail clicks once.
- */
-function BarisBacaBerkelompok({
-  jumlah,
-  tools,
-  tr,
-  tf,
-}: {
-  jumlah: number;
-  tools: readonly AgentToolRun[];
-  tr: (s: string) => string;
-  tf: (s: string, v: Record<string, string | number>) => string;
-}) {
-  /* The collapsed row's target: the first few files this run touched, so the
-     reader can tell WHICH reads these were without expanding. */
-  const ringkas =
-    tools
-      .map((t) => sasaranAksi(t.args) || infoAksi(t.name).label)
-      .slice(0, 3)
-      .join(' · ') + (tools.length > 3 ? tr(' …') : '');
-  return (
-    /*
-     * A run of read-only steps, folded into ONE row of the shared kit.
-     *
-     * This used to be hand-rolled `ai-toolrun is-grup` markup — the last place
-     * in Chat AI still drawing a tool row by hand after every single-call row
-     * moved to `claudeCodeUi`. Keeping it meant the two spellings could drift
-     * apart, and a summary row that does not look like the rows it summarises
-     * reads as a different kind of thing rather than the same thing collapsed.
-     *
-     * The kit draws the row; the individual steps ride along as children, so
-     * the group keeps its "Explored N items" header AND its expanded list while
-     * matching the CLI tab down to the caret and glyph.
-     */
-    <ToolRow
-      name={
-        jumlah === 1
-          ? tf('Explored {n} item', { n: jumlah })
-          : tf('Explored {n} items', { n: jumlah })
-      }
-      title={ringkas}
-      onImage={() => {}}
-    >
-      <div className="ai-grup-isi">
-        {tools.map((t, k) => {
-          const info = infoAksi(t.name);
-          const target = sasaranAksi(t.args);
-          return (
-            /*
-             * The kit's own classes, not the retired `ai-toolrun-*` family.
-             *
-             * `ai-toolrun-*` is the markup the shared kit replaced, and it is
-             * still present only because this one nested list was missed. Using
-             * it here meant the icon colour came from a rule that the kit's own
-             * `.cli-tool-ikon.is-<kind>` also sets — two families describing the
-             * same thing, with the loser decided by stylesheet order. The kit's
-             * classes are what every other row in both transcripts uses.
-             */
-            <div className="ai-grup-baris" key={k}>
-              <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
-                <AiIkon name={toolGlyph(t.name) as never} size={12} />
-              </span>
-              <span className="cli-tool-name">{info.label}</span>
-              {target && <code className="ai-grup-args" title={target}>{target}</code>}
-              {!t.ok && <span className="cli-tool-fail">{tx('failed')}</span>}
-            </div>
-          );
-        })}
-      </div>
-    </ToolRow>
-  );
-}
 
 /*
  * ── "Worked for 6s" ─ the TRAE / VS Code accordion ────────────────────────
@@ -661,6 +519,56 @@ function statUntuk(t: AgentToolRun, tf: (s: string, v: Record<string, string | n
   return bit.join(' · ');
 }
 
+/*
+ * Split a message's tools into groups, where a group is "the calls that ran
+ * after one sentence of narration".
+ *
+ * WHY groups and not one block: the reader's screenshot showed the failure of
+ * the all-or-nothing approach. A message that narrated ONCE rendered every tool
+ * as a bordered card, so three shell commands stacked into three boxes. But a
+ * message that narrated NOTHING folded into a single line. Two layouts for the
+ * same thing, chosen by whether one sentence happened to be present.
+ *
+ * TRAE's shape is uniform: narration starts a new group, and every group folds
+ * into its own thin summary line. That is what this produces - the sentence
+ * stays on screen, and the calls under it are a list behind one bar.
+ *
+ * `indeksSibuk` (the call in flight) is never folded away: it is the one row
+ * the reader is watching.
+ */
+function kelompokPerNarasi(
+  tools: readonly AgentToolRun[],
+  narasi: readonly string[],
+  indeksSibuk: number,
+): Array<{ narasi: string; items: number[] }> {
+  const grup: Array<{ narasi: string; items: number[] }> = [];
+  let kini: { narasi: string; items: number[] } | null = null;
+  for (let i = 0; i < tools.length; i += 1) {
+    const teks = (narasi[i] ?? '').trim();
+    /*
+     * A sentence opens a group. A tool with no sentence joins the current one,
+     * and if there is none yet it starts an unnamed group - which is exactly
+     * the "plan, then execute a batch" shape.
+     */
+    if (teks || !kini) {
+      kini = { narasi: teks, items: [] };
+      grup.push(kini);
+    }
+    kini.items.push(i);
+  }
+  /* The call in flight must stay visible: pull it out of its group. */
+  if (indeksSibuk >= 0 && indeksSibuk < tools.length) {
+    for (const g of grup) {
+      const pos = g.items.indexOf(indeksSibuk);
+      if (pos >= 0) {
+        g.items.splice(pos, 1);
+        break;
+      }
+    }
+  }
+  return grup.filter((g) => g.items.length > 0 || g.narasi !== '');
+}
+
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   /*
    * Transcript appearance, from Chat Settings.
@@ -719,21 +627,6 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   }
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
   const [gambarBuka, setGambarBuka] = useState<string | null>(null);
-  /*
-   * Does this turn carry TEXT BETWEEN steps?
-   *
-   * That is the deciding question for the layout:
-   *
-   *   - No text between steps -> the whole run folds into ONE "Worked for 6s"
-   *     accordion. This is the common shape (the model plans, then executes a
-   *     batch of calls) and it is what keeps the transcript short.
-   *   - Text between steps -> keep the interleaved rows. The narration is part
-   *     of the answer; folding it into a collapsed group would hide the
-   *     agent's reasoning from the reader who is following along. This is the
-   *     shape the "say what you are doing" prompt rule produces, so the two
-   *     features reinforce each other instead of fighting.
-   */
-  const adaNarasiAntar = potongNarasi.some((t) => t.trim() !== '');
   const tr = useT();
   const isUser = msg.role === 'user';
   const def = msg.model ? findModel(msg.model) : null;
@@ -774,9 +667,20 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    * than per render so the DOM order stays stable across re-renders.
    */
   const indeksSibuk = msg.streaming ? (msg.tools?.length ?? 0) - 1 : -1;
-  const segmenTools = useMemo(
-    () => kelompokkanTools(msg.tools ?? [], indeksSibuk),
-    [msg.tools, indeksSibuk],
+  /*
+   * The same tools, grouped by narration instead of by kind.
+   *
+   * `segmenTools` answers "which reads can share a summary"; this answers "which
+   * calls ran after one sentence", which is what the accordion needs. Both are
+   * kept because `BarisBacaBerkelompok` still uses the first for its read-run
+   * summary inside a group.
+   */
+  const indeksToolSibuk = indeksSibuk;
+  const grupTools = useMemo(
+    () => kelompokPerNarasi(msg.tools ?? [], potongNarasi, indeksSibuk),
+    // `potongNarasi` is rebuilt each render from `msg.content`; keying on the
+    // content and the tools is what keeps this from recomputing on every tick.
+    [msg.tools, msg.content, indeksSibuk],
   );
 
   /*
@@ -1055,121 +959,72 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
           })()}
           {msg.tools && msg.tools.length > 0 && (
             /*
-             * ONE accordion for the whole run of work, TRAE-style.
+             * Groups, each folding into its own "Worked for Xs" bar.
              *
-             * The per-tool rows are still rendered - as the FLAT list inside
-             * the accordion - so nothing is lost. What changed is the default:
-             * a finished turn shows a single "Worked for 6s" line and the
-             * answer, instead of eight bordered cards the reader has to scroll
-             * past. While the run is live the accordion is open, because the
-             * step in flight is the thing being watched.
-             *
-             * A turn that produced TEXT BETWEEN steps is the one case that
-             * keeps the interleaved layout: the narration is part of the
-             * answer, and folding it into a collapsed group would hide the
-             * agent's reasoning from the reader who is following along. That is
-             * exactly what the "say what you are doing" prompt rule produces,
-             * so the two features reinforce each other instead of fighting.
+             * A sentence of narration STARTS a group and stays on screen; the
+             * calls that follow it are a flat list behind one thin bar. That is
+             * the shape TRAE uses, and it fixes the case the reader sent: three
+             * shell commands after one sentence no longer become three bordered
+             * cards - they become one "Worked for 4s · 3 commands" row.
              */
             <div className="ai-toolruns" data-testid="ai-toolruns">
-              {adaNarasiAntar ? (
-                <>
-                  {segmenTools.map((seg) => {
-                    if (seg.jenis === 'baca') {
-                      const narasiGrup = potongNarasi[seg.items[0]] ?? '';
-                      return (
-                        <Fragment key={`grp-${seg.items[0]}`}>
-                          {narasiGrup.trim() ? (
-                            <div className="ai-segmen" data-testid="ai-segmen" data-segmen={seg.items[0]}>
-                              <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-                                {narasiGrup}
-                              </Markdown>
-                            </div>
-                          ) : null}
-                          <BarisBacaBerkelompok
-                            jumlah={seg.items.length}
-                            tools={seg.items.map((i) => msg.tools![i])}
-                            tr={tr}
-                            tf={tf}
-                          />
-                        </Fragment>
-                      );
-                    }
-                    const i = seg.i;
-                    const narasi = potongNarasi[i] ?? '';
-                    return (
-                      <Fragment key={i}>
-                        {narasi.trim() ? (
-                          <div className="ai-segmen" data-testid="ai-segmen" data-segmen={i}>
-                            <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-                              {narasi}
-                            </Markdown>
-                          </div>
-                        ) : null}
-                        <ToolRow
-                          /*
-                           * The RAW tool name, not the localised label: the kit
-                           * picks the glyph and colour from `bash_run`, and a
-                           * label ("Run") made every shell call render with the
-                           * read colour and a document glyph.
-                           */
-                          name={namaPolos(msg.tools![i].name)}
-                          labelName={infoAksi(msg.tools![i].name).label}
-                          title={sasaranAksi(msg.tools![i].args) || perintahAksi(msg.tools![i].name, msg.tools![i].args)}
-                          input={perintahAksi(msg.tools![i].name, msg.tools![i].args) ? '' : msg.tools![i].args}
-                          output={msg.tools![i].result}
-                          status={msg.tools![i].ok ? 'ok' : 'fail'}
-                          exitCode={msg.tools![i].exitCode}
-                          diffPatch={msg.tools![i].result}
-                          stat={statUntuk(msg.tools![i], tf)}
-                          ms={msg.tools![i].ms}
-                          onImage={setGambarBuka}
-                        >
-                          <div className="cli-tool-act">
-                            <button
-                              className="cli-tool-btn"
-                              data-testid="ai-toolrun-copy"
-                              title={tx('Copy the output')}
-                              onClick={() => {
-                                void clipboardWrite(msg.tools![i].result).then(() => setToast(tx('Output copied')));
-                              }}
-                            >
-                              <AiIkon name="clipboard" size={12} />
-                              {tx('Copy')}
-                            </button>
-                            <button
-                              className="cli-tool-btn"
-                              data-testid="ai-toolrun-copy-in"
-                              title={tx('Copy the input')}
-                              onClick={() => {
-                                void clipboardWrite(msg.tools![i].args).then(() => setToast(tx('Input copied')));
-                              }}
-                            >
-                              <AiIkon name="clipboard" size={12} />
-                              {tx('Copy input')}
-                            </button>
-                            <button
-                              className="cli-tool-btn"
-                              data-testid="ai-toolrun-open"
-                              title={tx('Open a terminal pane in the bottom panel')}
-                              onClick={() => {
-                                void import('../../lib/panelStore').then((m) => {
-                                  m.usePanel.getState().focusTab('terminal');
-                                });
-                              }}
-                            >
-                              <AiIkon name="chev-right" size={12} />
-                              {tx('Open in terminal')}
-                            </button>
-                          </div>
-                        </ToolRow>
-                      </Fragment>
-                    );
-                  })}
-                </>
-              ) : (
-                <GrupKerja tools={msg.tools} tr={tr} tf={tf} live={Boolean(msg.streaming)} />
-              )}
+              {grupTools.map((g, gi) => {
+                const items = g.items.map((i) => msg.tools![i]);
+                const sibukDiSini = g.items.includes(indeksToolSibuk);
+                return (
+                  <Fragment key={`g-${gi}`}>
+                    {g.narasi ? (
+                      <div className="ai-segmen" data-testid="ai-segmen">
+                        <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                          {g.narasi}
+                        </Markdown>
+                      </div>
+                    ) : null}
+                    {/*
+                     * The call in flight stays a full row: it is the one the
+                     * reader is watching, and folding it away would hide the
+                     * progress they came to see. A finished group folds.
+                     */}
+                    {sibukDiSini ? (
+                      <ToolRow
+                        name={namaPolos(items[0].name)}
+                        labelName={infoAksi(items[0].name).label}
+                        title={sasaranAksi(items[0].args) || perintahAksi(items[0].name, items[0].args)}
+                        input={perintahAksi(items[0].name, items[0].args) ? '' : items[0].args}
+                        output={items[0].result}
+                        status={items[0].ok ? 'ok' : 'fail'}
+                        exitCode={items[0].exitCode}
+                        diffPatch={items[0].result}
+                        stat={statUntuk(items[0], tf)}
+                        ms={items[0].ms}
+                        onImage={setGambarBuka}
+                      />
+                    ) : items.length === 1 ? (
+                      /* A group of one is its own row, not a summary of one. */
+                      <ToolRow
+                        name={namaPolos(items[0].name)}
+                        labelName={infoAksi(items[0].name).label}
+                        title={sasaranAksi(items[0].args) || perintahAksi(items[0].name, items[0].args)}
+                        input={perintahAksi(items[0].name, items[0].args) ? '' : items[0].args}
+                        output={items[0].result}
+                        status={items[0].ok ? 'ok' : 'fail'}
+                        exitCode={items[0].exitCode}
+                        diffPatch={items[0].result}
+                        stat={statUntuk(items[0], tf)}
+                        ms={items[0].ms}
+                        onImage={setGambarBuka}
+                      />
+                    ) : (
+                      <GrupKerja
+                        tools={items}
+                        tr={tr}
+                        tf={tf}
+                        live={Boolean(msg.streaming) && gi === grupTools.length - 1}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
           )}
           {isUser ? (
