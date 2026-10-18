@@ -516,6 +516,151 @@ function BarisBacaBerkelompok({
   );
 }
 
+/*
+ * ── "Worked for 6s" ─ the TRAE / VS Code accordion ────────────────────────
+ *
+ * A finished turn used to render every tool as its own bordered card stacked
+ * down the transcript. Eight calls meant eight cards, and the answer the reader
+ * actually wanted was pushed below a wall of chrome. Measured in the side
+ * column: ten collapsed rows filled an entire 912px screen.
+ *
+ * TRAE, Cursor and VS Code's Copilot all solve this the same way, and it is the
+ * right shape: ONE summary line for the whole run of work ("Worked for 6s"),
+ * collapsed by default once the run is done, with the individual steps
+ * available on one click. The answer then sits directly under a single thin
+ * line instead of under eight cards.
+ *
+ * Three deliberate choices:
+ *
+ *  1. It stays OPEN while the run is live. The reader is watching progress; a
+ *     summary that hides the step in flight would be a step backwards.
+ *  2. The steps inside are FLAT rows (icon + label + target), not cards. The
+ *     card border is what made the wall feel heavy - the same information at
+ *     22px per row reads as a list, which is what it is.
+ *  3. A failure keeps the group open and shows the count, because a run that
+ *     ended badly must not look tidy.
+ */
+function GrupKerja({
+  tools,
+  tr,
+  tf,
+  live,
+}: {
+  tools: readonly AgentToolRun[];
+  tr: (s: string) => string;
+  tf: (s: string, v: Record<string, string | number>) => string;
+  live: boolean;
+}) {
+  /* A click is the reader taking control; before that, live-ness decides. */
+  const [pilihan, setPilihan] = useState<boolean | null>(null);
+  const terbuka = pilihan ?? live;
+
+  const jumlah = tools.length;
+  const gagal = tools.filter((t) => t.ok === false).length;
+  const totalMs = tools.reduce((n, t) => n + (typeof t.ms === 'number' ? t.ms : 0), 0);
+
+  /* The one-line summary, in the words a reader uses: what was touched. */
+  const berkas = new Set<string>();
+  let perintah = 0;
+  let lain = 0;
+  for (const t of tools) {
+    const nama = namaPolos(t.name);
+    if (nama === 'bash_run' || nama === 'sh') perintah += 1;
+    else {
+      const target = sasaranAksi(t.args);
+      if (target) berkas.add(target);
+      else lain += 1;
+    }
+  }
+  const bagian: string[] = [];
+  if (berkas.size) bagian.push(tf('{n} files', { n: berkas.size }));
+  if (perintah) bagian.push(tf('{n} commands', { n: perintah }));
+  if (lain) bagian.push(tf('{n} steps', { n: lain }));
+  const ringkas = bagian.join(' · ');
+
+  /* "Worked for 6s" / "Worked for 1m 4s" - the duration the reader sees first. */
+  const durasi =
+    totalMs >= 60000
+      ? `${Math.floor(totalMs / 60000)}m ${Math.round((totalMs % 60000) / 1000)}s`
+      : `${Math.max(1, Math.round(totalMs / 1000))}s`;
+  const judul = live
+    ? tf('Working… {t}', { t: durasi })
+    : tf('Worked for {t}', { t: durasi });
+
+  return (
+    <div
+      className={`ai-kerja${terbuka ? ' is-open' : ''}${gagal ? ' is-gagal' : ''}`}
+      data-testid="ai-kerja"
+      data-open={terbuka ? '1' : '0'}
+      data-jumlah={jumlah}
+    >
+      <button
+        type="button"
+        className="ai-kerja-head"
+        data-testid="ai-kerja-toggle"
+        aria-expanded={terbuka}
+        onClick={() => setPilihan(!terbuka)}
+        title={ringkas || judul}
+      >
+        <span className="ai-kerja-caret" aria-hidden="true">
+          {terbuka ? '▾' : '▸'}
+        </span>
+        <span className="ai-kerja-judul">{judul}</span>
+        {ringkas && <span className="ai-kerja-ringkas">{ringkas}</span>}
+        {gagal > 0 && (
+          <span className="ai-kerja-gagal">
+            {tf('{n} failed', { n: gagal })}
+          </span>
+        )}
+      </button>
+
+      {terbuka && (
+        <div className="ai-kerja-isi" data-testid="ai-kerja-isi">
+          {tools.map((t, k) => {
+            const info = infoAksi(t.name);
+            const target = sasaranAksi(t.args);
+            return (
+              <div
+                className={`ai-grup-baris${t.ok === false ? ' is-gagal' : ''}`}
+                key={k}
+                data-testid="ai-kerja-baris"
+              >
+                <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
+                  <AiIkon name={toolGlyph(t.name) as never} size={12} />
+                </span>
+                <span className="cli-tool-name">{info.label}</span>
+                {target && (
+                  <code className="ai-grup-args" title={target}>
+                    {target}
+                  </code>
+                )}
+                {t.ok === false && <span className="cli-tool-fail">{tr('failed')}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/*
+ * The one-line fact strip for a tool row: "42 lines · 1.2KB · +3 -1".
+ *
+ * Only numbers the tool actually reported go in, so a call with no measurable
+ * output shows nothing rather than a false zero. Extracted from the render body
+ * because both layouts (the interleaved rows and the accordion's list) describe
+ * the same facts, and two copies would drift.
+ */
+function statUntuk(t: AgentToolRun, tf: (s: string, v: Record<string, string | number>) => string): string {
+  const bit: string[] = [];
+  if (typeof t.lines === 'number' && t.lines > 1) bit.push(tf('{n} lines', { n: t.lines }));
+  if (typeof t.bytes === 'number' && t.bytes >= 1024) bit.push(`${(t.bytes / 1024).toFixed(1)}KB`);
+  if (typeof t.additions === 'number' && t.additions > 0) bit.push(`+${t.additions}`);
+  if (typeof t.deletions === 'number' && t.deletions > 0) bit.push(`-${t.deletions}`);
+  return bit.join(' · ');
+}
+
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   /*
    * Transcript appearance, from Chat Settings.
@@ -574,6 +719,21 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   }
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
   const [gambarBuka, setGambarBuka] = useState<string | null>(null);
+  /*
+   * Does this turn carry TEXT BETWEEN steps?
+   *
+   * That is the deciding question for the layout:
+   *
+   *   - No text between steps -> the whole run folds into ONE "Worked for 6s"
+   *     accordion. This is the common shape (the model plans, then executes a
+   *     batch of calls) and it is what keeps the transcript short.
+   *   - Text between steps -> keep the interleaved rows. The narration is part
+   *     of the answer; folding it into a collapsed group would hide the
+   *     agent's reasoning from the reader who is following along. This is the
+   *     shape the "say what you are doing" prompt rule produces, so the two
+   *     features reinforce each other instead of fighting.
+   */
+  const adaNarasiAntar = potongNarasi.some((t) => t.trim() !== '');
   const tr = useT();
   const isUser = msg.role === 'user';
   const def = msg.model ? findModel(msg.model) : null;
@@ -894,173 +1054,122 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             );
           })()}
           {msg.tools && msg.tools.length > 0 && (
-            <div className="ai-toolruns" data-timeline data-testid="ai-toolruns">
-              {/*
-                * While streaming, the newest tool is the one in flight - it must
-                * stay a full row so the reader watches it, not a summary.
-                */}
-              {segmenTools.map((seg) => {
-                if (seg.jenis === 'baca') {
-                  /*
-                   * The narration belongs to the FIRST tool of the run - it is
-                   * the sentence that motivated gathering, and it has to stay in
-                   * front of the summary or the reader loses the "why" the
-                   * sentence carried. Later tools in the run have no narration
-                   * of their own (their atChar equals the first's).
-                   */
-                  const narasiGrup = potongNarasi[seg.items[0]] ?? '';
-                  return (
-                    <Fragment key={`grp-${seg.items[0]}`}>
-                      {narasiGrup.trim() ? (
-                        <div className="ai-segmen" data-testid="ai-segmen" data-segmen={seg.items[0]}>
-                          <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-                            {narasiGrup}
-                          </Markdown>
-                        </div>
-                      ) : null}
-                      <BarisBacaBerkelompok
-                        jumlah={seg.items.length}
-                        tools={seg.items.map((i) => msg.tools![i])}
-                        tr={tr}
-                        tf={tf}
-                      />
-                    </Fragment>
-                  );
-                }
-                const i = seg.i;
-                const t = msg.tools![i];
-                /*
-                 * Facts about the call, on one line.
-                 *
-                 * A collapsed row that shows only a tool name does not say
-                 * whether the read was twelve lines or four hundred. Only
-                 * numbers the tool actually reported go in, so a call with no
-                 * measurable output shows nothing rather than a false zero.
-                 */
-                const bit: string[] = [];
-                if (typeof t.lines === 'number' && t.lines > 1) {
-                  bit.push(tf('{n} lines', { n: t.lines }));
-                }
-                if (typeof t.bytes === 'number' && t.bytes >= 1024) {
-                  bit.push(`${(t.bytes / 1024).toFixed(1)}KB`);
-                }
-                if (typeof t.additions === 'number' && t.additions > 0) {
-                  bit.push(`+${t.additions}`);
-                }
-                if (typeof t.deletions === 'number' && t.deletions > 0) {
-                  bit.push(`-${t.deletions}`);
-                }
-                const stat = bit.join(' · ');
-                /*
-                 * The narration that arrived before this tool ran, rendered as
-                 * the row's SIBLING - not its child. As a child, the DOM order
-                 * reads tool-then-text (the row opens before its own header),
-                 * which confuses every order-based check and inherits the row
-                 * styling into the prose. As a sibling inside one Fragment,
-                 * the key stays on the Fragment, so React still reconciles
-                 * each teks/tool pair as one unit.
-                 */
-                const narasi = potongNarasi[i] ?? '';
-                return (
-                <Fragment key={i}>
-                  {narasi.trim() ? (
-                    <div className="ai-segmen" data-testid="ai-segmen" data-segmen={i}>
-                      <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-                        {narasi}
-                      </Markdown>
-                    </div>
-                  ) : null}
-                  {/*
-                    * One tool call, drawn by the SAME component the hosted
-                    * Claude Code tab uses.
-                    *
-                    * This row used to be its own thing: `ai-toolrun` markup
-                    * with a hand-rolled header, INPUT/OUTPUT panels in the
-                    * body, and a separate `DiffViewer` card bolted underneath
-                    * for file edits. Alongside the CLI tab's timeline it read
-                    * as the older, worse half of the app - which is backwards,
-                    * since Chat AI is what most Zephyr users actually run
-                    * (the hosted CLI needs a Claude subscription they may not
-                    * have).
-                    *
-                    * The kit in `claudeCodeUi.tsx` is the CLI tab's renderer,
-                    * lifted out so both call it: caret, kind-coloured glyph,
-                    * tool name, the target it acted on, a +N/-N stat, elapsed
-                    * time, exit code - and a body that shows the input, an
-                    * inline zoomable image, or the VSCode-style diff. A file
-                    * edit opens expanded, exactly like the extension.
-                    *
-                    * Chat AI's own extras (copy output / copy input / open in
-                    * terminal) ride along as children, so nothing was lost in
-                    * the swap.
-                    */}
-                  <ToolRow
-                    /*
-                     * The RAW tool name, not `infoAksi().label`.
-                     *
-                     * The label is localised prose ("Run", "Read", "Search")
-                     * and it was being handed to `ToolRow` as the tool's
-                     * identity. The kit picks the glyph and the colour from the
-                     * name, and it knows the tool as `bash_run` — not `Run` —
-                     * so every shell call in Chat AI came out with the READ
-                     * colour and a document glyph. The row still READS as
-                     * "Run npm test" because the label is what the eye wants;
-                     * it just is not what the icon lookup needs. `labelName`
-                     * carries the human word separately.
-                     */
-                    name={namaPolos(t.name)}
-                    labelName={infoAksi(t.name).label}
-                    title={sasaranAksi(t.args) || perintahAksi(t.name, t.args)}
-                    input={perintahAksi(t.name, t.args) ? '' : t.args}
-                    output={t.result}
-                    status={t.ok ? 'ok' : 'fail'}
-                    exitCode={t.exitCode}
-                    diffPatch={t.result}
-                    stat={stat}
-                    ms={t.ms}
-                    onImage={setGambarBuka}
-                  >
-                    <div className="cli-tool-act">
-                      <button
-                        className="cli-tool-btn"
-                        data-testid="ai-toolrun-copy"
-                        title={tx('Copy the output')}
-                        onClick={() => {
-                          void clipboardWrite(t.result).then(() => setToast(tx('Output copied')));
-                        }}
-                      >
-                        <AiIkon name="clipboard" size={12} />
-                        {tx('Copy')}
-                      </button>
-                      <button
-                        className="cli-tool-btn"
-                        data-testid="ai-toolrun-copy-in"
-                        title={tx('Copy the input')}
-                        onClick={() => {
-                          void clipboardWrite(t.args).then(() => setToast(tx('Input copied')));
-                        }}
-                      >
-                        <AiIkon name="clipboard" size={12} />
-                        {tx('Copy input')}
-                      </button>
-                      <button
-                        className="cli-tool-btn"
-                        data-testid="ai-toolrun-open"
-                        title={tx('Open a terminal pane in the bottom panel')}
-                        onClick={() => {
-                          void import('../../lib/panelStore').then((m) => {
-                            m.usePanel.getState().focusTab('terminal');
-                          });
-                        }}
-                      >
-                        <AiIkon name="chev-right" size={12} />
-                        {tx('Open in terminal')}
-                      </button>
-                    </div>
-                  </ToolRow>
-                </Fragment>
-                );
-              })}
+            /*
+             * ONE accordion for the whole run of work, TRAE-style.
+             *
+             * The per-tool rows are still rendered - as the FLAT list inside
+             * the accordion - so nothing is lost. What changed is the default:
+             * a finished turn shows a single "Worked for 6s" line and the
+             * answer, instead of eight bordered cards the reader has to scroll
+             * past. While the run is live the accordion is open, because the
+             * step in flight is the thing being watched.
+             *
+             * A turn that produced TEXT BETWEEN steps is the one case that
+             * keeps the interleaved layout: the narration is part of the
+             * answer, and folding it into a collapsed group would hide the
+             * agent's reasoning from the reader who is following along. That is
+             * exactly what the "say what you are doing" prompt rule produces,
+             * so the two features reinforce each other instead of fighting.
+             */
+            <div className="ai-toolruns" data-testid="ai-toolruns">
+              {adaNarasiAntar ? (
+                <>
+                  {segmenTools.map((seg) => {
+                    if (seg.jenis === 'baca') {
+                      const narasiGrup = potongNarasi[seg.items[0]] ?? '';
+                      return (
+                        <Fragment key={`grp-${seg.items[0]}`}>
+                          {narasiGrup.trim() ? (
+                            <div className="ai-segmen" data-testid="ai-segmen" data-segmen={seg.items[0]}>
+                              <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                                {narasiGrup}
+                              </Markdown>
+                            </div>
+                          ) : null}
+                          <BarisBacaBerkelompok
+                            jumlah={seg.items.length}
+                            tools={seg.items.map((i) => msg.tools![i])}
+                            tr={tr}
+                            tf={tf}
+                          />
+                        </Fragment>
+                      );
+                    }
+                    const i = seg.i;
+                    const narasi = potongNarasi[i] ?? '';
+                    return (
+                      <Fragment key={i}>
+                        {narasi.trim() ? (
+                          <div className="ai-segmen" data-testid="ai-segmen" data-segmen={i}>
+                            <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                              {narasi}
+                            </Markdown>
+                          </div>
+                        ) : null}
+                        <ToolRow
+                          /*
+                           * The RAW tool name, not the localised label: the kit
+                           * picks the glyph and colour from `bash_run`, and a
+                           * label ("Run") made every shell call render with the
+                           * read colour and a document glyph.
+                           */
+                          name={namaPolos(msg.tools![i].name)}
+                          labelName={infoAksi(msg.tools![i].name).label}
+                          title={sasaranAksi(msg.tools![i].args) || perintahAksi(msg.tools![i].name, msg.tools![i].args)}
+                          input={perintahAksi(msg.tools![i].name, msg.tools![i].args) ? '' : msg.tools![i].args}
+                          output={msg.tools![i].result}
+                          status={msg.tools![i].ok ? 'ok' : 'fail'}
+                          exitCode={msg.tools![i].exitCode}
+                          diffPatch={msg.tools![i].result}
+                          stat={statUntuk(msg.tools![i], tf)}
+                          ms={msg.tools![i].ms}
+                          onImage={setGambarBuka}
+                        >
+                          <div className="cli-tool-act">
+                            <button
+                              className="cli-tool-btn"
+                              data-testid="ai-toolrun-copy"
+                              title={tx('Copy the output')}
+                              onClick={() => {
+                                void clipboardWrite(msg.tools![i].result).then(() => setToast(tx('Output copied')));
+                              }}
+                            >
+                              <AiIkon name="clipboard" size={12} />
+                              {tx('Copy')}
+                            </button>
+                            <button
+                              className="cli-tool-btn"
+                              data-testid="ai-toolrun-copy-in"
+                              title={tx('Copy the input')}
+                              onClick={() => {
+                                void clipboardWrite(msg.tools![i].args).then(() => setToast(tx('Input copied')));
+                              }}
+                            >
+                              <AiIkon name="clipboard" size={12} />
+                              {tx('Copy input')}
+                            </button>
+                            <button
+                              className="cli-tool-btn"
+                              data-testid="ai-toolrun-open"
+                              title={tx('Open a terminal pane in the bottom panel')}
+                              onClick={() => {
+                                void import('../../lib/panelStore').then((m) => {
+                                  m.usePanel.getState().focusTab('terminal');
+                                });
+                              }}
+                            >
+                              <AiIkon name="chev-right" size={12} />
+                              {tx('Open in terminal')}
+                            </button>
+                          </div>
+                        </ToolRow>
+                      </Fragment>
+                    );
+                  })}
+                </>
+              ) : (
+                <GrupKerja tools={msg.tools} tr={tr} tf={tf} live={Boolean(msg.streaming)} />
+              )}
             </div>
           )}
           {isUser ? (

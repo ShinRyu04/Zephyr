@@ -7924,6 +7924,93 @@
   max-height: 130px;
 }
 
+/*
+ * ── "Worked for 6s" accordion (TRAE / VS Code shape) ──────────────────────
+ *
+ * One thin summary line per run of work, collapsed once the run is done. This
+ * is what keeps a transcript readable: eight tool calls used to render as eight
+ * bordered cards, and the answer the reader wanted sat below a wall of chrome.
+ *
+ * The head is deliberately the same height as a tool row (28px) so a folded run
+ * and a single step look like the same family, and the body is FLAT rows - no
+ * card borders - because a list of steps reads as a list, while eight nested
+ * cards read as eight unrelated things.
+ */
+.ai-kerja {
+  margin: 2px 0;
+}
+
+.ai-kerja-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-secondary, var(--fg1));
+  font-size: 12px;
+}
+.ai-kerja-head:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+  color: var(--text);
+}
+
+.ai-kerja-caret {
+  flex: 0 0 auto;
+  width: 10px;
+  font-size: 9px;
+  color: var(--text-muted, var(--fg1));
+}
+
+.ai-kerja-judul {
+  flex: 0 0 auto;
+  font-weight: 500;
+}
+
+/* The "3 files · 1 command" part: quiet, and the first thing to be cut when the
+   column is narrow - the duration is the fact that must survive. */
+.ai-kerja-ringkas {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted, var(--fg1));
+  font-size: 11.5px;
+}
+
+.ai-kerja-gagal {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--danger);
+  font-size: 11px;
+}
+
+/* Live: a subtle pulse so an in-flight run is distinguishable from a finished
+   one at a glance, without a spinner competing with the tool row's own. */
+.ai-kerja:not(.is-open) .ai-kerja-judul {
+  color: var(--text-muted, var(--fg1));
+}
+
+.ai-kerja-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1px 0 3px;
+}
+
+/* A failed run keeps its colour on the summary so a tidy fold cannot hide it. */
+.ai-kerja.is-gagal .ai-kerja-judul {
+  color: var(--danger);
+}
+.ai-grup-baris.is-gagal .cli-tool-name {
+  color: var(--danger);
+}
+
 /* ── Readable meta text (end) ───────────────────────────────────────────── */
 .cli-diff {
   margin-top: 4px;
