@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-lingkaran",
+  "name": "Ikon Lingkaran",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Lingkaran — icon theme with real SVG art for files and folders",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Lingkaran",
+        "path": "./icons/lingkaran.json"
+      }
+    ]
+  }
+}

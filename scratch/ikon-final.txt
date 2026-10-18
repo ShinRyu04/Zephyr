@@ -1,0 +1,21 @@
+﻿Paket terpasang: undefined
+
+Bawaan: undefined
+
+Per paket (yang harus BEDA satu sama lain):
+
+Bukti:
+  GAGAL  ada 8 paket  0
+  LULUS  setiap paket punya SVG (bukan glyph)
+  LULUS  SEMUA paket menghasilkan ikon BERBEDA  0/0 unik
+  LULUS  folder berubah dari bawaan  0/0
+  LULUS  berkas .ts berubah dari bawaan  0/0
+  LULUS  package.json berubah dari bawaan  0/0
+  LULUS  Dockerfile (tanpa titik) berubah  0/0
+  LULUS  folder TERBUKA beda dari tertutup
+  LULUS  folder src BEDA dari docs (per kelompok)
+  GAGAL  ganti cepat 4x -> paket terakhir menang  undefined (harap undefined)
+  GAGAL  SEMUA baris pohon pakai ikon paket  0/0
+  GAGAL  ikon dirender sebagai SVG di layar  0/0
+
+== 8/12 lulus ==

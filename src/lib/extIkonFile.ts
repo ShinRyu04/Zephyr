@@ -35,6 +35,17 @@ export interface IkonPaket {
   color?: string;
   /** Inline `<svg>` markup from the pack's `iconPath` file. */
   svg?: string;
+  /**
+   * Which pack this drawing came from.
+   *
+   * Carried ON THE ICON, not in a module variable. The variable version was
+   * written by the store and read by `fileIcons`, and those two could resolve
+   * different module instances (the harness imports through Vite's `/src/...`
+   * path while the app imports relatively) - so the id came out empty and every
+   * pack produced the same `ext::folder:src`, which made eight visibly different
+   * themes indistinguishable to anything comparing ids.
+   */
+  paket?: string;
 }
 
 const peta = new Map<string, IkonPaket>();
@@ -64,6 +75,49 @@ export const kosongkanIkonExt = (): void => {
 export const jumlahIkonExt = (): number => peta.size;
 
 /**
+ * Swap the whole render map to ONE pack, synchronously.
+ *
+ * This lives here, in the leaf module, rather than in the loader, because the
+ * picker has to call it in the SAME synchronous turn as the store write. It used
+ * to be reached through `import('../../lib/extLoader')` from the Settings card,
+ * so the sequence for a click was:
+ *
+ *     set state (pack B)  ->  [await module load]  ->  clear map, write B
+ *
+ * and two clicks in quick succession could interleave as
+ *
+ *     set B -> set A -> write B -> write A
+ *
+ * leaving the map holding B while the picker highlighted A - icons that do not
+ * match the chosen theme, sometimes, depending on timing. That is exactly the
+ * report: "switching icons lags and sometimes shows the wrong set".
+ *
+ * Clearing first is still the point: the map holds one set, and a switch must
+ * remove the previous pack's entries rather than layer on top of them.
+ */
+export const terapkanPaketIkon = (ikon: Record<string, IkonPaket> | null, paket = ''): void => {
+  peta.clear();
+  if (!ikon) return;
+  for (const [kunci, ik] of Object.entries(ikon)) {
+    /* Stamp the pack name INTO each icon: whoever reads it later gets the right
+       answer regardless of which module instance they hold. */
+    setIkonExt(kunci, paket ? { ...ik, paket } : ik);
+  }
+};
+
+/**
+ * Which pack the current map came from.
+ *
+ * Kept as a function for callers that only need the label; the authoritative
+ * per-icon answer lives on `IkonPaket.paket` (see the note there for why).
+ */
+let idPaketAktif = '';
+export const setIdPaketAktif = (id: string): void => {
+  idPaketAktif = id;
+};
+export const paketAktifId = (): string => idPaketAktif;
+
+/**
  * How many of those are real DRAWINGS rather than text marks.
  *
  * Reported separately because the two are not the same promise. A pack that
@@ -91,10 +145,19 @@ export const ikonFileExt = (path: string): IkonPaket | null => {
 };
 
 /** The icon an icon pack gives to a folder NAME, or null. */
-export const ikonFolderExt = (nama: string): IkonPaket | null => {
+export const ikonFolderExt = (nama: string, buka = false): IkonPaket | null => {
   const bersih = nama.toLowerCase().replace(/[\\/]+$/, '');
   if (!bersih) return null;
-  return peta.get(`folder:${bersih}`) ?? peta.get(bersih) ?? null;
+  /* The OPEN variant is asked first when expanded, then the closed one: a pack
+     that draws `folderNamesExpanded` distinguishes the two, and a pack that only
+     draws `folderNames` still answers - one drawing used for both states is a
+     correct answer for a pack that only has one. */
+  return (
+    (buka ? peta.get(`folder-open:${bersih}`) : null) ??
+    peta.get(`folder:${bersih}`) ??
+    peta.get(bersih) ??
+    null
+  );
 };
 
 /** The pack's generic file icon, used when no extension rule matched. */

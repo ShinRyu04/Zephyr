@@ -1,0 +1,21 @@
+﻿{
+ "sebelum": {
+  "storePacks": 0,
+  "loaderPacks": 0
+ },
+ "muat": {
+  "ms": 549,
+  "galat": null
+ },
+ "sesudahMuat": {
+  "storePacks": 0,
+  "loaderPacks": 8,
+  "aktif": null
+ },
+ "setelahTunggu": {
+  "storePacks": 0,
+  "ms": 15596,
+  "id": [],
+  "ikon": []
+ }
+}

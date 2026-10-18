@@ -36,13 +36,9 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   /*
-   * Atlas: three nodes joined by a line.
-   *
-   * A network, not a book. A book glyph would say "static document", and these
-   * pages are generated FROM the code and linked to it - the same reason the
-   * agent's own map icon is a network. Distinct from `scm` (a branch) because
-   * two rail entries that both look like connected circles would be two entries
-   * the reader has to guess between.
+   * `wiki` glyph kept for the union, but no longer in ORDER so the rail has one
+   * entry fewer. The drawing stays so a stale profile that still names it does
+   * not render an empty button.
    */
   wiki: () => (
     <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
@@ -226,7 +222,6 @@ const ORDER: ActivityId[] = [
   'explorer',
   'search',
   'scm',
-  'wiki',
   'debug',
   'extensions',
   'terminal',
