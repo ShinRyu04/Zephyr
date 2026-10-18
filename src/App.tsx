@@ -100,6 +100,7 @@ import './styles/sftp.css';
 import './styles/tools.css';
 import './styles/modal-popup.css';
 import './styles/agc-agents.css';
+import './styles/marketplace.css';
 /*
  * The first-run wizard. Its own file because it owns the whole screen and
  * deliberately does NOT use the theme tokens for its own surfaces: a new reader
