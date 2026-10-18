@@ -1589,6 +1589,57 @@ const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 export const MAX_AGENT_STEPS = 200;
 
 /**
+ * How many times a malformed/truncated tool call is re-asked before the run
+ * stops.
+ *
+ * Measured, not guessed: a Fase 5 run died at `write_file` for a README after
+ * nine files had already been written, because the model emitted unterminated
+ * JSON and the old budget was a single retry. The call is re-asked WITH the
+ * snippet of the broken argument, so each retry is a real chance to fix it
+ * rather than a blind re-roll.
+ *
+ * Truncated calls (output limit hit) keep their own budget - see the call site:
+ * they double the output ceiling instead, because the JSON was fine and simply
+ * did not fit.
+ */
+export const AGENT_MALFORMED_RETRY = 3;
+
+/*
+ * Sidik pesan galat terakhir yang SAMA.
+ *
+ * Dipakai untuk membedakan "model mencoba lagi dengan cara berbeda" (galatnya
+ * berubah = kemajuan) dari "model mengulang perintah yang sama dan gagal dengan
+ * cara yang sama" (galat identik = treadmill). Tanpa pembeda ini, setiap
+ * pemanggilan tool penulis yang GAGAL tetap mereset penghitung tanpa-kemajuan,
+ * dan run bisa berputar ratusan langkah tanpa satu pun perubahan di disk.
+ */
+let sidikGagalTerakhir = '';
+function sidikGagal(nama: string, hasil: string): string {
+  /* Cuplikan saja: pesan galat panjang sering sama di 200 karakter pertama. */
+  return `${nama}::${hasil.slice(0, 200)}`;
+}
+
+/**
+ * How long a permission request may wait before it is treated as DENIED.
+ *
+ * Two minutes: long enough for a reader to notice the panel and press Allow,
+ * short enough that a run started where no panel can appear does not sit idle
+ * for the 15-minute watchdog. On expiry the step is skipped WITH a toast, so the
+ * agent continues with other tools instead of dying silently.
+ *
+ * Overridable at runtime (`setIzinTimeout`) so a harness can prove the timeout
+ * path in three seconds instead of sitting through two minutes. The value is
+ * read at call time, never captured, so the override is honest.
+ */
+export const IZIN_TIMEOUT_MS = 120_000;
+
+let izinTimeoutMs = IZIN_TIMEOUT_MS;
+export const setIzinTimeout = (ms: number): void => {
+  izinTimeoutMs = Math.max(1000, Math.min(600_000, ms));
+};
+export const izinTimeoutAktif = (): number => izinTimeoutMs;
+
+/**
  * Classify only explicit URL navigation requests. A URL is required, as is a
  * clear open/navigate/visit verb; inspection, fetching, clicking, execution,
  * and verification language always makes the request a normal agent task.
@@ -2944,6 +2995,18 @@ interface AiActions {
   setApprovalMode: (m: ApprovalMode) => void;
 
   agentPutuskan: (setujui: boolean) => void;
+  /**
+   * Ask the reader for permission, with a deadline.
+   *
+   * Resolves `false` when denied OR when nobody answered in time - the caller
+   * treats both as "this step does not run", which is what keeps a run moving
+   * instead of hanging forever on a dialog nobody can see.
+   */
+  agentMintaIzin: (
+    tool: string,
+    argsText: string,
+    opsi: { destruktif?: boolean; tulis?: boolean },
+  ) => Promise<boolean>;
   setAgentProgress: (progress: Partial<AgentProgress>) => void;
 
   /**
@@ -4183,6 +4246,86 @@ export const useAi = create<AiStore>((set0, get) => {
     set({ agentConfirm: null });
   },
 
+  /*
+   * ── KONFIRMASI TIDAK BOLEH MENGGANTUNG TANPA UI ───────────────────────────
+   *
+   * Temuan Fase 5: agen diam 293 detik di `waiting-confirmation`. Penyebabnya
+   * `send()` menunggu Promise yang HANYA diselesaikan tombol Allow di AiPanel.
+   * Kalau panel chat tidak ter-mount - run dari command palette, dari
+   * keybinding, dari jendela AI terpisah yang belum dibuka, atau headless -
+   * tidak ada tombol, Promise tidak pernah selesai, dan agen menunggu sampai
+   * watchdog 15 menit membunuhnya.
+   *
+   * Dua perbaikan:
+   *
+   *  1. PANEL DIBUKA OTOMATIS saat agen butuh izin. Permintaan izin adalah
+   *     momen yang butuh mata manusia; menyembunyikannya di panel tertutup
+   *     membuat agen tampak menggantung.
+   *
+   *  2. BATAS WAKTU pada Promise-nya. Kalau izin tidak dijawab dalam
+   *     `IZIN_TIMEOUT_MS`, permintaan DITOLAK dan langkah dilewati - agen
+   *     melanjutkan pekerjaannya dengan tool lain, bukan mati. Menolak dengan
+   *     alasan yang terlihat jauh lebih baik daripada menggantung tanpa kabar.
+   */
+  agentMintaIzin: (tool: string, argsText: string, opsi: { destruktif?: boolean; tulis?: boolean }) =>
+    new Promise<boolean>((resolve) => {
+      /*
+       * Buka KOLOM SAMPING saja, bukan tab di editor.
+       *
+       * Versi pertama perbaikan ini memanggil `bukaViewAi('ai-chat')`, yang
+       * membuka tab Chat di AREA EDITOR - jadi meminta izin menutupi berkas
+       * yang sedang dibaca. Permintaan izin tidak boleh merebut tempat kerja;
+       * yang dibutuhkan hanya panelnya terlihat supaya tombolnya bisa ditekan.
+       *
+       * `setAiKolomVisible(true)` menampilkan kolom kanan (kalau layout-nya
+       * 'right'), dan itu tidak menyentuh tab editor sama sekali.
+       */
+      try {
+        void import('./store').then((m) => {
+          const s = m.useStore.getState();
+          s.setAiKolomVisible?.(true);
+          /*
+           * Kalau posisi panel AI bukan kolom kanan (mis. 'window'), kolom itu
+           * tidak akan tampil. Dalam kasus itu panel tetap diset di store dan
+           * dialognya muncul begitu panel dibuka - bukan dengan merebut editor.
+           */
+        });
+      } catch {
+        /* store belum siap: dialog tetap diset, hanya tidak terlihat */
+      }
+
+      set({
+        agentConfirm: {
+          tool,
+          argsText,
+          isDestructive: !!opsi.destruktif,
+          isWrite: !!opsi.tulis,
+        },
+      });
+
+      const selesai = (nilai: boolean) => {
+        if (agentConfirmResolve !== resolve) return;
+        agentConfirmResolve = null;
+        clearTimeout(pewaktu);
+        set({ agentConfirm: null });
+        resolve(nilai);
+      };
+
+      agentConfirmResolve = resolve;
+
+      const pewaktu = setTimeout(() => {
+        if (agentConfirmResolve !== resolve) return;
+        /*
+         * Ditolak karena waktu, dan itu DICATAT: agen harus tahu mengapa
+         * langkahnya tidak jalan, bukan menerima penolakan tanpa sebab.
+         */
+        selesai(false);
+        set({
+          toast: `Izin untuk ${tool} tidak dijawab dalam ${Math.round(izinTimeoutMs / 1000)} detik - langkah dilewati.`,
+        });
+      }, izinTimeoutMs);
+    }),
+
   agentAjukanTanya: (pertanyaan, pilihan) =>
     new Promise<string | null>((selesai) => {
       /*
@@ -5118,7 +5261,59 @@ export const useAi = create<AiStore>((set0, get) => {
             'read-only tools, then present a concise, numbered plan of what you ' +
             'would do and STOP, asking the user to approve before you edit files ' +
             'or run commands. Do not call write or terminal tools until the user ' +
-            'tells you to proceed.',
+            'tells you to proceed. Write and shell tools are REFUSED in this mode ' +
+            'by the runtime, so calling them only wastes a step.',
+        });
+      } else if (ai.runMode === 'interactive') {
+        /*
+         * INTERACTIVE means the reader wants to be in the loop, so the run must
+         * actually stop and ask rather than barrel through.
+         *
+         * Before this, Interactive and Autopilot differed only in the approval
+         * level ('work' vs 'auto'), which controls the confirmation CARD but
+         * says nothing about pacing: the model still planned and executed the
+         * whole task in one turn. The button promised "Step-by-step
+         * collaboration" and delivered a single long turn, so the three modes
+         * were effectively two.
+         *
+         * The rule is stated as a checkpoint, not as "ask often": a checkpoint
+         * at every single tool call would make the mode useless, so it lands
+         * where a decision actually belongs - before touching files, and before
+         * any change that is hard to undo.
+         */
+        history.unshift({
+          role: 'system',
+          content:
+            'INTERACTIVE MODE: the user wants to stay in the loop. Do the reading ' +
+            'and investigation for this turn, then STOP at the first point where ' +
+            'you would change something on disk (writing/editing files, deleting, ' +
+            'or a shell command that mutates state) and say what you are about to ' +
+            'do in one or two sentences, so the user can confirm or redirect. ' +
+            'Read-only work needs no permission: keep going until you reach a ' +
+            'change. After the user answers, continue.',
+        });
+      } else if (ai.runMode === 'autopilot') {
+        /*
+         * AUTOPILOT: finish the task in this turn, and say so when you cannot.
+         *
+         * The mode already sets approval 'auto', so nothing is refused. What it
+         * was missing is the other half of the promise: a run that keeps going
+         * until the task is DONE, rather than stopping to narrate and waiting
+         * for a "continue" nobody asked to send. The escape hatch matters as
+         * much as the mandate - an agent that cannot admit it is blocked will
+         * invent progress, and a blocked autopilot run is exactly where that
+         * temptation is strongest.
+         */
+        history.unshift({
+          role: 'system',
+          content:
+            'AUTOPILOT MODE: complete the whole task in this turn. Do not stop to ' +
+            'ask for confirmation before changes, and do not end the turn with a ' +
+            'plan of work you could have done - do it, verify it, then report. If ' +
+            'you genuinely cannot proceed (missing credentials, a decision only ' +
+            'the user can make, an external service down), stop and say exactly ' +
+            'what you need and why; that is the only reason to pause. Never claim ' +
+            'a step succeeded without the tool result that proves it.',
         });
       }
     }
@@ -5858,6 +6053,8 @@ export const useAi = create<AiStore>((set0, get) => {
     let agentFailure: { category: AgentFailureCategory; message: string } | null = null;
     /* Anti-loop fingerprints; see `catatAksiBerulang` for the why. */
     agenAksiBerulang.clear();
+    /* A new run starts with no failed call to compare against. */
+    sidikGagalTerakhir = '';
     /* Set once a page actually opened, then counts circling browser calls. */
     let halamanTerbuka = false;
     let browserMuter = 0;
@@ -5872,6 +6069,8 @@ export const useAi = create<AiStore>((set0, get) => {
     let browserSidikTerakhir: string[] = [];
     /* Consecutive read-only steps with nothing new; see the goal-satisfied guard. */
     let langkahTanpaKemajuan = 0;
+    /* A new run starts with no failed call to compare against. */
+    sidikGagalTerakhir = '';
     /*
      * URL/kunci kueri yang BELUM PERNAH dibuka pada giliran ini.
      *
@@ -6803,13 +7002,27 @@ export const useAi = create<AiStore>((set0, get) => {
           const retryableToolResponse =
             !!res.error && isRetryableAgentToolResponseError(res.error);
           /*
-           * A plain malformed-args retry gets one shot (asking again rarely
-           * helps twice). A TRUNCATED call gets two: each retry doubles the
-           * output budget, so a very large write that overflows even the first
-           * bump still has a second, larger attempt before the run gives up.
+           * Retry budget for a malformed/truncated tool call.
+           *
+           * DULU: malformed dapat SATU percobaan ulang, terpotong dapat dua.
+           * Terukur di Fase 5 (421 detik, 70 percobaan kirim, 138 langkah):
+           * agen menulis 9 dari 10 berkas, lalu MATI di `write_file` README
+           * karena argumen JSON-nya cacat - dan satu percobaan ulang tidak
+           * cukup. Penyebabnya bukan model "bodoh", tapi tiga hal yang
+           * bertumpuk: (1) berkas besar dikirim sebagai argumen tool, (2) model
+           * kadang mengirim JSON yang tidak tertutup, (3) jatah ulangnya habis
+           * tepat pada berkas terakhir.
+           *
+           * Sekarang malformed dapat TIGA, dan setiap percobaan ulang menyertakan
+           * cuplikan argumen yang salah (openai.rs) supaya model tahu apa yang
+           * harus diperbaiki - bukan menebak. Terpotong tetap dua kali lipat
+           * anggaran keluarannya, dan TIDAK memakai jatah yang sama karena
+           * masalahnya berbeda (bukan JSON salah, tapi tidak muat).
            */
           const retryLimit = retryableToolResponse
-            ? (isTruncatedToolResponseError(res.error ?? '') ? 2 : 1)
+            ? isTruncatedToolResponseError(res.error ?? '')
+              ? 2
+              : AGENT_MALFORMED_RETRY
             : AGENT_PROVIDER_RETRY_DELAYS.length;
           if (!bolehRetry || retry >= retryLimit) {
             /*
@@ -7603,9 +7816,15 @@ export const useAi = create<AiStore>((set0, get) => {
            * Dipakai oleh guard di bawah, jadi daftarnya HARUS lengkap: tool yang
            * lupa didaftarkan di sini akan dianggap "tidak melakukan apa-apa",
            * dan pekerjaan nyata bisa dipotong di tengah.
+           *
+           * Penghitung tanpa-kemajuan diperbarui SETELAH tool berjalan (lihat
+           * `catatKemajuanTool` di bawah): memanggil tool penulis bukan bukti
+           * kemajuan, karena panggilan yang GAGAL juga sampai ke sini. Terukur di
+           * Fase 5: `bash_run` dipanggil berkali-kali dan semuanya gagal, tapi
+           * setiap kegagalan mereset penghitung - run berputar 138 langkah tanpa
+           * satu pun berkas baru.
            */
           if (TOOL_PENULIS.has(tc.name)) {
-            langkahTanpaKemajuan = 0;
             /*
              * Menulis adalah KEMAJUAN NYATA, jadi watchdog aksi-berulang lupa
              * apa yang sudah dilihatnya - persis seperti ketika sebuah todo
@@ -7719,6 +7938,21 @@ export const useAi = create<AiStore>((set0, get) => {
            */
           const tulisDiblok = TOOL_TULIS.has(tc.name);
           const toolGateBlok = !useToolGate.getState().aktif.has(tc.name);
+          /*
+           * PLAN MODE IS A HARD GATE, not a sentence in the prompt.
+           *
+           * Measured: choosing Plan set approvalMode to 'work', which PERMITS
+           * writes after a confirmation - so a model that ignored the "do not
+           * change anything" instruction could edit files and run commands. The
+           * mode was advisory while the button implied a guarantee, and the one
+           * thing a reader uses Plan for is to look before anything is touched.
+           *
+           * The instruction in the system prompt stays (it shapes the answer),
+           * but the refusal lives HERE, in the same gate as read-only, so no
+           * prompt drift and no model mood can get around it. Reading and
+           * searching remain open: that is what planning needs.
+           */
+          const planBlok = get().runMode === 'plan' && (tulisDiblok || namaShell);
           const readOnlyBlok = get().approvalMode === 'readonly' && (tulisDiblok || namaShell);
 
           const diizinkan =
@@ -7768,6 +8002,15 @@ export const useAi = create<AiStore>((set0, get) => {
           if (toolGateBlok) {
             hasil = `(refused: tool disabled in AI Tools: ${tc.name})`;
             ok = false;
+          } else if (planBlok) {
+            /*
+             * The message has to be actionable: the model is told to PLAN, and
+             * a bare refusal makes it retry the same call. Naming the way out
+             * (present the plan, then the reader approves) is what turns the
+             * refusal into the next step.
+             */
+            hasil = `(refused: Plan mode does not change anything - present the plan and let the user approve it before calling ${tc.name})`;
+            ok = false;
           } else if (readOnlyBlok) {
             hasil = `(refused: read-only mode does not allow ${tc.name})`;
             ok = false;
@@ -7776,21 +8019,18 @@ export const useAi = create<AiStore>((set0, get) => {
             ok = false;
           } else if (perluSetuju) {
             get().setAgentProgress({ agentPhase: 'waiting-confirmation', agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
-            set({
-              agentConfirm: {
-                tool: tc.name,
-                argsText: JSON.stringify(argsObj),
-                isDestructive: namaShell && isDestructive(perintah),
-                // A disk write is not a shell command: the card words the
-                // prompt differently so the user knows bytes will land.
-                isWrite: tulisDisk,
-              },
+            /*
+             * Lewat `agentMintaIzin`, bukan Promise mentah.
+             *
+             * Versi lama membuat Promise di sini dan hanya tombol di AiPanel
+             * yang bisa menyelesaikannya. Tanpa panel ter-mount, agen menunggu
+             * SELAMANYA (terukur: 293 detik diam). `agentMintaIzin` membuka
+             * panelnya sendiri dan punya batas waktu, jadi run selalu bergerak.
+             */
+            const disetujui = await get().agentMintaIzin(tc.name, JSON.stringify(argsObj), {
+              destruktif: !!(namaShell && isDestructive(perintah)),
+              tulis: tulisDisk,
             });
-            const disetujui = await new Promise<boolean>((resolve) => {
-              agentConfirmResolve = resolve;
-            });
-            agentConfirmResolve = null;
-            set({ agentConfirm: null });
             if (!disetujui || agentBatal) {
               hasil = '(ditolak user)';
               ok = false;
@@ -7936,6 +8176,32 @@ export const useAi = create<AiStore>((set0, get) => {
             ms: selesaiPada - mulaiTool,
             ...status,
           };
+          /*
+           * Progress is judged AFTER the call, from its RESULT.
+           *
+           * Calling a write tool is not progress - a call that fails still got
+           * here. Measured in Fase 5: `bash_run` was invoked repeatedly, every
+           * invocation failed, and each failure reset the no-progress counter,
+           * so the run spun 138 steps without a single new file and then stopped
+           * with a message that never named the cause.
+           *
+           * The rule now: a failed call counts as progress only when the error
+           * CHANGED (a new message means the model is correcting itself). The
+           * exact same error twice in a row is a treadmill and counts as idle.
+           */
+          const galatSamaBerulang =
+            !ok && hasil !== '' && sidikGagalTerakhir === sidikGagal(tc.name, hasil);
+          sidikGagalTerakhir = ok ? '' : sidikGagal(tc.name, hasil);
+          if (TOOL_PENULIS.has(tc.name) && !galatSamaBerulang) {
+            /* A write that SUCCEEDED is real progress: clear the counter and
+               forget the repeated-action fingerprints, exactly as a todo
+               reaching `done` does. A write that failed with a new error is
+               also progress of a sort - the model learned something - so it is
+               treated the same way; only the identical failure is idle. */
+            langkahTanpaKemajuan = 0;
+            agenAksiBerulang.clear();
+            sudahDiberiPeringatanTanpaKemajuan = false;
+          }
           set((s) => ({
             agentSteps: [
               ...s.agentSteps,

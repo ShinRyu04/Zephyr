@@ -1,0 +1,9 @@
+﻿sebelum   : {"busy":true,"fase":"waiting-confirmation"}
+dibatalkan: {"busy":false,"fase":"idle"}
+panel     : {"adaAiPanel":true,"adaComposer":true,"adaTombolConfirm":false}
+
+Bukti:
+  LULUS  run macet dibatalkan  false
+  LULUS  panel chat ter-mount  true
+
+== 2/2 lulus ==

@@ -5772,9 +5772,9 @@ function parsePatch(teks) {
   const baris = teks.split(/\r?\n/);
   const ops3 = [];
   let i = 0;
-  const mulai = baris.findIndex((b) => b.trim() === "*** Begin Patch");
-  if (mulai < 0) throw new PatchError('patch tidak dibuka dengan "*** Begin Patch"', 1);
-  i = mulai + 1;
+  const mulai2 = baris.findIndex((b) => b.trim() === "*** Begin Patch");
+  if (mulai2 < 0) throw new PatchError('patch tidak dibuka dengan "*** Begin Patch"', 1);
+  i = mulai2 + 1;
   let sekarang = null;
   let hunkAktif = null;
   let pindahKe = null;
@@ -5890,10 +5890,10 @@ function terapkanHunk(isi, hunk) {
       `hunk "@@ ${hunk.label}" cocok di ${cocok3.length} tempat (baris ${cocok3.map((n) => n + 1).join(", ")}) - ambigu. Tambahkan baris konteks di sekitarnya supaya tepat satu yang cocok.`
     );
   }
-  const mulai = cocok3[0];
+  const mulai2 = cocok3[0];
   const baru = hunk.baris.filter((b) => b.jenis !== "-").map((b) => b.teks);
   const salinan = [...isi];
-  salinan.splice(mulai, cari2.length, ...baru);
+  salinan.splice(mulai2, cari2.length, ...baru);
   return salinan;
 }
 function buatApplyPatchTool(bridge) {
@@ -29560,12 +29560,6 @@ var init_deskripsiTool = __esm({
     init_awalan();
     DESKRIPSI_TOOL_ID = {
       zephyr_kode: "Potongan baris BERKODE NOMOR dari sumber Zephyr sendiri (baca-kode): satu berkas, satu rentang baris, atau simbol",
-      lsp_symbols: "Daftar simbol di sebuah berkas, dengan jenis dan kedalaman",
-      lsp_references: "Tempat-tempat yang memakai sebuah simbol, menurut language server",
-      lsp_definition: "Lokasi definisi sebuah simbol",
-      lsp_hover: "Tipe dan dokumentasi simbol pada satu posisi",
-      lsp_diagnostics: "Galat dan peringatan language server untuk sebuah berkas",
-      lsp_call_hierarchy: "Fungsi yang memanggil dan dipanggil oleh sebuah simbol, menurut language server",
       skill_view: "Baca isi skill yang terdaftar, atau daftar skillnya",
       tool_search: "Cari tool yang tidak ada di daftar utama (web, browser, SSH, MCP, jadwal)",
       tool_call: "Panggil tool yang ditemukan lewat tool_search",
@@ -29599,26 +29593,19 @@ var init_deskripsiTool = __esm({
       worktree: "Kelola git worktree",
       focus_pane: "Fokuskan sebuah pane tanpa mengklik",
       pane: "Buka, bagi, tutup, atau susun pane",
-      web_search: "Cari di internet",
-      web_fetch: "Ambil dan bersihkan satu halaman web",
-      browser_open: "Buka URL di pane browser yang terlihat",
-      browser_read: "Baca isi halaman di pane browser",
-      browser_click: "Klik elemen di pane browser",
-      browser_type: "Isi kolom di pane browser lalu tekan Enter",
-      browser_list: "Daftar pane browser yang terbuka",
-      browser_close: "Tutup pane browser",
-      browser_download_url: "Unduh URL langsung ke berkas di workspace",
       zephyr_self: "Periksa Zephyr sendiri dari sumber milik aplikasi: setelan aktif, log, ekstensi, dokumen bundel, versi, dan indeks fakta",
-      ingat: "Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)"
+      ingat: "Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)",
+      lsp: "Tanya language server: simbol, referensi, definisi, tipe, diagnostik, atau hierarki panggilan",
+      browser: "Kendalikan pane browser: open, read, click, type, list, close, download",
+      web: "Ambil dari internet: search (cari) atau fetch (isi satu URL)",
+      apply_patch: "Ubah banyak berkas dalam satu panggilan patch (format OpenCode)",
+      tunjuk: "Buka halaman atau panel yang pembaca maksud, dari keluhan berbahasa bebas",
+      kotak: "Gambar kotak terstruktur di jawaban: judul, ringkasan, baris label/nilai",
+      peta: "Cari di peta Zephyr: label, setelan, perintah, pintasan, panel, tool, berkas",
+      execute: "Jalankan skrip yang memanggil beberapa tool sekaligus (Code Mode)"
     };
     DESKRIPSI_TOOL_EN = {
       zephyr_kode: "Numbered-line slices of Zephyr own source (read-code): one file, one line range, or a symbol",
-      lsp_symbols: "List symbols in a file, with kind and depth",
-      lsp_references: "Places that use a symbol, according to the language server",
-      lsp_definition: "Location of a symbol's definition",
-      lsp_hover: "Type and documentation of a symbol at one position",
-      lsp_diagnostics: "Language server errors and warnings for a file",
-      lsp_call_hierarchy: "Functions that call and are called by a symbol, according to the language server",
       skill_view: "Read the contents of a listed skill, or list the skills",
       tool_search: "Search for a tool not in the main list (web, browser, SSH, MCP, schedule)",
       tool_call: "Call a tool found through tool_search",
@@ -29650,26 +29637,19 @@ var init_deskripsiTool = __esm({
       worktree: "Manage git worktrees",
       focus_pane: "Focus a pane without clicking it",
       pane: "Open, split, close, or arrange panes",
-      web_search: "Search the internet",
-      web_fetch: "Fetch and clean up a single web page",
-      browser_open: "Open a URL in the visible browser pane",
-      browser_read: "Read the page content in the browser pane",
-      browser_click: "Click an element in the browser pane",
-      browser_type: "Fill a field in the browser pane and press Enter",
-      browser_list: "List the open browser panes",
-      browser_close: "Close a browser pane",
-      browser_download_url: "Download a URL straight to a file in the workspace",
       zephyr_self: "Inspect Zephyr itself from app-owned sources: live settings, log, extensions, bundled docs, version, fact index",
-      ingat: "Save, search, and tidy the cross-session memory of Zeph AI (global + per-project memory files)"
+      ingat: "Save, search, and tidy the cross-session memory of Zeph AI (global + per-project memory files)",
+      lsp: "Ask the language server: symbols, references, definition, type, diagnostics, or call hierarchy",
+      browser: "Control the browser pane: open, read, click, type, list, close, download",
+      web: "Get from the internet: search (find) or fetch (one URL contents)",
+      apply_patch: "Edit many files in one patch call (OpenCode format)",
+      tunjuk: "Open the page or panel the reader means, from a free-form complaint",
+      kotak: "Draw a structured box in the answer: title, summary, label/value rows",
+      peta: "Search the Zephyr map: labels, settings, commands, shortcuts, panels, tools, files",
+      execute: "Run a script that calls several tools at once (Code Mode)"
     };
     DESKRIPSI_TOOL_JA = {
       zephyr_kode: "Zephyr \u81EA\u8EAB\u306E\u30BD\u30FC\u30B9\u306E\u884C\u756A\u53F7\u4ED8\u304D\u629C\u7C8B\uFF08baca-kode\uFF09\uFF1A1\u30D5\u30A1\u30A4\u30EB\u30011\u884C\u7BC4\u56F2\u3001\u307E\u305F\u306F\u30B7\u30F3\u30DC\u30EB",
-      lsp_symbols: "\u30D5\u30A1\u30A4\u30EB\u5185\u306E\u30B7\u30F3\u30DC\u30EB\u3092\u7A2E\u985E\u3068\u6DF1\u3055\u4ED8\u304D\u3067\u4E00\u89A7\u8868\u793A\u3059\u308B",
-      lsp_references: "\u8A00\u8A9E\u30B5\u30FC\u30D0\u30FC\u304C\u5831\u544A\u3059\u308B\u3001\u30B7\u30F3\u30DC\u30EB\u3092\u4F7F\u7528\u3057\u3066\u3044\u308B\u7B87\u6240",
-      lsp_definition: "\u30B7\u30F3\u30DC\u30EB\u306E\u5B9A\u7FA9\u306E\u5834\u6240",
-      lsp_hover: "\u3042\u308B\u4F4D\u7F6E\u306E\u30B7\u30F3\u30DC\u30EB\u306E\u578B\u3068\u30C9\u30AD\u30E5\u30E1\u30F3\u30C8",
-      lsp_diagnostics: "\u30D5\u30A1\u30A4\u30EB\u306B\u5BFE\u3059\u308B\u8A00\u8A9E\u30B5\u30FC\u30D0\u30FC\u306E\u30A8\u30E9\u30FC\u3068\u8B66\u544A",
-      lsp_call_hierarchy: "\u8A00\u8A9E\u30B5\u30FC\u30D0\u30FC\u306B\u3088\u308B\u3001\u30B7\u30F3\u30DC\u30EB\u3092\u547C\u3076\uFF0F\u547C\u3070\u308C\u308B\u95A2\u6570",
       skill_view: "\u767B\u9332\u6E08\u307F\u30B9\u30AD\u30EB\u306E\u5185\u5BB9\u3092\u8AAD\u3080\u3001\u307E\u305F\u306F\u30B9\u30AD\u30EB\u306E\u4E00\u89A7\u3092\u8868\u793A\u3059\u308B",
       tool_search: "\u30E1\u30A4\u30F3\u4E00\u89A7\u306B\u306A\u3044\u30C4\u30FC\u30EB\u3092\u691C\u7D22\u3059\u308B\uFF08web\u3001\u30D6\u30E9\u30A6\u30B6\u30FC\u3001SSH\u3001MCP\u3001\u30B9\u30B1\u30B8\u30E5\u30FC\u30EB\uFF09",
       tool_call: "tool_search \u3067\u898B\u3064\u304B\u3063\u305F\u30C4\u30FC\u30EB\u3092\u547C\u3073\u51FA\u3059",
@@ -29701,26 +29681,19 @@ var init_deskripsiTool = __esm({
       worktree: "git worktree\u3092\u7BA1\u7406\u3059\u308B",
       focus_pane: "\u30AF\u30EA\u30C3\u30AF\u305B\u305A\u306B\u30DA\u30A4\u30F3\u3078\u30D5\u30A9\u30FC\u30AB\u30B9\u3059\u308B",
       pane: "\u30DA\u30A4\u30F3\u3092\u958B\u304F\u3001\u5206\u5272\u3001\u9589\u3058\u308B\u3001\u914D\u7F6E\u3059\u308B",
-      web_search: "\u30A4\u30F3\u30BF\u30FC\u30CD\u30C3\u30C8\u3067\u691C\u7D22\u3059\u308B",
-      web_fetch: "\u5358\u4E00\u306EWeb\u30DA\u30FC\u30B8\u3092\u53D6\u5F97\u3057\u3066\u672C\u6587\u3092\u6574\u7406\u3059\u308B",
-      browser_open: "\u8868\u793A\u4E2D\u306E\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u3067URL\u3092\u958B\u304F",
-      browser_read: "\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u306E\u30DA\u30FC\u30B8\u5185\u5BB9\u3092\u8AAD\u3080",
-      browser_click: "\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u306E\u8981\u7D20\u3092\u30AF\u30EA\u30C3\u30AF\u3059\u308B",
-      browser_type: "\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u306E\u6B04\u306B\u5165\u529B\u3057\u3066Enter\u3092\u62BC\u3059",
-      browser_list: "\u958B\u3044\u3066\u3044\u308B\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u3092\u4E00\u89A7\u8868\u793A\u3059\u308B",
-      browser_close: "\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u3092\u9589\u3058\u308B",
-      browser_download_url: "URL\u3092\u30EF\u30FC\u30AF\u30B9\u30DA\u30FC\u30B9\u5185\u306E\u30D5\u30A1\u30A4\u30EB\u3078\u76F4\u63A5\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u3059\u308B",
       zephyr_self: "\u30A2\u30D7\u30EA\u81EA\u8EAB\u306E\u30BD\u30FC\u30B9\u304B\u3089 Zephyr \u3092\u8ABF\u67FB: \u73FE\u5728\u306E\u8A2D\u5B9A\u30FB\u30ED\u30B0\u30FB\u62E1\u5F35\u6A5F\u80FD\u30FB\u540C\u68B1\u30C9\u30AD\u30E5\u30E1\u30F3\u30C8\u30FB\u30D0\u30FC\u30B8\u30E7\u30F3\u30FB\u4E8B\u5B9F\u30A4\u30F3\u30C7\u30C3\u30AF\u30B9",
-      ingat: "Zeph AI \u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u307E\u305F\u3050\u30E1\u30E2\u30EA\u3092\u4FDD\u5B58\u30FB\u691C\u7D22\u30FB\u6574\u7406\uFF08\u30B0\u30ED\u30FC\u30D0\u30EB + \u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u5225\uFF09"
+      ingat: "Zeph AI \u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u307E\u305F\u3050\u30E1\u30E2\u30EA\u3092\u4FDD\u5B58\u30FB\u691C\u7D22\u30FB\u6574\u7406\uFF08\u30B0\u30ED\u30FC\u30D0\u30EB + \u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u5225\uFF09",
+      lsp: "\u8A00\u8A9E\u30B5\u30FC\u30D0\u30FC\u306B\u554F\u3044\u5408\u308F\u305B\u308B: \u30B7\u30F3\u30DC\u30EB\u3001\u53C2\u7167\u3001\u5B9A\u7FA9\u3001\u578B\u3001\u8A3A\u65AD\u3001\u547C\u3073\u51FA\u3057\u968E\u5C64",
+      browser: "\u30D6\u30E9\u30A6\u30B6\u30DA\u30A4\u30F3\u3092\u64CD\u4F5C: open, read, click, type, list, close, download",
+      web: "\u30A4\u30F3\u30BF\u30FC\u30CD\u30C3\u30C8\u304B\u3089\u53D6\u5F97: search\uFF08\u691C\u7D22\uFF09\u307E\u305F\u306F fetch\uFF081\u3064\u306EURL\u306E\u5185\u5BB9\uFF09",
+      apply_patch: "1\u56DE\u306E\u30D1\u30C3\u30C1\u547C\u3073\u51FA\u3057\u3067\u8907\u6570\u30D5\u30A1\u30A4\u30EB\u3092\u5909\u66F4\uFF08OpenCode\u5F62\u5F0F\uFF09",
+      tunjuk: "\u81EA\u7531\u306A\u8A00\u8449\u306E\u4E0D\u6E80\u304B\u3089\u3001\u610F\u56F3\u3057\u305F\u30DA\u30FC\u30B8\u3084\u30D1\u30CD\u30EB\u3092\u958B\u304F",
+      kotak: "\u56DE\u7B54\u306B\u69CB\u9020\u5316\u30DC\u30C3\u30AF\u30B9\u3092\u63CF\u304F: \u30BF\u30A4\u30C8\u30EB\u3001\u8981\u7D04\u3001\u30E9\u30D9\u30EB/\u5024\u306E\u884C",
+      peta: "Zephyr \u306E\u5730\u56F3\u3092\u691C\u7D22: \u30E9\u30D9\u30EB\u3001\u8A2D\u5B9A\u3001\u30B3\u30DE\u30F3\u30C9\u3001\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u3001\u30D1\u30CD\u30EB\u3001\u30C4\u30FC\u30EB\u3001\u30D5\u30A1\u30A4\u30EB",
+      execute: "\u8907\u6570\u306E\u30C4\u30FC\u30EB\u3092\u4E00\u5EA6\u306B\u547C\u3076\u30B9\u30AF\u30EA\u30D7\u30C8\u3092\u5B9F\u884C\uFF08Code Mode\uFF09"
     };
     DESKRIPSI_TOOL_KO = {
       zephyr_kode: "Zephyr \uC790\uCCB4 \uC18C\uC2A4\uC758 \uC904 \uBC88\uD638\uAC00 \uBD99\uC740 \uBC1C\uCDCC(baca-kode): \uD30C\uC77C \uD558\uB098, \uC904 \uBC94\uC704 \uD558\uB098, \uB610\uB294 \uC2EC\uBCFC",
-      lsp_symbols: "\uD30C\uC77C\uC758 \uC2EC\uBCFC\uC744 \uC885\uB958\uC640 \uAE4A\uC774\uC640 \uD568\uAED8 \uB098\uC5F4\uD569\uB2C8\uB2E4",
-      lsp_references: "\uC5B8\uC5B4 \uC11C\uBC84\uAC00 \uBCF4\uACE0\uD55C, \uC2EC\uBCFC\uC744 \uC0AC\uC6A9\uD558\uB294 \uC704\uCE58",
-      lsp_definition: "\uC2EC\uBCFC \uC815\uC758\uC758 \uC704\uCE58",
-      lsp_hover: "\uD55C \uC704\uCE58\uC758 \uC2EC\uBCFC \uC720\uD615\uACFC \uBB38\uC11C",
-      lsp_diagnostics: "\uD30C\uC77C\uC5D0 \uB300\uD55C \uC5B8\uC5B4 \uC11C\uBC84 \uC624\uB958\uC640 \uACBD\uACE0",
-      lsp_call_hierarchy: "\uC5B8\uC5B4 \uC11C\uBC84\uAC00 \uBCF4\uACE0\uD55C, \uC2EC\uBCFC\uC744 \uD638\uCD9C\uD558\uB294/\uD638\uCD9C\uB418\uB294 \uD568\uC218",
       skill_view: "\uB4F1\uB85D\uB41C \uC2A4\uD0AC\uC758 \uB0B4\uC6A9\uC744 \uC77D\uAC70\uB098 \uC2A4\uD0AC \uBAA9\uB85D\uC744 \uD45C\uC2DC\uD569\uB2C8\uB2E4",
       tool_search: "\uAE30\uBCF8 \uBAA9\uB85D\uC5D0 \uC5C6\uB294 \uB3C4\uAD6C\uB97C \uAC80\uC0C9\uD569\uB2C8\uB2E4 (web, \uBE0C\uB77C\uC6B0\uC800, SSH, MCP, \uC77C\uC815)",
       tool_call: "tool_search\uB85C \uCC3E\uC740 \uB3C4\uAD6C\uB97C \uD638\uCD9C\uD569\uB2C8\uB2E4",
@@ -29752,26 +29725,19 @@ var init_deskripsiTool = __esm({
       worktree: "git worktree\uB97C \uAD00\uB9AC\uD569\uB2C8\uB2E4",
       focus_pane: "\uD074\uB9AD\uD558\uC9C0 \uC54A\uACE0 \uD398\uC778\uC5D0 \uD3EC\uCEE4\uC2A4\uB97C \uC90D\uB2C8\uB2E4",
       pane: "\uD398\uC778\uC744 \uC5F4\uAC70\uB098 \uBD84\uD560\uD558\uAC70\uB098 \uB2EB\uAC70\uB098 \uBC30\uCE58\uD569\uB2C8\uB2E4",
-      web_search: "\uC778\uD130\uB137\uC744 \uAC80\uC0C9\uD569\uB2C8\uB2E4",
-      web_fetch: "\uC6F9 \uD398\uC774\uC9C0 \uD558\uB098\uB97C \uAC00\uC838\uC640 \uC815\uB9AC\uD569\uB2C8\uB2E4",
-      browser_open: "\uBCF4\uC774\uB294 \uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC5D0\uC11C URL\uC744 \uC5FD\uB2C8\uB2E4",
-      browser_read: "\uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC758 \uD398\uC774\uC9C0 \uB0B4\uC6A9\uC744 \uC77D\uC2B5\uB2C8\uB2E4",
-      browser_click: "\uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC758 \uC694\uC18C\uB97C \uD074\uB9AD\uD569\uB2C8\uB2E4",
-      browser_type: "\uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC758 \uC785\uB825\uB780\uC744 \uCC44\uC6B0\uACE0 Enter\uB97C \uB204\uB985\uB2C8\uB2E4",
-      browser_list: "\uC5F4\uB9B0 \uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC744 \uB098\uC5F4\uD569\uB2C8\uB2E4",
-      browser_close: "\uBE0C\uB77C\uC6B0\uC800 \uD398\uC778\uC744 \uB2EB\uC2B5\uB2C8\uB2E4",
-      browser_download_url: "URL\uC744 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC758 \uD30C\uC77C\uB85C \uBC14\uB85C \uB2E4\uC6B4\uB85C\uB4DC\uD569\uB2C8\uB2E4",
       zephyr_self: "\uC571 \uC790\uCCB4 \uC18C\uC2A4\uC5D0\uC11C Zephyr\uB97C \uC810\uAC80\uD569\uB2C8\uB2E4: \uD604\uC7AC \uC124\uC815, \uB85C\uADF8, \uD655\uC7A5, \uBC88\uB4E4 \uBB38\uC11C, \uBC84\uC804, \uC0AC\uC2E4 \uC778\uB371\uC2A4",
-      ingat: "Zeph AI\uC758 \uC138\uC158 \uAC04 \uBA54\uBAA8\uB9AC\uB97C \uC800\uC7A5\xB7\uAC80\uC0C9\xB7\uC815\uB9AC\uD569\uB2C8\uB2E4(\uC804\uC5ED + \uD504\uB85C\uC81D\uD2B8\uBCC4 \uBA54\uBAA8\uB9AC \uD30C\uC77C)"
+      ingat: "Zeph AI\uC758 \uC138\uC158 \uAC04 \uBA54\uBAA8\uB9AC\uB97C \uC800\uC7A5\xB7\uAC80\uC0C9\xB7\uC815\uB9AC\uD569\uB2C8\uB2E4(\uC804\uC5ED + \uD504\uB85C\uC81D\uD2B8\uBCC4 \uBA54\uBAA8\uB9AC \uD30C\uC77C)",
+      lsp: "\uC5B8\uC5B4 \uC11C\uBC84\uC5D0 \uC9C8\uBB38: \uC2EC\uBCFC, \uCC38\uC870, \uC815\uC758, \uD0C0\uC785, \uC9C4\uB2E8, \uD638\uCD9C \uACC4\uCE35",
+      browser: "\uBE0C\uB77C\uC6B0\uC800 \uD398\uC778 \uC81C\uC5B4: open, read, click, type, list, close, download",
+      web: "\uC778\uD130\uB137\uC5D0\uC11C \uAC00\uC838\uC624\uAE30: search(\uAC80\uC0C9) \uB610\uB294 fetch(URL \uD558\uB098\uC758 \uB0B4\uC6A9)",
+      apply_patch: "\uD55C \uBC88\uC758 \uD328\uCE58 \uD638\uCD9C\uB85C \uC5EC\uB7EC \uD30C\uC77C \uC218\uC815 (OpenCode \uD615\uC2DD)",
+      tunjuk: "\uC790\uC720\uB85C\uC6B4 \uD45C\uD604\uC758 \uBD88\uB9CC\uC5D0\uC11C \uC758\uB3C4\uD55C \uD398\uC774\uC9C0\uB098 \uD328\uB110\uC744 \uC5FD\uB2C8\uB2E4",
+      kotak: "\uB2F5\uBCC0\uC5D0 \uAD6C\uC870\uD654\uB41C \uC0C1\uC790\uB97C \uADF8\uB9BD\uB2C8\uB2E4: \uC81C\uBAA9, \uC694\uC57D, \uB77C\uBCA8/\uAC12 \uD589",
+      peta: "Zephyr \uC9C0\uB3C4 \uAC80\uC0C9: \uB77C\uBCA8, \uC124\uC815, \uBA85\uB839, \uB2E8\uCD95\uD0A4, \uD328\uB110, \uB3C4\uAD6C, \uD30C\uC77C",
+      execute: "\uC5EC\uB7EC \uB3C4\uAD6C\uB97C \uD55C \uBC88\uC5D0 \uD638\uCD9C\uD558\uB294 \uC2A4\uD06C\uB9BD\uD2B8 \uC2E4\uD589 (Code Mode)"
     };
     DESKRIPSI_TOOL_ZH = {
       zephyr_kode: "Zephyr \u81EA\u8EAB\u6E90\u7801\u7684\u5E26\u884C\u53F7\u7247\u6BB5\uFF08baca-kode\uFF09\uFF1A\u4E00\u4E2A\u6587\u4EF6\u3001\u4E00\u4E2A\u884C\u8303\u56F4\u6216\u4E00\u4E2A\u7B26\u53F7",
-      lsp_symbols: "\u5217\u51FA\u6587\u4EF6\u4E2D\u7684\u7B26\u53F7\uFF0C\u542B\u79CD\u7C7B\u4E0E\u6DF1\u5EA6",
-      lsp_references: "\u8BED\u8A00\u670D\u52A1\u5668\u62A5\u544A\u7684\u3001\u4F7F\u7528\u67D0\u4E2A\u7B26\u53F7\u7684\u4F4D\u7F6E",
-      lsp_definition: "\u7B26\u53F7\u5B9A\u4E49\u7684\u4F4D\u7F6E",
-      lsp_hover: "\u67D0\u4E2A\u4F4D\u7F6E\u7B26\u53F7\u7684\u7C7B\u578B\u4E0E\u6587\u6863",
-      lsp_diagnostics: "\u8BED\u8A00\u670D\u52A1\u5668\u5BF9\u6587\u4EF6\u62A5\u51FA\u7684\u9519\u8BEF\u4E0E\u8B66\u544A",
-      lsp_call_hierarchy: "\u8BED\u8A00\u670D\u52A1\u5668\u62A5\u544A\u7684\u8C03\u7528\uFF0F\u88AB\u8C03\u7528\u67D0\u7B26\u53F7\u7684\u51FD\u6570",
       skill_view: "\u8BFB\u53D6\u5DF2\u6CE8\u518C\u6280\u80FD\u7684\u5185\u5BB9\uFF0C\u6216\u5217\u51FA\u6280\u80FD",
       tool_search: "\u641C\u7D22\u4E3B\u5217\u8868\u4E4B\u5916\u7684\u5DE5\u5177\uFF08web\u3001\u6D4F\u89C8\u5668\u3001SSH\u3001MCP\u3001\u65E5\u7A0B\uFF09",
       tool_call: "\u8C03\u7528\u901A\u8FC7 tool_search \u627E\u5230\u7684\u5DE5\u5177",
@@ -29803,26 +29769,19 @@ var init_deskripsiTool = __esm({
       worktree: "\u7BA1\u7406 git worktree",
       focus_pane: "\u65E0\u9700\u70B9\u51FB\u5373\u53EF\u805A\u7126\u67D0\u4E2A\u7A97\u683C",
       pane: "\u6253\u5F00\u3001\u62C6\u5206\u3001\u5173\u95ED\u6216\u6392\u5217\u7A97\u683C",
-      web_search: "\u5728\u4E92\u8054\u7F51\u4E0A\u641C\u7D22",
-      web_fetch: "\u6293\u53D6\u5E76\u6E05\u7406\u5355\u4E2A\u7F51\u9875",
-      browser_open: "\u5728\u53EF\u89C1\u7684\u6D4F\u89C8\u5668\u7A97\u683C\u4E2D\u6253\u5F00\u7F51\u5740",
-      browser_read: "\u8BFB\u53D6\u6D4F\u89C8\u5668\u7A97\u683C\u4E2D\u7684\u9875\u9762\u5185\u5BB9",
-      browser_click: "\u70B9\u51FB\u6D4F\u89C8\u5668\u7A97\u683C\u4E2D\u7684\u5143\u7D20",
-      browser_type: "\u586B\u5199\u6D4F\u89C8\u5668\u7A97\u683C\u4E2D\u7684\u5B57\u6BB5\u5E76\u6309\u56DE\u8F66",
-      browser_list: "\u5217\u51FA\u5DF2\u6253\u5F00\u7684\u6D4F\u89C8\u5668\u7A97\u683C",
-      browser_close: "\u5173\u95ED\u6D4F\u89C8\u5668\u7A97\u683C",
-      browser_download_url: "\u628A\u7F51\u5740\u76F4\u63A5\u4E0B\u8F7D\u4E3A\u5DE5\u4F5C\u533A\u4E2D\u7684\u6587\u4EF6",
       zephyr_self: "\u4ECE\u5E94\u7528\u81EA\u8EAB\u6765\u6E90\u68C0\u67E5 Zephyr\uFF1A\u5F53\u524D\u8BBE\u7F6E\u3001\u65E5\u5FD7\u3001\u6269\u5C55\u3001\u968F\u9644\u6587\u6863\u3001\u7248\u672C\u3001\u4E8B\u5B9E\u7D22\u5F15",
-      ingat: "\u4FDD\u5B58\u3001\u68C0\u7D22\u548C\u6574\u7406 Zeph AI \u7684\u8DE8\u4F1A\u8BDD\u8BB0\u5FC6\uFF08\u5168\u5C40 + \u6309\u9879\u76EE\u7684\u8BB0\u5FC6\u6587\u4EF6\uFF09"
+      ingat: "\u4FDD\u5B58\u3001\u68C0\u7D22\u548C\u6574\u7406 Zeph AI \u7684\u8DE8\u4F1A\u8BDD\u8BB0\u5FC6\uFF08\u5168\u5C40 + \u6309\u9879\u76EE\u7684\u8BB0\u5FC6\u6587\u4EF6\uFF09",
+      lsp: "\u8BE2\u95EE\u8BED\u8A00\u670D\u52A1\u5668\uFF1A\u7B26\u53F7\u3001\u5F15\u7528\u3001\u5B9A\u4E49\u3001\u7C7B\u578B\u3001\u8BCA\u65AD\u6216\u8C03\u7528\u5C42\u7EA7",
+      browser: "\u63A7\u5236\u6D4F\u89C8\u5668\u7A97\u683C\uFF1Aopen\u3001read\u3001click\u3001type\u3001list\u3001close\u3001download",
+      web: "\u4ECE\u4E92\u8054\u7F51\u83B7\u53D6\uFF1Asearch\uFF08\u641C\u7D22\uFF09\u6216 fetch\uFF08\u83B7\u53D6\u5355\u4E2A URL \u7684\u5185\u5BB9\uFF09",
+      apply_patch: "\u4E00\u6B21\u8865\u4E01\u8C03\u7528\u4FEE\u6539\u591A\u4E2A\u6587\u4EF6\uFF08OpenCode \u683C\u5F0F\uFF09",
+      tunjuk: "\u6839\u636E\u81EA\u7531\u8868\u8FBE\u7684\u56F0\u6270\uFF0C\u6253\u5F00\u7528\u6237\u60F3\u8981\u7684\u9875\u9762\u6216\u9762\u677F",
+      kotak: "\u5728\u56DE\u7B54\u4E2D\u7ED8\u5236\u7ED3\u6784\u5316\u65B9\u6846\uFF1A\u6807\u9898\u3001\u6458\u8981\u3001\u6807\u7B7E/\u503C\u884C",
+      peta: "\u641C\u7D22 Zephyr \u5730\u56FE\uFF1A\u6807\u7B7E\u3001\u8BBE\u7F6E\u3001\u547D\u4EE4\u3001\u5FEB\u6377\u952E\u3001\u9762\u677F\u3001\u5DE5\u5177\u3001\u6587\u4EF6",
+      execute: "\u8FD0\u884C\u4E00\u6B21\u8C03\u7528\u591A\u4E2A\u5DE5\u5177\u7684\u811A\u672C\uFF08Code Mode\uFF09"
     };
     DESKRIPSI_TOOL_ES = {
       zephyr_kode: "Fragmentos con numeros de linea del propio codigo de Zephyr (baca-kode): un archivo, un rango de lineas o un simbolo",
-      lsp_symbols: "Lista los s\xEDmbolos de un archivo, con tipo y profundidad",
-      lsp_references: "Lugares que usan un s\xEDmbolo, seg\xFAn el servidor de lenguaje",
-      lsp_definition: "Ubicaci\xF3n de la definici\xF3n de un s\xEDmbolo",
-      lsp_hover: "Tipo y documentaci\xF3n del s\xEDmbolo en una posici\xF3n",
-      lsp_diagnostics: "Errores y advertencias del servidor de lenguaje para un archivo",
-      lsp_call_hierarchy: "Funciones que llaman y son llamadas por un s\xEDmbolo, seg\xFAn el servidor de lenguaje",
       skill_view: "Lee el contenido de una habilidad registrada, o lista las habilidades",
       tool_search: "Busca una herramienta que no est\xE1 en la lista principal (web, navegador, SSH, MCP, agenda)",
       tool_call: "Llama a una herramienta encontrada con tool_search",
@@ -29854,26 +29813,19 @@ var init_deskripsiTool = __esm({
       worktree: "Gestionar los worktrees de git",
       focus_pane: "Enfocar un panel sin hacer clic en \xE9l",
       pane: "Abrir, dividir, cerrar u organizar paneles",
-      web_search: "Buscar en internet",
-      web_fetch: "Obtener y limpiar una p\xE1gina web",
-      browser_open: "Abrir una URL en el panel del navegador visible",
-      browser_read: "Leer el contenido de la p\xE1gina en el panel del navegador",
-      browser_click: "Hacer clic en un elemento del panel del navegador",
-      browser_type: "Rellenar un campo del panel del navegador y pulsar Enter",
-      browser_list: "Listar los paneles del navegador abiertos",
-      browser_close: "Cerrar un panel del navegador",
-      browser_download_url: "Descargar una URL directamente a un archivo del espacio de trabajo",
       zephyr_self: "Inspeccionar el propio Zephyr desde fuentes de la app: ajustes actuales, registro, extensiones, documentos incluidos, versi\xF3n e \xEDndice de datos",
-      ingat: "Guardar, buscar y ordenar la memoria entre sesiones de Zeph AI (archivos de memoria global y por proyecto)"
+      ingat: "Guardar, buscar y ordenar la memoria entre sesiones de Zeph AI (archivos de memoria global y por proyecto)",
+      lsp: "Preguntar al servidor de lenguaje: s\xEDmbolos, referencias, definici\xF3n, tipo, diagn\xF3sticos o jerarqu\xEDa de llamadas",
+      browser: "Controlar el panel del navegador: open, read, click, type, list, close, download",
+      web: "Obtener de internet: search (buscar) o fetch (contenido de una URL)",
+      apply_patch: "Editar muchos archivos en una llamada de parche (formato OpenCode)",
+      tunjuk: "Abrir la p\xE1gina o el panel que el lector quiere, desde una queja libre",
+      kotak: "Dibujar un cuadro estructurado en la respuesta: t\xEDtulo, resumen, filas etiqueta/valor",
+      peta: "Buscar en el mapa de Zephyr: etiquetas, ajustes, comandos, atajos, paneles, herramientas, archivos",
+      execute: "Ejecutar un script que llama a varias herramientas a la vez (Code Mode)"
     };
     DESKRIPSI_TOOL_FR = {
       zephyr_kode: "Extraits avec numeros de ligne du code source de Zephyr (baca-kode) : un fichier, une plage de lignes ou un symbole",
-      lsp_symbols: "Liste les symboles d'un fichier, avec type et profondeur",
-      lsp_references: "Endroits qui utilisent un symbole, selon le serveur de langage",
-      lsp_definition: "Emplacement de la d\xE9finition d'un symbole",
-      lsp_hover: "Type et documentation du symbole \xE0 une position",
-      lsp_diagnostics: "Erreurs et avertissements du serveur de langage pour un fichier",
-      lsp_call_hierarchy: "Fonctions qui appellent et sont appel\xE9es par un symbole, selon le serveur de langage",
       skill_view: "Lit le contenu d'une comp\xE9tence enregistr\xE9e, ou liste les comp\xE9tences",
       tool_search: "Cherche un outil absent de la liste principale (web, navigateur, SSH, MCP, planning)",
       tool_call: "Appelle un outil trouv\xE9 via tool_search",
@@ -29905,26 +29857,19 @@ var init_deskripsiTool = __esm({
       worktree: "G\xE9rer les git worktrees",
       focus_pane: "Donner le focus \xE0 un volet sans cliquer",
       pane: "Ouvrir, diviser, fermer ou organiser les volets",
-      web_search: "Rechercher sur internet",
-      web_fetch: "R\xE9cup\xE9rer et nettoyer une page web",
-      browser_open: "Ouvrir une URL dans le volet navigateur visible",
-      browser_read: "Lire le contenu de la page dans le volet navigateur",
-      browser_click: "Cliquer sur un \xE9l\xE9ment du volet navigateur",
-      browser_type: "Remplir un champ du volet navigateur puis appuyer sur Entr\xE9e",
-      browser_list: "Lister les volets navigateur ouverts",
-      browser_close: "Fermer un volet navigateur",
-      browser_download_url: "T\xE9l\xE9charger une URL directement vers un fichier de l'espace de travail",
       zephyr_self: "Inspecter Zephyr lui-m\xEAme depuis les sources de l\u2019application : r\xE9glages actifs, journal, extensions, documents embarqu\xE9s, version, index des faits",
-      ingat: "Enregistrer, rechercher et ranger la m\xE9moire inter-sessions de Zeph AI (fichiers m\xE9moire globaux et par projet)"
+      ingat: "Enregistrer, rechercher et ranger la m\xE9moire inter-sessions de Zeph AI (fichiers m\xE9moire globaux et par projet)",
+      lsp: "Interroger le serveur de langage : symboles, r\xE9f\xE9rences, d\xE9finition, type, diagnostics ou hi\xE9rarchie des appels",
+      browser: "Contr\xF4ler le volet navigateur : open, read, click, type, list, close, download",
+      web: "R\xE9cup\xE9rer depuis internet : search (rechercher) ou fetch (contenu d'une URL)",
+      apply_patch: "Modifier plusieurs fichiers en un seul appel de patch (format OpenCode)",
+      tunjuk: "Ouvrir la page ou le volet voulu, \xE0 partir d'une plainte en langage libre",
+      kotak: "Dessiner un encadr\xE9 structur\xE9 dans la r\xE9ponse : titre, r\xE9sum\xE9, lignes libell\xE9/valeur",
+      peta: "Rechercher dans la carte Zephyr : libell\xE9s, r\xE9glages, commandes, raccourcis, panneaux, outils, fichiers",
+      execute: "Ex\xE9cuter un script qui appelle plusieurs outils \xE0 la fois (Code Mode)"
     };
     DESKRIPSI_TOOL_DE = {
       zephyr_kode: "Zeilenweise nummerierte Ausschnitte aus Zephyrs eigenem Quellcode (baca-kode): eine Datei, ein Zeilenbereich oder ein Symbol",
-      lsp_symbols: "Listet Symbole einer Datei mit Art und Tiefe auf",
-      lsp_references: "Stellen, die ein Symbol verwenden, laut Language Server",
-      lsp_definition: "Ort der Definition eines Symbols",
-      lsp_hover: "Typ und Dokumentation eines Symbols an einer Position",
-      lsp_diagnostics: "Fehler und Warnungen des Language Servers f\xFCr eine Datei",
-      lsp_call_hierarchy: "Funktionen, die ein Symbol aufrufen oder von ihm aufgerufen werden, laut Language Server",
       skill_view: "Liest den Inhalt eines registrierten Skills oder listet die Skills auf",
       tool_search: "Sucht ein Werkzeug, das nicht in der Hauptliste steht (Web, Browser, SSH, MCP, Zeitplan)",
       tool_call: "Ruft ein \xFCber tool_search gefundenes Werkzeug auf",
@@ -29956,26 +29901,19 @@ var init_deskripsiTool = __esm({
       worktree: "Git-Worktrees verwalten",
       focus_pane: "Ein Pane fokussieren, ohne es anzuklicken",
       pane: "Panes \xF6ffnen, teilen, schlie\xDFen oder anordnen",
-      web_search: "Das Internet durchsuchen",
-      web_fetch: "Eine einzelne Webseite abrufen und bereinigen",
-      browser_open: "Eine URL im sichtbaren Browser-Pane \xF6ffnen",
-      browser_read: "Den Seiteninhalt im Browser-Pane lesen",
-      browser_click: "Ein Element im Browser-Pane anklicken",
-      browser_type: "Ein Feld im Browser-Pane ausf\xFCllen und Enter dr\xFCcken",
-      browser_list: "Die ge\xF6ffneten Browser-Panes auflisten",
-      browser_close: "Ein Browser-Pane schlie\xDFen",
-      browser_download_url: "Eine URL direkt in eine Datei im Workspace herunterladen",
       zephyr_self: "Zephyr selbst aus app-eigenen Quellen pr\xFCfen: aktive Einstellungen, Log, Erweiterungen, mitgelieferte Doku, Version, Faktenindex",
-      ingat: "Sitzungs\xFCbergreifenden Speicher von Zeph AI speichern, durchsuchen und aufr\xE4umen (globale und projektspezifische Speicherdateien)"
+      ingat: "Sitzungs\xFCbergreifenden Speicher von Zeph AI speichern, durchsuchen und aufr\xE4umen (globale und projektspezifische Speicherdateien)",
+      lsp: "Den Language-Server fragen: Symbole, Referenzen, Definition, Typ, Diagnose oder Aufrufhierarchie",
+      browser: "Den Browser-Bereich steuern: open, read, click, type, list, close, download",
+      web: "Aus dem Internet holen: search (suchen) oder fetch (Inhalt einer URL)",
+      apply_patch: "Viele Dateien in einem Patch-Aufruf \xE4ndern (OpenCode-Format)",
+      tunjuk: "Die gemeinte Seite oder den Bereich aus einer freien Beschwerde \xF6ffnen",
+      kotak: "Eine strukturierte Box in der Antwort zeichnen: Titel, Zusammenfassung, Label/Wert-Zeilen",
+      peta: "Die Zephyr-Karte durchsuchen: Labels, Einstellungen, Befehle, Tastenk\xFCrzel, Bereiche, Werkzeuge, Dateien",
+      execute: "Ein Skript ausf\xFChren, das mehrere Werkzeuge auf einmal aufruft (Code Mode)"
     };
     DESKRIPSI_TOOL_PT = {
       zephyr_kode: "Trechos com numeros de linha do proprio codigo do Zephyr (baca-kode): um arquivo, um intervalo de linhas ou um simbolo",
-      lsp_symbols: "Lista os s\xEDmbolos de um arquivo, com tipo e profundidade",
-      lsp_references: "Locais que usam um s\xEDmbolo, segundo o servidor de linguagem",
-      lsp_definition: "Local da defini\xE7\xE3o de um s\xEDmbolo",
-      lsp_hover: "Tipo e documenta\xE7\xE3o do s\xEDmbolo em uma posi\xE7\xE3o",
-      lsp_diagnostics: "Erros e avisos do servidor de linguagem para um arquivo",
-      lsp_call_hierarchy: "Fun\xE7\xF5es que chamam e s\xE3o chamadas por um s\xEDmbolo, segundo o servidor de linguagem",
       skill_view: "L\xEA o conte\xFAdo de uma habilidade registrada, ou lista as habilidades",
       tool_search: "Procura uma ferramenta fora da lista principal (web, navegador, SSH, MCP, agenda)",
       tool_call: "Chama uma ferramenta encontrada via tool_search",
@@ -30007,26 +29945,19 @@ var init_deskripsiTool = __esm({
       worktree: "Gerenciar worktrees do git",
       focus_pane: "Focar um painel sem clicar nele",
       pane: "Abrir, dividir, fechar ou organizar pain\xE9is",
-      web_search: "Pesquisar na internet",
-      web_fetch: "Buscar e limpar uma p\xE1gina web",
-      browser_open: "Abrir uma URL no painel de navegador vis\xEDvel",
-      browser_read: "Ler o conte\xFAdo da p\xE1gina no painel de navegador",
-      browser_click: "Clicar em um elemento no painel de navegador",
-      browser_type: "Preencher um campo no painel de navegador e pressionar Enter",
-      browser_list: "Listar os pain\xE9is de navegador abertos",
-      browser_close: "Fechar um painel de navegador",
-      browser_download_url: "Baixar uma URL direto para um arquivo no workspace",
       zephyr_self: "Inspecionar o pr\xF3prio Zephyr a partir de fontes do app: configura\xE7\xF5es ativas, log, extens\xF5es, documentos inclu\xEDdos, vers\xE3o e \xEDndice de fatos",
-      ingat: "Salvar, pesquisar e organizar a mem\xF3ria entre sess\xF5es do Zeph AI (arquivos de mem\xF3ria global e por projeto)"
+      ingat: "Salvar, pesquisar e organizar a mem\xF3ria entre sess\xF5es do Zeph AI (arquivos de mem\xF3ria global e por projeto)",
+      lsp: "Perguntar ao servidor de linguagem: s\xEDmbolos, refer\xEAncias, defini\xE7\xE3o, tipo, diagn\xF3sticos ou hierarquia de chamadas",
+      browser: "Controlar o painel do navegador: open, read, click, type, list, close, download",
+      web: "Obter da internet: search (pesquisar) ou fetch (conte\xFAdo de uma URL)",
+      apply_patch: "Editar muitos arquivos em uma chamada de patch (formato OpenCode)",
+      tunjuk: "Abrir a p\xE1gina ou o painel que o leitor quer, a partir de uma queixa livre",
+      kotak: "Desenhar uma caixa estruturada na resposta: t\xEDtulo, resumo, linhas r\xF3tulo/valor",
+      peta: "Pesquisar no mapa do Zephyr: r\xF3tulos, ajustes, comandos, atalhos, pain\xE9is, ferramentas, arquivos",
+      execute: "Executar um script que chama v\xE1rias ferramentas de uma vez (Code Mode)"
     };
     DESKRIPSI_TOOL_AR = {
       zephyr_kode: "\u0645\u0642\u062A\u0637\u0641\u0627\u062A \u0645\u0631\u0642\u0645\u0629 \u0627\u0644\u0623\u0633\u0637\u0631 \u0645\u0646 \u0645\u0635\u062F\u0631 Zephyr \u0646\u0641\u0633\u0647 (baca-kode): \u0645\u0644\u0641 \u0648\u0627\u062D\u062F \u0623\u0648 \u0646\u0637\u0627\u0642 \u0623\u0633\u0637\u0631 \u0623\u0648 \u0631\u0645\u0632",
-      lsp_symbols: "\u064A\u0639\u0631\u0636 \u0631\u0645\u0648\u0632 \u0645\u0644\u0641 \u0645\u0639 \u0627\u0644\u0646\u0648\u0639 \u0648\u0627\u0644\u0639\u0645\u0642",
-      lsp_references: "\u0627\u0644\u0623\u0645\u0627\u0643\u0646 \u0627\u0644\u062A\u064A \u062A\u0633\u062A\u062E\u062F\u0645 \u0631\u0645\u0632\u064B\u0627\u060C \u0648\u0641\u0642 \u062E\u0627\u062F\u0645 \u0627\u0644\u0644\u063A\u0629",
-      lsp_definition: "\u0645\u0648\u0642\u0639 \u062A\u0639\u0631\u064A\u0641 \u0627\u0644\u0631\u0645\u0632",
-      lsp_hover: "\u0646\u0648\u0639 \u0627\u0644\u0631\u0645\u0632 \u0648\u062A\u0648\u062B\u064A\u0642\u0647 \u0641\u064A \u0645\u0648\u0636\u0639 \u0648\u0627\u062D\u062F",
-      lsp_diagnostics: "\u0623\u062E\u0637\u0627\u0621 \u0648\u062A\u062D\u0630\u064A\u0631\u0627\u062A \u062E\u0627\u062F\u0645 \u0627\u0644\u0644\u063A\u0629 \u0644\u0645\u0644\u0641",
-      lsp_call_hierarchy: "\u0627\u0644\u062F\u0648\u0627\u0644 \u0627\u0644\u062A\u064A \u062A\u0633\u062A\u062F\u0639\u064A \u0631\u0645\u0632\u064B\u0627 \u0623\u0648 \u064A\u064F\u0633\u062A\u062F\u0639\u0649 \u0628\u0647\u0627\u060C \u0648\u0641\u0642 \u062E\u0627\u062F\u0645 \u0627\u0644\u0644\u063A\u0629",
       skill_view: "\u064A\u0642\u0631\u0623 \u0645\u062D\u062A\u0648\u0649 \u0645\u0647\u0627\u0631\u0629 \u0645\u0633\u062C\u0644\u0629\u060C \u0623\u0648 \u064A\u0639\u0631\u0636 \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062A",
       tool_search: "\u064A\u0628\u062D\u062B \u0639\u0646 \u0623\u062F\u0627\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629 (\u0648\u064A\u0628\u060C \u0645\u062A\u0635\u0641\u062D\u060C SSH\u060C MCP\u060C \u062C\u062F\u0648\u0644)",
       tool_call: "\u064A\u0633\u062A\u062F\u0639\u064A \u0623\u062F\u0627\u0629 \u0639\u064F\u062B\u0631 \u0639\u0644\u064A\u0647\u0627 \u0639\u0628\u0631 tool_search",
@@ -30058,17 +29989,16 @@ var init_deskripsiTool = __esm({
       worktree: "\u064A\u062F\u064A\u0631 \u0623\u0634\u062C\u0627\u0631 \u0639\u0645\u0644 git",
       focus_pane: "\u064A\u0631\u0643\u0651\u0632 \u0639\u0644\u0649 \u062C\u0632\u0621 \u062F\u0648\u0646 \u0627\u0644\u0646\u0642\u0631 \u0639\u0644\u064A\u0647",
       pane: "\u064A\u0641\u062A\u062D \u0627\u0644\u0623\u062C\u0632\u0627\u0621 \u0623\u0648 \u064A\u0642\u0633\u0651\u0645\u0647\u0627 \u0623\u0648 \u064A\u063A\u0644\u0642\u0647\u0627 \u0623\u0648 \u064A\u0631\u062A\u0628\u0647\u0627",
-      web_search: "\u064A\u0628\u062D\u062B \u0641\u064A \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A",
-      web_fetch: "\u064A\u062C\u0644\u0628 \u0635\u0641\u062D\u0629 \u0648\u064A\u0628 \u0648\u0627\u062D\u062F\u0629 \u0648\u064A\u0646\u0638\u0651\u0641 \u0645\u062D\u062A\u0648\u0627\u0647\u0627",
-      browser_open: "\u064A\u0641\u062A\u062D \u0631\u0627\u0628\u0637\u0627\u064B \u0641\u064A \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D \u0627\u0644\u0638\u0627\u0647\u0631",
-      browser_read: "\u064A\u0642\u0631\u0623 \u0645\u062D\u062A\u0648\u0649 \u0627\u0644\u0635\u0641\u062D\u0629 \u0641\u064A \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D",
-      browser_click: "\u064A\u0646\u0642\u0631 \u0639\u0646\u0635\u0631\u0627\u064B \u0641\u064A \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D",
-      browser_type: "\u064A\u0645\u0644\u0623 \u062D\u0642\u0644\u0627\u064B \u0641\u064A \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D \u062B\u0645 \u064A\u0636\u063A\u0637 Enter",
-      browser_list: "\u064A\u0633\u0631\u062F \u0623\u062C\u0632\u0627\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629",
-      browser_close: "\u064A\u063A\u0644\u0642 \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D",
-      browser_download_url: "\u064A\u0646\u0632\u0651\u0644 \u0631\u0627\u0628\u0637\u0627\u064B \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0641\u064A \u0645\u0633\u0627\u062D\u0629 \u0627\u0644\u0639\u0645\u0644",
       zephyr_self: "\u0627\u0641\u062D\u0635 Zephyr \u0646\u0641\u0633\u0647 \u0645\u0646 \u0645\u0635\u0627\u062F\u0631 \u0627\u0644\u062A\u0637\u0628\u064A\u0642: \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0648\u0627\u0644\u0633\u062C\u0644 \u0648\u0627\u0644\u0625\u0636\u0627\u0641\u0627\u062A \u0648\u0627\u0644\u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0627\u0644\u0645\u0636\u0645\u0651\u0646\u0629 \u0648\u0627\u0644\u0625\u0635\u062F\u0627\u0631 \u0648\u0641\u0647\u0631\u0633 \u0627\u0644\u062D\u0642\u0627\u0626\u0642",
-      ingat: "\u0627\u062D\u0641\u0638 \u0648\u0627\u0628\u062D\u062B \u0648\u0646\u0638\u0651\u0645 \u0630\u0627\u0643\u0631\u0629 Zeph AI \u0639\u0628\u0631 \u0627\u0644\u062C\u0644\u0633\u0627\u062A (\u0645\u0644\u0641\u0627\u062A \u0630\u0627\u0643\u0631\u0629 \u0639\u0627\u0645\u0629 \u0648\u0644\u0643\u0644 \u0645\u0634\u0631\u0648\u0639)"
+      ingat: "\u0627\u062D\u0641\u0638 \u0648\u0627\u0628\u062D\u062B \u0648\u0646\u0638\u0651\u0645 \u0630\u0627\u0643\u0631\u0629 Zeph AI \u0639\u0628\u0631 \u0627\u0644\u062C\u0644\u0633\u0627\u062A (\u0645\u0644\u0641\u0627\u062A \u0630\u0627\u0643\u0631\u0629 \u0639\u0627\u0645\u0629 \u0648\u0644\u0643\u0644 \u0645\u0634\u0631\u0648\u0639)",
+      lsp: "\u0627\u0633\u0623\u0644 \u062E\u0627\u062F\u0645 \u0627\u0644\u0644\u063A\u0629: \u0627\u0644\u0631\u0645\u0648\u0632\u060C \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u060C \u0627\u0644\u062A\u0639\u0631\u064A\u0641\u060C \u0627\u0644\u0646\u0648\u0639\u060C \u0627\u0644\u062A\u0634\u062E\u064A\u0635\u0627\u062A\u060C \u0623\u0648 \u062A\u0633\u0644\u0633\u0644 \u0627\u0644\u0646\u062F\u0627\u0621\u0627\u062A",
+      browser: "\u062A\u062D\u0643\u0645 \u0641\u064A \u062C\u0632\u0621 \u0627\u0644\u0645\u062A\u0635\u0641\u062D: open\u060C read\u060C click\u060C type\u060C list\u060C close\u060C download",
+      web: "\u0627\u062C\u0644\u0628 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A: search (\u0628\u062D\u062B) \u0623\u0648 fetch (\u0645\u062D\u062A\u0648\u0649 \u0631\u0627\u0628\u0637 \u0648\u0627\u062D\u062F)",
+      apply_patch: "\u0639\u062F\u0651\u0644 \u0645\u0644\u0641\u0627\u062A \u0643\u062B\u064A\u0631\u0629 \u0641\u064A \u0646\u062F\u0627\u0621 \u062A\u0635\u062D\u064A\u062D \u0648\u0627\u062D\u062F (\u0635\u064A\u063A\u0629 OpenCode)",
+      tunjuk: "\u0627\u0641\u062A\u062D \u0627\u0644\u0635\u0641\u062D\u0629 \u0623\u0648 \u0627\u0644\u062C\u0632\u0621 \u0627\u0644\u0645\u0642\u0635\u0648\u062F \u0645\u0646 \u0634\u0643\u0648\u0649 \u0628\u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u062D\u0631\u0629",
+      kotak: "\u0627\u0631\u0633\u0645 \u0635\u0646\u062F\u0648\u0642\u0627\u064B \u0645\u0646\u0638\u0651\u0645\u0627\u064B \u0641\u064A \u0627\u0644\u0625\u062C\u0627\u0628\u0629: \u0639\u0646\u0648\u0627\u0646\u060C \u0645\u0644\u062E\u0635\u060C \u0635\u0641\u0648\u0641 \u062A\u0633\u0645\u064A\u0629/\u0642\u064A\u0645\u0629",
+      peta: "\u0627\u0628\u062D\u062B \u0641\u064A \u062E\u0631\u064A\u0637\u0629 Zephyr: \u0627\u0644\u062A\u0633\u0645\u064A\u0627\u062A\u060C \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A\u060C \u0627\u0644\u0623\u0648\u0627\u0645\u0631\u060C \u0627\u0644\u0627\u062E\u062A\u0635\u0627\u0631\u0627\u062A\u060C \u0627\u0644\u0623\u062C\u0632\u0627\u0621\u060C \u0627\u0644\u0623\u062F\u0648\u0627\u062A\u060C \u0627\u0644\u0645\u0644\u0641\u0627\u062A",
+      execute: "\u0634\u063A\u0651\u0644 \u0646\u0635\u0627\u064B \u064A\u0633\u062A\u062F\u0639\u064A \u0639\u062F\u0629 \u0623\u062F\u0648\u0627\u062A \u062F\u0641\u0639\u0629 \u0648\u0627\u062D\u062F\u0629 (Code Mode)"
     };
     PETA_DESKRIPSI = {
       id: DESKRIPSI_TOOL_ID,
@@ -30490,7 +30420,20 @@ var init_catalog = __esm({
        * `tool_search` -> `tool_call`.
        */
       "browser",
-      "web"
+      "web",
+      /*
+       * `open_link` ikut SETIAP giliran.
+       *
+       * Permintaan langsung pemilik aplikasi: kalau percakapan menyebut sebuah
+       * tautan - repo, dokumentasi, hasil pencarian - tautan itu dibuka di browser
+       * yang dipakai orangnya, bukan sekadar dituliskan sebagai teks. Tool ini
+       * harus ADA di tangan model pada giliran pertama; kalau harus dicari lewat
+       * `tool_search` dulu, jawabannya datang setelah pembaca sudah membuka
+       * browsernya sendiri.
+       *
+       * Murah: satu parameter, tanpa state, dan gate-nya sama dengan pane browser.
+       */
+      "open_link"
     ];
   }
 });
@@ -55693,6 +55636,13 @@ var init_i18n = __esm({
       "settings.general": "Umum",
       "settings.editor": "Editor Kode",
       "settings.theme": "Tema",
+      "settings.icons": "Ikon",
+      "Generating\u2026": "Membuat\u2026",
+      "Generate": "Buat",
+      "Create With Plan": "Buat Dengan Rencana",
+      "Source": "Sumber",
+      "Outline": "Garis Besar",
+      "Timeline": "Lini Masa",
       "theme.description": "Tema mengubah antarmuka, editor, dan terminal sekaligus. Mode di bagian Umum (terang/gelap) lebih diutamakan daripada pilihan di sini. Memilih tema gelap dalam mode terang akan mengembalikannya ke Zephyr Light.",
       "theme.accent": "Warna aksen",
       "theme.accentHint": "kosongkan untuk memakai warna tema",
@@ -56118,6 +56068,13 @@ var init_i18n = __esm({
       "settings.general": "General",
       "settings.editor": "Code Editor",
       "settings.theme": "Theme",
+      "settings.icons": "Icons",
+      "Generating\u2026": "Generating\u2026",
+      "Generate": "Generate",
+      "Create With Plan": "Create With Plan",
+      "Source": "Source",
+      "Outline": "Outline",
+      "Timeline": "Timeline",
       "theme.description": "A theme changes the UI, editor, and terminal at once. The mode in General (light/dark) takes priority over this choice. Choosing a dark theme in light mode switches back to Zephyr Light.",
       "theme.accent": "Accent color",
       "theme.accentHint": "leave empty to use the theme color",
@@ -56543,6 +56500,13 @@ var init_i18n = __esm({
       "settings.general": "\u4E00\u822C",
       "settings.editor": "\u30B3\u30FC\u30C9\u30A8\u30C7\u30A3\u30BF\u30FC",
       "settings.theme": "\u30C6\u30FC\u30DE",
+      "settings.icons": "\u30A2\u30A4\u30B3\u30F3",
+      "Generating\u2026": "\u751F\u6210\u4E2D\u2026",
+      "Generate": "\u751F\u6210",
+      "Create With Plan": "\u30D7\u30E9\u30F3\u3067\u4F5C\u6210",
+      "Source": "\u30BD\u30FC\u30B9",
+      "Outline": "\u30A2\u30A6\u30C8\u30E9\u30A4\u30F3",
+      "Timeline": "\u30BF\u30A4\u30E0\u30E9\u30A4\u30F3",
       "theme.description": "\u30C6\u30FC\u30DE\u306FUI\u3001\u30A8\u30C7\u30A3\u30BF\u30FC\u3001\u30BF\u30FC\u30DF\u30CA\u30EB\u3092\u307E\u3068\u3081\u3066\u5909\u66F4\u3057\u307E\u3059\u3002\u300C\u4E00\u822C\u300D\u306E\u30E2\u30FC\u30C9\uFF08\u30E9\u30A4\u30C8/\u30C0\u30FC\u30AF\uFF09\u306F\u3053\u3053\u306E\u9078\u629E\u3088\u308A\u512A\u5148\u3055\u308C\u307E\u3059\u3002\u30E9\u30A4\u30C8\u30E2\u30FC\u30C9\u3067\u30C0\u30FC\u30AF\u30C6\u30FC\u30DE\u3092\u9078\u3076\u3068 Zephyr Light \u306B\u623B\u308A\u307E\u3059\u3002",
       "theme.accent": "\u30A2\u30AF\u30BB\u30F3\u30C8\u30AB\u30E9\u30FC",
       "theme.accentHint": "\u7A7A\u6B04\u306B\u3059\u308B\u3068\u30C6\u30FC\u30DE\u306E\u8272\u3092\u4F7F\u7528\u3057\u307E\u3059",
@@ -56968,6 +56932,13 @@ var init_i18n = __esm({
       "settings.general": "\uC77C\uBC18",
       "settings.editor": "\uCF54\uB4DC \uD3B8\uC9D1\uAE30",
       "settings.theme": "\uD14C\uB9C8",
+      "settings.icons": "\uC544\uC774\uCF58",
+      "Generating\u2026": "\uC0DD\uC131 \uC911\u2026",
+      "Generate": "\uC0DD\uC131",
+      "Create With Plan": "\uACC4\uD68D\uC73C\uB85C \uC0DD\uC131",
+      "Source": "\uCD9C\uCC98",
+      "Outline": "\uAC1C\uC694",
+      "Timeline": "\uD0C0\uC784\uB77C\uC778",
       "theme.description": "\uD14C\uB9C8\uB294 UI, \uD3B8\uC9D1\uAE30, \uD130\uBBF8\uB110\uC744 \uD55C \uBC88\uC5D0 \uBC14\uAFC9\uB2C8\uB2E4. \uC77C\uBC18\uC758 \uBAA8\uB4DC(\uB77C\uC774\uD2B8/\uB2E4\uD06C)\uAC00 \uC5EC\uAE30\uC11C \uACE0\uB978 \uAC83\uBCF4\uB2E4 \uC6B0\uC120\uD569\uB2C8\uB2E4. \uB77C\uC774\uD2B8 \uBAA8\uB4DC\uC5D0\uC11C \uB2E4\uD06C \uD14C\uB9C8\uB97C \uACE0\uB974\uBA74 Zephyr Light\uB85C \uB3CC\uC544\uAC11\uB2C8\uB2E4.",
       "theme.accent": "\uAC15\uC870 \uC0C9\uC0C1",
       "theme.accentHint": "\uBE44\uC6CC \uB450\uBA74 \uD14C\uB9C8 \uC0C9\uC0C1\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4",
@@ -57393,6 +57364,13 @@ var init_i18n = __esm({
       "settings.general": "\u901A\u7528",
       "settings.editor": "\u4EE3\u7801\u7F16\u8F91\u5668",
       "settings.theme": "\u4E3B\u9898",
+      "settings.icons": "\u56FE\u6807",
+      "Generating\u2026": "\u751F\u6210\u4E2D\u2026",
+      "Generate": "\u751F\u6210",
+      "Create With Plan": "\u6309\u8BA1\u5212\u521B\u5EFA",
+      "Source": "\u6765\u6E90",
+      "Outline": "\u5927\u7EB2",
+      "Timeline": "\u65F6\u95F4\u7EBF",
       "theme.description": "\u4E3B\u9898\u4F1A\u540C\u65F6\u6539\u53D8\u754C\u9762\u3001\u7F16\u8F91\u5668\u548C\u7EC8\u7AEF\u3002\u901A\u7528\u4E2D\u7684\u6A21\u5F0F\uFF08\u6D45\u8272/\u6DF1\u8272\uFF09\u4F18\u5148\u4E8E\u6B64\u5904\u7684\u9009\u62E9\u3002\u5728\u6D45\u8272\u6A21\u5F0F\u4E0B\u9009\u62E9\u6DF1\u8272\u4E3B\u9898\u4F1A\u5207\u56DE Zephyr Light\u3002",
       "theme.accent": "\u5F3A\u8C03\u8272",
       "theme.accentHint": "\u7559\u7A7A\u5219\u4F7F\u7528\u4E3B\u9898\u989C\u8272",
@@ -57818,6 +57796,13 @@ var init_i18n = __esm({
       "settings.general": "General",
       "settings.editor": "Editor de c\xF3digo",
       "settings.theme": "Tema",
+      "settings.icons": "Iconos",
+      "Generating\u2026": "Generando\u2026",
+      "Generate": "Generar",
+      "Create With Plan": "Crear con plan",
+      "Source": "Origen",
+      "Outline": "Esquema",
+      "Timeline": "Cronolog\xEDa",
       "theme.description": "Un tema cambia la interfaz, el editor y la terminal a la vez. El modo en General (claro/oscuro) tiene prioridad sobre esta elecci\xF3n. Elegir un tema oscuro en modo claro vuelve a Zephyr Light.",
       "theme.accent": "Color de acento",
       "theme.accentHint": "d\xE9jalo vac\xEDo para usar el color del tema",
@@ -58243,6 +58228,13 @@ var init_i18n = __esm({
       "settings.general": "G\xE9n\xE9ral",
       "settings.editor": "\xC9diteur de code",
       "settings.theme": "Th\xE8me",
+      "settings.icons": "Ic\xF4nes",
+      "Generating\u2026": "G\xE9n\xE9ration\u2026",
+      "Generate": "G\xE9n\xE9rer",
+      "Create With Plan": "Cr\xE9er avec plan",
+      "Source": "Source",
+      "Outline": "Plan",
+      "Timeline": "Chronologie",
       "theme.description": "Un th\xE8me change \xE0 la fois l\u2019interface, l\u2019\xE9diteur et le terminal. Le mode dans G\xE9n\xE9ral (clair/sombre) prime sur ce choix. Choisir un th\xE8me sombre en mode clair revient \xE0 Zephyr Light.",
       "theme.accent": "Couleur d\u2019accent",
       "theme.accentHint": "laisser vide pour utiliser la couleur du th\xE8me",
@@ -58668,6 +58660,13 @@ var init_i18n = __esm({
       "settings.general": "Allgemein",
       "settings.editor": "Code-Editor",
       "settings.theme": "Design",
+      "settings.icons": "Symbole",
+      "Generating\u2026": "Wird erzeugt\u2026",
+      "Generate": "Erzeugen",
+      "Create With Plan": "Mit Plan erstellen",
+      "Source": "Quelle",
+      "Outline": "Gliederung",
+      "Timeline": "Zeitleiste",
       "theme.description": "Ein Design \xE4ndert Oberfl\xE4che, Editor und Terminal zugleich. Der Modus unter Allgemein (hell/dunkel) hat Vorrang vor dieser Auswahl. Ein dunkles Design im hellen Modus wechselt zur\xFCck zu Zephyr Light.",
       "theme.accent": "Akzentfarbe",
       "theme.accentHint": "leer lassen, um die Designfarbe zu verwenden",
@@ -59093,6 +59092,13 @@ var init_i18n = __esm({
       "settings.general": "Geral",
       "settings.editor": "Editor de c\xF3digo",
       "settings.theme": "Tema",
+      "settings.icons": "\xCDcones",
+      "Generating\u2026": "Gerando\u2026",
+      "Generate": "Gerar",
+      "Create With Plan": "Criar com plano",
+      "Source": "Origem",
+      "Outline": "Estrutura",
+      "Timeline": "Linha do tempo",
       "theme.description": "Um tema muda a interface, o editor e o terminal de uma vez. O modo em Geral (claro/escuro) tem prioridade sobre esta escolha. Escolher um tema escuro no modo claro volta para o Zephyr Light.",
       "theme.accent": "Cor de destaque",
       "theme.accentHint": "deixe vazio para usar a cor do tema",
@@ -59518,6 +59524,13 @@ var init_i18n = __esm({
       "settings.general": "\u0639\u0627\u0645",
       "settings.editor": "\u0645\u062D\u0631\u0631 \u0627\u0644\u0623\u0643\u0648\u0627\u062F",
       "settings.theme": "\u0627\u0644\u0633\u0645\u0629",
+      "settings.icons": "\u0627\u0644\u0623\u064A\u0642\u0648\u0646\u0627\u062A",
+      "Generating\u2026": "\u062C\u0627\u0631\u064D \u0627\u0644\u0625\u0646\u0634\u0627\u0621\u2026",
+      "Generate": "\u0625\u0646\u0634\u0627\u0621",
+      "Create With Plan": "\u0625\u0646\u0634\u0627\u0621 \u0628\u062E\u0637\u0629",
+      "Source": "\u0627\u0644\u0645\u0635\u062F\u0631",
+      "Outline": "\u0627\u0644\u0645\u062E\u0637\u0637",
+      "Timeline": "\u0627\u0644\u062C\u062F\u0648\u0644 \u0627\u0644\u0632\u0645\u0646\u064A",
       "theme.description": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0633\u0645\u0629 \u0627\u0644\u0648\u0627\u062C\u0647\u0629 \u0648\u0627\u0644\u0645\u062D\u0631\u0631 \u0648\u0627\u0644\u0637\u0631\u0641\u064A\u0629 \u0645\u0639\u064B\u0627. \u0627\u0644\u0648\u0636\u0639 \u0641\u064A \xAB\u0639\u0627\u0645\xBB (\u0641\u0627\u062A\u062D/\u062F\u0627\u0643\u0646) \u0644\u0647 \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0627\u062E\u062A\u064A\u0627\u0631. \u0627\u062E\u062A\u064A\u0627\u0631 \u0633\u0645\u0629 \u062F\u0627\u0643\u0646\u0629 \u0641\u064A \u0627\u0644\u0648\u0636\u0639 \u0627\u0644\u0641\u0627\u062A\u062D \u064A\u0639\u064A\u062F\u0647\u0627 \u0625\u0644\u0649 Zephyr Light.",
       "theme.accent": "\u0644\u0648\u0646 \u0627\u0644\u062A\u0645\u064A\u064A\u0632",
       "theme.accentHint": "\u0627\u062A\u0631\u0643\u0647 \u0641\u0627\u0631\u063A\u064B\u0627 \u0644\u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0644\u0648\u0646 \u0627\u0644\u0633\u0645\u0629",
@@ -60095,7 +60108,7 @@ var init_zephyrIndeks = __esm({
     "use strict";
     init_define_import_meta_env();
     FAKTA_KATEGORI = ["bridge", "dokumen", "ekstensi", "kode", "label", "layar", "menu", "panel", "perintah", "pintasan", "port", "seksi", "setelan", "tool"];
-    FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "6f116afb7119f3a3" };
+    FAKTA_VERSI = { aplikasi: "1.1.14", hashSumber: "b74d30b649dde7a9" };
     FAKTA_HASH_BERKAS = [
       "package.json",
       "src-tauri/tauri.conf.json",
@@ -60128,6 +60141,7 @@ var init_zephyrIndeks = __esm({
       "src/AgentsWindow.tsx",
       "src/AiWindow.tsx",
       "src/App.tsx",
+      "src/PanelWindow.tsx",
       "src/components/a11y/LiveRegion.tsx",
       "src/components/agents/AgentsBrowser.tsx",
       "src/components/agents/AgentsChanges.tsx",
@@ -60146,7 +60160,6 @@ var init_zephyrIndeks = __esm({
       "src/components/ai/ChatHeadActions.tsx",
       "src/components/ai/ChatMessage.tsx",
       "src/components/ai/ChatSettingsPage.tsx",
-      "src/components/ai/ChatSettingsPopup.tsx",
       "src/components/ai/ChatStamp.tsx",
       "src/components/ai/ClearChatsDialog.tsx",
       "src/components/ai/CliAgentBar.tsx",
@@ -60215,6 +60228,7 @@ var init_zephyrIndeks = __esm({
       "src/components/explorer/OutlinePanel.tsx",
       "src/components/explorer/SearchEditorView.tsx",
       "src/components/explorer/SearchPanel.tsx",
+      "src/components/explorer/SectionLipat.tsx",
       "src/components/explorer/TimelineView.tsx",
       "src/components/extensions/ExtApprovalModal.tsx",
       "src/components/extensions/ExtensionsView.tsx",
@@ -60227,8 +60241,8 @@ var init_zephyrIndeks = __esm({
       "src/components/settings/AccessibilitySection.tsx",
       "src/components/settings/AgcSections.tsx",
       "src/components/settings/AgcToolList.tsx",
-      "src/components/settings/AgentCustomModal.tsx",
-      "src/components/settings/AiModelsModal.tsx",
+      "src/components/settings/AgentCustomPage.tsx",
+      "src/components/settings/AiModelsPage.tsx",
       "src/components/settings/AiModelsTable.tsx",
       "src/components/settings/AlatIkon.tsx",
       "src/components/settings/BrandLogos.tsx",
@@ -60236,6 +60250,7 @@ var init_zephyrIndeks = __esm({
       "src/components/settings/CommandPermissions.tsx",
       "src/components/settings/DevEnvSettingsSection.tsx",
       "src/components/settings/DevUpdateSection.tsx",
+      "src/components/settings/IkonTemaSection.tsx",
       "src/components/settings/LanguageServersSection.tsx",
       "src/components/settings/McpPanel.tsx",
       "src/components/settings/MemoriPanel.tsx",
@@ -60272,6 +60287,7 @@ var init_zephyrIndeks = __esm({
       "src/components/shell/OutputView.tsx",
       "src/components/shell/Panel.tsx",
       "src/components/shell/PanelTabStrip.tsx",
+      "src/components/shell/PanelTitleBar.tsx",
       "src/components/shell/Popover.tsx",
       "src/components/shell/PortsView.tsx",
       "src/components/shell/ProblemsView.tsx",
@@ -60286,6 +60302,7 @@ var init_zephyrIndeks = __esm({
       "src/components/shell/Tip.tsx",
       "src/components/shell/ToolsView.tsx",
       "src/components/shell/UpdateBanner.tsx",
+      "src/components/shell/WelcomeSetup.tsx",
       "src/components/shell/WindowControls.tsx",
       "src/components/shell/ZephyrLogo.tsx",
       "src/components/terminal/BrowserPane.tsx",
@@ -60438,8 +60455,12 @@ var init_zephyrIndeks = __esm({
       ["ekstensi", "zephyr.snippet-react", "ekstensi bawaan \xB7 Snippet React + TS \xB7 kategori Snippets"],
       ["ekstensi", "zephyr.snippet-rust", "ekstensi bawaan \xB7 Snippet Rust \xB7 kategori Snippets"],
       ["ekstensi", "zephyr.snippet-sql", "ekstensi bawaan \xB7 Snippet SQL \xB7 kategori Snippets"],
+      ["ekstensi", "zephyr.tema-hutan", "ekstensi bawaan \xB7 Tema Hutan \xB7 kategori Themes"],
       ["ekstensi", "zephyr.tema-kertas", "ekstensi bawaan \xB7 Paper Theme \xB7 kategori Themes"],
       ["ekstensi", "zephyr.tema-malam", "ekstensi bawaan \xB7 Night Theme \xB7 kategori Themes"],
+      ["ekstensi", "zephyr.tema-monokrom", "ekstensi bawaan \xB7 Tema Monokrom \xB7 kategori Themes"],
+      ["ekstensi", "zephyr.tema-samudra", "ekstensi bawaan \xB7 Tema Samudra \xB7 kategori Themes"],
+      ["ekstensi", "zephyr.tema-senja-muda", "ekstensi bawaan \xB7 Tema Senja Muda \xB7 kategori Themes"],
       ["kode", "src-tauri/src/adapters/anthropic.rs", "742 baris \xB7 ekspor: thinking_field, butuh_budget, prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
       ["kode", "src-tauri/src/adapters/gemini.rs", "355 baris \xB7 ekspor: prepare, prepare_tools, parse_tool_response, extract_reasoning, extract_delta, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
       ["kode", "src-tauri/src/adapters/mod.rs", "202 baris \xB7 ekspor: split_data_url, prepare, extract_delta, extract_reasoning, extract_usage, trim_base, prepare_tools, parse_tool_response, prepare_tools_stream, StreamAcc, new, feed, feed_reasoning, reasoning_parts, finish"],
@@ -60447,7 +60468,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/adapters/xml_tools.rs", "855 baris \xB7 ekspor: normalisasi_penanda, posisi_aman, mungkin_awal_tag, mengandung_tool_call, bersihkan_teks, parse_teks"],
       ["kode", "src-tauri/src/agent_exec.rs", "344 baris \xB7 ekspor: ExecResult, agent_exec"],
       ["kode", "src-tauri/src/agent_patch.rs", "126 baris \xB7 ekspor: PatchResult, file_patch"],
-      ["kode", "src-tauri/src/agents.rs", "76 baris \xB7 ekspor: AgentInfo, list_agents, find_exe_for_test"],
+      ["kode", "src-tauri/src/agents.rs", "195 baris \xB7 ekspor: AgentInfo, list_agents, find_exe_for_test"],
       ["kode", "src-tauri/src/ai.rs", "2253 baris \xB7 ekspor: ChatMsg, all_images, ToolCall, AgentMsg, ToolSpec, AiToolResult, Prepared, CapturedRequest, CapturedToolCallDiagnostic, rekam_request, ReasoningEffort, openai, anthropic_budget, anthropic_effort, gemini_budget, TolakTerakhir, tolak_terakhir, ai_chat, ai_cancel, ai_tool_chat, ai_penolakan_terakhir, ai_tool_chat_stream, ai_capture_set, ai_capture_get, ai_capture_clear"],
       ["kode", "src-tauri/src/api_client.rs", "299 baris \xB7 //! API client: the HTTP and GraphQL side of the editor. \xB7 ekspor: HttpHeader, HttpPermintaan, HttpJawaban, http_request, graphql_body, graphql_errors"],
       ["kode", "src-tauri/src/app_state.rs", "905 baris \xB7 ekspor: AppState, FileIndex, PerfMark, McpRuntime, GitPermit, AiRequestGuard, new, uptime_ms, perf_mark, perf_marks, bump, counters, git_permit, ext_store_code, ext_code_len, mcp_set_runtime, mcp_take_runtime, mcp_port, mcp_requested_port, mcp_set_token, mcp_token, mcp_uptime_ms, mcp_register, mcp_set_ui_ready, mcp_ui_ready, mcp_resolve, mcp_forget, mcp_fail_pending, mcp_lock, ai_begin, ai_begin_guard, ai_cancel, pty_insert, pty_exists, pty_get, pty_remove, pty_list, pty_count, with_pty, render_paused_flag, \u2026(+31)"],
@@ -60472,10 +60493,10 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/discord_rpc.rs", "142 baris \xB7 ekspor: start, stop"],
       ["kode", "src-tauri/src/errors.rs", "90 baris \xB7 ekspor: ZephyrError, code, ZResult"],
       ["kode", "src-tauri/src/explorer.rs", "610 baris \xB7 ekspor: DirNode, scan_dir, fs_watch, fs_unwatch, SearchHit, SearchResult, QuickFile, list_workspace_files, workspace_file_index_clear, search_files, replace_in_file, reveal_path, is_ignored_for_test, build_regex_for_test, scan_names_for_test"],
-      ["kode", "src-tauri/src/ext_bundled.rs", "1715 baris \xB7 ekspor: extensions_write_bundled, extensions_bundled_ids, index_bundled"],
-      ["kode", "src-tauri/src/ext_bundled_extra.rs", "542 baris \xB7 Extra bundled packages: icon themes, keymaps, snippets. \xB7 tanpa ekspor"],
+      ["kode", "src-tauri/src/ext_bundled.rs", "3907 baris \xB7 ekspor: extensions_write_bundled, extensions_bundled_ids, index_bundled"],
+      ["kode", "src-tauri/src/ext_bundled_extra.rs", "4053 baris \xB7 Extra bundled packages: icon themes, keymaps, snippets. \xB7 tanpa ekspor"],
       ["kode", "src-tauri/src/ext_lang_icons.rs", "64 baris \xB7 ekspor: LOGO_URI"],
-      ["kode", "src-tauri/src/ext_pkg.rs", "2907 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, ContribDebugger, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, IZIN_UNDUH, izin_unduh, hash_sha256, normalisasi_hash, \u2026(+2)"],
+      ["kode", "src-tauri/src/ext_pkg.rs", "2980 baris \xB7 ekspor: MANIFEST_NATIVE, id_aman, pastikan_id_aman, ContribTheme, ContribKeymap, ContribSnippet, ContribLanguage, ContribIconTheme, ContribDebugger, Contributes, ExtManifest, read_manifest, resolve_in_ext, KontribItem, Pengaruh, ada_didukung, TOLAK_PENANDA, pengaruh_paket, tolak_paket, InstalledEntry, installed_file, read_installed, write_installed, InstallHasil, extensions_install, extensions_uninstall, extensions_set_enabled, extensions_read_contrib, extensions_read_main, extensions_read_files, ext_dir_of, ext_which, ExtExecResult, ext_exec, extensions_manifests, ExtManifestStatus, IZIN_UNDUH, izin_unduh, hash_sha256, normalisasi_hash, \u2026(+2)"],
       ["kode", "src-tauri/src/ext_registry.rs", "385 baris \xB7 ekspor: IndexEntry, registry_file, registry_dir, parse_index_pub, ext_registry_list, ext_registry_save, ext_registry_read, ext_registry_installed, ext_registry_url_diizinkan"],
       ["kode", "src-tauri/src/extensions.rs", "547 baris \xB7 ekspor: MAX_MAIN_BYTES, ExtCommand, ExtensionInfo, ExtensionLoad, extensions_dir, parse_commands_pub, list_all, extensions_list, extensions_load, extensions_add, registry_lepas, extensions_remove, extensions_folder"],
       ["kode", "src-tauri/src/fs_utils.rs", "1071 baris \xB7 ekspor: BIG_FILE_BYTES, map_fs_err, ReadResult, StatResult, SessionState, SessionTab, MAX_READ_BYTES, read_file_detect, MAKS_TULIS_BYTE, periksa_ukuran_tulis, write_file_encoded, fs_read, fs_write, tulis_isi, fs_exists, fs_stat, realpath_dalam_akar, fs_realpath, fs_create_file, fs_create_dir, fs_delete, fs_rename, session_load, session_save, decode_for_test, encode_for_test, detect_le_for_test"],
@@ -60485,7 +60506,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/history.rs", "552 baris \xB7 ekspor: Snapshot, HistoryInfo, folder_untuk, tampak_biner, snapshot_internal, history_snapshot, history_list, history_read, history_clear, history_prune, history_stats"],
       ["kode", "src-tauri/src/hooks.rs", "476 baris \xB7 //! Hook execution: running the commands a reader configured at lifecycle points. \xB7 ekspor: HookRunResult, hook_run, FormatResult, format_text"],
       ["kode", "src-tauri/src/instructions.rs", "463 baris \xB7 //! Instructions: coding standards that apply to files matching a pattern. \xB7 ekspor: InstructionInfo, parse_instruction, instructions_list, instruction_read, instruction_write, instruction_delete, CatalogInstruction, instruction_catalog_list, instruction_catalog_body, instruction_install"],
-      ["kode", "src-tauri/src/lib.rs", "622 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
+      ["kode", "src-tauri/src/lib.rs", "641 baris \xB7 ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
       ["kode", "src-tauri/src/logging.rs", "439 baris \xB7 ekspor: LogSink, write_line, path, LogWriter, init, attach_app, log_file_path, LOG_TAIL_N_BAWAAN, LOG_TAIL_N_MAKS, LOG_TAIL_BYTES_BAWAAN, LOG_TAIL_BYTES_MAKS, LOG_TAIL_BYTES_MIN, baca_ekor, log_tail, panicked, last_panic, sink_for_test, max_bytes_for_test, keep_for_test"],
       ["kode", "src-tauri/src/lsp.rs", "1232 baris \xB7 ekspor: ServerSpec, id_punya_resep, lsp_start, path_to_uri, lsp_request, lsp_notify, lsp_stop, lsp_stop_all, LspInfo, lsp_status, lsp_reap, lsp_set_idle, lsp_resep, lsp_pasang, lsp_probe"],
       ["kode", "src-tauri/src/main.rs", "13 baris \xB7 tanpa ekspor"],
@@ -60495,6 +60516,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/mcp_server.rs", "998 baris \xB7 ekspor: McpStatus, candidate_ports, start, stop, tools_schema, bearer_ok_for_test, terminal_control_setting_enabled_for_test"],
       ["kode", "src-tauri/src/mcp_stdio.rs", "391 baris \xB7 mcp_stdio.rs - klien MCP lewat transport STDIO. \xB7 ekspor: list_tools, call_tool, matikan, jumlah_sesi_hidup"],
       ["kode", "src-tauri/src/memory.rs", "243 baris \xB7 ekspor: MEMORY_LIMIT, USER_LIMIT, MemoryState, baca, entri, tambah, ganti, hapus, ringkasan_untuk_prompt, memory_read, memory_write"],
+      ["kode", "src-tauri/src/notifikasi.rs", "129 baris \xB7 //! OS notifications for work that finished while the reader was looking elsewhere. \xB7 ekspor: notify_show"],
       ["kode", "src-tauri/src/paths.rs", "299 baris \xB7 ekspor: Normalized, long_path, is_drive_root, strip_unc, canonical_or_parent, is_inside, is_same, normalize_workspace_path, warn_if_symlink_escapes, env_data_dir_override, validate_cwd, lexical_clean_for_test, pathdiff_for_test"],
       ["kode", "src-tauri/src/plugins.rs", "1697 baris \xB7 //! Zephyr plugins: one package that carries skills, agents, rules, hooks and \xB7 ekspor: Provides, Kind, PluginManifest, PluginEntry, plugins_dir, InstalledPlugin, MarketPlugin, plugin_install, plugin_install_bundled, plugins_list, plugins_marketplace, PluginHook, PluginAgent, PluginToggle, plugin_enable, plugin_remove, MARKETPLACE_JSON"],
       ["kode", "src-tauri/src/proc.rs", "44 baris \xB7 ekspor: CREATE_NO_WINDOW, cmd, tokio_cmd"],
@@ -60504,7 +60526,8 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/secrets.rs", "663 baris \xB7 ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, list_models, reset_settings, roundtrip_for_test, preview_for_test, endpoint_for_test"],
       ["kode", "src-tauri/src/settings.rs", "809 baris \xB7 ekspor: AppInfo, RecentEntry, default_settings, deep_merge_um, read_json_um, take_broken_config, get_keybindings, set_keybindings, get_app_info, get_settings, set_settings, set_window_size, list_recents, push_recent, workspace_open, workspace_close, read_settings_value, patch_settings, patch_settings_no_emit, git_default_branch, git_identity, ram_peak, ram_last, ram_total_last, ram_total_peak, host_ram_total, host_cpu_count, host_os, spawn_ram_sampler, merge_for_test"],
       ["kode", "src-tauri/src/sftp.rs", "418 baris \xB7 //! SFTP and port forwarding, driven by the OpenSSH client Windows already \xB7 ekspor: SftpEntry, SftpHostInfo, ssh_path, sftp_list, sftp_upload, sftp_download, sftp_tunnel_start, sftp_tunnel_stop, sftp_tunnel_list, sftp_available"],
-      ["kode", "src-tauri/src/skills.rs", "477 baris \xB7 ekspor: SKILL_MAX_BYTES, SkillInfo, nama_valid, parse_frontmatter, daftar_skills, baca_skill, tulis_skill, hapus_skill, skills_list, skill_read, skill_write, skill_delete, ringkasan_untuk_prompt, agent_context"],
+      ["kode", "src-tauri/src/skill_bundled.rs", "3042 baris \xB7 BERKAS HASIL GENERATE - jangan disunting tangan. \xB7 ekspor: SKILL_BAWAAN, SKILL_BAWAAN_HASH"],
+      ["kode", "src-tauri/src/skills.rs", "555 baris \xB7 ekspor: SKILL_MAX_BYTES, SkillInfo, nama_valid, parse_frontmatter, tanam_skill_bawaan, daftar_skills, baca_skill, tulis_skill, hapus_skill, skills_list, skill_read, skill_write, skill_delete, ringkasan_untuk_prompt, agent_context"],
       ["kode", "src-tauri/src/snippets.rs", "640 baris \xB7 ekspor: Snippet, SnippetSet, FileRusak, path_user, snippets_load, snippets_user_file, snippets_user_list, snippets_builtin_langs"],
       ["kode", "src-tauri/src/ssh.rs", "311 baris \xB7 ekspor: SshConfig, SshHostView, ssh_list, ssh_add, ssh_update, ssh_delete, ssh_save_password, ssh_clear_password, ssh_connect, ssh_disconnect"],
       ["kode", "src-tauri/src/tangkap_layar.rs", "1471 baris \xB7 Tangkap layar jendela \u2014 sisi Rust (item ZEPH-SCREENSHOT-TOOL / 151). \xB7 ekspor: NAMA_PERINTAH_TANGKAP, ArgumenTangkap, HasilTangkapLayar, gagal, bungkus, periksa_path_keluaran, path_bawaan, kodek_png_rgb, Hdc, Hbitmap, Hgdiobj, Rect, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_CXSCREEN, SM_CYSCREEN, BitmapRgb, rect_jendela, rect_layar, tangkap, jalankan_tangkap, window_capture"],
@@ -60520,9 +60543,10 @@ var init_zephyrIndeks = __esm({
       ["kode", "src-tauri/src/web.rs", "1103 baris \xB7 // web.rs \u2014 internet access for the agent: search the web and fetch page contents. \xB7 ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, PORT_SAH, IP_METADATA_V4, IP_METADATA_V6, batas_byte_dipakai, KebijakanJaringan, hop_dipakai, dari_setelan, port_dipakai, port_diizinkan, is_metadata, ip_terlarang_dengan, ip_terlarang, validate_outbound_url, validate_outbound_url_dengan, periksa_url_pane, periksa_url_pane_dengan, langkah_redirect, langkah_redirect_dengan, HasilCari, web_fetch, web_search"],
       ["kode", "src-tauri/src/workspace.rs", "770 baris \xB7 ekspor: Trust, boleh_eksekusi, Root, WorkspaceFile, FolderEntry, WorkspaceInfo, trust_untuk, ensure_trusted, ensure_trusted_path, baca_workspace_file, gabung_scope, workspace_info, workspace_set_trust, workspace_forget_trust, workspace_trust_list, workspace_add_root, workspace_remove_root, workspace_set_active_root, workspace_open_file, workspace_save_file, workspace_settings_efektif, workspace_settings_asal, workspace_set_settings, workspace_boleh_eksekusi"],
       ["kode", "src-tauri/src/worktree.rs", "946 baris \xB7 worktree.rs - `git worktree` dari dalam Zephyr, versi yang TIDAK melempar. \xB7 ekspor: Hasil, worktree_list, worktree_add, worktree_remove"],
-      ["kode", "src/AgentsWindow.tsx", "234 baris \xB7 tanpa ekspor"],
-      ["kode", "src/AiWindow.tsx", "70 baris \xB7 tanpa ekspor"],
-      ["kode", "src/App.tsx", "1654 baris \xB7 tanpa ekspor"],
+      ["kode", "src/AgentsWindow.tsx", "230 baris \xB7 tanpa ekspor"],
+      ["kode", "src/AiWindow.tsx", "65 baris \xB7 tanpa ekspor"],
+      ["kode", "src/App.tsx", "1794 baris \xB7 tanpa ekspor"],
+      ["kode", "src/PanelWindow.tsx", "238 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/a11y/LiveRegion.tsx", "38 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/agents/AgentsBrowser.tsx", "920 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/agents/AgentsChanges.tsx", "151 baris \xB7 tanpa ekspor"],
@@ -60534,19 +60558,18 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/agents/SessionContextMenu.tsx", "124 baris \xB7 ekspor: AksiSesi"],
       ["kode", "src/components/ai/AgentMap.tsx", "201 baris \xB7 ekspor: kelompokkanSubagent, IsiSubagent, AgentMap"],
       ["kode", "src/components/ai/AgentMapPanel.tsx", "506 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/AiHost.tsx", "137 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/AiIkon.tsx", "777 baris \xB7 Icon set for the AI panel header. \xB7 ekspor: NamaAiIkon"],
-      ["kode", "src/components/ai/AiPanel.tsx", "2549 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/AiHost.tsx", "136 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/AiIkon.tsx", "785 baris \xB7 Icon set for the AI panel header. \xB7 ekspor: NamaAiIkon"],
+      ["kode", "src/components/ai/AiPanel.tsx", "2547 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/BrowserContextChip.tsx", "88 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/ChatHeadActions.tsx", "226 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/ChatMessage.tsx", "1092 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/ChatSettingsPage.tsx", "1704 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/ChatSettingsPopup.tsx", "72 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/ChatHeadActions.tsx", "213 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/ChatMessage.tsx", "1152 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/ChatSettingsPage.tsx", "1743 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/ChatStamp.tsx", "139 baris \xB7 ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
       ["kode", "src/components/ai/ClearChatsDialog.tsx", "89 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/CliAgentBar.tsx", "63 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/CliChat.tsx", "1842 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/CliSessionTab.tsx", "71 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/CliChat.tsx", "1843 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/CliSessionTab.tsx", "77 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/CliSlashPanel.tsx", "1332 baris \xB7 ekspor: SlashPanel"],
       ["kode", "src/components/ai/CliTimeline.tsx", "315 baris \xB7 ekspor: ThinkingLine"],
       ["kode", "src/components/ai/CliTodoFloat.tsx", "142 baris \xB7 tanpa ekspor"],
@@ -60569,7 +60592,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/ai/ModelSelector.tsx", "613 baris \xB7 ekspor: TargetModel"],
       ["kode", "src/components/ai/NotesPanel.tsx", "482 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/PanelTrail.tsx", "23 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/ai/PanelWins.tsx", "58 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/ai/PanelWins.tsx", "67 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/PemilihAvatar.tsx", "62 baris \xB7 ekspor: PemilihAvatar"],
       ["kode", "src/components/ai/ReasoningBlock.tsx", "114 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/ai/RobotAvatar.tsx", "110 baris \xB7 ekspor: RobotAvatar, UserAvatar"],
@@ -60593,7 +60616,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/editor/Breadcrumbs.tsx", "157 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/CodeMirrorEditor.tsx", "1162 baris \xB7 ekspor: naikkanExtVersi"],
       ["kode", "src/components/editor/EditorTabBar.tsx", "136 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/editor/FileIcon.tsx", "104 baris \xB7 ekspor: FolderIcon"],
+      ["kode", "src/components/editor/FileIcon.tsx", "127 baris \xB7 ekspor: FolderIcon"],
       ["kode", "src/components/editor/FindBar.tsx", "299 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/editor/ImagePreview.tsx", "128 baris \xB7 ekspor: PreviewGambar, bukaGambar"],
       ["kode", "src/components/editor/InlineChat.tsx", "133 baris \xB7 tanpa ekspor"],
@@ -60607,11 +60630,12 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/editor/dekorasiMurni.ts", "112 baris \xB7 Logika murni dekorasi editor (item 182). \xB7 ekspor: SOROT_MAX, kelasBaris, barisUnik, usulanLayak, potongBelakang"],
       ["kode", "src/components/explorer/ContextMenu.tsx", "94 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/DeleteConfirmDialog.tsx", "90 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/explorer/ExplorerPanel.tsx", "190 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/explorer/ExplorerPanel.tsx", "209 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/FileTree.tsx", "306 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/OutlinePanel.tsx", "144 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/SearchEditorView.tsx", "208 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/SearchPanel.tsx", "411 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/explorer/SectionLipat.tsx", "79 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/explorer/TimelineView.tsx", "227 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/extensions/ExtApprovalModal.tsx", "68 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/extensions/ExtensionsView.tsx", "1405 baris \xB7 tanpa ekspor"],
@@ -60621,12 +60645,12 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/scm/ConflictEditor.tsx", "130 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/scm/DiffViewer.tsx", "297 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/scm/ScmConfirmDialog.tsx", "112 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/scm/SourceControlPanel.tsx", "1154 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/scm/SourceControlPanel.tsx", "1290 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/AccessibilitySection.tsx", "116 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/AgcSections.tsx", "2041 baris \xB7 ekspor: AgcSkills, AgcInstructions, AgcHooks, AgcPlugins, AgcMigrations, AgcPermissions"],
       ["kode", "src/components/settings/AgcToolList.tsx", "190 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/settings/AgentCustomModal.tsx", "514 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/settings/AiModelsModal.tsx", "109 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/settings/AgentCustomPage.tsx", "473 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/settings/AiModelsPage.tsx", "39 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/AiModelsTable.tsx", "135 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/AlatIkon.tsx", "110 baris \xB7 One icon set for the tool chips in the custom sub-agent dialog. \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/BrandLogos.tsx", "162 baris \xB7 Brand logos for the About buttons and the donate dialog. \xB7 ekspor: GitHubLogo, DiscordLogo, TrakteerLogo, SaweriaLogo, SupportLogo"],
@@ -60634,12 +60658,13 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/settings/CommandPermissions.tsx", "123 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/DevEnvSettingsSection.tsx", "186 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/DevUpdateSection.tsx", "221 baris \xB7 ekspor: DevUpdateSection"],
+      ["kode", "src/components/settings/IkonTemaSection.tsx", "269 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/LanguageServersSection.tsx", "696 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/McpPanel.tsx", "494 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/MemoriPanel.tsx", "197 baris \xB7 MemoriPanel \u2014 the Settings page that lets the reader SEE and DELETE what \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/PersonaCard.tsx", "348 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/RulesSection.tsx", "153 baris \xB7 Settings > Rules. \xB7 tanpa ekspor"],
-      ["kode", "src/components/settings/SectionsAdvanced.tsx", "1383 baris \xB7 ekspor: ShortcutsSection, ModelsSection, AgentsSection, SubagentSection, CustomSubagentsCard"],
+      ["kode", "src/components/settings/SectionsAdvanced.tsx", "1393 baris \xB7 ekspor: ShortcutsSection, ModelsSection, AgentsSection, SubagentSection, CustomSubagentsCard"],
       ["kode", "src/components/settings/SectionsBasic.tsx", "1219 baris \xB7 ekspor: GeneralSection, EditorSection, ThemeSection"],
       ["kode", "src/components/settings/SectionsDiag.tsx", "134 baris \xB7 ekspor: SelfTestPanel, ExportPanel, laporanUntukUji"],
       ["kode", "src/components/settings/SectionsExtensions.tsx", "365 baris \xB7 ekspor: ExtensionsSection"],
@@ -60647,7 +60672,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/settings/SectionsMisc.tsx", "738 baris \xB7 ekspor: ScmSection, SshSection, AboutSection"],
       ["kode", "src/components/settings/SecuritySection.tsx", "114 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/SettingsControls.tsx", "294 baris \xB7 ekspor: Row, Section, Toggle, NumberInput, Select, TextInput, Pills"],
-      ["kode", "src/components/settings/SettingsNav.tsx", "293 baris \xB7 ekspor: NavIcon"],
+      ["kode", "src/components/settings/SettingsNav.tsx", "297 baris \xB7 ekspor: NavIcon"],
       ["kode", "src/components/settings/SettingsPage.tsx", "90 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/SubagentCustomModal.tsx", "493 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/settings/TemaPratinjau.tsx", "257 baris \xB7 Pratinjau tema - SATU komponen, dipakai di dua tempat. \xB7 ekspor: TOKEN_SINTAKS, TokenSintaks, WARNA_UI, WarnaUi, GAYA_PRATINJAU, pasangGayaPratinjau, UkuranPratinjau, PropsPratinjau, PratinjauTema"],
@@ -60656,7 +60681,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/settings/changelogRender.tsx", "144 baris \xB7 ekspor: Changelog"],
       ["kode", "src/components/settings/temaFilter.ts", "104 baris \xB7 Satu jalur penyaring untuk daftar tema. \xB7 ekspor: TemaRingkas, JenisTema, pecahKueri, saringTema"],
       ["kode", "src/components/sftp/SftpView.tsx", "311 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/shell/ActivityBar.tsx", "346 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/ActivityBar.tsx", "417 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/CommandPalette.tsx", "294 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/ConfirmDialog.tsx", "121 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/CrashDialog.tsx", "85 baris \xB7 tanpa ekspor"],
@@ -60665,55 +60690,58 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/components/shell/ErrorBoundary.tsx", "46 baris \xB7 ekspor: ErrorBoundary"],
       ["kode", "src/components/shell/GhMenu.tsx", "58 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/KeybindingsEditor.tsx", "281 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/shell/LayoutMenu.tsx", "491 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/LayoutMenu.tsx", "504 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/McpToast.tsx", "48 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/MenuBar.tsx", "415 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/OutputView.tsx", "130 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/Panel.tsx", "102 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/PanelTabStrip.tsx", "165 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/PanelTitleBar.tsx", "216 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/Popover.tsx", "125 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/PortsView.tsx", "197 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/ProblemsView.tsx", "144 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/SaveIssueDialog.tsx", "84 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/shell/Sidebar.tsx", "60 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/shell/SplitEditor.tsx", "377 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/Sidebar.tsx", "69 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/SplitEditor.tsx", "386 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/StatusBar.tsx", "238 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/SubAgentView.tsx", "183 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/TerminalArea.tsx", "106 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/TerminalPanel.tsx", "223 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/TestsView.tsx", "129 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/Tip.tsx", "68 baris \xB7 tanpa ekspor"],
-      ["kode", "src/components/shell/ToolsView.tsx", "86 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/ToolsView.tsx", "95 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/UpdateBanner.tsx", "98 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/shell/WelcomeSetup.tsx", "308 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/WindowControls.tsx", "100 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/shell/ZephyrLogo.tsx", "83 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/terminal/BrowserPane.tsx", "470 baris \xB7 ekspor: normalizeUrl, shortUrl, HOME"],
       ["kode", "src/components/terminal/PaneGrid.tsx", "198 baris \xB7 ekspor: PaneEmpty"],
-      ["kode", "src/components/terminal/PaneIcons.tsx", "191 baris \xB7 ekspor: AgentLogo"],
+      ["kode", "src/components/terminal/PaneIcons.tsx", "375 baris \xB7 ekspor: AgentLogo"],
       ["kode", "src/components/terminal/TerminalTabs.tsx", "417 baris \xB7 ekspor: ActionIcon, TerminalSideTabs, TerminalOps"],
       ["kode", "src/components/terminal/XtermPane.tsx", "132 baris \xB7 tanpa ekspor"],
+      ["kode", "src/components/terminal/logoMerek.ts", "103 baris \xB7 REAL brand marks, generated from `simple-icons` (vinstalled). \xB7 ekspor: MerekLogo, LOGO_MEREK"],
       ["kode", "src/components/workspace/RestrictedBanner.tsx", "34 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/workspace/RootSection.tsx", "101 baris \xB7 tanpa ekspor"],
       ["kode", "src/components/workspace/TrustDialog.tsx", "90 baris \xB7 tanpa ekspor"],
       ["kode", "src/explorer.rs", "1 baris \xB7 tanpa ekspor"],
       ["kode", "src/fs_utils.rs", "1 baris \xB7 tanpa ekspor"],
       ["kode", "src/lib/a11yStore.ts", "91 baris \xB7 ekspor: Kesopanan, MAX_RIWAYAT, useA11y, umumkan, AccessibilitySettings, DEFAULT_A11Y, terapkanA11y, osMintaReducedMotion, reducedMotionEfektif"],
-      ["kode", "src/lib/agentCustomStore.ts", "40 baris \xB7 ekspor: AgentCustomSection, useAgentCustom"],
+      ["kode", "src/lib/agentCustomStore.ts", "55 baris \xB7 ekspor: AgentCustomSection, useAgentCustom"],
       ["kode", "src/lib/agentDorong.ts", "189 baris \xB7 Bentuk tugas tulis - pembaca BENTUK permintaan user, plus batas langkah. \xB7 ekspor: BentukTugas, pertanyaan, bentukTugas, permintaanMajemuk, BATAS_TULIS_PAKSA"],
       ["kode", "src/lib/agentDraft.ts", "251 baris \xB7 ekspor: DraftKind, DraftHasil, parseDraft, OpsiDraft, buatDraft"],
       ["kode", "src/lib/agentExtrasStore.ts", "213 baris \xB7 ekspor: HookEvent, Hook, HOOK_EVENTS, HOOK_EVENT_HIDUP, useAgentExtras"],
       ["kode", "src/lib/agentGuard.ts", "362 baris \xB7 Penjaga sisi-agent: pola berkas rahasia, direktori terproteksi, dan \xB7 ekspor: bentukBanding, POLA_RAHASIA, DIR_TERPROTEKSI, AWALAN_TOLAK_TULIS, HasilAman, periksaBaca, periksaTulis, periksaPerintahShell"],
       ["kode", "src/lib/agentLsp.ts", "390 baris \xB7 ekspor: Posisi, LokasiLsp, SimbolLsp, adaServer, lspDefinitionTool, lspReferencesTool, lspCallHierarchyTool, lspHoverTool, lspDocumentSymbolsTool, lspWorkspaceSymbolsTool, lspDiagnosticsTool"],
       ["kode", "src/lib/agentStop.ts", "50 baris \xB7 Peta alasan berhentinya agent, terpisah dari store. \xB7 ekspor: AgentStopReason, AgentFailureCategory, agentStopMessage"],
-      ["kode", "src/lib/agentTools.ts", "321 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, pasangJembatanBacaKodeDariWorkspace, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
+      ["kode", "src/lib/agentTools.ts", "380 baris \xB7 Registry Agent Tools Zephyr. \xB7 ekspor: AgentTool, AGENT_TOOLS, pasangJembatanBacaKodeDariWorkspace, simpanGambarMenunggu, ambilGambarMenunggu, clearGambarMenunggu, AgentToolSpecsOptions, agentToolSpecs, jalankanAgentTool, galatToolUntukModel"],
       ["kode", "src/lib/agentsBrowserStore.ts", "157 baris \xB7 The Agents window's browser pane, published where the agent tools can see it. \xB7 ekspor: BATAS_SEGAR_MS, AgBrowserPane, daftarPaneAgents, paneAgents, catatPaneAgents, lupakanPaneAgents, mintaPaneAgents, ambilPermintaanAgents, saatRegistryAgentsBerubah"],
       ["kode", "src/lib/agentsWindow.ts", "68 baris \xB7 ekspor: AGENTS_WINDOW_LABEL, fokusEditorWindow, bukaAgentsWindow, tutupAgentsWindow"],
       ["kode", "src/lib/aiCliStore.ts", "979 baris \xB7 ekspor: CliTodo, CliPart, CliMsg, CliTask, CliSession, CliOpts, useAiCli, bindCliChatListener"],
       ["kode", "src/lib/aiDebugStore.ts", "107 baris \xB7 ekspor: ReqLog, LOG_MAKS, useAiDebug"],
       ["kode", "src/lib/aiMemori.ts", "983 baris \xB7 MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). \xB7 ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, \u2026(+12)"],
-      ["kode", "src/lib/aiModelsStore.ts", "29 baris \xB7 ekspor: useAiModels"],
-      ["kode", "src/lib/aiStore.ts", "10212 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, isNavigationOnlyRequest, AgentStep, \u2026(+34)"],
-      ["kode", "src/lib/aiTabsStore.ts", "113 baris \xB7 ekspor: CLI_TABS, AiTabId, useAiTabs"],
+      ["kode", "src/lib/aiModelsStore.ts", "41 baris \xB7 ekspor: useAiModels"],
+      ["kode", "src/lib/aiStore.ts", "10441 baris \xB7 ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, IZIN_TIMEOUT_MS, setIzinTimeout, \u2026(+37)"],
+      ["kode", "src/lib/aiTabsStore.ts", "147 baris \xB7 ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
       ["kode", "src/lib/aiWindow.ts", "43 baris \xB7 ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
       ["kode", "src/lib/aiZephyrState.ts", "1000 baris \xB7 aiZephyrState.ts \xB7 ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
       ["kode", "src/lib/alurVerifikasi.ts", "621 baris \xB7 alurVerifikasi.ts \u2014 aturan jalur yang memaksa agen Zeph memverifikasi \xB7 ekspor: JenisPeriksa, Nilai, StatusPutusan, BATAS_PERCOBAAN, PERINTAH_TETAP, POLA_PERINTAH_DINAMIS, perintahDiizinkan, PENANDA_GAGAL, normJalur, PermintaanPeriksa, periksaBerkas, PerintahRencana, Rencana, rencanaVerifikasi, nilaiKeluaran, berkasBermasalah, HasilJalankan, Ubah, NilaiPerintah, Putusan, putuskan, validasiLaporan, laporanAkhir"],
@@ -60723,7 +60751,8 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/autocompleteInline.ts", "207 baris \xB7 Autocomplete inline \u2014 perencana permintaan + pengatur laju (governor). \xB7 ekspor: JEDA_MS, BATAS_BYTE_PAYLOAD, BATAS_JENDELA_BARIS, BATAS_JENDELA_KARAKTER, PANJANG_MINIMUM_BARIS, bytePanjang, jendelaKonteks, PermintaanInline, OpsiPermintaan, bangunPermintaan, KeadaanInline, keadaanAwal, ketik, tiket, AlasanInline, KeputusanInline, putuskanKirim, mulaiKirim, selesaiKirim, setAktif"],
       ["kode", "src/lib/bacaKode.ts", "847 baris \xB7 bacaKode - Zeph membaca ISI kode ZEPHYR SENDIRI sebagai POTONGAN BARIS. \xB7 ekspor: BACA_KODE_VERSI, BATAS_BARIS_POTONGAN, JENDELA_SEBELUM_SIMBOL, JENDELA_SESUDAH_SIMBOL, BATAS_BYTE_BERKAS, BATAS_KARAKTER_BARIS, BATAS_CHAR_POTONGAN, BATAS_BACAAN_SESI, BATAS_BERKAS_PER_PANGGILAN, KARAKTER_PER_TOKEN, EKSTENSI_TEKS, NAMA_TEKS, berekstensiTeks, HasilJalur, bolehDibacaKode, pisahBaris, tagIsi, apakahBiner, angkaTitik, OpsiPotong, PotonganKode, HasilPotong, cariDefinisiBaris, bacaPotongan, rakitPotongan, AnggaranBaca, buatAnggaranBaca, PerintahBacaKode, JembatanBacaKode, PermintaanBaca, HasilBaca, rapikanJalurNyata, diDalamAkar, bacaBerkasKode, SPEC_BACA_KODE, pasangJembatanBacaKode, pasangRealpathBacaKode, realpathBacaKode, resetAnggaranBaca, jembatanBacaKode, \u2026(+2)"],
       ["kode", "src/lib/breakpointGutter.ts", "80 baris \xB7 ekspor: bpCompartment, barisAktifCompartment, breakpointGutter, barisAktifExt"],
-      ["kode", "src/lib/chatSettingsStore.ts", "92 baris \xB7 ekspor: ChatSeksi, useAiChatSettings"],
+      ["kode", "src/lib/bukaPanel.ts", "39 baris \xB7 ekspor: bukaPanel"],
+      ["kode", "src/lib/chatSettingsStore.ts", "115 baris \xB7 ekspor: ChatSeksi, useAiChatSettings"],
       ["kode", "src/lib/checkpoint.ts", "170 baris \xB7 Checkpoints \u2014 undoing everything one agent turn changed. \xB7 ekspor: BerkasCheckpoint, Checkpoint, mulaiTurn, catat, tutupCheckpoint, HasilRestore, pulihkanCheckpoint"],
       ["kode", "src/lib/cliAgentStore.ts", "121 baris \xB7 ekspor: CliRun, useCliAgent"],
       ["kode", "src/lib/cliCatalog.ts", "165 baris \xB7 The model / permission-mode / effort catalogue for the hosted CLI tabs \xB7 ekspor: CliModel, CliMode, CliCatalog, CLAUDE_MODES, CLAUDE_MODELS, catalogFor, modelChip, EFFORT_LEVELS, EffortLevel, jendelaAliasCli"],
@@ -60735,8 +60764,8 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/cmTheme.ts", "2 baris \xB7 tanpa ekspor"],
       ["kode", "src/lib/codexStore.ts", "233 baris \xB7 ekspor: ApprovalPolicy, WorkLocation, APPROVAL_POLICIES, WORK_LOCATIONS, CODEX_EFFORTS, CodexEffort, EFFORT_FROM_CONFIG, CODEX_EFFORT_LABELS, CODEX_MODELS, CodexSettings, useCodex"],
       ["kode", "src/lib/commandIds.ts", "30 baris \xB7 Leaf module: the id set of commands that exist. \xB7 ekspor: COMMAND_IDS, daftarkanCommandId, commandIdAda"],
-      ["kode", "src/lib/commandRegistry.ts", "2567 baris \xB7 ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
-      ["kode", "src/lib/commands.ts", "1690 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, \u2026(+325)"],
+      ["kode", "src/lib/commandRegistry.ts", "2569 baris \xB7 ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
+      ["kode", "src/lib/commands.ts", "1699 baris \xB7 ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, \u2026(+326)"],
       ["kode", "src/lib/contextBudget.ts", "526 baris \xB7 Context budget: one place for the token estimate and the window size. \xB7 ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
       ["kode", "src/lib/cronRunner.ts", "158 baris \xB7 ekspor: pasangPendengarCron"],
       ["kode", "src/lib/debugInline.ts", "154 baris \xB7 Debugger inline values \u2014 the locals, shown at the line execution stopped on. \xB7 ekspor: VariabelDebug, debugInlineField, setNilaiEffect, clearNilaiEffect"],
@@ -60749,16 +60778,16 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/events.ts", "313 baris \xB7 ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onSettingsChanged, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
       ["kode", "src/lib/explorerStore.ts", "386 baris \xB7 ekspor: CtxMenu, InlineEdit, ExplorerStore, useExplorer"],
       ["kode", "src/lib/extApprovalStore.ts", "58 baris \xB7 ekspor: ExtApproval, useExtApproval"],
-      ["kode", "src/lib/extCatalog.ts", "228 baris \xB7 ekspor: KatalogItem, KATALOG_BUNDLED, katalogById"],
+      ["kode", "src/lib/extCatalog.ts", "276 baris \xB7 ekspor: KatalogItem, KATALOG_BUNDLED, katalogById"],
       ["kode", "src/lib/extHost.ts", "234 baris \xB7 ekspor: sandboxCommands, runEkstensiCommand, tutupEkstensi, muatEkstensiRuntime"],
       ["kode", "src/lib/extIkon.ts", "288 baris \xB7 The mark on an extension card. \xB7 ekspor: inlineIkonDataUri, JenisIkonExt, ikonEkstensi"],
-      ["kode", "src/lib/extIkonFile.ts", "45 baris \xB7 File icons contributed by an installed extension icon pack. \xB7 ekspor: setIkonExt, kosongkanIkonExt, jumlahIkonExt, ikonFileExt"],
-      ["kode", "src/lib/extLoader.ts", "682 baris \xB7 ekspor: LoaderRingkasan, ringkasanLoader, terapkanTokenEkstensi, themesEkstensi, keymapEkstensi, snippetSource, adaSnippet, jumlahSnippet, bahasaEkstensi, bahasaUntukExt, grammarTersedia, muatCmBahasa, ikonUntukExt, adaIconTheme, commandsEkstensi, muatSemuaEkstensi"],
+      ["kode", "src/lib/extIkonFile.ts", "169 baris \xB7 File icons contributed by an installed extension icon pack. \xB7 ekspor: IkonPaket, setIkonExt, kosongkanIkonExt, jumlahIkonExt, terapkanPaketIkon, setIdPaketAktif, paketAktifId, jumlahIkonSvgExt, ikonFileExt, ikonFolderExt, ikonFileUmumExt, ikonFolderUmumExt"],
+      ["kode", "src/lib/extLoader.ts", "938 baris \xB7 ekspor: LoaderRingkasan, ringkasanLoader, terapkanTokenEkstensi, themesEkstensi, keymapEkstensi, snippetSource, adaSnippet, jumlahSnippet, bahasaEkstensi, bahasaUntukExt, grammarTersedia, muatCmBahasa, ikonUntukExt, adaIconTheme, terapkanIkonTema, daftarPaketIkon, commandsEkstensi, muatSemuaEkstensi"],
       ["kode", "src/lib/extRunner.ts", "1686 baris \xB7 ekspor: skripEkstensi"],
       ["kode", "src/lib/extensionStore.ts", "173 baris \xB7 ekspor: ExtStore, BUILTIN_IDS, useExtensions"],
-      ["kode", "src/lib/extensionsStore19.ts", "423 baris \xB7 ekspor: ExtTab, TOLAK_PENANDA, ExtKabarJenis, ExtKabar, Ext19Store, setBahasaWorkspace, getBahasaWorkspace, useExt19"],
+      ["kode", "src/lib/extensionsStore19.ts", "449 baris \xB7 ekspor: ExtTab, TOLAK_PENANDA, ExtKabarJenis, ExtKabar, Ext19Store, setBahasaWorkspace, getBahasaWorkspace, useExt19"],
       ["kode", "src/lib/fileIconMap.ts", "9233 baris \xB7 GENERATED by scripts/gen-file-icons.mjs \u2014 do not edit by hand. \xB7 ekspor: IKON_SVG, IKON_EXT, IKON_NAMA, IKON_FOLDER_NAMA, IKON_LANG, IKON_FOLDER, IKON_FOLDER_BUKA, IKON_FILE"],
-      ["kode", "src/lib/fileIcons.ts", `103 baris \xB7 File-type icons for the composer's "@" picker, the editor gutter and the \xB7 ekspor: FileIkon, ikonFile, ikonFolder`],
+      ["kode", "src/lib/fileIcons.ts", `181 baris \xB7 File-type icons for the composer's "@" picker, the editor gutter and the \xB7 ekspor: FileIkon, ikonFile, ikonFolder`],
       ["kode", "src/lib/fileRefs.ts", "142 baris \xB7 ekspor: FileRef, tokenAt, saringFile, muatFileWorkspace, lupakanFileWorkspace"],
       ["kode", "src/lib/formatters.ts", "113 baris \xB7 External formatters, chained on save. \xB7 ekspor: FormatterCmd, HasilFormat, berlaku, rangkaiFormat"],
       ["kode", "src/lib/gambarKecil.ts", "176 baris \xB7 Shrink an image before it becomes an attachment. \xB7 ekspor: OpsiKecil, HasilKecil, adalahDataUrlGambar, kecilkanGambar"],
@@ -60773,12 +60802,13 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/hydraAgent.ts", "140 baris \xB7 HydraFusion on the AGENT path \u2014 the critique and the revision. \xB7 ekspor: INSTRUKSI_KRITIK_AGEN, INSTRUKSI_REVISI_AGEN, PutusanKritik, bacaPutusanKritik, pesanKritik, pesanRevisi, pilihKritikus, HydraPemakaian, jumlahkanPemakaian, legHarusBerhenti, BATAS_LEG_MS"],
       ["kode", "src/lib/hydraFusion.ts", "832 baris \xB7 HydraFusion \u2014 adaptive model orchestration for the MAIN chat. \xB7 ekspor: HydraTier, HydraJalur, HydraPeran, HYDRA_MAX_REQUESTS_BAWAAN, HYDRA_MAX_REQUESTS_LIMIT, HYDRA_MAKS_ESKALASI, HYDRA_PENANDA_RAGU, HYDRA_ID_PREFIX, HydraPengaturan, HydraKandidat, HydraSinyal, HydraKlasifikasi, HydraLangkah, kandidatHydra, pilihanTersimpan, HydraRencana, HydraLapor, HydraHasil, HydraTerakhir, bacaPengaturan, parseTierRef, tingkatKandidat, usulTingkat, klasifikasiChat, HydraMasuk, periksaRencana, rencanaHydra, pesanUntuk, bersihkanPenanda, deteksiGagal, HydraDeps, jalankanHydra, hydraSiapkan, hydraLupakan, hydraCatat, hydraLihat, hydraAmbil, hydraAktif"],
       ["kode", "src/lib/hydraModel.ts", "47 baris \xB7 HydraFusion as a MODEL, not as a hidden switch. \xB7 ekspor: HYDRA_MODEL_ID, pilihHydra, labelHydra"],
-      ["kode", "src/lib/i18n-extra.ts", "24350 baris \xB7 tanpa ekspor"],
+      ["kode", "src/lib/i18n-extra.ts", "24360 baris \xB7 tanpa ekspor"],
       ["kode", "src/lib/i18n-src.ts", "617 baris \xB7 ekspor: EN"],
-      ["kode", "src/lib/i18n.ts", "4627 baris \xB7 ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
+      ["kode", "src/lib/i18n.ts", "4697 baris \xB7 ekspor: UI_LANGS, muatKamusTambahan, kamusTambahanSiap, saatKamusSiap, translate, catatanUntukBahasa, useT, tx, tf, useTf"],
+      ["kode", "src/lib/ikonTemaStore.ts", "356 baris \xB7 ekspor: IkonPaketDef, PaketIkon, saatIkonTemaBerubah, sinkronPilihanIkon, useIkonTema"],
       ["kode", "src/lib/inlayHints.ts", "214 baris \xB7 Inlay hints \u2014 inferred types and parameter names, drawn inside the code. \xB7 ekspor: InlayHint, inlayField, setHintsEffect, clearHintsEffect, mintaInlayHints"],
       ["kode", "src/lib/instructionsStore.ts", "215 baris \xB7 ekspor: useInstructions, cocokPola"],
-      ["kode", "src/lib/katalogMcpServer.ts", "270 baris \xB7 Katalog MCP server - daftar server populer yang bisa DILIHAT user dan \xB7 ekspor: McpTransport, McpStdio, McpHttp, KatalogMcpEntry, TRANSPORT_STDIO_TERSAMBUNG, KATALOG_MCP_SERVER, kategoriMcp, mcpById, barisJalan, cariMcp, bisaDipasang"],
+      ["kode", "src/lib/katalogMcpServer.ts", "457 baris \xB7 Katalog MCP server - daftar server populer yang bisa DILIHAT user dan \xB7 ekspor: McpTransport, McpStdio, McpHttp, KatalogMcpEntry, TRANSPORT_STDIO_TERSAMBUNG, KATALOG_MCP_SERVER, kategoriMcp, mcpById, barisJalan, cariMcp, bisaDipasang"],
       ["kode", "src/lib/keybindingStore.ts", "191 baris \xB7 ekspor: CHORD_TIMEOUT_MS, useKb"],
       ["kode", "src/lib/keybindings.ts", "578 baris \xB7 ekspor: Layer, WhenCtx, KeyBinding, normalizeChord, displayChord, DEFAULT_BINDINGS, UserBinding, mergeBindings, chordFor, prefixSet, resolveBinding, chordConflicts, ChordAlias, ChordEntry, LaporanChordKembar, HasilGabung, gabungChordKembar, tabelEfektif, entriChord, cariPintasan, resolveChord"],
       ["kode", "src/lib/keymapAlias.ts", "41 baris \xB7 Command-name translation for extension keymaps. \xB7 ekspor: ALIAS_PERINTAH, perintahKeymap, dialihkan"],
@@ -60799,14 +60829,16 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/mdPreviewStore.ts", "42 baris \xB7 ekspor: useMdPreview"],
       ["kode", "src/lib/menu.ts", "238 baris \xB7 ekspor: MenuItem, MenuDef, MENUS"],
       ["kode", "src/lib/modelBrandIcons.ts", "154 baris \xB7 // GENERATED by scripts/gen-brand-lengkap.mjs - do not edit by hand. \xB7 ekspor: BrandMark, BRAND_MARKS"],
-      ["kode", "src/lib/modelCatalog.tsx", "791 baris \xB7 ekspor: LogoId, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, baseUrlEfektif, providerSiap, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, ModelLogo"],
+      ["kode", "src/lib/modelCatalog.tsx", "844 baris \xB7 ekspor: LogoId, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, PROVIDER_AUTO, providerEfektif, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, baseUrlEfektif, providerSiap, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, ModelLogo"],
       ["kode", "src/lib/multilineKey.ts", "44 baris \xB7 ekspor: PILIHAN_MULTILINE, MultilineKeyId, multilineSequence, isAgentPane"],
       ["kode", "src/lib/nativeOverlay.ts", "91 baris \xB7 Does the app currently draw something ON TOP of a native webview pane? \xB7 ekspor: overlayMenutupi, paneHarusTampil"],
       ["kode", "src/lib/notesTodosStore.ts", "159 baris \xB7 ekspor: Kind, Item, urutkan, useNotesTodos"],
       ["kode", "src/lib/notificationStore.ts", "202 baris \xB7 ekspor: Severity, NotifAction, Notif, useNotif, NotifOpts, notifyInfo, notifyWarn, notifyError"],
+      ["kode", "src/lib/notifikasiAi.ts", "103 baris \xB7 Notify when a long AI run finishes while the reader is looking elsewhere. \xB7 ekspor: catatMulaiRun, catatSelesaiRun, lupakanRun, jumlahRunDilacak, riwayatNotifikasi"],
       ["kode", "src/lib/outputStore.ts", "117 baris \xB7 ekspor: MAX_LINES, OutputChannel, useOutput, logOutput"],
       ["kode", "src/lib/paletteStore.ts", "320 baris \xB7 ekspor: PaletteMode, PaletteItem, fuzzyMatch, PaletteStore, usePalette"],
       ["kode", "src/lib/panelStore.ts", "137 baris \xB7 ekspor: PanelTabId, PANEL_TABS, usePanel"],
+      ["kode", "src/lib/panelWindow.ts", "177 baris \xB7 ekspor: PanelId, JUDUL, labelPanelWindow, SEMUA_PANEL, panelDariHash, seksiDariHash, bukaPanelWindow, tutupPanelWindow, tutupSemuaPanel"],
       ["kode", "src/lib/pathKey.ts", "25 baris \xB7 Kunci pembanding path: garis miring diseragamkan, huruf jadi kecil. \xB7 ekspor: kunciPath, pathSama"],
       ["kode", "src/lib/pembungkusBahasa.ts", "141 baris \xB7 PEMBUNGKUS BAHASA + ATURAN KLAIM NILAI (item 161, sisa item 138). \xB7 ekspor: ATURAN_NILAI_ID, ATURAN_NILAI_EN, blokKlaimNilai, blokPenutup, FaktaNilai, JenisPelanggaranNilai, PelanggaranNilai, periksaKlaimNilai"],
       ["kode", "src/lib/peranIcons.ts", "54 baris \xB7 ekspor: IKON_PERAN, IKON_KUSTOM, pathIkonPeran"],
@@ -60828,14 +60860,14 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/searchStore.ts", "341 baris \xB7 ekspor: GrupFile, useSearch, bindSearchListeners"],
       ["kode", "src/lib/semanticTokens.ts", "259 baris \xB7 Semantic tokens \u2014 language-server highlighting layered over the parser's. \xB7 ekspor: legendFor, capsUntukPath, TokenSet, semField, setTokensEffect, clearTokensEffect, mintaSemanticTokens, mintaSemanticTokensPenuh"],
       ["kode", "src/lib/sessionsSideStore.ts", "28 baris \xB7 ekspor: useSessionsSide"],
-      ["kode", "src/lib/settingsStore.ts", "225 baris \xB7 ekspor: SectionId, SECTION_ORDER, useSettingsUi"],
+      ["kode", "src/lib/settingsStore.ts", "232 baris \xB7 ekspor: SectionId, SECTION_ORDER, useSettingsUi"],
       ["kode", "src/lib/shortcuts.ts", "135 baris \xB7 ekspor: ActionDef, ACTIONS, ACTION_BY_ID, normalizeBinding, eventToBinding, effectiveBinding, bindingMap, findConflicts, displayBinding"],
       ["kode", "src/lib/simpleDiff.ts", "162 baris \xB7 ekspor: DiffKind, DiffRow, barisDiff, ringkasDiff, Hunk, bagiHunk, terapkanHunk, semuaHunk"],
       ["kode", "src/lib/skillsStore.ts", "150 baris \xB7 ekspor: useSkills, skillsDi"],
       ["kode", "src/lib/snippetStore.ts", "386 baris \xB7 ekspor: KonteksVar, nilaiVariabel, parseBody, terjemahBody, konteksDari, keCompletion, sisipkanSnippet, useSnip"],
       ["kode", "src/lib/sshArgv.ts", "597 baris \xB7 sshArgv \u2014 penyusun argumen MURNI untuk ssh / scp / sftp. \xB7 ekspor: ModeSsh, KebijakanHostKey, TargetSsh, OpsiSsh, JalurSsh, KodeGalatSsh, GalatSsh, PORT_MIN, PORT_MAX, TIMEOUT_MS_BAWAAN, TIMEOUT_MS_MIN, TIMEOUT_MS_MAX, SERVER_ALIVE_DETIK, SERVER_ALIVE_MAKS, OPSI_DILARANG, OPSI_DIIZINKAN, hostSah, userSah, portSah, kunciSah, fingerprintSah, berkasOpsiSah, validasiTarget, kutipNilaiOpsi, kutipTokenRujukan, teksPerintah, jagaArgv, susunArgv, susunJalur, susunArgvJalankan, susunArgvSkripMentah, susunArgvSalin, teksArgv, FIELD_TERLARANG_DI_TARGET, targetMembawaRahasia"],
       ["kode", "src/lib/sshRedaksi.ts", "211 baris \xB7 sshRedaksi \u2014 penyaring rahasia untuk keluaran SSH dan catatan log. \xB7 ekspor: PENANDA, PENANDA_KUNCI_PRIVAT, AturanRedaksi, ATURAN_REDAKSI, DILARANG_LOG, BOLEH_LOG, sensorRahasia, namaAturanCocok, adaRahasia, sensorArgv, sensorUntukLog"],
-      ["kode", "src/lib/store.ts", "1789 baris \xB7 ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
+      ["kode", "src/lib/store.ts", "1916 baris \xB7 ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, pasangSinkronSetelan, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
       ["kode", "src/lib/subagentCustom.ts", "358 baris \xB7 ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
       ["kode", "src/lib/subagentIcons.ts", "236 baris \xB7 The icon set for custom sub-agents. \xB7 ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
       ["kode", "src/lib/subagentRoles.ts", "330 baris \xB7 ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
@@ -60845,7 +60877,7 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/subsetTugas.ts", "885 baris \xB7 Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). \xB7 ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
       ["kode", "src/lib/suntikKonteks.ts", "581 baris \xB7 suntikKonteks.ts \u2014 menyusun SATU giliran agen dari tiga sumber. \xB7 ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
       ["kode", "src/lib/symbolTree.ts", "201 baris \xB7 ekspor: SimpulSimbol, ikonKind, labelKind, pohonSimbol, jalurKe, barisSticky, sebaya"],
-      ["kode", "src/lib/systemPrompt.ts", "1440 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
+      ["kode", "src/lib/systemPrompt.ts", "1528 baris \xB7 ekspor: kodeBahasaPrompt, kepalaPotret, blokKeadaanPrompt, bahasaPrompt, blokIdentitasModel, namaBahasa, deteksiBahasaGiliran, instruksiBahasa, instruksiGaya, AMBANG_TOKEN_INTI, faktaOnDemand, faktaModelAi, faktaInti, blokLarangan, AturanKondisional, kelasKondisional, blokKondisional, kelasKondisionalTersedia, systemPromptFor, promptBawaan, identityReminder, konteksMemoriProyek, aturanProyek, resetAturanProyek"],
       ["kode", "src/lib/systemPromptLanguages.ts", "457 baris \xB7 Translated prompt blocks for the UI languages other than English and \xB7 ekspor: BlokPromptSebagian, LANGS"],
       ["kode", "src/lib/tampilanStore.ts", "57 baris \xB7 ekspor: ModeTampilan, useTampilan, EXT_GAMBAR, apakahGambar, mimeGambar"],
       ["kode", "src/lib/tasksStore.ts", "572 baris \xB7 ekspor: isiKonteks, TaskState, channelUntuk, sumberUntuk, useTasks, bindTaskListeners"],
@@ -60856,8 +60888,8 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/themes.ts", "331 baris \xB7 Tokens the Theme Builder may override. \xB7 ekspor: TOKEN_OVERRIDE, TokenOverride, ThemeInfo, THEMES, PETA_TEMA_TERSEMBUNYI, isKnownTheme, daftarkanTemaEkstensi, temaEkstensiTerdaftar, semuaTema, systemPrefersDark, watchSystemTheme, resolveTheme, applyTheme"],
       ["kode", "src/lib/toolGate.ts", "564 baris \xB7 Sekat tool untuk agen di dalam editor. \xB7 ekspor: ToolSection, SECTION_URUTAN, sectionOf, EKSTENSI_ADA, ToolGroup, setToolEkstensi, grupEkstensi, namaToolEkstensi, TOOL_GROUPS, SEMUA_TOOL, TOOL_TULIS, TOOL_DISK_TULIS, menulisKeDisk, TOOL_WAJIB, TOOL_INTI, TOOL_AKTIF_AWAL, GRUP_MATI_AWAL, TOOL_DESKRIPSI, EFEK_LABEL, efekTool, useToolGate, periksaSekat"],
       ["kode", "src/lib/toolRules.ts", "164 baris \xB7 Per-tool permission rules. \xB7 ekspor: ToolAction, ToolRule, HasilAturan, evaluasiUntukPanggilan, aturanBaru"],
-      ["kode", "src/lib/types.ts", "2003 baris \xB7 ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, \u2026(+78)"],
-      ["kode", "src/lib/unduhInstal.ts", '697 baris \xB7 UNDUH-INSTAL - jalur "unduh -> periksa -> pasang" untuk paket EKSTENSI. \xB7 ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, hitungBinding, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal'],
+      ["kode", "src/lib/types.ts", "2025 baris \xB7 ekspor: Encoding, LineEnding, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, AgentToolRun, ChatSession, ApprovalMode, AiChunk, GitChange, \u2026(+78)"],
+      ["kode", "src/lib/unduhInstal.ts", '718 baris \xB7 UNDUH-INSTAL - jalur "unduh -> periksa -> pasang" untuk paket EKSTENSI. \xB7 ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, hitungBinding, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal'],
       ["kode", "src/lib/updaterStore.ts", "251 baris \xB7 ekspor: UpdateStatus, useUpdater, labelStatus"],
       ["kode", "src/lib/useAiChunkListener.ts", "48 baris \xB7 ekspor: useAiChunkListener"],
       ["kode", "src/lib/useAturanTersambung.ts", "76 baris \xB7 Wires the Rules SETTINGS to the Rules ENGINE. \xB7 ekspor: terapkanSetelanAturan, useAturanTersambung"],
@@ -60875,18 +60907,26 @@ var init_zephyrIndeks = __esm({
       ["kode", "src/lib/zephyrRuntime.ts", "309 baris \xB7 Keadaan RUNTIME Zephyr, siap disuntik ke prompt sistem tiap giliran. \xB7 ekspor: BATAS_KEADAAN, kepalaBlokKeadaan, blokKeadaan"],
       ["kode", "src/lib/zephyrTools/ambilWeb.ts", '736 baris \xB7 ambilWeb.ts \u2014 rumah satu-satunya untuk kemampuan "AMBIL-WEB" agen Zephyr. \xB7 ekspor: SKEMA_IZIN, IZIN_HOST_BAWAAN, PORT_IZIN, BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, WAKTU_BAWAAN_MS, WAKTU_MAKS_MS, MAKS_REDIRECT, MAKS_KARAKTER_BAWAAN, MAKS_KARAKTER_MAKS, BATAS_TULIS_BYTE, PENANDA_SENSOR, IzinAmbilWeb, IZIN_TOLAK, izinHost, izinLokalDev, HasilPeriksaUrl, domainCocok, alamatLokal, periksaUrlAmbilWeb, batasByteTerapkan, waktuTungguMs, maksKarakterTerapkan, HasilPotong, potongByte, potongKarakter, saringRahasiaWeb, periksaJalurSimpan, OpsiTransport, IsiBalikan, TransportAmbilWeb, PermintaanAmbilWeb, HasilAmbilWeb, denganBatasWaktu, ambilWeb, PenulisBerkas, HasilTulis, tulisHasilAmbilWeb'],
       ["kode", "src/lib/zephyrTools/awalan.ts", "33 baris \xB7 Satu-satunya definisi awalan nama tool. \xB7 ekspor: AWALAN_MCP, POLA_AWALAN_MCP"],
-      ["kode", "src/lib/zephyrTools/builtins.ts", "2030 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
-      ["kode", "src/lib/zephyrTools/catalog.ts", "631 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
-      ["kode", "src/lib/zephyrTools/deskripsiTool.ts", "636 baris \xB7 ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
+      ["kode", "src/lib/zephyrTools/browser.ts", "98 baris \xB7 `browser` \u2014 one tool, seven browser actions. \xB7 ekspor: BrowserAksi, TOOL_BROWSER_LAMA, TOOL_BROWSER"],
+      ["kode", "src/lib/zephyrTools/builtins.ts", "2087 baris \xB7 Tool bawaan - implementasi untuk 40 nama pertama di katalog. \xB7 ekspor: BATAS_HASIL, BATAS_DAFTAR, POTONG_EKOR_RASIO, potong, BATAS_ARSIP, arsipkan, bacaAngka, bacaBool, wajib, bacaBerkas, periksaPerintah, TOOL_BAWAAN, bacaLengkap, buatDiff, tulis"],
+      ["kode", "src/lib/zephyrTools/catalog.ts", "734 baris \xB7 Katalog tool AI - daftar TUNGGAL yang menjadi sumber kebenaran. \xB7 ekspor: ToolSource, ToolEffect, ToolCatalogEntry, TOOL_CATALOG, TOOL_COUNTS, TOOL_BAWAAN_AKTIF, TOOL_WEB_AKTIF_AWAL, TOOL_BY_NAME, TOOL_NAMES, periksaKatalog, TOOL_INTI, TOOL_DIKIRIM_SELALU, kelompokKatalog"],
+      ["kode", "src/lib/zephyrTools/deskripsiTool.ts", "566 baris \xB7 ekspor: DESKRIPSI_TOOL_ID, DESKRIPSI_TOOL_EN, DESKRIPSI_TOOL_JA, DESKRIPSI_TOOL_KO, DESKRIPSI_TOOL_ZH, DESKRIPSI_TOOL_ES, DESKRIPSI_TOOL_FR, DESKRIPSI_TOOL_DE, DESKRIPSI_TOOL_PT, DESKRIPSI_TOOL_AR, deskripsiTool"],
       ["kode", "src/lib/zephyrTools/deskripsiToolHook.ts", "35 baris \xB7 deskripsiToolHook.ts - versi HOOK dari deskripsi tool, sengaja dipisah. \xB7 ekspor: useDeskripsiTool"],
+      ["kode", "src/lib/zephyrTools/execute.ts", "194 baris \xB7 `execute` \u2014 Code Mode: one script that calls several tools. \xB7 ekspor: ExecuteBridge, executeTool"],
       ["kode", "src/lib/zephyrTools/kebijakanIsiWeb.ts", "491 baris \xB7 KEBIJAKAN ISI WEB \u2014 satu tempat yang memutuskan apakah isi halaman dari \xB7 ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, BATAS_KARAKTER_KELUARAN, PORT_SAH, IP_METADATA, IP_METADATA_V6, PENANDA_DIPOTONG, KebijakanIsiWeb, Keputusan, KeputusanUrl, HasilIsi, HasilSaring, Fetcher, KEBIJAKAN_TOLAK_SEMUA, kebijakanDariSetelan, normalisasiHost, isIpLiteral, isIpMetadata, isIpPrivat, isIpSelaluDilarang, isIpTerlarang, namaLokal, hostDiAllowlist, portSahBerlaku, hopBerlaku, periksaUrl, gerbangIsiKonten, ikutiRedirect, batasByteBerlaku, batasKarakterBerlaku, ukuranByte, batasiByte, potongKeluaran, saringKeModel, ambilIsiWeb"],
-      ["kode", "src/lib/zephyrTools/kendaliJendela.ts", "609 baris \xB7 Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. \xB7 ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, DOK_LAPORAN_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar, TARGET_TANGKAP, TargetTangkap, targetTangkapDikenal, periksaTargetTangkap, periksaPathTangkap, tangkapJendela"],
+      ["kode", "src/lib/zephyrTools/kendaliJendela.ts", "613 baris \xB7 Kendali jendela - jembatan antara tool Zeph AI dan jendela aplikasi. \xB7 ekspor: KONTROL_PANEL, PEMBUKA_STORE, KONTROL_SETELAN, daftarPanel, daftarSetelan, ringkasJendela, panelDikenal, setelanDikenal, bukaPanel, bukaSetelan, AksiPane, AKSI_PANE, aksiPane, TANGKAP_LAYAR_TERSEDIA, DOK_TANGKAP_LAYAR, DOK_LAPORAN_TANGKAP_LAYAR, PINTASAN_TANGKAP_LAYAR, laporanTangkapLayar, TARGET_TANGKAP, TargetTangkap, targetTangkapDikenal, periksaTargetTangkap, periksaPathTangkap, tangkapJendela"],
+      ["kode", "src/lib/zephyrTools/kotak.ts", "133 baris \xB7 `kotak` \u2014 the model draws a BOX, not a paragraph. \xB7 ekspor: rakitKotak, kotakTool"],
+      ["kode", "src/lib/zephyrTools/lsp.ts", "181 baris \xB7 `lsp` \u2014 one tool, six language-server questions. \xB7 ekspor: LspBridge, LspAksi, buatLspTool"],
       ["kode", "src/lib/zephyrTools/mcp.ts", "715 baris \xB7 Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. \xB7 ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
-      ["kode", "src/lib/zephyrTools/web.ts", "961 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+      ["kode", "src/lib/zephyrTools/patch.ts", "370 baris \xB7 `apply_patch` \u2014 many file edits in ONE call, in OpenCode's own patch format. \xB7 ekspor: PatchBridge, parsePatch, terapkanHunk, buatApplyPatchTool"],
+      ["kode", "src/lib/zephyrTools/peta.ts", '134 baris \xB7 `peta` \u2014 "where is X in Zephyr", answered from the 6.300-entry fact index. \xB7 ekspor: petaTool'],
+      ["kode", "src/lib/zephyrTools/tunjuk.ts", '268 baris \xB7 `tunjuk` \u2014 turn "I can\'t find it" into "it is open now". \xB7 ekspor: tunjukTool'],
+      ["kode", "src/lib/zephyrTools/web.ts", "1004 baris \xB7 Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. \xB7 ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+      ["kode", "src/lib/zephyrTools/webSatu.ts", "64 baris \xB7 `web` \u2014 search and fetch, one tool. \xB7 ekspor: WebAksi, TOOL_WEB_LAMA, TOOL_WEB_SATU"],
       ["kode", "src/lib/zephyrTools/worktree.ts", "279 baris \xB7 worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. \xB7 ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
       ["kode", "src/lib/zephyrTools/zephyrIngat.ts", "207 baris \xB7 `ingat` - memori lintas sesi milik Zeph AI sendiri. \xB7 ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
       ["kode", "src/lib/zephyrTools/zephyrSelf.ts", "687 baris \xB7 zephyr_self - introspeksi Zephyr dari sumber-sumber MILIK APLIKASI SENDIRI. \xB7 ekspor: POTONGAN_MAKS, TOKEN_POTONGAN_MAKS, KARAKTER_PER_TOKEN, BAGIAN_TAMPAK, BAGIAN_LAIN, ukuranCacheSesi, bersihkanCacheSesi, perkirakanToken, potongKePotongan, SPEC_ZEPHYR_SELF, jalankanZephyrSelf, TOOL_ZEPHYR_SELF"],
-      ["kode", "src/main.tsx", "57 baris \xB7 tanpa ekspor"],
+      ["kode", "src/main.tsx", "71 baris \xB7 tanpa ekspor"],
       ["kode", "src/styles/editor-themes.ts", "160 baris \xB7 ekspor: warnaToken, zephyrHighlight, editorTheme, EDITOR_THEME_IDS"],
       ["kode", "src/vite-env.d.ts", '2 baris \xB7 /// <reference types="vite/client" /> \xB7 tanpa ekspor'],
       ["label", '"{name}" is not open in the editor', 'label antarmuka \xB7 EN: "{name}" is not open in the editor \xB7 ID: "{name}" tidak terbuka di editor \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH'],
@@ -61070,6 +61110,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Auto", "label antarmuka \xB7 EN: Auto \xB7 ID: Otomatis \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Auto (from the model list)", "label antarmuka \xB7 EN: Auto (from the model list) \xB7 ID: Auto (dari daftar model) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Auto (tanpa tanya)", "label antarmuka \xB7 EN: Full Auto \xB7 ID: Auto (tanpa tanya) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Auto (use the first provider with a key)", "label antarmuka \xB7 EN: Auto (use the first provider with a key) \xB7 ID: Otomatis (pakai provider pertama yang punya key) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Auto-detect", "label antarmuka \xB7 EN: Auto-detect \xB7 ID: Deteksi otomatis \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Auto-update checks GitHub Releases periodically.", "label antarmuka \xB7 EN: Auto-update checks GitHub Releases periodically. \xB7 ID: Auto-update checks GitHub Releases periodically. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Auto-update memeriksa GitHub Releases berkala.", "label antarmuka \xB7 EN: Auto-update checks GitHub Releases periodically. \xB7 ID: Auto-update memeriksa GitHub Releases berkala. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -61373,6 +61414,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Could not read {name}", "label antarmuka \xB7 EN: Could not read {name} \xB7 ID: Tidak bisa membaca {name} \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Cover the main path", "label antarmuka \xB7 EN: Cover the main path \xB7 ID: Cakup jalur utamanya \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Create", "label antarmuka \xB7 EN: Create \xB7 ID: Create \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Create With Plan", "label antarmuka \xB7 EN: Create With Plan \xB7 ID: Buat Dengan Rencana \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Create another pane: a specific shell, private, AI agent, browser, new tab", "label antarmuka \xB7 EN: Create another pane: a specific shell, private, AI agent, browser, new tab \xB7 ID: Create another pane: a specific shell, private, AI agent, browser, new tab \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Credentials", "label antarmuka \xB7 EN: Credentials \xB7 ID: Credentials \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan.", "label antarmuka \xB7 EN: Ctrl+Shift+A finds an action, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L formats. \xB7 ID: Ctrl+Shift+A cari aksi, Alt+1 sidebar, Alt+9 panel, Ctrl+Alt+L rapikan. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -61581,6 +61623,8 @@ var init_zephyrIndeks = __esm({
       ["label", "Ganti semua", "label antarmuka \xB7 EN: Replace all"],
       ["label", "Ganti semua di file ini", "label antarmuka \xB7 EN: Replace all in this file"],
       ["label", "Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama.", "label antarmuka \xB7 EN: Dark with lower contrast than the default, for long night sessions. \xB7 ID: Gelap dengan kontras lebih rendah dari bawaan, untuk kerja malam lama. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Generate", "label antarmuka \xB7 EN: Generate \xB7 ID: Buat \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Generating\u2026", "label antarmuka \xB7 EN: Generating\u2026 \xB7 ID: Membuat\u2026 \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Geser untuk mengubah lebar", "label antarmuka \xB7 EN: Drag to resize \xB7 ID: Geser untuk mengubah lebar \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ghost text", "label antarmuka \xB7 EN: Ghost text \xB7 ID: Ghost text \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Ghost text (saran AI inline)", "label antarmuka \xB7 EN: Ghost text (inline AI suggestions) \xB7 ID: Ghost text (saran AI inline) \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -62622,6 +62666,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Some runtimes are not installed", "label antarmuka \xB7 EN: Some runtimes are not installed \xB7 ID: Some runtimes are not installed \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Some tool steps failed \u2014 check the result", "label antarmuka \xB7 EN: Some tool steps failed \u2014 check the result \xB7 ID: Ada langkah tool yang gagal \u2014 periksa hasilnya \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Sorot semua hasil", "label antarmuka \xB7 EN: Highlight all matches"],
+      ["label", "Source", "label antarmuka \xB7 EN: Source \xB7 ID: Sumber \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Source Control", "label antarmuka \xB7 EN: Source Control \xB7 ID: Source Control \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Source code", "label antarmuka \xB7 EN: Source code \xB7 ID: Source code \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Spawned by a subagent at depth {n}", "label antarmuka \xB7 EN: Spawned by a subagent at depth {n} \xB7 ID: Dimulai oleh subagen di kedalaman {n} \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -62862,6 +62907,7 @@ var init_zephyrIndeks = __esm({
       ["label", "Tidak bisa menjalankan: tidak ada framework tes di workspace ini.", "label antarmuka \xB7 EN: Cannot run: there is no test framework in this workspace. \xB7 ID: Tidak bisa menjalankan: tidak ada framework tes di workspace ini. \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tidak boleh mengubah apa pun - hanya membaca", "label antarmuka \xB7 EN: Cannot change anything - read only \xB7 ID: Tidak boleh mengubah apa pun - hanya membaca \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Time", "label antarmuka \xB7 EN: Time \xB7 ID: Waktu \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "Timeline", "label antarmuka \xB7 EN: Timeline \xB7 ID: Lini Masa \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Timeline: Hapus Riwayat File Ini", "label antarmuka \xB7 EN: Timeline: Delete This Files History \xB7 ID: Timeline: Hapus Riwayat File Ini \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Timestamps (ms since process start):", "label antarmuka \xB7 EN: Timestamps (ms since process start): \xB7 ID: Timestamps (ms since process start): \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "Tindakan ekstensi", "label antarmuka \xB7 EN: Extension actions \xB7 ID: Tindakan ekstensi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -63677,6 +63723,7 @@ var init_zephyrIndeks = __esm({
       ["label", "settings.editor", "label antarmuka \xB7 EN: Code Editor \xB7 ID: Editor Kode \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "settings.extensions", "label antarmuka \xB7 EN: Extensions \xB7 ID: Ekstensi \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "settings.general", "label antarmuka \xB7 EN: General \xB7 ID: Umum \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
+      ["label", "settings.icons", "label antarmuka \xB7 EN: Icons \xB7 ID: Ikon \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "settings.lsp", "label antarmuka \xB7 EN: Language Servers \xB7 ID: Language Server \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "settings.mcp", "label antarmuka \xB7 EN: MCP \xB7 ID: MCP \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
       ["label", "settings.memori", "label antarmuka \xB7 EN: Memory \xB7 ID: Memori \xB7 +8 bahasa lain: AR/DE/ES/FR/JA/KO/PT/ZH"],
@@ -63996,12 +64043,12 @@ var init_zephyrIndeks = __esm({
       ["layar", "AccessibilitySection", "src/components/settings/AccessibilitySection.tsx \xB7 16 label: Accessibility, Quick test, Reduce motion, Screen reader mode, Send test announcement, Test announcement from Zephyr. The screen reader path works., This button sends an announcement to the screen reader through the same path as app notifications - if Narrator reads it, the a11y path is alive., Windows already requested reduced motion - animation is off even if this is off, Zephyr can be used entirely with the keyboard. Press, for all commands. The contrast of every theme meets WCAG AA; the, from the start to jump straight to the editor,, move focus to the dialog when it opens (turn off if it is disruptive), terminal & editor optimized for Narrator/NVDA (heavier), the screen reader needs time to read; increase it if the toast disappears too quickly, theme meets AAA., turn off transitions & animations inside Zephyr \xB7 2 data-testid: a11y-uji-umumkan, set-accessibility \xB7 teks: Ctrl+Shift+P \xB7 High Contrast"],
       ["layar", "Account", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Actions", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
-      ["layar", "Active", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/PersonaCard.tsx"],
+      ["layar", "Active", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/IkonTemaSection.tsx, src/components/settings/PersonaCard.tsx"],
       ["layar", "Active Background Processes", "tooltip title di layar \xB7 dirender 1 berkas: src/components/ai/ComposerStatusStack.tsx"],
       ["layar", "Active pane", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "Active style", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Activity and technical details", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
-      ["layar", "ActivityBar", "src/components/shell/ActivityBar.tsx \xB7 5 label: @{user} - GitHub account (click: Source Control), GitHub account: @{user}, Sign in to GitHub, Sign in to GitHub (opens browser), Sign in to GitHub - open Source Control \xB7 aria-label: Activity Bar \xB7 1 data-testid: ab-gh"],
+      ["layar", "ActivityBar", "src/components/shell/ActivityBar.tsx \xB7 5 label: @{user} - GitHub account (click: Source Control), GitHub account: @{user}, Sign in to GitHub, Sign in to GitHub (opens browser), Sign in to GitHub - open Source Control \xB7 aria-label: Activity Bar \xB7 2 data-testid: ab-gh, ab-settings"],
       ["layar", "Add Port", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/PortsView.tsx"],
       ["layar", "Add a server endpoint, then test the connection to see which tools it provides.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "Add context", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
@@ -64013,10 +64060,10 @@ var init_zephyrIndeks = __esm({
       ["layar", "Add your custom instructions...", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "AgcSections", "src/components/settings/AgcSections.tsx \xB7 111 label: (no description), (no event set), (no pattern set), (not active yet), A plugin is a package that brings skills, rules, hooks, agents and MCP servers together. Enabling one writes the skills and rules it carries, registers its MCP servers, and adds its hooks (switched off) and agents to the sections that own them., Action, Add a rule, Add skills, hooks, or plugins first \u2014 then you can export them., Allow, Allow, confirm or block a tool call by pattern. Rules are checked top to bottom and the FIRST match decides \u2014 so a rule that should always apply belongs at the top. With no matching rule, the approval mode above decides as before., Any tool, Applies to (glob), Available, Block, Browse catalog, Cancel, Close, Command, Command to run, e.g. npm run lint, Commands run automatically at key points in the agent lifecycle to validate, format, or coordinate work., Confirm, Could not save the skill. See the message above., Create with AI, Customizations copied to the clipboard as JSON., Customizations exported as a download., Delete, Describe it in plain language, Description, Disable, Discard draft, Dismiss, Draft a hook from a description, Draft a skill from a description, Enable, Enabled, Enabled: its skills, rules, hooks, agents and MCP servers are in place., Export customizations, Folders of instructions and workflows the agent l\u2026"],
       ["layar", "AgcToolList", "src/components/settings/AgcToolList.tsx \xB7 6 label: All off, All on, Filter tools, No tool matches that filter., section, {n} of {total} on \xB7 5 data-testid: agc-tool-list, agc-tools-all-off, agc-tools-all-on, agc-tools-cari, agc-tools-total"],
-      ["layar", "Agent Customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Agent Customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Agent Customizations\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
       ["layar", "Agent Sync / Loop Active", "tooltip title di layar \xB7 dirender 1 berkas: src/components/ai/ComposerStatusStack.tsx"],
-      ["layar", "AgentCustomModal", "src/components/settings/AgentCustomModal.tsx \xB7 32 label: Agent Customizations, Agents, An agent that reviews code for bugs and security issues, changes nothing, and starts from the least privilege., Cancel, Close, Configure the AI persona: identity, way of working, and rules., Connect the agent to external tools and data through MCP servers., Create with AI, Customize Your Agent, Describe the role in plain language, Describe your preferences and conventions to draft agents, skills, and instructions., Description, Discard draft, Draft from this, Enable or disable the tools available to the agent. Disabled tools are not advertised., Explore Customizations, Extra rules, Generate draft, Generating\u2026, Identity and way of working, Instructions, MCP Servers, Manage what the active agent knows and can do., Maximize, Name, Prefer concise commits, thorough reviews, and tested code\u2026, Restore size, Rules attached to a file pattern. Repository-wide rules that are always on live in AGENTS.md., Save, Tailor how agents work in your projects. Configure workspace customizations for the entire team, or create personal ones that follow you across projects., This is a draft from the model. Check it before saving - it shapes every answer the assistant gives., Tools \xB7 18 data-testid: agc-agent-ai, agc-ai-agent, agc-ai-error-agent, agc-ai-generate-agent, agc-ai-input-agent, agc-close, agc-content, agc\u2026"],
+      ["layar", "AgentCustomPage", "src/components/settings/AgentCustomPage.tsx \xB7 29 label: Agent Customizations, Agents, An agent that reviews code for bugs and security issues, changes nothing, and starts from the least privilege., Cancel, Configure the AI persona: identity, way of working, and rules., Connect the agent to external tools and data through MCP servers., Create with AI, Customize Your Agent, Describe the role in plain language, Describe your preferences and conventions to draft agents, skills, and instructions., Description, Discard draft, Draft from this, Enable or disable the tools available to the agent. Disabled tools are not advertised., Explore Customizations, Extra rules, Generate draft, Generating\u2026, Identity and way of working, Instructions, MCP Servers, Manage what the active agent knows and can do., Name, Prefer concise commits, thorough reviews, and tested code\u2026, Rules attached to a file pattern. Repository-wide rules that are always on live in AGENTS.md., Save, Tailor how agents work in your projects. Configure workspace customizations for the entire team, or create personal ones that follow you across projects., This is a draft from the model. Check it before saving - it shapes every answer the assistant gives., Tools \xB7 16 data-testid: agc-agent-ai, agc-ai-agent, agc-ai-error-agent, agc-ai-generate-agent, agc-ai-input-agent, agc-content, agc-da-aturan, agc-da-desc, agc-da-identitas, \u2026"],
       ["layar", "AgentMap", "src/components/ai/AgentMap.tsx \xB7 2 label: {n} failed, {n} running \xB7 1 data-testid: cli-subagent-body"],
       ["layar", "AgentMapPanel", "src/components/ai/AgentMapPanel.tsx \xB7 22 label: Agent, Agent map, Close, Finished, No agent has run in this conversation., Open transcript, Prompt, Running, Spawned by a subagent at depth {n}, Spawned by the main agent, Stopped, This agent called no tools., Tool calls ({n}), background, click an agent for details, depth {n}, {h}h {m}m, {n} agents, {n} of them failed., {n} tokens, {n} tokens in context, {s}s \xB7 12 data-testid: cli-agent-back, cli-agent-card, cli-agent-detail, cli-agent-map, cli-agent-map-close, cli-agent-open-transcript, cli-agent-prompt-toggle, cli-agent-root, cli-agent-tools-toggle, cli-agent-transcript, cli-agent-transcript-back, cli-agent-transcript-prompt \xB7 teks: p.type === 'tool' ? ("],
       ["layar", "AgentsBrowser", "src/components/agents/AgentsBrowser.tsx \xB7 21 label: Add Console Logs to Chat, Add Element to Chat, Add Page Snapshot to Chat, Add Page Text to Chat, Clear Storage and Cache, Copy Link, Could not read the host from this address., Developer Tools, Enter a URL to preview a page here., Enter a URL\u2026, Go Back, Go Forward, Inspect, More Actions, Open in External Browser, Reload, Reset Zoom, Share with Agent, Shortcuts: Ctrl+Shift+C inspect \xB7 F12 developer tools, Zoom In, Zoom Out \xB7 26 data-testid: ag-browser, ag-browser-allow, ag-browser-back, ag-browser-clear, ag-browser-copy, ag-browser-devtools, ag-browser-empty, ag-browser-external, ag-browser-forward, ag-browser-galat, ag-browser-inspect, ag-browser-more, ag-browser-reload, ag-browser-share, ag-browser-share-status, ag-browser-stage, ag-browser-url, ag-browser-zoom-in, ag-browser-zoom-out, ag-browser-zoom-reset, ag-inspect-console, ag-inspect-element, ag-inspect-shot, ag-inspect-text, ag-menu-browser, ag-menu-inspect \xB7 teks: Ctrl+Shift+C \xB7 Ctrl++ \xB7 Ctrl+-"],
@@ -64028,13 +64075,13 @@ var init_zephyrIndeks = __esm({
       ["layar", "AgentsTitlebar", "src/components/agents/AgentsTitlebar.tsx \xB7 9 label: Command Palette - search commands & files (Ctrl+Shift+P / Ctrl+P), Go Back, Go Forward, Open in Editor, Open in Editor Window, Search files & commands\u2026, Sign in to GitHub, Toggle changes and files column, Toggle sessions column \xB7 8 data-testid: ag-command-center, ag-nav-back, ag-nav-forward, ag-open-editor, ag-tb-gh, ag-toggle-left, ag-toggle-right, agents-titlebar"],
       ["layar", "AgentsWindow", "src/AgentsWindow.tsx \xB7 1 data-testid: agents-window-root"],
       ["layar", "AiHost", "src/components/ai/AiHost.tsx \xB7 1 label: Agent \xB7 4 data-testid: ai-host, ai-host-pane-chat, ai-host-tab-chat, ai-host-tabs"],
-      ["layar", "AiModelsModal", "src/components/settings/AiModelsModal.tsx \xB7 4 label: Close, Maximize, Restore size, settings.models \xB7 5 data-testid: aim-pop, aim-pop-close, aim-pop-content, aim-pop-dialog, aim-pop-max"],
+      ["layar", "AiModelsPage", "src/components/settings/AiModelsPage.tsx \xB7 1 label: settings.models \xB7 2 data-testid: aim-page, aim-page-content"],
       ["layar", "AiModelsTable", "src/components/settings/AiModelsTable.tsx \xB7 7 label: Capabilities, Context Size, Name, Research preview, Tools, Vision, the app picks the model and the workflow per task \xB7 2 data-testid: aim-table, aim-table-row"],
       ["layar", "AiPanel", 'src/components/ai/AiPanel.tsx \xB7 86 label: "{name}" is larger than 3.5 MB - skipped, 1 step done, Add a file, an image or dictate, Add an API key for, Add to queue, Agent is working\u2026, Allow, Ask about this code., Attach, Attached {name}, Cadence, Cancel, Checking the result, Clear the queue, Continue from where it stopped, Could not read that folder, Could not read {name}, Delete, Deny, Edit the queued message, Enter sends \xB7 Shift+Enter new line \xB7 Ctrl+I focuses here., Files in this workspace, Files\u2026, Folder\u2026, Go to the newest, Image attachment {n}, Images\u2026, Just stop, Message for the AI, Move down in the queue, Move up in the queue, No chats match., No image on the clipboard, On branch {name}, Open AI Models, Paste image, Planning the next step, Prompt commands, Prompt snippets\u2026, Reading the files that matter \xB7 64 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-botbar, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-jump-bottom, ai-msg-count, ai-nokey, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus, ai-plus-file \xB7 teks: Ctrl+Enter'],
       ["layar", "AiWindow", "src/AiWindow.tsx \xB7 1 data-testid: ai-window-root"],
       ["layar", "Allow &amp; run", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
       ["layar", "Allow memories from tool-assisted chats", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "An agent that reviews code for bugs and security issues, changes nothing, and starts from the least privilege.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "An agent that reviews code for bugs and security issues, changes nothing, and starts from the least privilege.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Anthropic", "aria-label di layar \xB7 dirender 1 berkas: src/lib/modelCatalog.tsx"],
       ["layar", "ApiClientView", "src/components/api/ApiClientView.tsx \xB7 19 label: A URL must start with http:// or https://, API Client, Add one in Settings, Dev Environment., Auth, Body, Headers, History, Query, Request kind, Response headers, Send, Sending\u2026, Variables, https://api.example.com/endpoint, none, one per line, Name: value, pick a credential, to send, truncated \xB7 18 data-testid: api-auth-cred, api-auth-kind, api-body, api-body-out, api-gql-errors, api-headers, api-history, api-method, api-mode-graphql, api-mode-rest, api-ms, api-pesan, api-response, api-root, api-send, api-status, api-url, api-vars"],
       ["layar", "App", "src/App.tsx \xB7 5 label: AI panel, Resize AI panel width, Resize panel height, Resize sidebar width, win.skipToEditor \xB7 aria-label: Editor, Main terminal, Sidebar \xB7 7 data-testid: a11y-skip, ai-resizer, ai-side-col, ai-side-top, ai-side-top-tabs, kb-recording, term-first"],
@@ -64058,7 +64105,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "Breadcrumbs", "src/components/editor/Breadcrumbs.tsx \xB7 1 label: without a language server: path estimated from indentation \xB7 6 data-testid: bc-approx, bc-dropdown, bc-dropdown-item, bc-path-seg, bc-sym-seg, breadcrumbs"],
       ["layar", "Browse catalog", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Browse directory", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Browser", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
       ["layar", "BrowserContextChip", "src/components/ai/BrowserContextChip.tsx \xB7 2 label: Attach this page to the message, Hide this page from the composer \xB7 3 data-testid: ai-browser-chip, ai-browser-chip-close, ai-browser-chip-insert"],
       ["layar", "BrowserPane", "src/components/terminal/BrowserPane.tsx \xB7 11 label: Back, Forward, Go to, HTTPS connection, Open URL, Open in an external browser, Open in the system browser, Page could not be loaded, Plain HTTP (no encryption), Reload, URL address \xB7 aria-label: Home \xB7 14 data-testid: bp-back, bp-blank, bp-blank-home, bp-error, bp-external, bp-fwd, bp-goto-local, bp-home, bp-lock, bp-open-external, bp-reload, bp-stage, bp-title, bp-url \xB7 teks: Enter a URL then press Enter."],
       ["layar", "C:/Users/\u2026/.ssh/id_ed25519", "placeholder di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
@@ -64066,15 +64112,16 @@ var init_zephyrIndeks = __esm({
       ["layar", "Case sensitive", "tooltip title di layar \xB7 dirender 1 berkas: src/components/editor/FindBar.tsx"],
       ["layar", "Changes and files", "aria-label di layar \xB7 dirender 1 berkas: src/components/agents/AgentsLayout.tsx"],
       ["layar", 'Channel "{name}" is still empty.', "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/OutputView.tsx"],
-      ["layar", "ChatHeadActions", "src/components/ai/ChatHeadActions.tsx \xB7 17 label: Agent Customizations\u2026, Chat Settings, Chat history, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models \xB7 19 data-testid: ai-history-btn, ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
-      ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 35 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 26 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
-      ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 40 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Maximize, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Restore size, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 25 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-max, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace\u2026"],
-      ["layar", "ChatSettingsPopup", "src/components/ai/ChatSettingsPopup.tsx \xB7 aria-label: Chat Settings \xB7 2 data-testid: cset-pop, cset-scrim"],
+      ["layar", "ChatHeadActions", "src/components/ai/ChatHeadActions.tsx \xB7 16 label: Agent Customizations\u2026, Chat Settings, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models \xB7 18 data-testid: ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
+      ["layar", "ChatMessage", "src/components/ai/ChatMessage.tsx \xB7 35 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} lines, {x} file dikembalikan \xB7 27 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns, ai-typing"],
+      ["layar", "ChatSettingsPage", "src/components/ai/ChatSettingsPage.tsx \xB7 38 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do\u2026, Auto (from the model list), Chat Settings, Clear all chats\u2026, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets\u2026, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Save ({n}), Saved, Scope, Search chat settings\u2026, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay \xB7 placeholder: http://localhost:7777 \xB7 24 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
       ["layar", "ChatStamp", "src/components/ai/ChatStamp.tsx \xB7 3 label: Today, Tomorrow, Yesterday \xB7 2 data-testid: ai-day-div, ai-msg-time"],
       ["layar", "Chats", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
+      ["layar", "Choose Your Interface", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "Choose a model: type a name below or press Refresh.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ModelSelector.tsx"],
       ["layar", "Choose when Enter sends a prompt or inserts a new line", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Choose which reasoning levels appear in model controls. Availability varies by model", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
+      ["layar", "Claude Code", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "Clear Pane", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "Clear console", "tooltip title di layar \xB7 dirender 1 berkas: src/components/shell/DebugConsoleView.tsx"],
       ["layar", "Clear goal", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
@@ -64106,21 +64153,27 @@ var init_zephyrIndeks = __esm({
       ["layar", "CommandPermissions", 'src/components/settings/CommandPermissions.tsx \xB7 9 label: Add, Add a command\u2026, Already in the list., Command permissions, Commands that are always allowed without asking again. Destructive commands (recursive delete, hard reset) are STILL asked - that safety net cannot be turned off from here., Destructive commands cannot be added to the allow list., No allowed commands yet., Remove permission, This command is too short - write something more specific (e.g. "npm run build", not "n"). \xB7 10 data-testid: prompt-section, sp-izin, sp-izin-daftar, sp-izin-hapus, sp-izin-input, sp-izin-item, sp-izin-jumlah, sp-izin-kosong, sp-izin-pesan, sp-izin-tambah'],
       ["layar", "Commands", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Commands run automatically at key points in the agent lifecycle to validate, format, or coordinate work.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "Commit History & Graph", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit and push", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit and push, commit and sync, ...", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit and sync", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit the staged changes, then push to the remote", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Commit, then pull and push", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Compacting", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Compacting the conversation\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
+      ["layar", "Complete tasks with tools, files and the terminal", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "Composer", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "ComposerStatusStack", "src/components/ai/ComposerStatusStack.tsx \xB7 10 label: Berjalan, Clear all tasks, Clear completed tasks, Collapse, Duration, Expand, Menunggu, Selesai, Sub-agents, Task list \xB7 tooltip: Active Background Processes, Agent Sync / Loop Active, Options, Tasks / Todos \xB7 aria-label: Options \xB7 3 data-testid: ai-todos, todo-lipat, todo-panel"],
       ["layar", "ComposerTip", "src/components/ai/ComposerTip.tsx \xB7 7 label: Hide tips, Start a new chat to run another task in parallel, Tip:, adds your message to the queue, for slash commands, to reference files inline, type \xB7 2 data-testid: ai-tip-dismiss, ai-tip-strip \xB7 teks: Ctrl+Enter"],
       ["layar", "Configuration", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Configure approval policy and sandbox settings", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Configure how Codex manages memory for Local.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Configure the AI persona: identity, way of working, and rules.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Configure the AI persona: identity, way of working, and rules.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Configured hooks will appear here", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "ConfirmDialog", "src/components/shell/ConfirmDialog.tsx \xB7 4 label: Cancel, Close, Close Zephyr?, The window will close. Your files are already saved, so nothing is lost. Turn this question off in Settings, General if you do not want to be asked. \xB7 teks: Don't Save"],
       ["layar", "ConflictEditor", 'src/components/scm/ConflictEditor.tsx \xB7 12 label: (empty), Base, Close, No conflict markers left in this file., Ours, Picking a side for a hunk writes that version into the file. Use "Take all" to resolve the whole file quickly, then stage it., Resolve conflict, Take all ours, Take all theirs, Theirs, Use ours, Use theirs \xB7 6 data-testid: ce-close, ce-empty, ce-error, ce-ours-all, ce-theirs-all, conflict-editor'],
       ["layar", "Connect external tools and data sources", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Connect the agent to external tools and data through MCP servers.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Connect the agent to external tools and data through MCP servers.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Context: {in} in / {out} out tokens \xB7 transcript {kb}KB", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Context: {n}% used", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "ContextMenu", "src/components/explorer/ContextMenu.tsx \xB7 teks: New File \xB7 New Folder \xB7 Reveal in Explorer \xB7 Copy Path"],
@@ -64137,16 +64190,15 @@ var init_zephyrIndeks = __esm({
       ["layar", "Create &amp; switch", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Create /doctor command", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Create memories from chats on Local and use them to personalize future chats on Local", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Create with AI", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Create with AI", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Ctrl++", "teks elemen di layar \xB7 dirender 1 berkas: src/components/agents/AgentsBrowser.tsx"],
       ["layar", "Ctrl+Shift+C", "teks elemen di layar \xB7 dirender 1 berkas: src/components/agents/AgentsBrowser.tsx"],
       ["layar", "Current", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Current workspace", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
-      ["layar", "Cursor", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "Custom config.toml settings", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Customizations copied to the clipboard as JSON.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Customizations exported as a download.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "Customize Your Agent", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Customize Your Agent", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Debug", "aria-label di layar \xB7 dirender 1 berkas: src/components/debug/DebugToolbar.tsx"],
       ["layar", "Debug Adapters", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "Debug configuration", "aria-label di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
@@ -64156,6 +64208,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "DebugToolbar", "src/components/debug/DebugToolbar.tsx \xB7 tooltip: Restart (Ctrl+Shift+F5), Step Into (F11), Step Out (Shift+F11), Step Over (F10), Stop (Shift+F5) \xB7 aria-label: Debug \xB7 6 data-testid: dbg-tb-next, dbg-tb-restart, dbg-tb-stepin, dbg-tb-stepout, dbg-tb-stop, dbg-toolbar"],
       ["layar", "DebugView", "src/components/debug/DebugView.tsx \xB7 16 label: (no launch.json), Available while the program is paused., Click the editor gutter to set a breakpoint., Collapse, Copy value, Delete, Expand, No session yet., Open a folder first to debug., Program is running - not paused., Remove breakpoint, inactive, not verified, paused ({alasan}), preparing adapter\u2026, running \xB7 tooltip: Restart (Ctrl+Shift+F5), Start Debugging (F5), Stop (Shift+F5) \xB7 aria-label: Debug configuration \xB7 placeholder: Watch expression\u2026 \xB7 23 data-testid: dbg-adapter-hint, dbg-bp, dbg-bp-dot, dbg-bp-hapus, dbg-bp-hapus-semua, dbg-config, dbg-error, dbg-frame, dbg-invalid, dbg-restart, dbg-scope, dbg-scope-head, dbg-src, dbg-start, dbg-status, dbg-stop, dbg-var, dbg-var-copy, dbg-var-input, dbg-var-nilai, dbg-watch, dbg-watch-input, debug-view \xB7 teks: Run &amp; Debug \xB7 remove all \xB7 Available when the adapter supports loadedSources."],
       ["layar", "DeepSeek", "aria-label di layar \xB7 dirender 1 berkas: src/lib/modelCatalog.tsx"],
+      ["layar", "DeepSeek Harness", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "Default mode", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Delete Codex memories", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", 'Delete SSH host "{name}"?', "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
@@ -64165,9 +64218,9 @@ var init_zephyrIndeks = __esm({
       ["layar", "Delete {n} items", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/explorer/DeleteConfirmDialog.tsx"],
       ["layar", "DeleteConfirmDialog", "src/components/explorer/DeleteConfirmDialog.tsx \xB7 3 label: Cancel, Delete, Delete {n} items \xB7 5 data-testid: del-body, del-cancel, del-list, del-ok, del-title"],
       ["layar", "Describe it in plain language", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "Describe the role in plain language", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "Describe your preferences and conventions to draft agents, skills, and instructions.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "Description", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Describe the role in plain language", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "Describe your preferences and conventions to draft agents, skills, and instructions.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "Description", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Detached", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "DevEnvSettingsSection", "src/components/settings/DevEnvSettingsSection.tsx \xB7 19 label: Add a credential, Appended to each project name to build its URL., Credentials, Database passwords and other secrets. Stored encrypted in credentials.json, separate from the model API keys, and never written to a log., Delete, Dev Environment, Domain, No credentials stored yet., Root folder, Runtimes, projects, databases and logs live here., Save, Server, The web server that fronts the projects., Where the local environment lives and how its projects are addressed. The panel itself opens from the Activity Bar., e.g. mysql/local, empty, none, saved, secret \xB7 5 data-testid: dv-cred-id, dv-cred-save, dv-cred-secret, dv-set-pesan, set-devenv"],
       ["layar", "DevEnvView", "src/components/devenv/DevEnvView.tsx \xB7 54 label: All services running, Cancel, Change, Commands typed in the terminal only resolve to this setup while its shim folder is on the user PATH., Copy name, Copy path, Create, Detected, Dev Environment, Domain, Everything available is installed, Focus, Folder, Locate in Settings, Locate\u2026, New project, New project name, No projects found, No terminals open, Nothing is listening, Open, Open data folder, Open folder, Open in browser, Open www, Ports, Projects, Refresh, Register, Root folder, Runtimes, Runtimes & tools, Scan again, Search N projects, Server, Services, Settings, Setup, Some runtimes are not installed, Start \xB7 placeholder: my-app \xB7 36 data-testid: dv-domain, dv-open-www, dv-path-register, dv-path-shim, dv-pesan, dv-ports, dv-ports-status, dv-project-new, dv-project-new-cancel, dv-project-new-create, dv-project-new-form, dv-project-new-name, dv-project-refresh, dv-project-search, dv-projects, dv-ringkas, dv-root, dv-root-change, dv-root-open, dv-root-path, dv-row-path, dv-row-root, dv-row-runtimes, dv-runtime-ringkas, dv-runtime-status, dv-runtimes, dv-scan-again, dv-server, dv-service-status, dv-services"],
@@ -64177,7 +64230,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "DiffViewer", "src/components/scm/DiffViewer.tsx \xB7 2 label: Discard changes to this file (permanent), No differences for this file. \xB7 16 data-testid: diff-binary, diff-close, diff-hunks, diff-hunks-catatan, diff-hunks-pesan, diff-hunks-ringkas, diff-hunks-terapkan, diff-hunks-terima-semua, diff-hunks-tolak-semua, diff-path, diff-pre, diff-revert, diff-side, diff-stage-toggle, diff-stat, diff-view \xB7 teks: binary file \xB7 Revert file \xB7 Terima semua \xB7 Tolak semua"],
       ["layar", "Discard All\u2026", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Discard all", "aria-label di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
-      ["layar", "Discard draft", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Discard draft", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Dismiss", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CliChat.tsx, src/components/settings/AgcSections.tsx"],
       ["layar", "Do anything", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexChat.tsx"],
       ["layar", "Dock Chat to Right", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
@@ -64185,7 +64238,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Download & install v{version}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "Draft a hook from a description", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Draft a skill from a description", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "Draft from this", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Draft from this", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Duplicate", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/agents/SessionContextMenu.tsx"],
       ["layar", "Edit project memory", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Edit the AGENTS.md file on the selected machine. Repository instructions may also apply.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
@@ -64197,7 +64250,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Effort", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Effort is set in the model picker \u2014 pick a level there", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Enable Codex memories", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Enable or disable the tools available to the agent. Disabled tools are not advertised.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Enable or disable the tools available to the agent. Disabled tools are not advertised.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Enabled: its skills, rules, hooks, agents and MCP servers are in place.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Enter", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Enter a URL then press Enter.", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/BrowserPane.tsx"],
@@ -64206,10 +64259,10 @@ var init_zephyrIndeks = __esm({
       ["layar", "Evaluasi ekspresi\u2026", "placeholder di layar \xB7 dirender 1 berkas: src/components/shell/DebugConsoleView.tsx"],
       ["layar", "Event", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Every installed package loaded. Nothing was skipped.", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
-      ["layar", "Explore Customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Explore Customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Explored {n} item", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
       ["layar", "Explored {n} items", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
-      ["layar", "ExplorerPanel", "src/components/explorer/ExplorerPanel.tsx \xB7 6 label: Close workspace, New folder, No folder has been opened yet, No workspace yet - open a folder, Open File, Open Folder \xB7 tooltip: Collapse all, New file, Refresh \xB7 aria-label: Collapse all, New file, Refresh \xB7 2 data-testid: recent-list, root-list"],
+      ["layar", "ExplorerPanel", "src/components/explorer/ExplorerPanel.tsx \xB7 8 label: Close workspace, New folder, No folder has been opened yet, No workspace yet - open a folder, Open File, Open Folder, Outline, Timeline \xB7 tooltip: Collapse all, New file, Refresh \xB7 aria-label: Collapse all, New file, Refresh \xB7 2 data-testid: recent-list, root-list"],
       ["layar", "Export customizations", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Export report (JSON)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsDiag.tsx"],
       ["layar", "ExtApprovalModal", "src/components/extensions/ExtApprovalModal.tsx \xB7 3 data-testid: ext-approval, ext-approval-izinkan, ext-approval-tolak \xB7 teks: External runtime permission \xB7 Allow &amp; run"],
@@ -64218,7 +64271,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "External AI \u2192 Zephyr", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "External runtime permission", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtApprovalModal.tsx"],
       ["layar", "External runtime permissions (0)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
-      ["layar", "Extra rules", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Extra rules", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Fetching symbols\u2026", "teks elemen di layar \xB7 dirender 1 berkas: src/components/editor/LspOverlay.tsx"],
       ["layar", "File Explorer", "aria-label di layar \xB7 dirender 1 berkas: src/components/explorer/FileTree.tsx"],
       ["layar", "FileTree", "src/components/explorer/FileTree.tsx \xB7 1 label: This folder is empty \xB7 aria-label: File Explorer, Name"],
@@ -64231,9 +64284,8 @@ var init_zephyrIndeks = __esm({
       ["layar", "Following panel width \u2014 click to force split", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/claudeCodeUi.tsx"],
       ["layar", "GET /mcp (schema) \xB7 GET /health (no auth)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "Gemini CLI", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
-      ["layar", "Generate draft", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Generate draft", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Generate memories from chats that used MCP tools or web search", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Generating\u2026", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
       ["layar", "GhMenu", "src/components/shell/GhMenu.tsx \xB7 4 label: Manage GitHub token, Not signed in, Sign in to GitHub, Sign out of GitHub \xB7 3 data-testid: gh-menu-login, gh-menu-logout, gh-menu-token"],
       ["layar", "GitHub Copilot CLI", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "GitHub account: @{user}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/ActivityBar.tsx"],
@@ -64256,8 +64308,9 @@ var init_zephyrIndeks = __esm({
       ["layar", "How should Codex actions be approved?", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexChat.tsx"],
       ["layar", "How the AI carries itself. A persona only changes the way it talks and thinks, the tool list, project rules, and your own instructions still apply.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/PersonaCard.tsx"],
       ["layar", `How to use it: click a persona row to make it active, it applies to the next chat, no restart needed. The built-in personas cannot be edited or deleted \u2014 duplicate one to customize it without losing the original. If unsure, leave "Zeph" active: that is Zephyr's built-in orchestrator with nothing added.`, "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/PersonaCard.tsx"],
-      ["layar", "Identity and way of working", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Identity and way of working", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Ignored here", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+      ["layar", "IkonTemaSection", "src/components/settings/IkonTemaSection.tsx \xB7 10 label: Active, No icon packs installed yet. Install one from Extensions -> Icon Themes, and it will appear here., No icon theme matches that search., Search icon themes\u2026, Which icon set the file tree, tabs and breadcrumb use. Picking a card applies it immediately - no restart., Zephyr (built-in), drawings, icons, letter marks, settings.icons \xB7 5 data-testid: ikt-card-bawaan, ikt-grid, ikt-kosong, ikt-search, ikt-tidak-ada"],
       ["layar", "Image attachment {n}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "Image preview", "aria-label di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
       ["layar", "ImagePreview", "src/components/editor/ImagePreview.tsx \xB7 4 label: Close preview, Failed to load image., Zoom in, Zoom out \xB7 8 data-testid: img-close, img-el, img-error, img-reset, img-view, img-zoom, img-zoom-in, img-zoom-out"],
@@ -64274,7 +64327,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Install the CLI and sign in once; the tab appears automatically.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSessionTab.tsx"],
       ["layar", "Installed from folder ({n})", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
       ["layar", "Installing\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "Instructions", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Instructions", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/settings/AgcSections.tsx, src/components/settings/AgentCustomPage.tsx"],
       ["layar", "JSON-RPC 2.0 over HTTP, POST /", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "JobStrips", "src/components/ai/JobStrips.tsx \xB7 8 label: Clear goal, Goal, Goal cleared, Goal marked done, Looping every {interval}. /loop stop to end it., Mark goal done, Stop loop, next in {n}m \xB7 8 data-testid: ai-goal-clear, ai-goal-clock, ai-goal-done, ai-goal-strip, ai-goal-text, ai-loop-next, ai-loop-stop, ai-loop-strip"],
       ["layar", "Kept your own file, not overwritten: {p}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -64298,7 +64351,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Looping every {interval}. /loop stop to end it.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
       ["layar", "LspOverlay", "src/components/editor/LspOverlay.tsx \xB7 19 label: Asking the language server\u2026, Call Hierarchy, Call hierarchy failed, Call hierarchy needs the cursor on a function or method name, not inside its body., Called by, Calls, Code action failed, Go to Symbol failed, No actions at this position., No call hierarchy here. This needs the cursor on a function name, and a language server that supports it., No function under the cursor., No quick fix at this position, No symbols in this file, No symbols., Nothing., Open a file first, Quick Fix failed, Rename failed, The server returned no changes \xB7 aria-label: Call Hierarchy, Go to Symbol, Quick Fix, Rename Symbol \xB7 8 data-testid: lsp-action-empty, lsp-action-item, lsp-calls-empty, lsp-rename-cancel, lsp-rename-input, lsp-rename-ok, lsp-symbol-empty, lsp-symbol-item \xB7 teks: New name \xB7 Quick Fix / Code Action \xB7 Asking the server\u2026 \xB7 Fetching symbols\u2026"],
       ["layar", "MCP Client \xB7 Connect Zephyr to tools provided by other MCP servers.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
-      ["layar", "MCP Servers", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "MCP Servers", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "MCP activity", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "MCP servers", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "MCP servers give the agent extra tools \u2014 a database, a browser, an internal API. They are stored in ~/.claude/settings.json under mcpServers.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -64307,7 +64360,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Manage Trust", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
       ["layar", "Manage lifecycle hooks from config and enabled plugins.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Manage plugins, skills, and MCPs", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Manage what the active agent knows and can do.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Manage what the active agent knows and can do.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Mark goal done", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
       ["layar", "MarkdownPreview", "src/components/editor/MarkdownPreview.tsx \xB7 2 label: Code copied, Copy \xB7 4 data-testid: md-copy-code, md-file-ref, md-link-file, md-preview"],
       ["layar", "Marketplace", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -64327,6 +64380,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "ModelSelector", "src/components/ai/ModelSelector.tsx \xB7 20 label: Choose a model: type a name below or press Refresh., Clear search, Edit models\u2026, Follow chat, Follow the chat model, No API key installed yet. Add a key first to pick a model., No matching model, Open AI Models, Refresh models, Refreshing\u2026, Research preview, Routes the first eligible turn and may use several models. Premium usage varies with the selected route., Search models\u2026, Type a model name\u2026 (Enter), Use, base URL not set, from provider, providers hidden because there is no API key yet., same as the conversation, the app picks the model and the workflow per task \xB7 2 data-testid: ai-model-hydra, sub-model-ikut"],
       ["layar", "Modes", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "More", "aria-label/tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "More commit options", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Move Chat into Editor Area", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
       ["layar", "Move Chat into New Window", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
       ["layar", "Move customizations between workspaces and profiles by exporting them as a portable JSON bundle.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -64352,6 +64406,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "No MCP server matches", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "No MCP servers configured.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "No MCP servers connected", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
+      ["layar", "No account needed - everything runs on your machine", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "No actions match.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "No chats yet.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/SessionsPanel.tsx"],
       ["layar", "No commands match.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -64359,6 +64414,8 @@ var init_zephyrIndeks = __esm({
       ["layar", "No hooks found", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "No hooks yet.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", 'No hosts yet. Click "+ Add host" to start.', "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
+      ["layar", "No icon packs installed yet. Install one from Extensions -> Icon Themes, and it will appear here.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
+      ["layar", "No icon theme matches that search.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "No instructions yet.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "No past sessions yet.", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CliChat.tsx, src/components/ai/CodexChat.tsx"],
       ["layar", "No plugin catalog on this machine yet. Open /plugin in the terminal once to fetch it.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -64376,6 +64433,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Nothing to rewind \u2014 no message has been sent in this session yet", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "NotificationCenter", "src/components/notifications/NotificationCenter.tsx \xB7 12 label: Clear, Close, DND active, Do Not Disturb, Do Not Disturb: toasts are muted, history is still recorded, Mark all read, No notifications yet., Notifications, Notifications muted (Do Not Disturb) - click to view history, Remove from history, Remove this notification, {n} unread notifications \xB7 12 data-testid: nc-action, nc-badge, nc-bell, nc-clear, nc-close, nc-dnd, nc-empty, nc-item, nc-list, nc-panel, nc-read-all, nc-total"],
       ["layar", "OAuth App Client ID (optional)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "OMP", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "One line, the AI reads it to decide when to delegate here", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/SubagentCustomModal.tsx"],
       ["layar", "Only \u201CSession starts\u201D and \u201CSession ends\u201D run. The other events are stored but not fired yet, because running a command between your approval and the action it approved would defeat the gate.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Open 3-panel conflict editor", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
@@ -64395,15 +64453,16 @@ var init_zephyrIndeks = __esm({
       ["layar", "Ov23li\u2026 (GitHub OAuth App)", "placeholder di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Pane Browser (split)", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "PaneGrid", "src/components/terminal/PaneGrid.tsx \xB7 8 label: Close pane, Split With Browser, shell + preview dev server berdampingan, term.addPane, term.aiAgent, term.private, term.shell, up to 6 panes per tab \xB7 6 data-testid: empty-agent, empty-private, empty-shell, empty-split-browser, pane-empty, pane-kill \xB7 teks: Kill Process \xB7 Close Pane"],
-      ["layar", "PaneIcons", "src/components/terminal/PaneIcons.tsx \xB7 1 label: Private (no history) \xB7 aria-label: Claude Code, Codex CLI, Cursor, Gemini CLI, GitHub Copilot CLI, Grok, Hermes Agent, Pi, opencode"],
+      ["layar", "PaneIcons", "src/components/terminal/PaneIcons.tsx \xB7 1 label: Private (no history) \xB7 aria-label: Claude Code, Codex CLI, DeepSeek Harness, Gemini CLI, GitHub Copilot CLI, Grok, Hermes Agent, OMP, Qoder CLI, opencode"],
       ["layar", "Panel", "src/components/shell/Panel.tsx \xB7 3 label: Bottom panel, Resize the bottom panel height, Show the bottom panel (Ctrl+J) \xB7 3 data-testid: panel-body, panel-term-host, term-show"],
       ["layar", "PanelTabStrip", "src/components/shell/PanelTabStrip.tsx \xB7 6 label: Bottom panel tabs, Show / hide tabs, new log, panel.close, panel.maximize, panel.restore \xB7 11 data-testid: panel-tabstrip, pts-badge-error, pts-badge-ports, pts-badge-term, pts-badge-warn, pts-close, pts-dot-output, pts-maximize, pts-menu, pts-menu-item, pts-tab"],
+      ["layar", "PanelTitleBar", "src/components/shell/PanelTitleBar.tsx \xB7 4 label: win.close, win.maximize, win.minimize, win.restore \xB7 5 data-testid: panel-titlebar, panel-titlebar-title, panel-win-close, panel-win-max, panel-win-min"],
+      ["layar", "PanelWindow", "src/PanelWindow.tsx \xB7 4 label: Every change is already stored, Save ({n}), Saved, {n} changes - close the window and they stay \xB7 1 data-testid: cset-save"],
       ["layar", "PanelWins", "src/components/ai/PanelWins.tsx \xB7 3 label: Hide AI panel, Maximize panel, Restore panel size \xB7 2 data-testid: ai-host-hide, ai-host-maximize"],
       ["layar", "PemilihAvatar", "src/components/ai/PemilihAvatar.tsx \xB7 3 label: Change\u2026, Choose\u2026, Reset \xB7 5 data-testid: cset-myavatar, cset-myavatar-hapus, cset-myavatar-kosong, cset-myavatar-pilih, cset-myavatar-preview"],
       ["layar", "Permission mode", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "PersonaCard", `src/components/settings/PersonaCard.tsx \xB7 26 label: Active, Aturan tambahan, Aturan yang selalu berlaku untuk persona ini. Kosongkan kalau tidak ada., Bagaimana AI menjawab: panjang, bukti, urutan, nada. Kosongkan untuk bawaan., How the AI carries itself. A persona only changes the way it talks and thinks, the tool list, project rules, and your own instructions still apply., How to use it: click a persona row to make it active, it applies to the next chat, no restart needed. The built-in personas cannot be edited or deleted \u2014 duplicate one to customize it without losing the original. If unsure, leave "Zeph" active: that is Zephyr's built-in orchestrator with nothing added., Nama itu sudah dipakai persona lain., Persona, Persona baru, Persona: baru, Persona: bawaan, Persona: cara kerja, Persona: identitas, Persona: salin, Satu baris \u2014 muncul di daftar persona, Siapa AI ini. Kosongkan untuk memakai identitas bawaan Zephyr., Subagent: batal, Subagent: deskripsi, Subagent: hapus, Subagent: nama, Subagent: simpan, Subagent: tutup, Subagent: ubah, Ubah persona, Use agent, mis. Pengajar \xB7 14 data-testid: persona-aturan, persona-batal, persona-cara, persona-carakerja, persona-card, persona-daftar, persona-deskripsi, persona-identitas, persona-modal, persona-nama, persona-nama-bentrok, persona-new, persona-simpan, persona-tutup`],
       ["layar", "Personalization", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
-      ["layar", "Pi", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "Pick a branch\u2026", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Pick a model", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Pick an entry to preview and install it into ~/.claude.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -64412,15 +64471,17 @@ var init_zephyrIndeks = __esm({
       ["layar", "Plugins", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CodexSettings.tsx, src/components/settings/AgcSections.tsx"],
       ["layar", "Pop latest stash", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "PortsView", "src/components/shell/PortsView.tsx \xB7 10 label: Change the local port, Copy URL, Failed to copy the URL, No forwarded ports yet. SSH sessions and tasks that open a port will appear here automatically., Open in a browser pane, Port must be a number from 1 to 65535, Port number to forward, Remove from list, Start forward, Stop forward \xB7 placeholder: Local port (e.g. 3000) \xB7 13 data-testid: ports-add, ports-add-input, ports-copy, ports-count, ports-edit, ports-edit-input, ports-empty, ports-open, ports-remove, ports-row, ports-table, ports-toggle, ports-view \xB7 teks: Add Port"],
-      ["layar", "Prefer concise commits, thorough reviews, and tested code\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Prefer concise commits, thorough reviews, and tested code\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Primary Side Bar Position", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
       ["layar", "Private Terminal", "teks elemen di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "ProblemsView", "src/components/shell/ProblemsView.tsx \xB7 3 label: Active file only, Filter (text, source, code, file)\u2026, No problems detected yet. Diagnostics will appear here after a language server or task runs. \xB7 aria-label: Diagnostics filter \xB7 7 data-testid: problems-view, pv-active-only, pv-count, pv-empty, pv-filter, pv-list, pv-row"],
+      ["layar", "Program through conversation, in any of 10 languages", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "Project", "aria-label di layar \xB7 dirender 1 berkas: src/components/devenv/BrandIkon.tsx"],
       ["layar", "Project memory (CLAUDE.md)", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Pull", "aria-label/tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Pull with rebase", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Push", "aria-label/tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "Qoder CLI", "aria-label di layar \xB7 dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
       ["layar", "Queue", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Queue another message\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
       ["layar", "Queue follow-ups while Codex runs or steer the current run. Press Ctrl+\u23CE to do the opposite for one message", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
@@ -64476,13 +64537,14 @@ var init_zephyrIndeks = __esm({
       ["layar", "Saving", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "ScmConfirmDialog", "src/components/scm/ScmConfirmDialog.tsx \xB7 4 label: Commits not merged into another branch will be lost PERMANENTLY., Delete branch, Discard changes, Git will reject the push while those commits are not local. Pull first, then push? \xB7 4 data-testid: scm-confirm-body, scm-confirm-cancel, scm-confirm-ok, scm-confirm-title"],
       ["layar", "Search commands\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+      ["layar", "Search icon themes\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "Search plugins\u2026", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CliSlashPanel.tsx, src/components/settings/AgcSections.tsx"],
       ["layar", "Search the catalog\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "SearchEditorView", "src/components/explorer/SearchEditorView.tsx \xB7 9 label: Copy as Markdown, Could not read this file., No results., Reading\u2026, Run a search first, then open the results as a tab., Search Results, Showing the first {a} of {b} files. Narrow the search to see the rest., {n} results copied as Markdown, {n} results in {f} files \xB7 5 data-testid: se-copy-md, se-query, se-ringkas, se-truncated, search-editor-view"],
       ["layar", "SearchPanel", "src/components/explorer/SearchPanel.tsx \xB7 14 label: Collapse, Expand, Hide replace, Open a folder first to search the workspace., Open as tab, Open the results as a tab, with surrounding lines, Replace all in this file, Replace in all files in the search results, Replace with, Replace with (may use $1, $2), Search in workspace, Show replace, Undo the last replace (from Local History), ripgrep is not installed - using the built-in search \xB7 tooltip: Match Case, Regular Expression, Whole Word \xB7 aria-label: files to exclude, files to include \xB7 placeholder: exclude: *.min.js, dist/**, include: *.ts, src/** \xB7 22 data-testid: search-cancel, search-case, search-error, search-exclude, search-gitignore, search-include, search-input, search-meta, search-open-editor, search-panel, search-regex, search-replace-all, search-replace-input, search-toggle-opsi, search-toggle-replace, search-undo, search-word, sr-file, sr-hit, sr-replace-file, sr-results, sr-spacer \xB7 teks: h.snapshot) && ( \xB7 Hormati .gitignore \xB7 s.mark ? ("],
       ["layar", "Search\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Secondary Side Bar (AI)", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
-      ["layar", "SectionsAdvanced", 'src/components/settings/SectionsAdvanced.tsx \xB7 112 label: (e.g., (saved - type to replace), A sub-agent cannot be renamed to a built-in role name, and two sub-agents cannot share a name., A sub-agent only sees the tools it was given when it was made, and it can never write files: that is what keeps it safe to run several at once., A subagent cannot ask for approval, so a file write also needs the approval mode Auto - without it the write is refused and reported as a refusal, not as a written file., API keys are stored by Rust in, Add a CLI, CLI Agents, CLIs that appear in the AI panel path switcher. The built-in four are always listed; these are added to them., Chunk count, Click, Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut., Fetch the model list directly from the provider, Hapus, How to use it, How to use:, Name, Name it in the chat to force it:, New sub-agent, No custom sub-agent yet. Create one to give the AI a dedicated worker., Or tell the agent which one to use:, Pick a model from the list, Press a combination\u2026, Remove, Status, Sub-agent kustom, Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up., Testing\u2026, That id is already used., The agent sees it in subag\u2026'],
+      ["layar", "SectionsAdvanced", 'src/components/settings/SectionsAdvanced.tsx \xB7 113 label: (e.g., (saved - type to replace), A sub-agent cannot be renamed to a built-in role name, and two sub-agents cannot share a name., A sub-agent only sees the tools it was given when it was made, and it can never write files: that is what keeps it safe to run several at once., A subagent cannot ask for approval, so a file write also needs the approval mode Auto - without it the write is refused and reported as a refusal, not as a written file., API keys are stored by Rust in, Add a CLI, Auto (use the first provider with a key), CLI Agents, CLIs that appear in the AI panel path switcher. The built-in four are always listed; these are added to them., Chunk count, Click, Click a shortcut field then press a combination. Escape = cancel. A combination already used by another action is rejected, so two actions can never share the same shortcut., Fetch the model list directly from the provider, Hapus, How to use it, How to use:, Name, Name it in the chat to force it:, New sub-agent, No custom sub-agent yet. Create one to give the AI a dedicated worker., Or tell the agent which one to use:, Pick a model from the list, Press a combination\u2026, Remove, Status, Sub-agent kustom, Subagents are invoked by the main agent through the "Parallel tasks" button in the AI panel, or automatically when a task can be split up., Testing\u2026, That id is\u2026'],
       ["layar", "SectionsBasic", `src/components/settings/SectionsBasic.tsx \xB7 138 label: .ts,.tsx (empty = every file), AI panel position, Absolute, Add, All, Bars in the gutter for lines added, changed or removed since the last commit., Blank lines kept above and below the cursor while scrolling., Change individual colours without writing CSS. Applies immediately., Chevron in the gutter collapses a block. Ctrl-Shift-[ folds, Ctrl-Shift-] unfolds., Commands run in order after the LSP formatter. Each receives the file on stdin and returns the new text on stdout., Confirm before closing the window, Dark, Default (auto-detect), Default terminal, Editor area (tab), Keep running in the tray when closed, Language server colours identifiers by meaning, over the parser's own highlighting., Language server shows inferred types and parameter names inside the code., Lets the last line be scrolled up to the middle of the window., Light, Main layout, Narrow, centred text column. 0 keeps full width., Normal/insert/visual modes; the built-in keymap still handles unbound keys, Off, Prints the diagnostic message at the end of the line, without hovering., RAM saver mode, Relative, Relative shows the distance from the cursor, which is what Vim-style jumps need., Remove, Right (340px), Runs the language server's "fix all" action on save. This REWRITES your code - separate from formatting., Saving, Search by name, kind (dark/light\u2026`],
       ["layar", "SectionsDiag", "src/components/settings/SectionsDiag.tsx \xB7 7 data-testid: diag-export, diag-export-msg, diag-open-logs, diag-self, diag-self-error, diag-self-run, diag-self-summary \xB7 teks: Quick self-test \xB7 Export report (JSON) \xB7 Open log folder"],
       ["layar", "SectionsExtensions", 'src/components/settings/SectionsExtensions.tsx \xB7 26 label: (Python, Java, Node, etc.) can ask for permission through, (no description), (without, - execution always happens on the Rust side from a binary you approve, and can be revoked here., - execution always happens on the Rust side from a binary you approve, and the permission can be revoked below., /fs/IPC), so commands from extensions can run without giving system access. Extensions that need, Add, Add from file\u2026, Always read, cannot be removed., Extension JS code runs in, Extra indexes the marketplace reads, on top of the bundled one. https:// only \u2014 an index is installed from, so an unencrypted one can be rewritten in transit., Inline blame, line history, and commit graph, Installed from folder ({n}), Must start with https://, None yet. Extensions that need an external runtime (Python, Java, Node, etc.) will ask for permission through a dialog the first time they call, None yet. Put a folder containing, Open extensions folder, Reload, That index is already in the list., an external runtime, an isolated Web Worker sandbox, built-in, in the extensions folder, or use the "Add from file\u2026" button., remove, settings.extensions, settings.registrySources \xB7 placeholder: https://example.com/index.json \xB7 21 data-testid: ext-add, ext-empty, ext-error, ext-folder, ext-info, ext-list, ext-list-external, ext-market, ext-refresh, ext-\u2026'],
@@ -64497,6 +64559,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "Session history", "label/label tanpa kamus di layar \xB7 dirender 2 berkas: src/components/ai/CliChat.tsx, src/components/ai/CodexChat.tsx"],
       ["layar", "SessionContextMenu", "src/components/agents/SessionContextMenu.tsx \xB7 7 label: Copy session ID, Copy title, Delete, Duplicate, Pin, Rename\u2026, Unpin \xB7 1 data-testid: ag-session-ctx"],
       ["layar", "SessionsPanel", "src/components/ai/SessionsPanel.tsx \xB7 7 label: Delete, Hide sessions, New chat, No chats match., No chats yet., Search chats\u2026, Sessions \xB7 4 data-testid: ai-sessions-hide, ai-sessions-list, ai-sessions-panel, ai-sessions-search"],
+      ["layar", "Set your preferences", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "SettingsControls", "src/components/settings/SettingsControls.tsx \xB7 1 label: (number)"],
       ["layar", "SettingsNav", "src/components/settings/SettingsNav.tsx \xB7 5 label: All settings return to default. API keys are not deleted. Continue?, Are you sure? The theme, shortcuts, and all preferences will be lost., common.cancel, settings.resetAll, settings.title \xB7 5 data-testid: set-reset, set-reset-c1, set-reset-c2, set-reset-yes1, set-reset-yes2 \xB7 teks: Reset now"],
       ["layar", "SettingsPage", "src/components/settings/SettingsPage.tsx \xB7 2 data-testid: set-message, settings-page"],
@@ -64513,10 +64576,11 @@ var init_zephyrIndeks = __esm({
       ["layar", "Sign out", "teks elemen di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Skills", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Skip risky prompts", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
-      ["layar", "SourceControlPanel", "src/components/scm/SourceControlPanel.tsx \xB7 15 label: Commit message (Ctrl+Enter to commit), Discard all changes (permanent), Discard changes (permanent), GitHub account, Group by folder, No changes, No changes - the working tree is clean., Not signed in, Open a folder first to use git., Show as a flat list, Stage all, Switch branch, This folder is not a git repository yet., Type a commit message first, Unstage all \xB7 tooltip: Changes, Fill the commit message from the diff using AI, More, OAuth App Client ID (optional), Open 3-panel conflict editor, Pull, Push, Staged Changes, Take our version (ours), Take their version (theirs) \xB7 aria-label: Discard all, More, Pull, Push, Sync \xB7 placeholder: Ov23li\u2026 (GitHub OAuth App), feat-x, ghp_\u2026 / github_pat_\u2026 \xB7 52 data-testid: scm-ab, scm-ai-commit, scm-branch, scm-branch-del, scm-branch-item, scm-branch-menu, scm-branch-name, scm-clean, scm-commit, scm-conflict, scm-conflict-actions, scm-discard, scm-discard-all, scm-discard-all-menu, scm-empty, scm-error, scm-folder, scm-gh-clientid, scm-gh-code, scm-gh-device, scm-gh-msg, scm-gh-pat, scm-gh-signin, scm-gh-signout, scm-gh-state, scm-gh-test, scm-gh-token, scm-github, scm-info, scm-init \xB7 teks: Sign in with GitHub \xB7 Use a token \xB7 Sign out \xB7 Verify &amp; save \xB7 Open github.com/login/device \xB7 Rebase onto \xB7 Pick a branch\u2026 \xB7 New branch \xB7 Create &amp; switch \xB7 Commit History & Graph \xB7 Source \u2026"],
+      ["layar", "SourceControlPanel", "src/components/scm/SourceControlPanel.tsx \xB7 22 label: Commit, Commit and push, Commit and push, commit and sync, ..., Commit and sync, Commit message (Ctrl+Enter to commit), Commit the staged changes, then push to the remote, Commit, then pull and push, Discard all changes (permanent), Discard changes (permanent), GitHub account, Group by folder, More commit options, No changes, No changes - the working tree is clean., Not signed in, Open a folder first to use git., Show as a flat list, Stage all, Switch branch, This folder is not a git repository yet., Type a commit message first, Unstage all \xB7 tooltip: Changes, Fill the commit message from the diff using AI, More, OAuth App Client ID (optional), Open 3-panel conflict editor, Pull, Push, Staged Changes, Take our version (ours), Take their version (theirs) \xB7 aria-label: Discard all, More, Pull, Push, Sync \xB7 placeholder: Ov23li\u2026 (GitHub OAuth App), feat-x, ghp_\u2026 / github_pat_\u2026 \xB7 58 data-testid: scm-ab, scm-ai-commit, scm-branch, scm-branch-del, scm-branch-item, scm-branch-menu, scm-branch-name, scm-clean, scm-commit, scm-commit-dropdown, scm-commit-menu, scm-commit-plain, scm-commit-push, scm-commit-sync, scm-conflict, scm-conflict-actions, scm-discard, scm-discard-all, scm-discard-all-menu, scm-empty, scm-error, scm-folder, scm-gh-clientid, scm-gh-code, scm-gh-device, scm-gh-msg, scm-gh-pat, scm-gh-signin, scm-gh-signout, scm-\u2026"],
       ["layar", "Split", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/claudeCodeUi.tsx"],
       ["layar", "Split view \u2014 click to force unified", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/claudeCodeUi.tsx"],
-      ["layar", "SplitEditor", "src/components/shell/SplitEditor.tsx \xB7 12 label: Close, Drag to change the width, Empty group - open a file here, New File, Open File, Open Folder, Resize editor group width, Settings, new file, open file, save, settings \xB7 7 data-testid: ai-view-chat, ai-view-tab-chat, ai-view-tab-chat-settings, ai-view-tab-search-editor, editor-split, editor-split-divider, set-close \xB7 teks: Code faster. Lighter. Yours. \xB7 Ctrl+N \xB7 Ctrl+O \xB7 Ctrl+S \xB7 Ctrl+,"],
+      ["layar", "Split work across several agents at once", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "SplitEditor", "src/components/shell/SplitEditor.tsx \xB7 10 label: Drag to change the width, Empty group - open a file here, New File, Open File, Open Folder, Resize editor group width, new file, open file, save, settings \xB7 8 data-testid: ai-view-chat, ai-view-tab-chat, ai-view-tab-chat-settings, ai-view-tab-extensions, ai-view-tab-search-editor, ai-view-tab-tools, editor-split, editor-split-divider \xB7 teks: Code faster. Lighter. Yours. \xB7 Ctrl+N \xB7 Ctrl+O \xB7 Ctrl+S \xB7 Ctrl+,"],
       ["layar", "Staged Changes", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Start /review in the current chat when possible or launch a separate review chat", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
       ["layar", "Start Debugging (F5)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
@@ -64538,7 +64602,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "SubagentCustomModal", "src/components/settings/SubagentCustomModal.tsx \xB7 20 label: Another sub-agent already uses that name., Cancel, Close, No provider has an API key yet. Add one in AI Models., One line, the AI reads it to decide when to delegate here, Persona and rules for this worker. It runs with a clean history and only the tools above., Read only. Pick at least one., Run this worker on its own model (a cheaper one for heavy searching, for example). Default = same as the chat., Same as chat (default), Save, e.g. Test mapper, subagent.delete, subagent.editTitle, subagent.fieldDescription, subagent.fieldIcon, subagent.fieldModel, subagent.fieldName, subagent.fieldPrompt, subagent.fieldTools, subagent.newTitle \xB7 13 data-testid: sc-alat, sc-batal, sc-deskripsi, sc-hapus, sc-ikon, sc-model, sc-model-menu, sc-nama, sc-nama-bentrok, sc-prompt, sc-simpan, sc-tutup, subagent-custom-modal"],
       ["layar", "Sync", "aria-label di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Tab editor", "aria-label di layar \xB7 dirender 1 berkas: src/components/editor/EditorTabBar.tsx"],
-      ["layar", "Tailor how agents work in your projects. Configure workspace customizations for the entire team, or create personal ones that follow you across projects.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "Tailor how agents work in your projects. Configure workspace customizations for the entire team, or create personal ones that follow you across projects.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "Take our version (ours)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Take their version (theirs)", "tooltip title di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "Tasks / Todos", "tooltip title di layar \xB7 dirender 1 berkas: src/components/ai/ComposerStatusStack.tsx"],
@@ -64556,10 +64620,11 @@ var init_zephyrIndeks = __esm({
       ["layar", "The stdio transport is not wired up yet \u2014 see the note below the list.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "The token is stored in Zephyr settings and sent when testing this server.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "Theme: {t}", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliChat.tsx"],
+      ["layar", "Themes, icon packs, snippets and keymaps", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "ThinkingBar", "src/components/ai/ThinkingBar.tsx \xB7 2 label: Working, {n}s"],
       ["layar", "This folder can contain configuration that", "teks elemen di layar \xB7 dirender 1 berkas: src/components/workspace/TrustDialog.tsx"],
       ["layar", "This is a draft from the model. Check it before saving - it becomes instructions the agent follows.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "This is a draft from the model. Check it before saving - it shapes every answer the assistant gives.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "This is a draft from the model. Check it before saving - it shapes every answer the assistant gives.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "This is a draft from the model. Read the command before saving - it is stored disabled and will not run.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "TimelineView", "src/components/explorer/TimelineView.tsx \xB7 2 label: Load this snapshot contents into the editor (not saved), No history yet. Save the file (Ctrl+S) to create a snapshot. \xB7 11 data-testid: timeline, timeline-clear, timeline-count, timeline-empty, timeline-item, timeline-list, timeline-refresh, timeline-restore, timeline-skip, timeline-snapshot, timeline-toggle \xB7 teks: Delete history \xB7 Loading\u2026"],
       ["layar", "Tip", "src/components/shell/Tip.tsx \xB7 1 data-testid: tip"],
@@ -64591,10 +64656,13 @@ var init_zephyrIndeks = __esm({
       ["layar", "Version", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Watch expression\u2026", "placeholder di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
       ["layar", "Weekly npm downloads", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
+      ["layar", "Welcome to", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "WelcomeSetup", "src/components/shell/WelcomeSetup.tsx \xB7 11 data-testid: welcome-setup, wlc-bahasa, wlc-btn-back, wlc-btn-continue-1, wlc-btn-continue-2, wlc-btn-done, wlc-mode-editor, wlc-mode-quest, wlc-step-1, wlc-step-2, wlc-step-3 \xB7 teks: Welcome to \xB7 Set your preferences \xB7 You can always change these later in Settings \xB7 Choose Your Interface \xB7 You are good to go! \xB7 No account needed - everything runs on your machine \xB7 Complete tasks with tools, files and the terminal \xB7 Split work across several agents at once \xB7 Program through conversation, in any of 10 languages \xB7 Themes, icon packs, snippets and keymaps"],
       ["layar", "What it does", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "What this changes here", "teks elemen di layar \xB7 dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
       ["layar", "When the agent should use this", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "Which edge the bottom panel and the activity bar take.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
+      ["layar", "Which icon set the file tree, tabs and breadcrumb use. Picking a card applies it immediately - no restart.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "Whole Word", "tooltip title di layar \xB7 dirender 1 berkas: src/components/explorer/SearchPanel.tsx"],
       ["layar", "Whole word", "tooltip title di layar \xB7 dirender 1 berkas: src/components/editor/FindBar.tsx"],
       ["layar", "Window", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
@@ -64605,7 +64673,10 @@ var init_zephyrIndeks = __esm({
       ["layar", "Working\u2026", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
       ["layar", "Workspace Trust", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
       ["layar", "Write(*)", "placeholder di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+      ["layar", "You are good to go!", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "You can always change these later in Settings", "teks elemen di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "Your commands", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
+      ["layar", "Zephyr (built-in)", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "Zephyr MCP Server \xB7 External AI clients can connect to this app.", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/McpPanel.tsx"],
       ["layar", "Zephyr Marketplace", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
       ["layar", "Zephyr process memory", "tooltip title di layar \xB7 dirender 1 berkas: src/components/shell/StatusBar.tsx"],
@@ -64619,6 +64690,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "a11y-skip", "data-testid di layar \xB7 dirender 1 berkas: src/App.tsx"],
       ["layar", "a11y-uji-umumkan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AccessibilitySection.tsx"],
       ["layar", "ab-gh", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/ActivityBar.tsx"],
+      ["layar", "ab-settings", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/ActivityBar.tsx"],
       ["layar", "about-copy", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-data", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
       ["layar", "about-donate", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
@@ -64693,36 +64765,35 @@ var init_zephyrIndeks = __esm({
       ["layar", "ag-toggle-details", "data-testid di layar \xB7 dirender 1 berkas: src/components/agents/AgentsRight.tsx"],
       ["layar", "ag-toggle-left", "data-testid di layar \xB7 dirender 1 berkas: src/components/agents/AgentsTitlebar.tsx"],
       ["layar", "ag-toggle-right", "data-testid di layar \xB7 dirender 1 berkas: src/components/agents/AgentsTitlebar.tsx"],
-      ["layar", "agc-agent-ai", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-ai-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-ai-error-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-ai-generate-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-ai-input-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "agc-agent-ai", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-ai-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-ai-error-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-ai-generate-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-ai-input-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "agc-baru-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-baru-desc", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-baru-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-baru-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "agc-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-content", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-da-aturan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-da-desc", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-da-identitas", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-da-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-da-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "agc-content", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-da-aturan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-da-desc", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-da-identitas", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-da-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-da-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "agc-dh-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-dh-cmd", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-dh-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-dh-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "agc-draft-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "agc-draft-agent", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "agc-draft-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-draft-desc", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-draft-editor", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-draft-hook", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-draft-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-draft-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "agc-hero", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-hero-field", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
-      ["layar", "agc-hero-send", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "agc-hero", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-hero-field", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
+      ["layar", "agc-hero-send", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "agc-hooks-status", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-ins-baru", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-ins-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -64737,7 +64808,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "agc-insb-pola", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-insb-simpan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-katalog-cari", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "agc-max", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
       ["layar", "agc-migrate", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-migrate-export", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "agc-migrate-status", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -64766,7 +64836,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "agc-tools-all-on", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcToolList.tsx"],
       ["layar", "agc-tools-cari", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcToolList.tsx"],
       ["layar", "agc-tools-total", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgcToolList.tsx"],
-      ["layar", "agent-custom", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomModal.tsx"],
+      ["layar", "agent-custom", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
       ["layar", "agent-picker", "data-testid di layar \xB7 dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
       ["layar", "agents-avatar-clear", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsAdvanced.tsx"],
       ["layar", "agents-avatar-pick", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsAdvanced.tsx"],
@@ -64858,7 +64928,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "ai-goal-done", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
       ["layar", "ai-goal-strip", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
       ["layar", "ai-goal-text", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/JobStrips.tsx"],
-      ["layar", "ai-history-btn", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
       ["layar", "ai-host", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiHost.tsx"],
       ["layar", "ai-host-hide", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/PanelWins.tsx"],
       ["layar", "ai-host-maximize", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/PanelWins.tsx"],
@@ -64873,6 +64942,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "ai-izin-menu", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ModeMenu.tsx"],
       ["layar", "ai-izin-pop", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ModeMenu.tsx"],
       ["layar", "ai-jump-bottom", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
+      ["layar", "ai-kotak", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
       ["layar", "ai-lb-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
       ["layar", "ai-lb-zoom", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
       ["layar", "ai-lightbox", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/Lightbox.tsx"],
@@ -64975,7 +65045,9 @@ var init_zephyrIndeks = __esm({
       ["layar", "ai-view-chat", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
       ["layar", "ai-view-tab-chat", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
       ["layar", "ai-view-tab-chat-settings", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
+      ["layar", "ai-view-tab-extensions", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
       ["layar", "ai-view-tab-search-editor", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
+      ["layar", "ai-view-tab-tools", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
       ["layar", "ai-window-root", "data-testid di layar \xB7 dirender 1 berkas: src/AiWindow.tsx"],
       ["layar", "ai-work-cadence", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-work-hydra", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
@@ -64987,11 +65059,8 @@ var init_zephyrIndeks = __esm({
       ["layar", "ai-work-stack-loop", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-work-stack-queue", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "ai-work-step", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
-      ["layar", "aim-pop", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsModal.tsx"],
-      ["layar", "aim-pop-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsModal.tsx"],
-      ["layar", "aim-pop-content", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsModal.tsx"],
-      ["layar", "aim-pop-dialog", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsModal.tsx"],
-      ["layar", "aim-pop-max", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsModal.tsx"],
+      ["layar", "aim-page", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsPage.tsx"],
+      ["layar", "aim-page-content", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsPage.tsx"],
       ["layar", "aim-table", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsTable.tsx"],
       ["layar", "aim-table-row", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AiModelsTable.tsx"],
       ["layar", "all workspaces", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -65151,7 +65220,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "cset-keys-hapus", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/EditorKunci.tsx"],
       ["layar", "cset-keys-save", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/EditorKunci.tsx"],
       ["layar", "cset-keys-status", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/EditorKunci.tsx"],
-      ["layar", "cset-max", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-mode", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-myavatar", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/PemilihAvatar.tsx"],
       ["layar", "cset-myavatar-hapus", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/PemilihAvatar.tsx"],
@@ -65160,11 +65228,9 @@ var init_zephyrIndeks = __esm({
       ["layar", "cset-myavatar-preview", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/PemilihAvatar.tsx"],
       ["layar", "cset-open-editor", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-page", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
-      ["layar", "cset-pop", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPopup.tsx"],
-      ["layar", "cset-save", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
+      ["layar", "cset-save", "data-testid di layar \xB7 dirender 2 berkas: src/PanelWindow.tsx, src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-scope-user", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-scope-workspace", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
-      ["layar", "cset-scrim", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPopup.tsx"],
       ["layar", "cset-search", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-search-n", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
       ["layar", "cset-toolcount", "data-testid di layar \xB7 dirender 1 berkas: src/components/ai/ChatSettingsPage.tsx"],
@@ -65271,6 +65337,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "donate-saweria", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/DonateDialog.tsx"],
       ["layar", "donate-title", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/DonateDialog.tsx"],
       ["layar", "donate-trakteer", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/DonateDialog.tsx"],
+      ["layar", "drawings", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "dv-cred-id", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/DevEnvSettingsSection.tsx"],
       ["layar", "dv-cred-save", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/DevEnvSettingsSection.tsx"],
       ["layar", "dv-cred-secret", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/DevEnvSettingsSection.tsx"],
@@ -65416,6 +65483,11 @@ var init_zephyrIndeks = __esm({
       ["layar", "ic-input", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/InlineChat.tsx"],
       ["layar", "ic-out", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/InlineChat.tsx"],
       ["layar", "ic-send", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/InlineChat.tsx"],
+      ["layar", "ikt-card-bawaan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
+      ["layar", "ikt-grid", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
+      ["layar", "ikt-kosong", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
+      ["layar", "ikt-search", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
+      ["layar", "ikt-tidak-ada", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "img-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/ImagePreview.tsx"],
       ["layar", "img-el", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/ImagePreview.tsx"],
       ["layar", "img-error", "data-testid di layar \xB7 dirender 1 berkas: src/components/editor/ImagePreview.tsx"],
@@ -65444,6 +65516,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "kb-table", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/KeybindingsEditor.tsx"],
       ["layar", "layout-menu", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
       ["layar", "layout-menu-backdrop", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
+      ["layar", "letter marks", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/IkonTemaSection.tsx"],
       ["layar", "lm-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
       ["layar", "lm-content", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
       ["layar", "lm-editor", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/LayoutMenu.tsx"],
@@ -65600,6 +65673,11 @@ var init_zephyrIndeks = __esm({
       ["layar", "panel-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/Panel.tsx"],
       ["layar", "panel-tabstrip", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTabStrip.tsx"],
       ["layar", "panel-term-host", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/Panel.tsx"],
+      ["layar", "panel-titlebar", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTitleBar.tsx"],
+      ["layar", "panel-titlebar-title", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTitleBar.tsx"],
+      ["layar", "panel-win-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTitleBar.tsx"],
+      ["layar", "panel-win-max", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTitleBar.tsx"],
+      ["layar", "panel-win-min", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/PanelTitleBar.tsx"],
       ["layar", "paused ({alasan})", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/debug/DebugView.tsx"],
       ["layar", "persona-aturan", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/PersonaCard.tsx"],
       ["layar", "persona-batal", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/PersonaCard.tsx"],
@@ -65729,6 +65807,11 @@ var init_zephyrIndeks = __esm({
       ["layar", "scm-branch-name", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-clean", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-commit", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-commit-dropdown", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-commit-menu", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-commit-plain", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-commit-push", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-commit-sync", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-confirm-body", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/ScmConfirmDialog.tsx"],
       ["layar", "scm-confirm-cancel", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/ScmConfirmDialog.tsx"],
       ["layar", "scm-confirm-ok", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/ScmConfirmDialog.tsx"],
@@ -65752,6 +65835,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "scm-gh-test", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-gh-token", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-github", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
+      ["layar", "scm-graph-toggle", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-info", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-init", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
       ["layar", "scm-kebab", "data-testid di layar \xB7 dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
@@ -65803,7 +65887,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "sec-status", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
       ["layar", "sec-trust-list", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SecuritySection.tsx"],
       ["layar", "set-accessibility", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/AccessibilitySection.tsx"],
-      ["layar", "set-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/SplitEditor.tsx"],
       ["layar", "set-devenv", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/DevEnvSettingsSection.tsx"],
       ["layar", "set-grup-saving", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "set-memori", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/MemoriPanel.tsx"],
@@ -65970,7 +66053,6 @@ var init_zephyrIndeks = __esm({
       ["layar", "theme-preview-besar", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "theme-preview-besar-nama", "data-testid di layar \xB7 dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
       ["layar", "this workspace", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-      ["layar", "timeline", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
       ["layar", "timeline-clear", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
       ["layar", "timeline-count", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
       ["layar", "timeline-empty", "data-testid di layar \xB7 dirender 1 berkas: src/components/explorer/TimelineView.tsx"],
@@ -66039,7 +66121,18 @@ var init_zephyrIndeks = __esm({
       ["layar", "wc-close", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WindowControls.tsx"],
       ["layar", "wc-max", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WindowControls.tsx"],
       ["layar", "wc-min", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WindowControls.tsx"],
+      ["layar", "welcome-setup", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "window-controls", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WindowControls.tsx"],
+      ["layar", "wlc-bahasa", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-btn-back", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-btn-continue-1", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-btn-continue-2", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-btn-done", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-mode-editor", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-mode-quest", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-step-1", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-step-2", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
+      ["layar", "wlc-step-3", "data-testid di layar \xB7 dirender 1 berkas: src/components/shell/WelcomeSetup.tsx"],
       ["layar", "xAI", "aria-label di layar \xB7 dirender 1 berkas: src/lib/modelCatalog.tsx"],
       ["layar", "zephyr", "placeholder di layar \xB7 dirender 1 berkas: src/components/settings/SectionsAdvanced.tsx"],
       ["layar", "zephyr.exec()", "teks elemen di layar \xB7 dirender 1 berkas: src/components/settings/SectionsExtensions.tsx"],
@@ -66058,6 +66151,7 @@ var init_zephyrIndeks = __esm({
       ["layar", "{n} MCP servers", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "{n} Queued", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/ai/AiPanel.tsx"],
       ["layar", "{n} available", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
+      ["layar", "{n} changes - close the window and they stay", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/PanelWindow.tsx"],
       ["layar", "{n} errors, {m} warnings - open Problems", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/shell/StatusBar.tsx"],
       ["layar", "{n} files written", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
       ["layar", "{n} hooks", "label/label tanpa kamus di layar \xB7 dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -66197,26 +66291,27 @@ var init_zephyrIndeks = __esm({
       ["menu", "Zoom Out", "item menu `View` (Alt+V) \xB7 perintah view.zoomOut"],
       ["panel", "AI Chat", "ikon activity bar (sidebar) \xB7 id ai \xB7 tidak di rel utama"],
       ["panel", "API Client", "ikon activity bar (sidebar) \xB7 id api \xB7 tidak di rel utama"],
-      ["panel", "Claude Code", "tab CLI di panel AI \xB7 id claude"],
-      ["panel", "Codex", "tab CLI di panel AI \xB7 id codex"],
+      ["panel", "Atlas", "ikon activity bar (sidebar) \xB7 id wiki \xB7 tidak di rel utama"],
       ["panel", "Debug Console", "tab panel bawah \xB7 id debug \xB7 perintah debugConsolePanel.focus"],
       ["panel", "Dev Environment", "ikon activity bar (sidebar) \xB7 id devenv \xB7 tidak di rel utama"],
       ["panel", "Explorer", "ikon activity bar (sidebar) \xB7 id explorer \xB7 urutan 1 di rel"],
-      ["panel", "Extensions (Ctrl+Shift+X)", "ikon activity bar (sidebar) \xB7 id extensions \xB7 urutan 6 di rel"],
-      ["panel", "Outline", "ikon activity bar (sidebar) \xB7 id outline \xB7 urutan 3 di rel"],
+      ["panel", "Extensions (Ctrl+Shift+X)", "ikon activity bar (sidebar) \xB7 id extensions \xB7 urutan 5 di rel"],
+      ["panel", "Outline", "ikon activity bar (sidebar) \xB7 id outline \xB7 tidak di rel utama"],
       ["panel", "Output", "tab panel bawah \xB7 id output \xB7 perintah outputPanel.focus"],
       ["panel", "Ports", "tab panel bawah \xB7 id ports \xB7 perintah portsPanel.focus"],
       ["panel", "Problems", "tab panel bawah \xB7 id problems \xB7 perintah problemsPanel.focus"],
-      ["panel", "Run & Debug (Ctrl+Shift+D)", "ikon activity bar (sidebar) \xB7 id debug \xB7 urutan 5 di rel"],
+      ["panel", "Run & Debug (Ctrl+Shift+D)", "ikon activity bar (sidebar) \xB7 id debug \xB7 urutan 4 di rel"],
       ["panel", "SFTP", "ikon activity bar (sidebar) \xB7 id sftp \xB7 tidak di rel utama"],
       ["panel", "Search", "ikon activity bar (sidebar) \xB7 id search \xB7 urutan 2 di rel"],
-      ["panel", "Settings", "ikon activity bar (sidebar) \xB7 id settings \xB7 urutan 9 di rel"],
-      ["panel", "Source Control", "ikon activity bar (sidebar) \xB7 id scm \xB7 urutan 4 di rel"],
+      ["panel", "Settings", "ikon activity bar (sidebar) \xB7 id settings \xB7 tidak di rel utama"],
+      ["panel", "Source Control", "ikon activity bar (sidebar) \xB7 id scm \xB7 urutan 3 di rel"],
       ["panel", "Subagents", "tab panel bawah \xB7 id subagents \xB7 perintah subagentsPanel.focus"],
       ["panel", "Terminal", "tab panel bawah \xB7 id terminal \xB7 perintah terminalPanel.focus"],
-      ["panel", "Terminal", "ikon activity bar (sidebar) \xB7 id terminal \xB7 urutan 7 di rel"],
+      ["panel", "Terminal", "ikon activity bar (sidebar) \xB7 id terminal \xB7 urutan 6 di rel"],
       ["panel", "Tests", "ikon activity bar (sidebar) \xB7 id tests \xB7 tidak di rel utama"],
-      ["panel", "Tools \u2014 Dev Environment, API Client, SFTP, Tests", "ikon activity bar (sidebar) \xB7 id tools \xB7 urutan 8 di rel"],
+      ["panel", "Tools \u2014 Dev Environment, API Client, SFTP, Tests", "ikon activity bar (sidebar) \xB7 id tools \xB7 urutan 7 di rel"],
+      ["panel", "claude", "tab CLI di panel AI \xB7 id claude"],
+      ["panel", "codex", "tab CLI di panel AI \xB7 id codex"],
       ["perintah", "AI: Compact Context", "perintah palet \xB7 id ai.compact \xB7 grup AI"],
       ["perintah", "AI: Configure Models & API Keys", "perintah palet \xB7 id ai.models \xB7 grup AI"],
       ["perintah", "AI: New Chat", "perintah palet \xB7 id ai.newChat \xB7 grup AI"],
@@ -66467,7 +66562,7 @@ var init_zephyrIndeks = __esm({
       ["port", "MCP server", "default mcp.port=9222"],
       ["port", "log Zephyr", "%APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotasi zephyr-1.log dst"],
       ["port", "vite dev UI", "port 5173 (dev server antarmuka)"],
-      ["seksi", "AI Models", 'BUKAN halaman Settings dan bukan seksi Chat Settings - pop-up berdiri sendiri (`ModelsSection` di `src/components/settings/AiModelsModal.tsx`, dibuka `useAiModels.getState().buka()`) tanpa baris di nav \xB7 grup setelan `models` (activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) \xB7 4 pintu masuk: the "Open AI Models" button on the 401 / missing-key notice in the chat panel \xB7 the model dropdown (its empty state and the "Edit models\u2026" row) \xB7 the "AI Models" row in the chat panel\'s "..." menu \xB7 the command palette command "AI: Configure Models & API Keys" (id ai.models)'],
+      ["seksi", "AI Models", 'BUKAN halaman Settings dan bukan seksi Chat Settings - pop-up berdiri sendiri (`ShortcutsSection` di `src/components/settings/SectionsAdvanced.tsx`, dibuka `useAiModels.getState().buka()`) tanpa baris di nav \xB7 grup setelan `models` (activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) \xB7 4 pintu masuk: the "Open AI Models" button on the 401 / missing-key notice in the chat panel \xB7 the model dropdown (its empty state and the "Edit models\u2026" row) \xB7 the "AI Models" row in the chat panel\'s "..." menu \xB7 the command palette command "AI: Configure Models & API Keys" (id ai.models)'],
       ["seksi", "Advanced", "seksi di Chat Settings (panel AI)"],
       ["seksi", "Agent", "seksi di Chat Settings (panel AI)"],
       ["seksi", "Appearance", "seksi di Chat Settings (panel AI)"],
@@ -66487,6 +66582,7 @@ var init_zephyrIndeks = __esm({
       ["seksi", "editor", "halaman Settings (ada di nav kiri)"],
       ["seksi", "extensions", "halaman Settings (ada di nav kiri)"],
       ["seksi", "general", "halaman Settings (ada di nav kiri)"],
+      ["seksi", "icons", "halaman Settings (ada di nav kiri)"],
       ["seksi", "lsp", "halaman Settings (ada di nav kiri)"],
       ["seksi", "mcp", "halaman Settings yang TIDAK ada di nav - dibuka dari area agen/MCP atau Chat Settings"],
       ["seksi", "memori", "halaman Settings (ada di nav kiri)"],
@@ -66497,7 +66593,6 @@ var init_zephyrIndeks = __esm({
       ["seksi", "shortcuts", "halaman Settings (ada di nav kiri)"],
       ["seksi", "ssh", "halaman Settings (ada di nav kiri)"],
       ["seksi", "subagent", "halaman Settings yang TIDAK ada di nav - dibuka dari area agen/MCP atau Chat Settings"],
-      ["seksi", "tests", "halaman Settings (ada di nav kiri)"],
       ["seksi", "theme", "halaman Settings (ada di nav kiri)"],
       ["setelan", "accessibility.autoFocusDialog", "default: true (grup accessibility)"],
       ["setelan", "accessibility.reducedMotion", "default: false (grup accessibility)"],
@@ -66628,34 +66723,27 @@ var init_zephyrIndeks = __esm({
       ["setelan", "update.lastSeenVersion", "default: (grup update)"],
       ["setelan", "update.pendingNotes", "default: (grup update)"],
       ["setelan", "update.seenAnnouncements", "default: [] (grup update)"],
+      ["tool", "apply_patch", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
       ["tool", "bash_run", "tool \xB7 kelompok Shell \xB7 efek exec \xB7 perlu izin: ya"],
-      ["tool", "browser_click", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
-      ["tool", "browser_close", "tool \xB7 kelompok Browser \xB7 efek appWrite \xB7 perlu izin: ya"],
-      ["tool", "browser_download_url", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
-      ["tool", "browser_list", "tool \xB7 kelompok Browser \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "browser_open", "tool \xB7 kelompok Browser \xB7 efek net \xB7 perlu izin: tidak"],
-      ["tool", "browser_read", "tool \xB7 kelompok Browser \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "browser_type", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: ya"],
+      ["tool", "browser", "tool \xB7 kelompok Browser \xB7 efek netWrite \xB7 perlu izin: tidak"],
       ["tool", "copy_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
       ["tool", "delete_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
+      ["tool", "execute", "tool \xB7 kelompok Aplikasi \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "extension", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "focus_pane", "tool \xB7 kelompok terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "glob", "tool \xB7 kelompok Search \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "grep", "tool \xB7 kelompok Search \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "ingat", "tool \xB7 kelompok Memori \xB7 efek appWrite \xB7 perlu izin: tidak"],
       ["tool", "inspect", "tool \xB7 kelompok inspect \xB7 efek read \xB7 perlu izin: tidak"],
+      ["tool", "kotak", "tool \xB7 kelompok Aplikasi \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "list_directory", "tool \xB7 kelompok Files \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_call_hierarchy", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_definition", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_diagnostics", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_hover", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_references", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "lsp_symbols", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
+      ["tool", "lsp", "tool \xB7 kelompok Code intelligence \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "move_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
       ["tool", "multi_edit", "tool \xB7 kelompok Edit \xB7 efek fsWrite \xB7 perlu izin: ya"],
       ["tool", "notes_write", "tool \xB7 kelompok Tasks & Notes \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "open_file", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "pane", "tool \xB7 kelompok terminal \xB7 efek appWrite \xB7 perlu izin: ya"],
+      ["tool", "peta", "tool \xB7 kelompok Aplikasi \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "read", "tool \xB7 kelompok inspect \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "read_file", "tool \xB7 kelompok Files \xB7 efek read \xB7 perlu izin: tidak"],
       ["tool", "replace_in_files", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
@@ -66669,9 +66757,10 @@ var init_zephyrIndeks = __esm({
       ["tool", "todo_write", "tool \xB7 kelompok Tasks & Notes \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "tool_call", "tool \xB7 kelompok Penalaran \xB7 efek exec \xB7 perlu izin: ya"],
       ["tool", "tool_search", "tool \xB7 kelompok Penalaran \xB7 efek read \xB7 perlu izin: tidak"],
+      ["tool", "tunjuk", "tool \xB7 kelompok Aplikasi \xB7 efek appWrite \xB7 perlu izin: tidak"],
       ["tool", "wait_for_terminal", "tool \xB7 kelompok terminal \xB7 efek read \xB7 perlu izin: tidak"],
-      ["tool", "web_fetch", "tool \xB7 kelompok Web \xB7 efek net \xB7 perlu izin: tidak"],
-      ["tool", "web_search", "tool \xB7 kelompok Web \xB7 efek net \xB7 perlu izin: tidak"],
+      ["tool", "web", "tool \xB7 kelompok Web \xB7 efek net \xB7 perlu izin: tidak"],
+      ["tool", "web", "tool \xB7 kelompok Web \xB7 efek net \xB7 perlu izin: tidak"],
       ["tool", "workspace", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "worktree", "tool \xB7 kelompok control \xB7 efek appWrite \xB7 perlu izin: ya"],
       ["tool", "write_file", "tool \xB7 kelompok Files \xB7 efek fsWrite \xB7 perlu izin: ya"],
@@ -67341,19 +67430,19 @@ function tabUntuk(path2) {
   return useStore2.getState().tabs.find((t2) => t2.path && t2.path === path2) ?? null;
 }
 async function bacaBerkas(path2, offset, limit, dariDisk = false) {
-  const mulai = offset === void 0 ? 0 : Math.max(0, offset);
+  const mulai2 = offset === void 0 ? 0 : Math.max(0, offset);
   const jumlah = limit === void 0 ? void 0 : Math.max(0, limit);
   const tab4 = dariDisk ? null : tabUntuk(path2);
   if (tab4) {
     const baris2 = (tab4.content ?? "").split("\n");
-    const potongBaris2 = jumlah === void 0 ? baris2.slice(mulai) : baris2.slice(mulai, mulai + jumlah);
+    const potongBaris2 = jumlah === void 0 ? baris2.slice(mulai2) : baris2.slice(mulai2, mulai2 + jumlah);
     const tanda2 = tab4.unsaved ? ", ada perubahan belum tersimpan" : "";
     return `[buffer editor${tanda2}; ${baris2.length} baris]
 ` + potongBaris2.join("\n");
   }
   const hasil = await fsRead(path2);
   const baris = hasil.content.split("\n");
-  const potongBaris = jumlah === void 0 ? baris.slice(mulai) : baris.slice(mulai, mulai + jumlah);
+  const potongBaris = jumlah === void 0 ? baris.slice(mulai2) : baris.slice(mulai2, mulai2 + jumlah);
   const tanda = hasil.readOnly ? ", READ-ONLY" : "";
   const catatan = hasil.note ? ` (${hasil.note})` : "";
   return `[dari disk; ${baris.length} baris; ${hasil.bytes} byte; encoding ${hasil.detectedEncoding}${tanda}${catatan}]
@@ -76287,11 +76376,15 @@ var init_settingsStore = __esm({
       "general",
       "editor",
       "theme",
+      /* Icon themes sit directly under Themes: they are the same kind of choice -
+         "how does the editor look" - and a reader who just changed the colours is
+         the one most likely to want the icons to match. A separate top-level section
+         would have been a second place to look for the same question. */
+      "icons",
       "shortcuts",
       "extensions",
       "lsp",
       "scm",
-      "tests",
       "devenv",
       "devupdate",
       "security",
@@ -79634,18 +79727,93 @@ var init_explorerStore = __esm({
   }
 });
 
-// src/lib/aiModelsStore.ts
-var useAiModels;
-var init_aiModelsStore = __esm({
-  "src/lib/aiModelsStore.ts"() {
+// src/lib/panelWindow.ts
+async function bukaPanelWindow(id3, seksi) {
+  const label = labelPanelWindow(id3);
+  const url = `index.html#panel=${id3}${seksi ? `&s=${encodeURIComponent(seksi)}` : ""}`;
+  const existing = await WebviewWindow.getByLabel(label);
+  if (existing) {
+    await existing.unminimize().catch(() => {
+    });
+    await existing.setFocus().catch(() => {
+    });
+    if (seksi) {
+      await emitTo(label, "panel-section", { id: id3, seksi }).catch(() => {
+      });
+    }
+    return;
+  }
+  const u2 = UKURAN[id3];
+  const w = new WebviewWindow(label, {
+    url,
+    title: JUDUL[id3],
+    width: u2.width,
+    height: u2.height,
+    minWidth: u2.minWidth,
+    minHeight: u2.minHeight,
+    resizable: true,
+    /* Frameless: `PanelTitleBar` is the frame. See the header comment. */
+    decorations: false,
+    center: true,
+    /* The page paints its own background from the theme tokens; a native white
+       flash before the first paint would read as a broken window on a dark
+       theme. */
+    backgroundColor: "#1e1e1e"
+  });
+  await new Promise((resolve) => {
+    void w.once("tauri://created", () => resolve());
+    void w.once("tauri://error", () => resolve());
+  });
+}
+var AWALAN, JUDUL, UKURAN, labelPanelWindow;
+var init_panelWindow = __esm({
+  "src/lib/panelWindow.ts"() {
     "use strict";
     init_define_import_meta_env();
-    init_esm();
-    useAiModels = create((set2) => ({
-      open: false,
-      buka: () => set2({ open: true }),
-      tutup: () => set2({ open: false })
-    }));
+    init_webviewWindow();
+    init_event();
+    AWALAN = "panel-";
+    JUDUL = {
+      settings: "Settings",
+      extensions: "Extensions",
+      tools: "Tools",
+      models: "AI Models",
+      "chat-settings": "Chat Settings",
+      "agent-custom": "Agent Customizations"
+    };
+    UKURAN = {
+      settings: { width: 1180, height: 820, minWidth: 620, minHeight: 460 },
+      extensions: { width: 1120, height: 800, minWidth: 560, minHeight: 420 },
+      tools: { width: 1240, height: 840, minWidth: 620, minHeight: 460 },
+      models: { width: 1040, height: 780, minWidth: 520, minHeight: 400 },
+      "chat-settings": { width: 1120, height: 820, minWidth: 560, minHeight: 420 },
+      "agent-custom": { width: 1200, height: 840, minWidth: 640, minHeight: 480 }
+    };
+    labelPanelWindow = (id3) => `${AWALAN}${id3}`;
+  }
+});
+
+// src/lib/bukaPanel.ts
+var bukaPanel_exports = {};
+__export(bukaPanel_exports, {
+  bukaPanel: () => bukaPanel
+});
+function bukaPanel(id3, seksi) {
+  FLAG[id3]?.(false);
+  void bukaPanelWindow(id3, seksi);
+}
+var FLAG;
+var init_bukaPanel = __esm({
+  "src/lib/bukaPanel.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_store();
+    init_panelWindow();
+    FLAG = {
+      settings: (v2) => useStore2.getState().setSettingsOpen(v2),
+      extensions: (v2) => useStore2.getState().setExtensionsOpen(v2),
+      tools: (v2) => useStore2.getState().setToolsOpen(v2)
+    };
   }
 });
 
@@ -80862,20 +81030,66 @@ var init_keybindingStore = __esm({
 });
 
 // src/lib/extIkonFile.ts
-var peta, setIkonExt, kosongkanIkonExt;
+var extIkonFile_exports = {};
+__export(extIkonFile_exports, {
+  ikonFileExt: () => ikonFileExt,
+  ikonFileUmumExt: () => ikonFileUmumExt,
+  ikonFolderExt: () => ikonFolderExt,
+  ikonFolderUmumExt: () => ikonFolderUmumExt,
+  jumlahIkonExt: () => jumlahIkonExt,
+  jumlahIkonSvgExt: () => jumlahIkonSvgExt,
+  kosongkanIkonExt: () => kosongkanIkonExt,
+  paketAktifId: () => paketAktifId,
+  setIdPaketAktif: () => setIdPaketAktif,
+  setIkonExt: () => setIkonExt,
+  terapkanPaketIkon: () => terapkanPaketIkon
+});
+var peta, setIkonExt, kosongkanIkonExt, jumlahIkonExt, terapkanPaketIkon, idPaketAktif, setIdPaketAktif, paketAktifId, jumlahIkonSvgExt, ikonFileExt, ikonFolderExt, ikonFileUmumExt, ikonFolderUmumExt;
 var init_extIkonFile = __esm({
   "src/lib/extIkonFile.ts"() {
     "use strict";
     init_define_import_meta_env();
     peta = /* @__PURE__ */ new Map();
-    setIkonExt = (ext, glyph, color2) => {
-      const kunci2 = ext.toLowerCase().replace(/^\\./, "");
-      if (!kunci2 || !glyph) return;
-      peta.set(kunci2, { glyph, color: color2 });
+    setIkonExt = (ext, ikon) => {
+      const kunci2 = ext.toLowerCase().replace(/^\./, "");
+      if (!kunci2) return;
+      if (!ikon.glyph && !ikon.svg) return;
+      peta.set(kunci2, ikon);
     };
     kosongkanIkonExt = () => {
       peta.clear();
     };
+    jumlahIkonExt = () => peta.size;
+    terapkanPaketIkon = (ikon, paket = "") => {
+      peta.clear();
+      if (!ikon) return;
+      for (const [kunci2, ik] of Object.entries(ikon)) {
+        setIkonExt(kunci2, paket ? { ...ik, paket } : ik);
+      }
+    };
+    idPaketAktif = "";
+    setIdPaketAktif = (id3) => {
+      idPaketAktif = id3;
+    };
+    paketAktifId = () => idPaketAktif;
+    jumlahIkonSvgExt = () => {
+      let n = 0;
+      for (const v2 of peta.values()) if (v2.svg) n += 1;
+      return n;
+    };
+    ikonFileExt = (path2) => {
+      const bersih = path2.toLowerCase().replace(/^\./, "");
+      if (!bersih) return null;
+      const tail = bersih.slice(bersih.lastIndexOf(".") + 1);
+      return peta.get(bersih) ?? peta.get(tail) ?? null;
+    };
+    ikonFolderExt = (nama, buka = false) => {
+      const bersih = nama.toLowerCase().replace(/[\\/]+$/, "");
+      if (!bersih) return null;
+      return (buka ? peta.get(`folder-open:${bersih}`) : null) ?? peta.get(`folder:${bersih}`) ?? peta.get(bersih) ?? null;
+    };
+    ikonFileUmumExt = () => peta.get("file") ?? null;
+    ikonFolderUmumExt = (buka) => peta.get(buka ? "folder-open" : "folder") ?? peta.get("folder") ?? null;
   }
 });
 
@@ -149471,6 +149685,9 @@ function AiIkon({ name: name3, size = 15 }) {
     case "maximize":
       return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { ...box, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("rect", { x: "2.6", y: "2.6", width: "10.8", height: "10.8", rx: "1.6" }) });
     // Restore: two overlapping squares, the VSCode "restore down" glyph.
+    // Minimize: a single bar, the title-bar glyph.
+    case "minimize":
+      return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { ...box, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { d: "M2.4 8h11.2" }) });
     case "restore":
       return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("svg", { ...box, children: [
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("rect", { x: "2.4", y: "4.8", width: "8.4", height: "8.4", rx: "1.4" }),
@@ -150759,9 +150976,9 @@ function buangGhost(view) {
 function konteksSekitar(view) {
   const pos = view.state.selection.main.head;
   const baris = view.state.doc.lineAt(pos);
-  const mulai = Math.max(1, baris.number - KONTEKS_BARIS);
+  const mulai2 = Math.max(1, baris.number - KONTEKS_BARIS);
   const potongan = [];
-  for (let n = mulai; n <= baris.number; n++) potongan.push(view.state.doc.line(n).text);
+  for (let n = mulai2; n <= baris.number; n++) potongan.push(view.state.doc.line(n).text);
   potongan[potongan.length - 1] = baris.text.slice(0, pos - baris.from);
   return potongan.join("\n");
 }
@@ -153661,7 +153878,157 @@ self.onmessage = (e) => {
   }
 });
 
+// src/lib/ikonTemaStore.ts
+var ikonTemaStore_exports = {};
+__export(ikonTemaStore_exports, {
+  saatIkonTemaBerubah: () => saatIkonTemaBerubah,
+  sinkronPilihanIkon: () => sinkronPilihanIkon,
+  useIkonTema: () => useIkonTema
+});
+function muatPilihan() {
+  try {
+    const aktif4 = localStorage.getItem(LS_AKTIF);
+    const manual = localStorage.getItem(LS_MANUAL);
+    return {
+      /* The empty string is the deliberate "built-in icons" choice; absent is
+         "never chose". Both are `null` in state, which is why the manual flag
+         is stored separately. */
+      aktif: aktif4 && aktif4.length > 0 ? aktif4 : null,
+      dipilihManual: manual === "1"
+    };
+  } catch {
+    return { aktif: null, dipilihManual: false };
+  }
+}
+function simpanPilihan(aktif4, dipilihManual) {
+  try {
+    if (aktif4) localStorage.setItem(LS_AKTIF, aktif4);
+    else localStorage.removeItem(LS_AKTIF);
+    if (dipilihManual) localStorage.setItem(LS_MANUAL, "1");
+    else localStorage.removeItem(LS_MANUAL);
+  } catch {
+  }
+}
+function saatIkonTemaBerubah(cb) {
+  const onStorage = (e) => {
+    if (e.key === null || e.key === LS_AKTIF || e.key === LS_MANUAL) cb();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+function sinkronPilihanIkon() {
+  const { aktif: aktif4, dipilihManual } = muatPilihan();
+  const s = useIkonTema.getState();
+  if (s.aktif === aktif4) return;
+  if (aktif4 && !s.packs.some((p) => p.extId === aktif4)) {
+    useIkonTema.setState({ aktif: aktif4, dipilihManual });
+    void Promise.resolve().then(() => (init_extLoader(), extLoader_exports)).then((m) => m.muatSemuaEkstensi()).then(() => {
+      const segar = useIkonTema.getState();
+      const ada = segar.packs.find((p) => p.extId === aktif4);
+      if (!ada) return;
+      return Promise.resolve().then(() => (init_extIkonFile(), extIkonFile_exports)).then((m) => {
+        m.setIdPaketAktif(ada.label);
+        m.terapkanPaketIkon(ada.ikon, ada.label);
+      });
+    }).catch(() => {
+    });
+    return;
+  }
+  const paket = aktif4 ? s.packs.find((p) => p.extId === aktif4) : null;
+  void Promise.resolve().then(() => (init_extIkonFile(), extIkonFile_exports)).then((m) => {
+    m.setIdPaketAktif(paket ? paket.label : "");
+    m.terapkanPaketIkon(paket ? paket.ikon : null, paket ? paket.label : "");
+    useIkonTema.setState({ aktif: aktif4, dipilihManual });
+  });
+}
+function buatStore() {
+  return create((set2, get) => ({
+    packs: [],
+    aktif: muatPilihan().aktif,
+    dipilihManual: muatPilihan().dipilihManual,
+    versiIkon: 0,
+    setPacks: (packs) => {
+      const { aktif: aktif4, dipilihManual } = get();
+      const masihAda = aktif4 && packs.some((p) => p.extId === aktif4);
+      const skor = (p) => {
+        const kunci2 = Object.keys(p.ikon ?? {});
+        const punyaFolder = kunci2.some((k) => k === "folder" || k === "folder-open");
+        const punyaNamaFolder = kunci2.some((k) => k.startsWith("folder:"));
+        return (punyaFolder ? 1e3 : 0) + (punyaNamaFolder ? 500 : 0) + kunci2.length;
+      };
+      const terbaik = packs.length > 0 ? packs.reduce((a2, b) => skor(b) > skor(a2) ? b : a2) : null;
+      const baru = masihAda ? aktif4 : !dipilihManual && aktif4 === null && terbaik ? terbaik.extId : null;
+      if (baru && baru !== aktif4) simpanPilihan(baru, dipilihManual);
+      set2({ packs, aktif: baru });
+    },
+    /*
+     * Choose a pack AND swap the render map in the SAME turn.
+     *
+     * Both effects happen synchronously here, which is the whole fix for the
+     * "lagging / wrong icons" report: when the map swap was reached through
+     * `import('../../lib/extLoader')` it landed an arbitrary number of microtasks
+     * after the state write, so a fast second click could apply the first pack
+     * after the second and leave the tree showing a theme the picker had already
+     * moved away from.
+     *
+     * `daftarPaketIkon` is a module-level array in the loader, but importing it
+     * statically would close a cycle (loader -> ikonTemaStore -> loader). The
+     * store keeps its own copy in `packs`, which is filled by the loader and is
+     * exactly what the picker renders from - so it is the right source here.
+     */
+    pilih: (extId) => {
+      simpanPilihan(extId, true);
+      set2({ aktif: extId, dipilihManual: true });
+      const paket = extId ? get().packs.find((p) => p.extId === extId) : null;
+      void Promise.resolve().then(() => (init_extIkonFile(), extIkonFile_exports)).then((m) => {
+        m.setIdPaketAktif(paket ? paket.label : "");
+        m.terapkanPaketIkon(paket ? paket.ikon : null, paket ? paket.label : "");
+        set2((s) => ({ versiIkon: (s.versiIkon ?? 0) + 1 }));
+      });
+    }
+  }));
+}
+var LS_AKTIF, LS_MANUAL, KUNCI_JENDELA, useIkonTema;
+var init_ikonTemaStore = __esm({
+  "src/lib/ikonTemaStore.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_esm();
+    LS_AKTIF = "zephyr.ikonTema.aktif";
+    LS_MANUAL = "zephyr.ikonTema.dipilihManual";
+    KUNCI_JENDELA = "__ZEPHYR_IKON_TEMA_STORE__";
+    useIkonTema = (() => {
+      const w = globalThis;
+      const ada = w[KUNCI_JENDELA];
+      if (ada) return ada;
+      const baru = buatStore();
+      w[KUNCI_JENDELA] = baru;
+      return baru;
+    })();
+  }
+});
+
 // src/lib/extLoader.ts
+var extLoader_exports = {};
+__export(extLoader_exports, {
+  adaIconTheme: () => adaIconTheme,
+  adaSnippet: () => adaSnippet,
+  bahasaEkstensi: () => bahasaEkstensi,
+  bahasaUntukExt: () => bahasaUntukExt,
+  commandsEkstensi: () => commandsEkstensi,
+  daftarPaketIkon: () => daftarPaketIkon,
+  grammarTersedia: () => grammarTersedia,
+  ikonUntukExt: () => ikonUntukExt,
+  jumlahSnippet: () => jumlahSnippet,
+  keymapEkstensi: () => keymapEkstensi,
+  muatCmBahasa: () => muatCmBahasa,
+  muatSemuaEkstensi: () => muatSemuaEkstensi,
+  ringkasanLoader: () => ringkasanLoader,
+  snippetSource: () => snippetSource,
+  terapkanIkonTema: () => terapkanIkonTema,
+  terapkanTokenEkstensi: () => terapkanTokenEkstensi,
+  themesEkstensi: () => themesEkstensi
+});
 function terapkanTokenEkstensi(id3) {
   const tok = id3 ? themeTokens.get(id3) : void 0;
   const root4 = document.documentElement;
@@ -153698,8 +154065,8 @@ async function muatTema(m, gagal) {
   const out = [];
   for (const t2 of m.contributes.themes) {
     const id3 = themeId(m.id, t2.label || "tema");
+    if (idTemaTerdaftar.has(id3)) continue;
     if (THEMES.some((x) => x.id === id3)) continue;
-    if (daftarThemeInfo.some((x) => x.id === id3)) continue;
     try {
       const raw = await extensionsReadContrib(m.id, t2.path);
       const colors = raw.colors ?? raw.tokens ?? raw;
@@ -153716,6 +154083,7 @@ async function muatTema(m, gagal) {
         continue;
       }
       themeTokens.set(id3, tok);
+      idTemaTerdaftar.add(id3);
       daftarThemeInfo.push({
         id: id3,
         label: `${t2.label || m.name} (${m.name})`,
@@ -153908,26 +154276,88 @@ async function muatIconTheme(m, gagal) {
   for (const it of m.contributes.iconThemes) {
     try {
       const raw = await extensionsReadContrib(m.id, it.path);
-      const peta2 = raw.icons ?? raw;
-      let dariZephyr = 0;
-      for (const [ext, def] of Object.entries(peta2)) {
-        const d3 = def;
-        const glyph = String(d3.glyph ?? "").slice(0, 3);
-        if (!glyph) continue;
-        setIkonExt(ext, glyph, String(d3.color ?? "var(--fg2)").slice(0, 40));
-        dariZephyr++;
-        n++;
-      }
-      if (dariZephyr > 0) continue;
       const defs = raw.iconDefinitions ?? {};
-      const daftar3 = raw.fileExtensions ?? raw.fileNames ?? {};
-      for (const [ext, idDef] of Object.entries(daftar3)) {
-        const def = defs[String(idDef)];
-        if (!def) continue;
+      const svgCache = /* @__PURE__ */ new Map();
+      const bacaSvg = async (rel) => {
+        if (svgCache.has(rel)) return svgCache.get(rel) ?? null;
+        let isi = null;
+        try {
+          const teks = await extensionsReadMain(m.id, rel);
+          isi = normalisasiSvg(teks);
+        } catch {
+          isi = null;
+        }
+        svgCache.set(rel, isi);
+        return isi;
+      };
+      const ikonDari = async (idDef) => {
+        const def = defs[idDef];
+        if (!def) return null;
+        const color2 = String(def.fontColor ?? "").slice(0, 40) || void 0;
+        const path2 = typeof def.iconPath === "string" ? def.iconPath : "";
+        if (path2) {
+          const svg4 = await bacaSvg(path2);
+          if (svg4) return { svg: svg4, ...color2 ? { color: color2 } : {} };
+        }
         const glyph = glyphDariFontChar(String(def.fontCharacter ?? ""));
-        if (!glyph) continue;
-        setIkonExt(ext, glyph, String(def.fontColor ?? "var(--fg2)").slice(0, 40));
-        n++;
+        if (glyph) return { glyph, ...color2 ? { color: color2 } : {} };
+        return null;
+      };
+      const ikon = {};
+      let jumlahSvg = 0;
+      const tambah2 = (kunci2, ik) => {
+        ikon[kunci2.toLowerCase().replace(/^\./, "")] = ik;
+        if (ik.svg) jumlahSvg += 1;
+        n += 1;
+      };
+      for (const [kunci2, idDef] of [
+        ["file", raw.file],
+        ["folder", raw.folder],
+        ["folder-open", raw.folderExpanded ?? raw["folder-open"]]
+      ]) {
+        if (typeof idDef !== "string") continue;
+        const ik = await ikonDari(idDef);
+        if (ik) tambah2(kunci2, ik);
+      }
+      for (const [nama, idDef] of Object.entries(raw.fileNames ?? {})) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah2(nama, ik);
+      }
+      for (const [ext, idDef] of Object.entries(raw.fileExtensions ?? {})) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah2(ext, ik);
+      }
+      for (const [nama, idDef] of Object.entries(raw.folderNames ?? {})) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah2(`folder:${nama}`, ik);
+      }
+      for (const [nama, idDef] of Object.entries(raw.folderNamesExpanded ?? {})) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah2(`folder-open:${nama}`, ik);
+      }
+      if (Object.keys(ikon).length === 0) {
+        const peta2 = raw.icons ?? raw;
+        for (const [ext, def] of Object.entries(peta2)) {
+          const d3 = def;
+          const glyph = String(d3.glyph ?? "").slice(0, 3);
+          if (!glyph) continue;
+          tambah2(ext, { glyph, color: String(d3.color ?? "var(--fg2)").slice(0, 40) });
+        }
+        for (const [nama, def] of Object.entries(raw.folderNames ?? {})) {
+          const d3 = def;
+          const glyph = String(d3.glyph ?? "").slice(0, 3);
+          if (!glyph) continue;
+          tambah2(`folder:${nama}`, { glyph, color: String(d3.color ?? "var(--accent)").slice(0, 40) });
+        }
+      }
+      if (Object.keys(ikon).length > 0) {
+        const label = String(it.label ?? m.name ?? m.id);
+        paketIkon.push({
+          extId: `${m.id}::${label}`,
+          label,
+          ikon,
+          jumlahSvg
+        });
       }
     } catch (e) {
       gagal.push({ id: m.id, alasan: `icon theme ${it.path}: ${asZephyrError(e).message}` });
@@ -153935,14 +154365,40 @@ async function muatIconTheme(m, gagal) {
   }
   return n;
 }
-async function muatSemuaEkstensi() {
+function terapkanIkonTema(extId) {
+  const paket = extId ? paketIkon.find((p) => p.extId === extId) : null;
+  setIdPaketAktif(paket ? paket.label : "");
+  terapkanPaketIkon(paket ? paket.ikon : null, paket ? paket.label : "");
+}
+function normalisasiSvg(teks) {
+  const t2 = teks.trim();
+  if (!t2.startsWith("<svg") && !t2.startsWith("<?xml")) return null;
+  const bersih = t2.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "").replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "").replace(/javascript:/gi, "");
+  const mulai2 = bersih.indexOf("<svg");
+  if (mulai2 < 0) return null;
+  const akhir = bersih.lastIndexOf("</svg>");
+  if (akhir < mulai2) return null;
+  return bersih.slice(mulai2, akhir + "</svg>".length);
+}
+function muatSemuaEkstensi() {
+  const jalan = antreMuat.then(
+    () => muatSemuaEkstensiAsli(),
+    () => muatSemuaEkstensiAsli()
+  );
+  antreMuat = jalan.catch(() => {
+  });
+  return jalan;
+}
+async function muatSemuaEkstensiAsli() {
   for (const c2 of COMMANDS) daftarkanCommandId(c2.id);
   themeTokens.clear();
   daftarThemeInfo.length = 0;
+  idTemaTerdaftar.clear();
   langByExt.clear();
   snippetsByLang.clear();
   extKeymap.length = 0;
   kosongkanIkonExt();
+  paketIkon.length = 0;
   langPemilik.clear();
   extCommands.length = 0;
   hasilToolEkstensi.length = 0;
@@ -154041,9 +154497,20 @@ async function muatSemuaEkstensi() {
     await muatEkstensiRuntime2(daftar3);
   } catch {
   }
+  try {
+    const { useIkonTema: useIkonTema2 } = await Promise.resolve().then(() => (init_ikonTemaStore(), ikonTemaStore_exports));
+    const store = useIkonTema2.getState();
+    store.setPacks(daftarPaketIkon());
+    terapkanIkonTema(useIkonTema2.getState().aktif);
+  } catch (e) {
+    hasil.gagal.push({
+      id: "ikon-tema",
+      alasan: `could not hand icon packs to the picker: ${e instanceof Error ? e.message : String(e)}`
+    });
+  }
   return hasil;
 }
-var themeTokens, langByExt, snippetsByLang, extKeymap, langPemilik, ringkasanTerakhir, ringkasanLoader, themeId, tokenTerpakai, daftarThemeInfo, keymapEkstensi, adaSnippet, PAKET_DIIZINKAN, extCommands, commandsEkstensi, hasilToolEkstensi;
+var themeTokens, langByExt, snippetsByLang, extKeymap, langPemilik, ringkasanTerakhir, ringkasanLoader, themeId, tokenTerpakai, themesEkstensi, daftarThemeInfo, idTemaTerdaftar, keymapEkstensi, adaSnippet, jumlahSnippet, bahasaEkstensi, PAKET_DIIZINKAN, ikonUntukExt, adaIconTheme, paketIkon, daftarPaketIkon, extCommands, commandsEkstensi, hasilToolEkstensi, antreMuat;
 var init_extLoader = __esm({
   "src/lib/extLoader.ts"() {
     "use strict";
@@ -154079,9 +154546,17 @@ var init_extLoader = __esm({
     ringkasanLoader = () => ringkasanTerakhir;
     themeId = (extId, label) => `ext.${extId}.${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
     tokenTerpakai = /* @__PURE__ */ new Set();
+    themesEkstensi = () => daftarThemeInfo.slice();
     daftarThemeInfo = [];
+    idTemaTerdaftar = /* @__PURE__ */ new Set();
     keymapEkstensi = () => extKeymap.slice();
     adaSnippet = (lang) => (snippetsByLang.get(lang.toLowerCase())?.length ?? 0) > 0;
+    jumlahSnippet = () => {
+      let n = 0;
+      for (const v2 of snippetsByLang.values()) n += v2.length;
+      return n;
+    };
+    bahasaEkstensi = () => Array.from(langByExt.values());
     PAKET_DIIZINKAN = {
       "@codemirror/lang-css": async () => [(await Promise.resolve().then(() => (init_dist9(), dist_exports2))).css()],
       "@codemirror/lang-html": async () => [(await Promise.resolve().then(() => (init_dist13(), dist_exports4))).html()],
@@ -154091,9 +154566,14 @@ var init_extLoader = __esm({
       "@codemirror/lang-xml": async () => [(await Promise.resolve().then(() => (init_dist20(), dist_exports8))).xml()],
       "@codemirror/lang-yaml": async () => [(await Promise.resolve().then(() => (init_dist22(), dist_exports9))).yaml()]
     };
+    ikonUntukExt = (ext) => ikonFileExt(ext);
+    adaIconTheme = () => jumlahIkonExt() > 0;
+    paketIkon = [];
+    daftarPaketIkon = () => paketIkon.slice();
     extCommands = [];
     commandsEkstensi = () => extCommands.slice();
     hasilToolEkstensi = [];
+    antreMuat = Promise.resolve();
   }
 });
 
@@ -155101,6 +155581,53 @@ var init_extCatalog = __esm({
         categories: ["Themes"],
         logo: "\u{1F319}",
         bundled: true
+      },
+      /*
+       * The four bundled themes below ship in the binary (ext_bundled.rs) and
+       * must appear in the Marketplace list - without entries here the cards
+       * are invisible and the packages cannot be installed at all, even though
+       * the loader can serve them. Keep name/description in sync with the
+       * manifests in ext_bundled_extra.rs.
+       */
+      {
+        id: "zephyr.tema-samudra",
+        name: "Tema Samudra",
+        publisher: "zephyr",
+        version: "1.0.0",
+        description: "Deep blue dark theme with cool accents, for long reading on an OLED panel.",
+        categories: ["Themes"],
+        logo: "\u{1F30A}",
+        bundled: true
+      },
+      {
+        id: "zephyr.tema-hutan",
+        name: "Tema Hutan",
+        publisher: "zephyr",
+        version: "1.0.0",
+        description: "Muted forest green, low glare, for daylight work on a dark screen.",
+        categories: ["Themes"],
+        logo: "\u{1F332}",
+        bundled: true
+      },
+      {
+        id: "zephyr.tema-senja-muda",
+        name: "Tema Senja Muda",
+        publisher: "zephyr",
+        version: "1.0.0",
+        description: "Soft warm light theme, gentle on the eyes after sunset.",
+        categories: ["Themes"],
+        logo: "\u{1F305}",
+        bundled: true
+      },
+      {
+        id: "zephyr.tema-monokrom",
+        name: "Tema Monokrom",
+        publisher: "zephyr",
+        version: "1.0.0",
+        description: "Grayscale dark theme, no hue - shapes and spacing do the talking.",
+        categories: ["Themes"],
+        logo: "\u2B1B",
+        bundled: true
       }
     ];
     katalogById = (id3) => KATALOG_BUNDLED.find((x) => x.id === id3) ?? null;
@@ -155177,6 +155704,10 @@ var init_extensionsStore19 = __esm({
           const h = await extensionsInstall(path2);
           const pengaruh = h.pengaruh ?? PENGARUH_KOSONG;
           await get().refresh();
+          try {
+            window.dispatchEvent(new CustomEvent("zephyr-extensions-changed", { detail: { id: h.id } }));
+          } catch {
+          }
           const ringkas3 = pengaruh.ringkasan.join("; ");
           set2({
             info: ringkas3 ? `${h.name} v${h.version || "-"} terpasang \u2014 ${ringkas3}` : `${h.name} v${h.version || "-"} terpasang tanpa perubahan yang bisa diterapkan`,
@@ -155241,6 +155772,10 @@ var init_extensionsStore19 = __esm({
           const pengaruh = st?.pengaruh ?? PENGARUH_KOSONG;
           const ok3 = await extensionsUninstall(id3);
           await get().refresh();
+          try {
+            window.dispatchEvent(new CustomEvent("zephyr-extensions-changed", { detail: { id: id3, dihapus: true } }));
+          } catch {
+          }
           set2({
             info: ok3 ? `${id3} deleted` : `${id3} not found`,
             err: null,
@@ -155595,12 +156130,12 @@ var init_a11yStore = __esm({
         const bersih = String(teks ?? "").trim();
         if (!bersih) return;
         const n = get().urutan + 1;
-        const riwayat = [
+        const riwayat2 = [
           ...get().riwayat,
           { teks: bersih, kesopanan, at: Date.now() }
         ].slice(-MAX_RIWAYAT2);
-        if (kesopanan === "assertive") set2({ pesanPenting: bersih, urutan: n, riwayat });
-        else set2({ pesan: bersih, urutan: n, riwayat });
+        if (kesopanan === "assertive") set2({ pesanPenting: bersih, urutan: n, riwayat: riwayat2 });
+        else set2({ pesan: bersih, urutan: n, riwayat: riwayat2 });
       },
       bersihkan: () => set2({ pesan: "", pesanPenting: "" })
     }));
@@ -155726,11 +156261,8 @@ function openSide(activity) {
   if (!s.sidebarVisible) s.toggleSidebar();
 }
 function openSettingsSection(section2) {
-  const s = S3();
-  s.setActivity("settings");
-  s.setSettingsOpen(true);
   useSettingsUi.getState().setSection(section2);
-  if (!s.sidebarVisible) s.toggleSidebar();
+  S3().setActivity("settings");
 }
 function taskCommands() {
   const T3 = useTasks.getState();
@@ -155845,7 +156377,7 @@ var init_commandRegistry = __esm({
     init_mcpStore();
     init_explorerStore();
     init_settingsStore();
-    init_aiModelsStore();
+    init_bukaPanel();
     init_extensionStore();
     init_extLoader();
     init_extHost();
@@ -156309,11 +156841,11 @@ var init_commandRegistry = __esm({
         title: "AI: Configure Models & API Keys",
         group: "AI",
         keywords: "api key provider",
-        /* Models, providers and API keys are their own pop-up now (`AiModelsModal`),
-           so this command opens it directly. Sending the reader to the chat's Models
-           section - or, before that, to the editor-area Settings page - would land
-           them on a surface that no longer holds providers or keys. */
-        run: () => useAiModels.getState().buka()
+        /* Models, providers and API keys are their own window now, so this command
+           opens it directly. Sending the reader to the chat's Models section - or,
+           before that, to the editor-area Settings page - would land them on a
+           surface that no longer holds providers or keys. */
+        run: () => bukaPanel("models")
       },
       {
         id: "ai.compact",
@@ -157710,9 +158242,7 @@ var init_commandRegistry = __esm({
         group: "File",
         keywords: "trust daftar list security settings",
         run: async () => {
-          const s = S3();
-          s.setActivity("settings");
-          s.setSettingsOpen(true);
+          S3().setActivity("settings");
           await useWs.getState().muatDaftarTrust();
         }
       },
@@ -158103,7 +158633,7 @@ function panelDikenal(nama) {
 function setelanDikenal(nama) {
   return Object.prototype.hasOwnProperty.call(KONTROL_SETELAN, nama);
 }
-async function bukaPanel(which) {
+async function bukaPanel2(which) {
   const nama = (which ?? "").trim();
   if (!panelDikenal(nama)) {
     throw new Error(
@@ -158123,11 +158653,8 @@ async function bukaPanel(which) {
   return `Panel ${nama} sudah dibuka (lewat ${jalur}). ${ringkasJendela()}`;
 }
 function bukaSetelanLangsung(bagian) {
-  const s = useStore2.getState();
-  s.setActivity("settings");
-  s.setSettingsOpen(true);
   useSettingsUi.getState().setSection(bagian);
-  if (!s.sidebarVisible) s.toggleSidebar();
+  useStore2.getState().setActivity("settings");
 }
 async function bukaSetelan(section2) {
   const bagian = (section2 ?? "").trim();
@@ -158350,6 +158877,10 @@ var init_kendaliJendela = __esm({
       general: "view.settings",
       editor: PEMBUKA_STORE,
       theme: "settings.theme",
+      /* Icon themes: no command of its own, the section is opened by the store.
+         `tests` used to sit here and is gone with the section - a door to a room
+         that no longer exists is worse than no door. */
+      icons: PEMBUKA_STORE,
       shortcuts: "shortcut.list",
       agents: PEMBUKA_STORE,
       rules: PEMBUKA_STORE,
@@ -158359,7 +158890,6 @@ var init_kendaliJendela = __esm({
       lsp: PEMBUKA_STORE,
       scm: PEMBUKA_STORE,
       mcp: PEMBUKA_STORE,
-      tests: PEMBUKA_STORE,
       devenv: PEMBUKA_STORE,
       devupdate: PEMBUKA_STORE,
       security: PEMBUKA_STORE,
@@ -158564,7 +159094,7 @@ ${hasil}`;
           if (!buka) {
             return `Ada di ${panel.apa} (bawah, Ctrl+\`). (Tidak saya buka, karena buka=false.)`;
           }
-          const hasil = await bukaPanel(panel.panel);
+          const hasil = await bukaPanel2(panel.panel);
           return `Sudah saya buka ${panel.apa}.
 Pemicunya: "${niat}".
 ${hasil}`;
@@ -158926,18 +159456,18 @@ function idAgents(paneId) {
   return paneId.startsWith("agents-");
 }
 async function tungguHalamanAgents(url, paneId, batasMs = 15e3) {
-  const mulai = Date.now();
+  const mulai2 = Date.now();
   for (; ; ) {
     const p = paneAgents(paneId);
     if (p?.siap && p.url && samaUrl(p.url, url)) return true;
-    if (Date.now() - mulai > 1200) {
+    if (Date.now() - mulai2 > 1200) {
       try {
         const info = await browserPaneInfo(paneId);
         if (info?.url && samaUrl(info.url, url)) return true;
       } catch {
       }
     }
-    if (Date.now() - mulai > batasMs) return false;
+    if (Date.now() - mulai2 > batasMs) return false;
     await new Promise((r2) => setTimeout(r2, 400));
   }
 }
@@ -158955,10 +159485,10 @@ function pastikanTampil(paneId) {
   if (!t2.visible) t2.setVisible(true);
 }
 async function tungguWebview(paneId, batasMs = 1e4) {
-  const mulai = Date.now();
+  const mulai2 = Date.now();
   for (; ; ) {
     if (await evalPane(paneId, "document.title") !== null) return true;
-    if (Date.now() - mulai > batasMs) return false;
+    if (Date.now() - mulai2 > batasMs) return false;
     await new Promise((r2) => setTimeout(r2, 250));
   }
 }
@@ -158969,7 +159499,7 @@ function samaUrl(a2, b) {
   return ka === kb || ka.startsWith(kb) || kb.startsWith(ka);
 }
 async function pastikanHalaman(paneId, url, batasMs = 15e3) {
-  const mulai = Date.now();
+  const mulai2 = Date.now();
   let pernahNav = false;
   for (; ; ) {
     const hidup2 = await tungguWebview(paneId, 3e3);
@@ -158987,7 +159517,7 @@ async function pastikanHalaman(paneId, url, batasMs = 15e3) {
         galatEvalTerakhir = `navigasi di pane gagal: ${pesanGalat(e)}`;
       }
     }
-    if (Date.now() - mulai > batasMs) return false;
+    if (Date.now() - mulai2 > batasMs) return false;
     await new Promise((r2) => setTimeout(r2, 400));
   }
 }
@@ -159079,6 +159609,42 @@ var init_web = __esm({
     galatEvalTerakhir = null;
     SKEMA_WEB_FETCH = "https:";
     TOOL_WEB = [
+      {
+        /*
+         * `open_link` - hand a URL to the user's REAL browser.
+         *
+         * Asked for directly: whenever a link shows up in a conversation (a
+         * repository, a documentation page, a search result), the reader wants to
+         * SEE it, not to be told the URL. `browser` opens the in-app pane, which is
+         * right for pages the agent must read - but for "open google.com" the
+         * answer belongs in the browser the person actually uses, next to the
+         * terminal they are working in.
+         *
+         * The gate is the SAME one the in-app pane uses (`gerbangIsiKonten`):
+         * `izinIsiWeb` must be on and the host must be listed. Opening a URL in an
+         * external browser is not a way around the allowlist - a link the user did
+         * not approve is a link the agent does not get to launch.
+         */
+        spec: {
+          name: "open_link",
+          description: "Open a URL in the system default browser (the one the user actually uses), for when the user shares a link or asks to open a page. Use this for links the user should SEE; use `browser` when you need to READ the page yourself. The same allowlist gate applies: if the result says the host is outside the allowlist, tell the user the host name instead of retrying.",
+          parameters: {
+            type: "object",
+            properties: {
+              url: { type: "string", description: "The full URL to open (http/https)." }
+            },
+            required: ["url"]
+          }
+        },
+        run: async (a2) => {
+          const url = wajib(a2, "url");
+          const gerbang = gerbangIsiKonten(url, kebijakan());
+          if (!gerbang.ok) return `(open_link ditolak: ${pesanTolakGerbang(gerbang.alasan)})`;
+          const { openUrl: openUrl2 } = await Promise.resolve().then(() => (init_dist_js2(), dist_js_exports2));
+          await openUrl2(url);
+          return `Opened in the system browser: ${url}`;
+        }
+      },
       {
         spec: {
           name: "web_search",
@@ -160431,7 +160997,7 @@ var init_mcp = __esm({
         run: async (a2) => {
           const panel = a2.panel ? String(a2.panel).trim() : "";
           const setelan = a2.settings ? String(a2.settings).trim() : "";
-          if (panel) return await bukaPanel(panel);
+          if (panel) return await bukaPanel2(panel);
           if (setelan) return await bukaSetelan(setelan);
           if (a2.capture === true) {
             return await tangkapJendela({
@@ -160713,13 +161279,13 @@ Kalau kamu mengira perintahnya belum jalan, baca output yang sudah muncul di ter
           const aktif4 = t2.terminalTabs.find((x) => x.id === t2.activeTabId);
           const targetId = a2.leafId ? String(a2.leafId) : aktif4?.activePaneId ?? aktif4?.panes[0]?.id;
           if (!targetId) throw new Error("ERROR: tidak ada terminal aktif untuk ditunggu.");
-          const mulai = Date.now();
+          const mulai2 = Date.now();
           let sebelumnya = "";
           let stabil = 0;
-          while (Date.now() - mulai < batasMs) {
+          while (Date.now() - mulai2 < batasMs) {
             const teks = await ptyTail(targetId, 200).catch(() => "");
             if (until && teks.includes(until)) {
-              const ms2 = Date.now() - mulai;
+              const ms2 = Date.now() - mulai2;
               return potong(`Teks "${until}" muncul di terminal ${targetId} setelah ${ms2} ms:
 ${teks}`);
             }
@@ -160732,7 +161298,7 @@ ${teks}`);
             sebelumnya = teks;
             await new Promise((r2) => setTimeout(r2, 300));
           }
-          const ms = Date.now() - mulai;
+          const ms = Date.now() - mulai2;
           if (!sebelumnya.trim()) return `Terminal ${targetId} menunggu ${ms} ms: belum ada keluaran.`;
           return potong(`Terminal ${targetId} idle setelah ${ms} ms. Keluaran terakhir:
 ${sebelumnya}`);
@@ -162879,12 +163445,12 @@ function jendelaMendominasi(teks, n) {
       if (arr2) {
         const rentang = [];
         for (let k = 0; k < arr2.length; k++) {
-          const mulai = arr2[k];
-          const akhir = mulai + REPEAT_WINDOW;
-          if (rentang.length && mulai <= rentang[rentang.length - 1][1]) {
+          const mulai2 = arr2[k];
+          const akhir = mulai2 + REPEAT_WINDOW;
+          if (rentang.length && mulai2 <= rentang[rentang.length - 1][1]) {
             rentang[rentang.length - 1][1] = Math.max(rentang[rentang.length - 1][1], akhir);
           } else {
-            rentang.push([mulai, akhir]);
+            rentang.push([mulai2, akhir]);
           }
         }
         const luas = rentang.reduce((s, [a2, b]) => s + (b - a2), 0);
@@ -162897,10 +163463,10 @@ function jendelaMendominasi(teks, n) {
   }
   return terbaik;
 }
-function kembangkanLari(teks, n, mulai, periode, cocok3) {
-  let kiri = mulai;
+function kembangkanLari(teks, n, mulai2, periode, cocok3) {
+  let kiri = mulai2;
   while (kiri > 0 && teks[kiri - 1] === teks[kiri - 1 + periode]) kiri--;
-  let kanan = mulai + cocok3;
+  let kanan = mulai2 + cocok3;
   while (kanan + periode < n && teks[kanan] === teks[kanan + periode]) kanan++;
   return [kiri, kanan + periode];
 }
@@ -162913,19 +163479,19 @@ function lariPeriodikMendominasi(teks, n) {
   if (jangkar[jangkar.length - 1] !== mulaiMaks) jangkar.push(mulaiMaks);
   const ditolak = [];
   let terbaik = 0;
-  for (const mulai of jangkar) {
-    const kunci2 = teks.slice(mulai, mulai + REPEAT_WINDOW);
-    let cari2 = mulai + 1;
+  for (const mulai2 of jangkar) {
+    const kunci2 = teks.slice(mulai2, mulai2 + REPEAT_WINDOW);
+    let cari2 = mulai2 + 1;
     for (let k = 0; k < MAX_ANCHOR_MATCHES; k++) {
       const cocok3 = teks.indexOf(kunci2, cari2);
       if (cocok3 < 0) break;
-      const periode = cocok3 - mulai;
+      const periode = cocok3 - mulai2;
       cari2 = cocok3 + 1;
       const sudahDitolak = ditolak.some(
-        ([lo, hi, p]) => lo <= mulai && mulai < hi && periode % p === 0
+        ([lo, hi, p]) => lo <= mulai2 && mulai2 < hi && periode % p === 0
       );
       if (sudahDitolak) continue;
-      const [kiri, kanan] = kembangkanLari(teks, n, mulai, periode, REPEAT_WINDOW);
+      const [kiri, kanan] = kembangkanLari(teks, n, mulai2, periode, REPEAT_WINDOW);
       const panjang = kanan - kiri;
       if (panjang >= MIN_REPEAT_COUNT * periode && panjang >= n * DOMINANCE_RATIO) {
         terbaik = Math.max(terbaik, panjang / n);
@@ -164475,9 +165041,9 @@ ${sensor(isiKonteks2)}`
       "Konteks workspace belum ada (`.zephyr-context.md` tidak diberikan/kosong) - giliran ini jalan tanpa konteks, bukan error."
     );
   }
-  const riwayat = bahan.riwayat ?? [];
-  for (let i = 0; i < riwayat.length; i += 1) {
-    const p = riwayat[i];
+  const riwayat2 = bahan.riwayat ?? [];
+  for (let i = 0; i < riwayat2.length; i += 1) {
+    const p = riwayat2[i];
     const teks = (p.teks ?? "").trim();
     if (teks.length === 0) continue;
     blok.push({
@@ -164650,8 +165216,8 @@ function giliranAntreanKeRiwayat(bahan) {
   });
   return { hasil, blok: blokWajib(hasil), ringkas: ringkasLaporan(hasil.laporan) };
 }
-function sisipKeDepanEkor(riwayat, blok, ujungTool) {
-  const hasil = [...riwayat];
+function sisipKeDepanEkor(riwayat2, blok, ujungTool) {
+  const hasil = [...riwayat2];
   if (blok.length === 0) return hasil;
   if (hasil.length === 0) return [...blok];
   const ekor = hasil[hasil.length - 1];
@@ -165692,6 +166258,53 @@ var init_hookRuntime = __esm({
   }
 });
 
+// src/lib/notifikasiAi.ts
+var notifikasiAi_exports = {};
+__export(notifikasiAi_exports, {
+  catatMulaiRun: () => catatMulaiRun,
+  catatSelesaiRun: () => catatSelesaiRun,
+  jumlahRunDilacak: () => jumlahRunDilacak,
+  lupakanRun: () => lupakanRun,
+  riwayatNotifikasi: () => riwayatNotifikasi
+});
+function catatMulaiRun(id3, ms = Date.now()) {
+  mulai.set(id3, ms);
+}
+function catatSelesaiRun(id3, judul, ringkas3) {
+  const awal = mulai.get(id3);
+  mulai.delete(id3);
+  if (awal === void 0) return;
+  const lama = Date.now() - awal;
+  const fokus = typeof document !== "undefined" && document.hasFocus();
+  catatRiwayat(judul.trim().slice(0, 80) || "Zephyr", ringkas3.trim().slice(0, 140), fokus, lama);
+  if (lama < AMBANG_MS) return;
+  if (fokus) return;
+  const menit = Math.round(lama / 6e4);
+  const isi = ringkas3.trim().slice(0, 140);
+  const badan = [isi, menit >= 1 ? `(${menit}m)` : ""].filter(Boolean).join(" ");
+  void notifyShow(judul.trim().slice(0, 80) || "Zephyr", badan);
+}
+function lupakanRun(id3) {
+  mulai.delete(id3);
+}
+function catatRiwayat(judul, isi, fokus, lama) {
+  riwayat.push({ judul, isi, fokus, lama });
+  if (riwayat.length > 10) riwayat.shift();
+}
+var AMBANG_MS, mulai, jumlahRunDilacak, riwayat, riwayatNotifikasi;
+var init_notifikasiAi = __esm({
+  "src/lib/notifikasiAi.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_commands();
+    AMBANG_MS = 2e4;
+    mulai = /* @__PURE__ */ new Map();
+    jumlahRunDilacak = () => mulai.size;
+    riwayat = [];
+    riwayatNotifikasi = () => riwayat.slice();
+  }
+});
+
 // src/lib/terminalClipboard.ts
 var terminalClipboard_exports = {};
 __export(terminalClipboard_exports, {
@@ -165754,6 +166367,7 @@ __export(aiStore_exports, {
   HISTORY_TOOL_CHARS: () => HISTORY_TOOL_CHARS,
   HISTORY_TOOL_TAIL_RATIO: () => HISTORY_TOOL_TAIL_RATIO,
   IMAGE_MAX_BYTES: () => IMAGE_MAX_BYTES,
+  IZIN_TIMEOUT_MS: () => IZIN_TIMEOUT_MS,
   KALIMAT_PASCA_POTONG_CHARS: () => KALIMAT_PASCA_POTONG_CHARS,
   MAX_AGENT_STEPS: () => MAX_AGENT_STEPS,
   MAX_IMAGES: () => MAX_IMAGES,
@@ -165780,6 +166394,7 @@ __export(aiStore_exports, {
   finishAgentToolCache: () => finishAgentToolCache,
   isDestructive: () => isDestructive,
   isNavigationOnlyRequest: () => isNavigationOnlyRequest,
+  izinTimeoutAktif: () => izinTimeoutAktif,
   jalankanAgentToolCached: () => jalankanAgentToolCached,
   jalurKonteksKerja: () => jalurKonteksKerja,
   jejakPemadatan: () => jejakPemadatan,
@@ -165800,6 +166415,7 @@ __export(aiStore_exports, {
   resetKonteksAgent: () => resetKonteksAgent,
   ringkasRiwayat: () => ringkasRiwayat,
   riwayatAgen: () => riwayatAgen,
+  setIzinTimeout: () => setIzinTimeout,
   siapkanKonteksKerja: () => siapkanKonteksKerja,
   statusPekerjaan: () => statusPekerjaan,
   todoTerpangkas: () => todoTerpangkas,
@@ -166613,13 +167229,13 @@ function isRetryableAgentProviderError(error) {
 }
 function tungguRetryAgent(ms) {
   return new Promise((resolve) => {
-    const mulai = Date.now();
+    const mulai2 = Date.now();
     const cek = () => {
       if (agentBatal) {
         resolve(false);
         return;
       }
-      const sisa = ms - (Date.now() - mulai);
+      const sisa = ms - (Date.now() - mulai2);
       if (sisa <= 0) {
         resolve(true);
         return;
@@ -167197,7 +167813,7 @@ function padatkanRiwayatMurni(history2, opts = {}) {
   jejak.push(hasil.alasan);
   return hasil;
 }
-var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, gambarMenunggu, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER2, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, JEDA_ULANG_ARGUMEN_CACAT_MS, BATAS_ARGUMEN_RUSAK_BERTURUT, jendelaKunci, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
+var KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, TOOL_BACA, TOOL_BACA_SET, TOOL_BACA_DIPARALELKAN, TOOL_NET_SET, LS_KEY4, urutAntrian, idAntrian, posisiAntrian, cocokAntrian, KEPALA_PESAN_SEMENTARA, JUDUL_LAMA, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, gambarMenunggu, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, POTRET_BATAS_MS, ctxCache, CTX_TTL_MS2, agentToolCache, agentToolCacheRun, TERMINAL_READ_CACHE_TTL_MS, BATAS_AKSI_SAMA, BATAS_BACA_SAMA, BATAS_AKSI_INGAT, BATAS_BROWSER_MUTER, BATAS_TANPA_KEMAJUAN, BATAS_LANJUT_TANPA_TOOL, TOOL_PENULIS, TOOL_BROWSER2, BATAS_JENDELA_SIDIK, agenAksiBerulang, catatanPercobaanGagal, NAMA_KONTEKS_KERJA, JUDUL_KONTEKS_BERKAS, JUDUL_KONTEKS_HASIL, seq5, nextId3, MAX_AGENT_STEPS, IZIN_TIMEOUT_MS, izinTimeoutMs, setIzinTimeout, izinTimeoutAktif, POLA_URL_NAVIGASI, MAX_TODOS, dipangkasTodo, todoTerpangkas, TOOL_TULIS_BERKAS2, TOOL_HANYA_BACA, SHELL_BACA, agentConfirmResolve, agentTanyaResolve, agentStepResolve, activeAgentAttempt, activeAgentUiId, cancelledAttempts, retiredAgentAttempts, agentBatal, agentStopReason, cancelled, autoCompactStep, jejakPemadatan, AGENT_IDLE_MS2, AGENT_NO_PROGRESS_MS, agentWatchdog, agentNoProgress, AGENT_HARD_LIMIT_MS, agentHardTimer, AGENT_PROVIDER_RETRY_DELAYS, JEDA_ULANG_ARGUMEN_CACAT_MS, BATAS_ARGUMEN_RUSAK_BERTURUT, jendelaKunci, TUNGGU_PULIH_DELAYS, DESTRUCTIVE, boot, EFFORT_KEY, COMPOSER_AKTIF, useAi, akumulasiTeks, deltaTerakhir, chunkBuf, chunkFlushHandle, chunkFlushViaTimeout, AMBANG_TENGAH, AMBANG_PADAT_RASIO, AMBANG_PADAT_TOKEN, PADAT_SIMPAN_EKOR, RASIO_RINGKAS_TARGET, PADAT_BATAS_KEPUTUSAN, PADAT_BATAS_BERKAS, PADAT_BATAS_POTONGAN, PADAT_BATAS_BARIS_USER, STATUS_SELESAI, ALAT_BERKAS, KUNCI_PATH, POLA_PATH, POLA_KEPUTUSAN;
 var init_aiStore = __esm({
   "src/lib/aiStore.ts"() {
     "use strict";
@@ -167330,6 +167946,12 @@ var init_aiStore = __esm({
     seq5 = 0;
     nextId3 = (p) => `${p}-${Date.now().toString(36)}-${++seq5}`;
     MAX_AGENT_STEPS = 200;
+    IZIN_TIMEOUT_MS = 12e4;
+    izinTimeoutMs = IZIN_TIMEOUT_MS;
+    setIzinTimeout = (ms) => {
+      izinTimeoutMs = Math.max(1e3, Math.min(6e5, ms));
+    };
+    izinTimeoutAktif = () => izinTimeoutMs;
     POLA_URL_NAVIGASI = new RegExp(
       [
         String.raw`https?://[^\s<>)]+`,
@@ -167976,10 +168598,10 @@ var init_aiStore = __esm({
           set2({ reasoningEffort: e });
         },
         setAgentProgress: (progress) => set2((s) => {
-          const mulai = progress.agentStartedAt !== void 0 ? progress.agentStartedAt : progress.agentStepIndex === 0 && s.agentStartedAt == null ? Date.now() : s.agentStartedAt;
+          const mulai2 = progress.agentStartedAt !== void 0 ? progress.agentStartedAt : progress.agentStepIndex === 0 && s.agentStartedAt == null ? Date.now() : s.agentStartedAt;
           return {
             ...progress,
-            agentStartedAt: mulai,
+            agentStartedAt: mulai2,
             agentLastProgressAt: progress.agentLastProgressAt !== void 0 ? progress.agentLastProgressAt : progress.agentPhase === "idle" ? null : Date.now()
           };
         }),
@@ -167991,6 +168613,59 @@ var init_aiStore = __esm({
           }
           set2({ agentConfirm: null });
         },
+        /*
+         * ── KONFIRMASI TIDAK BOLEH MENGGANTUNG TANPA UI ───────────────────────────
+         *
+         * Temuan Fase 5: agen diam 293 detik di `waiting-confirmation`. Penyebabnya
+         * `send()` menunggu Promise yang HANYA diselesaikan tombol Allow di AiPanel.
+         * Kalau panel chat tidak ter-mount - run dari command palette, dari
+         * keybinding, dari jendela AI terpisah yang belum dibuka, atau headless -
+         * tidak ada tombol, Promise tidak pernah selesai, dan agen menunggu sampai
+         * watchdog 15 menit membunuhnya.
+         *
+         * Dua perbaikan:
+         *
+         *  1. PANEL DIBUKA OTOMATIS saat agen butuh izin. Permintaan izin adalah
+         *     momen yang butuh mata manusia; menyembunyikannya di panel tertutup
+         *     membuat agen tampak menggantung.
+         *
+         *  2. BATAS WAKTU pada Promise-nya. Kalau izin tidak dijawab dalam
+         *     `IZIN_TIMEOUT_MS`, permintaan DITOLAK dan langkah dilewati - agen
+         *     melanjutkan pekerjaannya dengan tool lain, bukan mati. Menolak dengan
+         *     alasan yang terlihat jauh lebih baik daripada menggantung tanpa kabar.
+         */
+        agentMintaIzin: (tool, argsText, opsi) => new Promise((resolve) => {
+          try {
+            void Promise.resolve().then(() => (init_store(), store_exports)).then((m) => {
+              const s = m.useStore.getState();
+              s.setAiKolomVisible?.(true);
+            });
+          } catch {
+          }
+          set2({
+            agentConfirm: {
+              tool,
+              argsText,
+              isDestructive: !!opsi.destruktif,
+              isWrite: !!opsi.tulis
+            }
+          });
+          const selesai = (nilai2) => {
+            if (agentConfirmResolve !== resolve) return;
+            agentConfirmResolve = null;
+            clearTimeout(pewaktu);
+            set2({ agentConfirm: null });
+            resolve(nilai2);
+          };
+          agentConfirmResolve = resolve;
+          const pewaktu = setTimeout(() => {
+            if (agentConfirmResolve !== resolve) return;
+            selesai(false);
+            set2({
+              toast: `Izin untuk ${tool} tidak dijawab dalam ${Math.round(izinTimeoutMs / 1e3)} detik - langkah dilewati.`
+            });
+          }, izinTimeoutMs);
+        }),
         agentAjukanTanya: (pertanyaan2, pilihan) => new Promise((selesai) => {
           if (agentTanyaResolve) {
             const lama = agentTanyaResolve;
@@ -168592,7 +169267,17 @@ ${h.content}`
             if (ai.runMode === "plan") {
               history2.unshift({
                 role: "system",
-                content: "PLAN MODE: Do not change anything this turn. Explore as needed with read-only tools, then present a concise, numbered plan of what you would do and STOP, asking the user to approve before you edit files or run commands. Do not call write or terminal tools until the user tells you to proceed."
+                content: "PLAN MODE: Do not change anything this turn. Explore as needed with read-only tools, then present a concise, numbered plan of what you would do and STOP, asking the user to approve before you edit files or run commands. Do not call write or terminal tools until the user tells you to proceed. Write and shell tools are REFUSED in this mode by the runtime, so calling them only wastes a step."
+              });
+            } else if (ai.runMode === "interactive") {
+              history2.unshift({
+                role: "system",
+                content: "INTERACTIVE MODE: the user wants to stay in the loop. Do the reading and investigation for this turn, then STOP at the first point where you would change something on disk (writing/editing files, deleting, or a shell command that mutates state) and say what you are about to do in one or two sentences, so the user can confirm or redirect. Read-only work needs no permission: keep going until you reach a change. After the user answers, continue."
+              });
+            } else if (ai.runMode === "autopilot") {
+              history2.unshift({
+                role: "system",
+                content: "AUTOPILOT MODE: complete the whole task in this turn. Do not stop to ask for confirmation before changes, and do not end the turn with a plan of work you could have done - do it, verify it, then report. If you genuinely cannot proceed (missing credentials, a decision only the user can make, an external service down), stop and say exactly what you need and why; that is the only reason to pause. Never claim a step succeeded without the tool result that proves it."
               });
             }
           }
@@ -168905,6 +169590,8 @@ File: ${tabA.path ?? tabA.name}${truncatedA ? " (first 12KB truncated)" : ""}
             agentResume: null,
             commandSuggestion: null
           }));
+          void Promise.resolve().then(() => (init_notifikasiAi(), notifikasiAi_exports)).then((m) => m.catatMulaiRun(activeAgentUiId ?? "")).catch(() => {
+          });
           void Promise.resolve().then(() => (init_checkpoint(), checkpoint_exports)).then((m) => m.mulaiTurn(composerId, botMsg.id));
           resetAgentToolCache();
           persist2(get());
@@ -169005,15 +169692,15 @@ ${memori}`.trim() : aturan;
             }
           }
           if (hydraRencana) {
-            const mulai = hydraRencana.langkah[0];
+            const mulai2 = hydraRencana.langkah[0];
             set2({
               hydraTahap: {
                 request: 1,
                 total: hydraRencana.langkah.length,
                 jalur: hydraRencana.jalur,
                 peran: "draft",
-                provider: mulai.provider,
-                model: mulai.model,
+                provider: mulai2.provider,
+                model: mulai2.model,
                 catatan: hydraRencana.alasan
               }
             });
@@ -169830,6 +170517,7 @@ Lanjutkan SEKARANG dengan memanggil tool untuk mengerjakan tugas berikutnya \u20
                 const perintah = namaShell ? String(argsObj.command ?? "") : "";
                 const tulisDiblok = TOOL_TULIS.has(tc.name);
                 const toolGateBlok = !useToolGate.getState().aktif.has(tc.name);
+                const planBlok = get().runMode === "plan" && (tulisDiblok || namaShell);
                 const readOnlyBlok = get().approvalMode === "readonly" && (tulisDiblok || namaShell);
                 const diizinkan = !isDestructive(perintah) && useStore2.getState().izinPerintah(perintah);
                 const izinTool = useToolGate.getState().tulisDiizinkan(tc.name);
@@ -169844,6 +170532,9 @@ Lanjutkan SEKARANG dengan memanggil tool untuk mengerjakan tugas berikutnya \u20
                 if (toolGateBlok) {
                   hasil = `(refused: tool disabled in AI Tools: ${tc.name})`;
                   ok3 = false;
+                } else if (planBlok) {
+                  hasil = `(refused: Plan mode does not change anything - present the plan and let the user approve it before calling ${tc.name})`;
+                  ok3 = false;
                 } else if (readOnlyBlok) {
                   hasil = `(refused: read-only mode does not allow ${tc.name})`;
                   ok3 = false;
@@ -169852,21 +170543,10 @@ Lanjutkan SEKARANG dengan memanggil tool untuk mengerjakan tugas berikutnya \u20
                   ok3 = false;
                 } else if (perluSetuju) {
                   get().setAgentProgress({ agentPhase: "waiting-confirmation", agentCurrentTool: tc.name, agentStepIndex: langkah + 1, agentStepLimit: MAX_AGENT_STEPS });
-                  set2({
-                    agentConfirm: {
-                      tool: tc.name,
-                      argsText: JSON.stringify(argsObj),
-                      isDestructive: namaShell && isDestructive(perintah),
-                      // A disk write is not a shell command: the card words the
-                      // prompt differently so the user knows bytes will land.
-                      isWrite: tulisDisk
-                    }
+                  const disetujui = await get().agentMintaIzin(tc.name, JSON.stringify(argsObj), {
+                    destruktif: !!(namaShell && isDestructive(perintah)),
+                    tulis: tulisDisk
                   });
-                  const disetujui = await new Promise((resolve) => {
-                    agentConfirmResolve = resolve;
-                  });
-                  agentConfirmResolve = null;
-                  set2({ agentConfirm: null });
                   if (!disetujui || agentBatal) {
                     hasil = "(ditolak user)";
                     ok3 = false;
@@ -170119,6 +170799,15 @@ ${detail}` : message
             });
           }
           const runWasCancelled = agentBatal;
+          try {
+            const { catatSelesaiRun: catatSelesaiRun2 } = await Promise.resolve().then(() => (init_notifikasiAi(), notifikasiAi_exports));
+            catatSelesaiRun2(
+              activeAgentUiId ?? "",
+              "Zephyr \u2014 run finished",
+              runWasCancelled ? "Stopped." : akhir?.trim() || "Done."
+            );
+          } catch {
+          }
           const stopReason = agentStopReason ?? "";
           if (runWasCancelled && stopReason !== "user") {
             const pesanStop = agentStopMessage(stopReason);
@@ -170902,6 +171591,7 @@ __export(commands_exports, {
   mcpWriteCli: () => mcpWriteCli,
   memoryRead: () => memoryRead,
   memoryWrite: () => memoryWrite,
+  notifyShow: () => notifyShow,
   perfMark: () => perfMark,
   ptyInterrupt: () => ptyInterrupt,
   ptyKill: () => ptyKill,
@@ -171076,7 +171766,7 @@ async function periksaAturanSebelumTulis(path2, content5) {
     throw new Error(pesan2);
   }
 }
-var KODE_SAH, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, fsRead, fsRealpath, agentExec, fsWrite, fsExists, fsStat, fsCreateFile, fsCreateDir, fsDelete, fsRename, sessionLoad, sessionSave, fileDialogOpen, fileDialogSave, folderDialogOpen, bgImageRead, scanDir, fsWatch, fsUnwatch, searchFiles, replaceInFile, revealPath, listWorkspaceFiles, clearWorkspaceFileIndex, browserProbe, ragSearch, listShells, listAgents, ptySpawn, ptyWrite, ptyResize, ptyKill, ptyList, ptyTail, ptySetPaused, ptyInterrupt, sshList, sshAdd, sshUpdate, sshDelete, sshSavePassword, sshClearPassword, sshConnect, sshDisconnect, getPublicModels, setModelKey, testModelConnection, listModels, resetSettings, aiChat, aiCancel, aiPenolakanTerakhir, aiToolChat, aiToolChatStream, cliAgentsDetect, formatText, cliAgentRun, cliChat, cliChatCancel, cliModels, codexConfig, claudeAccountInfo, claudeSettingsPatch, claudeMemoryWrite, claudeCommandWrite, claudeCommandDelete, claudeBuiltinCommands, ccCatalogList, ccCatalogBody, ccCatalogInstall, ccCatalogUninstall, ccRepoScan, ccRepoInstall, ccPluginsCatalog, ccPluginInstall, ccPluginUninstall, ccPluginMarketplaces, bacaGambar, simpanGambarTemp, gitInit, gitStatus, gitStage, gitUnstage, gitCommit, gitPush, gitPull, gitFetch, gitBranches, gitCheckout, gitCreateBranch, gitDeleteBranch, gitDiff, gitDiffHead, gitNumstat, gitDiscard, gitLog, gitConfigGetUser, gitBlame, gitStashSave, gitStashList, gitStashPop, gitStashDrop, gitRebase, gitConflictTake, gitConflictRead, gitConflictApply, gitRebaseInteractive, gitRebaseContinue, gitRebaseAbort, gitRebaseStatus, gitRebaseProgress, ghStatus, ghSetPat, ghLoginDevice, ghLogout, ghTest, mcpStatus, mcpStart, mcpStop, mcpReply, mcpUiReady, mcpRotateToken, mcpWriteCli, mcpRemoveCli, mcpCliStatus, mcpClientList, mcpClientTools, mcpClientCall, mcpClientPrompts, mcpClientPromptGet, mcpClientSave, mcpClientRemove, extensionsList, extensionsLoad, extensionsAdd, extensionsRemove, extensionsFolder, extensionsInstall, extensionsUninstall, extensionsSetEnabled, extensionsReadContrib, extensionsReadMain, extensionsReadFiles, extensionsManifests, extensionsWriteBundled, extensionsBundledIds, extensionsDownloadZext, extWhich, extExec, getDiagnostics, logTail, aiCaptureSet, aiCaptureGet, aiCaptureClear, selfTest, logFrontend, perfMark, debugPanic, tasksLoad, tasksMatchers, tasksMatchLine, tasksRun, tasksWait, tasksKill, tasksRuns, tasksClearRuns, tasksDetectPort, historySnapshot, historyList, historyRead, historyClear, historyPrune, historyStats, searchGrep, searchCancel, searchRgInfo, searchReplace, dapLoad, dapAdapters, dapStart, dapStop, dapStatus, dapKontrol, dapThreads, dapStack, dapScopes, dapVariables, dapEvaluate, dapSetVariable, dapSetBreakpoints, dapLoadedSources, cliArgsAwal, cliParse, cliWaitSelesai, cliWaitBuat, cliWaitAktif, cliTeks, workspaceInfo, workspaceSetTrust, workspaceForgetTrust, workspaceTrustList, workspaceAddRoot, workspaceRemoveRoot, workspaceSetActiveRoot, workspaceOpenFile, workspaceSaveFile, workspaceSettingsEfektif, workspaceSettingsAsal, workspaceSetSettings, workspaceBolehEksekusi, snippetsLoad, snippetsUserFile, snippetsUserList, snippetsBuiltinLangs, skillsList, skillRead, skillWrite, skillDelete, instructionsList, instructionRead, instructionWrite, instructionDelete, instructionCatalogList, instructionInstall, hookRun, agentContext, memoryRead, memoryWrite, worktreeList, worktreeAdd, worktreeRemove, worktreePrune, cronList, cronCreate, cronDelete, cronToggle, cronDue, cronMarkRun, browserPaneOpen, browserPaneBounds, browserPaneVisible, browserPaneClose, browserPaneNav, browserPaneEval, browserPaneInfo, browserDownloadUrl, webFetch, webSearch, browserPaneCursor, browserPaneDevtools, browserPaneZoom, browserPaneClearData, devenvDetectRuntimes, devenvDetectServices, devenvServiceStart, devenvServiceStop, devenvScanProjects, devenvOpenPath, credentialsList, credentialsSet, credentialsDelete, credentialsGet, dbTables, dbColumns, dbQuery, dbDefaultPath, httpRequest, graphqlBody, graphqlErrors, sftpAvailable, sftpList, sftpUpload, sftpDownload, sftpTunnelStart, sftpTunnelStop, sftpTunnelList;
+var KODE_SAH, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspResep, lspPasang, workspaceOpen, workspaceClose, fsRead, fsRealpath, agentExec, fsWrite, fsExists, fsStat, fsCreateFile, fsCreateDir, fsDelete, fsRename, sessionLoad, sessionSave, fileDialogOpen, fileDialogSave, folderDialogOpen, bgImageRead, scanDir, fsWatch, fsUnwatch, searchFiles, replaceInFile, revealPath, listWorkspaceFiles, clearWorkspaceFileIndex, browserProbe, ragSearch, listShells, listAgents, ptySpawn, ptyWrite, ptyResize, ptyKill, ptyList, ptyTail, ptySetPaused, ptyInterrupt, sshList, sshAdd, sshUpdate, sshDelete, sshSavePassword, sshClearPassword, sshConnect, sshDisconnect, getPublicModels, setModelKey, testModelConnection, listModels, resetSettings, aiChat, aiCancel, aiPenolakanTerakhir, aiToolChat, aiToolChatStream, cliAgentsDetect, formatText, cliAgentRun, cliChat, cliChatCancel, cliModels, codexConfig, claudeAccountInfo, claudeSettingsPatch, claudeMemoryWrite, claudeCommandWrite, claudeCommandDelete, claudeBuiltinCommands, ccCatalogList, ccCatalogBody, ccCatalogInstall, ccCatalogUninstall, ccRepoScan, ccRepoInstall, ccPluginsCatalog, ccPluginInstall, ccPluginUninstall, ccPluginMarketplaces, bacaGambar, simpanGambarTemp, gitInit, gitStatus, gitStage, gitUnstage, gitCommit, gitPush, gitPull, gitFetch, gitBranches, gitCheckout, gitCreateBranch, gitDeleteBranch, gitDiff, gitDiffHead, gitNumstat, gitDiscard, gitLog, gitConfigGetUser, gitBlame, gitStashSave, gitStashList, gitStashPop, gitStashDrop, gitRebase, gitConflictTake, gitConflictRead, gitConflictApply, gitRebaseInteractive, gitRebaseContinue, gitRebaseAbort, gitRebaseStatus, gitRebaseProgress, ghStatus, ghSetPat, ghLoginDevice, ghLogout, ghTest, mcpStatus, mcpStart, mcpStop, mcpReply, mcpUiReady, mcpRotateToken, mcpWriteCli, mcpRemoveCli, mcpCliStatus, mcpClientList, mcpClientTools, mcpClientCall, mcpClientPrompts, mcpClientPromptGet, mcpClientSave, mcpClientRemove, extensionsList, extensionsLoad, extensionsAdd, extensionsRemove, extensionsFolder, extensionsInstall, extensionsUninstall, extensionsSetEnabled, extensionsReadContrib, extensionsReadMain, notifyShow, extensionsReadFiles, extensionsManifests, extensionsWriteBundled, extensionsBundledIds, extensionsDownloadZext, extWhich, extExec, getDiagnostics, logTail, aiCaptureSet, aiCaptureGet, aiCaptureClear, selfTest, logFrontend, perfMark, debugPanic, tasksLoad, tasksMatchers, tasksMatchLine, tasksRun, tasksWait, tasksKill, tasksRuns, tasksClearRuns, tasksDetectPort, historySnapshot, historyList, historyRead, historyClear, historyPrune, historyStats, searchGrep, searchCancel, searchRgInfo, searchReplace, dapLoad, dapAdapters, dapStart, dapStop, dapStatus, dapKontrol, dapThreads, dapStack, dapScopes, dapVariables, dapEvaluate, dapSetVariable, dapSetBreakpoints, dapLoadedSources, cliArgsAwal, cliParse, cliWaitSelesai, cliWaitBuat, cliWaitAktif, cliTeks, workspaceInfo, workspaceSetTrust, workspaceForgetTrust, workspaceTrustList, workspaceAddRoot, workspaceRemoveRoot, workspaceSetActiveRoot, workspaceOpenFile, workspaceSaveFile, workspaceSettingsEfektif, workspaceSettingsAsal, workspaceSetSettings, workspaceBolehEksekusi, snippetsLoad, snippetsUserFile, snippetsUserList, snippetsBuiltinLangs, skillsList, skillRead, skillWrite, skillDelete, instructionsList, instructionRead, instructionWrite, instructionDelete, instructionCatalogList, instructionInstall, hookRun, agentContext, memoryRead, memoryWrite, worktreeList, worktreeAdd, worktreeRemove, worktreePrune, cronList, cronCreate, cronDelete, cronToggle, cronDue, cronMarkRun, browserPaneOpen, browserPaneBounds, browserPaneVisible, browserPaneClose, browserPaneNav, browserPaneEval, browserPaneInfo, browserDownloadUrl, webFetch, webSearch, browserPaneCursor, browserPaneDevtools, browserPaneZoom, browserPaneClearData, devenvDetectRuntimes, devenvDetectServices, devenvServiceStart, devenvServiceStop, devenvScanProjects, devenvOpenPath, credentialsList, credentialsSet, credentialsDelete, credentialsGet, dbTables, dbColumns, dbQuery, dbDefaultPath, httpRequest, graphqlBody, graphqlErrors, sftpAvailable, sftpList, sftpUpload, sftpDownload, sftpTunnelStart, sftpTunnelStop, sftpTunnelList;
 var init_commands = __esm({
   "src/lib/commands.ts"() {
     "use strict";
@@ -171304,6 +171994,7 @@ var init_commands = __esm({
     extensionsSetEnabled = (id3, on2) => invoke("extensions_set_enabled", { id: id3, on: on2 });
     extensionsReadContrib = (id3, rel) => invoke("extensions_read_contrib", { id: id3, rel });
     extensionsReadMain = (id3, rel) => invoke("extensions_read_main", { id: id3, rel });
+    notifyShow = (title, body2) => invoke("notify_show", { title, body: body2 }).catch(() => false);
     extensionsReadFiles = (id3) => invoke("extensions_read_files", { id: id3 });
     extensionsManifests = () => invoke("extensions_manifests");
     extensionsWriteBundled = (id3) => invoke("extensions_write_bundled", { id: id3 });
@@ -171560,6 +172251,135 @@ var init_types3 = __esm({
   }
 });
 
+// src/lib/events.ts
+var events_exports = {};
+__export(events_exports, {
+  EV: () => EV,
+  onAiChunk: () => onAiChunk,
+  onCliChatChunk: () => onCliChatChunk,
+  onFileDropped: () => onFileDropped,
+  onFsChanged: () => onFsChanged,
+  onGhLogin: () => onGhLogin,
+  onGitProgress: () => onGitProgress,
+  onLspEvent: () => onLspEvent,
+  onMcpAction: () => onMcpAction,
+  onMcpConnect: () => onMcpConnect,
+  onMcpScreenshot: () => onMcpScreenshot,
+  onPtyExit: () => onPtyExit,
+  onPtyOutput: () => onPtyOutput,
+  onRamUsage: () => onRamUsage,
+  onSettingsChanged: () => onSettingsChanged,
+  onWindowResized: () => onWindowResized,
+  onWorkspaceOpened: () => onWorkspaceOpened
+});
+function onCliChatChunk(cb) {
+  return listen(EV.cliChatChunk, (e) => cb(e.payload));
+}
+function onLspEvent(cb) {
+  return listen(EV.lspEvent, (e) => cb(e.payload));
+}
+function onRamUsage(cb) {
+  return listen(EV.ramUsage, (e) => cb(e.payload.bytes));
+}
+function onWorkspaceOpened(cb) {
+  return listen(EV.workspaceOpened, (e) => cb(e.payload.path));
+}
+function onSettingsChanged(cb) {
+  return listen(EV.settingsChanged, (e) => cb(e.payload.key));
+}
+function onFsChanged(cb) {
+  return listen(
+    EV.fsChanged,
+    (e) => cb(e.payload)
+  );
+}
+function onPtyOutput(cb) {
+  return listen(
+    EV.ptyOutput,
+    (e) => cb(e.payload.id, e.payload.data)
+  );
+}
+function onPtyExit(cb) {
+  return listen(
+    EV.ptyExit,
+    (e) => cb(e.payload.id, e.payload.code ?? null)
+  );
+}
+function onAiChunk(cb) {
+  if (typeof window !== "undefined") {
+    const daftar3 = window.__ZEPHYR_AI_CALLBACKS__ ??= /* @__PURE__ */ new Set();
+    daftar3.add(cb);
+    window.__ZEPHYR_AI_CALLBACK__ = cb;
+    if (!window.__ZEPHYR_AI_LISTENER_PROMISE__) {
+      window.__ZEPHYR_AI_LISTENER_PROMISE__ = listen(EV.aiChunk, (e) => {
+        for (const f of window.__ZEPHYR_AI_CALLBACKS__ ?? []) {
+          try {
+            f(e.payload);
+          } catch {
+          }
+        }
+      });
+    }
+    const janji = window.__ZEPHYR_AI_LISTENER_PROMISE__;
+    return janji.then((un) => () => {
+      window.__ZEPHYR_AI_CALLBACKS__?.delete(cb);
+      if ((window.__ZEPHYR_AI_CALLBACKS__?.size ?? 0) === 0) {
+        window.__ZEPHYR_AI_LISTENER_PROMISE__ = void 0;
+        un();
+      }
+    });
+  }
+  return listen(EV.aiChunk, (e) => cb(e.payload));
+}
+function onGhLogin(cb) {
+  return listen(EV.ghLogin, (e) => cb(e.payload));
+}
+function onMcpAction(cb) {
+  return listen(EV.mcpAction, (e) => cb(e.payload));
+}
+function onMcpScreenshot(cb) {
+  return listen(EV.mcpScreenshot, (e) => cb(e.payload));
+}
+function onMcpConnect(cb) {
+  return listen(EV.mcpConnect, (e) => cb(e.payload));
+}
+function onGitProgress(cb) {
+  return listen(EV.gitProgress, (e) => cb(e.payload));
+}
+function onWindowResized(cb) {
+  return listen(EV.windowResized, (e) => cb(e.payload));
+}
+function onFileDropped(cb) {
+  return listen(EV.fileDropped, (e) => cb(e.payload.paths));
+}
+var EV;
+var init_events = __esm({
+  "src/lib/events.ts"() {
+    "use strict";
+    init_define_import_meta_env();
+    init_event();
+    EV = {
+      workspaceOpened: "workspace-opened",
+      fsChanged: "fs-changed",
+      ptyOutput: "pty-output",
+      ptyExit: "pty-exit",
+      sshStatus: "ssh-status",
+      aiChunk: "ai-chunk",
+      ghLogin: "gh-login",
+      gitProgress: "git-progress",
+      mcpAction: "mcp-action",
+      mcpScreenshot: "mcp-screenshot",
+      mcpConnect: "mcp-connect",
+      settingsChanged: "settings-changed",
+      windowResized: "window-resized",
+      fileDropped: "file-dropped",
+      ramUsage: "ram-usage",
+      lspEvent: "lsp-event",
+      cliChatChunk: "cli-chat-chunk"
+    };
+  }
+});
+
 // src/lib/formatters.ts
 var formatters_exports = {};
 __export(formatters_exports, {
@@ -171782,6 +172602,7 @@ __export(store_exports, {
   flushSetelanTerakhir: () => flushSetelanTerakhir,
   maxLoadedTabs: () => maxLoadedTabs,
   pasangAutoSaveFokus: () => pasangAutoSaveFokus,
+  pasangSinkronSetelan: () => pasangSinkronSetelan,
   useActiveTab: () => useActiveTab,
   useStore: () => useStore2
 });
@@ -171827,6 +172648,20 @@ async function flushSetelan() {
 }
 function flushSetelanTerakhir() {
   return flushSetelan();
+}
+function pasangSinkronSetelan() {
+  if (sinkronSetelanTerpasang) return;
+  sinkronSetelanTerpasang = true;
+  void Promise.resolve().then(() => (init_events(), events_exports)).then(
+    (m) => m.onSettingsChanged(() => {
+      if (timerSinkronSetelan) clearTimeout(timerSinkronSetelan);
+      timerSinkronSetelan = setTimeout(() => {
+        timerSinkronSetelan = null;
+        void useStore2.getState().reloadSettings();
+      }, 120);
+    })
+  ).catch(() => {
+  });
 }
 function maxLoadedTabs() {
   return useStore2.getState().settings.general.lowRam ? 3 : MAX_LOADED_TABS;
@@ -171902,7 +172737,7 @@ function mergeDalam(base4, patch2) {
   }
   return patch2;
 }
-var idSeq, nextId4, baseName, bootstrapBerjalan, opening3, TUNDA_SETELAN_MS, timerSetelan, gabungTertunda, antrianTulis, MAX_LOADED_TABS, touchOrder, autoSaveTimers, useStore2, useActiveTab;
+var idSeq, nextId4, baseName, bootstrapBerjalan, opening3, TUNDA_SETELAN_MS, timerSetelan, gabungTertunda, antrianTulis, sinkronSetelanTerpasang, timerSinkronSetelan, MAX_LOADED_TABS, touchOrder, autoSaveTimers, useStore2, useActiveTab;
 var init_store = __esm({
   "src/lib/store.ts"() {
     "use strict";
@@ -171931,6 +172766,8 @@ var init_store = __esm({
     timerSetelan = null;
     gabungTertunda = {};
     antrianTulis = Promise.resolve();
+    sinkronSetelanTerpasang = false;
+    timerSinkronSetelan = null;
     MAX_LOADED_TABS = 12;
     touchOrder = [];
     autoSaveTimers = /* @__PURE__ */ new Map();
@@ -171966,8 +172803,36 @@ var init_store = __esm({
       navSuppress: false,
       lastClosed: null,
       settingsOpen: false,
+      extensionsOpen: false,
+      toolsOpen: false,
       activeTheme: "zephyr-dark",
-      setActivity: (a2) => set2({ activity: a2 }),
+      /*
+       * `'settings'` is not a side-bar activity any more, and it is not a popup
+       * either - it is its own window.
+       *
+       * Ten call sites across the app ask for it (`setActivity('settings')` from
+       * the command palette, the MCP panel, Dev Environment, the agent's window
+       * tools...). Making every one of them remember to open a window was a bug
+       * waiting to happen: the activity would switch, the side bar would go blank,
+       * and nothing would open. Opening it HERE keeps all of them working without
+       * touching any of them.
+       *
+       * The popup flags are cleared rather than set. They still exist in the store
+       * because saved state and older call sites reference them, but nothing renders
+       * them any more - leaving one true would be a flag that lies about the screen.
+       */
+      setActivity: (a2) => {
+        if (a2 === "settings") {
+          set2({ activity: a2, settingsOpen: false, extensionsOpen: false, toolsOpen: false });
+          void Promise.resolve().then(() => (init_bukaPanel(), bukaPanel_exports)).then((m) => m.bukaPanel("settings"));
+          return;
+        }
+        if (a2 === "wiki") {
+          set2({ activity: "explorer" });
+          return;
+        }
+        set2({ activity: a2 });
+      },
       setToolsTab: (v2) => set2({ toolsTab: v2 }),
       toggleSidebar: () => set2((s) => ({ sidebarVisible: !s.sidebarVisible })),
       setSidebarVisible: (v2) => set2({ sidebarVisible: v2 }),
@@ -171981,10 +172846,37 @@ var init_store = __esm({
       setStatus: (m) => set2({ statusMessage: m }),
       setCursor: (line, col) => set2({ cursor: { line, col } }),
       setFindOpen: (open) => set2({ findOpen: open }),
-      setSettingsOpen: (open) => set2((s) => ({
-        settingsOpen: open,
-        activity: open ? "settings" : s.activity === "settings" ? "explorer" : s.activity
-      })),
+      /*
+       * The three popup flags are now DEAD, and these setters keep their names only
+       * because a dozen call sites still use them.
+       *
+       * Passing `true` opens the panel's WINDOW; passing `false` just clears the
+       * flag. That way no legacy caller can end up doing nothing - which is the
+       * failure mode of a renamed API: the door compiles, the reader presses it, and
+       * nothing happens.
+       *
+       * The flags themselves are always false. They stay in the store because saved
+       * state and older code reference them, but nothing renders them; a `true` here
+       * would be a flag that lies about the screen, and if anything ever rendered it
+       * again the reader would get the popup AND the window ("ada 2").
+       */
+      setSettingsOpen: (open) => {
+        set2((s) => ({
+          settingsOpen: false,
+          extensionsOpen: false,
+          toolsOpen: false,
+          activity: open ? "settings" : s.activity === "settings" ? "explorer" : s.activity
+        }));
+        if (open) void Promise.resolve().then(() => (init_bukaPanel(), bukaPanel_exports)).then((m) => m.bukaPanel("settings"));
+      },
+      setExtensionsOpen: (open) => {
+        set2({ extensionsOpen: false, settingsOpen: false, toolsOpen: false });
+        if (open) void Promise.resolve().then(() => (init_bukaPanel(), bukaPanel_exports)).then((m) => m.bukaPanel("extensions"));
+      },
+      setToolsOpen: (open) => {
+        set2({ toolsOpen: false, settingsOpen: false, extensionsOpen: false });
+        if (open) void Promise.resolve().then(() => (init_bukaPanel(), bukaPanel_exports)).then((m) => m.bukaPanel("tools"));
+      },
       setUpdateBanner: (b) => set2({ updateBanner: b }),
       setDonateOpen: (v2) => set2({ donateOpen: v2 }),
       setNavBack: (v2) => set2({ navBack: v2 }),
@@ -172255,7 +173147,7 @@ var init_store = __esm({
         const tab4 = {
           id: nextId4(),
           path: null,
-          name: view === "ai-chat" ? "Chat" : view === "chat-settings" ? "Chat Settings" : "Search Results",
+          name: view === "ai-chat" ? "Chat" : view === "chat-settings" ? "Chat Settings" : view === "extensions" ? "Extensions" : view === "tools" ? "Tools" : "Search Results",
           encoding: "utf8",
           lineEnding: "crlf",
           unsaved: false,
@@ -173538,6 +174430,11 @@ var init_zephyrFakta = __esm({
     FAKTA_ZEPHYR = `# What Zephyr is - the app you are running inside
 Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript UI, built for Windows. You are Zeph, its AI agent. Everything below is generated from Zephyr's own source, so it matches the build you are in - treat it as the truth about the app, and prefer it over what you remember about other editors.
 
+## Who made Zephyr
+- Creator and maintainer: **Muhammad Khalid** (GitHub: **ShinRyu04**). Repository: https://github.com/ShinRyu04/Zephyr
+- Asked who made Zephyr, who maintains it, or who to credit: answer with that name, that GitHub account, and that link. Nothing more is needed.
+- The public repository deliberately does NOT contain \`src/\`, \`src-tauri/\` or \`scripts/\`. That is a decision, not damage: the source folders are kept out of the public repo on purpose. Never tell the user the repo is incomplete or broken because those folders are missing, and never suggest committing them there.
+
 ## Looking things up - this block is the CORE, the rest is searchable
 - This block is the always-on core: identity, the rules for answering, the setting keys and shortcuts users ask about daily, ports, logs and the "never invent" rule. It is NOT the whole truth about the app - the rest is one search away.
 - Everything else ships with the app in a search index: ALL 129 setting keys and their defaults, all 34 default shortcuts, every interface label, palette command, tool, bundled extension, bundled document and the code map. Reach it with the \`zephyr_self\` tool: pass the user's own words, it searches the index locally (no folder open needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not written above, and before telling the user that something does not exist.
@@ -173545,14 +174442,14 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 ## Your own tool budget
 - At most 20 tools are offered to you in ONE request, chosen per task from the 40 the app ships (built-in + MCP; the web/browser group is counted separately). It is a window, not the whole set.
 - The rest stay reachable: call \`tool_search\` with what you want to do, then \`tool_call\` with the name it returns. Both are always in the window. Never tell the user a capability does not exist because it was not in the last request - search first.
-- Reading CODE (not plain text) has its own group, \`Code intelligence\`, powered by the language server: lsp_symbols, lsp_references, lsp_definition, lsp_hover, lsp_diagnostics, lsp_call_hierarchy, zephyr_kode. Prefer these over grep when the question is about a symbol rather than a string; they degrade to an honest sentence when no language server is available for the file.
+- Reading CODE (not plain text) has its own group, \`Code intelligence\`, powered by the language server: lsp, zephyr_kode. Prefer these over grep when the question is about a symbol rather than a string; they degrade to an honest sentence when no language server is available for the file.
 
 ## Settings
 - Open them with the Settings command (Ctrl+comma). The page has a search box that filters by setting name.
 - Stored as JSON in two layers: the global file %APPDATA%\\zephyr\\settings.json, and a per-project file <open folder>\\.zephyr\\settings.json. A value in the project file wins over the global one.
-- Pages in the nav, in order: general, editor, theme, shortcuts, extensions, lsp, scm, tests, devenv, devupdate, security, accessibility, ssh, memori, about.
+- Pages in the nav, in order: general, editor, theme, icons, shortcuts, extensions, lsp, scm, devenv, devupdate, security, accessibility, ssh, memori, about.
 - Settings sections that are NOT in that nav: agents, rules, subagent, permissions, mcp - never send the user hunting in the Settings nav for them. These are still Settings sections that simply have no row in the nav: they are opened from Chat Settings (the "..." menu in the AI view) or from the Agent Customizations panel. If you are asked where one of them is opened from, look it up instead of naming a place.
-- "AI Models" (Settings group \`models\`: activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) is NOT a Settings page and has no row in the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`src/components/settings/AiModelsModal.tsx\` renders \`ModelsSection\`, the same section component the editor-area Settings page used to show. 4 ways in, all without leaving the chat: the "Open AI Models" button on the 401 / missing-key notice in the chat panel; the model dropdown (its empty state and the "Edit models\u2026" row); the "AI Models" row in the chat panel's "..." menu; the command palette command "AI: Configure Models & API Keys" (id ai.models). Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.
+- "AI Models" (Settings group \`models\`: activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) is NOT a Settings page and has no row in the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`src/components/settings/SectionsAdvanced.tsx\` renders \`ShortcutsSection\`, the same section component the editor-area Settings page used to show. 4 ways in, all without leaving the chat: the "Open AI Models" button on the 401 / missing-key notice in the chat panel; the model dropdown (its empty state and the "Edit models\u2026" row); the "AI Models" row in the chat panel's "..." menu; the command palette command "AI: Configure Models & API Keys" (id ai.models). Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.
 - Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced.
 - Setting keys kept in this block (129 of 129; the rest is in the index - look it up with \`zephyr_self\`):
   - general: theme=dark, fontFamily=Consolas, 'Cascadia Mono', 'Segoe UI Mono', monospace, fontSize=13, lineHeight=1.5, uiLang=en, zoom=100, restoreSession=true, checkUpdates=true, lowRam=false, aiPanel=bottom, layout=default, confirmExit=true, minimizeToTray=false, defaultTerminal=default, shellPath=, chatAvatar=true, userAvatarPath=
@@ -173575,6 +174472,12 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
   - devenv: rootFolder=D:\\DevEnv, domain=.test, server=nginx, runtimes={}, services={}, projects=[]
   - history: enabled=true, maxPerFile=200, maxDays=30, maxTotal=2000
   - update: lastSeenVersion=, pendingNotes=, seenAnnouncements=[]
+
+## Links: open them, do not just print them
+- When the user shares a link (Google, GitHub, documentation, a search result, any http/https URL), OPEN it with the \`open_link\` tool in the same turn, then say in one line that you opened it. Do not print the URL and wait for them to click it, and do not ask permission first - sharing a link IS the request.
+- Several links in one message: open the one the message is actually about (or the first, if it is a list), and mention the rest. Opening six tabs at once is not help.
+- If \`open_link\` refuses because the host is outside the allowlist, say which host was blocked and that Settings > Security controls that list. Do not retry the same URL and do not fall back to another tool - the gate is shared.
+- \`open_link\` is for links the user should SEE. Use \`browser\` when you need to READ a page yourself, and \`web_fetch\` when you only need its text. Never use the terminal to open a URL.
 
 ## Panels, ports and logs
 - Bottom panel tabs: problems, output, debug, terminal, ports, ai, subagents - default visible: problems, output, debug, terminal, ports, ai, subagents; default active tab: terminal, default height: 260 px.
@@ -174099,10 +175002,10 @@ function lapisan(bawaan, persona, saya) {
 function rentangBullet(penanda) {
   const i = FAKTA_ZEPHYR.indexOf(penanda);
   if (i < 0) return null;
-  const mulai = FAKTA_ZEPHYR.lastIndexOf("\n- ", i);
+  const mulai2 = FAKTA_ZEPHYR.lastIndexOf("\n- ", i);
   const akhir = FAKTA_ZEPHYR.indexOf("\n", i + penanda.length);
-  if (mulai < 0 || akhir < 0) return null;
-  return { mulai, akhir, teks: FAKTA_ZEPHYR.slice(mulai + 1, akhir) };
+  if (mulai2 < 0 || akhir < 0) return null;
+  return { mulai: mulai2, akhir, teks: FAKTA_ZEPHYR.slice(mulai2 + 1, akhir) };
 }
 function rentangOnDemand() {
   return ON_DEMAND.map((od) => ({ ...od, r: rentangBullet(od.penanda) })).filter((x) => x.r !== null).sort((a2, b) => b.r.mulai - a2.r.mulai);

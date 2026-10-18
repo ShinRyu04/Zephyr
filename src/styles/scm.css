@@ -591,13 +591,26 @@
   white-space: pre;
 }
 
+/*
+ * Added and removed lines must READ as green and red.
+ *
+ * These two rules used to borrow UI colours: `--accent-subtle` (the blue focus
+ * wash) for added and `--editor-active-line` (the neutral grey behind the
+ * cursor) for removed. The result was a diff where both sides were grey-blue
+ * and only the text colour told them apart - which is exactly what was
+ * reported as "there is grey in the diff".
+ *
+ * The background is derived from the SAME token as the text, so every one of
+ * the 20+ themes gets a tint that matches its own green/red instead of a
+ * hard-coded hue that would clash with half of them.
+ */
 .diff-line.is-add {
-  background: var(--accent-subtle);
+  background: color-mix(in srgb, var(--added) 15%, transparent);
   color: var(--added);
 }
 
 .diff-line.is-del {
-  background: var(--editor-active-line);
+  background: color-mix(in srgb, var(--deleted) 15%, transparent);
   color: var(--deleted);
 }
 
@@ -608,6 +621,12 @@
 
 .diff-line.is-meta {
   color: var(--text-muted);
+}
+
+/* Context lines: deliberately unpainted. A visible background here would
+   compete with the add/del tints and flatten the diff back to grey. */
+.diff-line.is-ctx {
+  background: transparent;
 }
 
 .diff-empty {

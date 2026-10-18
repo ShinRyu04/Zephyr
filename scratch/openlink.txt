@@ -1,0 +1,17 @@
+﻿{
+ "terdaftar": true,
+ "selaluDikirim": true,
+ "jumlahSelalu": 17,
+ "adaTool": true,
+ "tanpaIzin": "(open_link ditolak: izin-isi-web-mati - the web-content permission is OFF, so every web/browser tool is closed. The reader can turn it on without leaving the browser: open the Agents window, load the ",
+ "fileUrl": "(open_link ditolak: izin-isi-web-mati - the web-content permission is OFF, so every web/browser tool is closed. The reader can turn it on without leaving the browser: open the Agents window, load the ",
+ "izinAwal": true
+}
+
+Bukti ΓÇö tautan dibuka, pagar tetap berlaku:
+  LULUS  tool open_link terdaftar di registry  true
+  LULUS  open_link selalu dikirim ke model  true
+  LULUS  tanpa izin isi web, tautan DITOLAK  (open_link ditolak: izin-isi-web-mati - the web-content permission is OFF, so every web/br
+  LULUS  URL file: DITOLAK  (open_link ditolak: izin-isi-web-mati - the web-content permission is OFF, so every web/br
+
+== 4/4 lulus ==

@@ -25,7 +25,16 @@ export default function PanelWins({ showMax }: { showMax: boolean }) {
       void applySettings({ general: { aiPanel: 'right' } } as never);
       useStore.getState().setAiKolomVisible(false);
     } else {
-      void import('../../lib/terminalStore').then((m) => m.useTerminal.getState().setVisible(false));
+      /*
+       * aiPos === 'window': close the AI WINDOW.
+       *
+       * This branch used to call `useTerminal.setVisible(false)`. The button
+       * says "hide the panel" and sits on the AI panel, but with the chat in its
+       * own window it was killing the reader's TERMINAL - a panel they never
+       * asked about - and leaving the AI window wide open. Wrong target
+       * entirely.
+       */
+      void import('../../lib/aiWindow').then((m) => m.tutupAiWindow());
     }
   };
 
