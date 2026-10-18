@@ -932,6 +932,7 @@ const META_BAHASA: &[(&str, &str, &str, &str, &str)] = &[
     ),
 
 
+
 ];
 const PAKET_BAHASA: &[(&str, &[(&str, &str)])] = &[
     ("zephyr.lang-apl", &[("zephyr-extension.json", LANG_APL)]),
@@ -1349,6 +1350,177 @@ const PAKET: &[Paket] = &[
             ("themes/monokrom.json", extra::TEMA_MONOKROM_JSON),
         ],
     ),
+
+/* ══ TEMA MARKETPLACE (didaftarkan) ══ */
+    (
+        "zephyr.tema-moonlight",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_MOONLIGHT),
+            ("themes/moonlight.json", extra::TEMA_MKT_MOONLIGHT_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-horizon",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_HORIZON),
+            ("themes/horizon.json", extra::TEMA_MKT_HORIZON_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-poimandres",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_POIMANDRES),
+            ("themes/poimandres.json", extra::TEMA_MKT_POIMANDRES_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-oxocarbon",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_OXOCARBON),
+            ("themes/oxocarbon.json", extra::TEMA_MKT_OXOCARBON_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-zenburn",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_ZENBURN),
+            ("themes/zenburn.json", extra::TEMA_MKT_ZENBURN_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-iceberg",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_ICEBERG),
+            ("themes/iceberg.json", extra::TEMA_MKT_ICEBERG_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-melange",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_MELANGE),
+            ("themes/melange.json", extra::TEMA_MKT_MELANGE_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-flexoki-dark",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_FLEXOKI_DARK),
+            ("themes/flexoki-dark.json", extra::TEMA_MKT_FLEXOKI_DARK_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-carbonfox",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_CARBONFOX),
+            ("themes/carbonfox.json", extra::TEMA_MKT_CARBONFOX_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-sonokai",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_SONOKAI),
+            ("themes/sonokai.json", extra::TEMA_MKT_SONOKAI_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-edge-dark",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_EDGE_DARK),
+            ("themes/edge-dark.json", extra::TEMA_MKT_EDGE_DARK_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-embark",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_EMBARK),
+            ("themes/embark.json", extra::TEMA_MKT_EMBARK_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-jellybeans",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_JELLYBEANS),
+            ("themes/jellybeans.json", extra::TEMA_MKT_JELLYBEANS_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-wombat",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_WOMBAT),
+            ("themes/wombat.json", extra::TEMA_MKT_WOMBAT_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-papercolor-dark",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_PAPERCOLOR_DARK),
+            ("themes/papercolor-dark.json", extra::TEMA_MKT_PAPERCOLOR_DARK_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-seoul256",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_SEOUL256),
+            ("themes/seoul256.json", extra::TEMA_MKT_SEOUL256_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-spacegray",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_SPACEGRAY),
+            ("themes/spacegray.json", extra::TEMA_MKT_SPACEGRAY_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-vscode-dark",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_VSCODE_DARK),
+            ("themes/vscode-dark.json", extra::TEMA_MKT_VSCODE_DARK_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-papercolor-light",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_PAPERCOLOR_LIGHT),
+            ("themes/papercolor-light.json", extra::TEMA_MKT_PAPERCOLOR_LIGHT_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-gruvbox-light",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_GRUVBOX_LIGHT),
+            ("themes/gruvbox-light.json", extra::TEMA_MKT_GRUVBOX_LIGHT_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-tokyo-night-light",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_TOKYO_NIGHT_LIGHT),
+            ("themes/tokyo-night-light.json", extra::TEMA_MKT_TOKYO_NIGHT_LIGHT_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-solarized-cream",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_SOLARIZED_CREAM),
+            ("themes/solarized-cream.json", extra::TEMA_MKT_SOLARIZED_CREAM_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-catppuccin-frappe",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_CATPPUCCIN_FRAPPE),
+            ("themes/catppuccin-frappe.json", extra::TEMA_MKT_CATPPUCCIN_FRAPPE_JSON),
+        ],
+    ),
+    (
+        "zephyr.tema-catppuccin-macchiato",
+        &[
+            ("zephyr-extension.json", extra::TEMA_MKT_CATPPUCCIN_MACCHIATO),
+            ("themes/catppuccin-macchiato.json", extra::TEMA_MKT_CATPPUCCIN_MACCHIATO_JSON),
+        ],
+    ),
+/* ══ AKHIR TEMA MARKETPLACE (didaftarkan) ══ */
 /* ══ IKON MARKETPLACE (didaftarkan) ══ */
     (
         "zephyr.ikon-kubus",

@@ -80,13 +80,6 @@ import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
 import './styles/themes-extra.css';
-/*
- * Tema marketplace: 24 palet tambahan, tiap-tiap dengan 11 token `--syn-*`
- * sendiri. Diimpor SETELAH themes-extra.css supaya blok `[data-theme='...']`
- * di sini menang atas aturan dasar - sebuah tema harus bisa menimpa warna
- * sintaks, bukan diabaikan oleh berkas yang lebih dulu dimuat.
- */
-import './styles/themes-marketplace.css';
 import './styles/tokens.css';
 import './styles/settings.css';
 import './styles/ai.css';
