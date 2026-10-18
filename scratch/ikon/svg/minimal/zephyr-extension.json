@@ -3,7 +3,7 @@
   "name": "Ikon Minimal Slim",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Garis tipis satu warna tanpa isi dan tanpa tab — seminimal mungkin.",
+  "description": "Satu garis tipis dengan sudut lipat — seminimal mungkin, masih folder.",
   "engines": {
     "zephyr": ">=1.0"
   },

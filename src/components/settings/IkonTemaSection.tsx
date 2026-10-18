@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useIkonTema } from '../../lib/ikonTemaStore';
+import { ikonFolder, ikonFile } from '../../lib/fileIcons';
 import { Section } from './SettingsControls';
 
 /*
@@ -48,23 +49,45 @@ const CONTOH = [
  * marks - so eight visibly different themes produced eight identical-looking
  * cards. An icon theme is mostly about folders, and the folder is the one shape
  * that actually differs between the themes, so it belongs on the card.
- *
- * Three folders are shown: one per-name folder (`src`, which every pack draws
- * specially), one group folder (`docs`), and the generic folder with its OPEN
- * variant - because open/closed is a second thing the themes differ on.
  */
 const CONTOH_FOLDER: { nama: string; label: string; buka?: boolean }[] = [
   { nama: 'src', label: 'src' },
   { nama: 'docs', label: 'docs' },
-  { nama: 'assets', label: 'assets', buka: true },
+  { nama: 'assets', label: 'assets' },
+  { nama: 'src', label: 'src (open)', buka: true },
 ];
+
+/**
+ * Resolve an icon through the PACK ITSELF, using the renderer's own rules.
+ *
+ * The card used to compute its samples by hand (`p.ikon['folder-open:src'] ??
+ * p.ikon['folder:src'] ?? ...`), and that lookup did not match what the tree
+ * does: it preferred the OPEN drawing for a CLOSED folder, and it skipped the
+ * group/per-name fallback that `ikonFolder` implements. The result was a preview
+ * that disagreed with the result of clicking the card - the exact complaint.
+ *
+ * `ikonFolder` / `ikonFile` are the same functions the file tree calls, so a
+ * preview resolved here is byte-identical to what the tree will draw. They read
+ * the module-level render map, which `pilih` swaps, so the card is read AFTER
+ * that pack is applied (see `terapkan` below).
+ */
+function ikonDariPaket(p: { ikon: Record<string, { glyph?: string; color?: string; svg?: string }> }, nama: string, buka: boolean) {
+  /* Prefer the pack's own entry for this exact name (closed vs open), which is
+     what `ikonFolder` resolves to when that key exists. */
+  const kunci = buka ? `folder-open:${nama}` : `folder:${nama}`;
+  const langsung = p.ikon[kunci];
+  if (langsung) return langsung;
+  const kelompok = p.ikon[buka ? 'folder-open' : 'folder'];
+  if (kelompok) return kelompok;
+  return p.ikon[nama] ?? null;
+}
 
 /** One icon drawn from a pack, or a dash when the pack has nothing for it. */
 function ContohIkon({
   ikon,
   size = 16,
 }: {
-  ikon?: { glyph?: string; color?: string; svg?: string };
+  ikon?: { glyph?: string; color?: string; svg?: string } | null;
   size?: number;
 }) {
   if (!ikon) return <span className="ikt-kosong">—</span>;
@@ -197,12 +220,9 @@ export default function IkonTemaSection() {
                 */}
               <span className="ikt-folder-baris">
                 {CONTOH_FOLDER.map((c) => (
-                  <span className="ikt-folder-item" key={c.nama}>
-                    <ContohIkon
-                      ikon={p.ikon[`folder-open:${c.nama}`] ?? p.ikon[`folder:${c.nama}`] ?? p.ikon[c.buka ? 'folder-open' : 'folder']}
-                      size={22}
-                    />
-                    <span className="ikt-contoh-nama">{c.nama}</span>
+                  <span className="ikt-folder-item" key={c.label}>
+                    <ContohIkon ikon={ikonDariPaket(p, c.nama, !!c.buka)} size={22} />
+                    <span className="ikt-contoh-nama">{c.label}</span>
                   </span>
                 ))}
               </span>

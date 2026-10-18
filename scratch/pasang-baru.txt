@@ -1,0 +1,29 @@
+﻿katalog ikon: 11
+  zephyr.ikon-bulat, zephyr.ikon-duotone, zephyr.ikon-garis, zephyr.ikon-hanzi, zephyr.ikon-hiragana, zephyr.ikon-kanji, zephyr.ikon-klasik, zephyr.ikon-minimal, zephyr.ikon-padat, zephyr.ikon-tajam, zephyr.ikon-terbuka
+
+rusak di katalog: 0 (harus 0)
+
+dilepas: 11  dipasang: 11
+
+tema terbaca:
+  Soft Rounded       221 ikon, 221 svg, folder=ya/ya
+  Duotone Accent     221 ikon, 221 svg, folder=ya/ya
+  Clean Outline      221 ikon, 221 svg, folder=ya/ya
+  Hanzi              175 ikon, 175 svg, folder=ya/ya
+  Hiragana           175 ikon, 175 svg, folder=ya/ya
+  Kanji              175 ikon, 175 svg, folder=ya/ya
+  Classic Folder     221 ikon, 221 svg, folder=ya/ya
+  Minimal Slim       221 ikon, 221 svg, folder=ya/ya
+  Solid Modern       221 ikon, 221 svg, folder=ya/ya
+  Sharp Grid         221 ikon, 221 svg, folder=ya/ya
+  Expanded Dynamic   221 ikon, 221 svg, folder=ya/ya
+
+Bukti:
+  LULUS  11 tema terpasang  11
+  LULUS  setiap tema punya folder + folder-open
+  LULUS  setiap tema penuh SVG
+  LULUS  tema RUSAK tidak ada di katalog
+  LULUS  installed.json memuat 11 ikon  11
+  LULUS  tidak ada kegagalan pasang  0
+
+== 6/6 lulus ==

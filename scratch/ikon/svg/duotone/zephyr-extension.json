@@ -3,7 +3,7 @@
   "name": "Ikon Duotone Accent",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Badan pekat dengan tab dan tanda lebih terang — dua nada warna dalam satu ikon.",
+  "description": "Dua nada: badan atas gelap, bidang bawah terang.",
   "engines": {
     "zephyr": ">=1.0"
   },

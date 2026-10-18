@@ -3,7 +3,7 @@
   "name": "Ikon Classic Folder",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Folder standar modern: bodi terisi lembut dengan tab tegas dan sudut membulat kecil.",
+  "description": "Folder standar modern: badan terisi lembut, tab kiri-atas, sudut membulat kecil.",
   "engines": {
     "zephyr": ">=1.0"
   },
