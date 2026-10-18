@@ -1,67 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useExtensions } from '../../lib/extensionStore';
-import { useT, useTf, tx } from '../../lib/i18n';
+import { useT, useTf } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { Section, Toggle } from './SettingsControls';
+import MarketplacePage from './Marketplace';
 
-const MARKET_ITEMS = [
-  { id: 'prettier', name: 'Prettier', desc: 'Opinionated formatter for JS/TS/CSS/MD', logo: 'P' },
-  { id: 'eslint', name: 'ESLint', desc: 'Lint JavaScript & TypeScript in the editor', logo: 'E' },
-  { id: 'gitlens', name: 'GitLens', desc: tx('Inline blame, line history, and commit graph'), logo: 'G' },
-  { id: 'python', name: 'Python', desc: 'IntelliSense, debug, and env for Python', logo: 'Py' },
-  { id: 'rust-analyzer', name: 'rust-analyzer', desc: 'Rust analysis: hover, goto, inlay hints', logo: 'Rs' },
-  { id: 'docker', name: 'Docker', desc: 'Manage images, containers, and compose', logo: 'D' },
-  { id: 'vim', name: 'Vim', desc: 'Modal editing emulation in CodeMirror', logo: 'V' },
-  { id: 'tailwind', name: 'Tailwind CSS', desc: 'Utility class autocomplete', logo: 'T' },
-];
-
+/*
+ * The old eight-item grid is GONE.
+ *
+ * It listed extensions Zephyr cannot install from here (the action was "Open",
+ * which navigated to Open VSX) and had no notion of what is already installed.
+ * `Marketplace.tsx` is the replacement: three tabs over the three real sources
+ * (plugins, skills, MCP), each card reading live store data.
+ */
 function Marketplace() {
-  const setMarketOpen = useExtensions((s) => s.setMarketOpen);
-
-  return (
-    <div className="market" data-testid="market">
-      <div className="market-head">
-        <div>
-          <h3 className="market-title">Zephyr Marketplace</h3>
-          <p className="market-sub">
-            Open ActivityBar → Extensions (Ctrl+Shift+X) for the Open VSX marketplace,
-            where you can search & install directly. The list below is a shortcut to
-            popular extensions in that registry.
-          </p>
-        </div>
-        <button className="btn" data-testid="market-close" onClick={() => setMarketOpen(false)}>
-          Close
-        </button>
-      </div>
-
-      <div className="market-grid" data-testid="market-grid">
-        {MARKET_ITEMS.map((m) => (
-          <article key={m.id} className="market-card" data-market-card={m.id}>
-            <span className="market-logo" aria-hidden="true">
-              {m.logo}
-            </span>
-            <div className="market-info">
-              <span className="market-name">{m.name}</span>
-              <span className="market-desc">{m.desc}</span>
-            </div>
-            <button
-              className="btn btn-sm"
-              data-testid={`market-install-${m.id}`}
-              onClick={() => {
-
-                setMarketOpen(false);
-                import('../../lib/commandRegistry').then(({ runCommand }) =>
-                  runCommand('extensions.focus'),
-                );
-              }}
-            >
-              Open
-            </button>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
+  return <MarketplacePage />;
 }
 
 function IzinRuntime() {
