@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-padat",
+  "name": "Ikon Padat",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Isi penuh tanpa garis dalam — tegas dan mudah dibaca.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Padat",
+        "path": "./icons/padat.json"
+      }
+    ]
+  }
+}

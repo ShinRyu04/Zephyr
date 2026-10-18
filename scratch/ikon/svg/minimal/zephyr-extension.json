@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-minimal",
+  "name": "Ikon Minimal",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Garis tipis satu warna, tanpa isi dan tanpa tab.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Minimal",
+        "path": "./icons/minimal.json"
+      }
+    ]
+  }
+}
