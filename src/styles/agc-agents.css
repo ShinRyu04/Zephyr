@@ -457,3 +457,100 @@
   color: var(--danger);
   font-size: 12px;
 }
+
+/* -- Section header with a segmented control beside it --------------------
+ *
+ * Rules and Memory both put Global/Project next to their heading. Keeping the
+ * control on the SAME line as the title is what makes the scope read as a
+ * property of that list rather than as a page-level tab.
+ */
+.agx-seksi-baris {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+.agx-seksi-baris .agx-seksi {
+  margin: 0;
+}
+
+.agx-seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.agx-seg-btn {
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.agx-seg-btn:hover {
+  color: var(--text);
+}
+.agx-seg-btn.is-on {
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* The empty state needs to stack: icon, sentence, button. */
+.agx-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+.agx-kosong-ikon {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.agx-beta {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.agx-mem-toggle {
+  margin-bottom: 10px;
+}
+
+.agx-mem-kartu {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.agx-mem-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, #a78bfa 18%, transparent);
+  color: #a78bfa;
+}
+.agx-mem-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
