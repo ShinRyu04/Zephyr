@@ -26,7 +26,12 @@ import {
   IKON_FOLDER_BUKA,
   IKON_FILE,
 } from './fileIconMap';
-import { ikonFileExt, ikonFolderExt, ikonFileUmumExt, ikonFolderUmumExt } from './extIkonFile';
+import {
+  ikonFileExt,
+  ikonFolderExt,
+  ikonFileUmumExt,
+  ikonFolderUmumExt,
+} from './extIkonFile';
 
 export interface FileIkon {
   /** Icon name from the theme, used as the React key and by tests. */
@@ -72,25 +77,41 @@ function cariEkstensi(base: string): string | undefined {
  */
 export function ikonFile(nama: string, lang?: string): FileIkon {
   const base = (nama.split(/[\\/]/).pop() ?? nama).toLowerCase();
+
   /*
-   * An installed icon pack is consulted before the built-in extension chain: a
-   * pack that only repeated what the theme already drew would be invisible, and
-   * "the pack installed but the tree never changed" is the defect this closes.
-   * An exact file NAME still wins, so `package.json` keeps its npm mark.
+   * THE PACK COMES FIRST - and it is asked about EVERY name, not just names
+   * with a dot in them.
    *
-   * A pack can supply real SVG ART or a text glyph. The art is preferred: a
-   * letter in a box is not a different icon, it is the same icon with a
-   * different letter, and a reader who installed "Material Icon Theme" expects
-   * the drawings.
+   * Two bugs lived here, and together they are why "only the folders changed":
+   *
+   *  1. `IKON_NAMA[base]` was consulted BEFORE the pack. Every well-known file
+   *     (`package.json`, `README.md`, `Dockerfile`...) kept Zephyr's built-in
+   *     drawing no matter which pack was chosen, so the rows a reader looks at
+   *     most were exactly the ones that never changed.
+   *  2. The pack was only asked when the name contained a dot. A file with no
+   *     extension - `Dockerfile`, `Makefile`, `LICENSE`, `Procfile` - skipped
+   *     the pack entirely and fell through to the built-in map.
+   *
+   * Now the pack answers first, and it answers for every name. The built-in
+   * chain stays as the fallback, so an uninstalled pack hands the tree back to
+   * Zephyr's own art with no special case.
+   *
+   * Art is preferred over a glyph inside the pack itself: a letter in a box is
+   * not a different icon, it is the same icon with a different letter.
    */
-  const dariPaket = base.includes('.') ? ikonFileExt(base) : null;
+  const dariPaket = ikonFileExt(base);
   return (
-    bungkus(IKON_NAMA[base]) ??
     (dariPaket
       ? dariPaket.svg
-        ? { id: `ext:${base}`, svg: dariPaket.svg, color: dariPaket.color }
-        : { id: `ext:${base}`, svg: null, glyph: dariPaket.glyph, color: dariPaket.color }
+        ? { id: `ext:${dariPaket.paket ?? ''}:${base}`, svg: dariPaket.svg, color: dariPaket.color }
+        : {
+            id: `ext:${dariPaket.paket ?? ''}:${base}`,
+            svg: null,
+            glyph: dariPaket.glyph,
+            color: dariPaket.color,
+          }
       : null) ??
+    bungkus(IKON_NAMA[base]) ??
     bungkus(cariEkstensi(base)) ??
     bungkus(lang ? IKON_LANG[lang.toLowerCase()] : undefined) ??
     /* The pack's generic file icon, before the built-in one: a pack that only
@@ -125,20 +146,27 @@ export function ikonFolder(nama?: string, buka = false): FileIkon {
    * means an uninstalled pack cleanly hands the tree back to the built-in set.
    */
   if (base) {
-    const khususPaket = ikonFolderExt(base);
+    const khususPaket = ikonFolderExt(base, buka);
     if (khususPaket) {
+      const p = khususPaket.paket ?? '';
       return khususPaket.svg
-        ? { id: `ext:folder:${base}`, svg: khususPaket.svg, color: khususPaket.color }
-        : { id: `ext:folder:${base}`, svg: null, glyph: khususPaket.glyph, color: khususPaket.color };
+        ? { id: `ext:${p}:folder:${base}${buka ? ':open' : ''}`, svg: khususPaket.svg, color: khususPaket.color }
+        : {
+            id: `ext:${p}:folder:${base}${buka ? ':open' : ''}`,
+            svg: null,
+            glyph: khususPaket.glyph,
+            color: khususPaket.color,
+          };
     }
   }
 
   const umumPaket = ikonFolderUmumExt(buka);
   if (umumPaket) {
+    const p = umumPaket.paket ?? '';
     return umumPaket.svg
-      ? { id: `ext:folder${buka ? '-open' : ''}`, svg: umumPaket.svg, color: umumPaket.color }
+      ? { id: `ext:${p}:folder${buka ? '-open' : ''}`, svg: umumPaket.svg, color: umumPaket.color }
       : {
-          id: `ext:folder${buka ? '-open' : ''}`,
+          id: `ext:${p}:folder${buka ? '-open' : ''}`,
           svg: null,
           glyph: umumPaket.glyph,
           color: umumPaket.color,

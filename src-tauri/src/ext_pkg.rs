@@ -657,27 +657,57 @@ fn jumlah_ikon_dapat_digambar(v: &Value) -> usize {
     jumlah_ikon_vscode(v)
 }
 
-/// VS Code icon themes: extensions whose definition has a usable font glyph.
+/// VS Code icon themes: extensions whose definition can actually be DRAWN.
 ///
-/// The count is over `fileExtensions` (one file kind = one drawn icon), and a
-/// definition qualifies only when it names a non-empty `fontCharacter`. That is
-/// the exact test `muatIconTheme` uses before it registers a glyph.
+/// Two kinds of definition qualify now:
+///
+///  - `fontCharacter` - the glyph from an icon font (what this used to require).
+///  - `iconPath` ending in `.svg` - real vector art, which `muatIconTheme` reads
+///    through `extensionsReadMain` and inlines into the tree.
+///
+/// Why `iconPath` had to be added: the loader gained SVG support, but this gate
+/// did not, so every pack built from actual artwork was refused at install time
+/// as "maps files to IMAGE paths ... nothing to draw". The only packs that could
+/// install were the ones made of Unicode characters - which is why every
+/// installed theme looked like Zephyr's own icons and the reader concluded the
+/// feature did nothing. The gate has to describe what the renderer can draw, or
+/// it blocks exactly the packs that work.
+///
+/// A `.png` still counts zero: the tree inlines SVG, not raster images, and
+/// claiming otherwise would be the same lie as before.
 fn jumlah_ikon_vscode(v: &Value) -> usize {
     let defs = match v.get("iconDefinitions").and_then(|d| d.as_object()) {
         Some(d) => d,
         None => return 0,
     };
-    let punya_glyph = |id: &str| -> bool {
-        defs.get(id)
-            .and_then(|d| d.get("fontCharacter"))
+    let bisa_digambar = |id: &str| -> bool {
+        let Some(d) = defs.get(id) else { return false };
+        if d
+            .get("fontCharacter")
             .and_then(|g| g.as_str())
             .map(|g| !g.trim().is_empty())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        d.get("iconPath")
+            .and_then(|p| p.as_str())
+            .map(|p| p.trim().to_ascii_lowercase().ends_with(".svg"))
             .unwrap_or(false)
     };
     let mut n = 0usize;
     for key in ["fileExtensions", "fileNames"] {
         if let Some(map) = v.get(key).and_then(|m| m.as_object()) {
-            n += map.values().filter_map(|x| x.as_str()).filter(|id| punya_glyph(id)).count();
+            n += map.values().filter_map(|x| x.as_str()).filter(|id| bisa_digambar(id)).count();
+        }
+    }
+    /* The generic slots count too: a pack that only redefines `file` / `folder`
+       still changes every row, and reporting "0 icons" for it would be wrong. */
+    for key in ["file", "folder", "folderExpanded"] {
+        if let Some(id) = v.get(key).and_then(|x| x.as_str()) {
+            if bisa_digambar(id) {
+                n += 1;
+            }
         }
     }
     n
@@ -2723,11 +2753,39 @@ mod tests_unduh {
         assert_eq!(jumlah_ikon_dapat_digambar(&v), 4);
     }
 
+    /*
+     * `iconPath` with an SVG now COUNTS, and this test is the one that had to
+     * change rather than the code.
+     *
+     * The old rule was "a glyph or nothing", because the renderer could only
+     * draw a font character. The loader learned to inline SVG - `muatIconTheme`
+     * reads the file through `extensionsReadMain` and puts the markup straight
+     * into the tree - so the gate now describes what the renderer actually
+     * draws. Keeping the old expectation would have locked out every pack built
+     * from real artwork and left only the character-based ones installable,
+     * which is precisely the state that made every icon theme look like
+     * Zephyr's defaults.
+     *
+     * A raster `iconPath` still counts zero (next test): the tree inlines SVG.
+     */
     #[test]
-    fn ikon_vscode_tanpa_fontcharacter_tidak_dihitung() {
-        /* iconPath-only: no glyph to draw, so it must stay at zero. */
+    fn ikon_vscode_svg_dihitung() {
         let v = json!({
-            "iconDefinitions": { "_ts": { "iconPath": "./ts.svg" } },
+            "iconDefinitions": {
+                "_ts": { "iconPath": "./ts.svg" },
+                "_folder": { "iconPath": "./folder.svg" }
+            },
+            "fileExtensions": { "ts": "_ts" },
+            "folder": "_folder"
+        });
+        assert_eq!(jumlah_ikon_dapat_digambar(&v), 2);
+    }
+
+    #[test]
+    fn ikon_vscode_png_tidak_dihitung() {
+        /* Raster art cannot be inlined into the tree, so it must stay at zero. */
+        let v = json!({
+            "iconDefinitions": { "_ts": { "iconPath": "./ts.png" } },
             "fileExtensions": { "ts": "_ts" }
         });
         assert_eq!(jumlah_ikon_dapat_digambar(&v), 0);

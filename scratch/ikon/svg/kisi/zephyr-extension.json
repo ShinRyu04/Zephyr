@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-kisi",
+  "name": "Ikon Kisi",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Kisi — icon theme with real SVG art for files and folders",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Kisi",
+        "path": "./icons/kisi.json"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import type { LangId } from '../../lib/types';
 import { ikonFile, ikonFolder } from '../../lib/fileIcons';
+import { useIkonTema } from '../../lib/ikonTemaStore';
 
 /*
  * The file icon used by the explorer tree, the tab bar and the breadcrumb.
@@ -31,6 +32,22 @@ export default function FileIcon({
    */
   folderOpen?: boolean;
 }) {
+  /*
+   * SUBSCRIBE to the active pack, and this line is the whole fix for "the icons
+   * never change".
+   *
+   * `ikonFile` / `ikonFolder` read a plain module-level Map. Writing that Map is
+   * not React state, so changing the pack changed every LOOKUP while leaving
+   * every already-mounted row drawing the old glyph - the tree only repainted if
+   * something unrelated happened to re-render it. Reading the active id here
+   * makes each icon a subscriber: the moment the pack changes, every FileIcon
+   * re-renders and picks up the new art.
+   *
+   * The value is intentionally unused beyond that subscription - it is the
+   * dependency, not data the drawing needs.
+   */
+  useIkonTema((s) => s.aktif);
+
   const ikon = folder ? ikonFolder(name, folderOpen) : ikonFile(name ?? '', lang);
 
   /*

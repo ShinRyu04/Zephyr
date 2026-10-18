@@ -1,0 +1,9 @@
+﻿{
+ "paketDariLoader": 8,
+ "setPacks": "ok",
+ "setelah": {
+  "storePacks": 8,
+  "aktif": null
+ },
+ "instanceSama": true
+}

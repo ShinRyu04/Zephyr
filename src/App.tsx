@@ -100,10 +100,6 @@ import './styles/sftp.css';
 import './styles/tools.css';
 import './styles/modal-popup.css';
 /*
- * Atlas: the sidebar pane (Map / Cards) and the editor-area generator page.
- */
-import './styles/wiki.css';
-/*
  * The first-run wizard. Its own file because it owns the whole screen and
  * deliberately does NOT use the theme tokens for its own surfaces: a new reader
  * has not chosen a theme yet, so a wizard painted in the current theme would be
@@ -1353,6 +1349,25 @@ export default function App() {
       applyLatestTheme();
       const s = useStore.getState();
       terapkanA11y(s.settings.accessibility); // fase 31
+    });
+
+    /*
+     * FOLLOW the icon choice made in the Settings window.
+     *
+     * Settings is its own OS window with its own copy of every module, so a card
+     * pressed there writes that window's store and nothing else. Without this
+     * listener the main window's tree kept Zephyr's built-in icons forever -
+     * "clicking an icon theme changes nothing", which is exactly how it was
+     * reported. `storage` fires only in other windows, so the writer does not
+     * hear its own echo.
+     */
+    void import('./lib/ikonTemaStore').then((m) => {
+      m.sinkronPilihanIkon();
+      window.addEventListener('storage', (e) => {
+        if (e.key === null || /^zephyr\.ikonTema\./.test(e.key ?? '')) {
+          m.sinkronPilihanIkon();
+        }
+      });
     });
 
     const openPalette = (e: Event) => {

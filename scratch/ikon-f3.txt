@@ -1,0 +1,49 @@
+﻿Paket terpasang: 8
+  zephyr.ikon-belah::Belah   209 ikon, 209 SVG
+  zephyr.ikon-garis::Garis   209 ikon, 209 SVG
+  zephyr.ikon-heksagon::Heksagon 209 ikon, 209 SVG
+  zephyr.ikon-kisi::Kisi     209 ikon, 209 SVG
+  zephyr.ikon-kubus::Kubus   209 ikon, 209 SVG
+  zephyr.ikon-lingkaran::Lingkaran 209 ikon, 209 SVG
+  zephyr.ikon-petir::Petir   209 ikon, 209 SVG
+  zephyr.ikon-segitiga::Segitiga 209 ikon, 209 SVG
+
+Bawaan: {"folderSrc":"folder-src","folderDocs":"folder-docs","fileTs":"typescript","filePkg":"nodejs","fileDocker":"docker"}
+
+Per paket (yang harus BEDA satu sama lain):
+  belah::Belah folder=ext:Belah:folder:src docs=ext:Belah:folder:docs ts=ext:Belah:app.ts pkg=ext:Belah:package.json docker=ext:Belah:dockerfile
+  garis::Garis folder=ext:Garis:folder:src docs=ext:Garis:folder:docs ts=ext:Garis:app.ts pkg=ext:Garis:package.json docker=ext:Garis:dockerfile
+  heksagon::Heksagon folder=ext:Heksagon:folder:src docs=ext:Heksagon:folder:docs ts=ext:Heksagon:app.ts pkg=ext:Heksagon:package.json docker=ext:Heksagon:dockerfile
+  kisi::Kisi  folder=ext:Kisi:folder:src docs=ext:Kisi:folder:docs ts=ext:Kisi:app.ts pkg=ext:Kisi:package.json docker=ext:Kisi:dockerfile
+  kubus::Kubus folder=ext:Kubus:folder:src docs=ext:Kubus:folder:docs ts=ext:Kubus:app.ts pkg=ext:Kubus:package.json docker=ext:Kubus:dockerfile
+  lingkaran::Lingkaran folder=ext:Lingkaran:folder:src docs=ext:Lingkaran:folder:docs ts=ext:Lingkaran:app.ts pkg=ext:Lingkaran:package.json docker=ext:Lingkaran:dockerfile
+  petir::Petir folder=ext:Petir:folder:src docs=ext:Petir:folder:docs ts=ext:Petir:app.ts pkg=ext:Petir:package.json docker=ext:Petir:dockerfile
+  segitiga::Segitiga folder=ext:Segitiga:folder:src docs=ext:Segitiga:folder:docs ts=ext:Segitiga:app.ts pkg=ext:Segitiga:package.json docker=ext:Segitiga:dockerfile
+
+Bukti:
+  LULUS  ada 8 paket  8
+  LULUS  setiap paket punya SVG (bukan glyph)  209,209,209,209,209,209,209,209
+  LULUS  SEMUA paket menghasilkan ikon BERBEDA  8/8 unik
+  LULUS  folder berubah dari bawaan  8/8
+  LULUS  berkas .ts berubah dari bawaan  8/8
+  LULUS  package.json berubah dari bawaan  8/8
+  LULUS  Dockerfile (tanpa titik) berubah  8/8
+  LULUS  folder TERBUKA beda dari tertutup  ext:Belah:folder:src vs ext:Belah:folder:src:open
+  LULUS  folder src BEDA dari docs (per kelompok)  ext:Belah:folder:src vs ext:Belah:folder:docs
+  LULUS  ganti cepat 4x -> paket terakhir menang  zephyr.ikon-segitiga::Segitiga (harap zephyr.ikon-segitiga::Segitiga)
+  LULUS  SEMUA baris pohon pakai ikon paket  20/20
+  LULUS  ikon dirender sebagai SVG di layar  20/20
+    [svg]  .claude        ext:Petir:folder:.claude
+    [svg]  .github        ext:Petir:folder:.github
+    [svg]  .zephyr        ext:Petir:folder:.zephyr
+    [svg]  docs           ext:Petir:folder:docs
+    [svg]  public         ext:Petir:folder:public
+    [svg]  Release        ext:Petir:folder:release
+    [svg]  scratch        ext:Petir:folder
+    [svg]  screenshots    ext:Petir:folder:screenshots
+    [svg]  scripts        ext:Petir:folder:scripts
+    [svg]  src            ext:Petir:folder:src
+    [svg]  src-tauri      ext:Petir:folder
+    [svg]  testfiles      ext:Petir:folder:testfiles
+
+== 12/12 lulus ==

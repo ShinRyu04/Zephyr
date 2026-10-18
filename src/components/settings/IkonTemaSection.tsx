@@ -73,14 +73,16 @@ export default function IkonTemaSection() {
   const [cari, setCari] = useState('');
 
   /*
-   * Applying a pack is a store write plus a re-register. The re-register is what
-   * the tree sees; it lives in `extLoader.terapkanIkonTema` so there is ONE
-   * implementation of "make this pack the one on screen" - the loader uses it at
-   * startup and this uses it on click, and two copies would drift.
+   * Applying a pack is ONE store call now. The store swaps the render map and
+   * records the choice together, synchronously - see `pilih` in
+   * ikonTemaStore.ts for why the swap must not be a separate awaited step.
+   *
+   * The write also lands in localStorage, which is what carries the choice to
+   * the MAIN window (Settings is its own WebView with its own stores). That
+   * window listens for the `storage` event and re-applies.
    */
   const terapkan = (extId: string | null) => {
     pilih(extId);
-    void import('../../lib/extLoader').then((m) => m.terapkanIkonTema(extId));
   };
 
   const q = cari.trim().toLowerCase();
