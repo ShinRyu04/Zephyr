@@ -100,7 +100,7 @@ import './styles/sftp.css';
 import './styles/tools.css';
 import './styles/modal-popup.css';
 /*
- * Repo Wiki: the sidebar pane and the editor-area generator page.
+ * Atlas: the sidebar pane (Map / Cards) and the editor-area generator page.
  */
 import './styles/wiki.css';
 /*

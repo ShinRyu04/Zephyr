@@ -48,7 +48,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Pages in the nav, in order: general, editor, theme, shortcuts, extensions, lsp, scm, tests, devenv, devupdate, security, accessibility, ssh, memori, about.
 - Settings sections that are NOT in that nav: agents, rules, subagent, permissions, mcp - never send the user hunting in the Settings nav for them. These are still Settings sections that simply have no row in the nav: they are opened from Chat Settings (the "..." menu in the AI view) or from the Agent Customizations panel. If you are asked where one of them is opened from, look it up instead of naming a place.
 - "AI Models" (Settings group \`models\`: activeProvider, providers, answerLang, answerStyle, ragEnabled, ragUrl, ragProject, ragK) is NOT a Settings page and has no row in the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`src/components/settings/AiModelsModal.tsx\` renders \`ModelsSection\`, the same section component the editor-area Settings page used to show. 4 ways in, all without leaving the chat: the "Open AI Models" button on the 401 / missing-key notice in the chat panel; the model dropdown (its empty state and the "Edit models\u2026" row); the "AI Models" row in the chat panel's "..." menu; the command palette command "AI: Configure Models & API Keys" (id ai.models). Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.
-- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Konten web, Rules, Models, Appearance, Session, Advanced.
+- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced.
 - Setting keys kept in this block (129 of 129; the rest is in the index - look it up with \`zephyr_self\`):
   - general: theme=dark, fontFamily=Consolas, 'Cascadia Mono', 'Segoe UI Mono', monospace, fontSize=13, lineHeight=1.5, uiLang=en, zoom=100, restoreSession=true, checkUpdates=true, lowRam=false, aiPanel=bottom, layout=default, confirmExit=true, minimizeToTray=false, defaultTerminal=default, shellPath=, chatAvatar=true, userAvatarPath=
   - top level: sidebar=left, layout=default, allowCommands=[], izinIsiWeb=false, allowlistWeb=[], izinJaringanLokal=false, portWeb=[80,443], hopRedirect=5
@@ -75,11 +75,11 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Bottom panel tabs: problems, output, debug, terminal, ports, ai, subagents - default visible: problems, output, debug, terminal, ports, ai, subagents; default active tab: terminal, default height: 260 px.
 - MCP server: off by default (mcp.enabled=false); default port mcp.port=9222. Port 9223 is reserved for the WebView2 CDP debug port and is never used by MCP.
 - Dev server for the UI: port 5173 (vite.config.ts).
-- Debug bridges on \`window\` (dev builds; they read the same stores the UI uses, so a question about the running app is answered from them instead of guessed): __ZEPHYR_AI__, __ZEPHYR_TODO__, __ZEPHYR_PROMPT__, __ZEPHYR_MCP__. The full roster (59 names) is in the index - look a name up before using it.
+- Debug bridges on \`window\` (dev builds; they read the same stores the UI uses, so a question about the running app is answered from them instead of guessed): __ZEPHYR_AI__, __ZEPHYR_TODO__, __ZEPHYR_PROMPT__, __ZEPHYR_MCP__. The full roster (61 names) is in the index - look a name up before using it.
 - Logs: %APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotated to zephyr-1.log, zephyr-2.log ... The same folder holds settings.json.
 
 ## Shortcuts (the DEFAULTS - the user may have rebound them in Settings > Shortcuts)
-  Ctrl+, = Open Settings [View], Ctrl+J = Toggle bottom panel [View], Ctrl+Shift+P = Command Palette [View], Ctrl+Shift+E = Open Explorer [View], Ctrl+B = Toggle sidebar [View], Ctrl+Shift+D = Panel Subagents [View], Ctrl+backtick = Toggle panel terminal [Terminal], Ctrl+Shift+T = Pane terminal baru [Terminal], Ctrl+Shift+A = Toggle panel AI [AI], Ctrl+Enter = Send AI prompt [AI], Ctrl+S = Simpan [File], Ctrl+F = Find in File [Edit] - the defaults that answer the usual questions; the other 22 are in the index (searchable by key AND by what they do).
+  Ctrl+, = Open Settings [View], Ctrl+J = Toggle bottom panel [View], Ctrl+Shift+P = Command Palette [View], Ctrl+Shift+E = Open Explorer [View], Ctrl+B = Toggle sidebar [View], Ctrl+Shift+D = Panel Subagents [View], Ctrl+backtick = Toggle panel terminal [Terminal], Ctrl+Shift+T = Pane terminal baru [Terminal], (no default) = Toggle panel AI [AI], Ctrl+Enter = Send AI prompt [AI], Ctrl+S = Simpan [File], Ctrl+F = Find in File [Edit] - the defaults that answer the usual questions; the other 22 are in the index (searchable by key AND by what they do).
 
 ## Running commands
 - Shell tools (bash_run, bash_background) start in the folder of the file that is open in the editor; with no file open they start in the open folder, and with no folder open the backend decides. Zephyr\u2019s own source folder is NOT the user\u2019s project - never run the user\u2019s commands there just because that is the folder that happens to be open.
@@ -1065,6 +1065,86 @@ ${faktaOnDemand("galat")}
     kelas: "subagent",
     cocok: /\b(subagents?|sub-?agen|paralel|parallel|banyak berkas|beberapa berkas)\b/i,
     teks: (bahasa) => bahasa === "id" ? "# Aturan tambahan: subagent & kerja paralel\n- Memakai subagent butuh alasan: pekerjaannya memang paralel, atau panjang dan user memintanya. Pekerjaan yang diminta ke kamu diselesaikan di giliran ini, bukan diserahkan.\n- Sebelum memanggil: sebut anggarannya (`subagent.maxParallel`, `agents.maxPanes`) dan apakah anak boleh menulis berkas (`subagent.allowWrite`). Anak yang tidak boleh menulis itu peneliti, bukan pelaksana." : "# Extra rule: subagents & parallel work\n- Reaching for subagents takes a reason: the work is genuinely parallel, or long and the user asked for it. Work the user asked YOU to do is done in this turn, not delegated.\n- Before spawning: name the budget (`subagent.maxParallel`, `agents.maxPanes`) and whether the child may write files (`subagent.allowWrite`). A child that cannot write is a researcher, not an implementer."
+  },
+  {
+    /*
+     * The `apply_patch` grammar, sent ONLY when the turn is about editing files.
+     *
+     * It used to live in the tool's own schema, which made that one entry the
+     * largest in the catalogue and pushed the per-turn spec from 8.6k to 16.4k
+     * characters - paid on every turn, including the ones that never touch a
+     * patch. Here it costs nothing until a turn mentions editing.
+     */
+    kelas: "patch",
+    cocok: /\b(patch|apply_patch|ubah (banyak )?berkas|edit (banyak )?berkas|multi[- ]?file|beberapa berkas|refactor|pindah(kan)? berkas|hapus berkas|buat berkas)\b/i,
+    teks: (bahasa) => bahasa === "id" ? [
+      "# Aturan tambahan: format apply_patch (bahan sumber, bahasa Inggris)",
+      "```",
+      "*** Begin Patch",
+      "*** Add File: src/baru.ts",
+      "+baris pertama",
+      "+baris kedua",
+      "*** Update File: src/lama.ts",
+      "@@ label konteks (nama fungsi/bagian, BUKAN nomor baris)",
+      " baris konteks yang tidak berubah (awali satu spasi)",
+      "-baris lama yang dihapus",
+      "+baris baru penggantinya",
+      "*** Delete File: src/basi.ts",
+      '*** Move to: src/pindah.ts      (setelah "*** Update File:", untuk memindahkan)',
+      "*** End Patch",
+      "```",
+      "- Baris isi berkas baru SELALU diawali `+`. Baris hunk diawali spasi (konteks), `-` (hapus), atau `+` (tambah).",
+      "- Hunk memakai LABEL, bukan nomor baris: nomor baris basi begitu hunk sebelumnya mengubah berkasnya.",
+      "- Konteks harus cocok TEPAT SATU tempat. Nol = berkas sudah berubah; dua = ambigu. Keduanya membuat SELURUH patch ditolak tanpa menulis apa pun - itu memang yang diinginkan, jadi jangan coba menambal dengan patch kedua yang menebak.",
+      "- Satu patch untuk semua berkas yang saling bergantung; jangan pecah jadi beberapa panggilan kalau perubahannya harus konsisten."
+    ].join("\n") : [
+      "# Extra rule: apply_patch format (source material)",
+      "```",
+      "*** Begin Patch",
+      "*** Add File: src/new.ts",
+      "+first line",
+      "+second line",
+      "*** Update File: src/old.ts",
+      "@@ context label (function/section name, NOT a line number)",
+      " unchanged context line (one leading space)",
+      "-removed line",
+      "+replacement line",
+      "*** Delete File: src/stale.ts",
+      '*** Move to: src/moved.ts      (after "*** Update File:", to move)',
+      "*** End Patch",
+      "```",
+      "- Lines of a new file ALWAYS start with `+`. Hunk lines start with a space (context), `-` (remove), or `+` (add).",
+      "- A hunk uses a LABEL, not line numbers: numbers go stale the moment an earlier hunk changes the file.",
+      "- Context must match EXACTLY ONCE. Zero = the file changed; two = ambiguous. Either way the WHOLE patch is refused and nothing is written - that is the intent, so do not try to patch around it with a second patch that guesses.",
+      "- One patch for all files that depend on each other; do not split into several calls when the change has to stay consistent."
+    ].join("\n")
+  },
+  {
+    /*
+     * The Code Mode contract, sent ONLY when the turn looks like a long sequence.
+     *
+     * Same trade as `patch`: the binding list and the refusal list are a
+     * paragraph, and most turns never write a script.
+     */
+    kelas: "eksekusi",
+    cocok: /\b(execute|code mode|skrip|script|banyak langkah|banyak tool|otomatis(kan)?|sekaligus|berulang|loop|batch)\b/i,
+    teks: (bahasa) => bahasa === "id" ? [
+      "# Aturan tambahan: execute (Code Mode)",
+      '- Bentuk: `execute({ skrip: "..." })` di mana `skrip` adalah BADAN fungsi async. `return` menentukan hasil yang dilihat model.',
+      "- Hanya tiga binding: `call(nama, args)` menjalankan satu tool dan mengembalikan string hasilnya; `tools` berisi nama tool yang boleh dipanggil sekarang; `log(...)` mencatat pesan untuk balasan.",
+      "- `window`, `document`, `fetch`, `import()`, `require`, `process`, `globalThis`, `localStorage` DITOLAK sebelum skrip berjalan. Jangan menulis skrip yang menyentuhnya.",
+      "- Setiap `call` lewat gate yang sama dengan panggilan tool biasa: tool yang dimatikan pembaca tetap ditolak dari dalam skrip.",
+      '- Contoh: `const a = await call("read_file", { path: "src/a.ts" }); const b = await call("grep", { pattern: "TODO", path: "src" }); log("ok"); return b;`',
+      "- Pakai untuk URUTAN panjang (baca banyak berkas, patch, lalu uji). Untuk satu langkah, panggil tool-nya langsung - skrip hanya menambah lapisan."
+    ].join("\n") : [
+      "# Extra rule: execute (Code Mode)",
+      '- Shape: `execute({ skrip: "..." })` where `skrip` is the BODY of an async function. `return` decides what the model sees.',
+      "- Only three bindings: `call(name, args)` runs one tool and returns its string result; `tools` lists the names callable right now; `log(...)` collects notes for the reply.",
+      "- `window`, `document`, `fetch`, `import()`, `require`, `process`, `globalThis`, `localStorage` are REFUSED before the script runs. Do not write a script that touches them.",
+      "- Every `call` goes through the same gate as a normal tool call: a tool the reader disabled stays refused from inside a script.",
+      '- Example: `const a = await call("read_file", { path: "src/a.ts" }); const b = await call("grep", { pattern: "TODO", path: "src" }); log("ok"); return b;`',
+      "- Use it for long SEQUENCES (read many files, patch, then test). For one step, call the tool directly - a script only adds a layer."
+    ].join("\n")
   }
 ];
 function kelasKondisional(kueri) {

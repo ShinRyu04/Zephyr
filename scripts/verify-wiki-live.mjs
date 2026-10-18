@@ -1,4 +1,4 @@
-// Probe live: seksi lipat di Explorer + pane Repo Wiki.
+// Probe live: seksi lipat di Explorer + pane Atlas.
 import { Cdp, keluarBersih } from './lib-cdp.mjs';
 
 const { cdp } = await Cdp.attach(9223, 'Zephyr');
@@ -41,7 +41,7 @@ const hasil = await cdp.json(
     totalTombol: document.querySelectorAll('nav.activitybar [data-activity]').length,
   };
 
-  /* Pane Repo Wiki. */
+  /* Pane Atlas. */
   S.getState().setActivity('wiki');
   await tunggu(900);
   out.wiki = {
@@ -58,8 +58,25 @@ const hasil = await cdp.json(
     judul: q('[data-testid="wiki-page"] .wiki-page-title')?.textContent?.trim() ?? null,
     tombolGenerate: !!q('[data-testid="wiki-generate"]'),
     tombolPlan: !!q('[data-testid="wiki-create-plan"]'),
-    opsi: ['wiki-auto-update', 'wiki-auto-export', 'wiki-citation'].map((t) => !!q('[data-testid="' + t + '"]')),
+
+    /*
+     * The options moved INTO the 3-dots popover (they used to be a block on the
+     * page body), so the test opens it first - checking for them while it is
+     * closed would report a missing control that is in fact one click away.
+     * Closed-state assertions stay separate below.
+     */
+    titik3: !!q('[data-testid="wiki-options"]'),
+    menuTertutup: !q('[data-testid="wiki-options-menu"]'),
   };
+  q('[data-testid="wiki-options"]')?.click();
+  await tunggu(250);
+  out.wiki.menuTerbuka = !!q('[data-testid="wiki-options-menu"]');
+  out.wiki.opsi = ['wiki-auto-update', 'wiki-auto-export', 'wiki-citation'].map((t) => !!q('[data-testid="' + t + '"]'));
+  out.wiki.menuAdaExport = !!q('[data-testid="wiki-export"]');
+  out.wiki.menuAdaImport = !!q('[data-testid="wiki-import"]');
+  /* Close it again so the rest of the run sees the page in its resting state. */
+  q('[data-testid="wiki-options"]')?.click();
+  await tunggu(150);
 
   /* Ganti tab: daftar berganti, tab tetap satu. */
   q('[data-testid="wiki-tab-knowledge"]')?.click();
@@ -104,10 +121,10 @@ console.log('\nRel ActivityBar:');
 cek('tombol outline SUDAH TIDAK ADA', h.rel.tombolOutline === false);
 cek('tombol wiki ADA', h.rel.tombolWiki === true, `${h.rel.totalTombol} tombol`);
 
-console.log('\nPane Repo Wiki:');
+console.log('\nPane Atlas:');
 cek('panel dirender', h.wiki.panel === true);
-cek('tab Repo Wiki ada', h.wiki.tabWiki === true);
-cek('tab Knowledge Card ada', h.wiki.tabKnowledge === true);
+cek('tab Map ada', h.wiki.tabWiki === true);
+cek('tab Cards ada', h.wiki.tabKnowledge === true);
 cek('kotak cari ada', h.wiki.cari === true);
 cek('banner penjelasan ada', h.wiki.banner === true);
 /*
@@ -123,7 +140,7 @@ cek(
   `kosong=${h.wiki.kosong}, adaEntri=${h.wiki.adaEntri}`,
 );
 cek('halaman generator dirender', h.wiki.halaman === true);
-cek('judul = Generate Your Repo Wiki', h.wiki.judul === 'Generate Your Repo Wiki', String(h.wiki.judul));
+cek('judul = Generate Your Atlas', h.wiki.judul === 'Generate Your Atlas', String(h.wiki.judul));
 cek('tombol Generate ada', h.wiki.tombolGenerate === true);
 cek('tombol Create With Plan ada', h.wiki.tombolPlan === true);
 cek('3 opsi lengkap', h.wiki.opsi.every(Boolean), JSON.stringify(h.wiki.opsi));

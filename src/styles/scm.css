@@ -128,6 +128,83 @@
   justify-content: center;
 }
 
+/* ── split commit button ──
+   One control, two halves: commit on the left, variants on the caret. The two
+   share a single border seam so they read as one button until the caret is
+   pressed. The dropdown is absolutely placed because the commit box sits near
+   the bottom of the sidebar - in flow it would push the AI button down on every
+   open, which makes the layout jump exactly when you are reaching for an item. */
+
+.scm-split {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.scm-split-main {
+  flex: 1 1 auto;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+}
+
+.scm-split-caret {
+  flex: 0 0 auto;
+  width: 30px;
+  padding: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.scm-split-main:disabled + .scm-split-caret:disabled {
+  opacity: 0.55;
+}
+
+.scm-commit-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: auto;
+  z-index: 40;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.scm-commit-dropdown button {
+  text-align: left;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scm-commit-dropdown button:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.scm-commit-dropdown button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The GRAPH lipat header: a full-width affordance, so it gets a hover state
+   like any other control that asks to be pressed. */
+.scm-graph-lipat:hover {
+  color: var(--text);
+}
+
 /* ── pesan ── */
 
 .scm-error,
