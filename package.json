@@ -66,7 +66,9 @@
     "verify:tema-layar": "node scripts/verify-tema-layar.mjs",
     "verify:tema-aktif": "node scripts/verify-tema-aktif.mjs",
     "verify:sftp-keluar-editor": "node scripts/verify-sftp-keluar-editor.mjs",
-    "verify:sinkron-ikon": "node scripts/verify-sinkron-ikon.mjs"
+    "verify:sinkron-ikon": "node scripts/verify-sinkron-ikon.mjs",
+    "verify:tema-tidak-default": "node scripts/verify-tema-tidak-default.mjs",
+    "verify:alur-marketplace": "node scripts/verify-alur-marketplace.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",
