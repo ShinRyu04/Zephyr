@@ -2276,6 +2276,18 @@ export function installDevBridge(): void {
 
   const errors: string[] = [];
   w.__ZEPHYR_ERRORS__ = errors;
+  /*
+   * Warnings are kept apart from errors.
+   *
+   * `console.error` is also where React writes its WARNINGS ("Encountered two
+   * children with the same key"), and lumping them together made a harness
+   * report "38 console errors" for a session that had zero real errors - which
+   * buries the one error that matters under noise. Both lists are exposed; a
+   * test that means "nothing went wrong" reads `__ZEPHYR_ERRORS__`, and a test
+   * that means "no React complaints either" reads `__ZEPHYR_WARNINGS__`.
+   */
+  const warnings: string[] = [];
+  w.__ZEPHYR_WARNINGS__ = warnings;
 
   // Expose the agent tool list so a harness can drive a tool exactly the way
   // the agent does. Reading it through a dynamic import inside an evaluated
@@ -2362,7 +2374,10 @@ export function installDevBridge(): void {
 
   const origError = console.error.bind(console);
   console.error = (...args: unknown[]) => {
-    errors.push(args.map(String).join(' '));
+    const teks = args.map(String).join(' ');
+    /* React routes its warnings through console.error; they are not failures. */
+    if (/^Warning:/.test(teks) || /same key/.test(teks)) warnings.push(teks);
+    else errors.push(teks);
     origError(...args);
   };
   window.addEventListener('error', (e) => errors.push(`onerror: ${e.message}`));

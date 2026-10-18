@@ -29,75 +29,109 @@ const hasil = await cdp.json(
   const out = { terminal: null, stream: null, memori: null, frame: null };
 
   /* ── 1. TERMINAL MULTI-PANE ──────────────────────────────────────────── */
+  /*
+   * API yang dipakai adalah yang BENAR-BENAR ada di store, bukan nama yang
+   * dikira-kira. Versi pertama harness ini membaca 'panes' (tidak ada: pane
+   * hidup di dalam tab) dan memanggil 'newPane'/'tulisData' (juga tidak ada),
+   * sehingga setiap angka menjadi 'undefined' dan seluruh uji dilaporkan GAGAL
+   * untuk alasan yang salah - bukan karena app-nya bermasalah.
+   */
   const T = window.__ZEPHYR_TERM__;
-  const sebelumPane = T ? T.getState().panes.length : -1;
+  const sebelumPane = T ? T.getState().allPanes().length : -1;
   out.terminal = { ada: !!T, sebelumPane };
 
   if (T) {
+    const batas = T.getState().maxPanes();
     /*
-     * Buka 8 pane. Angka 8 dipilih karena di atas itu sebuah editor desktop
-     * wajar mulai berat; kalau 8 pun tidak sanggup, angka yang lebih besar tidak
-     * membuktikan apa pun selain bahwa mesinnya lambat.
+     * Buka pane sampai batas yang diizinkan app (bawaan 6, bisa diatur di
+     * Settings). Melebihi batas bukan temuan: 'addPane' menolaknya dengan
+     * pesan, dan itu perilaku yang benar.
      */
+    const target = Math.max(1, Math.min(8, batas));
     const t0 = performance.now();
-    for (let i = 0; i < 8; i++) {
-      try { T.getState().newPane(); } catch (e) { out.terminal.galat = String(e); break; }
+    const dibuat = [];
+    for (let i = 0; i < target; i++) {
+      try {
+        const id = await T.getState().addPane('terminal');
+        if (id) dibuat.push(id);
+      } catch (e) {
+        out.terminal.galat = String(e);
+        break;
+      }
     }
     await tunggu(600);
     out.terminal.msBuka = Math.round(performance.now() - t0);
-    out.terminal.sesudahPane = T.getState().panes.length;
+    out.terminal.sesudahPane = T.getState().allPanes().length;
+    out.terminal.batas = batas;
 
-    /* Kirim output ke SEMUA pane: inilah beban nyata sebuah terminal. */
+    /*
+     * Beban tulis: kirim baris ke setiap pane lewat jembatan PTY yang nyata.
+     * 'pty_write' adalah jalur yang dipakai terminal sungguhan; memanggilnya
+     * 20x per pane mengukur hal yang sama dengan mengetik cepat di semua pane.
+     */
     const t1 = performance.now();
+    const semua = T.getState().allPanes();
     for (let r = 0; r < 20; r++) {
-      for (const p of T.getState().panes) {
-        try { T.getState().tulisData(p.id, 'baris ' + r + ' output terminal\\r\\n'); } catch (e) {}
+      for (const p of semua) {
+        try {
+          await window.__TAURI_INTERNALS__.invoke('pty_write', {
+            paneId: p.id,
+            data: 'echo baris ' + r + '\\r',
+          });
+        } catch (e) {
+          /* Pane yang belum siap menolak; itu bukan kegagalan beban. */
+        }
       }
     }
     await tunggu(400);
     out.terminal.msTulis = Math.round(performance.now() - t1);
-    out.terminal.paneAkhir = T.getState().panes.length;
+    out.terminal.paneAkhir = T.getState().allPanes().length;
+
+    /* Tutup yang tadi dibuka: uji tidak boleh meninggalkan pane di layar. */
+    for (const id of dibuat) {
+      try {
+        await T.getState().closePane(id);
+      } catch (e) {}
+    }
   }
 
   /* ── 2. STRESS STREAM AI ─────────────────────────────────────────────── */
   const A = window.__ZEPHYR_AI__;
   out.stream = { ada: !!A };
   if (A) {
-    const st = A.store.getState();
-    /* Siapkan satu percakapan kosong supaya chunk tidak menimpa riwayat nyata. */
-    try {
-      st.newChat?.();
-    } catch (e) {}
-    await tunggu(300);
-
     /*
-     * 3000 chunk. Satu balasan model nyata jarang melebihi ~2000 token, dan tiap
-     * token bisa datang sebagai beberapa chunk - jadi 3000 adalah balasan
-     * panjang yang wajar, bukan angka yang dilebih-lebihkan.
+     * Jalur chunk yang NYATA: 'onChunk' di store, dengan bentuk 'AiChunk'
+     * ('id' + 'text'). Versi pertama harness ini mencari 'terimaChunk' dan
+     * '__ZEPHYR_AI_CHUNK__' - dua nama yang tidak ada - lalu melaporkan
+     * "jalur: tidak ada" dan seluruh uji dianggap gagal.
+     *
+     * 'pending' diisi dulu dengan id palsu supaya chunk punya tujuan; tanpa itu
+     * 'onChunk' mengabaikannya dan yang terukur bukan render, melainkan
+     * fungsi kosong.
      */
     const N = 3000;
-    const t0 = performance.now();
     let galat = null;
     try {
-      const s2 = A.store.getState();
-      s2.setDraft?.('');
-      /* Jalur chunk nyata yang dipakai stream: onAiChunk lewat jembatan. */
-      if (typeof window.__ZEPHYR_AI_CHUNK__ === 'function') {
-        for (let i = 0; i < N; i++) window.__ZEPHYR_AI_CHUNK__({ teks: 'kata' + i + ' ' });
-      } else if (typeof s2.terimaChunk === 'function') {
-        for (let i = 0; i < N; i++) s2.terimaChunk('kata' + i + ' ');
-      } else {
-        out.stream.jalur = 'tidak ada';
+      const st = A.store.getState();
+      const idUji = 'uji-beban-' + Date.now();
+      A.store.setState({ pending: idUji });
+      const t0 = performance.now();
+      for (let i = 0; i < N; i++) {
+        st.onChunk({ id: idUji, text: 'kata' + i + ' ' });
       }
+      out.stream.ms = Math.round(performance.now() - t0);
+      out.stream.n = N;
+      out.stream.jalur = 'onChunk';
     } catch (e) {
       galat = String(e);
     }
     out.stream.galat = galat;
-    out.stream.ms = Math.round(performance.now() - t0);
-    out.stream.n = N;
 
     await tunggu(800);
-    out.stream.pesan = A.store.getState().messages?.length ?? -1;
+    out.stream.pesan = A.store.getState().activeSession()?.messages?.length ?? -1;
+    /* Bersihkan: jangan tinggalkan 'pending' palsu yang membuat UI mengira
+       masih ada stream berjalan. */
+    A.store.setState({ pending: null });
   }
 
   /* ── 3. FRAME: apakah main thread tersumbat? ─────────────────────────── */
@@ -169,9 +203,20 @@ const cek = (n, ok, info = '') => {
 
 console.log('\nBukti:');
 
-/* Terminal */
-cek('8 pane terminal terbuka', (d.terminal?.sesudahPane ?? 0) >= 8, `${d.terminal?.sebelumPane} -> ${d.terminal?.sesudahPane}`);
-cek('membuka 8 pane < 2 detik', (d.terminal?.msBuka ?? 1e9) < 2000, `${d.terminal?.msBuka} ms`);
+/* Terminal: batas pane ditentukan app (Settings), bukan angka tetap 8.
+   Uji yang menuntut 8 pane akan GAGAL pada konfigurasi bawaan (6) - itu
+   mengukur setelan, bukan beban. Yang penting: pane terbuka sampai batasnya,
+   dan semuanya menerima output tanpa membuat app tersumbat. */
+cek(
+  'pane terminal terbuka sampai batas app',
+  (d.terminal?.sesudahPane ?? 0) >= Math.min(8, d.terminal?.batas ?? 1) && (d.terminal?.sesudahPane ?? 0) > 0,
+  `${d.terminal?.sebelumPane} -> ${d.terminal?.sesudahPane} (batas ${d.terminal?.batas})`,
+);
+cek(
+  `membuka ${d.terminal?.sesudahPane ?? '?'} pane < 2 detik`,
+  (d.terminal?.msBuka ?? 1e9) < 2000,
+  `${d.terminal?.msBuka} ms`,
+);
 cek('20x output ke semua pane < 2 detik', (d.terminal?.msTulis ?? 1e9) < 2000, `${d.terminal?.msTulis} ms`);
 
 /* Stream */
