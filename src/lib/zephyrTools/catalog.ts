@@ -700,6 +700,19 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    */
   'browser',
   'web',
+  /*
+   * `open_link` ikut SETIAP giliran.
+   *
+   * Permintaan langsung pemilik aplikasi: kalau percakapan menyebut sebuah
+   * tautan - repo, dokumentasi, hasil pencarian - tautan itu dibuka di browser
+   * yang dipakai orangnya, bukan sekadar dituliskan sebagai teks. Tool ini
+   * harus ADA di tangan model pada giliran pertama; kalau harus dicari lewat
+   * `tool_search` dulu, jawabannya datang setelah pembaca sudah membuka
+   * browsernya sendiri.
+   *
+   * Murah: satu parameter, tanpa state, dan gate-nya sama dengan pane browser.
+   */
+  'open_link',
 ];
 
 /** Rincian per kelompok, untuk picker. */

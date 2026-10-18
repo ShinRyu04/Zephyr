@@ -55,6 +55,7 @@ mod rag;
 pub mod search;
 mod secrets;
 mod settings;
+mod skill_bundled;
 mod sftp;
 mod skills;
 mod snippets;
@@ -196,6 +197,22 @@ pub fn run() {
 
             cron::mulai_timer(app.handle().clone());
             discord_rpc::start(app.handle().clone());
+            /*
+             * Plant the shipped skills on first run (see `tanam_skill_bawaan`).
+             *
+             * Done here, on the setup thread, because it is a handful of small
+             * file writes that must be finished before the UI can list skills.
+             * Doing it lazily on first `skills_list` would make the first open
+             * of the Skills pane show an empty list and then fill itself - a
+             * panel that lies for a frame is worse than a 2 ms startup cost.
+             */
+            {
+                let st = app.state::<AppState>();
+                let n = skills::tanam_skill_bawaan(&st);
+                if n > 0 {
+                    tracing::info!(skills = n, "skill bawaan ditanam");
+                }
+            }
             app.state::<AppState>()
                 .perf_mark("setup", Some(boot.elapsed().as_millis() as u64));
 
