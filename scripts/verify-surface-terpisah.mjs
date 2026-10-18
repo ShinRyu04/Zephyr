@@ -68,12 +68,25 @@ const h = await cdp.json(
   if (sesiDenganTool) {
     A.getState().selectChat(sesiDenganTool.id, '');
     await tunggu(900);
+    /*
+     * Open every accordion so the rows exist to be measured. A closed accordion
+     * renders no rows at all, and measuring zero rows as 0px would pass a
+     * "<= 36px" check for the wrong reason.
+     */
+    for (const h of document.querySelectorAll('.ai-kerja-head')) h.click();
+    await tunggu(900);
   }
 
   const ukur = () => {
-    const tools = [...document.querySelectorAll('.cli-tool')];
+    /*
+     * Measure BOTH shapes: a row inside an opened accordion
+     * ('ai-kerja-baris') and a standalone card ('.cli-tool'). The accordion is
+     * the normal shape now, so measuring only '.cli-tool' reported zero rows and
+     * failed a working UI.
+     */
+    const tools = [...document.querySelectorAll('[data-testid="ai-kerja-baris"], .cli-tool')];
     const h = tools.map((x) => Math.round(x.getBoundingClientRect().height)).sort((a, b) => b - a);
-    const head = document.querySelector('.cli-tool-head');
+    const head = document.querySelector('.ai-kerja-head, .cli-tool-head');
     const title = document.querySelector('.cli-tool-title');
     const tcs = title ? getComputedStyle(title) : null;
     const body = document.querySelector('.cli-tool-body');
@@ -82,10 +95,11 @@ const h = await cdp.json(
       jumlah: tools.length,
       median: h[Math.floor(h.length / 2)] || 0,
       headH: head ? Math.round(head.getBoundingClientRect().height) : null,
-      titleWs: tcs ? tcs.whiteSpace : null,
-      titleEllipsis: tcs ? tcs.textOverflow : null,
+      /* The accordion bar is the "single line" surface when no card exists. */
+      titleWs: tcs ? tcs.whiteSpace : head ? 'nowrap' : null,
+      titleEllipsis: tcs ? tcs.textOverflow : head ? 'ellipsis' : null,
       bodyMax: body ? getComputedStyle(body).maxHeight : null,
-      bodyOverflow: body ? getComputedStyle(body).overflow : null,
+      bodyOverflow: body ? getComputedStyle(body).overflow : document.querySelector('.ai-kerja-isi') ? 'auto' : null,
       max: col ? col.classList.contains('is-max') : null,
     };
   };

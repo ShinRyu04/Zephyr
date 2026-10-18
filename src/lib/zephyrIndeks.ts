@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6456 entri
- * (bridge=1, dokumen=121, ekstensi=21, kode=468, label=3092, layar=2154, menu=122, panel=23, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=43).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 6451 entri
+ * (bridge=1, dokumen=121, ekstensi=21, kode=468, label=3092, layar=2149, menu=122, panel=23, perintah=181, pintasan=65, port=4, seksi=32, setelan=129, tool=43).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.14 · hash sumber: 00d68d2f6950a4f0
+ * Versi app: 1.1.14 · hash sumber: c96e6c3beda1f885
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '00d68d2f6950a4f0' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: 'c96e6c3beda1f885' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -494,7 +494,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AiPanel.tsx","2547 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ChatMessage.tsx","1268 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ChatMessage.tsx","1123 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatSettingsPage.tsx","1743 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatStamp.tsx","139 baris · ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode","src/components/ai/ClearChatsDialog.tsx","89 baris · tanpa ekspor"],
@@ -4044,7 +4044,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Changes and files","aria-label di layar · dirender 1 berkas: src/components/agents/AgentsLayout.tsx"],
   ["layar","Channel \"{name}\" is still empty.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/OutputView.tsx"],
   ["layar","ChatHeadActions","src/components/ai/ChatHeadActions.tsx · 16 label: Agent Customizations…, Chat Settings, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models · 18 data-testid: ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
-  ["layar","ChatMessage","src/components/ai/ChatMessage.tsx · 41 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy, Copy input, Copy the answer contents, Copy the input, Copy the output, Explored {n} item, Explored {n} items, Input copied, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Open a terminal pane in the bottom panel, Open in terminal, Output copied, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, Worked for {t}, Working… {t}, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} commands, {n} failed, {n} files, {n} lines, {n} steps · 31 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-kerja, ai-kerja-baris, ai-kerja-isi, ai-kerja-toggle, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolrun-copy, ai-toolrun-copy-in, ai-toolrun-open, ai-toolruns"],
+  ["layar","ChatMessage","src/components/ai/ChatMessage.tsx · 31 label: Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy the answer contents, Insert the code at the cursor position, Kamu, No active editor tab, No active tab to insert into, Put back every file this turn changed, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Sebagian berkas gagal dikembalikan, Send to the active terminal pane, Tab contents replaced - Ctrl+S to save, The file contents are already the same as this code, Thinking, Worked for {t}, Working… {t}, failed, no token usage reported, tokens, {a} of {b} changes applied - Ctrl+S to save, {n} commands, {n} failed, {n} files, {n} lines, {n} steps, {x} file dikembalikan · 28 data-testid: ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-insert-code, ai-kerja, ai-kerja-baris, ai-kerja-isi, ai-kerja-toggle, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-regenerate, ai-restore-checkpoint, ai-run-code, ai-segmen, ai-tabel-bungkus, ai-think-body, ai-think-sec, ai-timeline-reason, ai-toolruns, ai-typing"],
   ["layar","ChatSettingsPage","src/components/ai/ChatSettingsPage.tsx · 38 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do…, Auto (from the model list), Chat Settings, Clear all chats…, Close, Detailed, Every change is already stored, Follow chat, Follow interface, Manage personas & sub-agents, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets…, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Save ({n}), Saved, Scope, Search chat settings…, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., example.com, found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay · placeholder: http://localhost:7777 · 24 data-testid: cset-agentcustom, cset-allowlistweb, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
   ["layar","ChatStamp","src/components/ai/ChatStamp.tsx · 3 label: Today, Tomorrow, Yesterday · 2 data-testid: ai-day-div, ai-msg-time"],
   ["layar","Chats","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/AgentsSessions.tsx"],
@@ -4191,8 +4191,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Event","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","Every installed package loaded. Nothing was skipped.","teks elemen di layar · dirender 1 berkas: src/components/extensions/ExtensionsView.tsx"],
   ["layar","Explore Customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
-  ["layar","Explored {n} item","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
-  ["layar","Explored {n} items","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","ExplorerPanel","src/components/explorer/ExplorerPanel.tsx · 8 label: Close workspace, New folder, No folder has been opened yet, No workspace yet - open a folder, Open File, Open Folder, Outline, Timeline · tooltip: Collapse all, New file, Refresh · aria-label: Collapse all, New file, Refresh · 2 data-testid: recent-list, root-list"],
   ["layar","Export customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","Export report (JSON)","teks elemen di layar · dirender 1 berkas: src/components/settings/SectionsDiag.tsx"],
@@ -4968,9 +4966,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","ai-toggle-debug","data-testid di layar · dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
   ["layar","ai-toggle-sessions-side","data-testid di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","ai-toggle-tips","data-testid di layar · dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
-  ["layar","ai-toolrun-copy","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
-  ["layar","ai-toolrun-copy-in","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
-  ["layar","ai-toolrun-open","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","ai-toolruns","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","ai-typing","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","ai-undo-last","data-testid di layar · dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
