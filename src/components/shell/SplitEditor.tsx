@@ -301,18 +301,31 @@ export default function SplitEditor() {
   }, [migrasiChatEditor, applySettings]);
 
   /*
-   * Dev Environment, API Client and SFTP live INSIDE the Tools view as tabs.
+   * The Tools window renders here; SFTP / Dev Environment / API Client render
+   * INSIDE it as tabs.
    *
-   * They used to be activities of their own, each rendering straight into the
+   * They used to be activities of their own, each drawing straight into the
    * editor area - so `activity === 'sftp'` put an SFTP client where the reader's
-   * code was supposed to be, and the same surface was reachable two different
-   * ways. The rail has ONE entry for all of them (`tools`), and this branch
-   * deliberately no longer has a per-activity arm: a stale profile, a keybinding
-   * or the palette naming `sftp` now lands on the Tools tab through
-   * `setToolsTab`, not on a full-bleed editor takeover.
+   * code was supposed to be, and the same surface was reachable two ways. Now
+   * only `tools` is a full-bleed view, and a stale profile naming `sftp` lands
+   * on the Tools tab through `setToolsTab` instead of taking over the editor.
    *
-   * `tests` stays because it is not part of Tools any more - it is its own view.
+   * `tests` is kept separately: it is no longer part of Tools.
    */
+  if (activity === 'tools') {
+    return (
+      <section className="editor-area">
+        <div className="editor-host">
+          <ErrorBoundary nama="Panel">
+            <Suspense fallback={null}>
+              <ToolsView />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </section>
+    );
+  }
+
   if (activity === 'tests') {
     return (
       <section className="editor-area">
