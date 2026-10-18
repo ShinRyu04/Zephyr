@@ -5,7 +5,8 @@ import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import AgcToolList from './AgcToolList';
 import AgcAgents from './AgcAgents';
-import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcInstructions, AgcPermissions } from './AgcSections';
+import AgcRulesMemories from './AgcRulesMemories';
+import { AgcSkills, AgcHooks, AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
 
 /*
  * Agent Customizations — a PAGE, in its own window.
@@ -71,9 +72,9 @@ const NAV: NavItem[] = [
   },
   {
     id: 'instructions',
-    label: 'Instructions',
+    label: 'Rules & Memories',
     icon: 'doc',
-    desc: 'Define guidance that shapes how agents work. Apply it across a workspace or keep it in your user profile.',
+    desc: 'Control the context the agent loads, the rules it follows, and what it may remember across sessions.',
   },
   {
     id: 'agents',
@@ -131,15 +132,15 @@ function Isi({ section }: { section: AgentCustomSection }) {
         </div>
       );
     case 'instructions':
-      return (
-        <div className="agc-pane">
-          <h2 className="agc-pane-title">{tr('Instructions')}</h2>
-          <p className="agc-pane-desc">
-            {tr('Rules attached to a file pattern. Repository-wide rules that are always on live in AGENTS.md.')}
-          </p>
-          <AgcInstructions />
-        </div>
-      );
+      /*
+       * Rules & Memories replaces the old "Instructions" pane.
+       *
+       * The old pane only edited pattern-scoped rules, which is a WRITE GUARD
+       * feature - not what the agent reads before answering. This page is the
+       * one the reader asked for: which context files load, the rules in scope,
+       * and whether memory is on.
+       */
+      return <AgcRulesMemories />;
     case 'agents':
       /*
        * The Agents pane is now the TRAE-shaped page: a list of custom and
