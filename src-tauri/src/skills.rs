@@ -17,6 +17,24 @@ pub struct SkillInfo {
     pub bytes: u64,
 }
 
+/// One entry of the skill catalogue: a skill that SHIPS with the app.
+///
+/// `terpasang` is computed, not stored - it is "does a folder with this name
+/// exist under the workspace or the app-data skills root". A catalogue entry
+/// that claims to be installed when its folder was deleted is worse than no
+/// catalogue at all, because the reader would not understand why the agent
+/// cannot find it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillKatalog {
+    pub name: String,
+    pub description: String,
+    /// How many files the skill folder holds (SKILL.md plus references).
+    pub berkas: usize,
+    pub terpasang: bool,
+    /// Non-empty when the skill needs something outside the app to be useful.
+    pub catatan: String,
+}
+
 pub fn nama_valid(nama: &str) -> bool {
     !nama.is_empty()
         && nama.len() <= 64
@@ -466,6 +484,96 @@ pub fn skill_write(
 #[tauri::command]
 pub fn skill_delete(state: State<AppState>, name: String) -> ZResult<()> {
     hapus_skill(&state, &name)
+}
+
+/*
+ * THE SKILL CATALOGUE.
+ *
+ * `skills_list` answers "what is installed". It cannot answer "what COULD I
+ * install", because the bundled skills are compiled into the binary and only
+ * appear on disk after `tanam_skill_bawaan` has run - and a skill the reader
+ * deleted is (correctly) never resurrected. The result was that a removed skill
+ * vanished from the UI with no way to get it back short of wiping the app data
+ * folder.
+ *
+ * These two commands close that hole: `skills_katalog` lists every bundled
+ * skill with an honest `terpasang` flag, and `skill_pasang` plants ONE of them
+ * on demand. Planting is idempotent-safe the same way the seeder is: an existing
+ * folder is left alone, so "install" can never overwrite edits.
+ */
+fn deskripsi_bundel(berkas: &[(&str, &str)]) -> (String, String) {
+    let mut nama = String::new();
+    let mut desk = String::new();
+    for (rel, isi) in berkas {
+        if *rel != "SKILL.md" {
+            continue;
+        }
+        let (fm_nama, fm_desk) = parse_frontmatter(isi);
+        nama = fm_nama.unwrap_or_default();
+        desk = fm_desk
+            .filter(|d| !d.is_empty())
+            .unwrap_or_else(|| deskripsi_cadangan(isi));
+    }
+    (nama, desk)
+}
+
+#[tauri::command]
+pub fn skills_katalog(state: State<AppState>) -> ZResult<Vec<SkillKatalog>> {
+    let terpasang: Vec<String> = daftar_skills(&state).into_iter().map(|s| s.name).collect();
+    let mut out = Vec::new();
+    for (folder, berkas) in crate::skill_bundled::SKILL_BAWAAN {
+        let (nama_dari_fm, desk) = deskripsi_bundel(berkas);
+        /* The FOLDER name is what `skill_pasang` writes, so it is what
+           `terpasang` must be matched against - a frontmatter name that differs
+           from its folder would otherwise always read as "not installed". */
+        let terpasang_ini = terpasang.iter().any(|n| n == folder || *n == nama_dari_fm);
+        out.push(SkillKatalog {
+            name: (*folder).to_string(),
+            description: desk,
+            berkas: berkas.len(),
+            terpasang: terpasang_ini,
+            catatan: if *folder == "modlens" {
+                "Needs Python 3 on this machine to run its scripts.".to_string()
+            } else {
+                String::new()
+            },
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn skill_pasang(state: State<AppState>, name: String) -> ZResult<bool> {
+    if !nama_valid(&name) {
+        return Err(ZephyrError::InvalidInput("invalid skill name".into()));
+    }
+    let Some((_, berkas)) = crate::skill_bundled::SKILL_BAWAAN
+        .iter()
+        .find(|(folder, _)| *folder == name)
+    else {
+        return Err(ZephyrError::InvalidInput(format!(
+            "no bundled skill named {name}"
+        )));
+    };
+
+    let root = root_global(&state);
+    let dir = root.join(&name);
+    /* Same rule as the seeder: an existing folder belongs to the reader. */
+    if dir.exists() {
+        return Ok(false);
+    }
+
+    for (rel, isi) in berkas.iter() {
+        let f = dir.join(rel);
+        if let Some(p) = f.parent() {
+            std::fs::create_dir_all(p)
+                .map_err(|e| ZephyrError::InvalidInput(format!("mkdir failed: {e}")))?;
+        }
+        std::fs::write(&f, isi)
+            .map_err(|e| ZephyrError::InvalidInput(format!("write failed: {e}")))?;
+    }
+    Ok(true)
 }
 
 pub fn ringkasan_untuk_prompt(state: &AppState) -> String {
