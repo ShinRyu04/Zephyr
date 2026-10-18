@@ -3,7 +3,7 @@
   "name": "Ikon Hiragana",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Ikon aksara Hiragana Jepang: か TypeScript, さ Rust, へ Python. Paling ringan dari ketiga tema aksara.",
+  "description": "Aksara Hiragana Jepang: か TypeScript, さ Rust, へ Python. Folder bersudut miring.",
   "engines": {
     "zephyr": ">=1.0"
   },

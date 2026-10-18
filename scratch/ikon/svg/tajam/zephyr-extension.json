@@ -3,7 +3,7 @@
   "name": "Ikon Sharp Grid",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Sudut siku dan tab persegi — presisi dan rapi untuk tampilan teknis.",
+  "description": "Kotak siku dengan tab persegi yang menonjol ke atas.",
   "engines": {
     "zephyr": ">=1.0"
   },

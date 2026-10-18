@@ -3,7 +3,7 @@
   "name": "Ikon Hanzi",
   "publisher": "zephyr",
   "version": "1.0.0",
-  "description": "Ikon aksara Hanzi China Sederhana: 型 TypeScript, 锈 Rust, 蛇 Python. Folder tetap folder.",
+  "description": "Aksara Hanzi China Sederhana: 型 TypeScript, 锈 Rust, 蛇 Python. Folder bergaris ganda.",
   "engines": {
     "zephyr": ">=1.0"
   },
