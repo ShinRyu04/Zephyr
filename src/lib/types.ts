@@ -1006,11 +1006,14 @@ export type ActivityId =
   | 'terminal'
   | 'extensions'
   /*
-   * Repo Wiki: documentation of this codebase, for the reader AND for the agent.
+   * `wiki` USED to be here: a Repo Wiki / Atlas surface for documenting this
+   * codebase. It was removed because the feature did not earn its place in a
+   * rail meant for the editor's own views - the generated pages aged quietly
+   * and the cards duplicated what the agent already reads from the files.
    *
-   * A rail entry of its own rather than a section of Settings, because it is a
-   * workspace surface - something the reader opens beside their code and keeps
-   * open, the same way the Explorer is.
+   * The value stays in the union so a saved profile that names it still parses;
+   * `setActivity` coerces an unknown activity to Explorer, so an old session
+   * lands somewhere real instead of a blank column.
    */
   | 'wiki'
   | 'devenv'

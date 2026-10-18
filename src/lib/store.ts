@@ -605,6 +605,17 @@ export const useStore = create<Store>((set, get) => ({
       void import('./bukaPanel').then((m) => m.bukaPanel('settings'));
       return;
     }
+    /*
+     * `wiki` has no view any more - the Atlas surface was removed. A saved
+     * profile, a keybinding, or the palette can still name it, and accepting the
+     * value would leave the sidebar and the editor area both empty with no way
+     * back except clicking something else. Coercing to Explorer puts the reader
+     * somewhere real.
+     */
+    if (a === 'wiki') {
+      set({ activity: 'explorer' });
+      return;
+    }
     set({ activity: a });
   },
   setToolsTab: (v) => set({ toolsTab: v }),

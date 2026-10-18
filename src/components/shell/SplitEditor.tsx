@@ -25,7 +25,6 @@ const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 // narrow column while the editor stayed empty beside them.
 const DevEnvView = lazy(() => import('../devenv/DevEnvView'));
 const TestsView = lazy(() => import('../shell/TestsView'));
-const WikiPage = lazy(() => import('../wiki/WikiPage'));
 const ApiClientView = lazy(() => import('../api/ApiClientView'));
 const SftpView = lazy(() => import('../sftp/SftpView'));
 import { useGit } from '../../lib/gitStore';
@@ -304,8 +303,7 @@ export default function SplitEditor() {
     activity === 'devenv' ||
     activity === 'api' ||
     activity === 'sftp' ||
-    activity === 'tests' ||
-    activity === 'wiki'
+    activity === 'tests'
   ) {
     return (
       <section className="editor-area">
@@ -322,7 +320,6 @@ export default function SplitEditor() {
               {activity === 'api' && <ApiClientView />}
               {activity === 'sftp' && <SftpView />}
               {activity === 'tests' && <TestsView />}
-              {activity === 'wiki' && <WikiPage />}
             </Suspense>
           </ErrorBoundary>
         </div>

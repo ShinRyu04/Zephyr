@@ -1,0 +1,39 @@
+﻿{
+ "sebelum": {
+  "storePacks": 8,
+  "loaderPacks": 8
+ },
+ "muat": {
+  "ms": 515,
+  "galat": null
+ },
+ "sesudahMuat": {
+  "storePacks": 8,
+  "loaderPacks": 8,
+  "aktif": null
+ },
+ "setelahTunggu": {
+  "storePacks": 8,
+  "ms": 515,
+  "id": [
+   "zephyr.ikon-belah::Belah",
+   "zephyr.ikon-garis::Garis",
+   "zephyr.ikon-heksagon::Heksagon",
+   "zephyr.ikon-kisi::Kisi",
+   "zephyr.ikon-kubus::Kubus",
+   "zephyr.ikon-lingkaran::Lingkaran",
+   "zephyr.ikon-petir::Petir",
+   "zephyr.ikon-segitiga::Segitiga"
+  ],
+  "ikon": [
+   209,
+   209,
+   209,
+   209,
+   209,
+   209,
+   209,
+   209
+  ]
+ }
+}

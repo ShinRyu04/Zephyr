@@ -18,7 +18,7 @@ import { useKb } from './keybindingStore';
 import { commandIdAda, daftarkanCommandId } from './commandIds';
 import { COMMANDS } from './commandRegistry';
 import { perintahKeymap, dialihkan } from './keymapAlias';
-import { setIkonExt, kosongkanIkonExt, ikonFileExt, jumlahIkonExt } from './extIkonFile';
+import { kosongkanIkonExt, terapkanPaketIkon, setIdPaketAktif, ikonFileExt, jumlahIkonExt } from './extIkonFile';
 import { MODE_IMPORTER, MODE_TERSEDIA } from './cmLegacyModes';
 const themeTokens = new Map<string, Record<string, string>>();
 
@@ -574,6 +574,20 @@ async function muatIconTheme(
         if (ik) tambah(`folder:${nama}`, ik);
       }
 
+      /*
+       * `folderNamesExpanded` - the OPEN drawing for a named folder.
+       *
+       * A pack that distinguishes `src` from `docs` almost always draws each of
+       * them twice: closed and open. Reading only `folderNames` meant every
+       * folder used its CLOSED art even while expanded, so opening a folder
+       * changed nothing - the row looked frozen. Stored under `folder-open:<name>`
+       * so the two variants cannot collide.
+       */
+      for (const [nama, idDef] of Object.entries((raw.folderNamesExpanded ?? {}) as Record<string, unknown>)) {
+        const ik = await ikonDari(String(idDef));
+        if (ik) tambah(`folder-open:${nama}`, ik);
+      }
+
       if (Object.keys(ikon).length === 0) {
         /*
          * Zephyr's own compact shape: `icons` (or the file itself) mapping an
@@ -635,13 +649,17 @@ async function muatIconTheme(
  * screen to say so.
  */
 export function terapkanIkonTema(extId: string | null): void {
-  kosongkanIkonExt();
-  if (!extId) return;
-  const paket = paketIkon.find((p) => p.extId === extId);
-  if (!paket) return;
-  for (const [kunci, ik] of Object.entries(paket.ikon)) {
-    setIkonExt(kunci, ik);
-  }
+  const paket = extId ? paketIkon.find((p) => p.extId === extId) : null;
+  /* Record WHICH pack is in the map, so ids built by `fileIcons` name the
+     drawing rather than just the file - two packs must not produce the same id
+     for the same folder, or nothing downstream can tell them apart. */
+  setIdPaketAktif(paket ? paket.label : '');
+  /* ONE synchronous swap, in the leaf module. See `terapkanPaketIkon` for why
+     this must not be split across an await: the picker changes the store and
+     the map in the same turn, so a fast second click cannot land its write
+     after the first and leave the tree showing a different pack than the one
+     highlighted. */
+  terapkanPaketIkon(paket ? paket.ikon : null, paket ? paket.label : '');
 }
 
 /** The packs read by the last load, for the picker. */
@@ -894,8 +912,25 @@ async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
     const store = useIkonTema.getState();
     store.setPacks(daftarPaketIkon());
     terapkanIkonTema(useIkonTema.getState().aktif);
-  } catch {
-    /* non-fatal: the tree keeps Zephyr's own icons */
+  } catch (e) {
+    /*
+     * REPORT the failure, do not swallow it.
+     *
+     * This used to be an empty `catch` with the note "the tree keeps Zephyr's
+     * own icons". That note was wrong in the worst way: it hid a real fault for
+     * weeks. `daftarPaketIkon()` returned eight packs while the picker showed
+     * zero, because the throw happened HERE and nothing anywhere said so - the
+     * Settings page rendered an empty grid, clicking did nothing, and every
+     * report of "the icon theme does not work" was met with "the code looks
+     * right".
+     *
+     * A failure to hand packs to the picker is not cosmetic: it disables the
+     * whole feature. It is recorded where the loader's own summary can show it.
+     */
+    hasil.gagal.push({
+      id: 'ikon-tema',
+      alasan: `could not hand icon packs to the picker: ${e instanceof Error ? e.message : String(e)}`,
+    });
   }
 
   return hasil;

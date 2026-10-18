@@ -3,7 +3,6 @@ import { useStore } from '../../lib/store';
 const DebugView = lazy(() => import('../debug/DebugView'));
 const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
 const OutlinePanel = lazy(() => import('../explorer/OutlinePanel'));
-const WikiPanel = lazy(() => import('../wiki/WikiPanel'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const SourceControlPanel = lazy(() => import('../scm/SourceControlPanel'));
 const TerminalPanel = lazy(() => import('./TerminalPanel'));
@@ -35,8 +34,6 @@ export default function Sidebar() {
         return <SearchPanel />;
       case 'outline':
         return <OutlinePanel />;
-      case 'wiki':
-        return <WikiPanel />;
       case 'scm':
         return <SourceControlPanel />;
       case 'debug':

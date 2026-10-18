@@ -1,0 +1,14 @@
+﻿dilepas: 0
+dipasang: 8
+
+Isi paket setelah dipasang ulang:
+  OK   zephyr.ikon-belah::Belah   209 ikon, 209 SVG
+  OK   zephyr.ikon-garis::Garis   209 ikon, 209 SVG
+  OK   zephyr.ikon-heksagon::Heksagon 209 ikon, 209 SVG
+  OK   zephyr.ikon-kisi::Kisi     209 ikon, 209 SVG
+  OK   zephyr.ikon-kubus::Kubus   209 ikon, 209 SVG
+  OK   zephyr.ikon-lingkaran::Lingkaran 209 ikon, 209 SVG
+  OK   zephyr.ikon-petir::Petir   209 ikon, 209 SVG
+  OK   zephyr.ikon-segitiga::Segitiga 209 ikon, 209 SVG
+
+SEMUA paket berisi SVG
