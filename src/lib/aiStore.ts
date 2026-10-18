@@ -2224,7 +2224,32 @@ const JEDA_ULANG_ARGUMEN_CACAT_MS = 1_000;
  * kalau langkah KETIGA berturut-turut masih rusak, model memang tidak akan
  * pernah menulis JSON yang valid dan melanjutkan hanya memutar langkah.
  */
-const BATAS_ARGUMEN_RUSAK_BERTURUT = 2;
+/*
+ * How many malformed tool responses IN A ROW are tolerated before the run stops.
+ *
+ * Was 2. Measured in Fase 5 (two runs): the agent writes 8-9 of 10 files, then
+ * the model emits unterminated JSON for the LAST one (a README) and the run
+ * dies - once at attempt 3, once at attempt 34. The work is on disk and
+ * complete except for one file, and the reader sees "Agent stopped".
+ *
+ * Opencode does not stop there: a broken call is ONE FAILED STEP, and the model
+ * is asked to rewrite it. The counter exists only to stop a model that can
+ * never produce valid JSON - which looks nothing like "one big file out of ten".
+ *
+ * 4 gives a genuinely stuck model four chances while letting a run that trips
+ * on one oversized argument recover. The counter resets on every successful
+ * step, so this is a budget for a RUN OF FAILURES, never a run-wide quota.
+ */
+const BATAS_ARGUMEN_RUSAK_BERTURUT = 4;
+
+/**
+ * How many times a run may resume ITSELF after a protocol stop.
+ *
+ * Two: enough to get past a broken call and finish the file, few enough that a
+ * model that cannot produce valid JSON ends with an honest message instead of
+ * looping in the background where nobody can see it.
+ */
+const AUTO_LANJUT_MAKS = 2;
 
 /*
  * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
@@ -6166,6 +6191,8 @@ export const useAi = create<AiStore>((set0, get) => {
      * sudah membuktikan dirinya membaik.
      */
     let argumenRusakBerturut = 0;
+/* Automatic resumes used by THIS run; see AUTO_LANJUT_MAKS. */
+let autoLanjut = 0;
     /*
      * A(i)/A(iv): keadaan yang hanya perlu dihitung SEKALI per run.
      *
@@ -7240,12 +7267,31 @@ export const useAi = create<AiStore>((set0, get) => {
                 },
               ],
             }));
+            /*
+             * THE RECOVERY ESCALATES, like opencode's.
+             *
+             * Round 1 asks for valid JSON. Rounds 2+ also tell the model WHY the
+             * call probably broke and what to do differently - because "write
+             * valid JSON" repeated is not advice, and the failing call is almost
+             * always a LARGE file sent as one argument. Saying "split it" is what
+             * turns a dead run into a finished file; the same sentence twice is
+             * what makes a model re-emit the same broken payload.
+             */
+            const besarKemungkinan =
+              /write_file|multi_edit|replace_in_files/.test(String(res.error ?? '')) ||
+              argumenRusakBerturut >= 2;
             history.push({
               role: 'user',
               content:
                 `Rincian dari provider: ${res.error}. ` +
                 'Panggilan tool terakhirmu punya JSON argumen yang tidak valid, jadi tidak ada tool yang berjalan. ' +
-                'Jangan ulangi panggilan yang sama. Tulis ulang panggilan itu dengan objek JSON argumen yang lengkap dan valid, ' +
+                'Jangan ulangi panggilan yang sama.' +
+                (besarKemungkinan
+                  ? ' Kalau argumennya besar (isi berkas panjang), JANGAN kirim sebagai satu panggilan raksasa: ' +
+                    'tulis berkas itu dengan write_file yang lebih pendek, lalu tambah sisanya dengan multi_edit, ' +
+                    'atau tulis beberapa berkas kecil. JSON yang tidak tertutup hampir selalu berarti isinya kepanjangan.'
+                  : '') +
+                ' Tulis ulang panggilan itu dengan objek JSON argumen yang lengkap dan valid, ' +
                 'atau kalau tidak diperlukan, lanjutkan ke langkah berikutnya dari rencanamu.',
             });
             continue;
@@ -8702,8 +8748,23 @@ export const useAi = create<AiStore>((set0, get) => {
       // to resume: the opening user turn is in `history` from the start, so
       // anything beyond it (or a completed step) is work worth keeping.
       const adaKerjaNyata = history.length > 1 || langkah > 0;
+      /*
+       * `protocol` BELONGS HERE TOO.
+       *
+       * This is the category a malformed tool call lands in, and it was the one
+       * failure that produced the most frustrating report: nine files written,
+       * the tenth call's JSON broke, run over - with no way to continue because
+       * only `provider` and `timeout` were resumable. The work is on disk and
+       * the conversation is valid (a broken response produces no tool call, so
+       * there is nothing dangling), which is exactly the shape a resume can
+       * safely replay. Opencode resumes here; so does Zephyr now.
+       *
+       * `cancelled` still must not resume: the user ended it on purpose.
+       */
       const bisaLanjut =
-        (agentFailure.category === 'provider' || agentFailure.category === 'timeout') &&
+        (agentFailure.category === 'provider' ||
+          agentFailure.category === 'timeout' ||
+          agentFailure.category === 'protocol') &&
         adaKerjaNyata;
       /*
        * DAFTAR KANDIDAT + NOMOR PERCOBAAN disisipkan di sini, di pesan akhir.
@@ -8731,6 +8792,34 @@ export const useAi = create<AiStore>((set0, get) => {
             at: Date.now(),
           },
         });
+        /*
+         * AUTO-RESUME, like opencode, but bounded.
+         *
+         * A `protocol` stop (broken tool-call JSON) is the one failure where
+         * continuing is almost always the right answer: the plan is unfinished,
+         * the files written so far are real, and the next attempt has the error
+         * text in front of it. Making the reader press "Continue" to get their
+         * tenth file is exactly the papercut they reported.
+         *
+         * Bounded on purpose: at most two automatic resumes per run, and never
+         * for a stop the reader caused. A run that keeps hitting the same wall
+         * must still end honestly instead of looping invisibly - which is the
+         * one thing worse than stopping.
+         */
+        if (agentFailure.category === 'protocol' && autoLanjut < AUTO_LANJUT_MAKS && !agentBatal) {
+          autoLanjut += 1;
+          const jumlah = autoLanjut;
+          setTimeout(() => {
+            const st = get();
+            /* The reader may have started something else in the meantime; a
+               background resume must never fight them for the composer. */
+            if (st.agentBusy || st.pending || !st.agentResume) return;
+            set({
+              toast: `Argumen tool rusak - melanjutkan otomatis (${jumlah}/${AUTO_LANJUT_MAKS}).`,
+            });
+            void st.lanjutkanAgent();
+          }, 600);
+        }
       }
     }
 
