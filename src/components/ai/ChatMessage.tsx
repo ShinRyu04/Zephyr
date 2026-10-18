@@ -232,11 +232,18 @@ const MdLink: NonNullable<Components['a']> = ({ href, children }) => (
  * kolom terakhir terpotong begitu saja - tanpa cara melihat sisanya. Dulu
  * MD_JAWABAN sama sekali tidak menimpa `table`, jadi react-markdown memakai
  * bawaannya dan tabel langsung berada di dalam kolom yang sempit.
+ *
+ * The `overflowX` used to be an INLINE style here, and that was the bug: an
+ * inline style beats the stylesheet, so the wrapper could never gain the
+ * `width: max-content` / `min-width: 100%` rules that make columns keep their
+ * words whole. Inline styles are now gone - the class carries everything, in
+ * one place, where a later rule can still override it.
+ *
  * `data-testid` dipakai scripts/ukur-mutu-jawaban.mjs (mode --uji-tabel-perender)
  * untuk membuktikan override ini benar-benar terpakai saat merender tabel.
  */
 const MdTabel: NonNullable<Components['table']> = ({ children }) => (
-  <div className="ai-tabel-bungkus" data-testid="ai-tabel-bungkus" style={{ overflowX: 'auto' }}>
+  <div className="ai-tabel-bungkus" data-testid="ai-tabel-bungkus">
     <table>{children}</table>
   </div>
 );

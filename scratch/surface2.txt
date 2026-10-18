@@ -1,0 +1,53 @@
+﻿{
+ "id": {
+  "kanan": "chat-mve12zhk-7",
+  "editor": "chat-mve12zhr-8",
+  "agents": "chat-mve12zhz-9"
+ },
+ "tigaBerbeda": true,
+ "activeIds": {
+  "": "chat-mve12zhk-7",
+  "editor": "chat-mve12zhr-8",
+  "agents": "chat-mve12zhz-9"
+ },
+ "tiapSurfaceSendiri": true,
+ "tersimpan": {
+  "": "chat-mve12zhk-7",
+  "editor": "chat-mve12zhr-8",
+  "agents": "chat-mve12zhz-9"
+ },
+ "tersimpanTerpisah": true,
+ "adaSesiTool": true,
+ "kanan": {
+  "jumlah": 102,
+  "median": 32,
+  "headH": 30,
+  "titleWs": "nowrap",
+  "titleEllipsis": "ellipsis",
+  "bodyMax": "140px",
+  "bodyOverflow": "auto",
+  "max": false
+ },
+ "maximize": {
+  "jumlah": 102,
+  "median": 32,
+  "headH": 30,
+  "titleWs": "nowrap",
+  "titleEllipsis": "ellipsis",
+  "bodyMax": "240px",
+  "bodyOverflow": "auto",
+  "max": true
+ }
+}
+
+Bukti ΓÇö tiga surface terpisah + baris tool ramping:
+  LULUS  S1 tiga surface membuat TIGA sesi berbeda  {"kanan":"chat-mve12zhk-7","editor":"chat-mve12zhr-8","agents":"chat-mve12zhz-9"}
+  LULUS  S2 tiap surface menunjuk sesinya sendiri
+  LULUS  S3 pemisahan bertahan setelah disimpan
+  LULUS  S4 ada transcript berisi tool untuk diukur  sesi=true baris=102
+  LULUS  S5 baris tool ramping di mode kanan (<= 36px)  median=32px head=30px
+  LULUS  S6 baris tool ramping di mode maximize (<= 36px)  median=32px head=30px
+  LULUS  S7 judul tool ellipsis, bukan wrap  ws=nowrap ellipsis=ellipsis
+  LULUS  S8 body tool dibatasi dan bisa scroll  kanan=140px max=240px
+
+== 8/8 lulus ==

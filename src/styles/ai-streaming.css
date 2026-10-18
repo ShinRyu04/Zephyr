@@ -89,6 +89,41 @@
   flex-direction: column;
 }
 
+/*
+ * RIGHT-COLUMN MODE: use the full width.
+ *
+ * In the narrow right-hand column (the default home of the chat) 12px of
+ * padding on BOTH sides plus the 9px scrollbar left the answer's text column
+ * visibly inset - measured: text started 12px from the column's left edge and
+ * ended 32px from its right edge. In a 488px column that is ~9% of the width
+ * spent on nothing, and the reader asked for it to reach the edges.
+ *
+ * Why this is scoped to the COLUMN and not applied everywhere: in maximised
+ * mode the transcript draws a continuous rail with a node per tool row, and
+ * that rail needs its own gutter. Trimming the padding there would push the
+ * text onto the line. `.is-max` is the maximised column, so `:not(.is-max)`
+ * is exactly "the side column".
+ *
+ * The left padding is not taken to zero: the rail's node dots sit at
+ * `--rail-x: 17px` inside each tool row, and a small outer inset keeps prose
+ * from touching the panel border. 4px reads as "flush" without looking clipped.
+ */
+.ai-side-col:not(.is-max) .ai-chat {
+  --ai-chat-pad-x: 4px;
+  /*
+   * The scrollbar is taken OUT of the flow instead of eating the right edge.
+   * `stable` reserves the gutter whether or not it is needed, so the text does
+   * not jump sideways when the transcript grows past one screen.
+   */
+  scrollbar-gutter: stable;
+  padding-right: 0;
+}
+
+/* Tool rows keep their rail gutter; only the outer inset shrinks. */
+.ai-side-col:not(.is-max) [data-timeline] > * {
+  padding-left: 26px;
+}
+
 .ai-chat > * {
   width: 100%;
   flex-shrink: 0;
