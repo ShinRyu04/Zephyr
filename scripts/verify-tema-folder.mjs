@@ -106,7 +106,7 @@ for (const t of d.perTema ?? []) {
 
 const sidik = (d.perTema ?? []).map((t) => t.sidik);
 console.log('\nBukti:');
-cek('8 tema terpasang', (d.paket ?? []).length === 8, String((d.paket ?? []).length));
+cek('11 tema terpasang', (d.paket ?? []).length === 11, String((d.paket ?? []).length));
 cek('SEMUA tema menghasilkan ikon BERBEDA', new Set(sidik).size === sidik.length, `${new Set(sidik).size}/${sidik.length} unik`);
 cek('setiap tema punya SVG folder', (d.perTema ?? []).every((t) => t.svgFolder > 200), (d.perTema ?? []).map((t) => t.svgFolder).join(','));
 cek('setiap tema punya SVG berkas', (d.perTema ?? []).every((t) => t.svgBerkas > 150), (d.perTema ?? []).map((t) => t.svgBerkas).join(','));

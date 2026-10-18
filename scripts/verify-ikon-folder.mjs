@@ -55,7 +55,7 @@ const h = await cdp.json(
       folder: { id: f.id, glif: f.glyph ?? null, svg: !!f.svg, warna: f.color ?? null },
       folderOpen: { id: fo.id, glif: fo.glyph ?? null },
       folderNode: { id: n.id, glif: n.glyph ?? null },
-      file: { id: t.id, glif: t.glyph ?? null, warna: t.color ?? null },
+      file: { id: t.id, glif: t.glyph ?? null, svg: !!t.svg, warna: t.color ?? null },
       petaJumlah: ex.jumlahIkonExt(),
     };
 
@@ -64,16 +64,32 @@ const h = await cdp.json(
      * setActivity + setSidebarVisible(true), NOT a click on the rail button:
      * clicking that button while Explorer is already the active view TOGGLES the
      * sidebar closed, so a second run found an empty DOM and reported a bug that
-     * was not there. */
+     * was not there.
+     *
+     * The wait is a POLL for the pack's own label, not a fixed sleep: the swap
+     * is committed by React after the map write, and reading too early reported
+     * "no icon" for a row that was about to be painted. */
     S.getState().setActivity('explorer');
     S.getState().setSidebarVisible(true);
-    await tunggu(2500);
+    const batas = performance.now() + 5000;
+    while (performance.now() < batas) {
+      await tunggu(120);
+      const kini = document.querySelector('.tree-row .tree-fikon')?.getAttribute('data-ikon') ?? '';
+      if (kini.includes(dgnFolder.label)) break;
+    }
     const baris = [...document.querySelectorAll('.tree-row')].slice(0, 14);
-    out.dom = baris.map((r) => ({
-      nama: r.querySelector('.tree-name')?.textContent?.trim() ?? '',
-      ikon: r.querySelector('.tree-fikon')?.getAttribute('data-ikon') ?? null,
-      glif: r.querySelector('.tree-fikon')?.textContent?.trim() ?? null,
-    }));
+    out.dom = baris.map((r) => {
+      const el = r.querySelector('.tree-fikon');
+      const svg = el?.querySelector('svg');
+      return {
+        nama: r.querySelector('.tree-name')?.textContent?.trim() ?? '',
+        ikon: el?.getAttribute('data-ikon') ?? null,
+        glif: el?.textContent?.trim() ?? null,
+        /* The drawing itself: themes ship SVG now, so "has an icon" has to mean
+           "has markup", not "has a character". */
+        svg: (svg?.outerHTML ?? '').slice(0, 60),
+      };
+    });
   }
 
   return out;
@@ -110,9 +126,9 @@ const cek = (nama, ok, info = '') => {
 console.log('\nBukti:');
 cek('ada paket dengan ikon folder', (d.semua ?? []).some((p) => p.punyaFolder));
 cek('id folder BERUBAH', d.sebelum?.folder !== d.sesudah?.folder?.id, `${d.sebelum?.folder} -> ${d.sesudah?.folder?.id}`);
-cek('folder punya glif', !!d.sesudah?.folder?.glif, String(d.sesudah?.folder?.glif));
+cek('folder punya gambar (svg)', !!d.sesudah?.folder?.svg || !!d.sesudah?.folder?.glif, d.sesudah?.folder?.svg ? 'svg' : String(d.sesudah?.folder?.glif));
 cek('folder terbuka BERUBAH', d.sesudah?.folderOpen?.id !== d.sebelum?.folder);
-cek('berkas punya glif', !!d.sesudah?.file?.glif, String(d.sesudah?.file?.glif));
+cek('berkas punya gambar (svg)', !!d.sesudah?.file?.svg || !!d.sesudah?.file?.glif, d.sesudah?.file?.svg ? 'svg' : String(d.sesudah?.file?.glif));
 
 /*
  * The DOM is the only place that proves the TREE changed, not just the lookup.
@@ -126,8 +142,8 @@ cek(
   `${domPaket.length}/${(d.dom ?? []).length}`,
 );
 cek(
-  'glif folder benar-benar dirender',
-  domPaket.length > 0 && domPaket.every((x) => !!x.glif),
+  'folder benar-benar dirender',
+  domPaket.length > 0 && domPaket.every((x) => !!x.glif || !!x.svg),
   domPaket.length ? `contoh "${domPaket[0].glif}" pada ${domPaket[0].nama}` : 'tidak ada',
 );
 for (const x of domPaket.slice(0, 8)) console.log(`    ${x.glif ?? '?'}  ${x.nama}  (${x.ikon})`);
