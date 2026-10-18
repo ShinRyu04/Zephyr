@@ -71,7 +71,7 @@ Zephyr is a desktop code editor: a Tauri 2 shell in Rust with a React/TypeScript
 - Bottom panel tabs: problems, output, debug, terminal, ports, ai, subagents - default visible: problems, output, debug, terminal, ports, ai, subagents; default active tab: terminal, default height: 260 px.
 - MCP server: off by default (mcp.enabled=false); default port mcp.port=9222. Port 9223 is reserved for the WebView2 CDP debug port and is never used by MCP.
 - Dev server for the UI: port 5173 (vite.config.ts).
-- Debug bridges on \`window\` (dev builds; they read the same stores the UI uses, so a question about the running app is answered from them instead of guessed): __ZEPHYR_AI__, __ZEPHYR_TODO__, __ZEPHYR_PROMPT__, __ZEPHYR_MCP__. The full roster (61 names) is in the index - look a name up before using it.
+- Debug bridges on \`window\` (dev builds; they read the same stores the UI uses, so a question about the running app is answered from them instead of guessed): __ZEPHYR_AI__, __ZEPHYR_TODO__, __ZEPHYR_PROMPT__, __ZEPHYR_MCP__. The full roster (62 names) is in the index - look a name up before using it.
 - Logs: %APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotated to zephyr-1.log, zephyr-2.log ... The same folder holds settings.json.
 
 ## Shortcuts (the DEFAULTS - the user may have rebound them in Settings > Shortcuts)
