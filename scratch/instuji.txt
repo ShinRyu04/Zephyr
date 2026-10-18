@@ -1,0 +1,59 @@
+﻿{
+ "dir": "C:\\Users\\Zyrex\\AppData\\Local\\Temp\\zephyr-uji-ikon-JaDkYb",
+ "install": true,
+ "semua": [
+  {
+   "id": "uji.vsc-ikon-font",
+   "enabled": true
+  },
+  {
+   "id": "zephyr-uji.uji30-snippets",
+   "enabled": false
+  },
+  {
+   "id": "zephyr.ikon-bulat",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-duotone",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-garis",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-hanzi",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-hiragana",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-kanji",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-klasik",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-minimal",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-padat",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-tajam",
+   "enabled": true
+  },
+  {
+   "id": "zephyr.ikon-terbuka",
+   "enabled": true
+  }
+ ],
+ "err": null
+}
