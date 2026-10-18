@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-terbuka",
+  "name": "Ikon Terbuka",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Penutup folder terlipat terlihat — memberi kesan isi.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Terbuka",
+        "path": "./icons/terbuka.json"
+      }
+    ]
+  }
+}

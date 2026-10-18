@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-klasik",
+  "name": "Ikon Klasik",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Folder isi penuh dengan tab, sudut membulat kecil — gaya paling akrab.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Klasik",
+        "path": "./icons/klasik.json"
+      }
+    ]
+  }
+}

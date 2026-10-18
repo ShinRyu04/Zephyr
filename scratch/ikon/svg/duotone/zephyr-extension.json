@@ -1,0 +1,21 @@
+{
+  "id": "zephyr.ikon-duotone",
+  "name": "Ikon Duotone",
+  "publisher": "zephyr",
+  "version": "1.0.0",
+  "description": "Badan pekat, tab dan tanda lebih terang — dua nada.",
+  "engines": {
+    "zephyr": ">=1.0"
+  },
+  "categories": [
+    "Icon Themes"
+  ],
+  "contributes": {
+    "iconThemes": [
+      {
+        "label": "Duotone",
+        "path": "./icons/duotone.json"
+      }
+    ]
+  }
+}

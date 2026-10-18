@@ -1,0 +1,33 @@
+﻿
+> zephyr@1.1.14 tauri
+> tauri build
+
+node.exe :         Info Looking up installed tauri packages to check mismatched versions...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (        Info Lo...hed versions...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+     Running beforeBuildCommand `npm run build`
+
+> zephyr@1.1.14 build
+> node scripts/gen-fakta-zephyr.mjs --check && tsc && vite build
+
+file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:180
+    throw new Error(
+          ^
+
+Error: pop-up setelan tidak utuh: src/lib/aiModelsStore.ts ada, src/components/settings/AiModelsModal.tsx tidak - 
+tempat setelan ini tidak boleh ditebak
+    at popupSetelan (file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:180:11)
+    at seksiSetelan (file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:286:17)
+    at susunTeks (file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:844:49)
+    at file:///D:/Zephyr/scripts/gen-fakta-zephyr.mjs:1192:14
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.21.0
+beforeBuildCommand `npm run build` failed with exit code 1
+       Error beforeBuildCommand `npm run build` failed with exit code 1

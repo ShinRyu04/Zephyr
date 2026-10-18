@@ -1,0 +1,15 @@
+﻿Ikon  : {"ms":6,"n":5000}
+Folder: {"ms":3,"n":2000}
+Frame : {"sampel":19,"terburukMs":17,"medianMs":17,"bebanMs":3}
+Memori: {"ada":true,"awalMB":81,"akhirMB":81,"tumbuhMB":0}
+Store : {"ms":0,"n":10000}
+
+Bukti Fase 5 ΓÇö beban:
+  LULUS  5000 ikon < 300 ms  6 ms
+  LULUS  2000 folder < 150 ms  3 ms
+  LULUS  tidak ada frame tersumbat > 200 ms  17 ms
+  LULUS  beban berat selesai < 2 detik  3 ms
+  LULUS  memori tidak tumbuh > 40 MB  0 MB
+  LULUS  getState 10000x < 100 ms  0 ms
+
+== 6/6 lulus ==

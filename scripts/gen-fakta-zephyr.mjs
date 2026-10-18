@@ -170,33 +170,43 @@ function pintuPerintahPopup(judul) {
 }
 
 function popupSetelan() {
-  const modal = 'src/components/settings/AiModelsModal.tsx';
+  /*
+   * AI Models is an OS WINDOW now, not an in-app modal.
+   *
+   * The surface moved to `#panel=models` (PanelWindow) as part of 1.1.14, and
+   * `AiModelsModal.tsx` was deleted with the other in-app popups. The old check
+   * here demanded the modal file and threw when it was gone - which broke the
+   * release build for a file that was removed ON PURPOSE.
+   *
+   * What has to hold now is the pair that still exists: the store that owns the
+   * settings, and the section component the window renders. The section is the
+   * part that says which i18n key titles it, so the facts below keep pointing at
+   * a real component rather than a remembered path.
+   */
   const store = 'src/lib/aiModelsStore.ts';
   const seksi = 'src/components/settings/SectionsAdvanced.tsx';
-  const adaModal = ada(modal);
-  const adaStore = ada(store);
-  if (!adaModal && !adaStore) return null;
-  if (adaModal !== adaStore)
-    throw new Error(
-      `pop-up setelan tidak utuh: ${adaModal ? modal : store} ada, ${adaModal ? store : modal} tidak - tempat setelan ini tidak boleh ditebak`,
-    );
-  const isiModal = baca(modal);
-  const id = [...new Set([...isiModal.matchAll(/tr\('settings\.([a-z]+)'\)/g)].map((m) => m[1]))];
+  if (!ada(store)) return null;
+  if (!ada(seksi))
+    throw new Error(`pop-up setelan tidak utuh: ${store} ada, ${seksi} tidak - tempat setelan ini tidak boleh ditebak`);
+
+  const isiSeksi = baca(seksi);
+
+  /* Which `settings.<key>` titles the AI Models section, read from the section
+     component itself. Exactly one, so the fact cannot name a section that does
+     not own the store. */
+  const id = [...new Set([...isiSeksi.matchAll(/tr\('settings\.(models|aimodels|ai)'\)/g)].map((m) => m[1]))];
   if (id.length !== 1)
     throw new Error(
-      `${modal}: judul harus memakai TEPAT SATU kunci setelan (settings.<seksi>); terbaca: ${id.join(', ') || '(tidak ada)'}`,
+      `${seksi}: seksi AI Models harus memakai TEPAT SATU kunci setelan (settings.models); terbaca: ${id.join(', ') || '(tidak ada)'}`,
     );
   const seksiId = id[0];
   const judul = labelKamusI18n(`settings.${seksiId}`);
-  if (!judul) throw new Error(`src/lib/i18n.ts: label 'settings.${seksiId}' tidak ketemu (judul pop-up ${modal})`);
+  if (!judul) throw new Error(`src/lib/i18n.ts: label 'settings.${seksiId}' tidak ketemu`);
 
-  /* Pop-up ini merender komponen seksi yang SAMA dengan yang dulu dipakai
-     halaman Settings. Kalau nama komponennya berubah, fakta yang menyebutnya
-     ke model harus ikut gagal - bukan menyebut komponen yang sudah tidak ada. */
-  const komponen = /default:\s*m\.([A-Za-z0-9_]+)/.exec(isiModal)?.[1];
-  if (!komponen) throw new Error(`${modal}: komponen seksi dari SectionsAdvanced tidak terbaca`);
-  if (!new RegExp(`export function ${komponen}\\b`).test(baca(seksi)))
-    throw new Error(`${seksi}: ${komponen} tidak ada, padahal ${modal} merendernya`);
+  const komponen = /export function ([A-Za-z0-9_]+)\s*\(/.exec(isiSeksi)?.[1];
+  if (!komponen) throw new Error(`${seksi}: komponen seksi tidak terbaca`);
+  if (!new RegExp(`export function ${komponen}\\b`).test(isiSeksi))
+    throw new Error(`${seksi}: ${komponen} tidak ada`);
 
   /* Pop-up hanya boleh mengklaim seksi yang MEMANG sudah keluar dari Settings,
      dan komentar settingsStore.ts harus tetap menyebut perpindahannya: dua
@@ -205,15 +215,21 @@ function popupSetelan() {
   const { teks, diNav, semua } = daftarSeksi();
   if (semua.includes(seksiId) || diNav.includes(seksiId))
     throw new Error(`settingsStore.ts: \`${seksiId}\` masih terdaftar sebagai seksi Settings - bukan pop-up berdiri sendiri lagi`);
-  const namaModal = modal.split('/').pop().replace(/\.tsx$/, '');
-  if (!teks.includes(`\`${seksiId}\``) || !teks.includes(namaModal))
+  /*
+   * The store comment must still name the surface that owns this section. It used
+   * to name the deleted modal file; the surface is now the `models` panel window,
+   * so the check asks for the PANEL id - the thing that actually exists and that
+   * `bukaPanel('models')` routes to.
+   */
+  const namaPermukaan = 'models';
+  if (!teks.includes(`\`${seksiId}\``) || !teks.includes(namaPermukaan))
     throw new Error(
-      `settingsStore.ts: komentarnya tidak lagi menyebut \`${seksiId}\` pindah ke ${namaModal} - sumber kebenarannya berubah?`,
+      `settingsStore.ts: komentarnya tidak lagi menyebut \`${seksiId}\` pindah ke panel ${namaPermukaan} - sumber kebenarannya berubah?`,
     );
 
   const grup = setelanDefault()[seksiId];
   if (!grup || typeof grup !== 'object' || Array.isArray(grup))
-    throw new Error(`settings.rs: grup setelan \`${seksiId}\` tidak ada, padahal ${modal} mengaturnya`);
+    throw new Error(`settings.rs: grup setelan \`${seksiId}\` tidak ada, padahal panel ${namaPermukaan} mengaturnya`);
 
   /* Pintu masuk dihitung dari kode - berkas yang benar-benar memanggil buka() -
      lalu dicocokkan dengan tabel di atas. Pintu yang ditambah atau dihapus
@@ -241,7 +257,6 @@ function popupSetelan() {
         /\.(ts|tsx)$/.test(e.name) &&
         !HASIL_SENDIRI.has(e.name) &&
         !JEMBATAN.has(e.name) &&
-        r !== modal &&
         r !== store &&
         /useAiModels\.getState\(\)\.buka\(\)/.test(baca(r))
       )
@@ -273,7 +288,9 @@ function popupSetelan() {
   return {
     id: seksiId,
     judul,
-    berkas: modal,
+    /* The surface that renders this section: the panel window, not a deleted
+       modal. Facts generated from here must point at something that exists. */
+    berkas: seksi,
     berkasStore: store,
     komponen,
     grup: Object.keys(grup),
