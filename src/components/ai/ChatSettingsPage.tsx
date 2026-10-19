@@ -53,14 +53,9 @@ const APPROVAL: { id: ApprovalMode; label: string }[] = [
   { id: 'auto', label: 'Auto' },
 ];
 
-/** Run modes, matching the composer's Interactive chip. */
-const RUN_MODES = [
-  { id: 'interactive', label: 'Interactive' },
-  { id: 'plan', label: 'Plan' },
-  { id: 'autopilot', label: 'Autopilot' },
-] as const;
-
-/** Reasoning effort, matching the composer's Reasoning chip. '' = provider default. */
+/**
+ * Reasoning effort, matching the composer's Reasoning chip. '' = provider default.
+ */
 const EFFORT: { id: string; label: string }[] = [
   { id: '', label: 'Auto' },
   { id: 'minimal', label: 'Minimal' },
@@ -202,10 +197,7 @@ export default function ChatSettingsPage({
      today, and the Workspace pane says so rather than pretending otherwise. */
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
 
-  /* Conversation state — the same fields the composer chips read. `agentMode`
-     is deliberately not read: chat is retired, so dispatch is not a choice. */
-  const runMode = useAi((s) => s.runMode ?? 'interactive');
-  const setRunMode = useAi((s) => s.setRunMode);
+  /* Conversation state — the same fields the composer chips read. */
   const approvalMode = useAi((s) => s.approvalMode ?? 'work');
   const setApprovalMode = useAi((s) => s.setApprovalMode);
   const effort = useAi((s) => s.reasoningEffort);
@@ -335,24 +327,15 @@ export default function ChatSettingsPage({
       ),
       isDefault: true,
     },
-    {
-      section: 'mode',
-      id: 'runmode',
-      label: 'Run mode',
-      hint: 'How much the agent decides on its own before checking in.',
-      words: 'mode run interactive plan autopilot step collaborate autonomous',
-      ctl: (
-        <Select
-          value={runMode}
-          testid="cset-runmode"
-          label="Run mode"
-          options={RUN_MODES.map((m) => ({ value: m.id, label: tr(m.label) }))}
-          onChange={(v) => setRunMode(v as 'interactive' | 'plan' | 'autopilot')}
-        />
-      ),
-      isDefault: runMode === 'interactive',
-      reset: () => setRunMode('interactive'),
-    },
+    /*
+     * No "Run mode" row.
+     *
+     * Interactive / Plan / Autopilot is gone from the product, not hidden: the
+     * composer no longer offers it, and a Settings row for a switch nothing
+     * reads is a control that lies. What it used to do - how much the agent
+     * decides on its own - is now the Permissions row below, which is the same
+     * question asked once.
+     */
     {
       section: 'mode',
       id: 'reasoning',

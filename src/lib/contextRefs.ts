@@ -46,6 +46,15 @@ export interface RefItem {
   detail: string;
   /** Stable identity for React keys. */
   kunci: string;
+  /**
+   * A mode this entry SWITCHES TO when picked, not just text it inserts.
+   *
+   * The two Agent rows are the composer's Chat/Agent switch, reached from the
+   * `@` popup: picking one both mentions it in the message and sets the mode,
+   * which is what the reader means by "@chat this". Everything else in the list
+   * is a plain reference with no side effect.
+   */
+  mode?: 'chat' | 'agent';
 }
 
 /** How many rows a single category may contribute. */
@@ -266,18 +275,37 @@ export async function muatRef(): Promise<RefItem[]> {
   }
 
   let agen: RefItem[] = [];
-  try {
-    const { PERAN } = await import('./subagentRoles');
-    agen = PERAN.map((p) => ({
-      jenis: 'agent' as const,
-      sisip: `agent:${p.id}`,
-      label: p.label,
-      detail: p.hint,
-      kunci: `agent:${p.id}`,
-    }));
-  } catch {
-    /* same */
-  }
+  /*
+   * TWO agents, not the six subagent roles.
+   *
+   * `PERAN` from `subagentRoles.ts` lists Search, Review, Plan, Audit, Work and
+   * Explore - those are WORKER TYPES an agent delegates to, and putting them in
+   * the `@` popup was a category error: mentioning `@Audit` in a message does
+   * not make an auditor appear, it just types a word. The reader saw six rows
+   * and asked the obvious question, which was "why are there so many".
+   *
+   * What belongs here is the same pair the composer's mode chip offers: Chat,
+   * which answers, and Agent, which has tools. Picking one sets the mode, so
+   * `@agent` is a real instruction rather than decoration.
+   */
+  agen = [
+    {
+      jenis: 'agent',
+      sisip: 'chat',
+      label: 'Chat',
+      detail: 'Ask questions and talk - no tools, no file changes',
+      kunci: 'agent:chat',
+      mode: 'chat',
+    },
+    {
+      jenis: 'agent',
+      sisip: 'agent',
+      label: 'Agent',
+      detail: 'Reads files, runs tools, changes code',
+      kunci: 'agent:agent',
+      mode: 'agent',
+    },
+  ];
 
   const gabung = [...fileItems, ...folderDari(berkas), ...aturan, ...agen];
   /*
