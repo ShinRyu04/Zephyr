@@ -1,10 +1,14 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import AgentsTitlebar from './AgentsTitlebar';
 import AgentsSessions from './AgentsSessions';
 import AgentsRight from './AgentsRight';
+import { AgentsStarting } from './ui/AgentsStarting';
+import { AgentsConversation } from './ui/AgentsConversation';
+import { fokusEditorWindow } from '../../lib/agentsWindow';
+import { useAi } from '../../lib/aiStore';
+import { useT } from '../../lib/i18n';
 import '../../styles/agents-window.css';
-
-const AiHost = lazy(() => import('../ai/AiHost'));
+import '../../styles/agents-chrome.css';
 
 /**
  * The Agents workspace — a MENUBAR over a row of rounded PANEL CARDS.
@@ -48,9 +52,36 @@ const KIRI_MIN = 220;
 const KIRI_MAKS = 460;
 
 export default function AgentsLayout() {
+  const tr = useT();
   const [kiriBuka, setKiriBuka] = useState(true);
-  const [kananBuka, setKananBuka] = useState(true);
   const [maks, setMaks] = useState(false);
+
+  /*
+   * The right panel opens only once there is something to put in it.
+   *
+   * The reference's starting screen has NO right column: the chat canvas is
+   * full width with a single "IDE" chip in its corner. A 700px Changes/Files
+   * panel showing "Open a file from Files or Changes to see it here." is
+   * 700px of nothing - and it is the single biggest reason the two windows
+   * did not look alike.
+   *
+   * So the column follows the conversation: empty chat = no column, first
+   * message = column appears. It stays a real toggle afterwards - `kananPilih`
+   * is the reader's own choice and wins as soon as they touch it.
+   *
+   * Read from `activeIds['agents']`, NOT `activeId`: the latter is the PRIMARY
+   * surface's chat, so with a message open in the editor window this window
+   * would think its own empty new task already had content and keep the
+   * column open. Each surface keeps its own active chat in `activeIds`.
+   */
+  const jumlahPesan = useAi((s) => {
+    const id = s.activeIds['agents'];
+    const sesi = id ? s.sessions.find((x) => x.id === id) : null;
+    return sesi?.messages.length ?? 0;
+  });
+  const [kananPilih, setKananPilih] = useState<boolean | null>(null);
+  const kananBuka = kananPilih ?? jumlahPesan > 0;
+  const setKananBuka = (v: boolean) => setKananPilih(v);
 
   /*
    * Panel sizes live here, not in CSS, because a drag has to write them.
@@ -113,7 +144,7 @@ export default function AgentsLayout() {
 
   /* Toggle Details (☰): hides the RIGHT panel — Files, Changes, Search,
      Browser — while the chat STAYS and grows into the freed space. */
-  const toggleDetails = () => setKananBuka((v) => !v);
+  const toggleDetails = () => setKananBuka(!kananBuka);
 
   return (
     <div className={`ag-root${maks ? ' is-maks' : ''}`} data-testid="agents-layout">
@@ -170,15 +201,57 @@ export default function AgentsLayout() {
                 aria-label="Chat"
                 style={kananBuka ? { width: lebarChat, flex: '0 0 auto' } : { flex: '1 1 0', minWidth: 0 }}
               >
+                {/*
+                  * The "IDE" chip, top-right of the chat canvas.
+                  *
+                  * The reference puts it there instead of a right panel: with
+                  * no work in progress there is nothing for a Changes/Files
+                  * column to show, so the column would be an empty 700px of
+                  * grey. What the reader actually wants at that moment is a
+                  * way back to the editor - hence one small button, not a
+                  * whole panel.
+                  *
+                  * It calls the same function the menubar's "Open in IDE"
+                  * uses, so there is no second code path to keep in sync.
+                  */}
+                <button
+                  className="ag-ide-chip"
+                  data-testid="ag-ide-chip"
+                  title={tr('Open this workspace in the editor window')}
+                  onClick={() => void fokusEditorWindow()}
+                >
+                  {tr('IDE')}
+                  <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-ide-chip-ic">
+                    <path d="M6 3.5h6.5V10" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M12.2 3.8L6.4 9.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  </svg>
+                </button>
                 <Suspense fallback={null}>
                   {/*
-                    * `composerId="agents"` — this window gets its OWN composer.
+                    * The rebuilt chrome, replacing the shared `AiHost` here.
                     *
-                    * Without it the panel fell back to `''`, the primary
-                    * surface's key, so the Agents window and the main window
-                    * shared one draft, one active chat and one run state.
+                    * `AiHost`/`AiPanel` is one component serving three surfaces
+                    * (editor right column, editor tab, pop-out) and is over 2600
+                    * lines. Patching its JSX in place for this window's geometry
+                    * is what broke it repeatedly, and every break took the
+                    * editor's right column down with it.
+                    *
+                    * So the Agents window now renders its own chrome from the
+                    * measured geometry: a centred starting screen (heading,
+                    * composer, four category cards) and a conversation view with
+                    * a 520px chat card beside a workspace panel. Both are wired
+                    * to the same stores — the draft, the send call, the folder
+                    * picker — so this is a different SHAPE, not a mock.
+                    *
+                    * The empty/filled switch is the same `jumlahPesan === 0`
+                    * rule the panel used: the panel does not exist until there
+                    * is a message, so the canvas is full width beforehand.
                     */}
-                  <AiHost composerId="agents" />
+                  {jumlahPesan > 0 ? (
+                    <AgentsConversation composerId="agents" />
+                  ) : (
+                    <AgentsStarting composerId="agents" />
+                  )}
                 </Suspense>
               </main>
               {kananBuka && (

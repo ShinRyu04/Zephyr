@@ -595,18 +595,20 @@ body.find-highlight-all .cm-searchMatch-selected {
 
 /* Build marker. It answers one question: "is the window I am looking at the dev
    build or the installed one?". It must not read as a menu item, so it is plain
-   text in a faded warning colour - no border, no hover state. */
-.mb-dev {
+   text in a faded warning colour - no border, no hover state.
+   Now in the activity bar, above the GitHub button: it is 28px wide against the
+   40px buttons, so it sits centred on the same vertical axis. */
+.ab-dev {
   align-self: center;
-  margin-right: 6px;
-  padding: 1px 5px;
+  margin-bottom: 4px;
+  padding: 1px 4px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   line-height: 1.4;
   color: var(--warn, #d7a24a);
-  background: color-mix(in srgb, var(--warn, #d7a24a) 16%, transparent);
+  background: color-mix(in srgb, var(--warn, #d7a24a) 18%, transparent);
   pointer-events: none;
   user-select: none;
   flex-shrink: 0;

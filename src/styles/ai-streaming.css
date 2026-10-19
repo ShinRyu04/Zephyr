@@ -400,8 +400,8 @@
  * pill around every control competes with the text you are typing.
  */
 .ai-input-row {
-  border-radius: 10px;
-  background: var(--bg0);
+  border-radius: 16px;
+  background: var(--bg);
 }
 
 /* The controls row is part of the same bar, not a separate strip. */
@@ -1332,3 +1332,392 @@
  * those are the parts that are genuinely Chat AI's own: the row that holds the
  * shared line beside the seconds.
  */
+
+/* ══ Composer card: the TRAE-measured geometry ═══════════════════════════
+ *
+ * CLEAN-ROOM NOTE. Every number below came from a CDP probe of a live
+ * reference window (a 486x138 composer, radius 16, bottom row 485x52,
+ * 32x32 controls with radius 8, 14px labels, a 32x32 send tinted green).
+ * Nothing was copied from that product: no CSS, no class names, no assets,
+ * no SVG. Only measurements crossed over, and the declarations here are
+ * written against Zephyr's own tokens and selectors.
+ *
+ * Why this block sits at the END of ai-streaming.css: the file is imported
+ * after ai.css and ai-panel-compact.css (App.tsx), so these rules win the
+ * cascade without a single !important. The old shapes they replace are
+ * untouched, which keeps the editor's OTHER surfaces from moving.
+ *
+ * The card is built as: hairline tip strip + 72px field + 52px control row,
+ * inside one 16px-radius border. Those three heights are the reference's,
+ * not a guess: 12 (tip) + 72 (field) + 52 (row) = 136, and the reference
+ * box measured 138 with a 0.8px border top and bottom.
+ */
+/*
+ * The radius goes through the TOKEN, not the property.
+ *
+ * A later rule (".ai-input-row:not(.ai-work-stack + .ai-input-row)") sets
+ * "border-radius: var(--ai-dock-radius, 10px)" and carries higher
+ * specificity than a plain ".ai-input-row" selector, so writing
+ * "border-radius: 16px" here lost the cascade and measured 10px live.
+ * Setting the variable instead lets every rule that reads it - including the
+ * stacked variant that squares the top corners on purpose - agree on 16.
+ */
+.ai-input-row {
+  /* The control row below adapts to the space it actually gets. A container
+     query is the honest tool here: the same composer is 319px in the docked
+     panel and 1206px when maximised, and one fixed gap cannot serve both -
+     measured at 340px the row overflowed its own box by 111px. */
+  container-type: inline-size;
+  container-name: composer;
+  --ai-dock-radius: 16px;
+  border-radius: 16px;
+  /* Measured on the reference: the box is LIGHTER than the page behind it
+     (#202124 on #1A1B1D, a 6-step lift) and its border is a mid grey
+     (#3F4046), not a near-invisible hairline. Drawn here as a lift off
+     --bg rather than a hardcoded grey, so a light theme still works. */
+  border: 1px solid color-mix(in srgb, var(--text) 26%, var(--bg));
+  /* The card sits on the panel, so it takes the panel's own surface rather
+     than a second lighter one - the reference does the same, and a brighter
+     box on a dark panel reads as a focused input even when it is not. */
+  background: color-mix(in srgb, var(--text) 4%, var(--bg));
+}
+
+/* The field: 72px tall in the reference (4 + 40 + 2 padding around a 40px
+   editable line at 13px). Kept as min-height so a long draft still grows -
+   the reference scrolls instead, but a growing box is the behaviour this
+   composer already promised. */
+.ai-input-row .ai-input {
+  /*
+   * No box of its own.
+   *
+   * The field carried its own 0.8px border on all four sides and its own
+   * --bg fill, which is one step darker than the card. The result was a
+   * nested box: a visible rectangle inside the composer, reading as a
+   * divider under the placeholder and as a second, darker input. The
+   * reference has ONE surface - field and control row share the card's
+   * fill with nothing between them.
+   */
+  border: 0;
+  background: transparent;
+  /*
+   * 56, not 84.
+   *
+   * 84 came from measuring the reference box (138 total = 84 field + 52 row +
+   * border) and copying the number. That was the wrong reading: the
+   * reference's field is 84px because its placeholder WRAPS TO TWO LINES, so
+   * the height is filled with text. Zephyr's placeholder is one line, so 84px
+   * left ~44px of dead space and the box looked like it was growing upward
+   * for no reason.
+   *
+   * The height now follows the CONTENT: two lines at rest (13px x 1.5 = 39,
+   * plus the 4/2 padding), then `field-sizing: content` lets it grow as the
+   * draft gets longer, capped by max-height. The control row stays at the
+   * reference's 52px, so the box reads as 110px empty and 138+ once there is
+   * something to say - which is what the reference actually does.
+   */
+  min-height: 56px;
+  padding: 4px 14px 2px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* The control row: 52px tall, 8/12/12 padding, 6px between controls. */
+.ai-input-row .ai-input-toolbar {
+  border-top: 0;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 8px 12px 12px;
+  /*
+   * 4px BETWEEN buttons, ~10px of padding INSIDE each one.
+   *
+   * This is the detail that took two passes to get right. On the reference
+   * bitmap the visible gap between one label and the next is 24-25px, but
+   * that is content-to-content: the buttons themselves sit 4px apart and
+   * carry the rest as internal padding, with no background of their own.
+   * Setting gap:24px instead reproduced the spacing at the wrong layer - it
+   * looked right in a wide panel and overflowed the box by 95px at 340px,
+   * because the padding was never there to absorb it.
+   */
+  gap: 4px;
+  flex-wrap: nowrap;
+  /* The spacer is what pushes the model + Send to the trailing edge. Without
+     a real flex-basis the row's own gap would still be applied on both sides
+     of it, so it is declared here rather than left to the old shorthand. */
+  justify-content: flex-start;
+}
+.ai-input-row .ai-input-toolbar > .ai-toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Attach button: 32x32, radius 8 - the first control on the row. */
+.ai-input-row .ai-plus {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* Approval and model triggers share one shape: 32px tall, radius 8, 14px
+   label. They are the two controls that carry text, so they must match. */
+.ai-input-row .ai-input-toolbar .mode-btn,
+.ai-input-row .ai-input-toolbar .ai-model-btn {
+  height: 32px;
+  /* The 10px is what makes neighbouring labels read as 24px apart while the
+     boxes stay 4px apart - see the gap note on the toolbar above. In the
+     NARROW panel the 10px becomes 6px: measured at 340px the row overflowed
+     by 111px, and the overflow is what made the three controls look crammed
+     together instead of evenly spaced. */
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 14px;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* The model name is the longest text on the row. */
+.ai-input-row .ai-model-btn {
+  /*
+   * Two behaviours, chosen by how much room the card actually has:
+   *
+   *   docked right panel (~460px)  -> capped, the id ellipsizes
+   *   maximised panel (~1200px)    -> no cap, the whole id shows
+   *
+   * A single fixed cap cannot serve both. Capped everywhere, the id was cut
+   * to "deepseek-v4.1-f..." in the maximised panel where there is plainly
+   * room for it. Uncapped everywhere, the row overflowed the docked card by
+   * 12px. The container query below is what makes it depend on the room.
+   */
+  max-width: 104px;
+  min-width: 0;
+}
+/* Maximised: the row is ~1200px wide, so give the name the space it needs. */
+@container composer (min-width: 600px) {
+  .ai-input-row .ai-model-btn {
+    max-width: 100%;
+  }
+}
+.ai-input-row .ai-model-btn > span:first-child,
+.ai-input-row .ai-model-btn .ai-model-nama,
+.ai-input-row .ai-model-btn .ai-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Send: square, 32x32, radius 8, green. The reference's send is a tinted
+   square with a bright arrow, not a filled circle - the tint keeps it
+   legible while the field is empty (disabled) without turning grey. */
+.ai-input-row .ai-send-wrap {
+  gap: 6px;
+}
+.ai-input-row .ai-input-toolbar .ai-round-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send {
+  /* Blue, from the theme's own accent rather than a hardcoded value - the
+     reference's green is its brand colour, not Zephyr's, and Zephyr already
+     has a token that changes with the theme. Using it here keeps the send
+     button consistent with every other primary action in the app. */
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+}
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send:disabled {
+  /* Still a VISIBLE blue square while the field is empty. At 0.1 alpha the
+     button disappeared into the card entirely - a screenshot of the empty
+     composer reported "no send button" - which is worse than a dim one: the
+     control has to be findable before it is usable. */
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--accent) 55%, transparent);
+  cursor: default;
+}
+
+/* The "@" that marks the agent picker. Text, not an icon file: it is a
+   character the font already has, so it inherits the chip's size and colour
+   and needs no asset. */
+.ai-input-row .ai-input-toolbar .mode-btn .pick-at {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+/* ══ Empty state: the reference's launch screen ══════════════════════════
+ *
+ * Measured on the reference bitmap (1917x1138 at 1.25 scale):
+ *   heading  y 267, 26px tall of glyph, bright (#E5E5E5)
+ *   hairline y 348
+ *   tagline  y 370, 13px, dim (#666B75)
+ *
+ * The hairline under the heading is the detail that makes the two screens
+ * read as the same design: the heading is a HEADER for the screen, not a
+ * floating title, and the rule is what says so.
+ */
+.ai-empty-judul {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-align: center;
+}
+
+.ai-empty-tagline {
+  margin: 0 auto;
+  padding-bottom: 14px;
+  max-width: 640px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* The four category cards sit in ONE row under the composer, the way the
+   reference lays them out - not stacked as three full-width rows. */
+.ai-empty .ai-saran {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 720px;
+  margin: 16px auto 0;
+}
+
+.ai-empty .ai-saran-kartu {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 12px;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+}
+
+.ai-empty .ai-saran-kartu:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.ai-empty .ai-saran-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-empty .ai-saran-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.ai-empty .ai-saran-sub {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+/* Below 520px the four columns stop fitting; two rows of two is what the
+   reference itself does when the column narrows. */
+@container composer (max-width: 519px) {
+  .ai-empty .ai-saran {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ══ The folder row under the composer ══════════════════════════════════
+ *
+ * The reference puts it there: "Local" as a plain label, then the folder as
+ * the action. Measured on its bitmap at y 594..605 - a 13px row sitting
+ * ~6px under the box, centred on the same axis as the composer.
+ */
+.ai-folder-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.ai-folder-label {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.ai-folder-pilih {
+  max-width: 340px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ai-folder-pilih:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+
+/* ══ Starting screen: composer CENTRED, chat pushes it down ═══════════════
+ *
+ * Measured on the reference (1917x1142 at 1.25 scale => 1534x914 css):
+ *
+ *   y 287-313  heading
+ *   y 368-398  hint line inside the box
+ *   y 455-495  control row
+ *   y 511-523  "Local <folder>" row - INSIDE the box
+ *   y 572-609  category cards
+ *
+ * The box ends at y 523 of a 914px column, so before a conversation starts it
+ * sits in the MIDDLE, not pinned to the bottom. That is the layout difference
+ * that matters most: a bottom-docked composer makes the screen read as "chat
+ * in progress, empty", while a centred one reads as "start here".
+ *
+ * As soon as there is a conversation the panel becomes a normal chat: the
+ * transcript fills the column and the composer docks at the bottom. Implemented
+ * with flex, not with absolute positioning, so the transition needs no JS.
+ */
+.ai-panel.is-kosong {
+  /* The panel becomes a single centred column. */
+  --ai-kosong: 1;
+}
+
+/* The empty state grows to fill the space above the composer, and the
+   composer stops being pushed to the bottom by the scroller. */
+.ai-panel.is-kosong .ai-chat {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 0;
+}
+
+.ai-panel.is-kosong .ai-empty {
+  flex: 0 0 auto;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 760px;
+  padding-bottom: 18px;
+}
+
+/* No scroller padding in the starting screen: the centred block defines its
+   own spacing, and inherited padding would push it off centre. */
+.ai-panel.is-kosong .ai-chat > * {
+  flex-shrink: 0;
+}

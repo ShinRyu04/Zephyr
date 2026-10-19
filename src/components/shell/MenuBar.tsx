@@ -220,13 +220,13 @@ export default function MenuBar() {
       <div className="mb-brand" role="none" aria-hidden="true">
         <ZephyrLogo size={13} glyphOnly />
       </div>
-      {/* Build marker: the native title bar is off, so without this a dev build
-          and an installed build look identical. Only rendered under Vite dev. */}
-      {import.meta.env.DEV && (
-        <span className="mb-dev" data-testid="mb-dev" title="Development build (HMR, not the installed app)">
-          DEV
-        </span>
-      )}
+      {/* Build marker moved to the activity bar's bottom corner, above the
+          GitHub account button. It used to sit here, between the logo and
+          "File", which pushed EVERY menu 35px to the right: a dev build and a
+          release build then had two different menubar layouts, so anything
+          measured or arranged while developing did not match what shipped.
+          The marker itself stays - the native title bar is off, and without it
+          a dev build is indistinguishable from an installed one. */}
       {MENUS.map((m, i) => {
         /*
          * Menu labels are translated at render time. The mnemonic (the letter

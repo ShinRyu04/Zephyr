@@ -113,9 +113,23 @@ export default function AgentsWindow() {
       await useWs.getState().muat();
       if (!hidup) return;
       const akar = useWs.getState().activeRoot;
-      /* Only when this window's store does not already know the root — an
-         unconditional call would clear the explorer cache every mount. */
-      if (akar && !useStore.getState().workspace) {
+      /*
+       * Adopt the root the backend actually has, ALWAYS.
+       *
+       * This used to be `if (akar && !useStore.getState().workspace)`, which
+       * only synced when this window's store knew no root at all. The result:
+       * a folder opened in the IDE while the Agents window was already running
+       * never reached it - Files and Changes kept showing the previous folder
+       * (or nothing), and the only cure was closing and reopening the window.
+       * Measured live: the backend's `activeRoot` was D:\Zephyr while this
+       * window's `workspace` was still null, so the tree rendered its empty
+       * state.
+       *
+       * The old guard existed to avoid clearing the explorer cache on every
+       * mount. Comparing the two values keeps that benefit and fixes the bug:
+       * a sync happens only when they actually disagree.
+       */
+      if (akar && akar !== useStore.getState().workspace) {
         await useStore.getState().syncWorkspaceLokal(akar);
       }
       if (!hidup) return;

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { cliTabs } from '../../lib/aiTabsStore';
 import { useTerminal } from '../../lib/terminalStore';
 import CliChat from './CliChat';
@@ -21,6 +22,22 @@ export default function CliSessionTab({ agentId }: { agentId: string }) {
    * gets its own name here.
    */
   const agents = useTerminal((s) => s.agents);
+  /*
+   * The panel tab resolves the CLI from the SHARED catalogue, so it must wait
+   * for that catalogue to be loaded rather than assume it already is.
+   *
+   * `terminalStore.agents` starts as `[]` and is filled by `loadAgents()`,
+   * which App.tsx fires once on mount. A tab opened before that promise
+   * settled - or in a window that never ran it - looked the id up in an empty
+   * array and reported "claude is not installed" while `claude.exe` was
+   * detected and working in the bottom terminal. Same catalogue, two answers.
+   */
+  const daftarAgen = useTerminal((s) => s.agents);
+  const muatAgen = useTerminal((s) => s.loadAgents);
+  useEffect(() => {
+    if (daftarAgen.length === 0) void muatAgen();
+  }, [daftarAgen.length, muatAgen]);
+
   const meta = cliTabs(agents).find((c) => c.id === agentId);
   const label = meta?.label ?? agentId;
 

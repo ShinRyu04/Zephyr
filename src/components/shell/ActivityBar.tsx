@@ -345,6 +345,22 @@ export default function ActivityBar() {
           Control (log in there). Logged in: a round avatar with the user's
           initials; the click still goes to SCM. */}
       <span className="ab-spacer" aria-hidden="true" />
+      {/* Development-build marker, directly above the GitHub account.
+          Rendered only under Vite dev, so a release build shows nothing here.
+          It lives in the activity bar rather than the menubar on purpose: the
+          menubar is shared chrome whose layout must be identical in dev and in
+          release, and a marker sitting between the logo and "File" shifted
+          every menu by 35px. */}
+      {import.meta.env.DEV && (
+        <span
+          className="ab-dev"
+          data-testid="mb-dev"
+          title="Development build - this is not the installed app"
+          aria-label="Development build"
+        >
+          DEV
+        </span>
+      )}
       <button
         className={`ab-btn ab-gh${signedIn ? ' is-in' : ''}`}
         data-testid="ab-gh"
