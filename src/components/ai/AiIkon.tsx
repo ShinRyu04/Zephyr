@@ -139,6 +139,11 @@ export type NamaAiIkon =
     | 'goal'
     | 'sketch'
     | 'compose'
+    /* The model picker's two status glyphs: a padlock for a catalogue model the
+       provider's own list does not offer, and an info dot for the header's
+       explanation of what the list is. */
+    | 'lock'
+    | 'info'
     | 'x';
 
 interface Props {
@@ -785,6 +790,29 @@ export default function AiIkon({ name, size = 15 }: Props) {
         <svg {...box}>
           <path d="M8 2.6H4a1.4 1.4 0 0 0-1.4 1.4v8A1.4 1.4 0 0 0 4 13.4h8a1.4 1.4 0 0 0 1.4-1.4V8" />
           <path d="M11.6 2.2 13.8 4.4 8.4 9.8l-2.6.5.5-2.6z" />
+        </svg>
+      );
+    /*
+     * A padlock, for a row that is listed but cannot be picked.
+     *
+     * The body is drawn as a rounded rect and the shackle as an arc that starts
+     * and ends on the body's top edge, so at 12px the two parts read as one
+     * object instead of a box floating under a curve.
+     */
+    case 'lock':
+      return (
+        <svg {...box} strokeWidth="1.3">
+          <rect x="3.4" y="7" width="9.2" height="6.4" rx="1.5" />
+          <path d="M5.6 7V5.3a2.4 2.4 0 0 1 4.8 0V7" />
+        </svg>
+      );
+    // An "i" in a circle: the header's explanation affordance.
+    case 'info':
+      return (
+        <svg {...box} strokeWidth="1.3">
+          <circle cx="8" cy="8" r="5.9" />
+          <path d="M8 7.2v4" />
+          <path d="M8 4.9v.1" />
         </svg>
       );
 

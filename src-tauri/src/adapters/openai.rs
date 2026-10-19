@@ -24,6 +24,76 @@ fn default_base(provider: &str) -> &'static str {
     }
 }
 
+/*
+ * ── Field compatibility ───────────────────────────────────────────────────
+ *
+ * A single OpenAI-shaped body used to be sent to every model on every gateway,
+ * and that is why "so many models are unsupported" on a router: the router
+ * fronts dozens of upstreams with different accepted fields, and one mismatch
+ * is a 400 that Zephyr never retried.
+ *
+ * Three known mismatches, all handled here:
+ *
+ *  1. `max_tokens` vs `max_completion_tokens`. The o-series and GPT-5+ reject
+ *     `max_tokens` outright; most older and open-weight models only accept it.
+ *  2. An empty `tools: []`. Some gateways reject the array; most ignore it, but
+ *     there is no upside to sending it.
+ *  3. `reasoning_effort` on a model that is not a reasoning model.
+ *
+ * These are NAME-BASED heuristics because that is all a `/models` list gives us,
+ * and they are deliberately conservative: when unsure, keep the field the
+ * mainstream models accept (`max_tokens`) rather than guess.
+ */
+
+/** Models that require `max_completion_tokens` and reject `max_tokens`. */
+fn butuh_max_completion_tokens(model: &str) -> bool {
+    let m = model.to_ascii_lowercase();
+    /* o1/o3/o4 and the whole GPT-5+/GPT-6 line. */
+    let o_series = m.starts_with("o1")
+        || m.starts_with("o3")
+        || m.starts_with("o4")
+        || m.contains("/o1")
+        || m.contains("/o3")
+        || m.contains("/o4");
+    let gpt_baru = m.starts_with("gpt-5") || m.starts_with("gpt-6") || m.contains("/gpt-5") || m.contains("/gpt-6");
+    /* Some routers expose these behind a vendor prefix (`openai/o3-mini`). */
+    o_series || gpt_baru
+}
+
+/** Models known to accept `reasoning_effort`. */
+fn dukung_reasoning_effort(model: &str) -> bool {
+    let m = model.to_ascii_lowercase();
+    m.starts_with("o1")
+        || m.starts_with("o3")
+        || m.starts_with("o4")
+        || m.starts_with("gpt-5")
+        || m.starts_with("gpt-6")
+        || m.contains("/o1")
+        || m.contains("/o3")
+        || m.contains("/o4")
+        || m.contains("/gpt-5")
+        || m.contains("/gpt-6")
+        /* The open reasoning families that speak the same field. */
+        || m.contains("grok-3-mini")
+        || m.contains("grok-4")
+        || m.contains("qwq")
+}
+
+/**
+ * Put the output budget under the field this model actually accepts.
+ *
+ * Kept as a helper because BOTH request shapes (streaming chat and the
+ * non-streaming tool call) must agree — they are separate bodies in this file
+ * and a fix applied to one only is how the agent path and the chat path drift.
+ */
+fn pasang_batas_keluaran(body: &mut Value, model: &str, max_tokens: u32) {
+    if butuh_max_completion_tokens(model) {
+        body["max_completion_tokens"] = json!(max_tokens);
+    } else {
+        body["max_tokens"] = json!(max_tokens);
+    }
+}
+
 pub fn prepare(
     provider: &str,
     model: &str,
@@ -73,10 +143,11 @@ pub fn prepare(
             }
         }).collect::<Vec<_>>(),
         "stream": true,
-        "max_tokens": max_tokens,
     });
+    pasang_batas_keluaran(&mut body, model, max_tokens);
 
-    if let Some(e) = effort {
+    /* Only when the model actually speaks it — a non-reasoning model 400s. */
+    if let Some(e) = effort.filter(|_| dukung_reasoning_effort(model)) {
         body["reasoning_effort"] = json!(e.openai());
     }
 
@@ -198,20 +269,33 @@ pub fn prepare_tools(
         body: json!({
             "model": model,
             "messages": msgs,
-            "tools": tools.iter().map(|t| json!({
+            "stream": false,
+        }),
+        sse: false,
+    };
+    /*
+     * `tools` only when there ARE tools.
+     *
+     * An empty array is not the same as omitting the field: some gateways reject
+     * it outright, and a model with no tool support 400s on any `tools` key at
+     * all. The agent path always has tools, but this builder is also used for
+     * plain turns, where it used to send `"tools": []` to every model.
+     */
+    if !tools.is_empty() {
+        prep.body["tools"] = json!(tools
+            .iter()
+            .map(|t| json!({
                 "type": "function",
                 "function": {
                     "name": t.name,
                     "description": t.description,
                     "parameters": t.parameters,
                 }
-            })).collect::<Vec<_>>(),
-            "stream": false,
-            "max_tokens": max_tokens,
-        }),
-        sse: false,
-    };
-    if let Some(e) = effort {
+            }))
+            .collect::<Vec<_>>());
+    }
+    pasang_batas_keluaran(&mut prep.body, model, max_tokens);
+    if let Some(e) = effort.filter(|_| dukung_reasoning_effort(model)) {
         prep.body["reasoning_effort"] = json!(e.openai());
     }
     prep

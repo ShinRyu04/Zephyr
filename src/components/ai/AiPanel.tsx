@@ -10,8 +10,28 @@ import {
 import { useStore } from '../../lib/store';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
-import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
-import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
+import {
+  matchPrompts,
+  expandPrompt,
+  matchSnippets,
+  expandSnippet,
+  snippetTrigger,
+  jenisPrompt,
+  LABEL_PROMPT,
+  URUTAN_PROMPT,
+  type JenisPrompt,
+  type PromptItem,
+} from '../../lib/promptLibrary';
+import {
+  tokenAt,
+  uraiToken,
+  saringRef,
+  ratakan,
+  muatRef,
+  LABEL_JENIS,
+  type RefItem,
+  type SaringanJenis,
+} from '../../lib/contextRefs';
 import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
@@ -38,12 +58,6 @@ import { runCommand } from '../../lib/commandRegistry';
    komponennya sengaja TIDAK dihapus - ia masih dipakai di tempat lain. */
 import ThinkingBar from './ThinkingBar';
 import StatusArea from './StatusArea';
-
-/** The folder part of a workspace-relative path, for the picker's second column. */
-function folderDari(path: string): string {
-  const pisah = path.lastIndexOf('/');
-  return pisah < 0 ? '' : path.slice(0, pisah);
-}
 
 
 /*
@@ -543,6 +557,9 @@ const bukaModels = () => bukaPanel('models');
   const photoRef = useRef<HTMLInputElement | null>(null);
 
   const slashRef = useRef<HTMLDivElement | null>(null);
+  /* The `@` popup's own box, so the highlighted row can be scrolled into view
+     the same way the slash list's is. */
+  const refBoxRef = useRef<HTMLDivElement | null>(null);
   const [idxSaran, setIdxSaran] = useState(0);
 
   /*
@@ -708,13 +725,44 @@ const bukaModels = () => bukaPanel('models');
   const pemicuSnippet = modeSnippet ? snippetTrigger(draft) ?? '>' : '>';
 
   /*
-   * Inline file references. The token is read from the text BEFORE the caret,
-   * so an "@" typed mid-sentence does not open the list — only one that starts
-   * a word does. The file list is fetched once per session and filtered
-   * locally, since the workspace walk is far too slow to run per keystroke.
+   * The slash list, GROUPED.
+   *
+   * It used to be one flat list of nineteen rows, so "new chat" (which acts on
+   * the conversation) sat next to "explain" (which writes a sentence) with
+   * nothing saying they were different kinds of thing. Grouping is what the
+   * reference product's `/` popup does, and it is the difference between a list
+   * you read and a list you scan.
+   *
+   * Snippets are NOT grouped: they are all the same kind (text that gets
+   * inserted), and a heading over one homogeneous list is noise.
    */
-  const [fileRefs, setFileRefs] = useState<FileRef[]>([]);
-  const [fileTerbuka, setFileTerbuka] = useState(false);
+  const grupPrompt = useMemo(() => {
+    if (modeSnippet) return [] as { jenis: JenisPrompt; items: PromptItem[] }[];
+    const peta = new Map<JenisPrompt, PromptItem[]>();
+    for (const p of saran) {
+      const j = jenisPrompt(p);
+      const ada = peta.get(j);
+      if (ada) ada.push(p);
+      else peta.set(j, [p]);
+    }
+    return URUTAN_PROMPT.filter((j) => peta.has(j)).map((j) => ({
+      jenis: j,
+      items: peta.get(j) as PromptItem[],
+    }));
+  }, [saran, modeSnippet]);
+
+  /*
+   * Inline `@` references, in CATEGORIES.
+   *
+   * The token is read from the text BEFORE the caret, so an "@" typed
+   * mid-sentence does not open the list - only one that starts a word does. The
+   * reference list is fetched once per session and filtered locally, since the
+   * workspace walk is far too slow to run per keystroke.
+   */
+  const [refs, setRefs] = useState<RefItem[]>([]);
+  const [refTerbuka, setRefTerbuka] = useState(false);
+  /* Which category chip is active, or null for "all of them". */
+  const [jenisRef, setJenisRef] = useState<SaringanJenis>(null);
 
   /*
    * The caret position is tracked in state, not read from the DOM during
@@ -748,7 +796,21 @@ const bukaModels = () => bukaPanel('models');
    */
   const posisi = kursor > 0 && kursor <= draft.length ? kursor : draft.length;
   const token = tokenAt(draft.slice(0, posisi));
-  const saranFile = token && fileTerbuka ? saringFile(fileRefs, token.teks) : [];
+  /*
+   * The grouped suggestions, and the flat list the keyboard walks.
+   *
+   * `uraiToken` reads an optional `rule:`/`agent:` prefix from what was typed,
+   * so typing narrows the category as well as the text - faster than aiming at
+   * a chip. The chip and the prefix are OR-ed: whichever the reader used last
+   * decides, and the prefix wins because it is the more deliberate of the two.
+   */
+  const urai = token ? uraiToken(token.teks) : { jenis: null, q: '' };
+  const jenisAktif: SaringanJenis = urai.jenis ?? jenisRef;
+  const grupRef =
+    token && refTerbuka
+      ? saringRef(refs, jenisAktif ? `${jenisAktif}:${urai.q}` : urai.q)
+      : [];
+  const saranRef = ratakan(grupRef);
 
   /*
    * The token being edited is what decides whether the list is open, so a
@@ -758,35 +820,36 @@ const bukaModels = () => bukaPanel('models');
    */
   useEffect(() => {
     if (!token || /\s/.test(token.teks)) {
-      setFileTerbuka(false);
+      setRefTerbuka(false);
       return;
     }
     // The caret is inside a token: make sure the list exists, then show it.
-    if (fileRefs.length === 0) {
-      void muatFileWorkspace().then((f) => {
-        setFileRefs(f);
-        if (f.length > 0) setFileTerbuka(true);
+    if (refs.length === 0) {
+      void muatRef().then((f) => {
+        setRefs(f);
+        if (f.length > 0) setRefTerbuka(true);
       });
       return;
     }
-    setFileTerbuka(true);
+    setRefTerbuka(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, posisi, token?.teks]);
 
-  /* Replaces the "@token" being typed with the chosen path. */
-  const pakaiFile = (f: FileRef) => {
+  /* Replaces the "@token" being typed with the chosen reference. */
+  const pakaiRef = (f: RefItem) => {
     const t = token;
     if (!t) return;
     const sesudah = draft.slice(posisi);
-    const teks = `${draft.slice(0, t.mulai)}@${f.path}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
+    const teks = `${draft.slice(0, t.mulai)}@${f.sisip}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
     setDraft(teks);
-    setFileTerbuka(false);
+    setRefTerbuka(false);
+    setJenisRef(null);
     /*
      * Move the caret past the inserted path. Without this the tracked position
      * still pointed inside the old "@pack" token, so the token was recomputed
      * from stale text and the list reopened the moment it was dismissed.
      */
-    const ujung = t.mulai + 1 + f.path.length + (sesudah.startsWith(' ') ? 0 : 1);
+    const ujung = t.mulai + 1 + f.sisip.length + (sesudah.startsWith(' ') ? 0 : 1);
     setKursor(ujung);
     inputRef.current?.focus();
     inputRef.current?.setSelectionRange(ujung, ujung);
@@ -798,7 +861,26 @@ const bukaModels = () => bukaPanel('models');
     const aktif = box.querySelector<HTMLElement>('.ai-slash-item.is-on');
     aktif?.scrollIntoView({ block: 'nearest' });
   }, [idxSaran, saran.length]);
-  useEffect(() => setIdxSaran(0), [draft]);
+
+  /*
+   * The same for the `@` list, and it is what was missing.
+   *
+   * The slash list scrolled its highlighted row into view; the `@` list never
+   * did. With one flat list of files that was barely noticeable, because the
+   * first rows are the ones you want. With four categories the list is far
+   * longer, so arrowing down past the fold left the highlight off-screen and the
+   * popup looked frozen - the "pas pake @ ga scroll ke bawah" report.
+   */
+  useEffect(() => {
+    const box = refBoxRef.current;
+    if (!box) return;
+    const aktif = box.querySelector<HTMLElement>('.ai-slash-item.is-on');
+    aktif?.scrollIntoView({ block: 'nearest' });
+  }, [idxSaran, saranRef.length]);
+
+  /* A new query or a new category restarts the highlight at the top, or the
+     reader would keep a selection that no longer means the same row. */
+  useEffect(() => setIdxSaran(0), [draft, jenisAktif]);
 
   const pakaiPrompt = (p: { cmd: string; body: string; aksi?: string }) => {
     /*
@@ -1864,39 +1946,90 @@ const bukaModels = () => bukaPanel('models');
             ))}
           </div>
         )}
-        {/* File suggestions for an "@" token. Same row shape as the prompt
-            list, so the two never look like different features. */}
-        {saranFile.length > 0 && (
+        {/* References for an "@" token, GROUPED BY KIND.
+            The reference product's composer promises "@ for context" and offers
+            a file, a folder, a rule and an agent from one keystroke. The chips
+            across the top are what make the grouping discoverable: without them
+            a reader sees only the first category and never learns the others
+            exist. Same row shape as the prompt list, so the two never look like
+            different features. */}
+        {saranRef.length > 0 && (
           <div
             className="ai-slash"
             data-testid="ai-file-list"
-            data-pemicu="file"
+            data-pemicu="ref"
             role="listbox"
-            aria-label={tr('Files in this workspace')}
+            ref={refBoxRef}
+            aria-label={tr('Context for this message')}
           >
-            {saranFile.map((f, i) => (
-              <button
-                key={f.path}
-                role="option"
-                aria-selected={i === idxSaran}
-                className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                data-testid={`ai-file-${i}`}
-                data-path={f.path}
-                onMouseEnter={() => setIdxSaran(i)}
-                onClick={() => pakaiFile(f)}
-              >
-                {/*
-                 * Icon, name, then the folder it lives in.
-                 *
-                 * The second column used to print the whole relative path, so a
-                 * row read "@package.json  package.json" — the name twice. The
-                 * folder is the part that actually distinguishes two files with
-                 * the same name.
-                 */}
-                <FileIkon nama={f.name} />
-                <span className="ai-slash-cmd">@{f.name}</span>
-                <span className="ai-slash-label">{folderDari(f.path)}</span>
-              </button>
+            <div className="ai-ref-chips" role="tablist" aria-label={tr('Filter by kind')}>
+              {grupRef.map((g) => (
+                <button
+                  key={g.jenis}
+                  type="button"
+                  role="tab"
+                  aria-selected={jenisAktif === g.jenis}
+                  className={`ai-ref-chip${jenisAktif === g.jenis ? ' is-on' : ''}`}
+                  data-testid={`ai-ref-chip-${g.jenis}`}
+                  /* A chip only NARROWS; pressing the active one clears the
+                     filter so the reader is never stuck in one category. */
+                  onClick={() => setJenisRef(jenisAktif === g.jenis ? null : g.jenis)}
+                >
+                  {tr(LABEL_JENIS[g.jenis])}
+                  <span className="ai-ref-chip-jml">{g.items.length}</span>
+                </button>
+              ))}
+            </div>
+            {grupRef.map((g) => (
+              <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
+                {/* The heading only appears when more than one kind is on
+                    screen. With a single kind the chip above already says it,
+                    and repeating it would be a title over a list of one. */}
+                {grupRef.length > 1 && (
+                  <div className="ai-ref-head">{tr(LABEL_JENIS[g.jenis])}</div>
+                )}
+                {g.items.map((f) => {
+                  const i = saranRef.indexOf(f);
+                  return (
+                    <button
+                      key={f.kunci}
+                      role="option"
+                      aria-selected={i === idxSaran}
+                      className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                      data-testid={`ai-ref-${f.jenis}-${i}`}
+                      data-ref={f.sisip}
+                      onMouseEnter={() => setIdxSaran(i)}
+                      onClick={() => pakaiRef(f)}
+                    >
+                      {/*
+                       * Icon, name, then what tells two of them apart.
+                       *
+                       * The second column used to print the whole relative path,
+                       * so a row read "@package.json  package.json" - the name
+                       * twice. The folder is the part that actually distinguishes
+                       * two files with the same name; for a rule or an agent the
+                       * distinguishing part is what it DOES, so the same slot
+                       * carries its sentence.
+                       */}
+                      {f.jenis === 'file' ? (
+                        <FileIkon nama={f.label} />
+                      ) : (
+                        <span className="ai-ref-ikon" aria-hidden="true">
+                          {f.jenis === 'folder' ? (
+                            <AiIkon name="folder" size={13} />
+                          ) : f.jenis === 'rule' ? (
+                            <AiIkon name="shield" size={13} />
+                          ) : (
+                            <AiIkon name="robot" size={13} />
+                          )}
+                        </span>
+                      )}
+                      <span className="ai-slash-cmd">@{f.label}</span>
+                      <span className="ai-slash-label">{f.detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </div>
         )}
@@ -1906,7 +2039,7 @@ const bukaModels = () => bukaPanel('models');
             a new question. The trigger is marked on the first line of the list so the
             user knows which one is currently active, and the row prints the
             symbol actually typed. */}
-        {saranFile.length === 0 && saran.length > 0 && (
+        {saranRef.length === 0 && saran.length > 0 && (
           <div
             className="ai-slash"
             data-testid="ai-slash"
@@ -1915,22 +2048,38 @@ const bukaModels = () => bukaPanel('models');
             ref={slashRef}
             aria-label={tr('Prompt commands')}
           >
-            {saran.map((p, i) => (
-              <button
-                key={p.cmd}
-                role="option"
-                aria-selected={i === idxSaran}
-                className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                data-testid={`${modeSnippet ? 'ai-snippet' : 'ai-slash'}-${p.cmd}`}
-                onMouseEnter={() => setIdxSaran(i)}
-                onClick={() => pakaiPrompt(p)}
-              >
-                <CmdIkon nama={p.ikon} />
-                <span className="ai-slash-cmd">
-                  {modeSnippet ? `${pemicuSnippet}${p.cmd}` : `/${p.cmd}`}
-                </span>
-                <span className="ai-slash-label">{tr(p.label)}</span>
-              </button>
+            {/*
+              * Rows, grouped by what they DO when not showing snippets.
+              *
+              * `i` stays the index into the FLAT `saran` list, because that is
+              * what the keyboard walks and what `idxSaran` counts. Numbering per
+              * group would make the arrow keys jump back to row 0 at every
+              * heading.
+              */}
+            {(grupPrompt.length > 0 ? grupPrompt : [{ jenis: null, items: saran }]).map((g) => (
+              <div className="ai-ref-grup" key={g.jenis ?? 'snippet'}>
+                {g.jenis && <div className="ai-ref-head">{tr(LABEL_PROMPT[g.jenis])}</div>}
+                {g.items.map((p) => {
+                  const i = saran.indexOf(p);
+                  return (
+                    <button
+                      key={p.cmd}
+                      role="option"
+                      aria-selected={i === idxSaran}
+                      className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                      data-testid={`${modeSnippet ? 'ai-snippet' : 'ai-slash'}-${p.cmd}`}
+                      onMouseEnter={() => setIdxSaran(i)}
+                      onClick={() => pakaiPrompt(p)}
+                    >
+                      <CmdIkon nama={p.ikon} />
+                      <span className="ai-slash-cmd">
+                        {modeSnippet ? `${pemicuSnippet}${p.cmd}` : `/${p.cmd}`}
+                      </span>
+                      <span className="ai-slash-label">{tr(p.label)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </div>
         )}
@@ -1942,7 +2091,7 @@ const bukaModels = () => bukaPanel('models');
           placeholder={
             sibuk
               ? tr('Agent is working…')
-              : tr('Type a task for the agent (Enter to send)…')
+              : tr('@ for context, / for commands')
           }
           value={draft}
           spellCheck={false}
@@ -1955,23 +2104,23 @@ const bukaModels = () => bukaPanel('models');
           onClick={(e) => setKursor(e.currentTarget.selectionStart ?? 0)}
           onKeyDown={(e) => {
 
-            // The file list takes the keys while it is open: Enter there means
-            // "insert this path", not "send".
-            if (saranFile.length > 0) {
+            // The reference list takes the keys while it is open: Enter there
+            // means "insert this reference", not "send".
+            if (saranRef.length > 0) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                const nf = saranFile.length;
+                const nf = saranRef.length;
                 setIdxSaran((i) => (e.key === 'ArrowDown' ? (i + 1) % nf : (i - 1 + nf) % nf));
                 return;
               }
               if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
                 e.preventDefault();
-                pakaiFile(saranFile[idxSaran]);
+                pakaiRef(saranRef[idxSaran]);
                 return;
               }
               if (e.key === 'Escape') {
                 e.preventDefault();
-                setFileTerbuka(false);
+                setRefTerbuka(false);
                 return;
               }
             }
@@ -1985,7 +2134,7 @@ const bukaModels = () => bukaPanel('models');
             // Prompt History Navigation
             const st = useAi.getState();
             const inHistory = st.promptHistoryIdx >= 0 && draft === st.promptHistory[st.promptHistoryIdx];
-            if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && saran.length === 0 && saranFile.length === 0) {
+            if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && saran.length === 0 && saranRef.length === 0) {
               if (draft === '' || inHistory) {
                 e.preventDefault();
                 const nextDraft = e.key === 'ArrowUp' ? historyUp() : historyDown();

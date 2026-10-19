@@ -33,9 +33,26 @@ export interface ModelUntukPanel {
 export default function ModelDetailPanel({
   model,
   testid,
+  mengambang = false,
+  rect = null,
 }: {
   model: ModelUntukPanel | null;
   testid: string;
+  /**
+   * Draw as a floating CARD beside the picker instead of a column inside it.
+   *
+   * The card is what the reference product shows: it appears next to the list
+   * when the pointer lands on a row, and the list keeps its own width. A column
+   * inside the menu is a different thing — it steals width from the names and
+   * reads as part of the menu rather than as a description of one row.
+   */
+  mengambang?: boolean;
+  /** Measured viewport coordinates, required when `mengambang`. */
+  rect?: {
+    left: number;
+    top: number;
+    width: number;
+  } | null;
 }) {
   const tr = useT();
 
@@ -50,49 +67,84 @@ export default function ModelDetailPanel({
   const punya = (k: Kemampuan) => bisa.includes(k);
   const dikenal = model.bisa !== undefined;
 
-  const baris = (k: Kemampuan, label: string) => {
-    const on = punya(k);
-    return (
-      <div className={`ai-mp-cap${on ? ' is-ok' : ''}`} data-cap={k}>
-        <span className="ai-mp-cap-tanda" aria-hidden="true">
-          {on ? '✓' : '—'}
-        </span>
-        <span className="ai-mp-cap-nama">{tr(label)}</span>
-      </div>
-    );
-  };
+  /*
+   * Floating mode: a fixed, measured card. `z-index` sits above the menu so it
+   * is never painted under it, and `pointer-events: none` keeps it out of the
+   * way — moving the pointer onto it must not steal the hover that is filling
+   * it, which would make the card flicker.
+   */
+  const gayaMengambang: React.CSSProperties | undefined = mengambang
+    ? {
+        position: 'fixed',
+        left: rect?.left ?? 0,
+        top: rect?.top ?? 0,
+        width: rect?.width ?? 208,
+        zIndex: 1200,
+      }
+    : undefined;
+
+  /*
+   * Only what the model CAN do is listed.
+   *
+   * The panel used to print all four rows with a dash for the missing ones,
+   * which turned a description into a checklist of absences — four lines where
+   * the reader only ever cares about the ticks. Now:
+   *
+   *   - capabilities it has        -> one ticked row each
+   *   - known to have none         -> "No support"
+   *   - provider said nothing      -> "Not reported by this provider."
+   *
+   * The two empty cases stay DISTINCT because they are different claims, and a
+   * reader deciding whether to attach an image needs to know which one it is.
+   */
+  const baris = (k: Kemampuan, label: string) => (
+    <div className="ai-mp-cap is-ok" data-cap={k}>
+      <span className="ai-mp-cap-tanda" aria-hidden="true">
+        ✓
+      </span>
+      <span className="ai-mp-cap-nama">{tr(label)}</span>
+    </div>
+  );
+
+  /*
+   * Memories is a ZEPHYR feature, not a property of the remote model, so it is
+   * never inferred and never claimed. It is behind a flag rather than deleted:
+   * when the feature ships, flipping this makes the row appear with a real tick
+   * instead of the placeholder "Soon" chip it used to carry.
+   */
+  const MEMORI_TERSEDIA = false;
 
   return (
-    <aside className="ai-mp-detail" data-testid={testid} data-model={model.id}>
+    <aside
+      className={`ai-mp-detail${mengambang ? ' is-mengambang' : ''}`}
+      data-testid={testid}
+      data-model={model.id}
+      style={gayaMengambang}
+    >
       <div className="ai-mp-detail-nama" title={model.id}>
         {model.label}
       </div>
 
       <div className="ai-mp-detail-seksi">{tr('Available for')}</div>
-      {baris('image', 'Images Input')}
-      {baris('reasoning', 'Reasoning')}
-      {baris('tools', 'Tool Calling')}
-      {/*
-        * Memories is a ZEPHYR feature, not something the remote model declares,
-        * so it is never inferred from a name and never ticked. It is listed so
-        * the reader knows the slot exists, and marked so nobody waits for it.
-        */}
-      <div className="ai-mp-cap is-segera" data-cap="memories">
-        <span className="ai-mp-cap-tanda" aria-hidden="true">
-          —
-        </span>
-        <span className="ai-mp-cap-nama">{tr('Memories')}</span>
-        <span className="ai-mp-cap-baru">{tr('Soon')}</span>
-      </div>
-      {/*
-        * Say WHY every row above is a dash, but only when that is the reason.
-        *
-        * A provider that reports nothing gives `bisa === undefined`, and a dash
-        * for every capability then looks like a verdict — "this model cannot do
-        * any of it". Naming the situation keeps the panel honest: the dashes
-        * mean "unknown", not "no".
-        */}
-      {!dikenal && <div className="ai-mp-detail-kecil">{tr('Not reported by this provider.')}</div>}
+      {!dikenal ? (
+        <div className="ai-mp-detail-kecil" data-cap="tidak-dilaporkan">
+          {tr('Not reported by this provider.')}
+        </div>
+      ) : bisa.length === 0 ? (
+        <div className="ai-mp-detail-kecil" data-cap="tidak-ada">
+          {tr('No support')}
+        </div>
+      ) : (
+        <>
+          {punya('image') && baris('image', 'Images Input')}
+          {punya('reasoning') && baris('reasoning', 'Reasoning')}
+          {punya('tools') && baris('tools', 'Tool Calling')}
+          {MEMORI_TERSEDIA && baris('memories' as Kemampuan, 'Memories')}
+        </>
+      )}
+      {/* The "why" line is now rendered above, inside the Available-for block,
+          because it IS the answer there rather than a footnote to a list of
+          dashes. */}
 
       <div className="ai-mp-detail-garis" aria-hidden="true" />
 

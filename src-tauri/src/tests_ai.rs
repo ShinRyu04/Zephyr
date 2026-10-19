@@ -35,8 +35,54 @@ mod tests {
             .iter()
             .any(|(k, v)| k == "Authorization" && v == "Bearer KEY123"));
         assert_eq!(p.body["stream"], json!(true));
-        assert_eq!(p.body["max_tokens"], json!(1024));
+        /*
+         * `gpt-5.2` is one of the models that REJECTS `max_tokens` and requires
+         * `max_completion_tokens`. This assertion used to expect `max_tokens`,
+         * which was the bug: the body was OpenAI-shaped for every model on every
+         * gateway, so the whole GPT-5+ line and every o-series model 400'd.
+         */
+        assert_eq!(p.body["max_completion_tokens"], json!(1024));
+        assert!(
+            p.body.get("max_tokens").is_none(),
+            "gpt-5+ must not also carry max_tokens"
+        );
         assert_eq!(p.body["messages"][0]["role"], json!("user"));
+    }
+
+    #[test]
+    fn model_lama_tetap_pakai_max_tokens() {
+        /* The other half of the rule: an open-weight or older model only knows
+           `max_tokens`, so it must NOT be switched to the new spelling. */
+        let p = adapters::prepare("custom", "llama-3.1-70b", &[msg("user", "hai")], None, "K", 512, None)
+            .unwrap();
+        assert_eq!(p.body["max_tokens"], json!(512));
+        assert!(p.body.get("max_completion_tokens").is_none());
+    }
+
+    #[test]
+    fn tools_kosong_tidak_dikirim() {
+        /* `"tools": []` is rejected by some gateways and never helps. */
+        let p = adapters::prepare_tools_stream(
+            "custom",
+            "m",
+            &[crate::ai::AgentMsg {
+                role: "user".into(),
+                content: "x".into(),
+                tool_call_id: None,
+                tool_calls: None,
+                name: None,
+                images: None,
+                reasoning: None,
+                reasoning_signature: None,
+            }],
+            &[],
+            None,
+            "K",
+            256,
+            None,
+        )
+        .unwrap();
+        assert!(p.body.get("tools").is_none(), "array kosong tidak boleh ikut");
     }
 
     #[test]
