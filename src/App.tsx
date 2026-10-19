@@ -167,6 +167,13 @@ import './styles/ai-todo-card.css';
 import './styles/ai-subagents-menu.css';
 import './styles/ai-tanya.css';
 import './styles/ai-composer-trae.css';
+/*
+ * `<Tip>` needs this one. Its rules used to live in `notes-todos.css`, which
+ * stopped being imported when the Notes & todos panel was removed — leaving
+ * every title-bar tooltip as a flow-level inline box that grew the bar upward
+ * on hover.
+ */
+import './styles/tip.css';
 
 import './styles/a11y.css';
 import { useAturanTersambung } from './lib/useAturanTersambung';
