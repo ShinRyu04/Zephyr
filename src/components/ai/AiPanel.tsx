@@ -848,10 +848,19 @@ const bukaModels = () => bukaPanel('models');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, posisi, token?.teks]);
 
-  /* Replaces the "@token" being typed with the chosen reference. */
+  /*
+   * Replaces the "@token" being typed with the chosen reference.
+   *
+   * A row that carries a `mode` also SWITCHES the composer to it. The two Agent
+   * rows are the Chat/Agent switch reached from `@`, so picking one has to do
+   * both things: mention it in the message and actually set the mode. Typing
+   * "@agent" and getting the word inserted while the run stayed in Chat would be
+   * a control that looks connected and is not.
+   */
   const pakaiRef = (f: RefItem) => {
     const t = token;
     if (!t) return;
+    if (f.mode) useAi.getState().setAgentMode(f.mode);
     const sesudah = draft.slice(posisi);
     const teks = `${draft.slice(0, t.mulai)}@${f.sisip}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
     setDraft(teks);
