@@ -40,7 +40,6 @@ const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 /* Same reason as the tool gate: the request log floats over the editor and must
    outlive the AI panel being hidden or resized. */
 const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
-const NotesPanel = lazy(() => import('./components/ai/NotesPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const WelcomeSetup = lazy(() => import('./components/shell/WelcomeSetup'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
@@ -66,7 +65,6 @@ import { bindCliListeners } from './lib/cliStore';
 import { bindWorkspaceListeners } from './lib/workspaceStore';
 import { pasangPendengarCron } from './lib/cronRunner';
 import { usePanel } from './lib/panelStore';
-import { useSchedBuka } from './lib/schedStore';
 import { bindingMap, eventToBinding } from './lib/shortcuts';
 import { useKb } from './lib/keybindingStore';
 import { useLsp } from './lib/lspStore';
@@ -163,8 +161,6 @@ import './styles/subagent-timeline.css';
 import './styles/ai-icons.css';
 import './styles/tool-gate.css';
 import './styles/ai-debug.css';
-import './styles/sched.css';
-import './styles/notes-todos.css';
 import './styles/model-menu.css';
 import './styles/ai-sesi.css';
 import './styles/ai-todo-card.css';
@@ -666,10 +662,6 @@ export default function App() {
 
           usePanel.getState().focusTab('subagents');
           if (!t.visible) t.setVisible(true);
-          break;
-        case 'view.notes':
-          /* Toggle: the same key closes the panel it opened. */
-          useSchedBuka.getState().toggle();
           break;
         case 'view.palette':
           void usePalette.getState().openPalette('command');
@@ -1764,7 +1756,6 @@ export default function App() {
         <McpToast />
         <ToolGatePanel />
         <DebugPanel />
-        <NotesPanel />
         <CrashDialog />
         <NotificationCenter />
         <DeleteConfirmDialog />

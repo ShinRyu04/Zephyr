@@ -193,9 +193,11 @@ export default function ChatSettingsPage({
   const showThinking = useAi((s) => s.showThinking);
   const showStamps = useAi((s) => s.showStamps);
   const showDividers = useAi((s) => s.showDividers);
+  const showThinkingBar = useAi((s) => s.showThinkingBar);
   const setShowThinking = useAi((s) => s.setShowThinking);
   const setShowStamps = useAi((s) => s.setShowStamps);
   const setShowDividers = useAi((s) => s.setShowDividers);
+  const setShowThinkingBar = useAi((s) => s.setShowThinkingBar);
   /* User or Workspace. See the tabs' own comment: only User has anything in it
      today, and the Workspace pane says so rather than pretending otherwise. */
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
@@ -1144,6 +1146,23 @@ export default function ChatSettingsPage({
       ),
       isDefault: showThinking === true,
       reset: () => setShowThinking(true),
+    },
+    {
+      section: 'appearance',
+      id: 'thinkbar',
+      label: 'Thinking bar above the composer',
+      hint: 'The “Thinking … 12s” strip shown while the agent works. Off by default.',
+      words: 'appearance thinking bar progress strip spinner working composer status',
+      ctl: (
+        <Toggle
+          checked={showThinkingBar}
+          testid="cset-thinkbar"
+          label="Thinking bar above the composer"
+          onChange={setShowThinkingBar}
+        />
+      ),
+      isDefault: showThinkingBar === false,
+      reset: () => setShowThinkingBar(false),
     },
     {
       section: 'appearance',
