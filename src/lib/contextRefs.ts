@@ -1,0 +1,297 @@
+import { listWorkspaceFiles } from './commands';
+
+/*
+ * Inline `@` references for the composer, in CATEGORIES.
+ *
+ * ## What changed and why
+ *
+ * `@` used to offer one flat list of files. The reference product's composer
+ * says "@ for context" and means it: the same keystroke reaches a file, a
+ * FOLDER, a RULE and an AGENT, and the popup groups them so the reader can see
+ * what kinds of context exist before typing anything.
+ *
+ * A flat list could not do that. With a workspace of a thousand files the list
+ * was files only - there was no way to attach a rule, and no way to mention a
+ * folder at all, even though both are things the agent reads.
+ *
+ * ## The four kinds
+ *
+ *   file    a path in the workspace            `@src/lib/aiStore.ts`
+ *   folder  a directory in the workspace       `@src/lib`
+ *   rule    one of Zephyr's write-time rules   `@rule:ts-any`
+ *   agent   one of the subagent roles          `@agent:cari`
+ *
+ * Rules and agents carry a PREFIX (`rule:`, `agent:`) because they are not
+ * paths. Without it the model could not tell `@cari` (an agent) from a file
+ * named `cari`, and a bare word that means two things is worse than a longer
+ * one that means one.
+ */
+
+export interface FileRef {
+  /** Workspace-relative path, with forward slashes. */
+  path: string;
+  /** File name, for display. */
+  name: string;
+}
+
+export type JenisRef = 'file' | 'folder' | 'rule' | 'agent';
+
+export interface RefItem {
+  jenis: JenisRef;
+  /** What goes into the message, without the leading `@`. */
+  sisip: string;
+  /** Primary text: the file name, the folder name, the rule id, the agent label. */
+  label: string;
+  /** Secondary text: the containing folder, the rule's own sentence, the role hint. */
+  detail: string;
+  /** Stable identity for React keys. */
+  kunci: string;
+}
+
+/** How many rows a single category may contribute. */
+const MAKS_PER_JENIS = 60;
+
+/** Which category the popup is filtered to, or `null` for all of them. */
+export type SaringanJenis = JenisRef | null;
+
+/** Display order: the kinds a reader reaches for most often come first. */
+export const URUTAN_JENIS: JenisRef[] = ['file', 'folder', 'rule', 'agent'];
+
+export const LABEL_JENIS: Record<JenisRef, string> = {
+  file: 'Files',
+  folder: 'Folders',
+  rule: 'Rules',
+  agent: 'Agents',
+};
+
+/**
+ * The token being typed at the caret, or null when the caret is not inside one.
+ *
+ * `@` must start the token: an email address or a decorator mid-word should not
+ * open the list. A `:` is allowed inside the token so `@rule:ts-any` stays one
+ * token while it is being typed.
+ */
+export function tokenAt(sampaiKursor: string): { mulai: number; teks: string } | null {
+  const m = /(^|[\s(])@([^\s@]*)$/.exec(sampaiKursor);
+  if (!m) return null;
+  return { mulai: sampaiKursor.length - m[2].length - 1, teks: m[2] };
+}
+
+/**
+ * Splits what was typed after `@` into an optional category prefix and a query.
+ *
+ * `rule:ts` -> { jenis: 'rule', q: 'ts' }
+ * `ts`      -> { jenis: null,   q: 'ts' }
+ *
+ * Recognising the prefix is what lets a reader narrow to one kind by TYPING
+ * rather than by aiming at a filter chip: "rule:any" is faster than clicking
+ * Rules and then typing.
+ */
+export function uraiToken(teks: string): { jenis: SaringanJenis; q: string } {
+  const m = /^(file|folder|rule|agent):(.*)$/i.exec(teks);
+  if (!m) return { jenis: null, q: teks };
+  return { jenis: m[1].toLowerCase() as JenisRef, q: m[2] };
+}
+
+/** Ranks a candidate against a query: label matches beat detail matches. */
+function skor(label: string, detail: string, q: string): number {
+  const n = label.toLowerCase();
+  const d = detail.toLowerCase();
+  if (n === q) return 0;
+  if (n.startsWith(q)) return 1;
+  if (n.includes(q)) return 2;
+  if (d.includes(q)) return 3;
+  return -1;
+}
+
+/**
+ * Filters and groups the reference list.
+ *
+ * `semua` is passed in rather than fetched here so the caller controls caching:
+ * the workspace walk is expensive and must not run on every keystroke.
+ */
+export function saringRef(
+  semua: RefItem[],
+  teks: string,
+): { jenis: JenisRef; items: RefItem[] }[] {
+  const { jenis: paksa, q: mentah } = uraiToken(teks);
+  const q = mentah.trim().toLowerCase();
+
+  const hasil: { jenis: JenisRef; items: RefItem[] }[] = [];
+  for (const jenis of URUTAN_JENIS) {
+    if (paksa && paksa !== jenis) continue;
+    const milik = semua.filter((r) => r.jenis === jenis);
+    if (milik.length === 0) continue;
+
+    /*
+     * No query yet: show the shortest entries first, which puts top-level files
+     * (README, package.json) above deep node_modules noise.
+     */
+    const urut = q
+      ? milik
+          .map((r) => ({ r, s: skor(r.label, r.detail, q) }))
+          .filter((x) => x.s >= 0)
+          .sort((a, b) => a.s - b.s || a.r.label.length - b.r.label.length)
+          .map((x) => x.r)
+      : [...milik].sort(
+          (a, b) => a.detail.split('/').length - b.detail.split('/').length || a.label.length - b.label.length,
+        );
+
+    if (urut.length === 0) continue;
+    hasil.push({ jenis, items: urut.slice(0, MAKS_PER_JENIS) });
+  }
+  return hasil;
+}
+
+/** Every row, flattened in display order - what the keyboard walks through. */
+export function ratakan(hasil: { jenis: JenisRef; items: RefItem[] }[]): RefItem[] {
+  return hasil.flatMap((g) => g.items);
+}
+
+/** Loads the reference list once and caches it for the session. */
+let cache: RefItem[] | null = null;
+
+/**
+ * Every folder implied by a file list, de-duplicated.
+ *
+ * Derived from the files rather than walked separately: a second directory walk
+ * would cost the same again and could disagree with the file list, and a folder
+ * the reader cannot see any file in is not useful context anyway.
+ */
+function folderDari(berkas: FileRef[]): RefItem[] {
+  const terlihat = new Set<string>();
+  for (const f of berkas) {
+    const bagian = f.path.split('/');
+    bagian.pop();
+    let jalan = '';
+    for (const b of bagian) {
+      jalan = jalan ? `${jalan}/${b}` : b;
+      terlihat.add(jalan);
+    }
+  }
+  return [...terlihat].map((p) => ({
+    jenis: 'folder' as const,
+    sisip: p,
+    label: p.split('/').pop() ?? p,
+    detail: p.split('/').slice(0, -1).join('/'),
+    kunci: `folder:${p}`,
+  }));
+}
+
+/**
+ * Candidate references for "@" suggestions.
+ *
+ * Three sources, in order:
+ *   1. The workspace walk, when a folder is open.
+ *   2. The open editor tabs, when it is not.
+ *   3. Rules and agents, which exist regardless of any folder.
+ *
+ * The third case is why this is not a file loader any more: rules and agents are
+ * Zephyr's own, so they are offered even with nothing open - which is exactly
+ * when a reader is most likely to want them.
+ */
+export async function muatRef(): Promise<RefItem[]> {
+  if (cache) return cache;
+
+  const dariTab = (): FileRef[] => {
+    try {
+      // Imported lazily: the store is a large module and this runs on the first
+      // "@", not on every panel render.
+      const tabs = (
+        window as unknown as { __ZEPHYR__?: { getState: () => { tabs: { path?: string; name?: string }[] } } }
+      ).__ZEPHYR__?.getState().tabs;
+      return (tabs ?? [])
+        .filter((t) => !!t.path)
+        .map((t) => ({
+          path: (t.path as string).replace(/\\/g, '/'),
+          name: t.name ?? ((t.path as string).split(/[\\/]/).pop() ?? ''),
+        }));
+    } catch {
+      return [];
+    }
+  };
+
+  let berkas: FileRef[] = [];
+  /*
+   * Only a NON-EMPTY walk is cached.
+   *
+   * Caching the empty result was the bug behind "typing @ shows nothing": the
+   * first "@" after launch usually runs before a folder is open, the walk
+   * returns nothing, and that empty list stayed cached for the session - so the
+   * popup kept showing nothing even after a workspace was opened.
+   */
+  try {
+    const daftar = await listWorkspaceFiles();
+    if (daftar.length > 0) {
+      berkas = daftar.map((f) => ({
+        // `rel` is the workspace-relative path, which is what belongs in a
+        // message: an absolute path is noise the model does not need.
+        path: (f.rel || f.path).replace(/\\/g, '/'),
+        name: f.name || (f.path.split(/[\\/]/).pop() ?? f.path),
+      }));
+    }
+  } catch {
+    /* no workspace yet: fall through to the open tabs */
+  }
+  if (berkas.length === 0) berkas = dariTab();
+
+  const fileItems: RefItem[] = berkas.map((f) => ({
+    jenis: 'file',
+    sisip: f.path,
+    label: f.name,
+    detail: f.path.split('/').slice(0, -1).join('/'),
+    kunci: `file:${f.path}`,
+  }));
+
+  /*
+   * Rules and agents are loaded from Zephyr's own catalogs.
+   *
+   * Both are imported dynamically: `rulesCatalog` pulls in the rule engine and
+   * `subagentRoles` pulls in the role prompts, and neither is needed until
+   * someone actually types "@" - putting them on the panel's import graph would
+   * cost every render of the chat for a popup that may never open.
+   */
+  let aturan: RefItem[] = [];
+  try {
+    const { RULES_BAWAAN } = await import('./rulesCatalog');
+    aturan = RULES_BAWAAN.map((r) => ({
+      jenis: 'rule' as const,
+      sisip: `rule:${r.id}`,
+      label: r.id,
+      detail: r.pesan,
+      kunci: `rule:${r.id}`,
+    }));
+  } catch {
+    /* the catalog is optional context; a failure must not close the popup */
+  }
+
+  let agen: RefItem[] = [];
+  try {
+    const { PERAN } = await import('./subagentRoles');
+    agen = PERAN.map((p) => ({
+      jenis: 'agent' as const,
+      sisip: `agent:${p.id}`,
+      label: p.label,
+      detail: p.hint,
+      kunci: `agent:${p.id}`,
+    }));
+  } catch {
+    /* same */
+  }
+
+  const gabung = [...fileItems, ...folderDari(berkas), ...aturan, ...agen];
+  /*
+   * Only a list with at least one FILE or FOLDER is cached.
+   *
+   * Rules and agents are always present, so caching unconditionally would pin
+   * the result of the first "@" - taken before any folder was open - and the
+   * file list would never appear for the rest of the session.
+   */
+  if (fileItems.length > 0) cache = gabung;
+  return gabung;
+}
+
+/** Drops the cache, so the next "@" sees files created since the last one. */
+export function lupakanRef() {
+  cache = null;
+}

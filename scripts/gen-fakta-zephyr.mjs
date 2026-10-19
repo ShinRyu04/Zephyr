@@ -120,8 +120,18 @@ const PINTU_POPUP = [
   },
   {
     berkas: 'src/components/ai/ModelSelector.tsx',
-    kunci: 'Edit models…',
-    tempat: 'the model dropdown (its empty state and the "Edit models…" row)',
+    kunci: 'Add Model',
+    tempat: 'the model dropdown (the full-width "Add Model" button at its foot)',
+  },
+  {
+    /*
+     * The subagent form's picker is a SECOND door, and it opens the same pop-up.
+     * It was always a real way in; it simply was not counted until it started
+     * matching the pattern by calling `bukaPanel('models')` directly.
+     */
+    berkas: 'src/components/ai/ModelMenu.tsx',
+    kunci: 'Add Model',
+    tempat: 'the subagent model picker (its "Add Model" button)',
   },
   {
     berkas: 'src/components/ai/ChatHeadActions.tsx',
@@ -1259,6 +1269,20 @@ function daftarSemuaKunciSetelan(setelan) {
   baris.push(
     '- When the user needs a setting changed or a panel brought back, the answer is the path inside Zephyr: the Settings page and ' +
       'section, the panel name, the shortcut, or the exact setting key.',
+  );
+  /*
+   * `tunjuk` is the one tool that acts on the UI, and a model that has not been
+   * told it exists answers "where is it" with prose. The facts block is where
+   * the model learns what it can DO about Zephyr, so the tool is named here
+   * next to the rules about answering Zephyr questions - not only in its own
+   * spec, which the model may never read.
+   */
+  baris.push(
+    '- "Where is it" is answered with a SCREEN when the reader does not know: call `tunjuk` with their own words ("di mana picker ' +
+      'model", "atur api key di mana", "panel terminal hilang"). It opens the matching Settings section, bottom-panel tab, the model ' +
+      'picker in the chat header, Chat Settings, Agent Customizations, the command palette or the Explorer, and returns what it ' +
+      'opened. Pass buka=false to name the location without moving their screen. If it reports no match, answer with the location ' +
+      'from this block and do not invent a menu name.',
   );
   baris.push(
     '- Where to look for a symptom: the Problems panel (diagnostics), the Output panel (task/tool output), the Debug panel, a ' +

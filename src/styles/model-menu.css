@@ -18,30 +18,21 @@
   display: flex;
   flex-direction: column;
   /*
-   * Wider than the 320px it was: the detail panel needs ~178px beside the list,
-   * and a 320px menu would have left 130px for the names — narrower than the
-   * model ids it has to show.
+   * Back to its own width. The detail panel is a floating card beside the menu
+   * now, not a column inside it, so the list keeps the full 320px for names.
    */
-  width: 520px;
-  max-width: calc(100vw - 24px);
-  max-height: min(460px, 62vh);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 14px 34px rgb(0 0 0 / 50%);
+  width: 320px;
+  max-height: min(420px, 62vh);
+  /*
+   * The same pop-up layer as the chat picker. Both are the model picker, opened
+   * from different places, so a reader who learns one must recognise the other -
+   * two different slabs for one job was the "kok beda" report waiting to happen.
+   */
+  background: var(--popup-bg, #1c1d22);
+  border: 1px solid var(--popup-border, var(--border));
+  border-radius: 10px;
+  box-shadow: var(--popup-shadow, 0 14px 34px rgb(0 0 0 / 50%));
   overflow: hidden;
-}
-
-/*
- * The list and the panel side by side, the same split as the chat picker. The
- * panel is a sibling of the scrolling list so it does not scroll away with the
- * rows it is describing.
- */
-.mm-badan {
-  display: flex;
-  align-items: stretch;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .mm-item.is-intip {

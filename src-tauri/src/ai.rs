@@ -393,6 +393,22 @@ fn kirim_dengan_ulang(
     let mut terakhir: Option<String> = None;
     let mulai = std::time::Instant::now();
 
+    /*
+     * A mutable copy, so a 400 can be repaired and retried.
+     *
+     * This is the difference between "this model is unsupported" and "Zephyr
+     * guessed a field wrong". A gateway that fronts dozens of upstreams rejects
+     * the whole request over ONE field it does not recognise, and the old code
+     * treated that 400 as final — so a perfectly healthy model looked broken.
+     * Now the server's own complaint is read, the offending field is dropped,
+     * and the request goes out once more.
+     *
+     * Each repair is applied at most once (`sudah_dibuang`), so a model that
+     * genuinely cannot serve the request still fails, and fails fast.
+     */
+    let mut body = prepared.body.clone();
+    let mut sudah_dibuang: Vec<&'static str> = Vec::new();
+
     while percobaan_reguler < batas_percobaan {
         /*
          * Deadline check BEFORE the request, not after the sleep.
@@ -422,12 +438,22 @@ fn kirim_dengan_ulang(
         }
 
         percobaan_reguler += 1;
-        match req.send_json(&prepared.body) {
+        match req.send_json(&body) {
             Ok(resp) => {
                 let status = resp.status().as_u16();
+                /*
+                 * DeepSeek's reasoning 400 comes FIRST.
+                 *
+                 * It is a 400 whose fix is not "drop a field" but "echo the
+                 * reasoning back and try again", and its message mentions no
+                 * field name at all. Running the generic repair before it meant
+                 * the response was handed back unretried, because nothing in the
+                 * text matched — which is exactly what the regression test
+                 * `retries_only_matching_deepseek_reasoning_400s` caught.
+                 */
                 if status == 400 && retry_reasoning_deepseek {
-                    let (parts, mut body) = resp.into_parts();
-                    let raw = body.read_to_string().unwrap_or_default();
+                    let (parts, mut resp_body) = resp.into_parts();
+                    let raw = resp_body.read_to_string().unwrap_or_default();
                     if raw
                         .to_ascii_lowercase()
                         .contains(DEEPSEEK_REASONING_REFUSAL)
@@ -437,8 +463,58 @@ fn kirim_dengan_ulang(
                         percobaan_reguler -= 1;
                         continue;
                     }
-                    let body = ureq::Body::builder().data(raw.into_bytes());
-                    return Ok(ureq::http::Response::from_parts(parts, body));
+                    let resp_body = ureq::Body::builder().data(raw.into_bytes());
+                    return Ok(ureq::http::Response::from_parts(parts, resp_body));
+                }
+                /*
+                 * 400: try to repair the body once before giving up.
+                 *
+                 * The server names the field it did not like, in one of a few
+                 * phrasings. Whichever it names is dropped, and the SAME request
+                 * is sent again — no user-visible retry, no lost turn.
+                 */
+                if status == 400 && sudah_dibuang.len() < 3 {
+                    let (parts, mut resp_body) = resp.into_parts();
+                    let raw = resp_body.read_to_string().unwrap_or_default();
+                    let low = raw.to_ascii_lowercase();
+
+                    let mut ubah = false;
+                    /* max_tokens rejected -> the model wants the other spelling. */
+                    if low.contains("max_tokens")
+                        && low.contains("max_completion_tokens")
+                        && !sudah_dibuang.contains(&"max_tokens")
+                    {
+                        if let Some(v) = body.get("max_tokens").cloned() {
+                            body.as_object_mut().map(|o| o.remove("max_tokens"));
+                            body["max_completion_tokens"] = v;
+                            sudah_dibuang.push("max_tokens");
+                            ubah = true;
+                        }
+                    }
+                    /* tools rejected -> send the turn without them. */
+                    if low.contains("tool")
+                        && !sudah_dibuang.contains(&"tools")
+                        && body.get("tools").is_some()
+                    {
+                        body.as_object_mut().map(|o| o.remove("tools"));
+                        sudah_dibuang.push("tools");
+                        ubah = true;
+                    }
+                    /* reasoning_effort rejected -> drop it. */
+                    if low.contains("reasoning_effort") && !sudah_dibuang.contains(&"reasoning_effort") {
+                        body.as_object_mut().map(|o| o.remove("reasoning_effort"));
+                        sudah_dibuang.push("reasoning_effort");
+                        ubah = true;
+                    }
+
+                    if ubah {
+                        percobaan_reguler -= 1;
+                        continue;
+                    }
+
+                    /* Nothing repairable: hand the original answer back. */
+                    let resp_body = ureq::Body::builder().data(raw.into_bytes());
+                    return Ok(ureq::http::Response::from_parts(parts, resp_body));
                 }
                 /*
                  * 5xx and 429 get another try. The response is consumed to read

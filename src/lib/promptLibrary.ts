@@ -241,6 +241,36 @@ export function allPrompts(): PromptItem[] {
   return [...user, ...BUILTIN_PROMPTS.filter((b) => !userCmd.has(b.cmd))];
 }
 
+/**
+ * What a slash command DOES, for grouping the list.
+ *
+ * Three kinds, because they are three different promises:
+ *
+ *   sesi    acts on the conversation itself (new, clear, compact, export)
+ *   prompt  fills the composer with a sentence (explain, fix, review, ...)
+ *   kerja   opens a workspace surface (mcp, schedule, history, loop, ...)
+ *
+ * Derived from `aksi` rather than stored as a fourth field: `aksi` already says
+ * what the command does, and a second field would be a second place to get it
+ * wrong. A command with no `aksi` is, by definition, one that only writes text.
+ */
+export type JenisPrompt = 'sesi' | 'prompt' | 'kerja';
+
+const AKSI_SESI = new Set(['baru', 'hapus-semua', 'padatkan', 'ekspor']);
+
+export function jenisPrompt(p: PromptItem): JenisPrompt {
+  if (!p.aksi) return 'prompt';
+  return AKSI_SESI.has(p.aksi) ? 'sesi' : 'kerja';
+}
+
+export const LABEL_PROMPT: Record<JenisPrompt, string> = {
+  sesi: 'Session',
+  prompt: 'Prompts',
+  kerja: 'Workspace',
+};
+
+export const URUTAN_PROMPT: JenisPrompt[] = ['prompt', 'sesi', 'kerja'];
+
 export function matchPrompts(draft: string): { query: string; items: PromptItem[] } {
   const m = /^\/([\w-]*)$/.exec(draft);
   if (!m) return { query: '', items: [] };

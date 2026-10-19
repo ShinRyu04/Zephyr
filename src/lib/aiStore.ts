@@ -8889,9 +8889,24 @@ let autoLanjut = 0;
        */
       const gagalTotal = agentFailure !== null && !akhir?.trim();
       const hasil: 'selesai' | 'berhenti' = runWasCancelled || gagalTotal ? 'berhenti' : 'selesai';
+      /*
+       * The title is the CHAT'S, not a constant.
+       *
+       * It used to be the literal "Zephyr — run finished", so every notification
+       * looked identical: with two chats running you could not tell which one
+       * had finished without opening the app. The session title is what the
+       * reader named the conversation (or what the app derived from the first
+       * message), which is exactly the label they recognise.
+       *
+       * `judulSesi` is read from the store at the moment the run ends rather
+       * than captured at the start: a chat is often renamed mid-run, and the
+       * name the reader sees in the sidebar is the one they should see here.
+       */
+      const sesiAktif = get().sessions.find((s) => s.id === get().activeId);
+      const judulSesi = (sesiAktif?.title ?? '').trim();
       catatSelesaiRun(
         activeAgentUiId ?? '',
-        'Zephyr — run finished',
+        judulSesi || 'Zephyr',
         runWasCancelled ? 'Stopped.' : akhir?.trim() || 'Done.',
         hasil,
       );
