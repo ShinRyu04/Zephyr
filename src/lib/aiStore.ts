@@ -5184,6 +5184,45 @@ export const useAi = create<AiStore>((set0, get) => {
     if (!get().hasKey()) {
       const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
 
+      /*
+       * The message is still SHOWN, even though it cannot be sent.
+       *
+       * This check used to return before anything reached the transcript, so a
+       * reader with no API key typed a question, pressed Enter, and watched it
+       * disappear - the composer cleared and the chat stayed empty. From the
+       * outside that is indistinguishable from "the AI does nothing", which is
+       * exactly how it was reported.
+       *
+       * The turn is recorded as the user's message with no reply, and the reason
+       * arrives as a toast plus the notice below. Keeping the text also means
+       * nothing is lost: the moment a key is added, the reader can send it again
+       * instead of retyping.
+       */
+      const sid = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+      const adaSesi = sid ? get().sessions.some((s) => s.id === sid) : false;
+      if (sid && adaSesi) {
+        const pesanUser: ChatMsg = {
+          id: nextId('m'),
+          role: 'user',
+          content: diketik || content,
+          at: Date.now(),
+          ...(imgs.length ? { images: imgs } : {}),
+        };
+        set((s) => ({
+          sessions: s.sessions.map((x) =>
+            x.id === sid
+              ? {
+                  ...x,
+                  title: x.messages.length === 0 ? judulDari(pesanUser.content) : x.title,
+                  messages: [...x.messages, pesanUser].slice(-MAX_MSGS),
+                }
+              : x,
+          ),
+          drafts: { ...s.drafts, [composerId]: '' },
+          draftImages: [],
+        }));
+      }
+
       const lain = get().keys.filter((k) => k.hasKey && k.provider !== get().provider);
       if (lain.length > 0) {
         const pindah = lain[0].provider;
