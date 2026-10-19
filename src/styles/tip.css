@@ -1,0 +1,83 @@
+/* tip.css — the hover label from `components/shell/Tip.tsx`.
+ *
+ * WHY THIS FILE EXISTS AT ALL. These four rules used to live at the bottom of
+ * `notes-todos.css`, and that was fine while the Notes & todos panel existed.
+ * When the panel was removed the stylesheet stopped being imported — but `Tip`
+ * did not stop being used. `Customize Layout` and the "Open in Agents" Z pill
+ * are both wrapped in it.
+ *
+ * Without these rules a `<span class="tip">` is a plain INLINE element: it
+ * joins the normal flow instead of floating. The menubar is pinned to the very
+ * top of the window, so the row grew by the label's height and grew UPWARD —
+ * measured live, the Customize Layout button moved from y=3 to y=-6 the moment
+ * the pointer landed on it. That is the "hovering makes it jump up" report.
+ *
+ * Keep this import in `App.tsx`. Anything that renders `<Tip>` depends on it.
+ */
+
+/*
+ * Drawn above the button, never below.
+ *
+ * The native `title` tooltip rendered under the cursor, and for a title-bar
+ * button that is directly over the subagent panel — it covered the "Parallel
+ * tasks" button and swallowed its clicks. Upward is empty space, and
+ * `pointer-events: none` guarantees this label can never eat a click even if it
+ * does overlap something.
+ */
+.tip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * `position: absolute` is what makes the label cost ZERO layout.
+ *
+ * It is the single most important declaration in this file: an inline tooltip
+ * is what pushed the title bar upward on hover. Absolute takes it out of flow,
+ * so showing it cannot move its trigger by even a pixel.
+ */
+.tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-3);
+  color: var(--fg0);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+.tip-kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg1);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+/*
+ * A tooltip inside a title bar must open DOWNWARD.
+ *
+ * `.tip` is anchored `bottom: calc(100% + 6px)` — above its wrap — which is
+ * right for a button floating over the editor, but a title bar sits at the very
+ * top of the window, so "above" is off-screen and the label never appears. Both
+ * title bars (the main window's and the Agents window's) flip the anchor here.
+ */
+.menubar .tip,
+.ag-menubar .tip {
+  bottom: auto;
+  top: calc(100% + 6px);
+  right: 0;
+}

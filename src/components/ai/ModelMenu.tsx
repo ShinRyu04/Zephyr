@@ -9,6 +9,7 @@ import {
   ProviderLogo,
 } from '../../lib/modelCatalog';
 import { useAi } from '../../lib/aiStore';
+import { bukaPanel } from '../../lib/bukaPanel';
 import AiIkon from './AiIkon';
 
 /*
@@ -162,15 +163,49 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
       style={posisi}
     >
       <div className="mm-head">
-        <input
-          ref={cariRef}
-          className="mm-cari"
-          data-testid={`${pfx}-cari`}
-          placeholder={tr('Search models…')}
-          value={cari}
-          onChange={(e) => setCari(e.target.value)}
-          spellCheck={false}
-        />
+        <div className="mm-cari-baris">
+          <span className="mm-cari-ikon" aria-hidden="true">
+            <AiIkon name="search" size={12} />
+          </span>
+          <input
+            ref={cariRef}
+            className="mm-cari"
+            data-testid={`${pfx}-cari`}
+            placeholder={tr('Search models…')}
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+            spellCheck={false}
+          />
+          {/* Same two actions, same place, as the chat picker: a long list used
+              to bury them in a footer, so they are icon buttons beside the
+              search field instead. */}
+          <button
+            type="button"
+            className={`mm-aksi${fetchingModels ? ' is-putar' : ''}`}
+            data-testid={`${pfx}-refresh`}
+            title={fetchingModels ? tr('Refreshing…') : tr('Refresh models')}
+            aria-label={tr('Refresh models')}
+            disabled={!!fetchingModels || providerSiap.length === 0}
+            onClick={() => {
+              for (const p of providerSiap) void useSettingsUi.getState().refreshRemoteModels(p.id);
+            }}
+          >
+            <AiIkon name="refresh" size={13} />
+          </button>
+          <button
+            type="button"
+            className="mm-aksi is-utama"
+            data-testid={`${pfx}-tambah`}
+            title={tr('Add Model')}
+            aria-label={tr('Add Model')}
+            onClick={() => {
+              tutup();
+              bukaPanel('models');
+            }}
+          >
+            <AiIkon name="plus" size={13} />
+          </button>
+        </div>
       </div>
 
       <div className="mm-list">

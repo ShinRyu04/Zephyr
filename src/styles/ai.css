@@ -6023,9 +6023,14 @@
   padding: 4px 4px 6px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+  /*
+   * Sticky, because the list can be forty rows long and Refresh/Add live in
+   * THIS row. Scrolling away from them was the reason they used to be
+   * unreachable — a footer put them below the fold instead.
+   */
   position: sticky;
   top: 0;
-  background: var(--surface-1);
+  background: var(--surface-2);
   z-index: 2;
 }
 

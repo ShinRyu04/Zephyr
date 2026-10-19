@@ -360,9 +360,20 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           data-testid={`${pfx}-model-menu`}
           data-tahap={modeCari ? 'cari' : 'daftar'}
         >
-          {/* Search works across every provider, so a user who knows the model
-              name does not have to scan the groups. */}
+          {/*
+            * Header row, in the reference product's shape: the search field
+            * takes the whole first row, and the two actions ride at its right
+            * edge as icon buttons — Refresh and Add.
+            *
+            * Both used to live in a FOOTER below a list that can be forty rows
+            * long, so on a real account "Refresh models" sat off-screen behind
+            * the scroll. Up here they are always reachable, which is the whole
+            * reason the reference puts them beside the search box.
+            */}
           <div className="ai-mp-cari">
+            <span className="ai-mp-cari-ikon" aria-hidden="true">
+              <AiIkon name="search" size={12} />
+            </span>
             <input
               type="text"
               className="ai-model-input"
@@ -381,7 +392,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             {cari && (
               <button
                 type="button"
-                className="ai-model-refresh"
+                className="ai-model-refresh is-kecil"
                 data-testid={`${pfx}-model-cari-bersih`}
                 title={tr('Clear search')}
                 onClick={() => setCari('')}
@@ -389,6 +400,27 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 ×
               </button>
             )}
+            <button
+              type="button"
+              className={`ai-model-refresh${fetching ? ' is-putar' : ''}`}
+              data-testid={`${pfx}-model-refresh`}
+              title={fetching ? tr('Refreshing…') : tr('Refresh models')}
+              aria-label={tr('Refresh models')}
+              disabled={fetching || providerSiap.length === 0}
+              onClick={() => void refreshSemua()}
+            >
+              <AiIkon name="refresh" size={13} />
+            </button>
+            <button
+              type="button"
+              className="ai-model-refresh is-utama"
+              data-testid={`${pfx}-model-edit`}
+              title={tr('Add Model')}
+              aria-label={tr('Add Model')}
+              onClick={bukaModels}
+            >
+              <AiIkon name="plus" size={13} />
+            </button>
           </div>
 
           {modeCari ? (
@@ -589,26 +621,15 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             </>
           )}
 
-          <div className="mode-div" aria-hidden="true" />
-
-          {/* Footer, the same two actions the reference picker carries: pull the
-              live list, or go edit the providers. */}
-          <button
-            type="button"
-            className="ai-plus-item"
-            data-testid={`${pfx}-model-refresh`}
-            disabled={fetching || providerSiap.length === 0}
-            onClick={() => void refreshSemua()}
-          >
-            <AiIkon name="refresh" />
-            <span className="ai-plus-label">
-              {fetching ? tr('Refreshing…') : tr('Refresh models')}
-            </span>
-          </button>
-          <button type="button" className="ai-plus-item" data-testid={`${pfx}-model-edit`} onClick={bukaModels}>
-            <AiIkon name="gear" />
-            <span className="ai-plus-label">{tr('Edit models…')}</span>
-          </button>
+          {/*
+            * No footer.
+            *
+            * It held "Refresh models" and "Edit models…" under a list that can
+            * run to forty rows, so on any real account both actions sat below
+            * the fold and the only way to refresh was to scroll to the bottom
+            * of the menu first. They are icon buttons in the header now, where
+            * the reference product puts them.
+            */}
         </div>
       )}
     </div>

@@ -2895,14 +2895,17 @@ body.is-resizing-v {
   width: 1px;
   height: 16px;
   /*
-   * Tight to Customize Layout, roomy to the window controls.
+   * Tight to Customize Layout, roomy to the window controls — but less roomy
+   * than before.
    *
-   * Measured live: 8px/22px gave 18px and 28px because `.mb-layout`'s own gap
-   * and padding added to it. These values land at ~10px and ~34px, so the rule
-   * reads as belonging to the layout group instead of floating between it and
-   * the three window buttons.
+   * `.mb-cc-wrap` is the flexible child, so this cluster is anchored by its
+   * RIGHT edge: shrinking the margin-right moves Customize Layout AND the rule
+   * to the right together. Measured live, 28px put the button at x=1309 and the
+   * rule at x=1345, which read as pressed up against the command box. At 18px
+   * both land ~10px further right and the rule still clears the window buttons
+   * by ~19px, so it keeps its own air.
    */
-  margin: 0 28px 0 2px;
+  margin: 0 18px 0 2px;
   background: var(--border);
 }
 /* Command center: a wide pill in the MIDDLE of the menu row, like VS Code —
