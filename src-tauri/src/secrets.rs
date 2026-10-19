@@ -173,17 +173,36 @@ pub struct PublicModel {
  * `xai` is deliberately absent: the catalogue no longer offers it. A key left
  * over in secrets.json under that name is simply never read.
  */
-const KNOWN_PROVIDERS: [&str; 10] = [
+const KNOWN_PROVIDERS: [&str; 29] = [
     "gemini",
     "openai",
     "anthropic",
     "deepseek",
-    "local",
     "custom",
-    "custom2",
-    "custom3",
-    "custom4",
-    "custom5",
+    "xai",
+    "zai",
+    "minimax",
+    "kimi",
+    "byteplus",
+    "openrouter",
+    "novita",
+    "aws",
+    "azure",
+    "vercel",
+    "ollama",
+    "bigmodel",
+    "minimax-cn",
+    "kimi-cn",
+    "volcano",
+    "alibaba",
+    "tencent",
+    "gmi",
+    "mimo",
+    "siliconflow",
+    "gitee",
+    "ppio",
+    "mistral",
+    "groq",
 ];
 
 #[tauri::command(async)]

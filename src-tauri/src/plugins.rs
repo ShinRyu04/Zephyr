@@ -1088,6 +1088,31 @@ pub const MARKETPLACE_JSON: &str = r##"{
       "id": "code-reviewer",
       "category": "Review",
       "homepage": ""
+    },
+    {
+      "id": "test-first",
+      "category": "Testing",
+      "homepage": ""
+    },
+    {
+      "id": "security-pass",
+      "category": "Security",
+      "homepage": ""
+    },
+    {
+      "id": "docs-writer",
+      "category": "Documentation",
+      "homepage": ""
+    },
+    {
+      "id": "git-hygiene",
+      "category": "Git",
+      "homepage": ""
+    },
+    {
+      "id": "performance-pass",
+      "category": "Performance",
+      "homepage": ""
     }
   ]
 }"##;
@@ -1228,6 +1253,283 @@ const AGENT_CR: &str = r##"{
   "aturan": "Quote the line you are talking about. Name the input that triggers the problem. If a claim cannot be checked from the code in front of you, say so instead of asserting it. Never soften a real defect into a suggestion."
 }"##;
 
+/*
+ * ── More bundled plugins ────────────────────────────────────────────────────
+ *
+ * Two plugins made the Marketplace look broken: it listed exactly two tiles and
+ * every category chip except All emptied the grid. These four add the kinds of
+ * package a reader actually reaches for, and each one is a REAL package - a
+ * skill with content, not a placeholder row.
+ *
+ * They are deliberately small. A bundled plugin is a starting point the reader
+ * can read and edit; a hundred kilobytes of prose they will never open is not a
+ * better marketplace, it is a heavier binary.
+ */
+
+const MANIFEST_TDD: &str = r##"{
+  "name": "test-first",
+  "description": "A skill that drives a change from a failing test, and the rule for what makes a test worth keeping.",
+  "version": "1.0.0",
+  "author": "zephyr",
+  "provides": {
+    "skills": ["test-first"],
+    "rules": ["test-first"]
+  }
+}"##;
+
+const SKILL_TDD: &str = r##"---
+name: test-first
+description: Use when adding behaviour that does not exist yet, or fixing a bug you can reproduce. Write the failing test first, watch it fail for the right reason, then make it pass.
+---
+
+# Test-first
+
+## The order that matters
+
+1. **Write the test.** It must fail. If it passes, you have tested the old
+   behaviour - delete it and start again.
+2. **Watch it fail.** Read the failure message. If it fails for a reason other
+   than the one you are about to fix (a typo, a missing import), fix that first;
+   otherwise you will not know which change made it pass.
+3. **Make it pass with the smallest change.** Not the design you want. The
+   smallest thing that turns the test green.
+4. **Refactor with the test green.** Now improve the design, running the test
+   after each step.
+
+## What makes a test worth keeping
+
+- It fails when the behaviour is reverted. Verify this by reverting.
+- It names the behaviour, not the function: `rejects_expired_token`, not
+  `test_validate_3`.
+- It has one reason to fail. A test with three assertions on three features
+  tells you "something broke" and nothing more.
+- It does not depend on time, network, or ordering. Those three produce the
+  failures people learn to ignore.
+
+## When NOT to write the test first
+
+Exploratory code you are about to throw away, and a spike to learn an API. Say
+so out loud when you skip it, so nobody mistakes the spike for the feature.
+"##;
+
+const RULE_TDD: &str = r##"---
+name: test-first
+description: Behaviour changes arrive with a test that fails without them.
+applyTo: "**/*.{rs,ts,tsx,js,py,go}"
+---
+
+A change that adds or alters behaviour carries a test. The test must fail when
+the change is reverted - state in the summary how you checked that.
+"##;
+
+const MANIFEST_SEC: &str = r##"{
+  "name": "security-pass",
+  "description": "A skill for reading code as an attacker would, and a reviewer agent that runs it.",
+  "version": "1.0.0",
+  "author": "zephyr",
+  "provides": {
+    "skills": ["security-pass"],
+    "agents": ["security-reviewer"]
+  }
+}"##;
+
+const SKILL_SEC: &str = r##"---
+name: security-pass
+description: Use when reviewing code that takes input from outside the program - a request, a file, a URL, a shell argument - or when adding authentication, storage, or anything that runs a command.
+---
+
+# Security pass
+
+## The four questions
+
+1. **Who controls this string?** Trace every value back to its origin. If the
+   answer is "a user", it is hostile until it has been parsed into something
+   with a shape - a number, an enum, a path inside a known root.
+2. **What does it get concatenated into?** SQL, a shell command, a file path, an
+   HTML attribute, a URL. Concatenation is where input becomes code.
+3. **What is the boundary?** Every check must be at the point of use. A
+   validation in the handler that a second caller skips is not a check.
+4. **What does an attacker gain?** If the answer is "nothing", the finding is a
+   style note. Say so instead of inflating it.
+
+## Specific shapes to look for
+
+- `format!` / template literals / `+` building SQL or a command. Use parameters.
+- A path built from input with no `canonicalize` + prefix check.
+- A secret in a log line, an error message, or a URL.
+- `eval`, `exec`, `Command::new` with a shell string.
+- A token compared with `==` instead of a constant-time compare.
+- A permission check that runs on the FIRST request and a cache that answers
+  the rest.
+
+## Writing the finding
+
+Name the input, the sink, and the concrete consequence. "User input reaches
+`Command::new` unquoted at line 42; a filename containing `;` runs a second
+command" is a finding. "Possible injection" is not.
+"##;
+
+const AGENT_SEC: &str = r##"{
+  "id": "security-reviewer",
+  "nama": "Security Reviewer",
+  "deskripsi": "Reads a change as an attacker would, and reports only what is exploitable.",
+  "identitas": "You review code for security defects. You report what an attacker can actually do, with the input that does it.",
+  "caraKerja": "Trace every external value to its sink. Check the boundary at the point of use, not at the entry point. Look for concatenation into SQL, shell, paths and HTML, secrets in logs, and permission checks that a cache can bypass.",
+  "aturan": "Name the input, the sink, and the consequence. Do not report a theoretical issue without a path to it - say what you would need to see to confirm it. Never pad a report with findings you would not fix."
+}"##;
+
+const MANIFEST_DOCS: &str = r##"{
+  "name": "docs-writer",
+  "description": "A skill for writing a README that answers the reader's first four questions, and a rule about keeping docs next to the code they describe.",
+  "version": "1.0.0",
+  "author": "zephyr",
+  "provides": {
+    "skills": ["docs-writer"],
+    "rules": ["docs-writer"]
+  }
+}"##;
+
+const SKILL_DOCS: &str = r##"---
+name: docs-writer
+description: Use when writing or updating a README, a setup guide, or the explanation at the top of a module. Aimed at the reader who has just arrived and has a problem.
+---
+
+# Documentation that gets read
+
+## The first four questions
+
+A README answers these, in this order, before anything else:
+
+1. **What is this?** One sentence, in the reader's words, not the author's.
+2. **Why would I use it?** The problem it removes.
+3. **How do I start?** The exact commands, copy-pasteable, for a fresh machine.
+4. **What do I do when it breaks?** The three failures people actually hit.
+
+Everything else - architecture, benchmarks, contributing - comes after.
+
+## Rules
+
+- **Show, do not describe.** A five-line example beats a paragraph explaining
+  the API. Every code block must run as written; a snippet with `...` in it is a
+  hint, not an example.
+- **State the requirement, then the command.** "Needs Node 20+" then `npm i`.
+- **One idea per paragraph.** A wall of text is skipped whole.
+- **Keep it next to the code.** A document in a folder nobody opens rots. If a
+  module has a surprising rule, put it in that module's header comment.
+- **Delete what is no longer true.** Stale documentation is worse than none: it
+  is trusted.
+
+## The header comment
+
+At the top of a module, answer: what is this responsible for, what does it
+deliberately NOT do, and what would surprise someone reading it for the first
+time. That last one is the whole value - the rest is visible from the code.
+"##;
+
+const RULE_DOCS: &str = r##"---
+name: docs-writer
+description: A behaviour change updates the docs that describe it, in the same change.
+applyTo: "**/*.{md,rs,ts,tsx,py,go}"
+---
+
+When a change alters what a command, setting or API does, update the document
+that describes it in the SAME change. If no document describes it, say so in the
+summary rather than silently leaving it undocumented.
+"##;
+
+const MANIFEST_GIT: &str = r##"{
+  "name": "git-hygiene",
+  "description": "A skill for keeping a branch reviewable: small commits, honest messages, and a diff you have actually read.",
+  "version": "1.0.0",
+  "author": "zephyr",
+  "provides": {
+    "skills": ["git-hygiene"]
+  }
+}"##;
+
+const SKILL_GIT: &str = r##"---
+name: git-hygiene
+description: Use when committing, preparing a branch for review, or cleaning up history before a merge. Keeps each commit a single reviewable idea.
+---
+
+# Git hygiene
+
+## One commit, one idea
+
+A commit is reviewable when a reviewer can hold the whole change in their head.
+If the message needs "and", it is two commits. If it needs "also", it is three.
+
+Split by BEHAVIOUR, not by file. A refactor that touches ten files is one
+commit; a refactor plus a bug fix is two, even if they touch the same file.
+
+## Before you commit
+
+1. `git diff` - read it. Not the summary, the diff. Things get committed by
+   accident: a debug print, a commented-out block, a `.env`.
+2. `git status` - anything untracked that should be in, or tracked that should
+   not?
+3. Run the tests. A commit that breaks the build costs everyone behind you.
+
+## The message
+
+Subject: what the change does to the program, imperative, under 72 characters.
+Body: WHY, and what you rejected. The diff already says what changed; the body
+is the only place the reasoning survives.
+
+## Before asking for review
+
+- Rebase onto the current target branch and re-run the tests.
+- Read your own diff as if someone else wrote it. You will find one thing.
+- Write down what you are unsure about. A reviewer who knows where to look gives
+  a better review than one who has to find the risk themselves.
+"##;
+
+const MANIFEST_PERF: &str = r##"{
+  "name": "performance-pass",
+  "description": "A skill for measuring before optimising, and for knowing when a change is not worth making.",
+  "version": "1.0.0",
+  "author": "zephyr",
+  "provides": {
+    "skills": ["performance-pass"]
+  }
+}"##;
+
+const SKILL_PERF: &str = r##"---
+name: performance-pass
+description: Use when something is measurably slow, or when asked to optimise code without a measurement in hand.
+---
+
+# Performance, in order
+
+## First: is it slow?
+
+Optimising without a measurement is guessing, and the guess is usually wrong.
+Get a number before you change anything, and the same number after.
+
+- **Where is the time?** Profile, do not read. The slow line is rarely the one
+  that looks slow.
+- **How many times does it run?** An O(n²) over twelve items is free. The same
+  over a hundred thousand is the bug.
+- **Is it the work or the waiting?** I/O, a lock, a network round trip. No amount
+  of algorithmic cleverness fixes waiting; batching or caching does.
+
+## The order of fixes, cheapest first
+
+1. **Do not do it.** Cache the result, skip the work, remove the feature nobody
+   uses.
+2. **Do it once.** Hoist out of a loop, batch the requests, memoise the parse.
+3. **Do it less.** Smaller payload, fewer round trips, a narrower query.
+4. **Do it in parallel.** Only after the above - parallelising wasted work makes
+   it waste faster.
+5. **Change the algorithm.** Real, and last, because it is the most expensive to
+   write and the easiest to get wrong.
+
+## When to stop
+
+When the number is good enough for the user, stop. A change that makes something
+10% faster and the code twice as hard to read is a loss. Say so and leave it.
+"##;
+
 /// `(id, files)` for every embedded package.
 const PAKET: &[(&str, &[(&str, &str)])] = &[
     (
@@ -1245,6 +1547,44 @@ const PAKET: &[(&str, &[(&str, &str)])] = &[
             ("plugin.json", MANIFEST_CR),
             ("skills/code-review/SKILL.md", SKILL_CR),
             ("agents/reviewer.json", AGENT_CR),
+        ],
+    ),
+    (
+        "test-first",
+        &[
+            ("plugin.json", MANIFEST_TDD),
+            ("skills/test-first/SKILL.md", SKILL_TDD),
+            ("rules/test-first.md", RULE_TDD),
+        ],
+    ),
+    (
+        "security-pass",
+        &[
+            ("plugin.json", MANIFEST_SEC),
+            ("skills/security-pass/SKILL.md", SKILL_SEC),
+            ("agents/security-reviewer.json", AGENT_SEC),
+        ],
+    ),
+    (
+        "docs-writer",
+        &[
+            ("plugin.json", MANIFEST_DOCS),
+            ("skills/docs-writer/SKILL.md", SKILL_DOCS),
+            ("rules/docs-writer.md", RULE_DOCS),
+        ],
+    ),
+    (
+        "git-hygiene",
+        &[
+            ("plugin.json", MANIFEST_GIT),
+            ("skills/git-hygiene/SKILL.md", SKILL_GIT),
+        ],
+    ),
+    (
+        "performance-pass",
+        &[
+            ("plugin.json", MANIFEST_PERF),
+            ("skills/performance-pass/SKILL.md", SKILL_PERF),
         ],
     ),
 ];
@@ -1656,7 +1996,14 @@ mod tests {
     fn marketplace_konsisten_dan_flag_terpasang() {
         let u = Uji::baru("pasar");
         let pasar = pasar_terpasang(&u.state);
-        assert_eq!(pasar.len(), 2);
+        /*
+         * Counted from the index rather than hard-coded: adding a bundled plugin
+         * should not fail this test, and a hard-coded 2 was the only reason it
+         * did. What the test is actually about is that every entry resolves and
+         * describes itself - that part stays.
+         */
+        assert_eq!(pasar.len(), index_pasar().len());
+        assert!(pasar.len() >= 7);
         assert!(pasar.iter().all(|p| !p.installed));
         assert!(pasar
             .iter()

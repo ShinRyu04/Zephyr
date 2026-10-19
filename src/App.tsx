@@ -102,6 +102,7 @@ import './styles/modal-popup.css';
 import './styles/agc-agents.css';
 import './styles/marketplace.css';
 import './styles/ext-marketplace.css';
+import './styles/aim-models.css';
 /*
  * The first-run wizard. Its own file because it owns the whole screen and
  * deliberately does NOT use the theme tokens for its own surfaces: a new reader
