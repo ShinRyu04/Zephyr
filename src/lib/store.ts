@@ -284,8 +284,6 @@ function normalisasiSettings<T>(s: T): T {
   if (typeof g.minimizeToTray !== 'boolean') patch.minimizeToTray = false;
   if (typeof g.defaultTerminal !== 'string') patch.defaultTerminal = 'default';
   if (typeof g.shellPath !== 'string') patch.shellPath = '';
-  if (typeof g.chatAvatar !== 'boolean') patch.chatAvatar = true;
-  if (typeof g.userAvatarPath !== 'string') patch.userAvatarPath = '';
 
   /* The legacy bottom-dock AI home is retired: the user never wants the chat to
      collapse into the terminal panel again. Any saved `bottom` is rewritten to

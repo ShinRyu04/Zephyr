@@ -17,7 +17,6 @@ import {
 } from '../../lib/hydraFusion';
 import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
 import { bukaPanel } from '../../lib/bukaPanel';
-import { PemilihAvatar } from './PemilihAvatar';
 import CommandPermissions from '../settings/CommandPermissions';
 import AiIkon from './AiIkon';
 import '../../styles/chat-settings.css';
@@ -513,23 +512,6 @@ export default function ChatSettingsPage({
       ),
       isDefault: tipsVisible === true,
       reset: () => setTipsVisible(true),
-    },
-    {
-      section: 'appearance',
-      id: 'avatar',
-      label: 'Chat avatars',
-      hint: 'Show a mark beside each message.',
-      words: 'appearance avatar photo mark message robot user picture',
-      ctl: (
-        <Toggle
-          checked={agents.chatAvatar !== false}
-          testid="cset-avatar"
-          label="Chat avatars"
-          onChange={(v) => void apply({ agents: { chatAvatar: v } })}
-        />
-      ),
-      isDefault: (agents.chatAvatar !== false) === true,
-      reset: () => void apply({ agents: { chatAvatar: true } }),
     },
     {
       section: 'appearance',
@@ -1253,34 +1235,6 @@ export default function ChatSettingsPage({
     },
 
     /* ── MCP server ──────────────────────────────────────────────────────── */
-
-    /* ── Avatar ──────────────────────────────────────────────────────────── */
-    {
-      section: 'appearance',
-      id: 'myavatar',
-      label: 'My avatar',
-      hint: 'The picture shown beside your own messages.',
-      words: 'appearance avatar picture me user photo profile image',
-      ctl: <PemilihAvatar />,
-      isDefault: !agents.userAvatarPath,
-    },
-    {
-      section: 'appearance',
-      id: 'robotavatar',
-      label: 'Assistant avatar',
-      hint: 'Show a mark beside the assistant’s messages.',
-      words: 'appearance avatar assistant robot mark message icon',
-      ctl: (
-        <Toggle
-          checked={agents.chatAvatar !== false}
-          testid="cset-robotavatar"
-          label="Assistant avatar"
-          onChange={(v) => void apply({ agents: { chatAvatar: v } })}
-        />
-      ),
-      isDefault: (agents.chatAvatar !== false) === true,
-      reset: () => void apply({ agents: { chatAvatar: true } }),
-    },
 
     /* ── Extensions ──────────────────────────────────────────────────────── */
 
