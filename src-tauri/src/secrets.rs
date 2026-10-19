@@ -554,12 +554,39 @@ pub fn endpoint_is_loopback_for_test(url: &str) -> bool {
     endpoint_is_loopback(url)
 }
 
+/**
+ * One row of a provider's `/models` answer.
+ *
+ * This used to be a bare `Vec<String>` of ids, and that was the reason the
+ * model picker could only ever show a name and a context size: everything the
+ * gateway said about HOW a model can be used — whether it accepts an image,
+ * whether it can call tools, what it costs — was parsed off the JSON and thrown
+ * away before it reached the UI.
+ *
+ * Every field except `id` is `Option`, and the distinction matters: `None` means
+ * "this provider did not say", which the picker answers with a name-based guess.
+ * An empty `Some(vec![])` would mean "it said no", which is a different claim
+ * and must not be invented here.
+ */
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct ModelInfo {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_modalities: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supported_parameters: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_length: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pricing: Option<Map<String, Value>>,
+}
+
 #[tauri::command(async)]
 pub fn list_models(
     state: State<AppState>,
     provider: String,
     base_url: Option<String>,
-) -> ZResult<Vec<String>> {
+) -> ZResult<Vec<ModelInfo>> {
     /*
      * Resolve the endpoint BEFORE insisting on a key.
      *
@@ -624,13 +651,29 @@ pub fn list_models(
     )
     .map_err(|e| ZephyrError::InvalidInput(format!("Response is not JSON: {e}")))?;
 
-    let ids: Vec<String> = if ep.gemini_style {
+    let ids: Vec<ModelInfo> = if ep.gemini_style {
         json.get("models")
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|m| m.get("name").and_then(|n| n.as_str()))
-                    .map(|n| n.strip_prefix("models/").unwrap_or(n).to_string())
+                    .filter_map(|m| {
+                        let name = m.get("name").and_then(|n| n.as_str())?;
+                        let id = name.strip_prefix("models/").unwrap_or(name).to_string();
+                        /*
+                         * Gemini reports `supportedGenerationMethods` rather
+                         * than input modalities. It is not the same thing, so
+                         * it is NOT mapped onto `input_modalities` — the UI
+                         * falls back to the name heuristic instead of claiming
+                         * a capability from a field that does not mean that.
+                         */
+                        Some(ModelInfo {
+                            id,
+                            input_modalities: None,
+                            supported_parameters: None,
+                            context_length: m.get("inputTokenLimit").and_then(|n| n.as_u64()),
+                            pricing: None,
+                        })
+                    })
                     .collect()
             })
             .unwrap_or_default()
@@ -639,8 +682,66 @@ pub fn list_models(
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|m| m.get("id").and_then(|n| n.as_str()))
-                    .map(|s| s.to_string())
+                    .filter_map(|m| {
+                        let id = m.get("id").and_then(|n| n.as_str())?.to_string();
+
+                        /*
+                         * THREE SHAPES, one per family of gateway.
+                         *
+                         *  - OpenRouter-style (which `modelrouter.id` speaks):
+                         *    `architecture.input_modalities`, `pricing`,
+                         *    `context_length`, `supported_parameters`.
+                         *  - Ollama / vLLM: sometimes `details.families`, no
+                         *    modalities at all.
+                         *  - Plain OpenAI: `id` and nothing else.
+                         *
+                         * Every field is optional on purpose. A gateway that
+                         * says nothing must stay "unknown" so the picker can
+                         * fall back to the name heuristic instead of reporting
+                         * a confident "cannot read images".
+                         */
+                        let modalities = m
+                            .get("architecture")
+                            .and_then(|a| a.get("input_modalities"))
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|x| x.as_str().map(str::to_string))
+                                    .collect::<Vec<_>>()
+                            })
+                            .filter(|v| !v.is_empty());
+
+                        let params = m
+                            .get("supported_parameters")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|x| x.as_str().map(str::to_string))
+                                    .collect::<Vec<_>>()
+                            })
+                            .filter(|v| !v.is_empty());
+
+                        let pricing = m.get("pricing").and_then(|v| v.as_object()).map(|o| {
+                            o.iter()
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect::<Map<String, Value>>()
+                        });
+
+                        Some(ModelInfo {
+                            id,
+                            input_modalities: modalities,
+                            supported_parameters: params,
+                            context_length: m
+                                .get("context_length")
+                                .and_then(|n| n.as_u64())
+                                .or_else(|| {
+                                    m.get("top_provider")
+                                        .and_then(|t| t.get("context_length"))
+                                        .and_then(|n| n.as_u64())
+                                }),
+                            pricing,
+                        })
+                    })
                     .collect()
             })
             .unwrap_or_default()
