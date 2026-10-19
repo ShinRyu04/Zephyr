@@ -2008,6 +2008,22 @@ let agentStepResolve: ((r: AgentStepResult) => void) | null = null;
 // have its own id so a cancelled worker cannot deliver into a later attempt.
 let activeAgentAttempt: string | null = null;
 let activeAgentUiId: string | null = null;
+
+/**
+ * Which surface the running agent belongs to: the EDITOR's AI panel, or the
+ * separate Agents window ("Open in Agents").
+ *
+ * Recorded at the moment a run starts because the tools that consult it —
+ * `ask_user` today — run from inside the loop, where the composer id is not in
+ * scope. The two surfaces have separate switches in Conversation settings, and
+ * a tool that could not tell them apart would have to honour both, which is the
+ * same as honouring neither.
+ */
+let activeAgentPermukaan: 'editor' | 'agents' = 'editor';
+
+/** The surface of the run in flight. Read by agent tools, never by the UI. */
+export const permukaanAgentAktif = (): 'editor' | 'agents' => activeAgentPermukaan;
+
 const cancelledAttempts = new Set<string>();
 const retiredAgentAttempts = new Set<string>();
 
@@ -4383,6 +4399,12 @@ export const useAi = create<AiStore>((set0, get) => {
 
       agentTanyaResolve = selesai;
       set({ agentTanya: { pertanyaan, pilihan: pilihan ?? [] } });
+      /*
+       * The run is now parked on a decision, and the reader may be in another
+       * window. This is the "needs you" moment, so it gets its own tone — see
+       * `bunyiMenunggu` for why it is not the completion sound.
+       */
+      void import('./notifikasiAi').then((m) => m.bunyiMenunggu()).catch(() => {});
     }),
 
   jawabTanya: (jawaban) => {
@@ -6769,6 +6791,7 @@ let autoLanjut = 0;
             if (activeAgentAttempt) retiredAgentAttempts.add(activeAgentAttempt);
             activeAgentAttempt = attemptId;
             activeAgentUiId = botMsg.id;
+            activeAgentPermukaan = composerId === 'agents' ? 'agents' : 'editor';
             agentStepResolve = resolve;
             /*
              * A(i) subset per tugas + A(iv) gerbang rencana di langkah pertama.
@@ -6788,9 +6811,28 @@ let autoLanjut = 0;
              * biasa tetap jalan penuh tanpa workspace.
              */
             const adaFolderRun = useStore.getState().workspace !== null;
+            /*
+             * The To-Do List switch, per surface, read once per step.
+             *
+             * The plan gate below asks the model to CALL `todo_write` on the
+             * first step of a heavy task. If the reader turned that feature off
+             * for this surface, forcing the call would spend a step on a tool
+             * that now refuses — so the gate has to follow the switch, not just
+             * the task's weight.
+             */
+            const convRun = useStore.getState().settings.conversation;
+            const todoAktifRun =
+              composerId === 'agents'
+                ? convRun?.todoListSolo === true
+                : convRun?.todoListIde === true;
+            const tanyaAktifRun =
+              composerId === 'agents'
+                ? convRun?.questioningSolo === true
+                : convRun?.questioningIde === true;
             const gerbangRencana =
               langkah === 0 &&
               beratRun &&
+              todoAktifRun &&
               get().agentTodos.length === 0 &&
               gerbangRencanaSiap(alatAktif, adaFolderRun);
             const alatKirim = gerbangRencana
@@ -6806,16 +6848,29 @@ let autoLanjut = 0;
                    jauh. Bukti kesetaraan kemampuan: scripts/cek-subset-tugas.mjs
                    (keluarga kemampuan sesudah wajib superset sebelum). */
                 pilihToolTugas(tugasRun, alatAktif, adaFolderRun);
+            /*
+             * A switch that is OFF must remove the tool from the WIRE, not just
+             * make it refuse.
+             *
+             * The tool's own guard already refuses when the switch is off, so
+             * behaviour is correct either way — but a spec the model can see is
+             * an invitation, and a model that calls a refusing tool burns a step
+             * learning nothing. Removing it here means the model never sees a
+             * capability the reader turned off, which is what the switch claims.
+             */
+            const alatSaring = alatKirim.filter(
+              (n) => (n !== 'ask_user' || tanyaAktifRun) && (n !== 'todo_write' || todoAktifRun),
+            );
             catatAlatTerakhir(
               tugasRun,
               langkah,
               beratRun,
               gerbangRencana,
               alatAktif,
-              alatKirim,
+              alatSaring,
               adaFolderRun,
             );
-            const toolSpecs = agentToolSpecs({ alat: alatKirim });
+            const toolSpecs = agentToolSpecs({ alat: alatSaring });
             /*
              * The tool list rides in every request but is not part of the
              * message history, so a cap measured on messages alone lets the
@@ -8752,10 +8807,24 @@ let autoLanjut = 0;
      */
     try {
       const { catatSelesaiRun } = await import('./notifikasiAi');
+      /*
+       * The outcome decides which of the three SOUNDS plays, so it is computed
+       * here from what the run actually ended with — not guessed inside the
+       * notification module, which never sees the transcript.
+       *
+       * There are only two outcomes at this point: a run that stopped because
+       * the reader must answer never reaches this exit (it is parked, not
+       * finished) — that case is sounded at the moment it parks, see
+       * `bunyiMenunggu`. So the choice here is "produced an answer" versus
+       * "stopped without one".
+       */
+      const gagalTotal = agentFailure !== null && !akhir?.trim();
+      const hasil: 'selesai' | 'berhenti' = runWasCancelled || gagalTotal ? 'berhenti' : 'selesai';
       catatSelesaiRun(
         activeAgentUiId ?? '',
         'Zephyr — run finished',
         runWasCancelled ? 'Stopped.' : akhir?.trim() || 'Done.',
+        hasil,
       );
     } catch {
       /* no notification is not a failed run */
@@ -9121,19 +9190,64 @@ let autoLanjut = 0;
     void import('./checkpoint').then((m) => {
       const cp = m.tutupCheckpoint();
       if (!cp) return;
-      set((s) => ({
-        sessions: s.sessions.map((x) =>
-          x.id === sessionId
-            ? {
-                ...x,
-                messages: x.messages.map((msg) =>
-                  msg.id === botMsg.id ? { ...msg, checkpoint: cp } : msg,
-                ),
-              }
-            : x,
-        ),
-      }));
-      persist(get());
+      void import('./reviewUbah').then((r) => {
+        /*
+         * `reviewScope` decides whether this turn keeps an undo at all, and
+         * `latest` also retires every older one. Both rules come from
+         * `reviewUbah.ts` so the page's dropdown and the behaviour here cannot
+         * disagree — a control that changes a stored value but not the code path
+         * is the fake toggle this page exists to avoid.
+         */
+        const simpan = r.simpanCheckpoint();
+        const dibuang = simpan
+          ? new Set(
+              r.checkpointYangDibuang(
+                r.cakupanReview(),
+                (get().sessions.find((x) => x.id === sessionId)?.messages ?? []).map((msg) => msg.id),
+                botMsg.id,
+              ),
+            )
+          : new Set<string>();
+
+        set((s) => ({
+          sessions: s.sessions.map((x) =>
+            x.id === sessionId
+              ? {
+                  ...x,
+                  messages: x.messages.map((msg) => {
+                    if (msg.id === botMsg.id) return simpan ? { ...msg, checkpoint: cp } : msg;
+                    if (dibuang.has(msg.id)) {
+                      const { checkpoint: _buang, ...sisa } = msg;
+                      return sisa;
+                    }
+                    return msg;
+                  }),
+                }
+              : x,
+          ),
+        }));
+        persist(get());
+
+        if (!simpan) return;
+
+        /*
+         * Auto Fix Lints runs from the checkpoint's file list, not from a second
+         * scan of the turn's steps.
+         *
+         * The checkpoint already IS the authoritative "what this turn changed"
+         * list — it is built by the write path itself, so it cannot miss a file
+         * the way a name filter over tool steps can. Reusing it also means the
+         * fixer can never touch a file the undo button would not put back, which
+         * keeps the two features describing the same turn.
+         *
+         * Deliberately AFTER `persist`: the turn is saved and readable before a
+         * formatter touches the disk, so a crash mid-format cannot lose the
+         * transcript that explains what happened.
+         */
+        void import('./autoFix')
+          .then((m) => m.autoFixGiliran(composerId, cp.berkas.map((b) => b.path)))
+          .catch(() => {});
+      });
     });
 
     /*
