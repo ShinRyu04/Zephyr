@@ -34,9 +34,21 @@ export default function TerminalPanel() {
   const refreshFromBackend = useTerminal((s) => s.refreshFromBackend);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
 
+  /*
+   * Re-read the agent catalogue when this panel appears.
+   *
+   * It used to call `refreshFromBackend()`, which is the wrong action: that
+   * one refreshes PANE STATUS (which PTYs are still alive) and never touches
+   * `agents`. So a reader who opened the sidebar first saw the empty state
+   * "No agent CLI installed" while the bottom terminal - which happens to
+   * read the same store after App.tsx had already loaded it - listed all
+   * eleven. Measured live: store held 11 agents, this panel rendered 0.
+   */
+  const loadAgents = useTerminal((s) => s.loadAgents);
   useEffect(() => {
     void refreshFromBackend();
-  }, [refreshFromBackend]);
+    void loadAgents();
+  }, [refreshFromBackend, loadAgents]);
 
   const semuaPane = tabs.flatMap((t) => t.panes);
   const hidup = semuaPane.filter((p) => p.status === 'live').length;

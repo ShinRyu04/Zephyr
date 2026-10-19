@@ -170,6 +170,7 @@ import './styles/ai-sesi.css';
 import './styles/ai-todo-card.css';
 import './styles/ai-subagents-menu.css';
 import './styles/ai-tanya.css';
+import './styles/ai-composer-trae.css';
 
 import './styles/a11y.css';
 import { useAturanTersambung } from './lib/useAturanTersambung';

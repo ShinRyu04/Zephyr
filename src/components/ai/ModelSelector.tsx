@@ -345,7 +345,11 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
         <span className="ai-model-name">
           {ikutChat ? tr('Follow chat') : hydraDipilih ? 'HydraFusion' : efektif.label}
         </span>
-        <AiIkon name="chev-up" size={11} />
+        {/* Closed: the list below is folded, so the caret points DOWN. It used
+            to be hardcoded to `chev-up`, which told the reader the menu was
+            already open while it was shut - measured live against the
+            reference, whose caret points down whenever the menu is closed. */}
+        <AiIkon name={open ? 'chev-up' : 'chev-down'} size={11} />
       </button>
 
       {open && (

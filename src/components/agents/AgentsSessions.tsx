@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useT } from '../../lib/i18n';
-import { useAgentCustom, type AgentCustomSection } from '../../lib/agentCustomStore';
-import AiIkon, { type NamaAiIkon } from '../ai/AiIkon';
+import { bukaPanel } from '../../lib/bukaPanel';
 import SessionContextMenu from './SessionContextMenu';
 
 /*
@@ -31,20 +30,6 @@ import SessionContextMenu from './SessionContextMenu';
  * the column exists for (the task list).
  */
 
-/** Customizations entries, opened from the footer menu. */
-type Custom = { label: string; section: AgentCustomSection; icon: NamaAiIkon };
-
-const CUSTOMS: Custom[] = [
-  { label: 'Overview', section: 'overview', icon: 'robot' },
-  { label: 'Plugins', section: 'plugins', icon: 'link' },
-  { label: 'MCP Servers', section: 'mcp', icon: 'terminal' },
-  { label: 'Skills', section: 'skills', icon: 'thought' },
-  { label: 'Instructions', section: 'instructions', icon: 'doc' },
-  { label: 'Agents', section: 'agents', icon: 'robot' },
-  { label: 'Hooks', section: 'hooks', icon: 'queue' },
-  { label: 'Tools', section: 'tools', icon: 'wrench' },
-];
-
 /** Last path segment of a workspace, for the group header. */
 function namaFolder(label: string): string {
   const bersih = label.replace(/[\\/]+$/, '');
@@ -71,14 +56,11 @@ export default function AgentsSessions() {
   const renameChat = useAi((s) => s.renameChat);
   const duplicateChat = useAi((s) => s.duplicateChat);
   const setChatPinned = useAi((s) => s.setChatPinned);
-  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
-  const bukaCustom = useAgentCustom((s) => s.buka);
   const workspaceAktif = useStore((s) => s.workspace);
 
   const [menu, setMenu] = useState<{ id: string; judul: string; dipin: boolean; x: number; y: number } | null>(null);
   const [gantiNama, setGantiNama] = useState<{ id: string; teks: string } | null>(null);
   const [lipat, setLipat] = useState<Record<string, boolean>>({});
-  const [menuFooter, setMenuFooter] = useState(false);
 
   /* Newest activity first — a conversation you just had is the one you want. */
   const urut = useMemo(() => {
@@ -125,7 +107,17 @@ export default function AgentsSessions() {
 
   return (
     <div className="ag-sesi" data-testid="ag-sessions">
-      {/* "New task" — the first row, exactly as the reference opens the column. */}
+      {/* The reference opens the column with the primary action, then three
+          navigation rows. Measured on its bitmap: "New task" is a 34px row
+          with a 20px icon and a 14px label, and the three below it are the
+          same height with no background - they read as destinations, not as
+          buttons, which is the distinction the reference draws.
+
+          All three open surfaces Zephyr already has; none of them is a new
+          screen invented to fill the space:
+            Marketplace  -> the extensions window (#panel=extensions)
+            Automation   -> Chat Settings, Automation section
+            My Artifacts -> Chat Settings, Artifacts section */}
       <div className="ag-sesi-atas">
         <button
           className="ag-sesi-baru"
@@ -136,6 +128,43 @@ export default function AgentsSessions() {
             <path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
           </svg>
           <span className="ag-sesi-baru-teks">{tr('New task')}</span>
+        </button>
+
+        <button
+          className="ag-sesi-nav"
+          data-testid="ag-nav-marketplace"
+          onClick={() => bukaPanel('extensions')}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-nav-ic">
+            <path d="M2.5 6.5h11v6.2h-11z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            <path d="M2.5 6.5l2-3.2h7l2 3.2" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
+          </svg>
+          <span className="ag-sesi-nav-teks">{tr('Marketplace')}</span>
+        </button>
+
+        <button
+          className="ag-sesi-nav"
+          data-testid="ag-nav-automation"
+          onClick={() => bukaPanel('settings', 'automation')}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-nav-ic">
+            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            <path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <span className="ag-sesi-nav-teks">{tr('Automation')}</span>
+        </button>
+
+        <button
+          className="ag-sesi-nav"
+          data-testid="ag-nav-artifacts"
+          onClick={() => bukaPanel('settings', 'artifacts')}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" className="ag-sesi-nav-ic">
+            <path d="M2.5 4.2h11v8.6h-11z" stroke="currentColor" strokeWidth="1.2" fill="none" />
+            <path d="M2.5 6.6h11" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M5.2 4.2V2.8M10.8 4.2V2.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <span className="ag-sesi-nav-teks">{tr('My Artifacts')}</span>
         </button>
       </div>
 
@@ -288,59 +317,20 @@ export default function AgentsSessions() {
         />
       )}
 
-      {/* ── Footer: 48px, account + the `…` menu ───────────────────────────── */}
-      <div className="ag-sesi-footer">
-        <button
-          className="ag-sesi-akun"
-          data-testid="ag-footer-akun"
-          title={workspaceAktif ?? tr('No folder')}
-          onClick={() => setSettingsOpen(true)}
-        >
-          <span className="ag-sesi-akun-avatar" aria-hidden="true">
-            {(namaFolder(workspaceAktif ?? 'Z') || 'Z').slice(0, 1).toUpperCase()}
-          </span>
-          <span className="ag-sesi-akun-teks">{namaFolder(workspaceAktif ?? '') || tr('No folder')}</span>
-        </button>
-
-        <div className="ag-sesi-footer-menuwrap">
-          <button
-            className="ag-sesi-footer-ikon"
-            data-testid="ag-footer-more"
-            aria-label={tr('Customizations')}
-            aria-haspopup="menu"
-            aria-expanded={menuFooter}
-            onClick={() => setMenuFooter((v) => !v)}
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <circle cx="3.2" cy="8" r="1.2" fill="currentColor" />
-              <circle cx="8" cy="8" r="1.2" fill="currentColor" />
-              <circle cx="12.8" cy="8" r="1.2" fill="currentColor" />
-            </svg>
-          </button>
-          {menuFooter && (
-            <div className="ag-sesi-footer-menu" role="menu" data-testid="ag-footer-dropdown">
-              {CUSTOMS.map((c) => (
-                <button
-                  key={c.section}
-                  role="menuitem"
-                  className="ag-sesi-footer-item"
-                  data-testid={`ag-cust-${c.section}`}
-                  onClick={() => {
-                    setMenuFooter(false);
-                    setSettingsOpen(false);
-                    bukaCustom(c.section);
-                  }}
-                >
-                  <span className="ag-sesi-footer-item-ikon" aria-hidden="true">
-                    <AiIkon name={c.icon} size={14} />
-                  </span>
-                  <span>{tr(c.label)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {/*
+       * NO footer.
+       *
+       * This was a 48px strip holding the workspace avatar, its folder name
+       * and a `...` menu that opened Agent Customizations. Both were
+       * duplicates of surfaces that already exist: the folder name is in the
+       * window title and the session list's own header, and Customizations is
+       * reachable from Settings and from the composer's agent menu.
+       *
+       * Removed on request while the reference layout is being matched - the
+       * real account footer is still to come from that reference, so keeping
+       * a stand-in here would have been a control that only LOOKS like the
+       * final one.
+       */}
     </div>
   );
 }

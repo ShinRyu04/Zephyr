@@ -9,7 +9,6 @@ import {
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { bukaPanel } from '../../lib/bukaPanel';
-import { useSessionsSide } from '../../lib/sessionsSideStore';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
 import FileIkon from './FileIkon';
@@ -21,10 +20,8 @@ import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import TodoPanel from './TodoPanel';
-import ComposerTip from './ComposerTip';
 import BrowserContextChip from './BrowserContextChip';
-import ContextMeter from './ContextMeter';
-import { ModeMenu, PermissionMenu, ReasoningMenu, InteractiveMenu } from './ModeMenu';
+import { ModeMenu, PermissionMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
@@ -457,8 +454,6 @@ const bukaModels = () => bukaPanel('models');
      the editor-area tab, the pop-out window) is a vertical panel, so the header
      always takes its column shape. */
   const aiMax = useStore((s) => s.aiMax);
-  const sesiSisiBuka = useSessionsSide((s) => s.buka);
-  const setSesiSisiBuka = useSessionsSide((s) => s.setBuka);
   /* Maximize/Restore moved to the shared AiHost tab strip, so AiPanel no longer
      reads `aiMax` itself — the strip owns the toggle for all three tabs. */
 
@@ -980,7 +975,7 @@ const bukaModels = () => bukaPanel('models');
 
   return (
     <div
-      className={`ai-panel${aiSempit ? ' is-kanan' : ''}`}
+      className={`ai-panel${aiSempit ? ' is-kanan' : ''}${jumlahPesan === 0 ? ' is-kosong' : ''}`}
       data-testid="ai-panel"
       data-pos="kanan"
     >
@@ -1024,28 +1019,10 @@ const bukaModels = () => bukaPanel('models');
           <AiIkon name="chev-down" size={12} />
         </button>
 
-        {/*
-          * Show/hide the agent sessions column, pinned to the RIGHT edge of
-          * this row.
-          *
-          * Only while the panel is COMPACT (`!aiMax`): once the panel is
-          * expanded the session column carries the control in its own header,
-          * directly above the list it toggles, and a second copy up here would
-          * be the same switch in two places.
-          */}
-        {!aiMax && (
-          <button
-            type="button"
-            className={`ai-ikon ai-head-sesi${sesiSisiBuka ? ' is-on' : ''}`}
-            data-testid="ai-toggle-sessions-side"
-            title={tr('Show Agent Sessions Sidebar')}
-            aria-label={tr('Show Agent Sessions Sidebar')}
-            aria-pressed={sesiSisiBuka}
-            onClick={() => setSesiSisiBuka(!sesiSisiBuka)}
-          >
-            <AiIkon name="list" size={14} />
-          </button>
-        )}
+        {/* The "Show Agent Sessions Sidebar" toggle lived here. Removed on
+            request: the sessions column already has its own header control
+            above the list it toggles, and this second copy sat in the chat
+            header where it read as one more unexplained icon. */}
 
         {sesiBuka && sesiRect && (
           <div
@@ -1144,33 +1121,32 @@ const bukaModels = () => bukaPanel('models');
         {jumlahPesan === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
             {/*
-             * A mark, a line of purpose, then three things to do. The panel used
-             * to open on two lines of grey hint text, which read as an error
-             * state rather than as a starting point. The suggestions are the
-             * real prompts the panel already supports — clicking one fills the
-             * composer rather than sending, so the user can edit first.
+             * The starting screen, laid out like the reference.
+             *
+             * Measured on 1.1.png (1917x1142 at 1.25 scale => 1534x914 css):
+             *
+             *   y 287-313   heading, 26px, bright
+             *   y 455-479   box 1: the typing field (24px)
+             *   y 495-536   box 2: controls + "Local <folder>"
+             *   y 576-605   category cards, four across
+             *
+             * So the order is: heading, composer, cards. The cards sit BELOW
+             * the composer, which is why they live in this block but are
+             * reordered by CSS (the panel becomes a flex column and the three
+             * pieces get an explicit `order`). No duplicated markup, and the
+             * heading cannot drift away from the cards it belongs to.
+             *
+             * No tagline: removed on request. The reference's own tagline is
+             * a single line of marketing copy that added a third block of text
+             * above the composer without telling the reader anything to do.
              */}
-            <div className="ai-empty-mark" aria-hidden="true">
-              <svg viewBox="0 0 32 32" width="30" height="30" fill="none">
-                <path
-                  d="M16 3.4l3.4 7.2 7.2 3.4-7.2 3.4L16 24.6l-3.4-7.2L5.4 14l7.2-3.4L16 3.4z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinejoin="round"
-                />
-                <circle cx="16" cy="14" r="2.4" fill="currentColor" />
-              </svg>
-            </div>
-            <p className="ai-empty-title">{tr('Ask about this code.')}</p>
-            <p className="ai-empty-sub">
-              {tr('Enter sends · Shift+Enter new line · Ctrl+I focuses here.')}{' '}
-              {tr('A')} <code>bash</code> {tr('block runs in the terminal.')}
-            </p>
+            <p className="ai-empty-judul">{tr('Build with Zephyr')}</p>
             <div className="ai-saran" role="list">
               {[
-                { id: 'jelaskan', label: 'Explain this file', sub: 'Walk through what it does', isi: 'Explain what this file does, step by step.' },
-                { id: 'error', label: 'Find the bug', sub: 'Look at the current errors', isi: 'Look at the errors in this file and explain the cause, then propose a fix.' },
-                { id: 'tes', label: 'Write a test', sub: 'Cover the main path', isi: 'Write a test for the main path in this file.' },
+                { id: 'aplikasi', label: 'Application Development', sub: 'Build a feature end to end', ikon: 'wrench' as const, isi: 'Build a small feature end to end: plan it, implement it, then verify it runs.' },
+                { id: 'pahami', label: 'Project Understanding', sub: 'Map how this repo works', ikon: 'search' as const, isi: 'Map how this repository is put together: the entry points, the main modules, and how data flows between them.' },
+                { id: 'kreatif', label: 'Game Creativity', sub: 'Prototype a game idea', ikon: 'thought' as const, isi: 'Prototype a small playable game idea and show me how to run it.' },
+                { id: 'otomasi', label: 'Automation Tools', sub: 'Script a repetitive job', ikon: 'queue' as const, isi: 'Find the most repetitive manual step in this project and script it.' },
               ].map((s) => (
                 <button
                   key={s.id}
@@ -1183,6 +1159,9 @@ const bukaModels = () => bukaPanel('models');
                     inputRef.current?.focus();
                   }}
                 >
+                  <span className="ai-saran-ikon" aria-hidden="true">
+                    <AiIkon name={s.ikon} size={14} />
+                  </span>
                   <span className="ai-saran-teks">
                     <span className="ai-saran-label">{tr(s.label)}</span>
                     <span className="ai-saran-sub">{tr(s.sub)}</span>
@@ -1837,14 +1816,6 @@ const bukaModels = () => bukaPanel('models');
 
       <div className="ai-input-row">
         {/*
-          * The tip strip: the top section of the reference composer — one
-          * bordered box wrapping tip + field + toolbar, hairline between the
-          * tip and the field. It teaches gestures this box actually supports
-          * (@, /, Ctrl+Enter) and rotates so it never becomes wallpaper.
-          * Rendered first so it reads as the box's header in every placement.
-          */}
-        <ComposerTip />
-        {/*
           * The branch chip, inside the composer box and above the field.
           *
           * Hermes renders a `main` chip as the first row of its composer
@@ -2252,17 +2223,15 @@ const bukaModels = () => bukaPanel('models');
           />
 
           {/*
-            * Agent first, then the model beside it — the order asked for: the
-            * mode says WHAT will act, the model says WHO acts, and reading
-            * "Agent → model" matches how the choice is made (pick the mode,
-            * then the model behind it). Both inside the box, on one line.
+            * Left group: approval, then who runs it — packed tight.
             */}
+          <PermissionMenu />
           <ModeMenu />
-          <ModelSelector />
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
 
-          
+          {/* The model sits directly beside Send, at the trailing edge. */}
+          <ModelSelector />
 
           <div className="ai-send-wrap">
             {!sibuk && adaCheckpoint && (
@@ -2295,7 +2264,7 @@ const bukaModels = () => bukaPanel('models');
                 aria-label={tr('Run')}
                 onClick={() => void kirimSekarang(draft, draftImages, composerId)}
               >
-                <AiIkon name="send" size={15} />
+                <AiIkon name="arrow-up" size={15} />
               </button>
             )}
 
@@ -2379,28 +2348,41 @@ const bukaModels = () => bukaPanel('models');
             )}
           </div>
         </div>
+
+        {/*
+          * `Local <folder>` — the SECOND box, below the control row.
+          *
+          * Measured on the reference (1.1.png at 1.25): box 1 is the typing
+          * field (y 455-479, 24px), box 2 is the control row PLUS this line
+          * (y 495-536, background #1E1E1E, border #3F4046). Two separate
+          * boxes, not one — that is what makes the composer read as "where the
+          * task is written" and "where it runs" rather than as a single field.
+          *
+          * It is a real control: it names the folder the agent will work in and
+          * opens the folder picker on click, the same action the title bar's
+          * folder name leads to. A row that only printed a name would be
+          * decoration; this one changes the workspace.
+          */}
       </div>
 
       {/*
-        * Bottom status bar, below the composer (Copilot-style).
+        * NO status strip below the composer.
         *
-        * Left: how the turn RUNS — the run mode (Interactive / Plan / Autopilot),
-        * the permission level and the reasoning effort. This is the
-        * "Interactive · Manual permissions" footer of the reference. They moved
-        * out of the composer row so that row only carries what the message IS
-        * (model + agent). Right: the passive readouts — message count and the
-        * context-fullness ring.
+        * It held the run mode (Interactive / Plan / Autopilot), the permission
+        * level, the reasoning effort, the message count and the context ring -
+        * five readouts in a strip that does not exist in the reference. The
+        * reference's composer is one card and everything it carries is inside
+        * it; a second bar underneath made the box look like it belonged to the
+        * panel rather than to the message.
+        *
+        * All five settings are still real and still change behaviour. They are
+        * reachable from Chat Settings, which is where a setting that is not
+        * needed while typing belongs:
+        *   run mode    -> Settings > Chat > Run mode     (cset-runmode)
+        *   reasoning   -> Settings > Chat > Reasoning    (cset-reasoning)
+        *   permissions -> Settings > Chat > Permissions  (cset-approval)
+        *   persona     -> Settings > Agents
         */}
-      <div className="ai-botbar" data-testid="ai-botbar">
-        <InteractiveMenu />
-        <PermissionMenu />
-        <ReasoningMenu />
-        <span className="ai-botbar-spacer" aria-hidden="true" />
-        <span className="ai-count" data-testid="ai-msg-count">
-          {tf('{n} messages', { n: jumlahPesan })}
-        </span>
-        <ContextMeter composerId={composerId} />
-      </div>
 
       {/*
         * Pertanyaan dari agen (tool ask_user).

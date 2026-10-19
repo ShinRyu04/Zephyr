@@ -104,7 +104,17 @@ export const useAiTabs = create<AiTabsState>((set, get) => ({
        catalogue (`list_agents`) at startup; read it from there rather than
        detecting twice. */
     const { useTerminal } = await import('./terminalStore');
-    const info = useTerminal.getState().agents.find((a) => a.id === agentId);
+    let info = useTerminal.getState().agents.find((a) => a.id === agentId);
+    if (!info) {
+      /*
+       * The catalogue may simply not be loaded yet. Asking again is cheap (one
+       * PATH scan) and it is the difference between "not installed" and a tab
+       * that works: before this, a click that landed before the startup scan
+       * finished reported a missing CLI that was in fact on PATH.
+       */
+      await useTerminal.getState().loadAgents();
+      info = useTerminal.getState().agents.find((a) => a.id === agentId);
+    }
     if (!info) {
       set({ error: `${agentId} is not installed` });
       return;
