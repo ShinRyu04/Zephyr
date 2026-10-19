@@ -438,31 +438,54 @@
  */
 .ai-slash {
   /*
-   * Height is a whole number of rows, so the last visible command is never
-   * sliced in half — a half-row reads as a rendering bug and hides the fact
-   * that the list scrolls at all.
+   * COMPACT, like the reference.
    *
-   * 30px per row, ten rows, plus 6px padding and a 1px border on each side:
-   * 10 * 30 + 6 + 2 = 308. If the row height ever changes, this follows.
+   * Measured before this: 441 x 310px for a list of nineteen commands. That is
+   * a dialog, not a suggestion list - it covered a third of the chat and made
+   * the composer feel like it had opened a window. The reference's popup is a
+   * narrow strip of small rows that sits just above the field.
+   *
+   * Rows drop to 26px and the font to 11.5, so eight of them fit in 208px -
+   * short enough that the popup never hides the message being written, tall
+   * enough that a command list is still scannable.
    */
-  --row: 30px;
-  max-height: calc(10 * var(--row) + 8px);
+  --row: 26px;
+  /*
+   * The last row must END before the box does.
+   *
+   * `border-box` means padding and border come out of `max-height`, so the
+   * arithmetic is: 8 rows * 26 = 208, plus 3+3 padding, plus 1+1 border = 216.
+   * `+ 16` gave 224 - eight rows fit in 218, so nothing was clipped by SIZE.
+   *
+   * The row that still looked cut was the one scrolled to: with 19 rows in a
+   * 224px box, `scrollIntoView` parks the target flush against the bottom edge,
+   * where its own 1px border and the box's border overlap. `scroll-padding`
+   * below is what keeps it clear.
+   */
+  max-height: calc(8 * var(--row) + 12px);
   padding: 3px;
   /* The list can be long; a thin themed bar beats the native one. */
   scrollbar-width: thin;
+  /* Keeps a row that is scrolled to from touching the edge, so `scrollIntoView`
+     never parks a highlighted row half outside the box. 4px, not 2: the row has
+     its own 5px radius and the box has a 1px border, and at 2 the two overlapped
+     into what read as a clipped row. */
+  scroll-padding: 4px;
 }
 
 .ai-slash-item {
   /* Rows are a fixed height so the scroll position stays predictable when the
-     filter changes and the list is rebuilt. */
-  min-height: 30px;
+     filter changes and the list is rebuilt. 26px, not 30: the popup is a
+     suggestion strip beside the field, and a taller row makes it read as a
+     dialog. */
+  min-height: 26px;
 }
 
 /* The icon column is fixed, so names line up down the list. */
 .ai-slash-item .ai-fikon,
 .ai-slash-item .ai-cikon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

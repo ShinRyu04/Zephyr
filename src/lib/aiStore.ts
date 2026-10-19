@@ -3261,11 +3261,27 @@ const boot = loadSessions();
  *
  * Chat mode was removed at the reader's request (2026-10-13): the AI has tools,
  * reads files and runs commands, so "answer only" was a second dispatch path
- * that behaved like a different product. A stored 'chat' now boots as 'agent';
- * the run mode (Interactive / Plan / Autopilot) is what the reader picks.
+ * that behaved like a different product.
+ *
+ * THAT DECISION IS REVERSED. The two modes are not the same product with one
+ * switch removed - they answer different questions. Chat answers; Agent reads
+ * files, runs commands and edits code. A reader who wants "what does this regex
+ * do" should not have to send it to something that starts opening files, and
+ * "why is there no chat" is exactly that complaint. The composer's chip offers
+ * both again.
+ *
+ * The stored choice is read back. It used to return a literal 'agent' while the
+ * signature promised to honour what was saved, so the picker's Chat row wrote
+ * 'chat' and the next load silently put it back - a switch that looks connected
+ * and is not.
  */
 function bootAgentMode(): 'chat' | 'agent' {
-  return 'agent';
+  try {
+    const v = localStorage.getItem('zephyr.ai.mode');
+    return v === 'chat' ? 'chat' : 'agent';
+  } catch {
+    return 'agent';
+  }
 }
 
 /** Last run mode (Interactive / Plan / Autopilot), kept across sessions. */
@@ -4025,16 +4041,20 @@ export const useAi = create<AiStore>((set0, get) => {
     setToast: (v) => set({ toast: v }),
   setConfirmCmd: (v) => set({ confirmCmd: v }),
   /*
-   * Coerced on purpose: 'chat' is retired, so a caller asking for it gets an
-   * agent run instead of resurrecting a path the UI no longer offers. The
-   * action stays (older callers and the Settings row still call it) and still
-   * writes the localStorage key, so a stale tab reading it stays coherent.
+   * The caller's choice is HONOURED.
+   *
+   * This used to ignore its argument and always write `'agent'`, on the
+   * reasoning that Chat had been retired and there was nothing left to switch
+   * between. That left the parameter in the signature while making it a lie:
+   * any caller - a menu row, a Settings control, a restored session - asking
+   * for 'chat' got 'agent' back and no way to tell. The composer's picker now
+   * offers both, so the choice has to survive the round trip.
    */
-  setAgentMode: (_m) => {
-    const m: 'chat' | 'agent' = 'agent';
-    set({ agentMode: m });
+  setAgentMode: (m) => {
+    const mode: 'chat' | 'agent' = m === 'chat' ? 'chat' : 'agent';
+    set({ agentMode: mode });
     try {
-      localStorage.setItem('zephyr.ai.mode', m);
+      localStorage.setItem('zephyr.ai.mode', mode);
     } catch {
       /* diabaikan */
     }
@@ -4069,14 +4089,18 @@ export const useAi = create<AiStore>((set0, get) => {
    * The three modes map to real behaviour: Autopilot runs everything (approval
    * 'auto'); Interactive and Plan both pause for risky actions (approval
    * 'work'), and Plan additionally injects a "present a plan, change nothing"
-   * instruction read by `sendAgent`. Switching to agent mode here when it was
-   * 'chat' is deliberate — these modes only mean anything to the agent, so
-   * choosing one is also choosing to run as an agent.
+   * instruction read by `sendAgent`.
+   *
+   * IT NO LONGER FORCES `agentMode`. It used to, on the reasoning that these
+   * modes only mean anything to an agent - so choosing one was also choosing to
+   * run as an agent. That was defensible while Chat did not exist, and became a
+   * bug the moment it came back: the run mode is persisted and restored on
+   * boot, so every launch silently switched the reader out of Chat. A control
+   * that resets another control is not a default, it is a trap.
    */
   setRunMode: (m) => {
     set((s) => ({
       runMode: m,
-      agentMode: 'agent',
       approvalMode: m === 'autopilot' ? 'auto' : 'work',
       sessions: s.sessions.map((x) =>
         x.id === s.activeId ? { ...x, approval: m === 'autopilot' ? 'auto' : 'work' } : x,
@@ -4084,7 +4108,6 @@ export const useAi = create<AiStore>((set0, get) => {
     }));
     try {
       localStorage.setItem('zephyr.ai.runMode', m);
-      localStorage.setItem('zephyr.ai.mode', 'agent');
     } catch {
       /* diabaikan */
     }

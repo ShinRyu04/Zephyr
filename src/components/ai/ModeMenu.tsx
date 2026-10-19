@@ -109,18 +109,26 @@ function useTutupOtomatis(ref: React.RefObject<HTMLElement | null>, tutup: () =>
 /* ── Persona ──────────────────────────────────────────────────────────── */
 
 /*
- * The persona chip: who the agent works as.
+ * The mode chip: Chat, or Agent.
  *
- * It used to be the Chat/Agent switch, and it carried a "Mode" section with an
- * Agent row under it. Chat was retired (2026-10-13), so the switch had nothing
- * left to switch between — a picker with one option is furniture. The chip now
- * answers the question that is still open, and the row of personas moved up to
- * be the whole menu: the trigger shows the active persona's mark and name, so
- * "who am I talking to" is readable without opening anything.
+ * It is the switch the reference product puts in the composer, and it came back
+ * because retiring it was the mistake. Chat had been removed on 2026-10-13, so
+ * the chip had nothing left to switch between and was repurposed into a persona
+ * picker - a picker with one option is furniture. But the two modes are NOT the
+ * same thing: Chat answers, Agent reads files and runs tools. A reader who wants
+ * a question answered should not have to send it to an agent that will start
+ * opening files, and that is exactly what "why is there no chat" meant.
  *
- * The run mode (Interactive / Plan / Autopilot) is NOT here: it is its own
- * trigger in the composer's footer, where it was already offered, and two
- * switches for the same choice one row apart read as the same control twice.
+ * Each mode carries its OWN ICON, not a shared "@". The reference product draws
+ * a speech bubble for the conversation and a robot for the agent, and the icon
+ * is what makes the chip readable at a glance - a text label alone turns it into
+ * one more word in a toolbar of words. The "@" it used to show was the persona
+ * picker's mark, which no longer describes anything here.
+ *
+ * The run mode (Interactive / Plan / Autopilot) is GONE from the composer. It
+ * was a third switch for a third question, one row from the other two, and the
+ * reference has no such control there. The setting still exists and still works
+ * - it is set in Chat Settings - but it is no longer a chip beside Send.
  */
 export function ModeMenu() {
   const tr = useT();
@@ -136,6 +144,9 @@ export function ModeMenu() {
   const daftarPersona = usePersona((s) => s.daftar);
   const personaAktif = usePersona((s) => s.aktif);
   const muatPersona = usePersona((s) => s.muat);
+  /* Which of the two answers the composer is set to. */
+  const modeAktif = useAi((s) => s.agentMode ?? 'agent');
+  const setAgentMode = useAi((s) => s.setAgentMode);
 
   /* The list may not be loaded yet on a cold start, so the popup falls back to
      describing the row generically rather than rendering an empty label. */
@@ -159,52 +170,100 @@ export function ModeMenu() {
       <button
         className="mode-btn is-agent"
         data-testid="ai-mode-menu"
-        data-mode="agent"
+        data-mode={modeAktif}
         data-persona={personaAktif}
         aria-expanded={buka}
         aria-haspopup="menu"
-        title={tr('Agent persona - who the agent works as')}
+        title={tr('Who answers: plain chat, or the agent with tools')}
         onClick={() => setBuka((v) => !v)}
       >
-        <span className="pick-at" aria-hidden="true">@</span>
-        {tr('Agent')}
+        {modeAktif === 'chat' ? (
+          /* A speech bubble: this mode answers, it does not act. */
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <path
+              d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          /* A robot head: this mode has tools and acts on the workspace. */
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <rect x="3" y="5.4" width="10" height="7.2" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M8 3.2v2.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <circle cx="8" cy="2.6" r="1.1" fill="currentColor" stroke="none" />
+            <circle cx="6.2" cy="9" r="0.95" fill="currentColor" stroke="none" />
+            <circle cx="9.8" cy="9" r="0.95" fill="currentColor" stroke="none" />
+          </svg>
+        )}
+        {tr(modeAktif === 'chat' ? 'Chat' : 'Agent')}
         <span className="pick-caret">▾</span>
       </button>
 
       {buka && (
         <div className="mode-pop is-naik" data-testid="ai-mode-pop" role="menu">
-          <div className="pick-seksi">{tr('Built-In Agents')}</div>
           {/*
-           * Two rows, and that is the whole menu - the reference's shape.
-           *
-           * It used to list every persona (Zeph, Coder, Architect, Reviewer,
-           * Security, ...) with their descriptions, then a divider, then
-           * "Manage personas & sub-agents". That made a MENU out of what the
-           * reference treats as a PICKER: two answers, not a catalogue. The
-           * long list also pushed the popup far past the composer, so it
-           * covered the transcript it was meant to help with.
-           *
-           * The personas themselves are NOT gone - they still exist, still
-           * drive the system prompt, and are still edited in Agent
-           * Customizations, which is what "Create Agent" opens. What changed
-           * is that the composer no longer asks you to choose one every time
-           * you type; the active one is shown, and changing it is one click.
-           */}
+            * Chat or Agent. That is the whole menu.
+            *
+            * The reference product puts this exact pair in the composer: a
+            * plain conversation, or the agent that reads files and runs tools.
+            * Everything else that used to live here - the persona catalogue, the
+            * run mode, the sub-agent editor - was a SETTINGS question asked at
+            * the moment of typing, and it turned a two-answer picker into a
+            * scrolling catalogue that covered the transcript it was meant to
+            * help with.
+            */}
+          <div className="pick-seksi">{tr('Mode')}</div>
           <button
             type="button"
             role="menuitemradio"
-            aria-checked={true}
-            className="mode-item is-on"
+            aria-checked={modeAktif === 'chat'}
+            className={`mode-item${modeAktif === 'chat' ? ' is-on' : ''}`}
+            data-testid="ai-mode-chat"
+            title={tr('Ask questions and talk - no tools, no file changes')}
+            onClick={() => {
+              setAgentMode('chat');
+              setBuka(false);
+            }}
+          >
+            <span className="mode-item-ikon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="13" height="13">
+                <path
+                  d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="mode-item-teks">
+              <b>{tr('Chat')}</b>
+              <i>{tr('Ask questions and talk - no tools, no file changes')}</i>
+            </span>
+            {modeAktif === 'chat' && <span className="pick-check">✓</span>}
+          </button>
+
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={modeAktif === 'agent'}
+            className={`mode-item${modeAktif === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-persona-aktif"
             title={aktifPersona?.deskripsi ?? undefined}
-            onClick={() => setBuka(false)}
+            onClick={() => {
+              setAgentMode('agent');
+              setBuka(false);
+            }}
           >
             <IkonPersonaBaris id={personaAktif} />
             <span className="mode-item-teks">
               <b>{tr('Agent')}</b>
-              <i>{aktifPersona?.nama ?? tr('The active agent persona')}</i>
+              <i>{aktifPersona?.nama ?? tr('Reads files, runs tools, changes code')}</i>
             </span>
-            <span className="pick-check">✓</span>
+            {modeAktif === 'agent' && <span className="pick-check">✓</span>}
           </button>
 
           <div className="mode-div" aria-hidden="true" />
@@ -224,82 +283,6 @@ export function ModeMenu() {
             </span>
           </button>
 </div>
-      )}
-    </span>
-  );
-}
-
-/* ── Run mode: Interactive / Plan / Autopilot ─────────────────────────── */
-
-const RUN_MODES: { id: 'interactive' | 'plan' | 'autopilot'; label: string; hint: string }[] = [
-  { id: 'interactive', label: 'Interactive', hint: 'Step-by-step collaboration' },
-  { id: 'plan', label: 'Plan', hint: 'Plan first, execute when ready' },
-  { id: 'autopilot', label: 'Autopilot', hint: 'Works autonomously within permissions' },
-];
-
-export function InteractiveMenu() {
-  const tr = useT();
-  const [buka, setBuka] = useState(false);
-  const ref = useRef<HTMLSpanElement | null>(null);
-  useTutupOtomatis(ref, () => setBuka(false));
-
-  const runMode = useAi((s) => s.runMode ?? 'interactive');
-  const setRunMode = useAi((s) => s.setRunMode);
-  const aktif = RUN_MODES.find((m) => m.id === runMode) ?? RUN_MODES[0];
-
-  return (
-    <span className="izin-wrap" ref={ref}>
-      <button
-        className="mode-btn"
-        data-testid="ai-run-menu"
-        data-run={runMode}
-        aria-expanded={buka}
-        aria-haspopup="menu"
-        title={tr(aktif.hint)}
-        onClick={() => setBuka((v) => !v)}
-      >
-        {runMode === 'plan' ? (
-          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-            <path d="M3 4h7M3 8h7M3 12h4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            <path d="M12.4 10.4l1 1 2-2.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ) : runMode === 'autopilot' ? (
-          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-            <path d="M8.6 1.8 3.4 9h3.3l-1.3 5.2L12.4 7H9l1.6-5.2z" fill="currentColor" stroke="none" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-            <path d="M13.6 8.2a5.2 5.2 0 0 1-7.3 4.7l-3.9.9.9-3.8A5.2 5.2 0 1 1 13.6 8.2z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-          </svg>
-        )}
-        {tr(aktif.label)}
-        <span className="pick-caret">▾</span>
-      </button>
-
-      {buka && (
-        <div className="mode-pop is-naik" data-testid="ai-run-pop" role="menu">
-          <div className="pick-seksi">{tr('Run mode')}</div>
-          {RUN_MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={m.id === runMode}
-              className={`mode-item${m.id === runMode ? ' is-on' : ''}`}
-              data-testid={`ai-run-${m.id}`}
-              onClick={() => {
-                setRunMode(m.id);
-                setBuka(false);
-              }}
-            >
-              <span className="mode-item-teks">
-                <b>{tr(m.label)}</b>
-                <i>{tr(m.hint)}</i>
-              </span>
-              {m.id === runMode && <span className="pick-check">✓</span>}
-            </button>
-          ))}
-        </div>
       )}
     </span>
   );

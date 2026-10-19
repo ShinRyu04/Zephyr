@@ -28,7 +28,7 @@
    * from different places, so a reader who learns one must recognise the other -
    * two different slabs for one job was the "kok beda" report waiting to happen.
    */
-  background: var(--popup-bg, #1c1d22);
+  background: var(--popup-bg, #17181c);
   border: 1px solid var(--popup-border, var(--border));
   border-radius: 10px;
   box-shadow: var(--popup-shadow, 0 14px 34px rgb(0 0 0 / 50%));
