@@ -1721,3 +1721,98 @@
 .ai-panel.is-kosong .ai-chat > * {
   flex-shrink: 0;
 }
+
+/* ══ The Agent intro (empty state) ══════════════════════════════════════
+ *
+ * The reference's launch screen: mark + "Agent" on one line, one muted
+ * tagline, then three checked capability lines. Centred as a block, with the
+ * lines themselves left-aligned so their check marks line up in a column —
+ * centred bullets read as a poem, not a list.
+ *
+ * Everything is scoped to `.ai-intro`, so no other empty state in the app can
+ * inherit these rules.
+ */
+
+.ai-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 4px 0 2px;
+  text-align: center;
+}
+
+/* Mark + word, on one baseline. */
+.ai-intro-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.ai-intro-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.ai-intro-judul {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.ai-intro-tagline {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The three capability lines. */
+.ai-intro-poin {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  /* Left-aligned inside a centred block: the check marks form a column. */
+  align-items: flex-start;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.ai-intro-poin li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+/* The check mark is drawn, not typed: a text glyph changes shape per font. */
+.ai-intro-poin li::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  background: currentColor;
+  color: var(--success);
+  -webkit-mask: var(--ai-check-mask) center / contain no-repeat;
+  mask: var(--ai-check-mask) center / contain no-repeat;
+}
+
+/* One source for the check geometry, used by the mask above. */
+.ai-intro {
+  --ai-check-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.6l3.2 3.2L13 5' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+

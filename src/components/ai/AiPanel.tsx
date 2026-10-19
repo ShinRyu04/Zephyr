@@ -1121,53 +1121,29 @@ const bukaModels = () => bukaPanel('models');
         {jumlahPesan === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
             {/*
-             * The starting screen, laid out like the reference.
+             * The Agent intro, laid out like TRAE's own starting screen: a mark
+             * and "Agent" on one line, one muted tagline under it, then three
+             * checked capability lines. Centred, no cards.
              *
-             * Measured on 1.1.png (1917x1142 at 1.25 scale => 1534x914 css):
-             *
-             *   y 287-313   heading, 26px, bright
-             *   y 455-479   box 1: the typing field (24px)
-             *   y 495-536   box 2: controls + "Local <folder>"
-             *   y 576-605   category cards, four across
-             *
-             * So the order is: heading, composer, cards. The cards sit BELOW
-             * the composer, which is why they live in this block but are
-             * reordered by CSS (the panel becomes a flex column and the three
-             * pieces get an explicit `order`). No duplicated markup, and the
-             * heading cannot drift away from the cards it belongs to.
-             *
-             * No tagline: removed on request. The reference's own tagline is
-             * a single line of marketing copy that added a third block of text
-             * above the composer without telling the reader anything to do.
+             * The four category cards that used to live here filled the
+             * composer with a canned prompt, but they read as a menu of
+             * features rather than as a place to type - and the reference's
+             * starting screen has no such menu. The composer below is the only
+             * thing to act on.
              */}
-            <p className="ai-empty-judul">{tr('Build with Zephyr')}</p>
-            <div className="ai-saran" role="list">
-              {[
-                { id: 'aplikasi', label: 'Application Development', sub: 'Build a feature end to end', ikon: 'wrench' as const, isi: 'Build a small feature end to end: plan it, implement it, then verify it runs.' },
-                { id: 'pahami', label: 'Project Understanding', sub: 'Map how this repo works', ikon: 'search' as const, isi: 'Map how this repository is put together: the entry points, the main modules, and how data flows between them.' },
-                { id: 'kreatif', label: 'Game Creativity', sub: 'Prototype a game idea', ikon: 'thought' as const, isi: 'Prototype a small playable game idea and show me how to run it.' },
-                { id: 'otomasi', label: 'Automation Tools', sub: 'Script a repetitive job', ikon: 'queue' as const, isi: 'Find the most repetitive manual step in this project and script it.' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="listitem"
-                  className="ai-saran-kartu"
-                  data-testid={`ai-saran-${s.id}`}
-                  onClick={() => {
-                    setDraft(tr(s.isi));
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <span className="ai-saran-ikon" aria-hidden="true">
-                    <AiIkon name={s.ikon} size={14} />
-                  </span>
-                  <span className="ai-saran-teks">
-                    <span className="ai-saran-label">{tr(s.label)}</span>
-                    <span className="ai-saran-sub">{tr(s.sub)}</span>
-                  </span>
-                </button>
-              ))}
+            <div className="ai-intro" data-testid="ai-intro">
+              <div className="ai-intro-head">
+                <span className="ai-intro-mark" aria-hidden="true">
+                  <AiIkon name="terminal" size={17} />
+                </span>
+                <span className="ai-intro-judul">{tr('Agent')}</span>
+              </div>
+              <p className="ai-intro-tagline">{tr('Deep understanding of complex tasks')}</p>
+              <ul className="ai-intro-poin">
+                <li>{tr('Handles iterations, bug fixes, and refactoring in large projects')}</li>
+                <li>{tr('Plans tasks intelligently and drives execution with precision')}</li>
+                <li>{tr('Orchestrates intelligent multi-agent collaboration')}</li>
+              </ul>
             </div>
           </div>
         ) : (
