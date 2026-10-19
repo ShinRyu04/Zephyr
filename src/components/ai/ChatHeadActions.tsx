@@ -195,6 +195,23 @@ export default function ChatHeadActions() {
                   <button role="menuitemcheckbox" aria-checked={debugBuka} className="ai-more-item" data-testid="ai-toggle-debug" onClick={() => { useAiDebug.getState().toggle(); setMenuBuka(false); }}>{tr('Show Chat Debug View')}</button>
                   <div className="ai-more-sep" />
                   <button role="menuitemcheckbox" aria-checked={tipsVisible} className="ai-more-item" data-testid="ai-toggle-tips" onClick={() => setTipsVisible(!tipsVisible)}>{tr('Show tips')}</button>
+                  <div className="ai-more-sep" />
+                  {/*
+                    * The task list is hidden by default. This is how it is
+                    * summoned: a window event, because the panel itself is not
+                    * mounted while hidden and cannot carry its own trigger.
+                    */}
+                  <button
+                    role="menuitem"
+                    className="ai-more-item"
+                    data-testid="ai-show-todos"
+                    onClick={() => {
+                      window.dispatchEvent(new Event('zephyr-todo-show'));
+                      setMenuBuka(false);
+                    }}
+                  >
+                    {tr('Show task list')}
+                  </button>
 
                 </div>
               </>

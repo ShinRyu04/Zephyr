@@ -1714,8 +1714,14 @@
   align-items: center;
   gap: 8px;
   padding: 5px 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /*
+   * No rule under the header.
+   *
+   * It used to carry `border-bottom`, which drew a line straight across the
+   * panel right below the New chat button. The header and the transcript are the
+   * same surface; the line made the header read as a separate toolbar strip.
+   */
+  background: transparent;
   flex: 0 0 auto;
 }
 
@@ -10231,19 +10237,13 @@
  * berbeda untuk mengatakan "ini batasku".
  */
 .ai-head {
-  border-top: 2px solid transparent;
-  border-image: linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--accent) 55%, transparent) 22%,
-      color-mix(in srgb, var(--accent) 55%, transparent) 78%,
-      transparent 100%
-    )
-    1;
   /*
-   * Padding sedikit lebih lega dari sebelumnya. Kepala yang rapat membuat
-   * tombol-tombolnya terlihat berdesakan, dan itu yang paling mudah terbaca
-   * sebagai "belum dirapikan".
+   * No gradient rule either.
+   *
+   * This block used to paint a 2px accent gradient across the top of the header.
+   * With the bottom rule gone it was the last line left in that area, and it
+   * read as a stray divider above the New chat button. Both are gone: the header
+   * is a plain row on the panel's own surface.
    */
   padding: 7px 10px;
 }

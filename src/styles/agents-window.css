@@ -144,15 +144,43 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  /*
+   * Wider than tall, matching the glyph's own ratio, so the mark is centred on
+   * the row's text baseline instead of hanging above it.
+   */
+  width: auto;
   height: 20px;
   margin-left: 10px;
   color: var(--ag-merek, var(--text));
   flex: 0 0 auto;
+  /*
+   * The mark is DECORATION, not a control.
+   *
+   * It is `aria-hidden` and has no click handler, but it was still a hover
+   * target: pointing at it lit nothing and shifted the row, which read as the
+   * icon "jumping up". `pointer-events: none` takes it out of hit-testing
+   * entirely, so the cursor and the hover state belong to the drag region
+   * behind it.
+   */
+  pointer-events: none;
+  align-self: center;
+  line-height: 0;
 }
 .ag-mb-merek svg {
-  width: 15px;
+  /*
+   * The mark is WIDER than it is tall (viewBox 488x424), so a square box
+   * squashes it: the glyph stretched vertically and sat above the folder name
+   * it is supposed to sit beside. Width follows the viewBox ratio; height is the
+   * row's cap height. `preserveAspectRatio` is the default, so no distortion is
+   * possible once the box matches the ratio.
+   */
+  width: auto;
   height: 15px;
+  aspect-ratio: 488 / 424;
+  display: block;
+  /* Vertical centring is the container's job; the glyph must not add its own
+     baseline gap, which is what pushed it up out of the row. */
+  vertical-align: middle;
 }
 .ag-mb-folder {
   max-width: 180px;

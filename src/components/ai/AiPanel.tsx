@@ -9,6 +9,7 @@ import {
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { bukaPanel } from '../../lib/bukaPanel';
+import { useSessionsSide } from '../../lib/sessionsSideStore';
 import { matchPrompts, expandPrompt, matchSnippets, expandSnippet, snippetTrigger } from '../../lib/promptLibrary';
 import { tokenAt, saringFile, muatFileWorkspace, type FileRef } from '../../lib/fileRefs';
 import FileIkon from './FileIkon';
@@ -19,6 +20,7 @@ import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
+import TodoPanel from './TodoPanel';
 import BrowserContextChip from './BrowserContextChip';
 import { ModeMenu, PermissionMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
@@ -471,6 +473,16 @@ const bukaModels = () => bukaPanel('models');
    * single bottom-dock layout.
    */
   const aiSempit = false;
+
+  /*
+   * The sessions column, shown beside the expanded chat.
+   *
+   * The panel only carries the TOGGLE; App renders the column itself when
+   * `aiMax` is on. Reading the flag here is what lets the button show its
+   * pressed state and lets the reader reopen a column they closed.
+   */
+  const sesiSisiBuka = useSessionsSide((s) => s.buka);
+  const setSesiSisiBuka = useSessionsSide((s) => s.setBuka);
 
   /*
    * How many messages the active chat holds.
@@ -1021,10 +1033,26 @@ const bukaModels = () => bukaPanel('models');
           <AiIkon name="chev-down" size={12} />
         </button>
 
-        {/* The "Show Agent Sessions Sidebar" toggle lived here. Removed on
-            request: the sessions column already has its own header control
-            above the list it toggles, and this second copy sat in the chat
-            header where it read as one more unexplained icon. */}
+        {/*
+          * Show/hide the sessions column, pinned to the RIGHT edge of this row.
+          *
+          * It used to live here and was removed once, on the argument that the
+          * sessions column carries its own control. That is true only while the
+          * column is OPEN - with it closed there was no way back to it from the
+          * chat surface, which is the "the Show sessions button disappeared"
+          * report. It is back, and it is the only way to reopen the column.
+          */}
+        <button
+          type="button"
+          className={`ai-ikon ai-head-sesi${sesiSisiBuka ? ' is-on' : ''}`}
+          data-testid="ai-toggle-sessions-side"
+          title={tr('Show Agent Sessions Sidebar')}
+          aria-label={tr('Show Agent Sessions Sidebar')}
+          aria-pressed={sesiSisiBuka}
+          onClick={() => setSesiSisiBuka(!sesiSisiBuka)}
+        >
+          <AiIkon name="list" size={14} />
+        </button>
 
         {sesiBuka && sesiRect && (
           <div
@@ -1768,11 +1796,17 @@ const bukaModels = () => bukaPanel('models');
         )}
 
         {/*
-          * The task list that used to ride inside this stack (`<TodoPanel />`)
-          * is GONE: the reference transcript has no plan panel above the
-          * composer, and it pushed the actual answer down on every run. The
-          * agent still writes todos; they are simply not drawn here.
+          * The task list rides inside the same stack.
+          *
+          * This is the AGENT's own plan for the run it is doing - not the
+          * user's notes and todos (that floating panel is a separate feature
+          * and has its own entry point). Hermes renders its todo tree as one of
+          * the stack's own sections, which is why the plan and the loop read as
+          * one object. Keeping it here - rather than as a sibling card - is what
+          * makes the todo collapse and expand in the same box as everything
+          * else.
           */}
+        <TodoPanel />
       </div>
       )}
 
