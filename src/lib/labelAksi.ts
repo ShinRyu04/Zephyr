@@ -1,7 +1,7 @@
 import type { NamaAiIkon } from '../components/ai/AiIkon';
 import { AWALAN_MCP, POLA_AWALAN_MCP } from './zephyrTools/catalog';
 
-export type JenisAksi = 'baca' | 'tulis' | 'jalan' | 'cari' | 'ingat' | 'lain';
+export type JenisAksi = 'baca' | 'tulis' | 'jalan' | 'cari' | 'ingat' | 'tanya' | 'lain';
 
 export interface AksiInfo {
 
@@ -57,6 +57,7 @@ const PETA: Record<string, AksiInfo> = {
 
   /* Tasks & Notes */
   todo_write: { label: 'Write TODO', jenis: 'ingat', ikon: 'check' },
+  ask_user: { label: 'Ask', jenis: 'tanya', ikon: 'comment' },
   notes_write: { label: 'Write notes', jenis: 'ingat', ikon: 'brain' },
 
   /* Schedules */
@@ -252,5 +253,9 @@ export const KELAS_JENIS: Record<JenisAksi, string> = {
   jalan: 'is-jalan',
   cari: 'is-cari',
   ingat: 'is-ingat',
+  /* A question is neither reading nor writing: it PAUSES. Its own class lets the
+     transcript draw it differently from a tool that returned data, because "the
+     run is waiting for you" must not look like "the run did something". */
+  tanya: 'is-tanya',
   lain: 'is-lain',
 };
