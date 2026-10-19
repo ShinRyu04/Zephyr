@@ -3751,20 +3751,46 @@
   color: var(--accent-fg, #fff);
 }
 
-/* A-8: slash command suggestions above the input. */
+/*
+ * A-8: slash command / file suggestions for the composer.
+ *
+ * FLOATING, not in the flow.
+ *
+ * This used to be a normal block above the input, so opening it PUSHED the
+ * composer up the screen: the text the reader was typing moved away from the
+ * caret at the exact moment they were mid-word, and the whole chat column
+ * jumped. It is a popup describing the token under the caret, so it now floats
+ * above the composer and costs zero layout.
+ *
+ * The anchor is the composer row, which must therefore be `position: relative`.
+ * If it ever stops being positioned, this list will anchor to the panel and
+ * appear in the wrong place — see `.ai-input-side`.
+ */
 .ai-slash {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 420;
   display: flex;
   flex-direction: column;
   /* 9 built-in prompts + user prompts can exceed this limit. The list scrolls
      (rather than being cut off) so every option stays reachable; the keyboard arrows
      follow the highlight via scrollIntoView in AiPanel. */
   max-height: 220px;
-  margin-bottom: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-1);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 10px;
+  /*
+   * The same pop-up layer as the model picker: near-black, its own border, and
+   * a shadow that lifts it off the chat. Both are cards hovering OVER the
+   * transcript, so they share one answer - a surface token here reads as a hole
+   * in the panel rather than as a sheet lying on it.
+   */
+  background: var(--popup-bg, #1c1d22);
+  border-color: var(--popup-border, var(--border-strong, var(--border)));
+  box-shadow: var(--popup-shadow, 0 -12px 30px rgb(0 0 0 / 55%));
   /* A thin scrollbar: this list appears above the input, and a thick scrollbar
      makes the panel feel cramped. */
   scrollbar-width: thin;
@@ -3804,7 +3830,7 @@
   cursor: pointer;
 }
 .ai-slash-item.is-on {
-  background: var(--surface-2);
+  background: var(--popup-raised, var(--surface-2));
 }
 .ai-slash-cmd {
   color: var(--accent);
@@ -3813,6 +3839,89 @@
 .ai-slash-label {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+/*
+ * The `@` popup's category filter, and the group headings beneath it.
+ *
+ * WHY CHIPS AND NOT JUST GROUPINGS. With four kinds in one scrolling list the
+ * reader sees whichever category happens to sort first and has no way to learn
+ * the others exist without scrolling past them. The chips name all four up
+ * front and double as a filter, so "attach a rule" is one click instead of a
+ * guess at a prefix.
+ *
+ * They are a sticky row: the list under them can be hundreds of rows, and a
+ * filter that scrolls away is a filter the reader forgets is on.
+ */
+.ai-ref-chips {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px 7px;
+  border-bottom: 1px solid var(--popup-border, var(--border));
+  background: var(--popup-bg, var(--surface-2));
+}
+
+.ai-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--popup-border, var(--border));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
+}
+
+.ai-ref-chip:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-strong, var(--border));
+}
+
+.ai-ref-chip.is-on {
+  color: var(--text);
+  background: var(--popup-raised, var(--surface-3));
+  border-color: var(--border-strong, var(--border));
+}
+
+.ai-ref-chip-jml {
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+/* A group heading inside the list. Only drawn when more than one kind is on
+   screen, so a filtered list is not a heading over a list of one. */
+.ai-ref-head {
+  position: sticky;
+  top: 34px;
+  z-index: 1;
+  padding: 5px 8px 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--popup-bg, var(--surface-2));
+}
+
+/* Folder / rule / agent glyph, sized to the file icons beside it. */
+.ai-ref-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--text-muted);
 }
 
 /* A-4: the floating mini chat in the editor (Ctrl+I). It floats at the top right of the

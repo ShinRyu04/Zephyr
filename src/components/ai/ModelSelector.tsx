@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -20,6 +20,7 @@ import {
   ModelLogo,
 } from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID, pilihHydra } from '../../lib/hydraModel';
+import ZephyrLogo from '../shell/ZephyrLogo';
 import AiIkon from './AiIkon';
 import ModelDetailPanel from './ModelDetailPanel';
 
@@ -76,9 +77,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
   const [cari, setCari] = useState('');
 
-  /* Which provider groups are folded shut. The active provider opens by
-     default, so the current model is visible the moment the menu opens. */
-  const [bukaGrup, setBukaGrup] = useState<Record<string, boolean>>({});
   const [typed, setTyped] = useState('');
   const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
 
@@ -95,14 +93,27 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const [fetching, setFetching] = useState(false);
 
   /*
-   * Which model the detail panel is describing.
+   * Which model the detail card is describing — and WHERE that row is.
    *
-   * Hover drives it, and so does keyboard focus, so the panel is reachable
-   * without a pointer. `null` means "nothing is being pointed at", and the panel
-   * then falls back to the ACTIVE model — an empty column beside a full list
-   * would read as broken rather than as idle.
+   * The card follows the pointer: it appears beside the row being pointed at,
+   * not beside the whole menu. Storing the row's own rect (not just its id) is
+   * what makes that possible; the id alone told us what to describe but not
+   * where to draw it, so the card sat in a fixed spot and looked disconnected
+   * from the row under the cursor.
    */
-  const [intip, setIntip] = useState<string | null>(null);
+  const [intip, setIntip] = useState<{
+    id: string;
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  } | null>(null);
+
+  /* Called by every model row on hover/focus. */
+  const tunjuk = (id: string) => (e: React.SyntheticEvent<HTMLElement>) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    setIntip({ id, top: b.top, bottom: b.bottom, left: b.left, right: b.right });
+  };
 
   const baseUrlOv = useStore((s) => s.settings.models.providers);
 
@@ -272,6 +283,80 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     }
   }, [open, cari, typed]);
 
+  /*
+   * Which way the menu opens — and the answer is DOWN.
+   *
+   * It used to be hardcoded UPWARD (`bottom: calc(100% + 6px)`) on the argument
+   * that the model chip sits at the bottom of the composer, so a downward menu
+   * would fall off the window. That reasoning produced the wrong behaviour: the
+   * box then floated above the button with a gap, reading as an unrelated panel
+   * rather than as the button's own list — the "kotak nya kok diatas terus"
+   * report, twice.
+   *
+   * WHY IT STILL WENT UP. The chip sits at the BOTTOM of the composer, so the
+   * room below it is tiny by construction: measured on a 816px-tall window, the
+   * button ends at 775 and there are 27px left. The old rule flipped upward
+   * whenever the room below was under 120px, which on this layout is ALWAYS.
+   * The downward path was dead code.
+   *
+   * So the rule is now: a menu with room below opens below; one without opens
+   * UP, which is correct for a bottom-docked composer — a dropdown at the bottom
+   * of a window opens upward, the way a native select does. What was actually
+   * broken was the SIZE: in the upward branch the height was clamped against
+   * `a.top`, the distance to the top of the WINDOW, while the visible space is
+   * only the panel the chip lives in. The menu was allowed 490px inside a panel
+   * that starts 686px above it, and the list was clipped by the panel's own
+   * `overflow: hidden` — the "muncul ke atas terus kepotong" report.
+   *
+   * The clamp now uses the PANEL's top edge, not the window's, so the menu can
+   * never be taller than the box it is drawn inside.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const el = menuRef.current;
+    const anchor = wrap.current;
+    if (!el || !anchor) return;
+    const a = anchor.getBoundingClientRect();
+    const JARAK = 6;
+
+    /*
+     * The box the menu is actually painted inside.
+     *
+     * `.ai-model-menu` is absolutely positioned within the chat panel, and that
+     * panel clips (`overflow: hidden`). Measuring against `window.innerHeight`
+     * ignores the clip, so the menu was sized for space it did not have. The
+     * nearest scrollport's top edge is the real ceiling.
+     */
+    const panel = anchor.closest('.ai-panel') ?? anchor.parentElement;
+    const pr = panel?.getBoundingClientRect();
+    const atap = Math.max(pr?.top ?? 0, 0) + 8;
+    const dasar = Math.min(pr?.bottom ?? window.innerHeight, window.innerHeight) - 8;
+
+    const ruangBawah = dasar - a.bottom - JARAK;
+    const ruangAtas = a.top - JARAK - atap;
+
+    /*
+     * Prefer DOWN, but only when it buys a usable list. `MIN_BAWAH` is the
+     * height below which a downward menu is a 2-row scroll box - at that point
+     * opening upward is strictly better, and it is also what every native
+     * dropdown does when it sits near the bottom edge.
+     */
+    const MIN_BAWAH = 220;
+    const keBawah = ruangBawah >= Math.min(MIN_BAWAH, ruangAtas);
+
+    if (keBawah) {
+      el.style.top = `calc(100% + ${JARAK}px)`;
+      el.style.bottom = 'auto';
+      el.style.maxHeight = `${Math.min(ruangBawah, Math.round((dasar - atap) * 0.8))}px`;
+    } else {
+      el.style.top = 'auto';
+      el.style.bottom = `calc(100% + ${JARAK}px)`;
+      /* Never taller than the room ABOVE it inside the panel - the old code
+         measured to the window and overflowed the panel. */
+      el.style.maxHeight = `${Math.min(ruangAtas, Math.round((dasar - atap) * 0.8))}px`;
+    }
+  }, [open, cari, typed]);
+
   const commitTyped = (p: string) => {
     const v = typed.trim();
     if (!v) return;
@@ -334,6 +419,45 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const modeCari = cari.trim().length > 0;
 
   /*
+   * Where the floating detail card goes — anchored to the ROW, not the menu.
+   *
+   * Two independent decisions:
+   *
+   *  1. VERTICAL: the card's top lines up with the row being pointed at, so it
+   *     reads as belonging to that row. If the row is near the bottom of the
+   *     window the card is nudged up just enough to stay on screen — a small
+   *     correction, not a jump to the menu's own top.
+   *
+   *  2. HORIZONTAL: beside the menu. To the right of it when there is room, to
+   *     the left otherwise, and over the menu's own right edge as a last resort
+   *     (a narrow window), where `pointer-events: none` keeps it harmless.
+   *
+   * The row rect is measured at hover time by `tunjuk`, which is why `intip`
+   * carries coordinates and not just an id.
+   */
+  const kartuRect = useMemo(() => {
+    const menu = menuRef.current?.getBoundingClientRect();
+    if (!menu || !intip) return null;
+    const LEBAR = 208;
+    const JARAK = 8;
+    const TINGGI = 240;
+
+    const kanan = menu.right + JARAK;
+    const adaKanan = kanan + LEBAR <= window.innerWidth - 8;
+    const kiri = menu.left - JARAK - LEBAR;
+    const adaKiri = kiri >= 8;
+
+    /* Line up with the row, then pull up only as far as the window demands. */
+    const top = Math.max(8, Math.min(intip.top, window.innerHeight - TINGGI - 8));
+
+    return {
+      left: adaKanan ? kanan : adaKiri ? kiri : Math.max(8, window.innerWidth - LEBAR - 8),
+      top,
+      width: LEBAR,
+    };
+  }, [open, intip, cari, typed]);
+
+  /*
    * Flat list: every usable model in one scrollable list, grouped under a
    * provider heading, the way the reference picker does it.
    *
@@ -346,6 +470,19 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     () =>
       providerSiap.map((p) => {
         const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
+        /*
+         * What the provider's own list said, both copies merged.
+         *
+         * This is the ONLY evidence used to decide whether a row is locked, and
+         * it is why `hidup` is computed here rather than inferred from the
+         * catalogue: "the provider did not list this model" is a claim we can
+         * only make when the provider actually answered. An empty list means it
+         * never answered — a keyless provider, an offline endpoint, a gateway
+         * with no `/models` route — and locking every row in that case would be
+         * a lie dressed as a status icon.
+         */
+        const hidup = [...(remote[p.id] ?? []), ...uiRemote];
+        const adaLaporan = hidup.length > 0;
         const items = modelTersedia(
           p.id,
           remote[p.id] ?? [],
@@ -356,6 +493,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           ...m,
           note: m.note ? tr(m.note) : '',
           ctx: m.ctx ? fmtCtx(m.ctx) : '',
+          dikunci: adaLaporan && !hidup.includes(m.id),
         }));
         return {
           provider: p.id,
@@ -367,6 +505,30 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       }),
     [providerSiap, remote, saved, laporan, tr],
   );
+
+  /*
+   * One flat list, the way the reference picker draws it.
+   *
+   * The provider headings are GONE. They were collapsible buttons with a model
+   * count, which turned a list of names into a list of sections: with three
+   * providers configured the reader had to fold two of them shut before seeing
+   * any models at all, and the first screen of the menu was three headings and
+   * nothing else. The reference shows models immediately under one title.
+   *
+   * The provider is still recoverable — as a quiet tag beside the name, and
+   * only when there is more than one provider to tell apart. With a single
+   * provider the row is exactly what the reference shows: mark, name, status.
+   */
+  const barisDatar = useMemo(
+    () =>
+      daftarModel.flatMap((g) =>
+        g.items.map((m) => ({ ...m, provider: g.provider, providerLabel: g.label })),
+      ),
+    [daftarModel],
+  );
+
+  /* With one provider the tag would repeat the same word on every row. */
+  const perluTagProvider = daftarModel.length > 1;
 
   /*
    * Every model currently on screen, flattened.
@@ -391,7 +553,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    */
   const detail = useMemo(() => {
     if (intip) {
-      const hit = modelById.get(intip);
+      const hit = modelById.get(intip.id);
       if (hit) return hit;
     }
     const aktif = modelById.get(efektif.id);
@@ -441,15 +603,40 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           data-tahap={modeCari ? 'cari' : 'daftar'}
         >
           {/*
-            * Header row, in the reference product's shape: the search field
-            * takes the whole first row, and the two actions ride at its right
-            * edge as icon buttons — Refresh and Add.
+            * The header, in the reference product's shape: a title that says
+            * what the list IS, then the icon actions at its right edge.
             *
-            * Both used to live in a FOOTER below a list that can be forty rows
-            * long, so on a real account "Refresh models" sat off-screen behind
-            * the scroll. Up here they are always reachable, which is the whole
-            * reason the reference puts them beside the search box.
+            * The search field used to be the whole header row, which made the
+            * box look like a search dialog rather than a list of models. The
+            * reference leads with "Built-in Models" and an info dot; search is
+            * still here, one row down, because this list runs to seventy-odd
+            * rows once a few providers are configured.
             */}
+          <div className="ai-mp-head">
+            <span className="ai-mp-head-judul">{tr('Built-in Models')}</span>
+            <button
+              type="button"
+              className={`ai-model-refresh${fetching ? ' is-putar' : ''}`}
+              data-testid={`${pfx}-model-refresh`}
+              title={fetching ? tr('Refreshing…') : tr('Refresh models')}
+              aria-label={tr('Refresh models')}
+              disabled={fetching || providerSiap.length === 0}
+              onClick={() => void refreshSemua()}
+            >
+              <AiIkon name="refresh" size={13} />
+            </button>
+            <span
+              className="ai-mp-head-info"
+              data-testid={`${pfx}-model-info`}
+              title={tr(
+                'Every model the providers you have a key for can serve. A padlock marks a model the provider does not list for this account — it is still selectable.',
+              )}
+              aria-label={tr('About this list')}
+            >
+              <AiIkon name="info" size={13} />
+            </span>
+          </div>
+
           <div className="ai-mp-cari">
             <span className="ai-mp-cari-ikon" aria-hidden="true">
               <AiIkon name="search" size={12} />
@@ -480,27 +667,6 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 ×
               </button>
             )}
-            <button
-              type="button"
-              className={`ai-model-refresh${fetching ? ' is-putar' : ''}`}
-              data-testid={`${pfx}-model-refresh`}
-              title={fetching ? tr('Refreshing…') : tr('Refresh models')}
-              aria-label={tr('Refresh models')}
-              disabled={fetching || providerSiap.length === 0}
-              onClick={() => void refreshSemua()}
-            >
-              <AiIkon name="refresh" size={13} />
-            </button>
-            <button
-              type="button"
-              className="ai-model-refresh is-utama"
-              data-testid={`${pfx}-model-edit`}
-              title={tr('Add Model')}
-              aria-label={tr('Add Model')}
-              onClick={bukaModels}
-            >
-              <AiIkon name="plus" size={13} />
-            </button>
           </div>
 
           {/*
@@ -512,8 +678,16 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             * row 30 still show row 30's details instead of scrolling the answer
             * out of view.
             */}
-          <div className="ai-mp-badan">
-            <div className="ai-mp-daftar" onMouseLeave={() => setIntip(null)}>
+          {/*
+            * The list, and NOTHING beside it.
+            *
+            * The detail panel used to live in here as a second column, which
+            * squeezed the list to 241px and made the panel look like part of the
+            * menu. It is not: it is a card that appears NEXT TO the menu when the
+            * reader points at a row, the way the reference product does it. See
+            * the floating card rendered after this block.
+            */}
+          <div className="ai-mp-daftar" onMouseLeave={() => setIntip(null)}>
           {modeCari ? (
             hasilCari.length === 0 ? (
               <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
@@ -525,11 +699,11 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   key={`c:${m.provider}:${m.id}`}
                   role="option"
                   aria-selected={m.id === efektif.id}
-                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip === m.id ? ' is-intip' : ''}`}
+                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip?.id === m.id ? ' is-intip' : ''}`}
                   data-model-item={m.id}
                   data-provider={m.provider}
-                  onMouseEnter={() => setIntip(m.id)}
-                  onFocus={() => setIntip(m.id)}
+                  onMouseEnter={tunjuk(m.id)}
+                  onFocus={tunjuk(m.id)}
                   onClick={() => {
                     pakai(m.id, m.provider);
                     setOpen(false);
@@ -584,11 +758,20 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                     setOpen(false);
                   }}
                 >
-                  <span className="ai-mi-name">HydraFusion</span>
-                  <span className="ai-mi-badge">{tr('Research preview')}</span>
-                  <span className="ai-mi-badge">
-                    {tr('the app picks the model and the workflow per task')}
+                  {/*
+                    * The Zephyr mark, then the name. Nothing else.
+                    *
+                    * This row used to carry two badges — "Research preview" and
+                    * a sentence explaining what the feature does. In a list of
+                    * model names they made HydraFusion the only row with prose,
+                    * so it read as an advertisement wedged between the models
+                    * rather than as one of them. The explanation still exists,
+                    * as the row's `title` tooltip.
+                    */}
+                  <span className="ai-mi-logo" aria-hidden="true">
+                    <ZephyrLogo size={15} glyphOnly />
                   </span>
+                  <span className="ai-mi-name">HydraFusion</span>
                   {hydraDipilih && <span className="pick-check">✓</span>}
                 </button>
               )}
@@ -611,102 +794,86 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 </button>
               )}
 
-              {daftarModel.map((g) => {
-                /*
-                 * Collapsible group, the shape the reference picker uses: a
-                 * chevron, the provider name, and the model count in brackets.
-                 *
-                 * The count is what makes collapsing safe — you can see how much
-                 * is folded away, so a collapsed group does not read as empty.
-                 * The active provider starts open so the current model is
-                 * visible the moment the menu opens.
-                 */
-                const terbuka = bukaGrup[g.provider] ?? g.provider === efektif.provider;
-                if (g.perluPilih && !terbuka) return null;
-                return (
-                  <Fragment key={g.provider}>
+              {/*
+                * One flat list. No provider headings, no folding.
+                *
+                * The row is the reference product's row: mark, name, then the
+                * status at the right edge — a padlock when the provider's own
+                * list did not include this model, a tick when it is the one
+                * selected.
+                *
+                * The provider tag appears only when there is more than one
+                * provider configured. With a single provider it would be the
+                * same word on every row, which is noise, not information.
+                */}
+              {barisDatar.map((m) => (
+                <button
+                  key={`m:${m.provider}:${m.id}`}
+                  role="option"
+                  aria-selected={m.id === efektif.id}
+                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip?.id === m.id ? ' is-intip' : ''}`}
+                  data-model-item={m.id}
+                  data-provider={m.provider}
+                  data-terkunci={m.dikunci ? '1' : '0'}
+                  data-baseurl={PROVIDER_BY_ID.get(m.provider)?.baseUrl}
+                  title={
+                    m.dikunci
+                      ? tr(
+                          'This provider does not list this model for the current key. It is still selectable, but it may be refused.',
+                        )
+                      : m.note || undefined
+                  }
+                  onMouseEnter={tunjuk(m.id)}
+                  onFocus={tunjuk(m.id)}
+                  onClick={() => {
+                    pakai(m.id, m.provider);
+                    setOpen(false);
+                  }}
+                >
+                  <ModelLogo id={m.id} size={15} />
+                  <span className="ai-mi-name">{tr(m.label)}</span>
+                  {perluTagProvider && <span className="ai-mi-tag">{m.providerLabel}</span>}
+                  {m.dikunci ? (
+                    <span className="ai-mi-lock" aria-label={tr('Not listed by this provider')}>
+                      <AiIkon name="lock" size={12} />
+                    </span>
+                  ) : m.id === efektif.id ? (
+                    <span className="pick-check">✓</span>
+                  ) : null}
+                </button>
+              ))}
+
+              {/*
+                * A free-text provider with no usable model in the catalogue gets
+                * its input inline, where its rows would have been.
+                */}
+              {daftarModel
+                .filter((g) => g.freeText)
+                .map((g) => (
+                  <div className="ai-model-typed" key={`t:${g.provider}`}>
+                    <input
+                      type="text"
+                      className="ai-model-input"
+                      data-testid={`${pfx}-model-input`}
+                      placeholder={tr('Type a model name… (Enter)')}
+                      value={typed}
+                      spellCheck={false}
+                      onChange={(e) => setTyped(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitTyped(g.provider);
+                      }}
+                    />
                     <button
                       type="button"
-                      className={`ai-model-group${terbuka ? ' is-open' : ''}`}
-                      data-testid={`${pfx}-model-grup-${g.provider}`}
-                      data-group={g.provider}
-                      aria-expanded={terbuka}
-                      onClick={() => setBukaGrup((s) => ({ ...s, [g.provider]: !terbuka }))}
+                      className="btn btn-sm"
+                      data-testid={`${pfx}-model-pakai`}
+                      disabled={!typed.trim()}
+                      onClick={() => commitTyped(g.provider)}
                     >
-                      <AiIkon name={terbuka ? 'chev-down' : 'chev-right'} size={11} />
-                      <ProviderLogo id={g.provider} size={13} />
-                      <span className="ai-model-group-nama">{g.label}</span>
-                      <span className="ai-model-group-jml">({g.items.length})</span>
+                      {tr('Use')}
                     </button>
-
-                    {terbuka && g.perluPilih && (
-                      /* A free-text provider with nothing but placeholders in
-                         the catalogue has no clickable model at all. Say so,
-                         in place, instead of a dead list - the input below is
-                         still the way forward. */
-                      <div
-                        className="ai-model-empty"
-                        data-testid={`${pfx}-model-perlu-pilih-${g.provider}`}
-                      >
-                        {tr('Choose a model: type a name below or press Refresh.')}
-                      </div>
-                    )}
-
-                    {terbuka &&
-                      g.items.map((m) => (
-                        <button
-                          key={`m:${g.provider}:${m.id}`}
-                          role="option"
-                          aria-selected={m.id === efektif.id}
-                          className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip === m.id ? ' is-intip' : ''}`}
-                          data-model-item={m.id}
-                          data-provider={g.provider}
-                          data-baseurl={PROVIDER_BY_ID.get(g.provider)?.baseUrl}
-                          onMouseEnter={() => setIntip(m.id)}
-                          onFocus={() => setIntip(m.id)}
-                          onClick={() => {
-                            pakai(m.id, g.provider);
-                            setOpen(false);
-                          }}
-                        >
-                          <ModelLogo id={m.id} size={15} />
-                          <span className="ai-mi-name">{tr(m.label)}</span>
-                          <span className="ai-mi-badge">{[m.ctx, m.note].filter(Boolean).join(' · ')}</span>
-                          {m.id === efektif.id && <span className="pick-check">✓</span>}
-                        </button>
-                      ))}
-
-                  {/* A provider that accepts free-form ids gets its input inside
-                      its own group, so the typed id lands in the right place
-                      without a separate screen. */}
-                  {g.freeText && (
-                    <div className="ai-model-typed">
-                      <input
-                        type="text"
-                        className="ai-model-input"
-                        data-testid={`${pfx}-model-input`}
-                        placeholder={tr('Type a model name… (Enter)')}
-                        value={typed}
-                        spellCheck={false}
-                        onChange={(e) => setTyped(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') commitTyped(g.provider);
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        data-testid={`${pfx}-model-pakai`}
-                        disabled={!typed.trim()}
-                        onClick={() => commitTyped(g.provider)}
-                      >
-                        {tr('Use')}
-                      </button>
-                    </div>
-                  )}
-                  </Fragment>
-                );
-              })}
+                  </div>
+                ))}
 
               {providerTersembunyi > 0 && (
                 <div className="ai-mp-note" data-testid={`${pfx}-mp-note`}>
@@ -715,22 +882,57 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               )}
             </>
           )}
-            </div>
-
-            <ModelDetailPanel model={detail} testid={`${pfx}-model-detail`} />
           </div>
 
           {/*
-            * No footer.
+            * The footer, in the reference product's shape: one full-width
+            * "Add Model" button below a divider.
             *
-            * It held "Refresh models" and "Edit models…" under a list that can
-            * run to forty rows, so on any real account both actions sat below
-            * the fold and the only way to refresh was to scroll to the bottom
-            * of the menu first. They are icon buttons in the header now, where
-            * the reference product puts them.
+            * It was an icon-only "+" beside the search field, which made the
+            * single action that GROWS the list the smallest target in the menu
+            * and hid it inside a header row. At the bottom, full width, it is
+            * the obvious way out of "my model is not in this list" — which is
+            * the reason the reader is scrolling in the first place.
             */}
+          <div className="ai-mp-foot">
+            <button
+              type="button"
+              className="ai-mp-add"
+              data-testid={`${pfx}-model-edit`}
+              title={tr('Add Model')}
+              onClick={bukaModels}
+            >
+              <AiIkon name="plus" size={12} />
+              <span>{tr('Add Model')}</span>
+            </button>
+          </div>
         </div>
       )}
-    </div>
+
+      {/*
+        * The detail card, OUTSIDE the dropdown.
+        *
+        * It is a sibling of the menu, not a column inside it. Two reasons, and
+        * the second is the one that was reported:
+        *
+        *  1. Inside the menu it stole 178px from the list, so every model name
+        *     was squeezed into 241px and the list itself stopped looking like
+        *     the reference.
+        *  2. It read as part of the menu. It is not — it is a description of
+        *     whatever the pointer is over, and the reference product floats it
+        *     BESIDE the list, so the menu keeps its own shape.
+        *
+        * `position: fixed` with a measured rect, because the menu lives inside
+        * the chat panel's own stacking context and an absolutely positioned
+        * card would be clipped by the panel's `overflow`.
+        */}
+      {open && intip && detail && (
+        <ModelDetailPanel
+          model={detail}
+          testid={`${pfx}-model-detail`}
+          mengambang
+          rect={kartuRect}
+        />
+      )}    </div>
   );
 }

@@ -20,6 +20,44 @@
   --bg2: var(--surface-2);
   --bg3: var(--surface-3);
 
+  /*
+   * THE FLOATING LAYER.
+   *
+   * Every pop-up that sits ON TOP of the app - the model picker, the `@`/`/`
+   * card, the subagent picker, the model detail card - paints itself with this
+   * instead of a surface token.
+   *
+   * WHY IT IS ITS OWN TOKEN. `--bg0` is an alias of `--bg`, and on the default
+   * theme that is `#0d1117`: a dark NAVY. The pickers were switched to it and
+   * still read as "abu-abu", because against the editor it is a lighter, bluer
+   * slab - the grey-patch problem the switch was meant to fix.
+   *
+   * WHY NOT PURE BLACK EITHER. Near-black (`#08090b`) was tried and it was too
+   * far the other way: with no fill of its own, the card stopped reading as a
+   * surface lying on the editor and started reading as a hole cut into it - the
+   * border and the shadow were the only things left saying "this is a card".
+   * The value below is a neutral dark grey with no blue in it, close to the
+   * reference product's own picker (#1E1E22): unmistakably darker than every
+   * panel behind it, and still a surface rather than a void.
+   */
+  --popup-bg: #1c1d22;
+  --popup-border: #3a3c44;
+  /*
+   * The RAISED layer inside a pop-up: the "Add Model" button at the foot of the
+   * picker.
+   *
+   * Lighter than the card, which is what the reference product does and what
+   * makes the button read as something you press. It was black for one round and
+   * that was wrong in the other direction: on a dark grey card a black button
+   * looks like a slot cut into the card, not like a control. `#2b2b30` is the
+   * reference's own value - a neutral step up from the card, no blue in it.
+   */
+  --popup-raised: #2b2b30;
+  --popup-raised-hover: #35353b;
+  /* The shadow is what separates the card from the editor. It stays heavy
+     because a dark card on a dark background needs the lift, not the contrast. */
+  --popup-shadow: 0 16px 44px rgb(0 0 0 / 66%), 0 2px 8px rgb(0 0 0 / 44%);
+
   /* teks */
   --fg0: var(--text);
   --fg1: var(--text-secondary);
@@ -217,6 +255,17 @@
   --terminal-ansi-7: #57606a;
   --terminal-ansi-8: #6e7781;
   --terminal-ansi-15: #1f2328;
+  /* On a light theme the pop-up layer stays DARKER than the page - a black
+     picker on a white editor is the reference product's own look - but it is
+     lifted off pure black so it still reads as a surface, and the shadow is
+     softened because a hard one on white looks like a smudge. */
+  --popup-bg: #23242a;
+  --popup-border: #3d3f47;
+  /* On a light theme the picker itself is still dark, so its raised layer stays
+     a step UP from that card rather than following the white page. */
+  --popup-raised: #33343b;
+  --popup-raised-hover: #3d3e46;
+  --popup-shadow: 0 16px 44px rgb(0 0 0 / 26%), 0 2px 8px rgb(0 0 0 / 14%);
 }
 
 [data-theme='nord'] {

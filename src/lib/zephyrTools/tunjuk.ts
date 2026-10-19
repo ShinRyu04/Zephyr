@@ -130,6 +130,92 @@ const NIAT_PANEL: { panel: string; kata: string[]; apa: string }[] = [
   { panel: 'subagents', kata: ['subagent', 'sub-agen'], apa: 'panel subagent' },
 ];
 
+/**
+ * Surfaces that are neither a Settings section nor a bottom-panel tab.
+ *
+ * These are the destinations a reader most often means when they ask "where is
+ * it" and the answer is NOT inside Settings: the model picker is in the chat
+ * header, Chat Settings is its own window, the palette is a keystroke away. The
+ * Settings table above cannot reach any of them, and the panel table would open
+ * the wrong surface entirely - so they get their own table.
+ *
+ * Checked BEFORE the Settings table: "where do I pick the model" mentions the
+ * word `model`, which the Settings table maps to the AI Models pop-up. That is
+ * the right page for "where do I put my API key" and the wrong one for "where
+ * do I switch the model", so the more specific surface has to win.
+ */
+const NIAT_PERMUKAAN: {
+  id: string;
+  kata: string[];
+  apa: string;
+  buka: () => void | Promise<void>;
+}[] = [
+  {
+    id: 'picker-model',
+    kata: [
+      'pilih model', 'ganti model', 'ganti ai', 'daftar model', 'model apa',
+      'switch model', 'choose model', 'change model', 'model picker', 'model selector',
+      'hydrafusion',
+    ],
+    apa: 'daftar pilihan model, di header panel chat',
+    buka: async () => {
+      /*
+       * The chat has to be ON SCREEN before its header can be pointed at.
+       * `aiPanel` decides where it lives (right column, editor tab, or its own
+       * window), so the same three calls `commandRegistry`'s `bukaAi` makes are
+       * repeated here rather than a bottom-dock tab that no longer exists.
+       */
+      const { useStore } = await import('../store');
+      const { useAi } = await import('../aiStore');
+      const s = useStore.getState();
+      s.setSettingsOpen(false);
+      if ((s.settings?.general?.aiPanel ?? 'right') === 'window') {
+        const m = await import('../aiWindow');
+        m.bukaAiWindow();
+      } else {
+        s.setAiKolomVisible(true);
+      }
+      /* One tick for the panel to mount before the menu asks to be open: the
+         picker only renders its menu while it exists. */
+      await new Promise((r) => window.setTimeout(r, 120));
+      useAi.getState().setModelMenuOpen(true);
+    },
+  },
+  {
+    id: 'chat-settings',
+    kata: [
+      'chat settings', 'setelan chat', 'pengaturan chat', 'atur mode', 'ganti mode',
+      'atur persona', 'aturan chat', 'sub-agent settings', 'setelan subagent',
+    ],
+    apa: 'jendela Chat Settings',
+    buka: () => import('../bukaPanel').then((m) => m.bukaPanel('chat-settings')),
+  },
+  {
+    id: 'command-palette',
+    kata: ['command palette', 'palet perintah', 'palet', 'perintah apa saja'],
+    apa: 'palet perintah (Ctrl+Shift+P)',
+    buka: () =>
+      import('../paletteStore').then((m) => m.usePalette.getState().openPalette('command')),
+  },
+  {
+    id: 'explorer',
+    kata: ['explorer', 'pohon berkas', 'file tree', 'bilah berkas', 'sidebar berkas'],
+    apa: 'bilah Explorer di kiri',
+    buka: async () => {
+      const { useStore } = await import('../store');
+      const s = useStore.getState();
+      s.setSidebarVisible(true);
+      s.setActivity('explorer');
+    },
+  },
+  {
+    id: 'agent-custom',
+    kata: ['kustomisasi agen', 'agent custom', 'peran agen', 'agent role', 'atur agen'],
+    apa: 'panel Agent Customizations',
+    buka: () => import('../bukaPanel').then((m) => m.bukaPanel('agent-custom')),
+  },
+];
+
 /** Normalise: lowercase, collapse whitespace. Indonesian and English mixed. */
 const rapikan = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -142,11 +228,12 @@ export const tunjukTool: AgentTool = {
   spec: {
     name: 'tunjuk',
     description:
-      'Buka halaman atau panel yang pembaca MAKSUD, dari keluhan berbahasa bebas. Pakai ini ketika pembaca bertanya "di mana X", "cara X gimana", atau jelas tidak tahu letaknya - bukan ketika mereka sudah menyebut nama setelannya. ' +
-      'Ini MENCARI lalu MEMBUKA, bukan menjelaskan: hasilnya halaman yang benar-benar terbuka, dan jawabannya menyebut apa yang baru saja dibuka. ' +
-      'niat = kalimat pembaca apa adanya (mis. "biar AI nggak boros token"). ' +
+      'Buka halaman, panel, MENU, atau jendela yang pembaca MAKSUD, dari keluhan berbahasa bebas. Pakai ini ketika pembaca bertanya "di mana X", "cara X gimana", atau jelas tidak tahu letaknya - bukan ketika mereka sudah menyebut nama setelannya. ' +
+      'Ini MENCARI lalu MEMBUKA, bukan menjelaskan: hasilnya yang benar-benar terbuka, dan jawabannya menyebut apa yang baru saja dibuka. ' +
+      'Cakupannya: semua bagian Settings, panel bawah (terminal/problems/output/debug/ports/subagents), DAFTAR PILIHAN MODEL di header chat, jendela Chat Settings, Agent Customizations, palet perintah, dan bilah Explorer. ' +
+      'niat = kalimat pembaca apa adanya (mis. "biar AI nggak boros token", "gimana ganti modelnya", "setelan chat di mana"). ' +
       'buka=false kalau hanya ingin tahu lokasinya tanpa memindahkan layar pembaca. ' +
-      'Kalau tidak ada yang cocok, tool ini bilang tidak ketemu dan menyebut yang tersedia - JANGAN mengarang seksi.',
+      'Kalau tidak ada yang cocok, tool ini bilang tidak ketemu dan menyebut yang tersedia - JANGAN mengarang nama halaman.',
     parameters: {
       type: 'object',
       properties: {
@@ -169,10 +256,30 @@ export const tunjukTool: AgentTool = {
     }
     const buka = a.buka !== false;
 
-    /* 1. A Settings section the complaint is really about. */
+    /* 1. A surface that is neither Settings nor a panel: the model picker, Chat
+          Settings, the palette, the Explorer. Checked first because the words
+          overlap - "where do I pick the model" also matches the Settings table's
+          `models` entry, and the pop-up is the wrong screen for it. */
+    const permukaan = NIAT_PERMUKAAN.find((p) => cocok(niat, p.kata));
+    /* 2. A Settings section the complaint is really about. */
     const seksi = NIAT_SETELAN.find((s) => cocok(niat, s.kata));
-    /* 2. A panel, when the complaint is about a surface rather than a setting. */
+    /* 3. A panel, when the complaint is about a surface rather than a setting. */
     const panel = NIAT_PANEL.find((p) => cocok(niat, p.kata));
+
+    if (permukaan) {
+      if (!buka) {
+        return `Ada di ${permukaan.apa}. (Tidak saya buka, karena buka=false.)`;
+      }
+      try {
+        await permukaan.buka();
+      } catch (e) {
+        return (
+          `Gagal membuka ${permukaan.apa}: ${(e as Error)?.message ?? e}. ` +
+          `Sebutkan lokasinya ke pembaca alih-alih mencoba lagi.`
+        );
+      }
+      return `Sudah saya buka ${permukaan.apa}.\nPemicunya: "${niat}".`;
+    }
 
     /*
      * A panel wins only when no Settings section matched. "Terminal" appears in

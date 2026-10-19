@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
@@ -75,7 +75,12 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
    * so the panel is reachable without a pointer; `null` falls back to the
    * current selection rather than leaving the column blank.
    */
-  const [intip, setIntip] = useState<string | null>(null);
+    const [intip, setIntip] = useState<{ id: string; top: number } | null>(null);
+  /* Hover/focus on a row records WHERE it is, so the card can line up with it. */
+  const tunjuk = (id: string) => (e: React.SyntheticEvent<HTMLElement>) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    setIntip({ id, top: b.top });
+  };
   const remoteInfo = useSettingsUi((s) => s.remoteInfo);
 
   const providerSiap = useMemo(
@@ -127,7 +132,7 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
    */
   const detail = useMemo(() => {
     const semua = grup.flatMap((g) => g.items);
-    const pilih = semua.find((m) => m.id === intip) ?? semua.find((m) => m.id === nilai.model) ?? semua[0];
+    const pilih = semua.find((m) => m.id === intip?.id) ?? semua.find((m) => m.id === nilai.model) ?? semua[0];
     if (!pilih) return null;
     return {
       id: pilih.id,
@@ -137,6 +142,28 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
       biaya: 'Billed by token',
     };
   }, [grup, intip, nilai]);
+
+  /*
+   * Where the floating card goes: beside the menu, lined up with the ROW under
+   * the pointer. Same rule as the chat picker — right when there is room, left
+   * otherwise, and pulled up only as far as the window demands.
+   */
+  const kartuRect = useMemo(() => {
+    if (!rect) return null;
+    const LEBAR = 208;
+    const JARAK = 8;
+    const TINGGI = 240;
+    const kanan = rect.left + 320 + JARAK;
+    const adaKanan = kanan + LEBAR <= window.innerWidth - 8;
+    const kiri = rect.left - JARAK - LEBAR;
+    const adaKiri = kiri >= 8;
+    const top = Math.max(8, Math.min(intip?.top ?? rect.top, window.innerHeight - TINGGI - 8));
+    return {
+      left: adaKanan ? kanan : adaKiri ? kiri : Math.max(8, window.innerWidth - LEBAR - 8),
+      top,
+      width: LEBAR,
+    };
+  }, [rect, intip]);
   /* Fetch the live list once, for the first provider that has none. */
   useEffect(() => {
     if (fetchingModels) return;
@@ -241,8 +268,7 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
         </div>
       </div>
 
-      <div className="mm-badan">
-        <div className="mm-list" onMouseLeave={() => setIntip(null)}>
+      <div className="mm-list" onMouseLeave={() => setIntip(null)}>
         {ikutChat !== null && (
           <button
             className={`mm-item${!nilai.model ? ' is-on' : ''}`}
@@ -284,14 +310,14 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
                   return (
                     <button
                       key={`${g.provider}:${m.id}`}
-                      className={`mm-item${aktif ? ' is-on' : ''}${intip === m.id ? ' is-intip' : ''}`}
+                      className={`mm-item${aktif ? ' is-on' : ''}${intip?.id === m.id ? ' is-intip' : ''}`}
                       data-testid={`${pfx}-pilih-${m.id}`}
                       data-model={m.id}
                       data-provider={g.provider}
                       role="option"
                       aria-selected={aktif}
-                      onMouseEnter={() => setIntip(m.id)}
-                      onFocus={() => setIntip(m.id)}
+                      onMouseEnter={tunjuk(m.id)}
+                      onFocus={tunjuk(m.id)}
                       onClick={() => pilihModel(g.provider, m.id)}
                     >
                       <ModelLogo id={m.id} size={15} />
@@ -306,10 +332,11 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
             </Fragment>
           );
         })}
-        </div>
-
-        <ModelDetailPanel model={detail} testid={`${pfx}-detail`} />
       </div>
+
+      {intip && detail && (
+        <ModelDetailPanel model={detail} testid={`${pfx}-detail`} mengambang rect={kartuRect} />
+      )}
     </div>
   );
 }

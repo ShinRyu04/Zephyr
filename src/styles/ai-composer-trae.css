@@ -12,6 +12,16 @@
 /* ── The box ──────────────────────────────────────────────────────────── */
 
 .ai-input-row {
+  /*
+   * The positioning context for the composer's popups.
+   *
+   * `.ai-slash` (the `@` file list and `/` prompt list) is `position: absolute`
+   * and anchors to the nearest positioned ancestor. With this row `static`, that
+   * ancestor was the whole chat panel, so the popup was measured against the
+   * panel's box and landed at y=-251 — off the top of the window, over the
+   * transcript. `relative` here pins it to the composer it belongs to.
+   */
+  position: relative;
   margin: 0 10px 12px;
   padding: 0;
   gap: 0;
@@ -231,11 +241,20 @@
 
 /* ── Suggestion lists anchored to the field ───────────────────────────── */
 
+/*
+ * The pop-up layer, not a panel surface.
+ *
+ * `--surface` here was the last thing keeping the `@` and `/` cards grey: the
+ * rules in `ai.css` set the black pop-up colour, and this file loads after it
+ * and quietly overwrote the background with the panel tone. One token, one
+ * answer - the same one the model picker uses.
+ */
 .ai-input-row .ai-slash {
   margin: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border: 1px solid var(--popup-border, var(--border));
+  border-radius: 10px;
+  background: var(--popup-bg, var(--surface));
+  box-shadow: var(--popup-shadow, 0 -12px 30px rgb(0 0 0 / 55%));
 }
 
 /* ── Narrow panels ────────────────────────────────────────────────────── */
