@@ -13,10 +13,10 @@ import ReasoningBlock from './ReasoningBlock';
 import { MsgTime } from './ChatStamp';
 import { ThinkingLine } from './CliTimeline';
 import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
+import PerubahanBerkas from './PerubahanBerkas';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
-import { RobotAvatar, UserAvatar } from './RobotAvatar';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -520,43 +520,42 @@ function statUntuk(t: AgentToolRun, tf: (s: string, v: Record<string, string | n
 }
 
 /*
- * Split a message's tools into groups, where a group is "the calls that ran
- * after one sentence of narration".
+ * Split a message's tools into groups — now ONE group per turn.
  *
- * WHY groups and not one block: the reader's screenshot showed the failure of
- * the all-or-nothing approach. A message that narrated ONCE rendered every tool
- * as a bordered card, so three shell commands stacked into three boxes. But a
- * message that narrated NOTHING folded into a single line. Two layouts for the
- * same thing, chosen by whether one sentence happened to be present.
+ * WHY this replaced the narration-splitting version: it closed a group every
+ * time the model wrote a sentence before calling a tool. Models narrate
+ * constantly ("let me check…", "now I'll run…"), so almost every call landed in
+ * a group of its own and the transcript filled with separate one-line bars —
+ * the "tools are never grouped" the reader reported. The grouping key was the
+ * narration, and the narration is exactly what varies most.
  *
- * TRAE's shape is uniform: narration starts a new group, and every group folds
- * into its own thin summary line. That is what this produces - the sentence
- * stays on screen, and the calls under it are a list behind one bar.
+ * The narration is NOT thrown away: it is still rendered, above the single
+ * block, as prose. What changed is that it no longer decides the block
+ * boundaries.
  *
- * `indeksSibuk` (the call in flight) is never folded away: it is the one row
- * the reader is watching.
+ * The call in flight is pulled out of the fold and rendered as its own full row,
+ * because that is the one the reader is watching.
  */
 function kelompokPerNarasi(
   tools: readonly AgentToolRun[],
   narasi: readonly string[],
   indeksSibuk: number,
 ): Array<{ narasi: string; items: number[] }> {
+  if (tools.length === 0) return [];
+
+  /* Every narration slice, joined in order, as the prose above the block. */
+  const teks = narasi
+    .map((t) => (t ?? '').trim())
+    .filter(Boolean)
+    .join('\n\n');
+
+  const items: number[] = [];
+  for (let i = 0; i < tools.length; i += 1) items.push(i);
+
   const grup: Array<{ narasi: string; items: number[] }> = [];
-  let kini: { narasi: string; items: number[] } | null = null;
-  for (let i = 0; i < tools.length; i += 1) {
-    const teks = (narasi[i] ?? '').trim();
-    /*
-     * A sentence opens a group. A tool with no sentence joins the current one,
-     * and if there is none yet it starts an unnamed group - which is exactly
-     * the "plan, then execute a batch" shape.
-     */
-    if (teks || !kini) {
-      kini = { narasi: teks, items: [] };
-      grup.push(kini);
-    }
-    kini.items.push(i);
-  }
-  /* The call in flight must stay visible: pull it out of its group. */
+  if (items.length > 0) grup.push({ narasi: teks, items });
+
+  /* The call in flight must stay visible: pull it out of the folded block. */
   if (indeksSibuk >= 0 && indeksSibuk < tools.length) {
     for (const g of grup) {
       const pos = g.items.indexOf(indeksSibuk);
@@ -565,8 +564,10 @@ function kelompokPerNarasi(
         break;
       }
     }
+    grup.push({ narasi: '', items: [indeksSibuk] });
   }
-  return grup.filter((g) => g.items.length > 0 || g.narasi !== '');
+
+  return grup.filter((g) => g.items.length > 0);
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
@@ -726,55 +727,19 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   }, [msg.streaming, msg.content, msg.reasoning]);
 
   /*
-   * The avatar and the bubble are SIBLINGS inside a row wrapper.
+   * Avatars were REMOVED from the transcript.
    *
-   * Not a child of `.ai-msg`, and that is the whole point: `.ai-msg` is a flex
-   * COLUMN, so an avatar placed inside it stacks above the message instead of
-   * sitting beside it. The row owns the horizontal axis and `.ai-msg` keeps the
-   * vertical one it already had, so none of the bubble layout below changes.
-   *
-   * `row-reverse` mirrors the row for the user, which is what puts their avatar
-   * on the right without reordering anything in the DOM.
-   *
-   * The marks are hidden entirely when the user has switched avatars off - see
-   * `settings.agents.chatAvatar`. Rendering them and hiding them with CSS would
-   * leave the gutter in place, which is the opposite of what "off" should mean.
-   */
-  /*
-   * Read as `!== false`, not `=== true`: a missing value means ON.
-   *
-   * The Rust default is what actually applies on upgrade (`deep_merge` merges
-   * rather than replaces), so a user who never touched this setting has no
-   * `chatAvatar` key at all - and treating that as "off" would hide avatars from
-   * everyone who did not ask for them to be hidden.
-   */
-  const pesanAvatar = useStore((s) => s.settings?.agents?.chatAvatar !== false);
-  const fotoSaya = useStore((s) => s.settings?.agents?.userAvatarPath ?? null);
-
-  /*
-   * Voice, read field by field.
-   *
-   * NOT `useStore((s) => s.settings?.voice)`: that returns a fresh object on
-   * every settings write, and zustand v5 compares selector results with `===`,
-   * so every keystroke in Settings would re-render every message in the
-   * transcript. Primitives only.
+   * They used to sit as a sibling of the bubble inside `.ai-row`, toggled by
+   * `settings.agents.chatAvatar`. Both the mark and the setting are gone: the
+   * reference transcript has no avatar column, and keeping a switch that could
+   * only ever turn on a mark nobody wanted was furniture. `.ai-row` stays as the
+   * wrapper so the bubble keeps its own vertical layout unchanged.
    */
   return (
     <div
       className={`ai-row${isUser ? ' is-user' : ''}${msg.error ? ' is-error' : ''}`}
       data-ai-row={msg.id}
     >
-      {pesanAvatar && (
-        <span className="ai-avatar" data-testid={isUser ? 'ai-avatar-saya' : 'ai-avatar-bot'}>
-          {/*
-            * 28px, not the old 22: at 22 a photo was too small to recognise, and
-            * the whole point of setting one is being able to see it. The avatar
-            * is still a mark beside the message, not a portrait - it stays well
-            * inside the gutter the row reserves for it.
-            */}
-          {isUser ? <UserAvatar src={fotoSaya} name="" size={28} /> : <RobotAvatar size={28} />}
-        </span>
-      )}
       <div
         className={`ai-msg is-${msg.role}${msg.error ? ' is-error' : ''}`}
         data-ai-msg={msg.id}
@@ -1044,6 +1009,17 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 );
               })}
             </div>
+          )}
+          {/*
+            * The "files changed" card closes the tool block.
+            *
+            * Placed AFTER the tool rows and BEFORE the answer: it summarises
+            * the work the reader just scrolled past, and the answer stays the
+            * last thing on screen. Rendered only when the turn actually wrote a
+            * file — a read-only turn has nothing to summarise.
+            */}
+          {!isUser && msg.tools && msg.tools.length > 0 && (
+            <PerubahanBerkas tools={msg.tools} />
           )}
           {isUser ? (
             <p className="ai-plain">{msg.content}</p>

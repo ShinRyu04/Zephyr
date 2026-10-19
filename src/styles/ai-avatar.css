@@ -1,177 +1,36 @@
 /*
  * ============================================================================
- * CHAT AVATARS
+ * CHAT ROW LAYOUT (avatars removed)
  * ============================================================================
  *
- * A small round mark beside each message: the robot for the assistant, a photo
- * or an initial for the user.
+ * This file used to style a round mark beside each message: a robot for the
+ * assistant, a photo or an initial for the user.
  *
- * THE LAYOUT PROBLEM, and why the avatar is NOT a child of .ai-msg.
+ * Avatars are GONE — from the transcript, from Chat Settings, and from the
+ * settings schema. Nothing renders an `.ai-avatar` any more, so every rule that
+ * described one was dead CSS. What remains is the only part that was ever
+ * load-bearing: the row wrapper and the bubble's place inside it.
  *
- * `.ai-msg` is `display: flex; flex-direction: column`. A column lays every
- * child out top to bottom, so an avatar drawn as a normal child of it stacks
- * ABOVE the message instead of sitting beside it - which is exactly how the
- * first attempt at avatars in this project looked wrong.
- *
- * So the avatar is a SIBLING of the bubble, and both live in a row wrapper
- * (`.ai-row`). The row owns the horizontal axis; `.ai-msg` keeps the vertical
- * one it already had, unchanged. Nothing about the existing bubble layout has
- * to be rewritten, which is what makes this safe to add to a working panel.
- *
- * WHY THE ROW REVERSES FOR THE USER:
- * a chat reads as a conversation when the two sides face each other, so the
- * user's avatar sits on the right. `flex-direction: row-reverse` does that
- * without moving any DOM, which matters because the message list is memoised
- * per message - adding a wrapper that changes order in the markup would defeat
- * the memo for every row.
+ * WHY the wrapper stays: `.ai-msg` is a flex COLUMN, and the row owns the
+ * horizontal axis. Removing the wrapper would change the bubble's box model for
+ * every existing style rule in ai.css and ai-streaming.css, which is a much
+ * larger change than "delete the avatar". The row simply has nothing to lay out
+ * beside the bubble now.
  */
 
 .ai-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 0;
 }
 
-/*
- * Copilot style: BOTH sides read top-to-bottom down the left edge — the user's
- * avatar sits on the left just like the assistant's, instead of the chat
- * mirroring into facing columns. The user message is told apart by a subtle
- * card (see ai-streaming.css), not by which side it hugs. Keeping the natural
- * row direction also means no per-child ordering tricks.
- */
+/* Copilot style: both sides read top-to-bottom down the left edge. */
 .ai-row.is-user {
   flex-direction: row;
 }
 
-/* The bubble keeps the full width it had before avatars existed, minus the
-   gutter the avatar now occupies. `min-width: 0` is what lets the bubble's own
-   long lines wrap instead of stretching the row. */
+/* The bubble takes the full width the avatar gutter used to reserve. */
 .ai-row > .ai-msg {
   min-width: 0;
   flex: 1;
-}
-
-/* ---------- the marks themselves ---------- */
-
-/*
- * Fixed size and `flex: none`, so a long message cannot squash the avatar into
- * an ellipse. The 2px top offset lines the avatar up with the first line of the
- * message head rather than with the top edge of the bubble, which is what makes
- * it look attached to the text.
- *
- * THE WIDTH AND HEIGHT ARE THE POINT, and they were missing.
- *
- * The comment claimed a fixed size while the rule never set one, so the box was
- * sized by its contents - and the photo inside is `width: 100%; height: 100%`,
- * which is a cycle the browser resolves by falling back to the image's INTRINSIC
- * size. A 1000px photo therefore rendered at 1000px, clipped by `overflow:
- * hidden` on a circle: the giant ellipse a screenshot of the panel showed, with
- * the message pushed off screen beside it.
- *
- * The size is also stated inline by the component, which is where the number
- * should come from - but a CSS fallback has to exist or the box has no size at
- * all before the inline style is applied.
- *
- * 28px, raised from 22. At 22 the photo read as a dot next to the message head:
- * large enough to notice, too small to recognise a face in - which defeats the
- * point of setting a photo at all. 28 is the low end of what chat interfaces
- * use (Telegram, Slack and Discord all sit between 28 and 36) and it still
- * leaves the bubble the majority of the row.
- *
- * `flex: none` keeps the row from stretching it.
- */
-.ai-avatar {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  margin-top: 2px;
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-/*
- * The assistant's mark.
- *
- * The colours are themeable and deliberately NOT the accent: the accent already
- * means "interactive" everywhere else in this app, and a coloured avatar would
- * read as a button. This is a soft neutral plate with the glyph in the text
- * colour, which stays legible on both themes because both ends come from the
- * theme.
- */
-.ai-avatar-bot {
-  border-radius: 50%;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
-  box-sizing: border-box;
-  width: 28px;
-  height: 28px;
-  padding: 3px;
-}
-
-/* The tinted plate behind the head, so the robot is not a hollow outline at
-   22px. Kept subtle: the glyph is the signal, not the fill. */
-.ai-avatar-bot-head {
-  fill: color-mix(in srgb, var(--text-secondary) 14%, transparent);
-}
-
-/*
- * The user's photo, and the initial that stands in for it.
- *
- * Both share `.ai-avatar-user`, so they occupy exactly the same circle: a
- * fallback that were a different size would make the transcript shift when a
- * photo fails to load.
- */
-.ai-avatar-user {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  display: block;
-}
-
-.ai-avatar-inisial {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
-  /* Scaled with the avatar (28px): an 11px letter in a 28px circle reads as a
-     speck in a lot of empty space. */
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  /* Uppercase is applied in the component, not here, so the letter that is
-     measured for centring is the letter that is drawn. */
-  user-select: none;
-}
-
-
-
-/* Assistant avatar sits a touch lower to line up with the text. User rows
-   untouched. */
-.ai-row:not(.is-user) .ai-avatar {
-  margin-top: 8px;
-}
-
-/* The avatar of a message that failed is dimmed with it, so a broken bubble
-   does not keep a bright, cheerful mark beside it. */
-.ai-row.is-error .ai-avatar {
-  opacity: 0.6;
-  margin-top: 0;
-}
-
-/*
- * Below this width the transcript is narrow enough that the gutter costs more
- * than the avatar gives, so the marks are hidden rather than shrunk. A 14px
- * avatar reads as a smudge; the name in the message head still says who is
- * speaking.
- */
-@media (max-width: 380px) {
-  .ai-avatar {
-    display: none;
-  }
-  .ai-row {
-    gap: 0;
-  }
 }

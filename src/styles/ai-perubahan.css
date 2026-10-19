@@ -1,0 +1,189 @@
+/* ai-perubahan.css — the "files changed" card that closes an agent turn.
+ *
+ * Centred, like the reference: the card summarises the turn rather than adding
+ * another step to it, so it reads as a break between the work and the answer.
+ *
+ * Two animations, both pure CSS:
+ *   - the body expands via `grid-template-rows: 0fr -> 1fr`, so the height is
+ *     real (no `max-height` guess that clips long lists);
+ *   - each row fades and slides in with a delay derived from its index, so a
+ *     six-file run arrives as a sequence instead of a wall.
+ *
+ * Nothing here touches the composer, the transcript bubbles, or avatars.
+ */
+
+.ai-ubah {
+  /* Centred and narrower than the message column: a summary reads as an inset. */
+  width: min(100%, 420px);
+  margin: 14px auto 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.ai-ubah-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-ubah-head:hover {
+  background: var(--surface-2);
+}
+
+.ai-ubah-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ai-ubah-caret {
+  width: 10px;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 160ms ease;
+}
+
+.ai-ubah-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-ubah-stat {
+  display: inline-flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-ubah-tambah {
+  color: var(--added);
+}
+
+.ai-ubah-hapus {
+  color: var(--deleted);
+}
+
+/* ── Body: real height animation ──────────────────────────────────────── */
+
+/*
+ * `0fr -> 1fr` on a grid row is the only way to animate to an unknown height
+ * without measuring it in JS. `overflow: hidden` on the child is required: the
+ * fr unit collapses to zero but the content would still paint.
+ */
+.ai-ubah-isi {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 180ms ease, opacity 140ms ease;
+}
+
+.ai-ubah[data-open='1'] .ai-ubah-isi {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.ai-ubah-isi > * {
+  overflow: hidden;
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────────── */
+
+.ai-ubah-baris {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+
+  /*
+   * The stagger. `--i` is set inline per row; multiplying it here keeps the
+   * timing in the stylesheet where the other motion lives, and means adding a
+   * row needs no extra state.
+   */
+  animation: ai-ubah-masuk 200ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
+.ai-ubah-baris:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ai-ubah-baris:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ai-ubah-ikon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.ai-ubah-baris.is-gagal .ai-ubah-ikon {
+  color: var(--danger);
+}
+
+.ai-ubah-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The path is the part that varies in length; the numbers must stay put. */
+  direction: rtl;
+  text-align: left;
+}
+
+@keyframes ai-ubah-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Motion off ───────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-ubah-isi,
+  .ai-ubah-caret {
+    transition: none;
+  }
+
+  .ai-ubah-baris {
+    animation: none;
+  }
+}
