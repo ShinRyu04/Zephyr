@@ -2817,11 +2817,21 @@ body.is-resizing-v {
 .mb-menu { position: relative; }
 /* Panel position buttons — ALWAYS visible at the top right (not a popover).
    Four layout icons + a hide-panel button (crossed-out eye). */
+/*
+ * The right-hand cluster: Update, Customize Layout, then the divider.
+ *
+ * The divider is pinned to the RIGHT of the group but kept tight to Customize
+ * Layout: `margin-left: 8px` (the gap to its button) and `margin-right: 22px`
+ * (the gap to the window controls). An even margin read as "a rule floating
+ * between two buttons"; an asymmetric one makes it belong to the layout group
+ * and leaves the window controls their own air.
+ */
 .mb-layout {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 10px 0 12px;
+  /* 10px between Update and Customize Layout: neighbours, not a single blob. */
+  gap: 10px;
+  padding: 0 0 0 18px;
 }
 .mb-layout-btn {
   display: flex;
@@ -2884,7 +2894,15 @@ body.is-resizing-v {
 .mb-layout-sep {
   width: 1px;
   height: 16px;
-  margin: 0 6px;
+  /*
+   * Tight to Customize Layout, roomy to the window controls.
+   *
+   * Measured live: 8px/22px gave 18px and 28px because `.mb-layout`'s own gap
+   * and padding added to it. These values land at ~10px and ~34px, so the rule
+   * reads as belonging to the layout group instead of floating between it and
+   * the three window buttons.
+   */
+  margin: 0 28px 0 2px;
   background: var(--border);
 }
 /* Command center: a wide pill in the MIDDLE of the menu row, like VS Code —
