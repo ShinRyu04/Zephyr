@@ -34,26 +34,24 @@
    *
    * WHY NOT PURE BLACK EITHER. Near-black (`#08090b`) was tried and it was too
    * far the other way: with no fill of its own, the card stopped reading as a
-   * surface lying on the editor and started reading as a hole cut into it - the
-   * border and the shadow were the only things left saying "this is a card".
-   * The value below is a neutral dark grey with no blue in it, close to the
-   * reference product's own picker (#1E1E22): unmistakably darker than every
-   * panel behind it, and still a surface rather than a void.
+   * surface lying on the editor and started reading as a hole cut into it.
+   *
+   * The value below is the reference product's own picker tone (#1E1E22, read
+   * off the screenshot): a neutral dark grey with no blue in it, dark enough to
+   * be unmistakably a floating layer and light enough to still be a surface.
+   * `#1c1d22` was one step too light and read as grey next to the editor.
    */
-  --popup-bg: #1c1d22;
-  --popup-border: #3a3c44;
+  --popup-bg: #17181c;
+  --popup-border: #33353c;
   /*
-   * The RAISED layer inside a pop-up: the "Add Model" button at the foot of the
-   * picker.
+   * The RAISED layer inside a pop-up: the "Add Model" button, the active row.
    *
    * Lighter than the card, which is what the reference product does and what
-   * makes the button read as something you press. It was black for one round and
-   * that was wrong in the other direction: on a dark grey card a black button
-   * looks like a slot cut into the card, not like a control. `#2b2b30` is the
-   * reference's own value - a neutral step up from the card, no blue in it.
+   * makes a control read as something you press. `#2b2b30` is the reference's
+   * own value - a neutral step up from the card, no blue in it.
    */
-  --popup-raised: #2b2b30;
-  --popup-raised-hover: #35353b;
+  --popup-raised: #26272d;
+  --popup-raised-hover: #2f3037;
   /* The shadow is what separates the card from the editor. It stays heavy
      because a dark card on a dark background needs the lift, not the contrast. */
   --popup-shadow: 0 16px 44px rgb(0 0 0 / 66%), 0 2px 8px rgb(0 0 0 / 44%);

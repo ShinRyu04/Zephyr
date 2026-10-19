@@ -3788,7 +3788,7 @@
    * transcript, so they share one answer - a surface token here reads as a hole
    * in the panel rather than as a sheet lying on it.
    */
-  background: var(--popup-bg, #1c1d22);
+  background: var(--popup-bg, #17181c);
   border-color: var(--popup-border, var(--border-strong, var(--border)));
   box-shadow: var(--popup-shadow, 0 -12px 30px rgb(0 0 0 / 55%));
   /* A thin scrollbar: this list appears above the input, and a thick scrollbar
@@ -3819,26 +3819,32 @@
 }
 .ai-slash-item {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 8px;
+  gap: 7px;
+  align-items: center;
+  padding: 3px 7px;
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: 12px;
+  font-size: 11.5px;
   text-align: left;
   cursor: pointer;
+  border-radius: 5px;
 }
 .ai-slash-item.is-on {
   background: var(--popup-raised, var(--surface-2));
 }
 .ai-slash-cmd {
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  flex: 0 0 auto;
 }
 .ai-slash-label {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*
@@ -3850,19 +3856,60 @@
  * front and double as a filter, so "attach a rule" is one click instead of a
  * guess at a prefix.
  *
- * They are a sticky row: the list under them can be hundreds of rows, and a
- * filter that scrolls away is a filter the reader forgets is on.
+ * THE CHIPS DO NOT SCROLL. They are a sibling of the scroll area, not a sticky
+ * band inside it. As a sticky band they covered the rows that scrolled under
+ * them - the highlighted row vanished beneath the chips and the bottom rows were
+ * cut - which is the "kepotong" report. A header outside the scroller cannot
+ * overlap anything inside it.
  */
+.ai-slash.is-ref {
+  /* The popup is a column: fixed chips, then the list that scrolls. */
+  display: flex;
+  flex-direction: column;
+  /*
+   * Height = a whole number of ROWS plus the chip row, so the bottom edge never
+   * lands mid-row. Compact on purpose: the popup hangs above the input row, so
+   * every extra row of height is a row of the chat hidden behind it.
+   *
+   * Measured, not guessed - the first attempt still clipped a row:
+   *   rows         7 * 26px              = 182
+   *   chips        7+7 pad + 21 content  =  35
+   *   list pad     3 + 3                 =   6
+   *   border       1 + 1                 =   2
+   *   row rounding 7 rows at 26.4px      =  ~3
+   *                                       = 228
+   * 224 was used and the eighth row ended 2px past the edge. 236 leaves the
+   * seven rows whole with slack for the sub-pixel heights a 11.5px font
+   * produces.
+   */
+  max-height: calc(7 * var(--row, 26px) + 54px);
+  overflow: hidden;
+  padding: 0;
+  /* The list inside scrolls; its own scroll-padding keeps a row off the edge. */
+  scroll-padding-bottom: 4px;
+}
+
 .ai-ref-chips {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 6px 8px 7px;
+  flex: 0 0 auto;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--popup-border, var(--border));
-  background: var(--popup-bg, var(--surface-2));
+  background: transparent;
+}
+
+.ai-ref-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  /* Same rule as the plain slash list: a row scrolled to must not park half
+     outside the box. */
+  scroll-padding: 4px;
 }
 
 .ai-ref-chip {
@@ -3899,18 +3946,16 @@
 }
 
 /* A group heading inside the list. Only drawn when more than one kind is on
-   screen, so a filtered list is not a heading over a list of one. */
+   screen, so a filtered list is not a heading over a list of one. It is NOT
+   sticky: the list is short enough that a heading which scrolls away costs
+   nothing, and sticky was what made the first row disappear under it. */
 .ai-ref-head {
-  position: sticky;
-  top: 34px;
-  z-index: 1;
   padding: 5px 8px 3px;
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
-  background: var(--popup-bg, var(--surface-2));
 }
 
 /* Folder / rule / agent glyph, sized to the file icons beside it. */

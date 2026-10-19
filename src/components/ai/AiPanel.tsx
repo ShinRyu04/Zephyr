@@ -823,8 +823,21 @@ const bukaModels = () => bukaPanel('models');
       setRefTerbuka(false);
       return;
     }
-    // The caret is inside a token: make sure the list exists, then show it.
-    if (refs.length === 0) {
+    /*
+     * Load the reference list ONCE, but keep looking for files afterwards.
+     *
+     * The old condition was `refs.length === 0`, and that was the bug: rules and
+     * agents exist with no folder open, so the first "@" after launch returned
+     * 20 rows (14 rules + 6 agents) and set `refs`. From then on `refs.length`
+     * was non-zero, the loader was never called again, and FILES AND FOLDERS
+     * NEVER APPEARED for the rest of the session - even after the reader opened
+     * a workspace. Measured: `muatRef()` returned `{rule:14, agent:6}` with an
+     * empty file list and no way back.
+     *
+     * `adaBerkas` is the flag that matters, not the total length.
+     */
+    const adaBerkas = refs.some((r) => r.jenis === 'file' || r.jenis === 'folder');
+    if (!adaBerkas) {
       void muatRef().then((f) => {
         setRefs(f);
         if (f.length > 0) setRefTerbuka(true);
@@ -1946,22 +1959,23 @@ const bukaModels = () => bukaPanel('models');
             ))}
           </div>
         )}
-        {/* References for an "@" token, GROUPED BY KIND.
-            The reference product's composer promises "@ for context" and offers
-            a file, a folder, a rule and an agent from one keystroke. The chips
-            across the top are what make the grouping discoverable: without them
-            a reader sees only the first category and never learns the others
-            exist. Same row shape as the prompt list, so the two never look like
-            different features. */}
+        {/*
+          * References for an "@" token, GROUPED BY KIND.
+          *
+          * The reference product's composer promises "@ for context" and offers
+          * a file, a folder, a rule and an agent from one keystroke. The chips
+          * are what make the grouping discoverable: without them a reader sees
+          * only the first category and never learns the others exist.
+          *
+          * THE CHIPS ARE OUTSIDE THE SCROLLER, and that is the fix for the
+          * clipping. They used to be `position: sticky` INSIDE it, which meant
+          * the list scrolled UNDER a 35px band that had no idea it was there:
+          * the highlighted row disappeared beneath the chips and the last rows
+          * were cut by a scroll box sized for a list that no longer had the
+          * height. A header that does not move cannot cover what it sits above.
+          */}
         {saranRef.length > 0 && (
-          <div
-            className="ai-slash"
-            data-testid="ai-file-list"
-            data-pemicu="ref"
-            role="listbox"
-            ref={refBoxRef}
-            aria-label={tr('Context for this message')}
-          >
+          <div className="ai-slash is-ref" data-pemicu="ref">
             <div className="ai-ref-chips" role="tablist" aria-label={tr('Filter by kind')}>
               {grupRef.map((g) => (
                 <button
@@ -1980,57 +1994,65 @@ const bukaModels = () => bukaPanel('models');
                 </button>
               ))}
             </div>
-            {grupRef.map((g) => (
-              <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
-                {/* The heading only appears when more than one kind is on
-                    screen. With a single kind the chip above already says it,
-                    and repeating it would be a title over a list of one. */}
-                {grupRef.length > 1 && (
-                  <div className="ai-ref-head">{tr(LABEL_JENIS[g.jenis])}</div>
-                )}
-                {g.items.map((f) => {
-                  const i = saranRef.indexOf(f);
-                  return (
-                    <button
-                      key={f.kunci}
-                      role="option"
-                      aria-selected={i === idxSaran}
-                      className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                      data-testid={`ai-ref-${f.jenis}-${i}`}
-                      data-ref={f.sisip}
-                      onMouseEnter={() => setIdxSaran(i)}
-                      onClick={() => pakaiRef(f)}
-                    >
-                      {/*
-                       * Icon, name, then what tells two of them apart.
-                       *
-                       * The second column used to print the whole relative path,
-                       * so a row read "@package.json  package.json" - the name
-                       * twice. The folder is the part that actually distinguishes
-                       * two files with the same name; for a rule or an agent the
-                       * distinguishing part is what it DOES, so the same slot
-                       * carries its sentence.
-                       */}
-                      {f.jenis === 'file' ? (
-                        <FileIkon nama={f.label} />
-                      ) : (
-                        <span className="ai-ref-ikon" aria-hidden="true">
-                          {f.jenis === 'folder' ? (
-                            <AiIkon name="folder" size={13} />
-                          ) : f.jenis === 'rule' ? (
-                            <AiIkon name="shield" size={13} />
-                          ) : (
-                            <AiIkon name="robot" size={13} />
-                          )}
-                        </span>
-                      )}
-                      <span className="ai-slash-cmd">@{f.label}</span>
-                      <span className="ai-slash-label">{f.detail}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+            <div
+              className="ai-ref-list"
+              data-testid="ai-file-list"
+              role="listbox"
+              ref={refBoxRef}
+              aria-label={tr('Context for this message')}
+            >
+              {grupRef.map((g) => (
+                <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
+                  {/* The heading only appears when more than one kind is on
+                      screen. With a single kind the chip above already says it,
+                      and repeating it would be a title over a list of one. */}
+                  {grupRef.length > 1 && (
+                    <div className="ai-ref-head">{tr(LABEL_JENIS[g.jenis])}</div>
+                  )}
+                  {g.items.map((f) => {
+                    const i = saranRef.indexOf(f);
+                    return (
+                      <button
+                        key={f.kunci}
+                        role="option"
+                        aria-selected={i === idxSaran}
+                        className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                        data-testid={`ai-ref-${f.jenis}-${i}`}
+                        data-ref={f.sisip}
+                        onMouseEnter={() => setIdxSaran(i)}
+                        onClick={() => pakaiRef(f)}
+                      >
+                        {/*
+                         * Icon, name, then what tells two of them apart.
+                         *
+                         * The second column used to print the whole relative
+                         * path, so a row read "@package.json  package.json" -
+                         * the name twice. The folder is the part that actually
+                         * distinguishes two files with the same name; for a rule
+                         * or an agent the distinguishing part is what it DOES,
+                         * so the same slot carries its sentence.
+                         */}
+                        {f.jenis === 'file' ? (
+                          <FileIkon nama={f.label} />
+                        ) : (
+                          <span className="ai-ref-ikon" aria-hidden="true">
+                            {f.jenis === 'folder' ? (
+                              <AiIkon name="folder" size={13} />
+                            ) : f.jenis === 'rule' ? (
+                              <AiIkon name="shield" size={13} />
+                            ) : (
+                              <AiIkon name="robot" size={13} />
+                            )}
+                          </span>
+                        )}
+                        <span className="ai-slash-cmd">@{f.label}</span>
+                        <span className="ai-slash-label">{f.detail}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

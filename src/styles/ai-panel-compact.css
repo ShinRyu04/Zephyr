@@ -871,7 +871,7 @@
    * TOP, so it now uses the pop-up layer token: near-black, its own border, and
    * a heavier shadow to lift it off the surface.
    */
-  background: var(--popup-bg, #1c1d22);
+  background: var(--popup-bg, #17181c);
   border: 1px solid var(--popup-border, var(--border-strong, var(--border)));
   border-radius: 10px;
   box-shadow: var(--popup-shadow, 0 14px 38px rgb(0 0 0 / 62%));
@@ -988,7 +988,7 @@
  * itself: a hover barely lifts, the active row gets the accent wash.
  */
 .ai-model-menu .ai-model-item:hover {
-  background: color-mix(in srgb, var(--popup-bg, #1c1d22) 74%, var(--text) 26%);
+  background: color-mix(in srgb, var(--popup-bg, #17181c) 74%, var(--text) 26%);
 }
 
 .ai-model-menu .ai-model-item.is-active,
@@ -1258,7 +1258,7 @@
    * its own container and read as a foreign patch. Mixing against the pop-up
    * keeps the card one object.
    */
-  background: color-mix(in srgb, var(--popup-bg, #1c1d22) 80%, var(--text) 20%);
+  background: color-mix(in srgb, var(--popup-bg, #17181c) 80%, var(--text) 20%);
   border: 1px solid var(--popup-border, var(--border));
   border-radius: 6px;
   outline: none;
@@ -1301,7 +1301,7 @@
 }
 
 .ai-model-menu .ai-model-refresh:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--popup-bg, #1c1d22) 74%, var(--text) 26%);
+  background: color-mix(in srgb, var(--popup-bg, #17181c) 74%, var(--text) 26%);
   color: var(--text);
 }
 
@@ -1497,7 +1497,7 @@
      two panels logically. A grey card next to a black menu read as a mistake. */
   border: 1px solid var(--popup-border, var(--border-strong, var(--border)));
   border-radius: 10px;
-  background: var(--popup-bg, #1c1d22);
+  background: var(--popup-bg, #17181c);
   box-shadow: var(--popup-shadow, 0 14px 38px rgb(0 0 0 / 62%));
   pointer-events: none;
   overflow: visible;
@@ -1549,6 +1549,23 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
+}
+
+/* The mode's own glyph, sized to the label beside it. */
+.mode-btn > svg {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+/* The glyph on a menu row, in its own column so the labels line up. */
+.mode-item-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
 }
 
 .mode-btn:hover {
