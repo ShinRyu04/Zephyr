@@ -551,15 +551,22 @@ export const BATAS_BROWSER_MUTER = 3;
 const BATAS_TANPA_KEMAJUAN = 4;
 /*
  * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
- * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai. Cukup
- * besar untuk menuntaskan rencana besar (toko online = 40+ berkas, kadang
- * perlu baca-pulihkan-konteks di antara penulisan setelah auto-compact), tapi
- * berbatas supaya model yang benar-benar mandek tidak membuat loop berputar
- * sampai MAX_AGENT_STEPS. Dinaikkan dari 8: pada tugas besar, satu run bisa
- * dipadatkan beberapa kali, dan tiap pemadatan wajar diikuti beberapa bacaan
- * pemulihan konteks - 8 terlalu cepat habis dan run berhenti di tengah.
+ * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai.
+ *
+ * TURUN dari 20 ke 4.
+ *
+ * Kenapa: 20 itu cukup untuk membuat agen "terus bekerja" setelah tugasnya
+ * benar-benar selesai. Penyebabnya todo yang tidak pernah ditandai `done` -
+ * model menulis semua berkasnya tapi lupa memanggil `todo_write`, jadi daftar
+ * rencana tetap penuh, dan guard menyodok model sampai 20 kali untuk
+ * mengerjakan ulang pekerjaan yang sudah ada di disk. Yang dilihat pembaca:
+ * run yang tidak pernah berhenti.
+ *
+ * Empat cukup untuk satu koreksi yang jujur (model lupa satu langkah) tanpa
+ * memberi ruang untuk loop panjang. Batas keras yang sebenarnya tetap
+ * MAX_AGENT_STEPS; ini hanya rem untuk "menyodok terus".
  */
-const BATAS_LANJUT_TANPA_TOOL = 20;
+const BATAS_LANJUT_TANPA_TOOL = 4;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -7538,6 +7545,39 @@ let autoLanjut = 0;
            */
           const sisaTodo = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
           /*
+           * A todo whose file ALREADY EXISTS ON DISK is not evidence of work
+           * left undone.
+           *
+           * This is the fix for "the job is done but the agent keeps working".
+           * The model writes every file, then forgets to call `todo_write` to
+           * mark them done. The plan list stays full, the guard below reads that
+           * as unfinished work, and the model is pushed to redo it - up to the
+           * nudge limit. The files were already written, so every nudge was
+           * wasted.
+           *
+           * The check is deliberately narrow, the same way `todosBohong` is:
+           * only todos whose text NAMES a file that this turn actually wrote are
+           * treated as finished. A todo about anything else ("run the tests")
+           * still counts as outstanding, because nothing proves otherwise.
+           */
+          const todoSudahDitulis = (t: { content?: string }): boolean => {
+            const calon = String(t.content ?? '').match(
+              /[A-Za-z0-9_.\-/\\]+\.(?:md|js|ts|tsx|jsx|json|css|html|py|rs|toml|yml|yaml)/g,
+            );
+            if (!calon) return false;
+            return calon.every(
+              (nama) =>
+                berkasDitulisGiliran.has(nama) || berkasDitulisGiliran.has(nama.replace(/^\.\//, '')),
+            );
+          };
+          /*
+           * Only todos that name a file NOT yet written count as outstanding.
+           * A model that answers without calling a tool twice in a row has told
+           * us it is done - the limit above is what enforces that, so no extra
+           * counter is needed here.
+           */
+          const sisaTodoNyata = sisaTodo.filter((t) => !todoSudahDitulis(t));
+          /*
            * A todo marked `done` is a CLAIM, and claims are checked.
            *
            * Measured in Fase 5: the plan had ten items, all marked done, and
@@ -7595,9 +7635,9 @@ let autoLanjut = 0;
             }));
             continue;
           }
-          if (sisaTodo.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL && !agentBatal) {
+          if (sisaTodoNyata.length > 0 && lanjutTanpaTool < BATAS_LANJUT_TANPA_TOOL && !agentBatal) {
             lanjutTanpaTool += 1;
-            const daftar = sisaTodo
+            const daftar = sisaTodoNyata
               .map((t) => `- [${t.status === 'in_progress' ? '~' : ' '}] ${t.content}`)
               .join('\n');
             history.push({

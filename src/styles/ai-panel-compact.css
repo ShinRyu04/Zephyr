@@ -20,8 +20,14 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /*
+   * No rule under the header.
+   *
+   * A `border-bottom` here drew a line straight across the panel, right below
+   * the New chat button, which made the header read as a separate toolbar
+   * strip. The header and the transcript are one surface.
+   */
+  background: transparent;
   flex: 0 0 auto;
   /*
    * A side panel is narrow (≈340px). The model selector alone is ~325px, so a
@@ -49,8 +55,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: transparent;
   flex: 0 0 auto;
   flex-wrap: nowrap;
   /*

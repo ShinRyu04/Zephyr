@@ -9,6 +9,27 @@ import '../../styles/ai-composer-stack.css';
 
 const KUNCI_LIPAT = 'zephyr.todoCard.collapsed';
 
+/*
+ * Whether the reader has ASKED to see the task list.
+ *
+ * OFF by default: the plan the agent writes is useful while debugging a run,
+ * but as an always-on panel above the composer it pushed the answer down and
+ * made every turn look busier than it was. Nothing here decides what the agent
+ * does — this is display only.
+ *
+ * Persisted, because "I want to watch the plan" is a preference that should
+ * survive a reload. `'1'` = shown; a missing key keeps it hidden.
+ */
+const KUNCI_TAMPIL = 'zephyr.todoCard.shown';
+
+function bootTampil(): boolean {
+  try {
+    return localStorage.getItem(KUNCI_TAMPIL) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * ComposerStatusStack - Tumpukan Status Bersatu Docked di atas Input Composer ala Hermes.
  *
@@ -41,6 +62,27 @@ export default function ComposerStatusStack() {
       return false;
     }
   });
+
+  /* Hidden unless the reader turned it on. See KUNCI_TAMPIL above. */
+  const [tampil, setTampil] = useState<boolean>(bootTampil);
+
+  /*
+   * The panel can be opened from outside (the composer's "..." menu, a command,
+   * or the keybinding) through a window event, so the control does not have to
+   * live on a surface that is currently hidden.
+   */
+  useEffect(() => {
+    const buka = () => {
+      setTampil(true);
+      try {
+        localStorage.setItem(KUNCI_TAMPIL, '1');
+      } catch {
+        /* sesi ini saja */
+      }
+    };
+    window.addEventListener('zephyr-todo-show', buka);
+    return () => window.removeEventListener('zephyr-todo-show', buka);
+  }, []);
 
   const [menuBuka, setMenuBuka] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -76,6 +118,8 @@ export default function ComposerStatusStack() {
 
   const runningSubagents = subagents.filter((i) => i.status === 'jalan');
   const hasActiveContent = todos.length > 0 || runningSubagents.length > 0;
+  /* Hidden by default; the event above is how it is summoned. */
+  if (!tampil) return null;
   if (!hasActiveContent) return null;
 
   const done = todos.filter((t) => t.status === 'done').length;
