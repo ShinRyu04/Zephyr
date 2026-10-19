@@ -662,75 +662,10 @@ export function AgentsSection() {
       </Row>
 
       {/*
-       * One switch for both sides of the conversation.
-       *
-       * `!== false` rather than `!!`: a user who never touched this has no
-       * `chatAvatar` key, and a missing value must read as ON - otherwise
-       * everyone who upgrades silently loses their avatars.
-       *
-       * The hint says what actually changes on screen. "Show avatars" alone
-       * leaves the reader guessing whether it means the message list, the
-       * sub-agent cards, or something else; naming the robot and the photo
-       * removes the guess.
+       * The avatar picker that used to sit here is GONE, with the avatars it fed.
+       * Chat no longer renders a mark beside a message, so a control that only
+       * changed that mark would be a switch with no effect.
        */}
-      <Row label={tr('agents.chatAvatar')} hint={tr('the robot and your photo beside each message')}>
-        <Toggle
-          label={tr('agents.chatAvatar')}
-          testid="agents-chat-avatar"
-          checked={a.chatAvatar !== false}
-          onChange={(v) => void apply({ agents: { chatAvatar: v } })}
-        />
-      </Row>
-
-      {/*
-       * The photo that goes beside your own messages.
-       *
-       * `ChatMessage` has read `agents.userAvatarPath` all along, but nothing
-       * ever wrote it: the setting existed, the switch showed avatars, and the
-       * user's side was stuck on the letter fallback with no way to change it.
-       * Reading a setting with no writer is the same defect as a control with
-       * no effect, just in the other direction - so the picker lives here,
-       * next to the switch that reveals it.
-       *
-       * The image is stored as a data URL rather than a path. A path would
-       * break the moment the user moved or deleted the file, and the avatar is
-       * small enough that copying its bytes into settings costs little. The
-       * background photo above uses a path for the opposite reason: it is
-       * large, and losing it to a moved file is a recoverable annoyance.
-       */}
-      <Row label={tr('agents.myPhoto')} hint={tr('agents.myPhotoHint')}>
-        <span className="set-avatar">
-          {a.userAvatarPath ? (
-            <img className="set-avatar-preview" src={a.userAvatarPath} alt="" data-testid="agents-avatar-preview" />
-          ) : (
-            <span className="set-avatar-preview set-avatar-empty" aria-hidden="true" />
-          )}
-          <button
-            className="btn"
-            data-testid="agents-avatar-pick"
-            onClick={async () => {
-              try {
-                const f = await cmd.fileDialogOpen(false);
-                const path = Array.isArray(f) ? f[0] : f;
-                if (!path) return;
-                const img = await cmd.bgImageRead(path);
-                await apply({ agents: { userAvatarPath: img.data_url } });
-              } catch {
-                /* dialog cancelled / permission denied - not an error */
-              }
-            }}
-          >
-            {tr('theme.chooseImage')}
-          </button>
-          <button
-            className="btn"
-            data-testid="agents-avatar-clear"
-            onClick={() => void apply({ agents: { userAvatarPath: '' } })}
-          >
-            {tr('common.reset')}
-          </button>
-        </span>
-      </Row>
 
       <Row label={tr('agents.rescan')} hint={`${agents.length} CLIs detected on PATH`}>
         <button className="btn" data-testid="agents-rescan" onClick={() => void loadAgents()}>

@@ -1453,22 +1453,14 @@ export interface Settings {
     customInstructions: string;
 
     /*
-     * Chat avatars.
+     * `chatAvatar` was removed: the transcript no longer renders avatars, so a
+     * switch that could only turn on something that does not exist was dead
+     * weight.
      *
-     * ONE switch for both sides rather than one each: the reason to turn them
-     * off is visual clutter, and nobody wants the robot gone while their own
-     * face stays. A single switch is also the honest shape of the promise -
-     * "show avatars in chat" - which is what the setting is called.
-     *
-     * `undefined` means ON, and that is deliberate: the Rust default is what
-     * actually applies on upgrade, so the UI must treat a missing value as the
-     * wanted state rather than as "off". Reading it as `!== false` instead of
-     * `=== true` is what makes that true.
-     *
-     * `userAvatarPath` is a path on disk, not image bytes - settings.json stays
-     * small and the cache stays out of it.
+     * `userAvatarPath` stays in the schema because old profiles still carry it.
+     * Nothing reads or writes it any more; dropping the field would make those
+     * profiles fail validation for a value nobody uses.
      */
-    chatAvatar?: boolean;
     userAvatarPath?: string;
 
     /*
