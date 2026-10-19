@@ -319,6 +319,30 @@ export const agentExec = (command: string, timeoutMs?: number, cwd?: string) =>
     cwd: cwd ?? null,
   });
 
+/** What one Auto Fix Lints run produced. Mirrors `HasilFix` in `lint_fix.rs`. */
+export interface HasilFixLint {
+  berubah: string[];
+  tetap: string[];
+  alat: string | null;
+  pesan: string;
+  sisa: string[];
+}
+
+/**
+ * Run the project's own fixer over the files an agent changed.
+ *
+ * The fixer is chosen on the Rust side by manifest (Cargo.toml, go.mod,
+ * pyproject, package.json) so the frontend never guesses which toolchain a file
+ * belongs to — a `.rs` file in a repo that also has a `package.json` must go to
+ * cargo, and that decision needs the file tree, not a filename.
+ *
+ * Paths outside `root` are refused there too. This is a WRITE path: it runs a
+ * formatter that rewrites files, so the boundary belongs on the side that
+ * actually opens them.
+ */
+export const lintFixFiles = (root: string, paths: string[]) =>
+  invoke<HasilFixLint>('lint_fix_files', { root, paths });
+
 export interface PatchResult {
   applied: boolean;
   added: number;

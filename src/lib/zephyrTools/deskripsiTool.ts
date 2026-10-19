@@ -55,6 +55,8 @@ export const DESKRIPSI_TOOL_ID: Record<string, string> = {
   bash_run: 'Jalankan perintah dan tunggu sampai selesai (termasuk perintah latar)',
   run_subagent: 'Jalankan satu subagent untuk tugas mandiri',
   todo_write: 'Ganti daftar tugas agen untuk tugas ini',
+  ask_user:
+    'Tanya user satu pertanyaan dan tunggu jawabannya. Pakai HANYA kalau pilihan yang mungkin benar-benar berbeda dan salah pilih akan membuang pekerjaan; jangan pakai untuk hal yang bisa kamu cek sendiri.',
   notes_write: 'Ubah catatan atau todo milik user',
   schedule_command: 'Jadwalkan, daftar, atau batalkan perintah terjadwal (action: list|add|cancel)',
   /* Pola OpenJarvis (think.py, Apache-2.0): scratchpad penalaran tanpa efek samping. */

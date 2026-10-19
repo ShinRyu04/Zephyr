@@ -44,7 +44,7 @@
  *   isi yang salah dengan yakin.
  */
 import { useStore } from '../store';
-import { useAi, MAX_TODOS, todoTerpangkas } from '../aiStore';
+import { useAi, MAX_TODOS, todoTerpangkas, permukaanAgentAktif } from '../aiStore';
 import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import { buatLspTool } from './lsp';
@@ -1159,6 +1159,42 @@ export const TOOL_BAWAAN: AgentTool[] = [
        * Kalau frontend mengirim jalur eksplisit, jalur itu tetap divalidasi
        * backend sebelum apa pun dijalankan.
        */
+      /*
+       * WHERE the command runs is a setting, not a constant.
+       *
+       * `efficient` (the default) uses the piped `agent_exec`: nothing appears
+       * on screen, the output comes back as text, and a command that asks for a
+       * password fails fast instead of hanging invisibly.
+       *
+       * `system` runs it in a real shell pane the reader can see and type into,
+       * which is the only way an interactive command can work at all. It is
+       * slower and its output arrives as a scrollback slice, so it is not the
+       * default — but a reader who chose it needs the prompt answerable.
+       */
+      const { keputusanTerminal } = await import('../terminalAgent');
+      const keputusan = keputusanTerminal(aman);
+
+      if (keputusan.lingkungan === 'system') {
+        const { useTerminal } = await import('../terminalStore');
+        const hasil = await useTerminal.getState().jalankanDiTerminal(aman, {
+          buka: keputusan.buka,
+          timeoutMs: bacaAngka(a.timeout) ?? 120000,
+          cwd: akarCwd() ?? undefined,
+        });
+        const keluaran = hasil.keluaran.trim();
+        return potong(
+          [
+            hasil.selesai
+              ? `Dijalankan di terminal ${hasil.paneId} (System Terminal).`
+              : `Perintah di terminal ${hasil.paneId} belum terlihat selesai dalam batas waktu - ia MUNGKIN masih berjalan. Baca terminalnya sebelum menyimpulkan berhasil.`,
+            diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
+            keluaran ? `--- keluaran ---\n${keluaran}` : '(tidak ada keluaran)',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+      }
+
       const r = await cmd.agentExec(aman, bacaAngka(a.timeout), akarCwd() ?? undefined);
       const bagian = [
         `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
@@ -1517,6 +1553,84 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
   },
 
+  /*
+   * ── ask_user ──────────────────────────────────────────────────────────────
+   *
+   * The agent STOPS and asks instead of picking one reading of an ambiguous
+   * request and burning a long turn on it.
+   *
+   * ## Why a tool and not a sentence in the prompt
+   *
+   * The prompt already says "ask at most one clarifying question", and a model
+   * under pressure does not: it chooses, answers confidently, and the reader
+   * discovers the misunderstanding at the end. A tool is a shape the model must
+   * fill in, and the answer returns as a tool RESULT — so the loop genuinely
+   * waits. A prompt line cannot make the loop wait.
+   *
+   * ## Why a dismissal is not an error
+   *
+   * The reader can close the card. That means "you decide", so it comes back as
+   * text telling the model to choose and state its assumption. Throwing would
+   * mark the step failed and the model would ask again — the one behaviour a
+   * dismissed question must not produce.
+   */
+  {
+    spec: {
+      name: 'ask_user',
+      description:
+        'Tanya user SATU pertanyaan dan tunggu jawabannya sebelum melanjutkan. Pakai hanya kalau ada dua bacaan atau lebih yang sama masuk akal dan salah pilih akan membuang pekerjaan (mis. "hapus berkas lama" tanpa menyebut yang mana). JANGAN pakai untuk hal yang bisa kamu periksa sendiri lewat tool lain, dan jangan untuk basa-basi. Kalau user tidak menjawab, lanjutkan dengan pilihan paling aman dan sebutkan asumsinya.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pertanyaan: {
+            type: 'string',
+            description: 'Pertanyaan yang jelas dan singkat, satu kalimat.',
+          },
+          pilihan: {
+            type: 'array',
+            description:
+              'Dua sampai empat kemungkinan jawaban, masing-masing pendek. Boleh kosong kalau jawabannya harus bebas.',
+            items: { type: 'string' },
+          },
+        },
+        required: ['pertanyaan'],
+      },
+    },
+    run: async (a) => {
+      /*
+       * The switch is read HERE, at call time, and per SURFACE.
+       *
+       * `questioningIde` and `questioningSolo` are separate settings because the
+       * editor panel and the Agents window are separate execution paths. A tool
+       * that honoured either one would answer a question the reader turned off
+       * for the surface they are actually using.
+       */
+      const conv = useStore.getState().settings.conversation;
+      const permukaan = permukaanAgentAktif();
+      const aktif =
+        permukaan === 'agents' ? conv?.questioningSolo === true : conv?.questioningIde === true;
+      if (!aktif) {
+        return 'Pertanyaan ke user sedang dimatikan untuk permukaan ini (Conversation > Agent Questioning Proactively). Jangan menunggu jawaban: pilih bacaan paling aman, kerjakan, lalu sebutkan asumsi yang kamu ambil.';
+      }
+
+      const pertanyaan = String(a.pertanyaan ?? '').trim();
+      if (!pertanyaan) {
+        return 'ERROR: `pertanyaan` kosong. Tidak ada yang bisa ditanyakan, jadi lanjutkan sendiri dan sebutkan asumsimu.';
+      }
+      const pilihan = (Array.isArray(a.pilihan) ? a.pilihan : [])
+        .map((p) => String(p ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 4);
+
+      const jawaban = await useAi.getState().agentAjukanTanya(pertanyaan, pilihan);
+
+      if (jawaban === null) {
+        return 'User menutup pertanyaannya tanpa menjawab. Itu berarti "putuskan sendiri": ambil jalan paling aman, kerjakan, dan sebutkan asumsimu. Jangan mengulang pertanyaan ini.';
+      }
+      return `User menjawab: ${jawaban}`;
+    },
+  },
+
   {
     spec: {
       name: 'todo_write',
@@ -1550,6 +1664,26 @@ export const TOOL_BAWAAN: AgentTool[] = [
       },
     },
     run: async (a) => {
+      /*
+       * The To-Do List switch, read per SURFACE.
+       *
+       * Off is not "hide the card": it is "do not spend steps maintaining a list
+       * the reader does not want". So the tool still answers, refuses to write,
+       * and says why — the model then works without a plan instead of retrying
+       * a call that silently does nothing.
+       *
+       * The plan gate in the agent loop asks for `todo_write` on the first step
+       * of a heavy task, so this refusal also has to be a sentence the model can
+       * act on; an empty string would look like a successful empty list.
+       */
+      const convTodo = useStore.getState().settings.conversation;
+      const permukaanTodo = permukaanAgentAktif();
+      const todoAktif =
+        permukaanTodo === 'agents' ? convTodo?.todoListSolo === true : convTodo?.todoListIde === true;
+      if (!todoAktif) {
+        return 'Daftar tugas dimatikan untuk permukaan ini (Conversation > To-Do List). Jangan memanggil todo_write lagi: kerjakan tugasnya langsung, satu berkas per panggilan, dan jelaskan langkahnya di jawaban akhir.';
+      }
+
       const daftar = Array.isArray(a.todos) ? a.todos : [];
       const bersih = daftar.map((t, i) => {
         const x = t as Record<string, unknown>;

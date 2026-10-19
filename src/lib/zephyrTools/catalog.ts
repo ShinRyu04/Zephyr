@@ -166,6 +166,20 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
 
   /* Tasks - 1 */
   ['todo_write', 'Tasks & Notes', 'appWrite', true, 'Ganti daftar tugas agen untuk tugas ini'],
+  /*
+   * `ask_user` — the agent stops and asks instead of guessing.
+   *
+   * This is the tool behind the "Agent Questioning Proactively" switch. Without
+   * it that switch had nothing to switch: the page offered a control for a
+   * capability the agent did not have, which is the definition of a fake toggle.
+   *
+   * `read` rather than `appWrite`: it changes nothing on disk and runs no
+   * command. Its only effect is a card in the transcript and a pause — the same
+   * shape as `kotak`. Marking it `appWrite` would make it require approval in
+   * every mode except `auto`, so the reader would be asked to approve being
+   * asked a question.
+   */
+  ['ask_user', 'Aplikasi', 'read', false, 'Tanya user dan tunggu jawabannya sebelum melanjutkan (dipakai saat tugas ambigu)'],
 
   /* Code intelligence - 6 */
   /*
@@ -623,6 +637,20 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'glob',
   'bash_run',
   'todo_write',
+  /*
+   * `ask_user` — the tool behind "Agent Questioning Proactively".
+   *
+   * It has to be IN HAND on the first step, not found via `tool_search`: the
+   * whole point is to stop BEFORE spending a turn on the wrong reading, and a
+   * tool the model must look up first is a tool it will not reach for while it
+   * is already writing.
+   *
+   * The spec is small (one question, an optional list), so the cost is a few
+   * hundred bytes — but it is also dropped from the wire whenever the reader
+   * turned the feature off for the surface they are using (see `agentToolSpecs`),
+   * so a reader who does not want it pays nothing for it.
+   */
+  'ask_user',
   /*
    * `zephyr_self` bukan pilihan gaya, tapi kewajiban: blok larangan di
    * `systemPrompt.ts:850` / `:862` menyebut tool ini dengan nama - "jangan

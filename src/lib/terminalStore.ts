@@ -71,6 +71,17 @@ interface TerminalActions {
   markExited: (paneId: string, code?: number | null) => void;
   refreshFromBackend: () => Promise<void>;
 
+  /**
+   * Run an agent command in a VISIBLE shell pane and wait for it to finish.
+   * See the implementation for why a marker token is used instead of watching
+   * the scrollback go quiet.
+   */
+  jalankanDiTerminal: (
+    perintah: string,
+    opts?: { buka?: boolean; timeoutMs?: number; cwd?: string },
+  ) => Promise<{ keluaran: string; selesai: boolean; paneId: string }>;
+
+
   allPanes: () => PaneMeta[];
   activeTab: () => TerminalTab | null;
   findPane: (paneId: string) => PaneMeta | undefined;
@@ -81,6 +92,15 @@ export type TerminalStore = TerminalState & TerminalActions;
 
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
+
+/**
+ * The shell pane used for agent commands in "System Terminal" mode.
+ *
+ * Module state, not store state: the reader never sees this id and nothing
+ * renders from it. It exists so ten commands reuse one pane instead of opening
+ * ten dead shells.
+ */
+let paneSistem: string | null = null;
 
 const LABEL: Record<string, string> = {
   shell: 'PowerShell',
@@ -347,6 +367,79 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       });
       return null;
     }
+  },
+
+  /**
+   * Run an agent command in a VISIBLE shell pane and wait for it to finish.
+   *
+   * This is what "System Terminal" in Conversation > Terminal Tool Preferences
+   * means: the command runs where the reader can see it, and can type into it if
+   * it asks for a password. The piped `agent_exec` path cannot do either — its
+   * stdin is null and its output only comes back as text.
+   *
+   * ## Why a marker and not just "the output stopped changing"
+   *
+   * An idle scrollback cannot distinguish "finished" from "waiting for input".
+   * Both stop producing output. So the command is wrapped in an echo of a random
+   * token AFTER it, and the wait ends when that token appears — which happens
+   * only if the command actually returned. A timeout then reports honestly that
+   * the command may still be running, instead of claiming success.
+   *
+   * ## Why the pane is reused
+   *
+   * A new pane per command would fill the tab with dead shells after ten
+   * commands. The pane is created on the first system-terminal command and
+   * reused while it is alive; if the reader closed it, the next command makes a
+   * new one.
+   */
+  jalankanDiTerminal: async (
+    perintah: string,
+    opts?: { buka?: boolean; timeoutMs?: number; cwd?: string },
+  ): Promise<{ keluaran: string; selesai: boolean; paneId: string }> => {
+    const batas = Math.min(600000, Math.max(1000, opts?.timeoutMs ?? 120000));
+
+    let paneId = paneSistem;
+    const hidup = paneId ? get().findPane(paneId)?.status === 'live' : false;
+    if (!paneId || !hidup) {
+      paneId = await get().addPane('shell', { cwd: opts?.cwd });
+      if (!paneId) throw new Error('Tidak bisa membuat terminal untuk menjalankan perintah.');
+      paneSistem = paneId;
+    }
+    if (opts?.buka) {
+      usePanel.getState().focusTab('terminal');
+      get().setVisible(true);
+      get().setActivePane(get().activeTabId ?? '', paneId);
+    }
+
+    /*
+     * The token is random so it cannot appear in the command's own output by
+     * accident — a fixed string like `__DONE__` would be matched by any program
+     * that prints it, and the wait would end early while the command still ran.
+     */
+    const token = `__ZEPHYR_DONE_${Math.random().toString(36).slice(2, 10)}__`;
+    const pembungkus = `(${perintah}) & echo ${token}`;
+    await cmd.ptyWrite(paneId, pembungkus + '\r');
+
+    const mulai = Date.now();
+    let sebelumnya = '';
+    let stabil = 0;
+    while (Date.now() - mulai < batas) {
+      const teks = await cmd.ptyTail(paneId, 400).catch(() => '');
+      if (teks.includes(token)) {
+        /* Everything the command printed sits above the marker line. */
+        const sebelumToken = teks.slice(0, teks.indexOf(token));
+        return { keluaran: sebelumToken, selesai: true, paneId };
+      }
+      if (teks === sebelumnya) {
+        stabil += 1;
+        if (stabil >= 8) break;
+      } else {
+        stabil = 0;
+      }
+      sebelumnya = teks;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return { keluaran: sebelumnya, selesai: false, paneId };
   },
 
   daftarkanPaneEksternal: async (paneId, kind, title) => {

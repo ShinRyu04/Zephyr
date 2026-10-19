@@ -650,15 +650,33 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
     const jumlah = hasil.dipulihkan.length + hasil.dihapus.length;
     if (hasil.gagal.length === 0) {
       setToast(tf('{x} file dikembalikan', { x: String(jumlah) }));
-      return;
+    } else {
+      const { useNotif } = await import('../../lib/notificationStore');
+      useNotif.getState().notify({
+        severity: 'error',
+        message: tx('Sebagian berkas gagal dikembalikan'),
+        detail: hasil.gagal.map((g) => `${g.path}: ${g.pesan}`).join('\n'),
+        source: 'Checkpoint',
+      });
     }
-    const { useNotif } = await import('../../lib/notificationStore');
-    useNotif.getState().notify({
-      severity: 'error',
-      message: tx('Sebagian berkas gagal dikembalikan'),
-      detail: hasil.gagal.map((g) => `${g.path}: ${g.pesan}`).join('\n'),
-      source: 'Checkpoint',
-    });
+
+    /*
+     * "Jump to next change after review" — the reader has just decided about
+     * this turn's changes, so the editor moves on to the next file that changed.
+     *
+     * Only files that SURVIVED are opened: after an undo, a file the turn
+     * created no longer exists, and opening a deleted path would show an error
+     * tab instead of the next thing to look at. The list is taken from the
+     * restore result rather than the checkpoint so it reflects what is actually
+     * on disk now.
+     */
+    const { lompatSetelahReview } = await import('../../lib/reviewUbah');
+    if (!lompatSetelahReview()) return;
+    const berikut =
+      hasil.dipulihkan.find((p) => p !== useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId)?.path) ??
+      hasil.dipulihkan[0];
+    if (!berikut) return;
+    await useStore.getState().openPath(berikut).catch(() => undefined);
   };
 
   /*
