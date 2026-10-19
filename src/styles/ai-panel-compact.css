@@ -1058,20 +1058,43 @@
   border-color: color-mix(in srgb, var(--success) 40%, var(--border));
 }
 
-/* The search field and refresh button stay on one row at the top. */
+/*
+ * The header row: search, then the two icon actions at its right edge.
+ *
+ * The reference product's picker leads with a full-width search box and keeps
+ * Refresh and Add beside it. This used to be a bare input with the two actions
+ * in a FOOTER, which meant that on an account with a long model list both
+ * actions sat below the fold — the reported "I cannot find Refresh".
+ *
+ * The input is the only flexible child, so the three buttons keep their 24px
+ * width while the field absorbs the rest.
+ */
 .ai-mp-cari {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 2px 2px 6px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 
+/* The magnifier sits INSIDE the field's visual bounds without stealing a row. */
+.ai-mp-cari-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-right: -22px;
+  margin-left: 7px;
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .ai-model-menu .ai-model-input {
   flex: 1;
   min-width: 0;
-  padding: 5px 8px;
+  padding: 5px 8px 5px 24px;
   font-family: inherit;
   font-size: 11.5px;
   color: var(--text);
@@ -1085,6 +1108,13 @@
   border-color: var(--accent);
 }
 
+/*
+ * One icon button, three jobs: clear, refresh, add.
+ *
+ * `is-kecil` is the clear "×" — it only exists while there is text, so it must
+ * not push the other two around when it appears; the flex row already accounts
+ * for it because the field is the flexible child.
+ */
 .ai-model-menu .ai-model-refresh {
   display: inline-flex;
   align-items: center;
@@ -1097,12 +1127,52 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   cursor: pointer;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
+}
+
+.ai-model-menu .ai-model-refresh.is-kecil {
+  width: 20px;
+  height: 20px;
+  font-size: 13px;
+  line-height: 1;
+  border-color: transparent;
+  background: transparent;
 }
 
 .ai-model-menu .ai-model-refresh:hover:not(:disabled) {
   background: var(--surface-3);
   color: var(--text);
+}
+
+/* Refresh in flight: the arrow spins, so a slow provider reads as busy rather
+   than as a dead button. */
+.ai-model-menu .ai-model-refresh.is-putar > svg {
+  animation: ai-mp-putar 0.9s linear infinite;
+}
+
+@keyframes ai-mp-putar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add is the one accent action in this row — it opens a dialog, it does not
+   just re-read a list. */
+.ai-model-menu .ai-model-refresh.is-utama {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.ai-model-menu .ai-model-refresh.is-utama:hover:not(:disabled) {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ai-model-menu .ai-model-refresh:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .ai-model-menu .ai-model-empty {

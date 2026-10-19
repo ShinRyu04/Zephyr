@@ -435,60 +435,12 @@
 /* ── Title-bar tooltip ────────────────────────────────────────────────── */
 
 /*
- * Drawn above the button, never below.
+ * MOVED to `styles/tip.css`.
  *
- * The native `title` tooltip rendered under the cursor, and for a title-bar
- * button that is directly over the subagent panel — it covered the "Parallel
- * tasks" button and swallowed its clicks. Upward is empty space, and
- * `pointer-events: none` guarantees this label can never eat a click even if it
- * does overlap something.
+ * These rules were the only definition of `.tip`/`.tip-wrap`, and this file
+ * stopped being imported when the Notes & todos panel was removed. The tooltip
+ * component is still in use, so the rules now live in their own stylesheet and
+ * are imported unconditionally from `App.tsx`. Do not copy them back here: a
+ * second copy would only matter if this file were re-imported, and then the two
+ * would silently drift.
  */
-.tip-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.tip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
-  z-index: 950;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--surface-3);
-  color: var(--fg0);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-}
-
-.tip-kbd {
-  padding: 1px 4px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg1);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-}
-
-/*
- * A tooltip inside the title bar must open DOWNWARD.
- *
- * `.tip` is anchored `bottom: calc(100% + 6px)` — above its wrap — which is
- * right for a button floating over the editor, but the menubar sits at the very
- * top of the window, so "above" is off-screen and the label never appears. The
- * VS Code title-bar tooltips (Open in Agents, Customize Layout, Notes) all hang
- * below the bar for the same reason, so the anchor is flipped here.
- */
-.menubar .tip {
-  bottom: auto;
-  top: calc(100% + 6px);
-  right: 0;
-}
