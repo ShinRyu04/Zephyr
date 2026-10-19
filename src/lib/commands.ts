@@ -638,8 +638,61 @@ export const setModelKey = (provider: string, key: string) =>
 export const testModelConnection = (provider: string, baseUrl?: string) =>
   invoke<ModelTestResult>('test_model_connection', { provider, baseUrl });
 
-export const listModels = (provider: string, baseUrl?: string) =>
-  invoke<string[]>('list_models', { provider, baseUrl });
+/**
+ * One row of a provider's `/models` answer.
+ *
+ * The backend used to hand back a bare `string[]` of ids, which is why the
+ * picker could only ever show a name and a context size. Everything the gateway
+ * said about HOW the model can be used was dropped before it reached the UI.
+ *
+ * Every field except `id` is optional, and that is load-bearing: absent means
+ * "this provider did not say", which the picker answers with a name-based
+ * guess. An empty array would mean "it said no", a different claim.
+ */
+export interface ModelInfo {
+  id: string;
+  input_modalities?: string[];
+  supported_parameters?: string[];
+  context_length?: number;
+  pricing?: Record<string, unknown>;
+}
+
+/**
+ * Read whatever `list_models` returned.
+ *
+ * Two shapes are accepted on purpose. The old backend (and any build of it still
+ * running) answers with plain strings; the new one answers with `ModelInfo`.
+ * Normalising here means every caller sees one shape and nothing downstream has
+ * to know which version it is talking to.
+ */
+export function normalisasiModelInfo(rows: Array<string | ModelInfo> | null | undefined): ModelInfo[] {
+  if (!Array.isArray(rows)) return [];
+  const out: ModelInfo[] = [];
+  for (const r of rows) {
+    if (typeof r === 'string') {
+      if (r.trim()) out.push({ id: r.trim() });
+    } else if (r && typeof r.id === 'string' && r.id.trim()) {
+      out.push({ ...r, id: r.id.trim() });
+    }
+  }
+  return out;
+}
+
+export const listModels = async (provider: string, baseUrl?: string): Promise<ModelInfo[]> => {
+  const rows = await invoke<Array<string | ModelInfo>>('list_models', { provider, baseUrl });
+  return normalisasiModelInfo(rows);
+};
+
+/**
+ * The same call, reduced to ids.
+ *
+ * Most callers only need to know WHICH models exist — the settings table, the
+ * add-model dialog, the subagent picker. They should not have to learn about
+ * modalities and pricing just to build a `<select>`, so the reduction happens
+ * here instead of being copied into each of them.
+ */
+export const listModelIds = async (provider: string, baseUrl?: string): Promise<string[]> =>
+  (await listModels(provider, baseUrl)).map((m) => m.id);
 
 export const resetSettings = () => invoke<void>('reset_settings');
 

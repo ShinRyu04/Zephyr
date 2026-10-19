@@ -5,7 +5,7 @@ import { useDragEverywhere } from '../../lib/useDragPopup';
 import { ALL_MODELS, isPlaceholderModel, PROVIDERS, PROVIDER_BY_ID, baseUrlEfektif } from '../../lib/modelCatalog';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { listModels } from '../../lib/commands';
+import { listModelIds } from '../../lib/commands';
 import {
   ALAT,
   kosongkanSubagent,
@@ -95,7 +95,7 @@ export default function SubagentCustomModal({ awal }: Props) {
       for (const p of siap) {
         try {
           const b = baseUrlOv[p.id]?.baseUrl || p.baseUrl || undefined;
-          const ids = await listModels(p.id, b);
+          const ids = await listModelIds(p.id, b);
           if (ids.length > 0) hasil[p.id] = ids;
         } catch {
           /* provider offline: keep the static list */

@@ -837,6 +837,16 @@
  * model name. Left anchoring grows it into the panel, which is the side that
  * has the room now.
  */
+/*
+ * The menu is a COLUMN now: a fixed header, then a body that holds the list and
+ * the detail panel side by side.
+ *
+ * It used to be one scrolling box, which was fine while it held only rows. With
+ * a detail panel inside, that would scroll the panel away with the list — the
+ * answer to "what can this model do" would leave the screen exactly when the
+ * reader scrolled to the model they were asking about. So the SCROLL moves down
+ * into `.ai-mp-daftar`, and the panel sits beside it.
+ */
 .ai-model-menu {
   position: absolute;
   top: auto;
@@ -844,20 +854,24 @@
   right: auto;
   left: 0;
   z-index: 400;
-  width: max-content;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100cqw - 24px));
   min-width: 300px;
-  max-width: min(420px, calc(100cqw - 24px));
-  max-height: min(60vh, 420px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  max-height: min(64vh, 460px);
   padding: 4px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 -10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
+  overflow: hidden;
 }
 
-/* In a narrow panel the menu takes the panel's width, less the margins. */
+/*
+ * In a narrow panel the two columns do not fit, so the menu drops to the list
+ * alone and the panel becomes a strip UNDER the hovered row (see the container
+ * query below). A 560px menu inside a 340px sidebar would simply be clipped.
+ */
 @container aipanel (max-width: 420px) {
   .ai-model-menu {
     right: auto;
@@ -865,6 +879,24 @@
     width: min(320px, calc(100cqw - 16px));
     min-width: 0;
   }
+}
+
+/* The row that holds the list and the panel. */
+.ai-mp-badan {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The list is the only thing that scrolls. */
+.ai-mp-daftar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ── Provider groups (collapsible) ────────────────────────────────────── */
@@ -982,6 +1014,17 @@
 .ai-model-menu .ai-model-item.is-active,
 .ai-model-menu .ai-model-item.is-on {
   background: var(--accent-subtle);
+}
+
+/*
+ * The row under the pointer, while the detail panel describes it.
+ *
+ * A left rule rather than a fill: the fill already means "hover" and is used by
+ * every other row in the app, so reusing it here would not say "this one is the
+ * subject of the panel beside it". The rule points at the panel.
+ */
+.ai-model-menu .ai-model-item.is-intip {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .ai-model-menu .ai-model-item:focus-visible {
@@ -1179,6 +1222,141 @@
   padding: 10px 8px;
   font-size: 11.5px;
   color: var(--text-muted);
+}
+
+/* ── Detail panel ─────────────────────────────────────────────────────── */
+
+/*
+ * The right-hand column: what the hovered model can do.
+ *
+ * Deliberately QUIET. It is a description, not a control, so it uses the muted
+ * text colour and a hairline separator instead of borders or a card — the list
+ * on its left is what the reader is interacting with, and two competing frames
+ * would split the attention.
+ *
+ * The accent appears in exactly one place: the tick on a capability the model
+ * actually has. It is `--accent`, NOT a hardcoded green — this build's accent
+ * is the user's theme colour, and borrowing the reference product's green would
+ * clash with every other control in the window.
+ */
+.ai-mp-detail {
+  flex: 0 0 178px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 6px 8px 8px 10px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.ai-mp-detail-nama {
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Section heading: "Available for", "Cost". */
+.ai-mp-detail-seksi {
+  margin-bottom: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* One capability row: sign, name, optional chip. */
+.ai-mp-cap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+  color: var(--text-muted);
+}
+
+/* A capability the model HAS: the only place the accent is spent here. */
+.ai-mp-cap.is-ok {
+  color: var(--text);
+}
+
+.ai-mp-cap.is-ok .ai-mp-cap-tanda {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ai-mp-cap-tanda {
+  flex: 0 0 10px;
+  font-size: 10.5px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.ai-mp-cap-nama {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The little "Soon" chip. Never a tick, because it is not available yet. */
+.ai-mp-cap-baru {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.ai-mp-detail-garis {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border);
+}
+
+.ai-mp-detail-nilai {
+  color: var(--text);
+}
+
+.ai-mp-detail-kecil {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.ai-mp-detail-kaki {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-mp-detail-angka {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text);
+}
+
+/*
+ * Narrow homes: the panel cannot sit beside the list in a 340px sidebar, so it
+ * becomes a compact strip and the menu shows the list alone. The capability
+ * rows wrap into a single line of ticks, which still answers the question
+ * without spending 178px of width.
+ */
+@container aipanel (max-width: 420px) {
+  .ai-mp-detail {
+    display: none;
+  }
 }
 
 /*

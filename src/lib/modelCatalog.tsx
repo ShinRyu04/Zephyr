@@ -31,6 +31,21 @@ export type LogoId =
   | 'ppio'
   | 'generic';
 
+/**
+ * What a model can DO, as opposed to how big it is.
+ *
+ * The picker used to answer only "how many tokens", so a reader had no way to
+ * tell whether the model they were about to pick could see an image they had
+ * just attached, or think before answering. The reference product shows exactly
+ * this set in its detail panel, so the set is named here once and every surface
+ * reads it from the same place.
+ *
+ * `memories` is deliberately NOT in this union: it is a Zephyr feature, not a
+ * property of the remote model, so it is rendered from its own flag and never
+ * inferred from a model name.
+ */
+export type Kemampuan = 'image' | 'reasoning' | 'tools';
+
 export interface ProviderModel {
   id: string;
   label: string;
@@ -40,6 +55,21 @@ export interface ProviderModel {
   ctx?: number;
 
   maxOut?: number;
+
+  /**
+   * Capabilities reported by the provider itself, or inferred from the name
+   * when the provider reports nothing. `undefined` means "not known", which is
+   * different from "known to be unsupported": the UI draws a dimmed row for
+   * unknown and a ticked row for known-supported, so an unknown never reads as
+   * a confident "no".
+   */
+  bisa?: Kemampuan[];
+
+  /** How the model is billed. `'token'` when the provider did not say. */
+  biaya?: string;
+
+  /** True when the provider serves this model for free. */
+  gratis?: boolean;
 }
 
 export interface ProviderInfo {
@@ -569,7 +599,15 @@ export function modelTersedia(
   remote: readonly string[] = [],
   uiRemote: readonly string[] = [],
   saved: readonly string[] = [],
-): Array<{ id: string; label: string; note?: string; ctx?: number }> {
+  laporan: Readonly<Record<string, LaporanModel>> = {},
+): Array<{
+  id: string;
+  label: string;
+  note?: string;
+  ctx?: number;
+  bisa?: Kemampuan[];
+  biaya?: string;
+}> {
   const p = PROVIDER_BY_ID.get(providerId);
   if (!p) return [];
   const live = [...remote, ...uiRemote].filter((id, i, a) => !!id && a.indexOf(id) === i);
@@ -583,13 +621,221 @@ export function modelTersedia(
     .filter((m) => !isPlaceholderModel(m.id))
     .map((m) => ({ id: m.id, label: m.label, note: m.note, ctx: m.ctx }));
   const semua = [...dariApi, ...tersimpan, ...katalog];
-  const uniq = new Map<string, { id: string; label: string; note?: string; ctx?: number }>();
+  type Baris = {
+    id: string;
+    label: string;
+    note?: string;
+    ctx?: number;
+    bisa?: Kemampuan[];
+    biaya?: string;
+  };
+  const uniq = new Map<string, Baris>();
   for (const m of semua) if (!uniq.has(m.id)) uniq.set(m.id, m);
-  return [...uniq.values()];
+
+  /*
+   * Capabilities are attached LAST, from one place, so a catalogue row and a
+   * live row can never disagree about the same id. A catalogue entry that
+   * already carries `bisa` (none do today, but the field exists) keeps its own
+   * answer: an author writing it by hand knows more than the name heuristic.
+   */
+  const katalogBisa = new Map(
+    (p.models ?? []).filter((m) => m.bisa).map((m) => [m.id, m.bisa as Kemampuan[]]),
+  );
+  const out: Baris[] = [];
+  for (const m of uniq.values()) {
+    const lap = laporan[m.id];
+    const bisa = katalogBisa.get(m.id) ?? deteksiKemampuan(m.id, lap);
+    const ctxLive = lap?.context_length && !m.ctx ? lap.context_length : m.ctx;
+    out.push({
+      ...m,
+      ctx: ctxLive,
+      ...(bisa ? { bisa } : {}),
+      ...(lap || m.id ? { biaya: biayaModel(lap) } : {}),
+    });
+  }
+  return out;
 }
 
 export function isPlaceholderModel(id: string | null | undefined): boolean {
   return !!id && PLACEHOLDER_MODEL_IDS.has(id.trim());
+}
+
+/**
+ * What a provider's `/models` answer said about one model, when it said
+ * anything at all.
+ *
+ * Only the three fields the picker can actually use are kept. Providers differ
+ * wildly here: OpenRouter-style gateways report `architecture.input_modalities`
+ * and `pricing`, plain OpenAI reports neither, and Gemini reports a display
+ * name and nothing else. Everything is optional because "the provider did not
+ * say" has to stay distinguishable from "the provider said no".
+ */
+export interface LaporanModel {
+  input_modalities?: string[];
+  supported_parameters?: string[];
+  context_length?: number;
+  /** Raw pricing object, e.g. `{ prompt: '0.0000015', completion: '...' }`. */
+  pricing?: Record<string, unknown>;
+}
+
+/*
+ * ── Capability detection ──────────────────────────────────────────────────
+ *
+ * TWO SOURCES, in this order, and the order matters:
+ *
+ *  1. What the provider REPORTED. `architecture.input_modalities` is a fact —
+ *     the gateway knows which route accepts an image part, and no name-based
+ *     guess should ever override it.
+ *
+ *  2. The model NAME, when the provider said nothing. This is a guess, and it
+ *     is marked as such in the UI, but it is a far better guess than the old
+ *     behaviour (which showed nothing at all): model families are named
+ *     consistently enough that `qwen3-vl` and `llava` are never text-only,
+ *     while `codestral` and `deepseek-reasoner` never take an image.
+ *
+ * The lists below are FAMILIES, not individual models, because a gateway that
+ * serves `qwen2.5-vl-72b` will also serve the next point release, and a list of
+ * exact ids would be stale within a month.
+ */
+
+/** Families that accept an image part. Order is irrelevant; all are tested. */
+const KELUARGA_VISION = [
+  /* OpenAI: the 4o/4.1/5/6 generations and the o-series reasoning models are
+     multimodal. The 3.5 and earlier text models are not. */
+  /gpt-4o/,
+  /gpt-4\.1/,
+  /gpt-4-turbo/,
+  /gpt-4-vision/,
+  /gpt-5/,
+  /gpt-6/,
+  /\bo[34](?:-|$)/,
+  /* Anthropic: every Claude 3 and later reads images. */
+  /claude-3/,
+  /claude-(?:opus|sonnet|haiku|fable)-[3-9]/,
+  /* Google: Gemini 1.5 and later, including the image-generation variants. */
+  /gemini-(?:1\.5|[2-9])/,
+  /* DeepSeek's only vision line is the VL series. */
+  /deepseek-(?:vl|v4)/,
+  /* Alibaba Qwen: the -VL suffix is the whole tell. */
+  /qwen[\d.]*-vl/,
+  /qvq/,
+  /* Meta: 3.2-vision and the 4 generation. */
+  /llama-?3\.2-vision/,
+  /llama-?4/,
+  /* Mistral's multimodal line. */
+  /pixtral/,
+  /* xAI. */
+  /grok-(?:2-vision|[34])/,
+  /* ByteDance / Doubao seeds are multimodal by design. */
+  /seed-1\.6/,
+  /doubao-seed/,
+  /* Zhipu GLM vision variants. */
+  /glm-4(?:\.\d+)?v/,
+  /* Moonshot / Kimi vision. */
+  /kimi-vl/,
+  /moonshot-v1-vision/,
+  /* The open-weight vision families a local server is likely to expose. */
+  /llava/,
+  /internvl/,
+  /minicpm-v/,
+  /phi-3\.5-vision/,
+  /phi-4-multimodal/,
+  /idefics/,
+  /molmo/,
+  /paligemma/,
+  /cogvlm/,
+  /step-1v/,
+  /yi-vl/,
+];
+
+/** Families that explicitly do NOT take an image, even inside a vision line. */
+const KELUARGA_TEKS = [/deepseek-(?:chat|reasoner|coder)/, /codestral/, /gpt-3\.5/, /text-embedding/, /whisper/, /tts/, /dall-e/, /embed/];
+
+/** Reasoning/thinking families, inferred only when the provider is silent. */
+const KELUARGA_REASONING = [
+  /\bo[134](?:-|$)/,
+  /deepseek-(?:reasoner|r1)/,
+  /qwq/,
+  /thinking/,
+  /reason/,
+  /-r1/,
+];
+
+/**
+ * Detect what a model can do.
+ *
+ * `laporan` is the provider's own answer for this id, when there was one. Pass
+ * `undefined` for catalogue rows and for typed-in ids — the name heuristic is
+ * the only source then.
+ *
+ * Returns `undefined` for "nothing known", which the UI must draw differently
+ * from an empty array ("known to be text-only"). Collapsing the two would make
+ * every unrecognised gateway model claim it cannot read an image.
+ */
+export function deteksiKemampuan(
+  id: string,
+  laporan?: LaporanModel,
+): Kemampuan[] | undefined {
+  const s = id.toLowerCase();
+  const hasil = new Set<Kemampuan>();
+
+  /* ── 1. What the provider reported ─────────────────────────────────────── */
+  const modal = (laporan?.input_modalities ?? []).map((m) => m.toLowerCase());
+  const param = (laporan?.supported_parameters ?? []).map((p) => p.toLowerCase());
+  let adaLaporan = false;
+
+  if (modal.length > 0) {
+    adaLaporan = true;
+    if (modal.some((m) => m === 'image' || m === 'vision' || m.startsWith('image/'))) {
+      hasil.add('image');
+    }
+  }
+  if (param.length > 0) {
+    adaLaporan = true;
+    if (param.some((p) => p === 'reasoning' || p === 'include_reasoning')) hasil.add('reasoning');
+    if (param.some((p) => p === 'tools' || p === 'tool_choice')) hasil.add('tools');
+  }
+  /*
+   * Pricing is deliberately NOT read here.
+   *
+   * Cost has its own line in the panel, and a gateway that reports prices but
+   * no modalities has still told us NOTHING about capabilities. Counting it as
+   * a report would flip an honest "not reported" into a confident "cannot read
+   * images", which is exactly the false claim this function exists to avoid.
+   */
+
+  /* ── 2. The name, when the provider was silent ─────────────────────────── */
+  if (!adaLaporan) {
+    if (KELUARGA_TEKS.some((re) => re.test(s))) {
+      /* A name that says "text" overrides a family that says "vision": this is
+         what keeps `deepseek-chat` from being ticked because the vision list
+         mentions DeepSeek. */
+      return hasil.size > 0 ? [...hasil] : [];
+    }
+    if (KELUARGA_VISION.some((re) => re.test(s))) hasil.add('image');
+    if (KELUARGA_REASONING.some((re) => re.test(s))) hasil.add('reasoning');
+  }
+
+  if (hasil.size === 0 && !adaLaporan) return undefined;
+  return [...hasil];
+}
+
+/**
+ * How this model is billed, for the detail panel's "Cost" line.
+ *
+ * Providers that report pricing get their answer; everything else is assumed to
+ * be billed by token, because that is what every hosted endpoint in the
+ * catalogue does. The one honest exception is a local endpoint, which costs
+ * nothing to call — but that is decided by the CALLER, which knows the base URL,
+ * not here.
+ */
+export function biayaModel(laporan?: LaporanModel): string {
+  if (!laporan?.pricing) return 'Billed by token';
+  const angka = Object.values(laporan.pricing)
+    .map((v) => Number(v))
+    .filter((n) => Number.isFinite(n));
+  if (angka.length > 0 && angka.every((n) => n === 0)) return 'Free';
+  return 'Billed by token';
 }
 
 /**

@@ -237,7 +237,7 @@ export function ModelsSection() {
     const refreshModels = async (p: ProviderInfo) => {
       setFetching(p.id);
       try {
-        const ids = await cmd.listModels(p.id, providers[p.id]?.baseUrl || undefined);
+        const ids = await cmd.listModelIds(p.id, providers[p.id]?.baseUrl || undefined);
         setRemote((r) => ({ ...r, [p.id]: ids }));
         ui.setMessage(
           ids.length > 0

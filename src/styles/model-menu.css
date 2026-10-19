@@ -17,13 +17,35 @@
   z-index: 900;
   display: flex;
   flex-direction: column;
-  width: 320px;
-  max-height: min(420px, 62vh);
+  /*
+   * Wider than the 320px it was: the detail panel needs ~178px beside the list,
+   * and a 320px menu would have left 130px for the names — narrower than the
+   * model ids it has to show.
+   */
+  width: 520px;
+  max-width: calc(100vw - 24px);
+  max-height: min(460px, 62vh);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 50%);
   overflow: hidden;
+}
+
+/*
+ * The list and the panel side by side, the same split as the chat picker. The
+ * panel is a sibling of the scrolling list so it does not scroll away with the
+ * rows it is describing.
+ */
+.mm-badan {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mm-item.is-intip {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 /* ── Search ───────────────────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -8,6 +8,7 @@ import { useT } from '../../lib/i18n';
 import {
   baseUrlEfektif,
   ALL_MODELS,
+  deteksiKemampuan,
   fmtCtx,
   findModel,
   isPlaceholderModel,
@@ -20,6 +21,7 @@ import {
 } from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID, pilihHydra } from '../../lib/hydraModel';
 import AiIkon from './AiIkon';
+import ModelDetailPanel from './ModelDetailPanel';
 
 const LS_SAVED = 'zephyr.ai.custommodels.v1';
 
@@ -39,6 +41,7 @@ function loadSaved(): Record<string, string[]> {
 }
 
 export type TargetModel = 'chat' | 'subagent';
+
 
 export default function ModelSelector({ target = 'chat' }: { target?: TargetModel } = {}) {
   const tr = useT();
@@ -80,7 +83,26 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
 
   const [remote, setRemote] = useState<Record<string, string[]>>({});
+  /*
+   * The full metadata each provider reported, keyed by provider then model id.
+   *
+   * Read from the SHARED store rather than kept here: pressing Refresh in
+   * Settings fills the same map, so a list pulled there is already annotated
+   * when the picker opens. Holding a private copy would mean refreshing in one
+   * place and seeing nothing in the other.
+   */
+  const laporan = useSettingsUi((s) => s.remoteInfo);
   const [fetching, setFetching] = useState(false);
+
+  /*
+   * Which model the detail panel is describing.
+   *
+   * Hover drives it, and so does keyboard focus, so the panel is reachable
+   * without a pointer. `null` means "nothing is being pointed at", and the panel
+   * then falls back to the ACTIVE model — an empty column beside a full list
+   * would read as broken rather than as idle.
+   */
+  const [intip, setIntip] = useState<string | null>(null);
 
   const baseUrlOv = useStore((s) => s.settings.models.providers);
 
@@ -191,8 +213,19 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
         (useStore.getState().settings.models.providers ?? {})[p]?.baseUrl ||
         PROVIDER_BY_ID.get(p)?.baseUrl ||
         undefined;
-      const ids = await cmd.listModels(p, b);
-      setRemote((r) => ({ ...r, [p]: ids }));
+      const info = await cmd.listModels(p, b);
+      /*
+       * Both halves are kept: the ids feed the list, and the rest of each row
+       * feeds the detail panel. Storing only ids is what made every model look
+       * like a name with a token count — the provider HAD said whether it takes
+       * an image, and that answer was being discarded right here.
+       */
+      setRemote((r) => ({ ...r, [p]: info.map((m) => m.id) }));
+      useSettingsUi.setState((s) => ({
+        remoteInfo: info.some((m) => m.input_modalities || m.supported_parameters || m.pricing)
+          ? { ...s.remoteInfo, [p]: Object.fromEntries(info.map((m) => [m.id, m])) }
+          : s.remoteInfo,
+      }));
     } catch {
       /* no key / offline - the stored list is still shown */
     } finally {
@@ -313,7 +346,13 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     () =>
       providerSiap.map((p) => {
         const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
-        const items = modelTersedia(p.id, remote[p.id] ?? [], uiRemote, saved[p.id] ?? []).map((m) => ({
+        const items = modelTersedia(
+          p.id,
+          remote[p.id] ?? [],
+          uiRemote,
+          saved[p.id] ?? [],
+          laporan[p.id] ?? {},
+        ).map((m) => ({
           ...m,
           note: m.note ? tr(m.note) : '',
           ctx: m.ctx ? fmtCtx(m.ctx) : '',
@@ -326,8 +365,49 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           items,
         };
       }),
-    [providerSiap, remote, saved, tr],
+    [providerSiap, remote, saved, laporan, tr],
   );
+
+  /*
+   * Every model currently on screen, flattened.
+   *
+   * The detail panel needs to look a model up by id alone, and a hovered row
+   * does not carry its own group once it is in a list. Building the index once
+   * per render is cheaper than threading the group through every row's state.
+   */
+  const modelById = useMemo(() => {
+    const m = new Map<string, (typeof daftarModel)[number]['items'][number]>();
+    for (const g of daftarModel) for (const it of g.items) if (!m.has(it.id)) m.set(it.id, it);
+    return m;
+  }, [daftarModel]);
+
+  /*
+   * What the detail panel is describing.
+   *
+   * Hovered row first, then the ACTIVE model so the column is never blank. The
+   * active model is looked up through `modelTersedia` too, which means a model
+   * that is selected but not in the current provider's list still resolves
+   * through the catalogue — better than an empty panel.
+   */
+  const detail = useMemo(() => {
+    if (intip) {
+      const hit = modelById.get(intip);
+      if (hit) return hit;
+    }
+    const aktif = modelById.get(efektif.id);
+    if (aktif) return aktif;
+    /* Last resort: the catalogue entry for the selected model. */
+    if (!efektif.id) return null;
+    const lap = laporan[efektif.provider]?.[efektif.id];
+    return {
+      id: efektif.id,
+      label: efektif.label,
+      note: '',
+      ctx: efektif.ctx ? fmtCtx(efektif.ctx) : '',
+      bisa: deteksiKemampuan(efektif.id, lap),
+      biaya: 'Billed by token',
+    };
+  }, [intip, modelById, efektif, laporan]);
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
@@ -423,6 +503,17 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             </button>
           </div>
 
+          {/*
+            * Two columns from here down: the list on the left, the detail panel
+            * on the right.
+            *
+            * The panel is a SIBLING of the scroll container, not a child of it,
+            * so it stays put while the list scrolls — that is what makes hovering
+            * row 30 still show row 30's details instead of scrolling the answer
+            * out of view.
+            */}
+          <div className="ai-mp-badan">
+            <div className="ai-mp-daftar" onMouseLeave={() => setIntip(null)}>
           {modeCari ? (
             hasilCari.length === 0 ? (
               <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
@@ -434,9 +525,11 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                   key={`c:${m.provider}:${m.id}`}
                   role="option"
                   aria-selected={m.id === efektif.id}
-                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}`}
+                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip === m.id ? ' is-intip' : ''}`}
                   data-model-item={m.id}
                   data-provider={m.provider}
+                  onMouseEnter={() => setIntip(m.id)}
+                  onFocus={() => setIntip(m.id)}
                   onClick={() => {
                     pakai(m.id, m.provider);
                     setOpen(false);
@@ -565,10 +658,12 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                           key={`m:${g.provider}:${m.id}`}
                           role="option"
                           aria-selected={m.id === efektif.id}
-                          className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}`}
+                          className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip === m.id ? ' is-intip' : ''}`}
                           data-model-item={m.id}
                           data-provider={g.provider}
                           data-baseurl={PROVIDER_BY_ID.get(g.provider)?.baseUrl}
+                          onMouseEnter={() => setIntip(m.id)}
+                          onFocus={() => setIntip(m.id)}
                           onClick={() => {
                             pakai(m.id, g.provider);
                             setOpen(false);
@@ -620,6 +715,10 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               )}
             </>
           )}
+            </div>
+
+            <ModelDetailPanel model={detail} testid={`${pfx}-model-detail`} />
+          </div>
 
           {/*
             * No footer.
