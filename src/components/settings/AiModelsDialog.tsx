@@ -38,7 +38,7 @@ import AiIkon from '../ai/AiIkon';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
 import { PROVIDERS, ProviderLogo, type ProviderInfo } from '../../lib/modelCatalog';
-import { listModels, asZephyrError } from '../../lib/commands';
+import { listModelIds, asZephyrError } from '../../lib/commands';
 
 export interface BarisModel {
   id: string;
@@ -167,7 +167,7 @@ export function AddModelDialog({
           },
         });
       }
-      const ids = await listModels(provider.id, baseUrl.trim() || undefined);
+      const ids = await listModelIds(provider.id, baseUrl.trim() || undefined);
       if (ids.length === 0) {
         setTerdeteksi([]);
         setGalat(

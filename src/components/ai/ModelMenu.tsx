@@ -10,7 +10,9 @@ import {
 } from '../../lib/modelCatalog';
 import { useAi } from '../../lib/aiStore';
 import { bukaPanel } from '../../lib/bukaPanel';
+import { deteksiKemampuan, fmtCtx as fmtCtxKatalog } from '../../lib/modelCatalog';
 import AiIkon from './AiIkon';
+import ModelDetailPanel from './ModelDetailPanel';
 
 /*
  * The model list, in one place.
@@ -68,6 +70,13 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
   const [cari, setCari] = useState('');
   const [bukaGrup, setBukaGrup] = useState<Record<string, boolean>>({});
   const cariRef = useRef<HTMLInputElement | null>(null);
+  /*
+   * Which row the detail panel describes. Hover and keyboard focus both set it,
+   * so the panel is reachable without a pointer; `null` falls back to the
+   * current selection rather than leaving the column blank.
+   */
+  const [intip, setIntip] = useState<string | null>(null);
+  const remoteInfo = useSettingsUi((s) => s.remoteInfo);
 
   const providerSiap = useMemo(
     () =>
@@ -99,11 +108,35 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
               (m) => m.id.toLowerCase().includes(q) || m.label.toLowerCase().includes(q),
             )
           : semua;
-        return { provider: p.id, label: p.label, items };
+        /*
+         * Capabilities are attached here, from the one shared detector, so this
+         * picker and the chat picker can never disagree about the same model.
+         */
+        const berlabel = items.map((m) => ({
+          ...m,
+          bisa: deteksiKemampuan(m.id, remoteInfo[p.id]?.[m.id]),
+        }));
+        return { provider: p.id, label: p.label, items: berlabel };
       })
       .filter((g) => g.items.length > 0);
-  }, [providerSiap, remoteUi, cari]);
+  }, [providerSiap, remoteUi, remoteInfo, cari]);
 
+  /*
+   * The row the panel is describing: the hovered one, else the current
+   * selection, else the first row on screen — so the column is never blank.
+   */
+  const detail = useMemo(() => {
+    const semua = grup.flatMap((g) => g.items);
+    const pilih = semua.find((m) => m.id === intip) ?? semua.find((m) => m.id === nilai.model) ?? semua[0];
+    if (!pilih) return null;
+    return {
+      id: pilih.id,
+      label: pilih.label,
+      ctx: pilih.ctx ? fmtCtxKatalog(pilih.ctx) : '',
+      bisa: pilih.bisa,
+      biaya: 'Billed by token',
+    };
+  }, [grup, intip, nilai]);
   /* Fetch the live list once, for the first provider that has none. */
   useEffect(() => {
     if (fetchingModels) return;
@@ -208,7 +241,8 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
         </div>
       </div>
 
-      <div className="mm-list">
+      <div className="mm-badan">
+        <div className="mm-list" onMouseLeave={() => setIntip(null)}>
         {ikutChat !== null && (
           <button
             className={`mm-item${!nilai.model ? ' is-on' : ''}`}
@@ -250,12 +284,14 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
                   return (
                     <button
                       key={`${g.provider}:${m.id}`}
-                      className={`mm-item${aktif ? ' is-on' : ''}`}
+                      className={`mm-item${aktif ? ' is-on' : ''}${intip === m.id ? ' is-intip' : ''}`}
                       data-testid={`${pfx}-pilih-${m.id}`}
                       data-model={m.id}
                       data-provider={g.provider}
                       role="option"
                       aria-selected={aktif}
+                      onMouseEnter={() => setIntip(m.id)}
+                      onFocus={() => setIntip(m.id)}
                       onClick={() => pilihModel(g.provider, m.id)}
                     >
                       <ModelLogo id={m.id} size={15} />
@@ -270,6 +306,9 @@ export default function ModelMenu({ rect, nilai, pilih, tutup, pfx, ikutChat, ch
             </Fragment>
           );
         })}
+        </div>
+
+        <ModelDetailPanel model={detail} testid={`${pfx}-detail`} />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
+import type { ModelInfo } from './commands';
 import type { ModelTestResult, PublicModel } from './types';
 import { useStore } from './store';
 
@@ -100,7 +101,26 @@ interface SettingsUiState {
   resetStage: 0 | 1 | 2;
   message: string | null;
 
+  /**
+   * The live model ids per provider.
+   *
+   * Ids only, on purpose: six components read this to build lists, and none of
+   * them care about anything but the name. The metadata that travels with each
+   * row lives in `remoteInfo` below.
+   */
   remoteModels: Record<string, string[]>;
+
+  /**
+   * What each provider actually REPORTED about each model: input modalities,
+   * supported parameters, context length, pricing.
+   *
+   * This is the half that used to be thrown away in the backend. It is kept in
+   * its own map so the six id-only consumers above did not all have to learn
+   * about it, and so a provider that reports nothing leaves no entry at all
+   * rather than a row of empty fields that would read as "reported: nothing
+   * supported".
+   */
+  remoteInfo: Record<string, Record<string, ModelInfo>>;
 
   fetchingModels: string | null;
 }
@@ -130,6 +150,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   message: null,
 
   remoteModels: {},
+  remoteInfo: {},
   fetchingModels: null,
 
   setSection: (s) => set({ section: s, capturing: null, conflictWarning: null, resetStage: 0 }),
@@ -187,8 +208,19 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
        */
       const baseUrl =
         (useStore.getState().settings.models.providers ?? {})[provider]?.baseUrl || undefined;
-      const ids = await cmd.listModels(provider, baseUrl);
-      set((s) => ({ remoteModels: { ...s.remoteModels, [provider]: ids }, fetchingModels: null }));
+      const info = await cmd.listModels(provider, baseUrl);
+      const ids = info.map((m) => m.id);
+      set((s) => ({
+        remoteModels: { ...s.remoteModels, [provider]: ids },
+        /* Only providers that actually said something get an entry. */
+        remoteInfo: info.some((m) => m.input_modalities || m.supported_parameters || m.pricing)
+          ? {
+              ...s.remoteInfo,
+              [provider]: Object.fromEntries(info.map((m) => [m.id, m])),
+            }
+          : s.remoteInfo,
+        fetchingModels: null,
+      }));
       return ids;
     } catch (e) {
       set({ message: cmd.asZephyrError(e).message, fetchingModels: null });

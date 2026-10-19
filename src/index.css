@@ -2895,17 +2895,23 @@ body.is-resizing-v {
   width: 1px;
   height: 16px;
   /*
-   * Tight to Customize Layout, roomy to the window controls — but less roomy
-   * than before.
+   * The cluster now sits in the slot "Notes & todos" vacated.
    *
-   * `.mb-cc-wrap` is the flexible child, so this cluster is anchored by its
-   * RIGHT edge: shrinking the margin-right moves Customize Layout AND the rule
-   * to the right together. Measured live, 28px put the button at x=1309 and the
-   * rule at x=1345, which read as pressed up against the command box. At 18px
-   * both land ~10px further right and the rule still clears the window buttons
-   * by ~19px, so it keeps its own air.
+   * That button lived to the RIGHT of this rule, hard against the window
+   * controls. Removing it left a hole, and the group did not move into it by
+   * itself: `.mb-cc-wrap` is the flexible child, so this cluster is anchored by
+   * its RIGHT edge and only the spacing on that side can move it.
+   *
+   * Both numbers here are deliberately small. `margin-left: -4px` cancels part
+   * of `.mb-layout`'s 10px gap so the rule hugs Customize Layout instead of
+   * floating in the middle of the group, and `margin-right: 2px` leaves the
+   * rule 8px from the window controls — enough air to read as a boundary, not
+   * so much that the gap returns.
+   *
+   * Measured after the change: Customize Layout at x=1341 (was 1309) and the
+   * rule at x=1371 (was 1345). Both moved right, together.
    */
-  margin: 0 18px 0 2px;
+  margin: 0 2px 0 -4px;
   background: var(--border);
 }
 /* Command center: a wide pill in the MIDDLE of the menu row, like VS Code —
