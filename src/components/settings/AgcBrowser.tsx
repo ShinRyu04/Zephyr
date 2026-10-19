@@ -1,20 +1,31 @@
 /*
  * Browser — the TRAE-shaped page inside Agent Customizations.
  *
- * Three blocks:
+ * THE SHAPE, and what changed from the first pass:
  *
- *   1. GENERAL       - which browser AI tasks use, and whether actions capture a
- *                      screenshot.
- *   2. URL OPENING   - local vs external links, separately. They are separate
- *                      because they are different promises: a localhost URL is
- *                      the reader's own dev server (open it inside Zephyr), while
- *                      an external link is the wider web (the OS browser may be
- *                      what they want).
- *   3. BROWSER DATA  - one button that clears cookies and storage.
+ * The first version had four controls in a flat column: default browser, auto
+ * screenshot, local URL, external URL, clear. That is the right SET of settings
+ * but the wrong ORGANISATION - it reads as a list of unrelated switches.
  *
- * The settings live under `settings.browser` and are read by the link-opening
- * path (`open_link`) and by the browser pane, so each control changes real
- * behaviour rather than decorating a page.
+ * The reference groups them by the question they answer:
+ *
+ *   GENERAL       what browser AI tasks use, and whether actions capture a shot
+ *   URL OPENING   local vs external, as a pair with a stated default
+ *   BROWSER DATA  one destructive button, set apart
+ *
+ * WHY LOCAL AND EXTERNAL ARE SEPARATE, and stay separate:
+ *
+ * They are different promises. A localhost URL is the reader's own dev server -
+ * opening it INSIDE Zephyr is what lets the agent read it back. An external link
+ * is the wider web, where the OS browser is often what the reader actually
+ * wants. One switch for both would force a choice that is wrong half the time.
+ *
+ * WHY THE CLEAR BUTTON IS HONEST ABOUT ITS SCOPE:
+ *
+ * It calls `browser_clear_data`, which only touches webviews labelled
+ * `browser-*`. Wiping the UI windows would take the reader's sessions and
+ * settings with it - the opposite of what the button promises - so the Rust
+ * command deliberately skips them and this page says how many panes it cleared.
  */
 import { useState } from 'react';
 import { useT } from '../../lib/i18n';
@@ -49,20 +60,35 @@ export default function AgcBrowser() {
    *
    * The WebView2 profile holds cookies and localStorage for every page the pane
    * has loaded. A button that only said "cleared" would be a lie the reader
-   * could not check, so the failure path reports the actual error.
+   * could not check, so the answer - how many panes were cleared - is printed.
+   * Zero is a valid, honest answer: no pane has been opened this session.
    */
   const bersihkan = async () => {
     setSibuk(true);
     setPesan(null);
     try {
-      await tauriInvoke('browser_clear_data');
-      setPesan(tr('Browser data cleared.'));
+      const n = await tauriInvoke<number>('browser_clear_data');
+      setPesan(
+        n === 0
+          ? tr('No browser pane has been opened this session, so there was nothing to clear.')
+          : tr('Browser data cleared in ') + n + tr(' pane(s).'),
+      );
     } catch (e) {
       setPesan(tr('Could not clear browser data: ') + String(e));
     } finally {
       setSibuk(false);
     }
   };
+
+  /* A one-line explanation of what the pair of URL settings currently means. */
+  const ringkasUrl =
+    urlLokal === 'builtin' && urlLuar === 'sistem'
+      ? tr('Local links open in Zephyr; external links open in your system browser.')
+      : urlLokal === urlLuar
+        ? urlLokal === 'builtin'
+          ? tr('Every link opens inside Zephyr.')
+          : tr('Every link opens in your system browser.')
+        : tr('Local and external links open in different places.');
 
   return (
     <div className="agc-pane agx-pane" data-testid="agx-browser">
@@ -72,75 +98,111 @@ export default function AgcBrowser() {
           ?
         </span>
       </h2>
+      <p className="agc-pane-desc">
+        {tr('Choose how Zephyr opens links and captures pages for AI tasks.')}
+      </p>
 
       {/* ── 1. General ─────────────────────────────────────────────────── */}
       <h3 className="agx-seksi">{tr('General')}</h3>
-      <label className="agx-field">
-        <span className="agx-field-label">{tr('Default Browser for AI Tasks')}</span>
-        <select
-          className="agx-pil"
-          data-testid="agx-br-bawaan"
-          value={bawaan}
-          onChange={(e) => simpan({ bawaan: e.target.value })}
-        >
-          {PILIHAN.map((p) => (
-            <option key={p.id} value={p.id}>
-              {tr(p.label)}
-            </option>
-          ))}
-        </select>
-        <span className="agx-baris-desk">{tr(PILIHAN.find((p) => p.id === bawaan)?.ket ?? '')}</span>
-      </label>
 
-      <label className="agx-tool-baris agx-tool-pil" data-testid="agx-br-autoshot">
-        <input
-          type="checkbox"
-          checked={autoShot}
-          onChange={(e) => simpan({ autoScreenshot: e.target.checked })}
-        />
-        <span className="agx-baris-teks">
-          <span className="agx-baris-nama">{tr('Auto Screenshot')}</span>
-          <span className="agx-baris-desk">
-            {tr('Automatically captures screenshots after browser actions, for display only.')}
-          </span>
-        </span>
-      </label>
+      <div className="agx-kartu-setelan">
+        <div className="agx-kartu-baris">
+          <div className="agx-baris-teks">
+            <span className="agx-baris-nama">{tr('Default Browser for AI Tasks')}</span>
+            <span className="agx-baris-desk">
+              {tr(PILIHAN.find((p) => p.id === bawaan)?.ket ?? '')}
+            </span>
+          </div>
+          <select
+            className="agx-pil"
+            data-testid="agx-br-bawaan"
+            aria-label={tr('Default Browser for AI Tasks')}
+            value={bawaan}
+            onChange={(e) => simpan({ bawaan: e.target.value })}
+          >
+            {PILIHAN.map((p) => (
+              <option key={p.id} value={p.id}>
+                {tr(p.label)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="agx-kartu-baris">
+          <div className="agx-baris-teks">
+            <span className="agx-baris-nama">{tr('Auto Screenshot')}</span>
+            <span className="agx-baris-desk">
+              {tr('Automatically capture a screenshot after browser actions, for display only.')}
+            </span>
+          </div>
+          <label className="agx-switch" title={tr('Auto Screenshot')}>
+            <input
+              type="checkbox"
+              data-testid="agx-br-autoshot"
+              checked={autoShot}
+              onChange={(e) => simpan({ autoScreenshot: e.target.checked })}
+            />
+            <span />
+          </label>
+        </div>
+      </div>
 
       {/* ── 2. URL opening ─────────────────────────────────────────────── */}
       <h3 className="agx-seksi">{tr('URL Link Opening')}</h3>
-      <label className="agx-field">
-        <span className="agx-field-label">{tr('Local URL')}</span>
-        <select
-          className="agx-pil"
-          data-testid="agx-br-lokal"
-          value={urlLokal}
-          onChange={(e) => simpan({ urlLokal: e.target.value })}
-        >
-          {PILIHAN.map((p) => (
-            <option key={p.id} value={p.id}>
-              {tr(p.label)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="agx-field">
-        <span className="agx-field-label">{tr('External URL')}</span>
-        <select
-          className="agx-pil"
-          data-testid="agx-br-luar"
-          value={urlLuar}
-          onChange={(e) => simpan({ urlLuar: e.target.value })}
-        >
-          {PILIHAN.map((p) => (
-            <option key={p.id} value={p.id}>
-              {tr(p.label)}
-            </option>
-          ))}
-        </select>
-      </label>
+
+      <div className="agx-kartu-setelan">
+        <div className="agx-kartu-baris">
+          <div className="agx-baris-teks">
+            <span className="agx-baris-nama">{tr('Local URL')}</span>
+            <span className="agx-baris-desk">
+              {tr('For example localhost:3000, the dev server you are working on.')}
+            </span>
+          </div>
+          <select
+            className="agx-pil"
+            data-testid="agx-br-lokal"
+            aria-label={tr('Local URL')}
+            value={urlLokal}
+            onChange={(e) => simpan({ urlLokal: e.target.value })}
+          >
+            {PILIHAN.map((p) => (
+              <option key={p.id} value={p.id}>
+                {tr(p.label)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="agx-kartu-baris">
+          <div className="agx-baris-teks">
+            <span className="agx-baris-nama">{tr('External URL')}</span>
+            <span className="agx-baris-desk">
+              {tr('Any other address the agent opens, such as documentation or a repository.')}
+            </span>
+          </div>
+          <select
+            className="agx-pil"
+            data-testid="agx-br-luar"
+            aria-label={tr('External URL')}
+            value={urlLuar}
+            onChange={(e) => simpan({ urlLuar: e.target.value })}
+          >
+            {PILIHAN.map((p) => (
+              <option key={p.id} value={p.id}>
+                {tr(p.label)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <p className="agx-muted" data-testid="agx-br-ringkas">
+        {ringkasUrl}
+      </p>
 
       {/* ── 3. Browser data ────────────────────────────────────────────── */}
       <h3 className="agx-seksi">{tr('Built-in Browser')}</h3>
+
       <div className="agx-log-baris">
         <div className="agx-baris-teks">
           <span className="agx-baris-nama">{tr('Browser Data')}</span>
@@ -160,7 +222,7 @@ export default function AgcBrowser() {
         </button>
       </div>
       {pesan && (
-        <p className="agx-log" data-testid="agx-br-pesan">
+        <p className="agx-log" data-testid="agx-br-pesan" role="status">
           {pesan}
         </p>
       )}

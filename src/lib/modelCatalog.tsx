@@ -8,6 +8,27 @@ export type LogoId =
   | 'deepseek'
   | 'xai'
   | 'opencode'
+  | 'mistral'
+  | 'groq'
+  | 'openrouter'
+  | 'ollama'
+  | 'zai'
+  | 'minimax'
+  | 'kimi'
+  | 'byteplus'
+  | 'novita'
+  | 'aws'
+  | 'azure'
+  | 'vercel'
+  | 'bigmodel'
+  | 'volcano'
+  | 'alibaba'
+  | 'tencent'
+  | 'gmi'
+  | 'mimo'
+  | 'siliconflow'
+  | 'gitee'
+  | 'ppio'
   | 'generic';
 
 export interface ProviderModel {
@@ -126,18 +147,29 @@ export const PROVIDERS: ProviderInfo[] = [
              * reaches for when they have already decided not to use a hosted
              * one — it should not be the hardest to find.
              */
-      {
-        id: 'local',
-        label: 'Lokal (server OpenAI-compatible)',
-        baseUrl: 'http://127.0.0.1:11434/v1',
-        envKey: 'OPENAI_API_KEY',
-        logo: 'opencode',
-        freeText: true,
-        models: [{ id: 'local-default', label: 'Type a local model name', note: 'mis. qwen3-coder:32b', maxOut: 4096 }],
-      },
+      /*
+       * ONE custom slot, and it is the only one.
+       *
+       * There used to be SIX: `local`, `custom`, and `custom2`..`custom5`.
+       * They existed because the id is the API key's storage slot
+       * (`secrets.rs` -> `map.insert(p, ...)`) and the value `activeProvider`
+       * holds, so driving two gateways at once needed two ids.
+       *
+       * That reasoning was right about the constraint and wrong about the UI: it
+       * put six near-identical rows in the provider grid and in the model
+       * picker, all reading "Custom (OpenAI-compatible)", with no way to tell
+       * which one held the key you were looking for. The reader pointed at the
+       * reference, which offers exactly ONE "Custom Model" entry, and asked for
+       * that.
+       *
+       * So there is one slot. A second gateway is added as a MODEL ROW with its
+       * own `baseUrl` (see `models.custom[]` in types.ts) rather than as a
+       * second provider — which is what the reader was doing anyway, since a
+       * model carries the endpoint it came from.
+       */
       {
         id: 'custom',
-        label: 'Custom (OpenAI-compatible)',
+        label: 'Custom Model',
         baseUrl: '',
         envKey: 'OPENAI_API_KEY',
         logo: 'generic',
@@ -145,67 +177,314 @@ export const PROVIDERS: ProviderInfo[] = [
         models: [{ id: 'custom-model', label: 'Type a model name', note: 'bebas, sesuaikan provider', maxOut: 4096 }],
       },
       /*
-       * A SECOND custom slot, for users who drive two gateways at once.
+       * The rest of the reference's provider list, limited to the ones whose
+       * endpoint is a plain OpenAI-compatible `/v1` base — because that is the
+       * only wire format Zephyr sends today.
        *
-       * The id MUST differ from `custom`. Ids are not labels: the id is the key
-       * an API key is stored under (`secrets.rs` → `map.insert(p, …)`) and the
-       * value `models.activeProvider` holds. Two entries sharing an id would
-       * overwrite each other's key, only one would survive in
-       * `PROVIDER_BY_ID`, and `activeProvider: 'custom'` would name both. The
-       * label may repeat; the id may not.
+       * WHY THESE AND NOT ALL TWENTY-SIX: the reference lists regional resellers
+       * (Volcano Engine, SiliconFlow CN, PPIO, Gitee…) whose value is a cheaper
+       * route to the SAME models. Adding a tile that resolves to an endpoint
+       * this build cannot talk to would be a button that fails after the reader
+       * has already pasted a key — worse than not offering it. These are the
+       * ones that work on the first request.
+       *
+       * Every `baseUrl` below is the vendor's documented OpenAI-compatible
+       * base, and every model list is a starting point, not a catalogue: press
+       * Refresh in Add Model and the provider reports what it actually serves.
        */
-      {
-        id: 'custom2',
-        label: 'Custom 2 (OpenAI-compatible)',
-        baseUrl: '',
-        envKey: 'OPENAI_API_KEY',
-        logo: 'generic',
-        freeText: true,
-        models: [{ id: 'custom2-model', label: 'Type a model name', note: 'gateway kedua, bebas', maxOut: 4096 }],
-      },
       /*
-       * Slots 3-5: the same reasoning as `custom2`, generalised.
+       * The provider list, in the REFERENCE'S ORDER.
        *
-       * Two slots covered "two gateways at once". The readers who asked for more
-       * are running more than two: a hosted gateway, a work gateway, and a local
-       * one that is not Ollama's default port, for example. Each needs its own
-       * id because the id is the API key's storage slot (`secrets.rs`) and the
-       * value `activeProvider` holds - sharing one would make the entries
-       * overwrite each other's key and make `activeProvider` ambiguous.
+       * Order is copied deliberately: the reader holds the two dialogs side by
+       * side, and a grid whose rows land differently reads as "wrong" even when
+       * every entry is present.
        *
-       * `baseUrl` is empty on purpose, exactly like `custom` and `custom2`: an
-       * OpenAI-compatible endpoint has no default, and guessing one would send a
-       * key to a host the reader never chose.
+       * Every `baseUrl` is the vendor's documented OpenAI-compatible base. Two of
+       * them (AWS, Azure) have no single endpoint - the address is per-account -
+       * so they carry an empty URL and the form asks for it, rather than shipping
+       * a guess that would fail on the first request.
        *
-       * The `models` entries are placeholders (`freeText`), so they cost one row
-       * each in the picker and never appear as a real model to run.
+       * `freeText` is true everywhere: the shipped `models` are starting points,
+       * and Refresh in Add Model replaces them with what the provider actually
+       * serves. A hardcoded list would go stale the week after it shipped.
        */
       {
-        id: 'custom3',
-        label: 'Custom 3 (OpenAI-compatible)',
-        baseUrl: '',
-        envKey: 'OPENAI_API_KEY',
-        logo: 'generic',
+        id: 'xai',
+        label: 'xAI',
+        baseUrl: 'https://api.x.ai/v1',
+        envKey: 'XAI_API_KEY',
+        logo: 'xai',
         freeText: true,
-        models: [{ id: 'custom3-model', label: 'Type a model name', note: 'gateway ketiga, bebas', maxOut: 4096 }],
+        models: [
+          { id: 'grok-4', label: 'Grok 4', note: 'penalaran', ctx: 256_000, maxOut: 32_000 },
+          { id: 'grok-3', label: 'Grok 3', note: 'umum', ctx: 131_072, maxOut: 16_384 },
+          { id: 'grok-code-fast-1', label: 'Grok Code Fast', note: 'coding', ctx: 256_000, maxOut: 32_000 },
+        ],
       },
       {
-        id: 'custom4',
-        label: 'Custom 4 (OpenAI-compatible)',
-        baseUrl: '',
-        envKey: 'OPENAI_API_KEY',
-        logo: 'generic',
+        id: 'zai',
+        label: 'Z.ai',
+        baseUrl: 'https://api.z.ai/api/paas/v4',
+        envKey: 'ZAI_API_KEY',
+        logo: 'zai',
         freeText: true,
-        models: [{ id: 'custom4-model', label: 'Type a model name', note: 'gateway keempat, bebas', maxOut: 4096 }],
+        models: [
+          { id: 'glm-5.3', label: 'GLM-5.3', note: 'agentik', ctx: 204_800, maxOut: 131_072 },
+          { id: 'glm-4.6', label: 'GLM-4.6', note: 'umum', ctx: 204_800, maxOut: 131_072 },
+        ],
       },
       {
-        id: 'custom5',
-        label: 'Custom 5 (OpenAI-compatible)',
-        baseUrl: '',
-        envKey: 'OPENAI_API_KEY',
-        logo: 'generic',
+        id: 'minimax',
+        label: 'MiniMax Global',
+        baseUrl: 'https://api.minimax.io/v1',
+        envKey: 'MINIMAX_API_KEY',
+        logo: 'minimax',
         freeText: true,
-        models: [{ id: 'custom5-model', label: 'Type a model name', note: 'gateway kelima, bebas', maxOut: 4096 }],
+        models: [
+          { id: 'MiniMax-M2', label: 'MiniMax M2', note: 'agentik', ctx: 204_800, maxOut: 131_072 },
+          { id: 'MiniMax-Text-01', label: 'MiniMax Text 01', note: 'konteks panjang', ctx: 1_000_000, maxOut: 40_000 },
+        ],
+      },
+      {
+        id: 'kimi',
+        label: 'Kimi Global',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        envKey: 'MOONSHOT_API_KEY',
+        logo: 'kimi',
+        freeText: true,
+        models: [
+          { id: 'kimi-k2-thinking', label: 'Kimi K2 Thinking', note: 'penalaran', ctx: 262_144, maxOut: 262_144 },
+          { id: 'kimi-k2-turbo-preview', label: 'Kimi K2 Turbo', note: 'cepat', ctx: 262_144, maxOut: 262_144 },
+        ],
+      },
+      {
+        id: 'byteplus',
+        label: 'BytePlus',
+        baseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+        envKey: 'BYTEPLUS_API_KEY',
+        logo: 'byteplus',
+        freeText: true,
+        models: [
+          { id: 'seed-1-6-250915', label: 'Seed 1.6', note: 'multimodal', ctx: 262_144, maxOut: 32_768 },
+          { id: 'kimi-k2-250711', label: 'Kimi K2 (BytePlus)', note: 'agentik', ctx: 262_144, maxOut: 32_768 },
+        ],
+      },
+      {
+        id: 'openrouter',
+        label: 'OpenRouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        envKey: 'OPENROUTER_API_KEY',
+        logo: 'openrouter',
+        freeText: true,
+        models: [
+          { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (OR)', note: 'satu kunci, banyak model', ctx: 200_000, maxOut: 64_000 },
+          { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (OR)', note: 'multimodal', ctx: 1_048_576, maxOut: 65_536 },
+          { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3 (OR)', note: 'hemat', ctx: 163_840, maxOut: 8_192 },
+        ],
+      },
+      {
+        id: 'novita',
+        label: 'Novita',
+        baseUrl: 'https://api.novita.ai/v3/openai',
+        envKey: 'NOVITA_API_KEY',
+        logo: 'novita',
+        freeText: true,
+        models: [
+          { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2 (Novita)', note: 'hemat', ctx: 163_840, maxOut: 16_384 },
+          { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2 (Novita)', note: 'agentik', ctx: 131_072, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'aws',
+        label: 'AWS',
+        baseUrl: '',
+        envKey: 'AWS_ACCESS_KEY_ID',
+        logo: 'aws',
+        freeText: true,
+        models: [
+          { id: 'anthropic.claude-sonnet-4-5-v1:0', label: 'Claude Sonnet 4.5 (Bedrock)', note: 'isi URL dulu', ctx: 200_000, maxOut: 64_000 },
+        ],
+      },
+      {
+        id: 'azure',
+        label: 'Azure OpenAI',
+        baseUrl: '',
+        envKey: 'AZURE_OPENAI_API_KEY',
+        logo: 'azure',
+        freeText: true,
+        models: [
+          { id: 'gpt-4o', label: 'GPT-4o (Azure)', note: 'isi URL resource dulu', ctx: 128_000, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'vercel',
+        label: 'Vercel AI Gateway',
+        baseUrl: 'https://ai-gateway.vercel.sh/v1',
+        envKey: 'AI_GATEWAY_API_KEY',
+        logo: 'vercel',
+        freeText: true,
+        models: [
+          { id: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (Vercel)', note: 'gateway', ctx: 200_000, maxOut: 64_000 },
+        ],
+      },
+      {
+        id: 'ollama',
+        label: 'Ollama Cloud',
+        baseUrl: 'https://ollama.com/v1',
+        envKey: 'OLLAMA_API_KEY',
+        logo: 'ollama',
+        freeText: true,
+        models: [
+          { id: 'qwen3-coder:480b', label: 'Qwen3 Coder 480B', note: 'coding', ctx: 262_144, maxOut: 32_768 },
+          { id: 'gpt-oss:120b', label: 'GPT-OSS 120B', note: 'umum', ctx: 131_072, maxOut: 32_768 },
+        ],
+      },
+      {
+        id: 'bigmodel',
+        label: 'Bigmodel',
+        baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+        envKey: 'BIGMODEL_API_KEY',
+        logo: 'bigmodel',
+        freeText: true,
+        models: [
+          { id: 'glm-4.6', label: 'GLM-4.6', note: 'umum', ctx: 204_800, maxOut: 131_072 },
+        ],
+      },
+      {
+        id: 'minimax-cn',
+        label: 'MiniMax CN',
+        baseUrl: 'https://api.minimaxi.com/v1',
+        envKey: 'MINIMAX_CN_API_KEY',
+        logo: 'minimax',
+        freeText: true,
+        models: [
+          { id: 'MiniMax-M2', label: 'MiniMax M2', note: 'agentik', ctx: 204_800, maxOut: 131_072 },
+        ],
+      },
+      {
+        id: 'kimi-cn',
+        label: 'Kimi CN',
+        baseUrl: 'https://api.moonshot.cn/v1',
+        envKey: 'MOONSHOT_CN_API_KEY',
+        logo: 'kimi',
+        freeText: true,
+        models: [
+          { id: 'kimi-k2-thinking', label: 'Kimi K2 Thinking', note: 'penalaran', ctx: 262_144, maxOut: 262_144 },
+        ],
+      },
+      {
+        id: 'volcano',
+        label: 'Volcano Engine',
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+        envKey: 'ARK_API_KEY',
+        logo: 'volcano',
+        freeText: true,
+        models: [
+          { id: 'doubao-seed-1-6-250615', label: 'Doubao Seed 1.6', note: 'multimodal', ctx: 262_144, maxOut: 32_768 },
+        ],
+      },
+      {
+        id: 'alibaba',
+        label: 'Alibaba Cloud',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        envKey: 'DASHSCOPE_API_KEY',
+        logo: 'alibaba',
+        freeText: true,
+        models: [
+          { id: 'qwen3-max', label: 'Qwen3 Max', note: 'umum', ctx: 262_144, maxOut: 32_768 },
+          { id: 'qwen3-coder-plus', label: 'Qwen3 Coder Plus', note: 'coding', ctx: 1_000_000, maxOut: 65_536 },
+        ],
+      },
+      {
+        id: 'tencent',
+        label: 'Tencent Cloud',
+        baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1',
+        envKey: 'HUNYUAN_API_KEY',
+        logo: 'tencent',
+        freeText: true,
+        models: [
+          { id: 'hunyuan-turbos-latest', label: 'Hunyuan TurboS', note: 'cepat', ctx: 131_072, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'gmi',
+        label: 'GMI Cloud',
+        baseUrl: 'https://api.gmi-serving.com/v1',
+        envKey: 'GMI_API_KEY',
+        logo: 'gmi',
+        freeText: true,
+        models: [
+          { id: 'deepseek-ai/DeepSeek-V3.1', label: 'DeepSeek V3.1 (GMI)', note: 'hemat', ctx: 163_840, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'mimo',
+        label: 'Xiaomi MIMO',
+        baseUrl: 'https://api.xiaomimimo.com/v1',
+        envKey: 'MIMO_API_KEY',
+        logo: 'mimo',
+        freeText: true,
+        models: [
+          { id: 'mimo-7b-rl', label: 'MiMo 7B RL', note: 'penalaran', ctx: 131_072, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'siliconflow',
+        label: 'SiliconFlow CN',
+        baseUrl: 'https://api.siliconflow.cn/v1',
+        envKey: 'SILICONFLOW_API_KEY',
+        logo: 'siliconflow',
+        freeText: true,
+        models: [
+          { id: 'deepseek-ai/DeepSeek-V3.2', label: 'DeepSeek V3.2 (SF)', note: 'hemat', ctx: 163_840, maxOut: 16_384 },
+          { id: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', label: 'Qwen3 Coder 480B (SF)', note: 'coding', ctx: 262_144, maxOut: 32_768 },
+        ],
+      },
+      {
+        id: 'gitee',
+        label: 'Gitee',
+        baseUrl: 'https://ai.gitee.com/v1',
+        envKey: 'GITEE_API_KEY',
+        logo: 'gitee',
+        freeText: true,
+        models: [
+          { id: 'DeepSeek-V3', label: 'DeepSeek V3 (Gitee)', note: 'hemat', ctx: 163_840, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'ppio',
+        label: 'PPIO',
+        baseUrl: 'https://api.ppinfra.com/v3/openai',
+        envKey: 'PPIO_API_KEY',
+        logo: 'ppio',
+        freeText: true,
+        models: [
+          { id: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2 (PPIO)', note: 'hemat', ctx: 163_840, maxOut: 16_384 },
+        ],
+      },
+      {
+        id: 'mistral',
+        label: 'Mistral',
+        baseUrl: 'https://api.mistral.ai/v1',
+        envKey: 'MISTRAL_API_KEY',
+        logo: 'mistral',
+        freeText: true,
+        models: [
+          { id: 'mistral-large-latest', label: 'Mistral Large', note: 'umum', ctx: 131_072, maxOut: 8_192 },
+          { id: 'codestral-latest', label: 'Codestral', note: 'coding', ctx: 256_000, maxOut: 8_192 },
+        ],
+      },
+      {
+        id: 'groq',
+        label: 'Groq',
+        baseUrl: 'https://api.groq.com/openai/v1',
+        envKey: 'GROQ_API_KEY',
+        logo: 'groq',
+        freeText: true,
+        models: [
+          { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', note: 'cepat', ctx: 131_072, maxOut: 32_768 },
+          { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2 (Groq)', note: 'agentik', ctx: 131_072, maxOut: 16_384 },
+        ],
       },
     ];
 
@@ -525,101 +804,192 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
 
   const logo = PROVIDER_BY_ID.get(id)?.logo ?? (id as LogoId);
 
-  switch (logo) {
-    case 'gemini':
+  /*
+   * Official mark, when the brand table has one.
+   *
+   * `modelBrandIcons.ts` already ships 34 official marks (simple-icons CC0 and
+   * @lobehub/icons-static-svg, generated by `scripts/gen-brand-lengkap.mjs`) on a
+   * 24x24 grid. Hand-drawing approximations beside them was the mistake: two
+   * shapes for one brand in one app, and the approximations were visibly wrong —
+   * a letter Z for Z.ai, two circles for PPIO, a triangle for Vercel.
+   *
+   * The table keys are brand FAMILIES (gemini, gpt, claude, glm, ...), not
+   * provider ids, because one family can be served by several providers: "Kimi
+   * Global" and "Kimi CN" are both `kimi`, "Z.ai" and "Bigmodel" are both `glm`.
+   * This map is the single place that says which family a provider wears.
+   */
+  const keluarga: Record<string, string> = {
+    gemini: 'gemini',
+    openai: 'gpt',
+    anthropic: 'claude',
+    deepseek: 'deepseek',
+    xai: 'grok',
+    mistral: 'mistral',
+    groq: 'groq',
+    openrouter: 'openrouter',
+    ollama: 'ollama',
+    zai: 'glm',
+    bigmodel: 'glm',
+    minimax: 'minimax',
+    'minimax-cn': 'minimax',
+    kimi: 'kimi',
+    'kimi-cn': 'kimi',
+    byteplus: 'bytedance',
+    aws: 'bedrock',
+    azure: 'azure',
+    volcano: 'bytedance',
+    alibaba: 'qwen',
+    tencent: 'tencent',
+    mimo: 'mimo',
+    siliconflow: 'qwen',
+    /*
+     * DELIBERATELY ABSENT: gmi, novita, gitee, ppio, vercel.
+     *
+     * These used to map to `together`, `antgroup` and `vertexai` — companies they
+     * have nothing to do with. The result was GMI Cloud wearing Together's mark
+     * and Gitee wearing Ant Group's: a logo that names the WRONG company is worse
+     * than no logo, because the reader trusts it.
+     *
+     * `BRAND_MARKS` has no official mark for any of them, so they fall through to
+     * the monogram below: their own initials in their own brand colour. That is
+     * honest — it does not claim to be a published logo, and it is still
+     * distinguishable at a glance, which is the job.
+     */
+  };
 
-      return (
-        <svg {...p} aria-label="Google Gemini">
-          <defs>
-            <linearGradient id={`zg-gem-${size}`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#4285f4" />
-              <stop offset="55%" stopColor="#9b72cb" />
-              <stop offset="100%" stopColor="#d01875" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M8 1.4c.72 3.62 2.98 5.88 6.6 6.6-3.62.72-5.88 2.98-6.6 6.6-.72-3.62-2.98-5.88-6.6-6.6C5.02 7.28 7.28 5.02 8 1.4z"
-            fill={`url(#zg-gem-${size})`}
-          />
-        </svg>
-      );
-    case 'openai':
+  const kunci = keluarga[logo as string] ?? (logo as string);
+  const mark = BRAND_MARKS[kunci];
 
-      return (
-        <svg {...p} aria-label="OpenAI">
-          <path
-            d="M8 1.9l3.9 2.25v4.5L8 10.9 4.1 8.65v-4.5L8 1.9z"
-            fill="none"
-            stroke="#10a37f"
-            strokeWidth="1.25"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M8 5.1l2.6 1.5v3L8 11.1 5.4 9.6v-3L8 5.1z"
-            fill="none"
-            stroke="#10a37f"
-            strokeWidth="1.1"
-            strokeLinejoin="round"
-          />
-          <path d="M8 10.9v3.2" fill="none" stroke="#10a37f" strokeWidth="1.25" strokeLinecap="round" />
-        </svg>
-      );
-    case 'anthropic':
-
-      return (
-        <svg {...p} aria-label="Anthropic">
-          <path
-            d="M5.05 13.4L8 2.6l2.95 10.8"
-            fill="none"
-            stroke="#d97757"
-            strokeWidth="1.55"
-            strokeLinecap="round"
-          />
-          <path d="M6.25 9.7h3.5" fill="none" stroke="#d97757" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
-      );
-    case 'deepseek':
-
-      return (
-        <svg {...p} aria-label="DeepSeek">
-          <path
-            d="M2.4 9.6c2.5 1.7 5.4 2.3 8.3-.2 1.25-1.05 2.1-2.5 2.5-4.2-1.25 1.45-2.7 2.3-4.35 2.3-2.5 0-4.15-1.45-6.45-1.45"
-            fill="none"
-            stroke="#4d6bfe"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <circle cx="11.5" cy="5.1" r="1" fill="#4d6bfe" />
-        </svg>
-      );
-    case 'opencode':
-
-      return (
-        <svg {...p} aria-label="opencode">
-          <path
-            d="M5.2 3.2C3.6 3.2 3.8 7 2.4 8c1.4 1 1.2 4.8 2.8 4.8M10.8 3.2c1.6 0 1.4 3.8 2.8 4.8-1.4 1-1.2 4.8-2.8 4.8"
-            fill="none"
-            stroke="#f5a623"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-          />
-          <circle cx="8" cy="8" r="1.9" fill="none" stroke="#f5a623" strokeWidth="1.3" />
-        </svg>
-      );
-    case 'xai':
-      return (
-        <svg {...p} aria-label="xAI">
-          <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...p} aria-label="Custom">
-          <rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2.4" fill="none" stroke="var(--accent)" strokeWidth="1.3" />
-          <path d="M8 5.6v4.8M5.6 8h4.8" fill="none" stroke="var(--accent)" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      );
+  /*
+   * The custom endpoint has no brand, so it gets a deliberate mark: a dashed
+   * tile with a plus, in the accent colour.
+   *
+   * Without this it fell through to the neutral fallback below, which is a plain
+   * grey square — indistinguishable from "the logo failed to load", which is
+   * exactly how the reader read it.
+   */
+  if (logo === 'generic') {
+    return (
+      <svg {...p} aria-label="Custom">
+        <rect
+          x="2.4"
+          y="2.4"
+          width="11.2"
+          height="11.2"
+          rx="2.6"
+          fill="none"
+          stroke="var(--accent, #4c8dff)"
+          strokeWidth="1.3"
+          strokeDasharray="2.6 1.8"
+        />
+        <path
+          d="M8 5.7v4.6M5.7 8h4.6"
+          fill="none"
+          stroke="var(--accent, #4c8dff)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
   }
+
+  /*
+   * Colour for the marks the generator recorded as monochrome.
+   *
+   * `modelBrandIcons.ts` is GENERATED (`do not edit by hand`) and it records
+   * `warna: null` for 14 brands. That is correct for a logo on a white page —
+   * OpenAI's mark really is monochrome — but on this dark list a `currentColor`
+   * mark renders as flat grey text and every one of those tiles looked like it
+   * had no logo at all. The reader asked for colour, and the brands DO have
+   * colours in their product UI.
+   *
+   * So the override lives HERE, not in the generated file: the generator's data
+   * stays untouched and regenerable, and the one place that decides how a mark is
+   * painted is the component that paints it.
+   */
+  const warnaCadangan: Record<string, string> = {
+    gpt: '#10A37F',
+    grok: '#E8E8E8',
+    kimi: '#4B6BFB',
+    ollama: '#D8D8D8',
+    tencent: '#0052D9',
+    together: '#0F6FFF',
+    openrouter: '#6467F2',
+    bedrock: '#FF9900',
+    lmstudio: '#6E56CF',
+    copilot: '#8B8B8B',
+    longcat: '#FF6B35',
+    stepfun: '#00A0E9',
+    yi: '#003425',
+    baichuan: '#FF6A00',
+  };
+
+  if (mark) {
+    /*
+     * One path, one viewBox (24), one colour rule.
+     *
+     * A brand that carries its own colour uses it. A brand the generator marked
+     * monochrome falls back to the table above, and only if that has no opinion
+     * either does it follow the surrounding text colour.
+     */
+    const warna = mark.warna ?? warnaCadangan[kunci] ?? 'currentColor';
+    return (
+      <svg {...p} viewBox="0 0 24 24" aria-label={id}>
+        <path d={mark.d} fill={warna} />
+      </svg>
+    );
+  }
+
+  /* Fallback for a provider the brand table does not know yet: its OWN initials
+     in its own brand colour, rather than a neutral square that reads as "logo
+     failed to load" or — worse — another company's mark. */
+  const warnaSendiri: Record<string, string> = {
+    gmi: '#00D0A0',
+    novita: '#7C5CFF',
+    gitee: '#C71D23',
+    ppio: '#4B5BFF',
+    vercel: '#E8E8E8',
+    siliconflow: '#6D4AFF',
+    custom: 'var(--accent, #4C8DFF)',
+  };
+  /* Brand colours for the monograms ABOVE, but also for any provider whose mark
+     the table lacks — a monogram in the brand's own colour is still recognisably
+     "that company", which plain grey is not. */
+  const warnaMonogram: Record<string, string> = {
+    ...warnaSendiri,
+    mistral: '#FA520F',
+    groq: '#F55036',
+    openrouter: '#6467F2',
+    together: '#0F6FFF',
+    bedrock: '#FF9900',
+    lmstudio: '#6E56CF',
+    copilot: '#8B8B8B',
+    longcat: '#FF6B35',
+    stepfun: '#00A0E9',
+    yi: '#003425',
+    baichuan: '#FF6A00',
+    nvidia: '#76B900',
+  };
+  const teks = (PROVIDER_BY_ID.get(id)?.label ?? id).replace(/[^A-Za-z0-9 ]/g, '');
+  const kata = teks.split(/\s+/).filter(Boolean);
+  const inisial = kata.length >= 2 ? kata[0][0] + kata[1][0] : teks.slice(0, 2);
+  return (
+    <svg {...p} viewBox="0 0 16 16" aria-label={id}>
+      <circle cx="8" cy="8" r="7.2" fill={warnaMonogram[id] ?? 'currentColor'} opacity="0.2" />
+      <text
+        x="8"
+        y="8"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={warnaMonogram[id] ?? 'currentColor'}
+        fontSize={inisial.length > 1 ? 6.6 : 8}
+        fontWeight="700"
+        fontFamily="var(--font-ui, sans-serif)"
+      >
+        {inisial.toUpperCase()}
+      </text>
+    </svg>
+  );
 });
 
 /*
@@ -746,6 +1116,32 @@ const WARNA_INISIAL = [
   '#7A8FE0',
 ];
 
+/*
+ * Colour for the brand families the generator recorded as monochrome.
+ *
+ * `modelBrandIcons.ts` is generated and stores `warna: null` for brands whose
+ * official mark is a single colour. On a dark list that renders as flat grey —
+ * the model looked like it had no mark at all. These are the brands' own colours
+ * as used in their product UI; the table lives here because the generated file
+ * must stay regenerable.
+ */
+export const WARNA_MEREK: Record<string, string> = {
+  gpt: '#10A37F',
+  grok: '#E8E8E8',
+  kimi: '#4B6BFB',
+  ollama: '#D8D8D8',
+  tencent: '#0052D9',
+  together: '#0F6FFF',
+  openrouter: '#6467F2',
+  bedrock: '#FF9900',
+  lmstudio: '#6E56CF',
+  copilot: '#8B8B8B',
+  longcat: '#FF6B35',
+  stepfun: '#00A0E9',
+  yi: '#003425',
+  baichuan: '#FF6A00',
+};
+
 /** Two letters that stand for the model: "space-bunny" -> "SB". */
 function inisial(id: string): string {
   const bersih = id.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
@@ -771,6 +1167,10 @@ export const ModelLogo = memo(function ModelLogo({
 }) {
   const fam = modelFamily(id);
   const mark = BRAND_MARKS[fam];
+  /* Brand colour first, then the override table, then the surrounding text
+     colour — the same order `ProviderLogo` uses, so one brand cannot be grey in
+     one place and coloured in another. */
+  const warna = mark?.warna ?? WARNA_MEREK[fam] ?? undefined;
 
   if (mark) {
     return (
@@ -780,9 +1180,9 @@ export const ModelLogo = memo(function ModelLogo({
         viewBox="0 0 24 24"
         role="img"
         aria-label={fam}
-        style={{ flexShrink: 0, color: mark.warna ?? undefined }}
+        style={{ flexShrink: 0 }}
       >
-        <path d={mark.d} fill={mark.warna ?? 'currentColor'} />
+        <path d={mark.d} fill={warna ?? 'currentColor'} />
       </svg>
     );
   }
@@ -814,7 +1214,7 @@ export const ModelLogo = memo(function ModelLogo({
   }
 
   const teks = inisial(id);
-  const warna = warnaInisial(id);
+  const warnaTeks = warnaInisial(id);
 
   return (
     <svg
@@ -825,13 +1225,13 @@ export const ModelLogo = memo(function ModelLogo({
       aria-label={id}
       style={{ flexShrink: 0 }}
     >
-      <circle cx="8" cy="8" r="7.4" fill={warna} opacity="0.22" />
+      <circle cx="8" cy="8" r="7.4" fill={warnaTeks} opacity="0.22" />
       <text
         x="8"
         y="8"
         textAnchor="middle"
         dominantBaseline="central"
-        fill={warna}
+        fill={warnaTeks}
         fontSize={teks.length > 1 ? 6.6 : 8}
         fontWeight="700"
         fontFamily="var(--font-ui, sans-serif)"

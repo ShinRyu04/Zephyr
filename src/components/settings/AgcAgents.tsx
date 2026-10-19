@@ -28,7 +28,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useSubagentCustom, kosongkanSubagent, type SubagentCustom, type AlatId } from '../../lib/subagentCustom';
-import { ikonSubagent, IKON_SUBAGENT } from '../../lib/subagentIcons';
+import { ikonSubagent } from '../../lib/subagentIcons';
+import { AvatarPicker, SmartGenerate } from './AgcAgentDialogs';
 
 /* ── Tool labels, in the words the reader sees ──────────────────────────────
  *
@@ -84,6 +85,12 @@ export default function AgcAgents() {
   const [draft, setDraft] = useState<Omit<SubagentCustom, 'id'>>(kosongkanSubagent);
   const [sibuk, setSibuk] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  /*
+   * Which dialog is open, if any. One value rather than two booleans: two
+   * booleans can both be true, and then two backdrops stack and Escape closes
+   * only the top one - a state the UI can reach but never should.
+   */
+  const [dialog, setDialog] = useState<'avatar' | 'smart' | null>(null);
 
   const bukaEditor = (id: string | null) => {
     setGalat(null);
@@ -304,29 +311,47 @@ export default function AgcAgents() {
         <button type="button" className="agx-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
           ← {tr('Agents')}
         </button>
-        <button type="button" className="agx-btn-utama" data-testid="agx-smart">
+        <button
+          type="button"
+          className="agx-btn-utama"
+          data-testid="agx-smart"
+          onClick={() => setDialog('smart')}
+        >
           ✨ {tr('Smart Generate')}
         </button>
       </div>
 
       <h2 className="agc-pane-title">{idSunting ? tr('Edit Agent') : tr('Create Agent')}</h2>
 
+      {/*
+        * The avatar is the BUTTON.
+        *
+        * The row of ten small icons that used to sit here was a palette: every
+        * option at once, at a size where a dragon and a robot are the same grey
+        * smudge. Clicking the avatar is the obvious gesture, so the avatar opens
+        * a dialog with one large preview, the full set, and a shuffle.
+        */}
       <div className="agx-avatar-baris">
-        <span className="agx-avatar agx-avatar-besar" aria-hidden="true">
-          <AiIkon name={(draft.ikon as never) ?? 'robot'} size={30} />
-        </span>
-        <div className="agx-avatar-pilih" data-testid="agx-ikon-pilih">
-          {IKON_SUBAGENT.slice(0, 10).map((ik) => (
-            <button
-              key={ik.id}
-              type="button"
-              className={`agx-ikon-pil${draft.ikon === ik.id ? ' is-on' : ''}`}
-              title={ik.id}
-              onClick={() => setDraft({ ...draft, ikon: ik.id })}
-            >
-              <AiIkon name={ikonSubagent(ik.id).id as never} size={13} />
-            </button>
-          ))}
+        <button
+          type="button"
+          className="agx-avatar agx-avatar-besar agx-avatar-tombol"
+          data-testid="agx-avatar-buka"
+          title={tr('Change Avatar')}
+          aria-label={tr('Change Avatar')}
+          onClick={() => setDialog('avatar')}
+        >
+          <AiIkon name={ikonSubagent(draft.ikon).id as never} size={30} />
+        </button>
+        <div className="agx-avatar-ket">
+          <span className="agx-baris-nama">{tr('Avatar')}</span>
+          <button
+            type="button"
+            className="agx-tautan"
+            data-testid="agx-avatar-ganti"
+            onClick={() => setDialog('avatar')}
+          >
+            {tr('Change')}
+          </button>
         </div>
       </div>
 
@@ -466,6 +491,21 @@ export default function AgcAgents() {
           {tr('Cancel')}
         </button>
       </div>
+
+      {dialog === 'avatar' && (
+        <AvatarPicker
+          nilai={draft.ikon}
+          onPilih={(ikon) => setDraft({ ...draft, ikon })}
+          onTutup={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === 'smart' && (
+        <SmartGenerate
+          onHasil={(nama, prompt) => setDraft((d) => ({ ...d, nama, prompt }))}
+          onTutup={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }

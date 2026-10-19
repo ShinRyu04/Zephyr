@@ -710,3 +710,881 @@
   font-size: 9.5px;
   white-space: nowrap;
 }
+
+/* -- Agent dialogs (avatar picker, Smart Generate) ------------------------
+ * One shell for both, so Escape, the backdrop and the action row behave the
+ * same. The avatar dialog leads with a large preview because the whole point is
+ * telling one mark from another - a 13px row could not do that, which is why
+ * the old inline palette was replaced.
+ */
+.agx-dialog {
+  max-width: 460px;
+  width: min(460px, 94vw);
+}
+.agx-dialog:focus {
+  outline: none;
+}
+
+.agx-dialog-tengah {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 14px;
+}
+
+.agx-avatar-jumbo {
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.agx-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.agx-avatar-pil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.agx-avatar-pil:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--surface-2);
+}
+.agx-avatar-pil.is-on {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.agx-dialog-aksi {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.agx-dialog-catatan {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 10.5px;
+}
+
+/* The avatar as a button: it must look pressable, not decorative. */
+.agx-avatar-tombol {
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 120ms, background 120ms;
+}
+.agx-avatar-tombol:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.agx-avatar-ket {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agx-smart-teks {
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* -- Browser page: settings grouped in cards ------------------------------
+ * Each card holds rows that answer ONE question. A flat column of switches made
+ * "default browser" and "clear data" look like the same kind of choice, which
+ * is why they are now in separate cards with their own heading.
+ */
+.agx-kartu-setelan {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.agx-kartu-baris {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.agx-kartu-baris:last-child {
+  border-bottom: 0;
+}
+.agx-kartu-baris .agx-baris-teks {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agx-seg-jml {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-cari-sempit {
+  flex: 0 1 180px;
+  min-width: 100px;
+}
+
+.agx-baris.is-aktif {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.agx-chip-kecil.is-on {
+  background: color-mix(in srgb, var(--success, #3fb950) 20%, transparent);
+  color: var(--success, #3fb950);
+}
+
+/* -- Skills & Commands: rail of kinds + right pane ------------------------
+ * The reference puts the two kinds in one page behind a left rail. Switching
+ * costs one click and the search box stays where the eye left it - which two
+ * separate outer sections could not do.
+ */
+.skc-grid {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  gap: 16px;
+  margin-top: 12px;
+  align-items: start;
+}
+
+@media (max-width: 620px) {
+  .skc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skc-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--border);
+  padding-right: 8px;
+}
+
+.skc-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.skc-rail-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.skc-rail-btn.is-on {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.skc-rail-nama {
+  flex: 1 1 auto;
+}
+
+.skc-rail-jml {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.skc-rail-btn.is-on .skc-rail-jml {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+}
+
+.skc-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.skc-kepala {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 9px;
+}
+
+.skc-cari {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.skc-cari:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.skc-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.skc-sub-judul {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.skc-daftar {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.skc-baris {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.skc-baris:hover {
+  background: var(--surface-2);
+}
+.skc-baris.is-mati {
+  opacity: 0.6;
+}
+
+.skc-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+}
+
+.skc-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.skc-nama {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skc-ket {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skc-aksi {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 110ms;
+}
+.skc-baris:hover .skc-aksi,
+.skc-baris:focus-within .skc-aksi {
+  opacity: 1;
+}
+.skc-aksi:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.skc-aksi.is-pasang {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.skc-aksi:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* -- Conversations: master / detail ---------------------------------------
+ * The list on the left, the transcript on the right. A reader scanning their
+ * history is trying to RECOGNISE a conversation; showing its last few turns
+ * beside the list is what makes that free.
+ */
+.conv-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+/* ── Conversation SETTINGS tab ──────────────────────────────────────────── */
+/*
+ * One continuous column of sections, each separated by a hairline.
+ *
+ * TRAE's page is exactly that: no cards, no boxes, just a rule between sections.
+ * Boxing thirteen controls would add a border for every one of them and make the
+ * page read as a form to be filled rather than a list of switches to skim.
+ */
+.conv-setelan {
+  display: flex;
+  flex-direction: column;
+  /*
+   * The settings column FILLS the pane.
+   *
+   * It used to be capped at 820px because that is TRAE's measured content width —
+   * but TRAE's page has no rail beside it, so 820px of an 855px window is ~96%.
+   * Here the same 820px sits inside a 1106px pane, which leaves 286px of dead space
+   * on the right and reads exactly like the "space kanan kosong" that was reported.
+   *
+   * The measure is preserved by the TEXT instead: `.conv-set-teks` caps its own
+   * width so a description never runs past a comfortable line, while the row —
+   * text plus right-hand controls — uses the full pane. That is what makes the page
+   * fill a maximised window without turning prose into a 1400px line.
+   */
+  width: 100%;
+}
+
+.conv-legend {
+  margin: 0 0 16px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.conv-legend strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/*
+ * One section: text on the LEFT, controls in a RIGHT-HAND COLUMN.
+ *
+ * THIS IS THE LAYOUT TRAE USES, and it was measured rather than guessed. From its
+ * screenshots (855px page):
+ *
+ *   heading      x=17
+ *   description  x=33, wrapping before ~580px
+ *   IDE switch   x=725  (label) → track to its right, ~65px from the page edge
+ *   SOLO switch  x=709, and 38px BELOW the IDE row
+ *
+ * Two consequences, and both were wrong in the previous build:
+ *
+ *   1. The controls are BESIDE the text, not under it. Stacking them below is what
+ *      made the page read as a form to fill in rather than a list of switches to
+ *      skim — the eye had to travel back to the left edge after every control.
+ *   2. IDE and SOLO are STACKED, not side by side. 38px apart is two rows at this
+ *      page's 28px line pitch, so they are two lines in one right-hand column.
+ *
+ * `grid-template-columns: 1fr auto` with the text in column 1 and the controls in
+ * column 2 reproduces that without hard-coding x=725: the control column shrinks to
+ * its content and sits flush right, which is what x=725 vs a 855px page means.
+ */
+.conv-set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 28px;
+  align-items: start;
+  padding: 22px 0;
+  border-top: 1px solid var(--border);
+}
+.conv-set:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* The text column: heading, then description. Both stop well before the controls. */
+.conv-set-teks {
+  min-width: 0;
+  /* The reading measure lives HERE, not on the whole column: a description is
+     prose and wants ~58ch, while the row as a whole must reach the right edge. */
+  max-width: 58ch;
+}
+
+.conv-set-judul {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+.conv-set-ket {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* The control column: right-aligned, controls stacked. */
+.conv-set-kontrol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/*
+ * IDE / SOLO STACKED vertically, as TRAE has them.
+ *
+ * The previous build put them side by side with a 22px gap, which at TRAE's own
+ * coordinates would be wrong by two rows — its IDE label is at y=136 and SOLO at
+ * y=174, a 38px gap.
+ */
+.conv-dua {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/*
+ * Every section uses the two-column layout, including the ones with dropdowns.
+ *
+ * The `is-lebar` escape hatch that let a section collapse to one column is gone:
+ * it produced a page where three sections had controls on the right and three had
+ * them underneath, which reads as two different kinds of section for no reason the
+ * reader can see. TRAE keeps every control in one right-hand column, so this does
+ * too — a select simply stacks its label above it inside that column.
+ */
+
+/* ── A switch ───────────────────────────────────────────────────────────── */
+/*
+ * Text on the left, track on the right. The whole row is the control, so the
+ * label is part of the hit area — a 36px track on its own is a small target for
+ * something used this often.
+ */
+.conv-saklar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.conv-saklar:hover .conv-saklar-teks {
+  color: var(--text);
+}
+
+.conv-saklar-jalur {
+  position: relative;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  border: 1px solid var(--border);
+  transition: background 130ms, border-color 130ms;
+}
+
+.conv-saklar-bulat {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 130ms, background 130ms;
+}
+
+.conv-saklar.is-on .conv-saklar-jalur {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.conv-saklar.is-on .conv-saklar-bulat {
+  transform: translateX(14px);
+  background: #fff;
+}
+.conv-saklar.is-on .conv-saklar-teks {
+  color: var(--text);
+}
+
+/* Keyboard focus must be visible: thirteen switches, all reachable by Tab. */
+.conv-saklar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/*
+ * A labelled select.
+ *
+ * Layout note: in TRAE these sit in the SAME right-hand column as the switches —
+ * its dropdown text starts at x=608 (Review Scope) and x=654 (Terminal Env) while
+ * the section heading is at x=17. So a select is not a special full-width control;
+ * it belongs to the control column like everything else, and its label sits above
+ * it because a select plus a 210px label will not fit one 260px column.
+ */
+.conv-pilih-baris {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 260px;
+  max-width: 300px;
+}
+
+.conv-pilih-label {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.conv-pilih {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.conv-pilih:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* The explanation of the SELECTED option — what turns a dropdown into a choice. */
+.conv-pilih-ket {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.conv-volume {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.conv-volume-angka {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The volume row: slider and its number share one line inside the column. */
+.conv-volume-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 300px;
+}
+
+/* Content placed under the description in the LEFT column. */
+.conv-set-kiri-bawah {
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .conv-pilih-label {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .conv-pilih-ket {
+    margin-left: 0;
+  }
+}
+
+.conv-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 14px;
+  align-items: start;
+  min-height: 0;
+}
+
+@media (max-width: 720px) {
+  .conv-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.conv-kiri {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.conv-cari {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.conv-cari:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.conv-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 56vh;
+  overflow: auto;
+}
+
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.conv-item:hover {
+  background: var(--surface-2);
+}
+.conv-item.is-on {
+  background: var(--accent-subtle);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/*
+ * The row's text column. `min-width: 0` is what lets a long title ellipsis
+ * instead of pushing the action buttons out of the row — a flex child will not
+ * shrink below its content width without it.
+ */
+.conv-item-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* "(Active)" — the marker TRAE puts after the title of the open conversation. */
+.conv-item-aktif {
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/*
+ * Per-row actions. Hidden until hover, as in TRAE, where the list is a quick-pick
+ * and the buttons appear on the focused row only — a column of permanent buttons
+ * is what makes a history list read as a toolbar.
+ *
+ * Keyboard users still reach them: `:focus-within` reveals the group.
+ */
+.conv-item-aksi {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 110ms;
+}
+.conv-item:hover .conv-item-aksi,
+.conv-item:focus-within .conv-item-aksi,
+.conv-item.is-on .conv-item-aksi {
+  opacity: 1;
+}
+
+.conv-ikon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.conv-ikon-btn:hover {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.conv-ikon-btn.is-hapus:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Header: Clear All beside the tabs, right-aligned. */
+.conv-kepala-kanan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.conv-clear {
+  white-space: nowrap;
+}
+
+.conv-item-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conv-item-meta {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.conv-kanan {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.conv-detail-kepala {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conv-detail-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.conv-detail-judul {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conv-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.conv-detail-aksi {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.conv-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.conv-pesan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+.conv-pesan.is-user {
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+}
+
+.conv-pesan-peran {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.conv-pesan-isi {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
