@@ -38,6 +38,7 @@ mod git;
 mod github;
 mod history;
 mod hooks;
+mod lint_fix;
 mod instructions;
 mod logging;
 mod lsp;
@@ -566,6 +567,7 @@ pub fn run() {
             tangkap_layar::window_capture,
             hooks::hook_run,
             hooks::format_text,
+            lint_fix::lint_fix_files,
             instructions::instructions_list,
             instructions::instruction_read,
             instructions::instruction_write,

@@ -1411,6 +1411,29 @@ export interface Settings {
       ragProject: string;
 
       ragK: number;
+
+      /**
+       * Models the READER added, as opposed to the ones the catalogue ships.
+       *
+       * Kept separate from `providers[].model` on purpose: that field is "which
+       * model answers this turn" (one value per provider), while this is a LIST
+       * of endpoints the reader has discovered or typed. A model detected from a
+       * gateway belongs here even if it is not the active one - that is the
+       * whole point of detecting it.
+       *
+       * `baseUrl` is stored per entry because a custom model usually comes from
+       * a gateway whose URL is not the provider's default; without it the row
+       * would be unusable the moment the provider default changes.
+       */
+      custom?: {
+        id: string;
+        label: string;
+        provider: string;
+        baseUrl?: string;
+        ctx?: number;
+        /** Detected from the provider's own model list, not typed by hand. */
+        terdeteksi?: boolean;
+      }[];
     };
 
   allowCommands: string[];
@@ -1636,6 +1659,55 @@ export interface Settings {
     urlLuar?: 'builtin' | 'sistem';
   };
 
+  /*
+   * Conversation behaviour — the page TRAE calls "Conversation".
+   *
+   * WHY THESE LIVE IN SETTINGS AND NOT IN A STORE: they describe what the app is
+   * allowed to do on the reader's behalf (use lists, fix lint, review diffs, open
+   * a terminal, notify). A setting that disappears when a window closes is not a
+   * setting, so it is persisted with everything else.
+   *
+   * WHY EVERY FEATURE HAS TWO SWITCHES (Ide / Solo): Zephyr runs a conversation in
+   * two different places — the EDITOR (the AI panel attached to the main window)
+   * and OPEN IN AGENTS (an external agent CLI in a pane). They are separate
+   * execution paths with separate failure modes, so a reader who wants auto-fix
+   * for their editor session is not automatically asking for it in an external
+   * agent's pane. One switch for both would be a promise the app cannot keep.
+   *
+   * `reviewScope` is a tri-state, not a boolean, because "review every change"
+   * and "review only the latest turn" are both useful and mean different things;
+   * `none` is the third option TRAE offers and is the only way to say "write
+   * straight to disk".
+   */
+  conversation?: {
+    /** Let the agent keep a to-do list while it works. */
+    todoListIde: boolean;
+    todoListSolo: boolean;
+    /** Run the project's linter/fixer on files the agent changed. */
+    autoFixIde: boolean;
+    autoFixSolo: boolean;
+    /** Let the agent stop and ask when the task is ambiguous. */
+    questioningIde: boolean;
+    questioningSolo: boolean;
+    /** Which AI-generated changes to put in front of the reader. */
+    reviewScope: 'all' | 'latest' | 'none';
+    /** Move to the next changed hunk after a keep/undo decision. */
+    reviewJump: boolean;
+    /** Which terminal an agent command runs in. */
+    terminalEnv: 'efficient' | 'system';
+    /** When the agent's terminal opens on its own. */
+    terminalAutoOpen: 'always' | 'background' | 'never';
+    /** Notify when a run finishes or fails. */
+    notifBanner: boolean;
+    notifSound: boolean;
+    /** 0-100. */
+    notifVolume: number;
+    /** Per-outcome sound choice. */
+    soundCompleted: string;
+    soundWaiting: string;
+    soundStopped: string;
+  };
+
   lsp: {
     enabled: boolean;
     idleSeconds: number;
@@ -1762,6 +1834,35 @@ export const DEFAULT_SETTINGS: Settings = {
    * does not describe the value in use.
    */
   hydrafusion: { enabled: false, tiers: { cheap: '', mid: '', strong: '' }, maxRequests: 3 },
+
+  /*
+   * Conversation defaults — every switch OFF, every choice at its most
+   * conservative value.
+   *
+   * WHY OFF BY DEFAULT: each of these lets the app act on the reader's files or
+   * interrupt them. Auto-fix REWRITES code, reviewScope `all` makes every edit a
+   * checkpoint, and `terminalAutoOpen: 'always'` takes over a pane. None of that
+   * may happen because someone opened a settings page, so the defaults are the
+   * quiet ones and the reader opts in.
+   */
+  conversation: {
+    todoListIde: false,
+    todoListSolo: false,
+    autoFixIde: false,
+    autoFixSolo: false,
+    questioningIde: false,
+    questioningSolo: false,
+    reviewScope: 'all',
+    reviewJump: true,
+    terminalEnv: 'efficient',
+    terminalAutoOpen: 'never',
+    notifBanner: true,
+    notifSound: false,
+    notifVolume: 100,
+    soundCompleted: 'default',
+    soundWaiting: 'default',
+    soundStopped: 'default',
+  },
 
   allowCommands: [],
   extensions: { enabled: [], trust: {} },

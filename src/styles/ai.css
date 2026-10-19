@@ -6684,10 +6684,28 @@
   background: var(--bg, var(--surface-2));
 }
 
-/* The content column keeps a comfortable reading measure in the wide modal,
-   like Copilot's — text does not stretch to the full 1000px+ width. */
+/*
+ * The content column keeps a comfortable reading measure, but it must USE the
+ * window it is given.
+ *
+ * The previous rule was a bare `max-width: 920px` with no alignment, so on a
+ * maximised window the column hugged the left edge and every remaining pixel
+ * became one dead strip on the right — reported for every Agent Customizations
+ * page at once, because they all inherit this rule.
+ *
+ * Three changes fix it and each has a job:
+ *   - `width: 100%` so the column claims the space instead of shrinking to fit.
+ *   - `margin-inline: auto` so whatever is left over is split evenly; a capped
+ *     column centred reads as a margin, the same column pinned left reads as a
+ *     bug.
+ *   - `clamp(...)` so it GROWS with the window instead of freezing at 920px. The
+ *     floor is the old 920 (never narrower than before), the ceiling is 1400
+ *     (past that, a line of text is a metre wide and the eye loses the start).
+ */
 .agc-pane {
-  max-width: 920px;
+  width: 100%;
+  max-width: clamp(920px, 92%, 1400px);
+  margin-inline: auto;
 }
 
 /*
@@ -10106,7 +10124,9 @@
 }
 
 .agc-pane {
-  max-width: 1000px;
+  width: 100%;
+  max-width: clamp(920px, 92%, 1400px);
+  margin-inline: auto;
 }
 
 .agc-cards {
@@ -10407,4 +10427,450 @@
   margin-right: auto;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* -- AI Models page (TRAE shape) ------------------------------------------
+ * Two groups over one table, with the detect row above them. The groups are
+ * buttons rather than a <select> because switching between Built-in and Custom
+ * is the most common move on this page - a dropdown would hide the counts and
+ * cost two clicks for something done constantly.
+ */
+/*
+ * Width lives in `aim-models.css` (800px, centred, measured from the reference).
+ *
+ * This rule used to say `900px` with no alignment, while `aim-models.css` said
+ * `760px` — two different caps for one class, decided by stylesheet order. Both
+ * were left-aligned, which is what put all the leftover width on the right of a
+ * maximised window. One owner for the number, and it is the measured one.
+ */
+.aim-body {
+  max-width: clamp(800px, 88%, 1400px);
+  margin-inline: auto;
+}
+
+.aim-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.aim-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.aim-btn-utama {
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.aim-btn-utama:hover {
+  border-color: var(--accent);
+}
+
+/* -- Active provider ------------------------------------------------------ */
+.aim-aktif {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.aim-aktif-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.aim-pil {
+  flex: 1 1 auto;
+  max-width: 320px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* -- Detect row ----------------------------------------------------------- */
+.aim-deteksi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.aim-deteksi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.aim-deteksi-pil {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.aim-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.aim-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* A provider with a key AND a URL: the ones Detect can actually ask. */
+.aim-chip.is-siap {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text);
+}
+.aim-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.aim-pesan {
+  margin: 0 0 12px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 6px;
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+/* -- Group buttons + search ----------------------------------------------- */
+.aim-grup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aim-grup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.aim-grup-btn:hover {
+  color: var(--text);
+}
+.aim-grup-btn.is-on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.aim-grup-jml {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.aim-cari {
+  margin-left: auto;
+  width: 150px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11.5px;
+  font-family: inherit;
+}
+.aim-cari:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* -- Empty state ---------------------------------------------------------- */
+.aim-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 36px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* -- Table extras --------------------------------------------------------- */
+.aim-td-prov {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.aim-td-aksi {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.aim-aksi-btn {
+  padding: 2px 8px;
+  margin-left: 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.aim-aksi-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.aim-aksi-btn.is-hapus:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.aim-tag-deteksi {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+/* -- Add Model dialog ----------------------------------------------------- */
+/*
+ * The Add Model dialog's styles live in `aim-models.css` ONLY.
+ *
+ * A duplicate copy used to sit here, and because it declared
+ * `flex-direction: column` on `.aim-preset-btn` — a property the newer rule does
+ * not set — it leaked through and every provider tile rendered as a tall stacked
+ * box instead of a single row. Measured 93px against the reference's ~44px.
+ *
+ * Deleted rather than overridden: one class, one owner.
+ */
+
+.aim-add-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.aim-add-prov {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.aim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.aim-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.aim-field-label b {
+  color: var(--danger);
+}
+.aim-field-label em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.aim-field input {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.aim-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.aim-galat {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+/* -- Providers & API keys panel -------------------------------------------
+ * A scrollable list of provider cards ABOVE the model table. Each card carries
+ * the two fields that decide whether a model can answer at all: the key and the
+ * endpoint. They were dropped once when the page was redrawn; this is where
+ * they live now, one click from the list instead of behind a separate window.
+ */
+.aim-keys {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.aim-keys-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.aim-keys-judul {
+  margin: 0 0 3px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.aim-keys-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.aim-key-baris {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.aim-key-kepala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.aim-key-nama {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.aim-key-status {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface));
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.aim-key-status.is-siap {
+  background: color-mix(in srgb, var(--success, #3fb950) 20%, transparent);
+  color: var(--success, #3fb950);
+}
+
+.aim-key-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.aim-key-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.aim-key-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.aim-muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* -- Provider mark in the model table -------------------------------------
+ * A model is recognised by its mark before its name is read, so the logo sits
+ * on the same line as the name rather than in a column of its own: a separate
+ * column would push the name right and break the scan.
+ */
+.aim-td-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.aim-td-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.aim-td-logo svg {
+  display: block;
 }

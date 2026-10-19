@@ -1,22 +1,22 @@
 /*
- * Extensions → Marketplace: Plugins | Skills | MCP.
+ * Extensions → Plugins | Skills | MCP | Extensions, one card layout for all.
  *
- * WHY THIS FILE EXISTS SEPARATELY from `SectionsExtensions.tsx`:
+ * WHY THIS FILE EXISTS SEPARATELY from `SectionsExtensions.tsx`: the previous
+ * attempt edited the Marketplace inside SETTINGS, which is not the surface the
+ * reader opens. Extensions lives in the activity bar (Ctrl+Shift+X) and is
+ * rendered by `ExtensionsView.tsx`. Editing the other one was a real mistake —
+ * the reader opened Extensions, saw no change, and had no way to know a
+ * different screen had been rebuilt.
  *
- * The previous attempt edited the Marketplace inside SETTINGS, which is not the
- * surface the reader opens. Extensions lives in the activity bar (Ctrl+Shift+X)
- * and is rendered by `ExtensionsView.tsx`. Editing the other one was a real
- * mistake - the reader opened Extensions, saw no change, and had no way to know
- * a different screen had been rebuilt. This component is mounted where the
- * reader actually is.
+ * FILTERING, and why it was rebuilt:
  *
- * The three tabs read three REAL sources:
- *   Plugins - `usePlugins` (bundled marketplace + what is installed)
- *   Skills  - `useSkills`  (the skill folders on disk)
- *   MCP     - `KATALOG_MCP_SERVER` + `useMcp.servers`
- *
- * and every Install button calls the store action that does the work. Nothing
- * here is a mock: if a button cannot install, it says so instead of pretending.
+ * The first version had six hard-coded regex chips over name+description. They
+ * read as broken: "test-first" matched `developer`, "Paper Theme" matched
+ * `design`, and most chips emptied the grid entirely. The chips are now DERIVED
+ * from the categories the data already carries (`category` on a plugin,
+ * `categories[]` on a package, `kategori` on an MCP entry), so every chip the
+ * reader can click returns rows. A filter that can produce an empty list from
+ * every option is worse than no filter.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
@@ -24,33 +24,35 @@ import AiIkon from '../ai/AiIkon';
 import { usePlugins } from '../../lib/pluginsStore';
 import { useSkills } from '../../lib/skillsStore';
 import { useMcp } from '../../lib/mcpStore';
-import {
-  KATALOG_MCP_SERVER,
-  bisaDipasang,
-  type KatalogMcpEntry,
-} from '../../lib/katalogMcpServer';
+import { KATALOG_MCP_SERVER, bisaDipasang, type KatalogMcpEntry } from '../../lib/katalogMcpServer';
 import { KATALOG_BUNDLED } from '../../lib/extCatalog';
 import { useExt19 } from '../../lib/extensionsStore19';
 import IkonExt from './IkonExt';
 
 type Tab = 'plugins' | 'skills' | 'mcp' | 'extensions';
 
-const KATEGORI = [
-  { id: 'semua', label: 'All' },
-  { id: 'developer', label: 'Developer Tools', cocok: /code|git|test|lint|build|debug|refactor|review|commit/i },
-  { id: 'research', label: 'Research & Analysis', cocok: /search|research|analy|read|explain|doc|wiki/i },
-  { id: 'design', label: 'UI Design', cocok: /ui|design|css|style|component|layout|theme/i },
-  { id: 'content', label: 'Content Creation', cocok: /writ|content|blog|copy|markdown|snippet/i },
-  { id: 'produktivitas', label: 'Productivity', cocok: /workflow|plan|task|todo|automat|keymap|memory/i },
-] as const;
+const SEMUA = '__semua';
+
+/** One clickable card, normalised across the four kinds. */
+interface Kartu {
+  id: string;
+  nama: string;
+  ket: string;
+  /** Category values this card belongs to; the chips are built from these. */
+  kategori: string[];
+  terpasang: boolean;
+  aktif?: boolean;
+  scope?: string;
+  catatan?: string;
+  /** Only for extension packages: their real artwork. */
+  paket?: (typeof KATALOG_BUNDLED)[number];
+}
 
 export default function ExtMarketplace({
-  slotEkstensi,
   tabAwal = 'plugins',
   tampilTab = true,
   hanya = null,
 }: {
-  slotEkstensi?: React.ReactNode;
   /** Which sub-tab opens first. The outer rail already chose a kind. */
   tabAwal?: Tab;
   /** Hide the inner tab row when the outer rail is the only navigator. */
@@ -60,19 +62,17 @@ export default function ExtMarketplace({
 } = {}) {
   const tr = useT();
   /*
-   * `hanya` is the OUTER choice, so it must win on every render, not just the
-   * first one.
-   *
-   * `useState(hanya ?? tabAwal)` reads the prop once. When the outer rail moved
-   * from Plugins to Skills, the component was re-rendered with a new `hanya`
-   * while its internal `tab` still held the old value - so every kind tab
-   * showed whatever the FIRST one had rendered. Deriving the shown tab from the
-   * prop fixes that: with `hanya` set there is no internal state to drift.
+   * `hanya` is the OUTER choice, so it wins on every render, not just the first.
+   * `useState(hanya ?? tabAwal)` reads the prop once; when the outer rail moved
+   * from Plugins to Skills the component re-rendered with a new `hanya` while its
+   * internal tab still held the old value — so every kind tab showed whatever
+   * the FIRST one had rendered.
    */
-  const [tabDalam, setTab] = useState<Tab>(hanya ?? tabAwal);
+  const [tabDalam, setTab] = useState<Tab>(tabAwal);
   const tab = hanya ?? tabDalam;
+
   const [cari, setCari] = useState('');
-  const [kategori, setKategori] = useState<string>('semua');
+  const [kategori, setKategori] = useState<string>(SEMUA);
   const [manageBuka, setManageBuka] = useState(false);
   const [sibukMcp, setSibukMcp] = useState<string | null>(null);
 
@@ -94,111 +94,119 @@ export default function ExtMarketplace({
   const saveServer = useMcp((s) => s.saveServer);
   const mcpError = useMcp((s) => s.mcpError);
 
-  /* Extension packages (themes, keymaps, grammars) - what `installed` shows */
+  /* Extension packages */
   const manifests = useExt19((s) => s.manifests);
   const remote = useExt19((s) => s.remote);
   const installExt = useExt19((s) => s.installKatalog);
   const uninstallExt = useExt19((s) => s.uninstall);
 
-  /*
-   * `terpasang` for extension packages comes from `manifests`, which is the
-   * loader's own answer - not a local guess about what an install did.
-   */
-  const idExtTerpasang = useMemo(
-    () => new Set((manifests ?? []).filter((m) => m.manifest).map((m) => m.manifest?.id ?? '')),
-    [manifests],
-  );
-
   useEffect(() => {
     void muatPlugin();
     void muatSkill();
-    /*
-     * `useMcp.init()` only refreshes status and CLI list, NOT `servers`. Without
-     * this the MCP tab shows an installed server as not installed and offers an
-     * Install button for something already in settings.json.
-     */
     void useMcp.getState().refreshServers();
-    /*
-     * The Extensions tab lists the registry as well as the bundled catalogue.
-     * `remote` is only filled by `muatRemote()`, which used to run only when the
-     * store's OWN tab was 'marketplace' - so opening this panel directly showed
-     * 21 bundled packages and nothing else. Loading it here is what makes the
-     * list as long as the registry really is.
-     */
     void useExt19.getState().muatRemote();
   }, [muatPlugin, muatSkill]);
 
-  const cocok = (teks: string) => {
-    if (cari.trim() && !teks.toLowerCase().includes(cari.trim().toLowerCase())) return false;
-    const k = KATEGORI.find((x) => x.id === kategori);
-    if (!k || !('cocok' in k) || !k.cocok) return true;
-    return k.cocok.test(teks);
-  };
+  /* ── Build the cards, one kind at a time ──────────────────────────────── */
 
-  const kartuPlugin = useMemo(() => {
-    const terpasang = new Set(plugins.map((p) => p.name));
-    const pasarSaja = (pasar ?? [])
-      .filter((p) => !terpasang.has(p.name))
-      .map((p) => ({
-        id: p.id || p.name,
+  const kartu = useMemo<Kartu[]>(() => {
+    if (tab === 'plugins') {
+      const terpasang = new Set(plugins.map((p) => p.name));
+      /*
+       * `InstalledPlugin` carries no category — only `MarketPlugin` does. An
+       * installed plugin is joined back to its marketplace entry by NAME, which
+       * is the same key `pasangBawaan` uses. Falling back to 'Installed' keeps
+       * a hand-installed package from disappearing behind a chip that cannot
+       * name it.
+       */
+      const kategoriPasar = new Map((pasar ?? []).map((p) => [p.name, p.category || 'Installed']));
+      const lokal: Kartu[] = plugins.map((p) => ({
+        id: p.name,
         nama: p.name,
         ket: p.description ?? '',
-        terpasang: false as const,
-        aktif: false,
-        bisaInstall: true,
+        kategori: [kategoriPasar.get(p.name) ?? 'Installed'],
+        terpasang: true,
+        aktif: p.enabled === true,
       }));
-    const lokal = plugins.map((p) => ({
-      id: p.name,
-      nama: p.name,
-      ket: p.description ?? '',
-      terpasang: true as const,
-      aktif: p.enabled === true,
-      bisaInstall: false,
-    }));
-    return [...lokal, ...pasarSaja].filter((k) => cocok(k.nama + ' ' + k.ket));
-  }, [plugins, pasar, cari, kategori]);
+      const pasarSaja: Kartu[] = (pasar ?? [])
+        .filter((p) => !terpasang.has(p.name))
+        .map((p) => ({
+          id: p.id || p.name,
+          nama: p.name,
+          ket: p.description ?? '',
+          kategori: [p.category || 'Other'],
+          terpasang: false,
+        }));
+      return [...lokal, ...pasarSaja];
+    }
 
-  const kartuSkill = useMemo(
-    () => skills.filter((s) => cocok(s.name + ' ' + s.description)),
-    [skills, cari, kategori],
-  );
+    if (tab === 'skills') {
+      /* Skills have no category field; scope is the real grouping. */
+      return skills.map((s) => ({
+        id: s.name,
+        nama: s.name,
+        ket: s.description,
+        kategori: [s.scope === 'workspace' ? 'Workspace' : 'User'],
+        terpasang: true,
+        scope: s.scope,
+      }));
+    }
 
-  /*
-   * MCP: the catalogue is the browsable list; `terpasang` comes from the stored
-   * servers, matched by id (the same id the catalogue writes on install).
-   */
-  const idMcpTerpasang = useMemo(
-    () => new Set((mcpTerpasang ?? []).map((s) => s.id)),
-    [mcpTerpasang],
-  );
+    if (tab === 'mcp') {
+      const idTerpasang = new Set((mcpTerpasang ?? []).map((s) => s.id));
+      return KATALOG_MCP_SERVER.map((m) => ({
+        id: m.id,
+        nama: m.nama,
+        ket: m.deskripsi,
+        kategori: [m.kategori || 'Other'],
+        terpasang: idTerpasang.has(m.id),
+      }));
+    }
 
-  const kartuMcp = useMemo(
-    () => KATALOG_MCP_SERVER.filter((m) => cocok(m.nama + ' ' + m.deskripsi)),
-    [cari, kategori],
-  );
-
-  /*
-   * Extension PACKAGES (themes, grammars, keymaps): the BUNDLED catalogue plus
-   * whatever the remote registry served.
-   *
-   * The previous version read only `KATALOG_BUNDLED`, which is why the tab
-   * looked short - 21 packages instead of the full registry. The store's
-   * `hasil()` does this join, but calling it inside a selector returns a NEW
-   * array every render and locks the WebView in a render loop, so the join is
-   * done here over two STABLE reads (`remote` from the store, `KATALOG_BUNDLED`
-   * a module constant).
-   *
-   * Remote entries win on id: a registry package may ship a newer version of
-   * one Zephyr bundles, and showing both would offer two buttons for one thing.
-   */
-  const kartuExt = useMemo(() => {
+    /*
+     * Extensions: the BUNDLED catalogue joined with the registry. Remote wins on
+     * id — a registry package may ship a newer version of one Zephyr bundles, and
+     * showing both would offer two buttons for one thing.
+     */
+    const idTerpasang = new Set(
+      (manifests ?? []).filter((m) => m.manifest).map((m) => m.manifest?.id ?? ''),
+    );
     const dariRemote = (remote ?? []).filter((it) => !it.perluRuntime);
     const idRemote = new Set(dariRemote.map((x) => x.id));
     const dariBundel = KATALOG_BUNDLED.filter((it) => !idRemote.has(it.id));
-    return [...dariRemote, ...dariBundel].filter((k) =>
-      cocok(k.name + ' ' + k.description + ' ' + k.publisher),
-    );
-  }, [remote, cari, kategori]);
+    return [...dariRemote, ...dariBundel].map((k) => ({
+      id: k.id,
+      nama: k.name,
+      ket: k.description,
+      kategori: k.categories?.length ? k.categories : ['Other'],
+      terpasang: idTerpasang.has(k.id),
+      paket: k,
+    }));
+  }, [tab, plugins, pasar, skills, mcpTerpasang, manifests, remote]);
+
+  /* ── Filter ───────────────────────────────────────────────────────────── */
+
+  const chips = useMemo(() => {
+    const semua = kartu.flatMap((k) => k.kategori);
+    const unik = [...new Set(semua.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return [{ id: SEMUA, label: 'All' }, ...unik.map((k) => ({ id: k, label: k }))];
+  }, [kartu]);
+
+  /* A chip that no longer exists in this tab must not keep filtering. */
+  useEffect(() => {
+    if (kategori !== SEMUA && !chips.some((c) => c.id === kategori)) setKategori(SEMUA);
+  }, [chips, kategori]);
+
+  const tampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    return kartu.filter((k) => {
+      if (kategori !== SEMUA && !k.kategori.includes(kategori)) return false;
+      if (!q) return true;
+      return (k.nama + ' ' + k.ket).toLowerCase().includes(q);
+    });
+  }, [kartu, cari, kategori]);
+
+  /* ── Actions ──────────────────────────────────────────────────────────── */
 
   const pasangMcp = async (e: KatalogMcpEntry) => {
     if (!bisaDipasang(e)) return;
@@ -218,19 +226,9 @@ export default function ExtMarketplace({
     setSibukMcp(null);
   };
 
-  const jumlah =
-    tab === 'plugins'
-      ? kartuPlugin.length
-      : tab === 'skills'
-        ? kartuSkill.length
-        : tab === 'mcp'
-          ? kartuMcp.length
-          : kartuExt.length;
-
   /*
-   * What "Manage" shows: everything installed, across every kind, in one list.
-   * That is the question the button answers - "what have I got?" - and it
-   * cannot be answered from any single tab.
+   * Everything installed, in one list. That is the question the Manage button
+   * answers — "what have I got?" — and no single tab can answer it.
    */
   const terpasangSemua = useMemo(() => {
     const ext = (manifests ?? [])
@@ -268,13 +266,10 @@ export default function ExtMarketplace({
     ];
   }, [plugins, skills, mcpTerpasang, manifests]);
 
+  /* ── Render ───────────────────────────────────────────────────────────── */
+
   return (
     <div className="xmkt" data-testid="ext-marketplace">
-      {/*
-        * With `hanya` set, the outer rail already names the kind, so a second
-        * title saying the same thing is noise. Manage stays: it answers a
-        * question about the WHOLE install, which no single tab can.
-        */}
       <header className="xmkt-head">
         <div>
           {!hanya && <h2 className="xmkt-judul">{tr('Marketplace')}</h2>}
@@ -303,7 +298,7 @@ export default function ExtMarketplace({
                 ['plugins', 'Plugins'],
                 ['skills', 'Skills'],
                 ['mcp', 'MCP'],
-                ...(slotEkstensi ? ([['extensions', 'Extensions']] as [Tab, string][]) : []),
+                ['extensions', 'Extensions'],
               ] as [Tab, string][]
             ).map(([id, label]) => (
               <button
@@ -319,43 +314,37 @@ export default function ExtMarketplace({
               </button>
             ))}
           </div>
-          <input
-            className="xmkt-cari"
-            data-testid="xmkt-cari"
-            placeholder={tr('Search…')}
-            value={cari}
-            onChange={(e) => setCari(e.target.value)}
-          />
         </div>
       )}
 
-      {(!tampilTab || hanya) && (
-        <div className="xmkt-bar">
-          <input
-            className="xmkt-cari xmkt-cari-lebar"
-            data-testid="xmkt-cari"
-            placeholder={tr('Search…')}
-            value={cari}
-            onChange={(e) => setCari(e.target.value)}
-          />
-        </div>
-      )}
+      <div className="xmkt-bar">
+        <input
+          className="xmkt-cari xmkt-cari-lebar"
+          data-testid="xmkt-cari"
+          placeholder={tr('Search…')}
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
 
-      {tab !== 'extensions' && (
-        <div className="xmkt-chips" data-testid="xmkt-chips">
-          {KATEGORI.map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              className={`xmkt-chip${kategori === k.id ? ' is-on' : ''}`}
-              data-testid={`xmkt-chip-${k.id}`}
-              onClick={() => setKategori(k.id)}
-            >
-              {tr(k.label)}
-            </button>
-          ))}
-        </div>
-      )}
+      {/*
+        * The chips come from the data. Every one of them returns rows, which is
+        * the whole point — a filter whose every option can produce an empty grid
+        * is indistinguishable from a broken one.
+        */}
+      <div className="xmkt-chips" data-testid="xmkt-chips">
+        {chips.map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            className={`xmkt-chip${kategori === k.id ? ' is-on' : ''}`}
+            data-testid={`xmkt-chip-${k.id}`}
+            onClick={() => setKategori(k.id)}
+          >
+            {k.id === SEMUA ? tr('All') : k.label}
+          </button>
+        ))}
+      </div>
 
       {mcpError && tab === 'mcp' && (
         <p className="xmkt-galat" data-testid="xmkt-mcp-err" role="alert">
@@ -363,43 +352,48 @@ export default function ExtMarketplace({
         </p>
       )}
 
-      {/*
-        * Every kind renders in the SAME card grid, including Extensions.
-        *
-        * Extensions used to be handed in as a `slotEkstensi` from the caller,
-        * which meant it kept the old tall `ExtensionCard` list and its own
-        * detail pane - a different layout inside the same panel. The reference
-        * keeps one card shape for all four kinds, so the reader learns the
-        * layout once. The slot is still accepted for callers that want to
-        * inject something custom, but this component now renders extensions
-        * itself from `useExt19`.
-        */}
-      {jumlah === 0 ? (
+      {tampil.length === 0 ? (
         <div className="xmkt-kosong" data-testid="xmkt-kosong">
           <AiIkon name="puzzle" size={22} />
           <span>
-            {cari.trim()
-              ? tr('Nothing matches that search.')
+            {cari.trim() || kategori !== SEMUA
+              ? tr('Nothing matches that filter.')
               : tab === 'mcp'
                 ? tr('No MCP servers in the catalogue.')
                 : tab === 'extensions'
-                  ? tr('No extension packages bundled.')
+                  ? tr('No extension packages found.')
                   : tr('Nothing here yet.')}
           </span>
         </div>
       ) : (
         <div className="xmkt-grid" data-testid="xmkt-grid">
-          {tab === 'plugins' &&
-            kartuPlugin.map((k) => (
-              <article className="xmkt-kartu" key={k.id} data-testid={`xmkt-kartu-${k.id}`}>
-                <span className="xmkt-logo" aria-hidden="true">
-                  {k.nama.slice(0, 2).toUpperCase()}
-                </span>
-                <div className="xmkt-info">
-                  <span className="xmkt-nama">{k.nama}</span>
-                  <span className="xmkt-ket">{k.ket}</span>
-                </div>
-                {k.terpasang ? (
+          {tampil.map((k) => (
+            <article className="xmkt-kartu" key={k.id} data-testid={`xmkt-kartu-${k.id}`} title={k.ket}>
+              <span className="xmkt-logo xmkt-logo-ext" aria-hidden="true">
+                {tab === 'extensions' && k.paket ? (
+                  /*
+                   * The package's REAL artwork. `IkonExt` is the same component
+                   * the Installed list uses, so a theme shows its own mark here
+                   * too — drawing two letters instead made the marketplace look
+                   * like a different product from the list it views.
+                   */
+                  <IkonExt item={k.paket} logoUrl={k.paket.logoUrl} />
+                ) : tab === 'skills' ? (
+                  <AiIkon name="thought" size={14} />
+                ) : tab === 'mcp' ? (
+                  <AiIkon name="terminal" size={14} />
+                ) : (
+                  k.nama.slice(0, 2).toUpperCase()
+                )}
+              </span>
+
+              <div className="xmkt-info">
+                <span className="xmkt-nama">{k.nama}</span>
+                <span className="xmkt-ket">{k.ket}</span>
+              </div>
+
+              {tab === 'plugins' &&
+                (k.terpasang ? (
                   <button
                     type="button"
                     className="xmkt-pasang is-terpasang"
@@ -419,116 +413,62 @@ export default function ExtMarketplace({
                   >
                     + {tr('Install')}
                   </button>
-                )}
-              </article>
-            ))}
+                ))}
 
-          {tab === 'skills' &&
-            kartuSkill.map((s) => (
-              <article className="xmkt-kartu" key={s.name} data-testid={`xmkt-kartu-${s.name}`}>
-                <span className="xmkt-logo" aria-hidden="true">
-                  <AiIkon name="thought" size={14} />
-                </span>
-                <div className="xmkt-info">
-                  <span className="xmkt-nama">{s.name}</span>
-                  <span className="xmkt-ket">{s.description}</span>
-                </div>
-                <span className="xmkt-chip-kecil">{s.scope}</span>
+              {tab === 'skills' && (
                 <button
                   type="button"
                   className="xmkt-pasang is-terpasang"
-                  data-testid={`xmkt-skill-hapus-${s.name}`}
+                  data-testid={`xmkt-skill-hapus-${k.id}`}
                   title={tr('Uninstall')}
-                  onClick={() => void hapusSkill(s.name)}
+                  onClick={() => void hapusSkill(k.id)}
                 >
                   {tr('Remove')}
                 </button>
-              </article>
-            ))}
+              )}
 
-          {tab === 'mcp' &&
-            kartuMcp.map((m) => {
-              const terpasang = idMcpTerpasang.has(m.id);
-              const bisa = bisaDipasang(m);
-              return (
-                <article
-                  className="xmkt-kartu"
-                  key={m.id}
-                  data-testid={`xmkt-kartu-${m.id}`}
-                  title={m.deskripsi}
-                >
-                  <span className="xmkt-logo" aria-hidden="true">
-                    <AiIkon name="terminal" size={14} />
-                  </span>
-                  <div className="xmkt-info">
-                    <span className="xmkt-nama">{m.nama}</span>
-                    <span className="xmkt-ket">{m.deskripsi}</span>
-                  </div>
-                  {terpasang ? (
-                    <span className="xmkt-chip-kecil">{tr('Installed')}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="xmkt-pasang"
-                      data-testid={`xmkt-mcp-install-${m.id}`}
-                      disabled={!bisa || sibukMcp === m.id}
-                      title={bisa ? '' : tr('This server needs a transport this build does not run.')}
-                      onClick={() => void pasangMcp(m)}
-                    >
-                      {sibukMcp === m.id ? tr('Installing…') : `+ ${tr('Install')}`}
-                    </button>
-                  )}
-                </article>
-              );
-            })}
+              {tab === 'mcp' &&
+                (k.terpasang ? (
+                  <span className="xmkt-chip-kecil">{tr('Installed')}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="xmkt-pasang"
+                    data-testid={`xmkt-mcp-install-${k.id}`}
+                    disabled={sibukMcp === k.id}
+                    onClick={() => {
+                      const e = KATALOG_MCP_SERVER.find((x) => x.id === k.id);
+                      if (e) void pasangMcp(e);
+                    }}
+                  >
+                    {sibukMcp === k.id ? tr('Installing…') : `+ ${tr('Install')}`}
+                  </button>
+                ))}
 
-          {tab === 'extensions' &&
-            kartuExt.map((k) => {
-              const terpasang = idExtTerpasang.has(k.id);
-              return (
-                <article
-                  className="xmkt-kartu"
-                  key={k.id}
-                  data-testid={`xmkt-kartu-${k.id}`}
-                  title={k.description}
-                >
-                  {/*
-                    * The package's REAL artwork, not initials.
-                    *
-                    * `IkonExt` is the same component the Installed list uses, so
-                    * a theme shows its own mark here too. Drawing two letters
-                    * instead made the marketplace look like a different product
-                    * from the list it was supposed to be a view of.
-                    */}
-                  <span className="xmkt-logo xmkt-logo-ext" aria-hidden="true">
-                    <IkonExt item={k} logoUrl={k.logoUrl} />
-                  </span>
-                  <div className="xmkt-info">
-                    <span className="xmkt-nama">{k.name}</span>
-                    <span className="xmkt-ket">{k.description}</span>
-                  </div>
-                  {terpasang ? (
-                    <button
-                      type="button"
-                      className="xmkt-pasang is-terpasang"
-                      data-testid={`xmkt-ext-hapus-${k.id}`}
-                      onClick={() => void uninstallExt(k.id)}
-                    >
-                      {tr('Remove')}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="xmkt-pasang"
-                      data-testid={`xmkt-ext-install-${k.id}`}
-                      onClick={() => void installExt(k)}
-                    >
-                      + {tr('Install')}
-                    </button>
-                  )}
-                </article>
-              );
-            })}
+              {tab === 'extensions' &&
+                (k.terpasang ? (
+                  <button
+                    type="button"
+                    className="xmkt-pasang is-terpasang"
+                    data-testid={`xmkt-ext-hapus-${k.id}`}
+                    onClick={() => void uninstallExt(k.id)}
+                  >
+                    {tr('Remove')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="xmkt-pasang"
+                    data-testid={`xmkt-ext-install-${k.id}`}
+                    onClick={() => {
+                      if (k.paket) void installExt(k.paket);
+                    }}
+                  >
+                    + {tr('Install')}
+                  </button>
+                ))}
+            </article>
+          ))}
         </div>
       )}
 

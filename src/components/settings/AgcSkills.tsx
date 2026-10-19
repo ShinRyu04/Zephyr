@@ -1,31 +1,46 @@
 /*
- * Skills — the TRAE-shaped page inside Agent Customizations.
+ * Skills & Commands — the TRAE-shaped page inside Agent Customizations.
  *
- * THE SHAPE, and why it changed:
+ * THE SHAPE, taken from the reference:
  *
- * The old pane listed only what was ALREADY on disk, grouped by scope. That
- * answers "what do I have" but not "what can I get" - and a skill the reader
- * deleted simply vanished, with no row to bring it back. The reference layout
- * is a single searchable list with an Install/Remove button per row, and that
- * is what this is.
+ *   Skills & Commands
+ *   ┌──────────────────┬─────────────────────────────────────────────┐
+ *   │ Skills      21 ▸ │  + Create Skill                             │
+ *   │ Commands    38 ▸ │  ┌────────────────────────────────────────┐ │
+ *   │                  │  │ 🔍 Search skills…                      │ │
+ *   │                  │  └────────────────────────────────────────┘ │
+ *   │                  │  Skills (21)        [Installed only]        │
+ *   │                  │  ▸ academy-guide            [Remove]        │
+ *   │                  │  ▸ brainstorming            [Remove]        │
+ *   └──────────────────┴─────────────────────────────────────────────┘
  *
- * Two sources, joined honestly:
+ * WHY A LEFT RAIL OF KINDS:
  *
- *   `katalog` - every skill that SHIPS with the app (`skills_katalog`), each
- *               with a `terpasang` flag computed from disk, not guessed.
- *   `daftar`  - what is actually installed (`skills_list`).
+ * Skills and Commands are different things that the reader arrives at with the
+ * same question — "what can I make the agent do?". The reference puts them side
+ * by side behind one rail so switching costs one click and the search box stays
+ * where the eye left it. Two separate sections in the outer rail would have cost
+ * a round trip through the pane menu for the same move.
  *
- * A skill that exists on disk but is NOT in the bundle (one the reader wrote by
- * hand) still gets a row: dropping it would make the list lie about what the
- * agent can use.
+ * WHY COMMANDS COME FROM THE REAL REGISTRY:
+ *
+ * `COMMANDS` in `commandRegistry.ts` is the same list the palette runs. Listing
+ * anything else here would be a catalogue of things that do not work.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useSkills } from '../../lib/skillsStore';
+import { COMMANDS } from '../../lib/commandRegistry';
 
-export default function AgcSkills() {
+type Jenis = 'skills' | 'commands';
+
+export default function AgcSkillsCommands() {
   const tr = useT();
+  const [jenis, setJenis] = useState<Jenis>('skills');
+  const [cari, setCari] = useState('');
+  const [hanyaTerpasang, setHanyaTerpasang] = useState(false);
+
   const daftar = useSkills((s) => s.daftar);
   const katalog = useSkills((s) => s.katalog);
   const sibuk = useSkills((s) => s.sibuk);
@@ -35,172 +50,221 @@ export default function AgcSkills() {
   const hapus = useSkills((s) => s.hapus);
   const bersihkanGalat = useSkills((s) => s.bersihkanGalat);
 
-  const [cari, setCari] = useState('');
-  const [hanyaTerpasang, setHanyaTerpasang] = useState(false);
-
   useEffect(() => {
     void muatKatalog();
   }, [muatKatalog]);
 
   /*
-   * Join the catalogue with the installed list.
+   * Join the catalogue with what is on disk.
    *
-   * `terpasang` comes from `daftar` (disk) rather than from the catalogue's own
-   * flag, because the flag is a snapshot taken when the catalogue was read and
-   * a delete can land in between. The catalogue supplies the DESCRIPTION and the
-   * file count for things that are not installed yet.
+   * `terpasang` is read from `daftar` (disk), not from the catalogue's own flag:
+   * that flag is a snapshot from when the catalogue was read, and a delete can
+   * land in between. Names are matched case-insensitively with separators
+   * normalised, because a frontmatter name may differ from its folder name —
+   * without that, one skill appears twice: once "installed" from disk and once
+   * "not installed" from the catalogue.
    */
-  const baris = useMemo(() => {
-    const terpasangNama = new Set(daftar.map((s) => s.name));
-    /*
-     * The catalogue is keyed by FOLDER name (`academy-guide`), while a skill on
-     * disk is keyed by its frontmatter name - which may differ in case or
-     * spacing. Matching case-insensitively and by a normalised form is what
-     * stops the same skill appearing twice: once as "not installed" from the
-     * catalogue and once as "installed" from disk.
-     */
+  const barisSkill = useMemo(() => {
     const norm = (s: string) => s.toLowerCase().replace(/[\s_]+/g, '-');
     const terpasangNorm = new Set(daftar.map((s) => norm(s.name)));
-
-    const dariKatalog = katalog.map((k) => {
-      const terpasangIni = terpasangNama.has(k.name) || terpasangNorm.has(norm(k.name));
-      return {
-        nama: k.name,
-        ket: k.description,
-        terpasang: terpasangIni,
-        berkas: k.berkas,
-        catatan: k.catatan,
-        scope: daftar.find((s) => s.name === k.name || norm(s.name) === norm(k.name))?.scope ?? null,
-        lokal: false,
-      };
-    });
-
-    /* Skills on disk that the bundle does not ship: hand-written ones. */
-    const namaKatalogNorm = new Set(katalog.map((k) => norm(k.name)));
+    const dariKatalog = katalog.map((k) => ({
+      nama: k.name,
+      ket: k.description,
+      terpasang: terpasangNorm.has(norm(k.name)),
+      catatan: k.catatan,
+      scope: daftar.find((s) => norm(s.name) === norm(k.name))?.scope ?? null,
+    }));
+    const namaKatalog = new Set(katalog.map((k) => norm(k.name)));
     const lokal = daftar
-      .filter((s) => !namaKatalogNorm.has(norm(s.name)))
+      .filter((s) => !namaKatalog.has(norm(s.name)))
       .map((s) => ({
         nama: s.name,
         ket: s.description,
         terpasang: true,
-        berkas: 1,
         catatan: '',
         scope: s.scope,
-        lokal: true,
       }));
-
-    const semua = [...dariKatalog, ...lokal];
     const q = cari.trim().toLowerCase();
-    return semua
+    return [...dariKatalog, ...lokal]
       .filter((b) => (hanyaTerpasang ? b.terpasang : true))
       .filter((b) => !q || (b.nama + ' ' + b.ket).toLowerCase().includes(q))
       .sort((a, b) => {
-        /* Installed first, then alphabetical - "what I have" before "what I could". */
         if (a.terpasang !== b.terpasang) return a.terpasang ? -1 : 1;
         return a.nama.localeCompare(b.nama);
       });
   }, [katalog, daftar, cari, hanyaTerpasang]);
 
-  const jmlTerpasang = daftar.length;
+  const barisCommand = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    return COMMANDS.filter((c) => {
+      if (!q) return true;
+      return (
+        c.title.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        (c.keywords ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [cari]);
+
+  const jmlSkill = daftar.length;
+  const jmlCommand = COMMANDS.length;
+  const jumlah = jenis === 'skills' ? barisSkill.length : barisCommand.length;
 
   return (
-    <div className="agc-pane agx-pane" data-testid="agx-skills">
-      <div className="agx-head">
-        <h2 className="agc-pane-title">
-          {tr('Skills')}{' '}
-          <span className="agx-tanya" title={tr('Folders of instructions the agent loads when a task matches.')}>
-            ?
-          </span>
-        </h2>
-      </div>
-      <p className="agc-pane-desc">
-        {tr(
-          'Reusable knowledge and workflows for specialized tasks. Agents load the relevant skill when it helps.',
-        )}
-      </p>
-
-      <div className="agx-bar">
-        <input
-          className="agx-cari"
-          data-testid="agx-skills-cari"
-          placeholder={tr('Search skills…')}
-          value={cari}
-          onChange={(e) => setCari(e.target.value)}
-        />
-        <label className="agx-toggle agx-toggle-inline">
-          <input
-            type="checkbox"
-            data-testid="agx-skills-filter"
-            checked={hanyaTerpasang}
-            onChange={(e) => setHanyaTerpasang(e.target.checked)}
-          />
-          <span>{tr('Installed only')}</span>
-        </label>
-        <span className="agx-muted" data-testid="agx-skills-jumlah">
-          {jmlTerpasang} / {katalog.length + daftar.length - jmlTerpasang} {tr('installed')}
+    <div className="agc-pane agx-pane skc" data-testid="agx-skills">
+      <h2 className="agc-pane-title">
+        {tr('Skills & Commands')}{' '}
+        <span className="agx-tanya" title={tr('What the agent can be taught, and what it can be told to run.')}>
+          ?
         </span>
-      </div>
+      </h2>
 
-      {galat && (
-        <p className="agx-galat" data-testid="agx-skills-galat" role="alert">
-          {galat}
-          <button type="button" className="agx-tautan" onClick={bersihkanGalat}>
-            {tr('Dismiss')}
+      <div className="skc-grid">
+        {/* ── Left rail of kinds ─────────────────────────────────────── */}
+        <nav className="skc-rail" role="tablist" aria-label={tr('Skills and commands')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jenis === 'skills'}
+            className={`skc-rail-btn${jenis === 'skills' ? ' is-on' : ''}`}
+            data-testid="agx-skc-skills"
+            onClick={() => setJenis('skills')}
+          >
+            <AiIkon name="thought" size={13} />
+            <span className="skc-rail-nama">{tr('Skills')}</span>
+            <span className="skc-rail-jml">{jmlSkill}</span>
           </button>
-        </p>
-      )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={jenis === 'commands'}
+            className={`skc-rail-btn${jenis === 'commands' ? ' is-on' : ''}`}
+            data-testid="agx-skc-commands"
+            onClick={() => setJenis('commands')}
+          >
+            <AiIkon name="terminal" size={13} />
+            <span className="skc-rail-nama">{tr('Commands')}</span>
+            <span className="skc-rail-jml">{jmlCommand}</span>
+          </button>
+        </nav>
 
-      {baris.length === 0 ? (
-        <div className="agx-kosong" data-testid="agx-skills-kosong">
-          <span className="agx-kosong-ikon" aria-hidden="true">
-            <AiIkon name="thought" size={18} />
-          </span>
-          <span>{cari.trim() ? tr('Nothing matches that search.') : tr('No skills yet.')}</span>
-        </div>
-      ) : (
-        <div className="agx-daftar" data-testid="agx-skills-daftar">
-          {baris.map((b) => (
-            <div
-              className={`agx-baris${b.terpasang ? '' : ' is-mati'}`}
-              key={b.nama}
-              data-testid={`agx-skill-${b.nama}`}
-            >
-              <span className="agx-avatar" aria-hidden="true">
-                <AiIkon name="thought" size={15} />
+        {/* ── Right pane ─────────────────────────────────────────────── */}
+        <div className="skc-pane">
+          <div className="skc-kepala">
+            <button type="button" className="agx-btn-utama" data-testid="agx-skc-create">
+              + {tr('Create Skill')}
+            </button>
+          </div>
+
+          <input
+            className="skc-cari"
+            data-testid="agx-skills-cari"
+            placeholder={jenis === 'skills' ? tr('Search skills…') : tr('Search commands…')}
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+          />
+
+          <div className="skc-sub">
+            <span className="skc-sub-judul">
+              {jenis === 'skills' ? tr('Skills') : tr('Commands')} ({jumlah})
+            </span>
+            {jenis === 'skills' && (
+              <label className="agx-toggle agx-toggle-inline">
+                <input
+                  type="checkbox"
+                  data-testid="agx-skills-filter"
+                  checked={hanyaTerpasang}
+                  onChange={(e) => setHanyaTerpasang(e.target.checked)}
+                />
+                <span>{tr('Installed only')}</span>
+              </label>
+            )}
+          </div>
+
+          {galat && jenis === 'skills' && (
+            <p className="agx-galat" data-testid="agx-skills-galat" role="alert">
+              {galat}
+              <button type="button" className="agx-tautan" onClick={bersihkanGalat}>
+                {tr('Dismiss')}
+              </button>
+            </p>
+          )}
+
+          {jumlah === 0 ? (
+            <div className="agx-kosong" data-testid="agx-skills-kosong">
+              <span className="agx-kosong-ikon" aria-hidden="true">
+                <AiIkon name={jenis === 'skills' ? 'thought' : 'terminal'} size={18} />
               </span>
-              <div className="agx-baris-teks">
-                <span className="agx-baris-nama">{b.nama}</span>
-                <span className="agx-baris-desk">{b.ket}</span>
-                {b.catatan && <span className="agx-skill-catatan">{tr(b.catatan)}</span>}
-              </div>
-              <div className="agx-baris-aksi">
-                {b.scope && <span className="agx-chip-kecil">{b.scope}</span>}
-                {b.terpasang ? (
-                  <button
-                    type="button"
-                    className="agx-btn-batal"
-                    data-testid={`agx-skill-hapus-${b.nama}`}
-                    disabled={sibuk}
-                    onClick={() => void hapus(b.nama)}
-                  >
-                    {tr('Remove')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="agx-btn-utama"
-                    data-testid={`agx-skill-pasang-${b.nama}`}
-                    disabled={sibuk}
-                    onClick={() => void pasang(b.nama)}
-                  >
-                    + {tr('Install')}
-                  </button>
-                )}
-              </div>
+              <span>{cari.trim() ? tr('Nothing matches that search.') : tr('Nothing here yet.')}</span>
             </div>
-          ))}
+          ) : (
+            <div className="skc-daftar" data-testid="agx-skills-daftar">
+              {jenis === 'skills'
+                ? barisSkill.map((b) => (
+                    <div
+                      className={`skc-baris${b.terpasang ? '' : ' is-mati'}`}
+                      key={b.nama}
+                      data-testid={`agx-skill-${b.nama}`}
+                    >
+                      <span className="skc-ikon" aria-hidden="true">
+                        <AiIkon name="thought" size={14} />
+                      </span>
+                      <div className="skc-teks">
+                        <span className="skc-nama">
+                          {b.nama}
+                          {b.scope && <span className="agx-chip-kecil">{b.scope}</span>}
+                        </span>
+                        <span className="skc-ket">{b.ket}</span>
+                        {b.catatan && <span className="agx-skill-catatan">{tr(b.catatan)}</span>}
+                      </div>
+                      {b.terpasang ? (
+                        <button
+                          type="button"
+                          className="skc-aksi"
+                          data-testid={`agx-skill-hapus-${b.nama}`}
+                          disabled={sibuk}
+                          onClick={() => void hapus(b.nama)}
+                        >
+                          {tr('Remove')}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="skc-aksi is-pasang"
+                          data-testid={`agx-skill-pasang-${b.nama}`}
+                          disabled={sibuk}
+                          onClick={() => void pasang(b.nama)}
+                        >
+                          + {tr('Install')}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                : barisCommand.map((c) => (
+                    <div className="skc-baris" key={c.id} data-testid={`agx-cmd-${c.id}`}>
+                      <span className="skc-ikon" aria-hidden="true">
+                        <AiIkon name="terminal" size={14} />
+                      </span>
+                      <div className="skc-teks">
+                        <span className="skc-nama">{c.title}</span>
+                        <span className="skc-ket">
+                          {c.group} · <code>{c.id}</code>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="skc-aksi"
+                        data-testid={`agx-cmd-jalan-${c.id}`}
+                        onClick={() => void c.run()}
+                      >
+                        {tr('Run')}
+                      </button>
+                    </div>
+                  ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

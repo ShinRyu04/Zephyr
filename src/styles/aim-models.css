@@ -1,0 +1,767 @@
+/*
+ * AI Models — the TRAE-shaped list.
+ *
+ * The unit is a ROW, not a table cell: a logo, a name with its provider under
+ * it, a context size, and the actions. That is the shape the reference uses, and
+ * it is the right one here because a model is recognised by its mark before its
+ * name is read — which a table of plain text cannot offer.
+ */
+/*
+ * The content column: 800px on a TRAE-sized window, growing with the window.
+ *
+ * THE 800 IS MEASURED, NOT CHOSEN. On the reference, the content pane is 915px
+ * wide (1180 window minus a 265px sidebar) and the column inside it is 800px —
+ * 87% of the pane. Reproducing the absolute number alone is what went wrong:
+ * this page has no sidebar of its own, so 800px inside a maximised 1920px window
+ * is 42%, and the reader saw exactly what they reported — a page hugging the
+ * left edge with a dead strip on the right.
+ *
+ * So the RATIO is what is kept: `88%` of the available width, floored at the
+ * measured 800px so a narrow window never squeezes the rows, and capped at
+ * 1400px so a maximised window does not stretch a single line of text across a
+ * metre of glass. At TRAE's own width this computes to 805px — the measured
+ * value — and it grows from there.
+ *
+ * `margin-inline: auto` centres the leftover, which is the other half of the
+ * fix: a capped column pinned to the left reads as a layout bug, the same column
+ * centred reads as a margin.
+ */
+.aim-body {
+  max-width: clamp(800px, 88%, 1400px);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.aim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.aim-btn-utama {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.aim-btn-utama:hover {
+  border-color: var(--accent);
+}
+/* The one primary action on the page (Add Model, Refresh). */
+.aim-btn-utama.is-utama {
+  border-color: var(--accent);
+  background: var(--accent-subtle, color-mix(in srgb, var(--accent) 16%, transparent));
+  color: var(--accent);
+}
+.aim-btn-utama.is-utama:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.aim-btn-utama:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.aim-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Search sits directly under the title, full width — the reference's place. */
+.aim-cari-atas {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.aim-cari-atas:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Collapsible group header ───────────────────────────────────────────── */
+.aim-grup-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.aim-grup-head:hover {
+  color: var(--text);
+}
+.aim-grup-head.is-buka {
+  color: var(--text);
+}
+
+.aim-grup-nama {
+  flex: 0 0 auto;
+}
+
+.aim-grup-jml {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.aim-grup-isi {
+  display: flex;
+  flex-direction: column;
+}
+
+.aim-kosong-kecil {
+  margin: 0;
+  padding: 14px 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ── One model row ──────────────────────────────────────────────────────── */
+.aim-baris {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  transition: background 110ms;
+}
+.aim-baris:hover {
+  background: var(--surface-2);
+}
+.aim-baris.is-aktif {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/*
+ * The brand mark. `ProviderLogo` draws at its own viewBox, so the box only
+ * centres it — sizing the SVG from outside would crop the wider marks.
+ */
+.aim-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--surface-3, var(--surface-2));
+}
+.aim-logo svg {
+  display: block;
+}
+
+.aim-baris-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.aim-nama {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aim-sub-teks {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aim-ctx {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
+}
+
+.aim-baris-aksi {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 110ms;
+}
+/* Actions appear on hover, as in the reference — a row of buttons on every line
+   is what makes a list look like a form. */
+.aim-baris:hover .aim-baris-aksi,
+.aim-baris.is-aktif .aim-baris-aksi {
+  opacity: 1;
+}
+/* Keyboard users must not need a mouse to reach them. */
+.aim-baris:focus-within .aim-baris-aksi {
+  opacity: 1;
+}
+
+.aim-aksi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.aim-aksi-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.aim-aksi-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.aim-aksi-btn.is-hapus:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.aim-aktif-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aim-tag-deteksi {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+/* ── Provider row + its key panel ───────────────────────────────────────── */
+.aim-prov {
+  border-bottom: 1px solid var(--border);
+}
+
+.aim-prov-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+}
+
+.aim-prov-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aim-prov-status {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.aim-prov-status.is-siap {
+  background: color-mix(in srgb, var(--success, #3fb950) 20%, transparent);
+  color: var(--success, #3fb950);
+}
+
+.aim-key {
+  padding: 4px 6px 12px 40px;
+}
+
+.aim-key-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.aim-key-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.aim-key-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Active provider ────────────────────────────────────────────────────── */
+.aim-aktif {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.aim-aktif-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.aim-pil {
+  flex: 1 1 auto;
+  max-width: 320px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ── Messages ───────────────────────────────────────────────────────────── */
+.aim-pesan {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 6px;
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.aim-muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* ── Add Model dialog ───────────────────────────────────────────────────── */
+/*
+ * `.modal.aim-add`, not `.aim-add`.
+ *
+ * The base `.modal { width: 420px; max-width: 90vw }` rule lives in a stylesheet
+ * that is imported AFTER this one, and both selectors have the same specificity
+ * (0,1,0) — so the base rule won and the dialog rendered 420px wide inside a
+ * 1536px window. Measured: computed width 420px, max-width 1382px (= 90vw), i.e.
+ * neither of the values below had any effect at all.
+ *
+ * Two classes (0,2,0) outranks it regardless of import order, which is the only
+ * fix that does not depend on the order stylesheets happen to be concatenated in.
+ */
+.modal.aim-add {
+  /*
+   * 700px — MEASURED off the reference, not chosen.
+   *
+   * Its Add Model dialog occupies x=24..723 of an 832px-wide capture, and the
+   * provider grid inside it is two 332px columns with a 10px gutter. Both of
+   * those fall out of 700px and neither does out of the 860px this used to be:
+   * at 860 the columns became 400px each and the tiles read as wide empty bars
+   * rather than as list rows.
+   *
+   * `94vw` keeps it inside a narrow window; `max-height: 88vh` with a scrolling
+   * grid means a short window scrolls the tiles instead of pushing the footer
+   * buttons off-screen.
+   */
+  width: min(700px, 94vw);
+  max-width: min(700px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+}
+.modal.aim-add:focus {
+  outline: none;
+}
+
+.aim-add-judul {
+  margin-bottom: 12px;
+}
+
+/*
+ * Two columns of provider tiles, each carrying its brand mark — the reference's
+ * fixed 2-column grid, forced rather than left to chance.
+ *
+ * WHY `repeat(2, minmax(0, 1fr))` and not `auto-fill` + `minmax(210px, 1fr)`:
+ * inside a 620px dialog the auto-fill formula computed a single 373px column and
+ * stacked all twelve tiles, which is the opposite of the layout being built.
+ * Two fixed columns cannot silently become one; a narrow window scrolls the
+ * dialog instead, which keeps the tiles legible.
+ */
+.aim-preset {
+  display: grid;
+  /*
+   * `grid-auto-rows: min-content` is the rule that actually fixes the tall tiles.
+   *
+   * `align-content: start` alone did not: the rows still measured 93px each
+   * (six rows filling a 600px box), because with `flex: 1 1 auto` the grid is
+   * itself stretched by the dialog and its `1fr`-ish auto rows absorb that
+   * height. Pinning the row track to `min-content` makes every row exactly as
+   * tall as its content — the tile's own padding plus the 24px logo — so the
+   * grid stops distributing leftover space into the rows.
+   */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+
+.aim-preset-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  /* Natural height, never stretched by a row: the tile is a row of a list, not a
+     card that fills a cell. */
+  height: auto;
+  min-height: 0;
+}
+.aim-preset-btn:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+/* The chevron sits at the trailing edge of every tile, as in the reference:
+   it says "this opens something" rather than "this selects something". */
+.aim-preset-btn > svg:last-child {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+/*
+ * "Custom Model" spans BOTH columns.
+ *
+ * `grid-column: 1 / -1` on the first tile, which is why it is rendered first in
+ * the markup — a full-width row after the vendor tiles would read as a footer.
+ */
+.aim-preset-btn.is-lebar {
+  grid-column: 1 / -1;
+}
+
+.aim-preset-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  /* 24px, matching the reference's icon box. It was 32px, which alone added 8px
+     to every tile and made a ten-tile grid scroll for no reason. */
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+}
+
+.aim-preset-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.aim-preset-nama {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aim-preset-url {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aim-preset-btn.is-kustom {
+  border-style: dashed;
+}
+
+.aim-add-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.aim-add-prov {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1 1 auto;
+}
+
+.aim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.aim-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.aim-field-label b {
+  color: var(--danger);
+}
+.aim-field-label em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.aim-field input {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.aim-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* The one-line explanation under a field (the URL's "no trailing slash" note).
+   Muted and small so it reads as guidance, not as a second label. */
+.aim-field-hint {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* A select styled like the text inputs beside it. */
+.aim-kf-pil {
+  width: 100%;
+  max-width: none;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+/* ── Advanced Settings disclosure ───────────────────────────────────────── */
+.aim-adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aim-adv-toggle:hover {
+  color: var(--text);
+}
+
+.aim-adv {
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border);
+}
+
+.aim-galat {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+/* ── The key field inside the Add Model dialog ──────────────────────────── */
+/*
+ * An input with its Show / Delete buttons on the same line.
+ *
+ * `flex: 1 1 auto` + `min-width: 0` on the input is what lets it shrink instead
+ * of pushing the buttons out of the dialog when the key is long; without
+ * `min-width: 0` a flex child refuses to go below its content width.
+ */
+.aim-kf-input {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.aim-kf-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg0, var(--surface));
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+.aim-kf-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* "key saved: sk-…" / "no key yet" — a state, not a control. */
+.aim-kf-status {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.aim-kf-status.is-ada {
+  background: color-mix(in srgb, var(--success, #3fb950) 20%, transparent);
+  color: var(--success, #3fb950);
+}
+
+/* ── Detect (Refresh) row ───────────────────────────────────────────────── */
+/*
+ * The button and its result share one row: the count appears exactly where the
+ * press happened, so "did it work" is answered without moving the eyes.
+ */
+.aim-deteksi-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.aim-deteksi-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--success, #3fb950);
+  font-variant-numeric: tabular-nums;
+}
+.aim-deteksi-info.is-kosong {
+  color: var(--text-muted);
+}
+
+/* ── The detected model list, each row tickable ─────────────────────────── */
+/*
+ * Capped height with its own scroll: a gateway can return hundreds of ids, and
+ * letting them grow the dialog would push the Add Model button off-screen — the
+ * one control the reader needs after ticking.
+ */
+.aim-deteksi-list {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--bg0, var(--surface));
+}
+
+.aim-deteksi-kepala {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.aim-deteksi-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.aim-deteksi-item:hover {
+  background: var(--surface-2);
+}
+
+.aim-deteksi-id {
+  color: var(--text);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -8,6 +8,7 @@ import AgcAgents from './AgcAgents';
 import AgcRulesMemories from './AgcRulesMemories';
 import AgcHooks from './AgcHooks';
 import AgcBrowser from './AgcBrowser';
+import AgcConversations from './AgcConversations';
 import AgcSkills from './AgcSkills';
 import { AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
 
@@ -98,6 +99,12 @@ const NAV: NavItem[] = [
     desc: 'Choose how the agent opens and captures web pages, and clear the built-in browser data.',
   },
   {
+    id: 'conversations',
+    label: 'Conversations',
+    icon: 'comment',
+    desc: 'How a conversation behaves: lists, lint fixing, review, terminal and notifications — with separate switches for the editor and for Open in Agents.',
+  },
+  {
     id: 'permissions',
     label: 'Permissions',
     icon: 'shield',
@@ -172,6 +179,8 @@ function Isi({ section }: { section: AgentCustomSection }) {
       return <AgcHooks />;
     case 'browser':
       return <AgcBrowser />;
+    case 'conversations':
+      return <AgcConversations />;
     case 'permissions':
       return <AgcPermissions />;
     case 'migrations':
