@@ -19,7 +19,6 @@ import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
-import TodoPanel from './TodoPanel';
 import BrowserContextChip from './BrowserContextChip';
 import { ModeMenu, PermissionMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
@@ -241,6 +240,8 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const draftImages = useAi((s) => s.draftImages);
   const toast = useAi((s) => s.toast);
   const confirmCmd = useAi((s) => s.confirmCmd);
+  /* The "Thinking … 12s" strip. OFF by default; see aiStore. */
+  const showThinkingBar = useAi((s) => s.showThinkingBar);
 
   /*
    * Bound to THIS instance's composer id, so every `setDraft` call below writes
@@ -1376,7 +1377,7 @@ const bukaModels = () => bukaPanel('models');
                * menghitung detik berjalan supaya user tahu ia masih hidup -
                * bukan macet.
                */}
-              {sibuk && (
+              {sibuk && showThinkingBar && (
                 <ThinkingBar
                   active
                   startedAt={agentLastProgressAt ?? undefined}
@@ -1767,16 +1768,11 @@ const bukaModels = () => bukaPanel('models');
         )}
 
         {/*
-          * The task list rides inside the same stack.
-          *
-          * Hermes renders its todo tree as one of the stack's own sections
-          * (`groupStatusItems` emits a `todo` group and the stack renders it
-          * with the same StatusSection chrome as the rest), which is why the
-          * plan and the loop read as one object. Keeping it here - rather than
-          * as a sibling card - is what makes the todo collapse and expand in
-          * the same box as everything else.
+          * The task list that used to ride inside this stack (`<TodoPanel />`)
+          * is GONE: the reference transcript has no plan panel above the
+          * composer, and it pushed the actual answer down on every run. The
+          * agent still writes todos; they are simply not drawn here.
           */}
-        <TodoPanel />
       </div>
       )}
 

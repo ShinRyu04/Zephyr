@@ -26,8 +26,6 @@ export const ACTIONS: ActionDef[] = [
   { id: 'view.panel', label: 'Toggle bottom panel', group: 'View', default: 'Ctrl+J' },
 
   { id: 'view.subagents', label: 'Panel Subagents', group: 'View', default: 'Ctrl+Shift+D' },
-  /* Notes, todos and the schedule share one panel; the shortcut opens it. */
-  { id: 'view.notes', label: 'Notes & todos', group: 'View', default: 'Ctrl+Shift+N' },
   { id: 'view.splitEditorRight', label: 'Split editor to the right', group: 'View', default: 'Ctrl+\\' },
   { id: 'view.explorer', label: 'Open Explorer', group: 'View', default: 'Ctrl+Shift+E' },
   { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },

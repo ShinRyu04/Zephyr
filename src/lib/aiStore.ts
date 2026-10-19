@@ -3046,10 +3046,20 @@ interface AiActions {
   showThinking: boolean;
   showStamps: boolean;
   showDividers: boolean;
+  /*
+   * The "Thinking … 12s" strip above the composer.
+   *
+   * OFF by default: other agents show no such strip, and the transcript's own
+   * thinking line already says the model is working. It stays switchable
+   * because a long tool run with no output is the one case where a heartbeat
+   * helps - see Chat Settings > Agent.
+   */
+  showThinkingBar: boolean;
   setTipsVisible: (v: boolean) => void;
   setShowThinking: (v: boolean) => void;
   setShowStamps: (v: boolean) => void;
   setShowDividers: (v: boolean) => void;
+  setShowThinkingBar: (v: boolean) => void;
   setApprovalMode: (m: ApprovalMode) => void;
 
   agentPutuskan: (setujui: boolean) => void;
@@ -3281,6 +3291,20 @@ function bootTampil(kunci: string): boolean {
   }
 }
 
+/*
+ * Default OFF: `'1'` turns it on, a missing key keeps it hidden.
+ *
+ * The opposite rule of `bootTampil` on purpose - a preference that ADDS chrome
+ * should start off, so the reader only ever sees it after asking for it.
+ */
+function bootTampilMati(kunci: string): boolean {
+  try {
+    return localStorage.getItem(kunci) === '1';
+  } catch {
+    return false;
+  }
+}
+
 function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
   try {
     const v = localStorage.getItem('zephyr.ai.runMode');
@@ -3474,6 +3498,7 @@ export const useAi = create<AiStore>((set0, get) => {
   showThinking: bootTampil('zephyr.ai.tampil.think'),
   showStamps: bootTampil('zephyr.ai.tampil.stamp'),
   showDividers: bootTampil('zephyr.ai.tampil.divider'),
+  showThinkingBar: bootTampilMati('zephyr.ai.tampil.thinkbar'),
 
   approvalMode: boot.sessions.find((s) => s.id === boot.activeId)?.approval ?? 'auto',
   agentBusy: false,
@@ -4026,6 +4051,10 @@ export const useAi = create<AiStore>((set0, get) => {
   setShowDividers: (v) => {
     set({ showDividers: v });
     try { localStorage.setItem('zephyr.ai.tampil.divider', v ? '1' : '0'); } catch { /* sesi ini saja */ }
+  },
+  setShowThinkingBar: (v) => {
+    set({ showThinkingBar: v });
+    try { localStorage.setItem('zephyr.ai.tampil.thinkbar', v ? '1' : '0'); } catch { /* sesi ini saja */ }
   },
   /*
    * Pick the run mode and apply the approval level it implies.

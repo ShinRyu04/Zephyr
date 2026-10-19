@@ -4,7 +4,6 @@ import { findCommand, runCommand } from '../../lib/commandRegistry';
 import { useKb } from '../../lib/keybindingStore';
 import { chordFor, displayChord } from '../../lib/keybindings';
 import { usePalette } from '../../lib/paletteStore';
-import { useSchedBuka } from '../../lib/schedStore';
 import Tip from './Tip';
 import WindowControls from './WindowControls';
 import UpdateBtn from '../ai/UpdateBtn';
@@ -378,33 +377,6 @@ export default function MenuBar() {
           </button>
         </Tip>
         <div className="mb-layout-sep" role="separator" />
-        {/*
-          * Notes, todos and the schedule in one panel, in the slot the
-          * hide-panel button used to take.
-          *
-          * That button duplicated a control the panel's own tab strip already
-          * offers, and it sat next to the window controls where a mis-click is
-          * expensive. This one is reachable from nowhere else in the chrome,
-          * and it is wanted without leaving whatever is being read.
-          */}
-        <Tip label={tr('Notes & todos')} kbd="Ctrl+Shift+O">
-          <button
-            className="mb-layout-btn"
-            data-testid="mb-schedule"
-            aria-label={tr('Notes & todos')}
-            onClick={() => {
-              tutup();
-              useSchedBuka.getState().setBuka(true);
-            }}
-          >
-            <svg className="mb-layout-ic" viewBox="0 0 16 16" aria-hidden="true">
-              {/* clipboard with lines: the panel holds notes, todos and jobs */}
-              <rect x="3.2" y="2.8" width="9.6" height="11" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M6 2.8V2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v.8" fill="none" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M5.8 7.4h4.4M5.8 10h3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </Tip>
       </div>
 
       {/* C-18: our own window buttons (the Windows title bar was removed). */}
