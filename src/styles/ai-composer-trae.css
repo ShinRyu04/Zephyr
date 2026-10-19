@@ -1,0 +1,243 @@
+/* ai-composer-trae.css — the composer as ONE field, no internal rules.
+ *
+ * Loaded after every other AI stylesheet (App.tsx), so these rules are the last
+ * word on the composer's box. Everything is scoped to `.ai-input-row` and its
+ * children.
+ *
+ * IMPORTANT: nothing in this file touches the transcript. No avatar rule, no
+ * `.ai-row` rule, no message rule — the chat above the composer is styled
+ * entirely by ai.css / ai-streaming.css / ai-avatar.css and must stay that way.
+ */
+
+/* ── The box ──────────────────────────────────────────────────────────── */
+
+.ai-input-row {
+  margin: 0 10px 12px;
+  padding: 0;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: visible;
+  transition: border-color 120ms ease;
+}
+
+.ai-input-row:focus-within {
+  border-color: var(--text-muted);
+}
+
+/* ── The field ────────────────────────────────────────────────────────── */
+
+.ai-input-row .ai-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  min-height: 76px;
+  max-height: 220px;
+  field-sizing: content;
+  padding: 12px 14px 4px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  outline: none;
+}
+
+.ai-input-row .ai-input:focus {
+  border: 0;
+  outline: none;
+}
+
+.ai-input-row .ai-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── Chips above the field ────────────────────────────────────────────── */
+
+.ai-input-row .ai-branch-chip,
+.ai-input-row .ai-browser-chip {
+  padding: 8px 14px 0;
+  border-bottom: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.ai-input-row .ai-imgstrip {
+  padding: 8px 12px 0;
+  border-bottom: 0;
+}
+
+/* ── The control row ──────────────────────────────────────────────────── */
+
+.ai-input-row .ai-input-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 2px 6px 8px 6px;
+  border-top: 0;
+  background: transparent;
+}
+
+.ai-input-row .ai-toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+/*
+ * The model chip keeps its natural width.
+ *
+ * Without this it was the only child of a nowrap row with no fixed width, so it
+ * absorbed the leftover space and collapsed to nothing at narrow widths — which
+ * is how its name disappeared. `flex: none` keeps it readable; the spacer above
+ * is what pushes it to the trailing edge.
+ */
+.ai-input-row .ai-input-toolbar .ai-model-wrap {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ai-input-row .ai-input-toolbar .mode-btn,
+.ai-input-row .ai-input-toolbar .ai-model-btn {
+  height: 26px;
+  padding: 0 6px;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+
+.ai-input-row .ai-input-toolbar .mode-btn:hover,
+.ai-input-row .ai-input-toolbar .ai-model-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ai-input-row .ai-input-toolbar .mode-btn.is-agent {
+  color: var(--text-secondary);
+  border: 0;
+}
+
+/*
+ * The model name is NOT capped.
+ *
+ * It used to be `max-width: 180px`, which cut "deepseek-v4.1-flash" short with
+ * an ellipsis — the name the user chose was the one thing in this row they
+ * needed to read. The chip already truncates only when the panel is genuinely
+ * too narrow, via the flex rules below; a hard cap only hurt the wide case.
+ */
+.ai-input-row .ai-input-toolbar .ai-model-name {
+  max-width: none;
+  white-space: nowrap;
+}
+
+/* ── "+" ──────────────────────────────────────────────────────────────── */
+
+.ai-input-row .ai-plus {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+}
+
+.ai-input-row .ai-plus:hover,
+.ai-input-row .ai-plus.is-on {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ── Send ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Just the arrow. No disc, no square, no fill — the reference's submit is a
+ * bare up arrow at the end of the row, and any box around it made it read as a
+ * button competing with the text.
+ */
+.ai-input-row .ai-input-toolbar .ai-round-btn {
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send {
+  background: transparent;
+  color: var(--text);
+}
+
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-send:disabled {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-stop,
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-resume {
+  background: transparent;
+  color: var(--text);
+}
+
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-stop:hover,
+.ai-input-row .ai-input-toolbar .ai-round-btn.is-resume:hover {
+  background: var(--surface-2);
+}
+
+/* ── Send colours ─────────────────────────────────────────────────────── */
+
+:root,
+[data-theme='zephyr-dark'] {
+  --send-bg: #1a1b1d;
+  --send-bg-hover: #26282b;
+  --send-fg: #e6edf3;
+  --send-bg-off: #26282b;
+  --send-fg-off: #6b7280;
+}
+
+[data-theme='zephyr-light'] {
+  --send-bg: #1f2328;
+  --send-bg-hover: #2d333b;
+  --send-fg: #ffffff;
+  --send-bg-off: #dfe4ea;
+  --send-fg-off: #a8b0ba;
+}
+
+/* ── Suggestion lists anchored to the field ───────────────────────────── */
+
+.ai-input-row .ai-slash {
+  margin: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* ── Narrow panels ────────────────────────────────────────────────────── */
+
+@media (max-width: 340px) {
+  .ai-input-row .ai-input-toolbar {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .ai-input-row .ai-input-toolbar .ai-model-name {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

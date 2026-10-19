@@ -49,6 +49,8 @@ export type NamaAiIkon =
     | 'refresh'
     | 'gear'
     | 'send'
+    /* An arrow pointing straight up: the composer's submit mark. */
+    | 'arrow-up'
     | 'stop'
     | 'file'
     | 'folder'
@@ -372,6 +374,14 @@ export default function AiIkon({ name, size = 15 }: Props) {
         <svg {...box}>
           <path d="M14 2L7.2 8.9" />
           <path d="M14 2l-4.4 12-2.4-5.1L2 6.5 14 2z" />
+        </svg>
+      );
+    /* A straight up arrow: submit. */
+    case 'arrow-up':
+      return (
+        <svg {...box}>
+          <path d="M8 13V3.4" />
+          <path d="M3.6 7.8L8 3.4l4.4 4.4" />
         </svg>
       );
     // A square: stop.

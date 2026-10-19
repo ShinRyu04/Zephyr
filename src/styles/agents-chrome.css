@@ -1,0 +1,376 @@
+/*
+ * The rebuilt Agents chrome: composer, cards, chat card, workspace panel.
+ *
+ * Scoped to `.agx-` so it cannot collide with the shared `.ai-` rules the
+ * editor's right column still uses. Every measurement here is the reference at
+ * 1x; the values that also exist in tokens.ts are duplicated deliberately —
+ * tokens drive inline geometry, this file drives everything inline styles
+ * cannot express (hover, focus, disabled, flex).
+ */
+
+/* ── Composer: two boxes ──────────────────────────────────────────────── */
+
+.agx-composer {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+/* Box 1: field + control row. No bottom border — box 2 supplies the seam. */
+.agx-box1 {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #3f4046;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+}
+
+.agx-box1.is-focused {
+  border-color: #5a5b63;
+  border-bottom: 0;
+}
+
+.agx-field {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: #e5e5e5;
+  font: inherit;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  /*
+   * The field height is set inline (88px centred / 86px docked) and must be the
+   * OUTER height: without this, the 12px vertical padding is added on top and
+   * the field measures 112px, pushing the control row out of the 127px box.
+   */
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.agx-field::placeholder {
+  color: #737373;
+}
+
+.agx-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 6px;
+  flex-shrink: 0;
+}
+
+.agx-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agx-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #a3a3a3;
+  cursor: pointer;
+}
+
+.agx-icon-btn:hover {
+  background: rgba(229, 229, 229, 0.08);
+  color: #e5e5e5;
+}
+
+.agx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 190px;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #a3a3a3;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.agx-chip:hover {
+  background: rgba(229, 229, 229, 0.08);
+  color: #e5e5e5;
+}
+
+.agx-at {
+  color: #737373;
+}
+
+.agx-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.agx-send:hover:not(:disabled) {
+  background: #2f74e0;
+}
+
+.agx-send:disabled {
+  background: rgba(229, 229, 229, 0.1);
+  color: #737373;
+  cursor: default;
+}
+
+/* Box 2: `Local <folder>`. Brighter than the canvas, its own object. */
+.agx-box2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid #3f4046;
+  border-radius: 0 0 8px 8px;
+  font-size: 12.5px;
+  color: #737373;
+}
+
+.agx-local-label {
+  flex-shrink: 0;
+}
+
+.agx-folder {
+  max-width: 340px;
+  padding: 1px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #a3a3a3;
+  cursor: pointer;
+}
+
+.agx-folder:hover {
+  background: rgba(229, 229, 229, 0.08);
+  color: #e5e5e5;
+}
+
+/* ── Starting screen: heading → composer → cards, centred ─────────────── */
+
+.agx-starting {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.agx-heading {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: #e5e5e5;
+  text-align: center;
+}
+
+/* ── Category cards: one row, below the composer ──────────────────────── */
+
+.agx-cards {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  max-width: 100%;
+}
+
+.agx-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 37px;
+  padding: 0 12px;
+  border: 1px solid #3f4046;
+  border-radius: 8px;
+  background: transparent;
+  color: #d4d4d4;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.agx-card:hover {
+  background: rgba(229, 229, 229, 0.06);
+  border-color: #5a5b63;
+}
+
+.agx-card-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: #a3a3a3;
+}
+
+.agx-card-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Conversation: a 520px card, panel fills the rest ─────────────────── */
+
+.agx-conversation {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px;
+}
+
+.agx-chat-card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #3f4046;
+  background: transparent;
+  overflow: hidden;
+}
+
+.agx-chat-card-head {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 13px;
+  color: #e5e5e5;
+}
+
+.agx-transcript {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 8px;
+}
+
+.agx-msg {
+  margin: 0 0 14px;
+}
+
+.agx-msg-role {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
+.agx-msg-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #d4d4d4;
+}
+
+.agx-chat-card-composer {
+  flex: 0 0 auto;
+}
+
+/* ── Workspace panel: fills the room beside the chat card ─────────────── */
+
+.agx-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 470px;
+  padding-left: 12px;
+  background: #171717;
+}
+
+.agx-panel-head {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  color: #e5e5e5;
+}
+
+.agx-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px;
+}
+
+.agx-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: #a3a3a3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-panel-row:hover {
+  background: rgba(229, 229, 229, 0.06);
+  color: #e5e5e5;
+}
+
+.agx-panel-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Narrow window: cards wrap ────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .agx-cards {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+}

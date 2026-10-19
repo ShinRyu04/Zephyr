@@ -7,6 +7,22 @@ export default defineConfig({
   server: {
     strictPort: true,
     port: 5173,
+    /*
+     * HMR can be switched off for a session:  $env:ZEPHYR_NO_HMR='1'; npm run dev
+     *
+     * Why it is needed at all: every save under `src/**` makes Vite push an
+     * update, the page re-evaluates, and every handle stored on `window`
+     * (`__ZEPHYR__`, `__ZEPHYR_AI__`, …) is replaced. A CDP harness that
+     * attached a moment earlier is left holding a dead object, so it reports
+     * nonsense - or, worse, reads a half-updated page and reports a bug that
+     * does not exist. That is a verification-tooling problem, not an app
+     * problem, so the switch belongs here and stays OFF by default.
+     *
+     * `hmr: false` (not `watch: null`) is the right knob: the watcher keeps
+     * running, so a manual reload still serves the new code - it simply stops
+     * pushing updates into the open page.
+     */
+    hmr: process.env.ZEPHYR_NO_HMR ? false : undefined,
     watch: {
       // Vite menonton seluruh akar proyek; kalau `src-tauri` ikut, ia mencoba
       // `fs.watch` setiap berkas di dalam `target/debug/build/**` - termasuk

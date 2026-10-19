@@ -55,16 +55,33 @@
    *   --ag-teks2        muted label grey (#737373 in the reference)
    *   --ag-teks-kuat    row/title text (#e5e5e5 in the reference)
    */
-  --ag-frame: var(--bg);
-  --ag-panel: var(--surface);
-  --ag-panel-border: var(--border);
-  --ag-hover: var(--surface-2);
-  --ag-aktif: var(--surface-3, var(--surface-2));
-  --ag-teks2: var(--text-muted);
-  --ag-teks-kuat: var(--text);
-  --ag-mb-ikon: var(--text-muted);
-  --ag-ikon-latar: var(--surface-2);
-  --ag-sash: var(--border-strong, var(--border));
+  /*
+   * MEASURED values, not aliases.
+   *
+   * These used to point at the global theme (--bg, --surface), which collapsed
+   * every layer to the same colour: the frame, the sidebar and the canvas all
+   * rendered #0d1117. Measured on the reference at three points, it uses three
+   * DISTINCT layers:
+   *
+   *   #303030  the sidebar's header strip
+   *   #262626  the frame and the sidebar body
+   *   #171717  the centre canvas - DARKER than the frame, not lighter
+   *
+   * That inversion is the whole look. A single flat colour cannot imitate it
+   * no matter how the buttons are arranged, which is why the earlier passes
+   * kept landing on "close but not it".
+   */
+  --ag-header: #303030;
+  --ag-frame: #262626;
+  --ag-panel: #171717;
+  --ag-panel-border: rgba(229, 229, 229, 0.1);
+  --ag-hover: rgba(229, 229, 229, 0.07);
+  --ag-aktif: rgba(229, 229, 229, 0.12);
+  --ag-teks2: #737373;
+  --ag-teks-kuat: #e5e5e5;
+  --ag-mb-ikon: #a3a3a3;
+  --ag-ikon-latar: rgba(229, 229, 229, 0.08);
+  --ag-sash: rgba(229, 229, 229, 0.08);
 }
 
 /* ── Menubar (56px) ──────────────────────────────────────────────────────── */
@@ -1452,7 +1469,6 @@
 }
 
 /* ── The chat panel's own chrome, scoped to this window ──────────────────── */
-
 /*
  * Everything below is scoped to `.ag-center` on purpose.
  *
@@ -1603,3 +1619,368 @@
  * the session title, and that header is what makes the card read as a workspace
  * rather than as a bare transcript. The scoped rules above size and colour it.
  */
+
+/* The three navigation rows under "New task".
+ *
+ * Reference measurements: same 34px height as the primary row, a 16px icon,
+ * a 14px label, and NO background - they are destinations, not buttons. The
+ * only thing that changes on hover is the label colour, which is how the
+ * reference separates "where can I go" from "what do I do".
+ */
+.ag-sesi-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-sesi-nav:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+.ag-sesi-nav-ic {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.ag-sesi-nav-teks {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The "IDE" chip: top-right of the chat canvas.
+ *
+ * The reference puts one small button here instead of a right panel, so this
+ * sits absolutely inside the centre column and must not take part in the chat
+ * layout. Quiet by default - it is an escape hatch, not a primary action -
+ * and it only gains contrast on hover.
+ */
+.ag-center {
+  position: relative;
+}
+.ag-ide-chip {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.ag-ide-chip:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+.ag-ide-chip-ic {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+
+/* The transcript and the composer share that one surface - no lighter box. */
+.ag-center .ai-chat {
+  background: transparent;
+}
+
+/* ==========================================================================
+   STARTING SCREEN + COMPOSER, jendela Agents.
+   SEMUA aturan di-scope ke .ag-center: AiPanel dipakai bersama panel kanan
+   jendela editor, dan itu tidak boleh ikut berubah.
+   ==========================================================================
+
+   Diukur pada 1.1.png (1917x1142, skala 1.25 => 1534x914 css):
+
+     y 287-313   judul, 26px
+     y 455-479   kotak 1: field ketik (24px)
+     y 495-536   kotak 2: kontrol + baris Local (bg #1E1E1E, border #3F4046)
+     y 576-605   kartu kategori, 4 sejajar, total 697px
+
+   Urutannya: judul -> composer -> kartu. Kartu ada DI BAWAH composer.
+
+   Cara mencapainya TANPA memindahkan JSX: saat .is-kosong, .ai-chat dan
+   .ai-empty jadi display:contents sehingga judul / composer / kartu naik
+   menjadi anak langsung .ai-panel dan bisa diurutkan dengan order.
+   ========================================================================== */
+
+/* Panel hitam, bukan biru. */
+.ag-center .ai-panel {
+  background: #171717;
+}
+
+/* ---- Layar kosong: satu grup di tengah -------------------------------- */
+
+.ag-center .ai-panel.is-kosong {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ag-center .ai-panel.is-kosong .ai-head,
+.ag-center .ai-panel.is-kosong .ai-jump-wrap {
+  display: none;
+}
+
+.ag-center .ai-panel.is-kosong .ai-chat,
+.ag-center .ai-panel.is-kosong .ai-empty {
+  display: contents;
+}
+
+.ag-center .ai-panel.is-kosong .ai-empty-judul {
+  order: 1;
+  width: 100%;
+  max-width: 772px;
+  /* Acuan: judul berakhir y 391, kotak 1 mulai y 460 — 69px device = 55px css. */
+  margin: 0 auto 55px;
+  padding: 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #e5e5e5;
+  text-align: center;
+}
+
+.ag-center .ai-panel.is-kosong .ai-input-row {
+  order: 2;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran {
+  order: 3;
+}
+
+/* ---- Composer: DUA kotak ---------------------------------------------- */
+
+/* Kotak luar jadi pembungkus tanpa wujud: kotak 1 dan kotak 2 yang digambar. */
+.ag-center .ai-input-row,
+.ag-center .ai-input-row.ai-input-row {
+  width: 100%;
+  max-width: 772px;
+  margin: 0 auto;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* KOTAK 1 (atas): field ketik + baris kontrol, total 127px.
+   Diukur pada 1.1.png: y 460..619 = 159px device / 1.25 = 127px css.
+   Field 88px, baris kontrol 39px. */
+.ag-center .ai-input-row .ai-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 88px;
+  height: 88px;
+  padding: 12px 14px;
+  border: 1px solid #3f4046;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
+}
+
+.ag-center .ai-input-row .ai-input:focus {
+  border-color: #5a5b63;
+  box-shadow: none;
+}
+
+/* Baris kontrol menutup kotak 1: 39px. */
+.ag-center .ai-input-row .ai-input-toolbar {
+  margin: 0;
+  height: 39px;
+  box-sizing: border-box;
+  padding: 3px 10px;
+  gap: 4px;
+  border: 1px solid #3f4046;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: #1e1e1e;
+}
+
+/* Tombol kontrol: 32px, radius 8. */
+.ag-center .ai-input-row .ai-plus,
+.ag-center .ai-input-row .ai-input-toolbar .mode-btn,
+.ag-center .ai-input-row .ai-input-toolbar .ai-model-btn {
+  height: 32px;
+  border-radius: 8px;
+}
+
+.ag-center .ai-input-row .ai-plus {
+  width: 32px;
+}
+
+.ag-center .ai-input-row .ai-input-toolbar .ai-round-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* KOTAK 2 (bawah): `Local <folder>`, 45px, kotak TERPISAH.
+   Diukur pada 1.1.png: y 619..675 = 56px device / 1.25 = 45px css, dengan
+   jarak 0 dari kotak 1 (garis border y=619 dipakai bersama).
+   Warnanya #222 vs kanvas #171717 — itu yang membuatnya terbaca sebagai
+   kotak KEDUA, bukan sebagai baris di dalam composer. */
+.ag-center .ai-local-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 45px;
+  padding: 0 12px;
+  border: 1px solid #3f4046;
+  border-radius: 8px;
+  background: #222222;
+  font-size: 12.5px;
+  line-height: 1;
+  color: #737373;
+}
+
+.ag-center .ai-local-label {
+  flex-shrink: 0;
+  color: #737373;
+}
+
+.ag-center .ai-local-pilih {
+  max-width: 300px;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #a3a3a3;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ag-center .ai-local-pilih:hover {
+  background: rgba(229, 229, 229, 0.08);
+  color: #e5e5e5;
+}
+
+/* ---- Kartu kategori: satu baris, di BAWAH composer -------------------- */
+
+/* Prefix .ai-panel.is-kosong dipakai supaya aturan ini mengalahkan
+   `.ai-empty .ai-saran` (ai-streaming.css) dan `.ai-saran` (ai-panel-compact.css)
+   yang memuat flex-column. Specificity 0,4,0 > keduanya.
+
+   Diukur pada 1.1.png (device px, /1.25 = css):
+     x 716..941 | 976..1178 | 1213..1367 | 1402..1570
+     lebar tiap kartu mengikuti panjang labelnya, gap 35 device = 28 css,
+     total 854 device = 683 css, terpusat di dalam composer 772px.
+     Tinggi 46 device = 37 css. Jarak dari kotak 2: 40 device = 32 css. */
+.ag-center .ai-panel.is-kosong .ai-saran {
+  width: 100%;
+  max-width: 772px;
+  margin: 32px auto 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-kartu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  height: 37px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid #3f4046;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transform: none;
+  animation: none;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-kartu:hover {
+  background: rgba(229, 229, 229, 0.06);
+  border-color: #5a5b63;
+  transform: none;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-ikon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #a3a3a3;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-teks {
+  display: block;
+  min-width: 0;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #d4d4d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-center .ai-panel.is-kosong .ai-saran-sub {
+  display: none;
+}
+
+/* ---- Setelah ada chat: composer turun ke bawah ------------------------ */
+
+.ag-center .ai-panel:not(.is-kosong) {
+  display: flex;
+  flex-direction: column;
+}
+
+.ag-center .ai-panel:not(.is-kosong) .ai-chat {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ag-center .ai-panel:not(.is-kosong) .ai-input-row {
+  flex: 0 0 auto;
+  margin: 0 auto 14px;
+}

@@ -61,20 +61,20 @@ const APPROVAL: { id: ApprovalMode; label: string; hint: string; kelas: string }
   },
   {
     id: 'ask',
-    label: 'Ask',
-    hint: 'Asks before changing anything',
+    label: 'Manual Approval',
+    hint: 'You confirm important actions',
     kelas: 'is-tanya',
   },
   {
     id: 'work',
-    label: 'Work',
-    hint: 'Safe commands run, risky ones ask',
+    label: 'Auto Approval',
+    hint: 'AI reviews actions and asks you when needed',
     kelas: 'is-kerja',
   },
   {
     id: 'auto',
-    label: 'Auto',
-    hint: 'Runs everything without asking',
+    label: 'Full Access',
+    hint: 'Run directly on your computer without approval',
     kelas: 'is-auto',
   },
 ];
@@ -135,20 +135,11 @@ export function ModeMenu() {
    */
   const daftarPersona = usePersona((s) => s.daftar);
   const personaAktif = usePersona((s) => s.aktif);
-  const setPersonaAktif = usePersona((s) => s.setAktif);
   const muatPersona = usePersona((s) => s.muat);
 
-  /* The list may not be loaded yet on a cold start, so the trigger falls back
-     to the id it knows rather than rendering an empty chip. */
+  /* The list may not be loaded yet on a cold start, so the popup falls back to
+     describing the row generically rather than rendering an empty label. */
   const aktifPersona = daftarPersona.find((p) => p.id === personaAktif);
-
-  /*
-   * Chat is retired, so every run is an agent run and the persona list always
-   * applies. Kept as a name rather than a bare `true` (and rather than deleting
-   * the gate) because the section below still means "agent runs only", which is
-   * what will matter again if a non-agent dispatch ever comes back.
-   */
-  const personaBerlaku = true;
 
   /*
    * Load the list the first time this menu opens.
@@ -175,116 +166,64 @@ export function ModeMenu() {
         title={tr('Agent persona - who the agent works as')}
         onClick={() => setBuka((v) => !v)}
       >
-        <IkonAgen ik={ikonPersona(personaAktif)} size={12} />
-        {aktifPersona?.nama ?? tr('Persona')}
+        <span className="pick-at" aria-hidden="true">@</span>
+        {tr('Agent')}
         <span className="pick-caret">▾</span>
       </button>
 
       {buka && (
         <div className="mode-pop is-naik" data-testid="ai-mode-pop" role="menu">
+          <div className="pick-seksi">{tr('Built-In Agents')}</div>
           {/*
-           * Personas — now the whole menu, not a section under a mode.
+           * Two rows, and that is the whole menu - the reference's shape.
            *
-           * A persona changes HOW the agent works — its identity, working style
-           * and standing rules — and with chat retired there is no dispatch left
-           * for the list to depend on, so it is always shown. Two headings,
-           * because the two sets behave differently: a shipped persona can be
-           * picked but never edited, and the user's own can be both. Zephyr ships
-           * a single built-in persona (Zeph, the orchestrator), so the "Your own"
-           * heading only appears once the user has made a persona of their own -
-           * an empty section would read as a broken list. The active one is
-           * checked, so the answer to "which am I using" never needs a second
-           * look.
+           * It used to list every persona (Zeph, Coder, Architect, Reviewer,
+           * Security, ...) with their descriptions, then a divider, then
+           * "Manage personas & sub-agents". That made a MENU out of what the
+           * reference treats as a PICKER: two answers, not a catalogue. The
+           * long list also pushed the popup far past the composer, so it
+           * covered the transcript it was meant to help with.
+           *
+           * The personas themselves are NOT gone - they still exist, still
+           * drive the system prompt, and are still edited in Agent
+           * Customizations, which is what "Create Agent" opens. What changed
+           * is that the composer no longer asks you to choose one every time
+           * you type; the active one is shown, and changing it is one click.
            */}
-          {personaBerlaku && (
-            <>
-              {daftarPersona
-                .filter((p) => p.bawaan)
-                .map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={personaAktif === p.id}
-                    className={`mode-item${personaAktif === p.id ? ' is-on' : ''}`}
-                    data-testid={`ai-persona-${p.id}`}
-                    onClick={() => {
-                      void setPersonaAktif(p.id);
-                      setBuka(false);
-                    }}
-                  >
-                    <IkonPersonaBaris id={p.id} />
-                    <span className="mode-item-teks">
-                      <b>{p.nama}</b>
-                      <i>{p.deskripsi}</i>
-                    </span>
-                    {personaAktif === p.id && <span className="pick-check">✓</span>}
-                  </button>
-                ))}
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={true}
+            className="mode-item is-on"
+            data-testid="ai-persona-aktif"
+            title={aktifPersona?.deskripsi ?? undefined}
+            onClick={() => setBuka(false)}
+          >
+            <IkonPersonaBaris id={personaAktif} />
+            <span className="mode-item-teks">
+              <b>{tr('Agent')}</b>
+              <i>{aktifPersona?.nama ?? tr('The active agent persona')}</i>
+            </span>
+            <span className="pick-check">✓</span>
+          </button>
 
-              {daftarPersona.some((p) => !p.bawaan) && (
-                <>
-                  <div className="pick-seksi">{tr('Your own')}</div>
-                  {daftarPersona
-                    .filter((p) => !p.bawaan)
-                    .map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={personaAktif === p.id}
-                        className={`mode-item${personaAktif === p.id ? ' is-on' : ''}`}
-                        data-testid={`ai-persona-${p.id}`}
-                        onClick={() => {
-                          void setPersonaAktif(p.id);
-                          setBuka(false);
-                        }}
-                      >
-                        <IkonPersonaBaris id={p.id} />
-                        <span className="mode-item-teks">
-                          <b>{p.nama}</b>
-                          <i>{p.deskripsi}</i>
-                        </span>
-                        {personaAktif === p.id && <span className="pick-check">✓</span>}
-                      </button>
-                    ))}
-                </>
-              )}
-
-              {/*
-               * The row Copilot keeps at the bottom of the same dropdown
-               * ("Configure Custom Agents…"): the list above PICKS a persona,
-               * this is where the SET of personas is changed. It used to sit
-               * under the approval modes, which is the wrong menu - the
-               * question "who should the agent be" is asked here, so its
-               * answer lives one row below the answers. Agent Customizations
-               * holds the cards (create, duplicate, edit, delete), so a reader
-               * who wants a new persona lands on the editor, not on a hint.
-               */}
-              <div className="mode-div" aria-hidden="true" />
-              <button
-                type="button"
-                role="menuitem"
-                className="mode-item"
-                data-testid="ai-mode-manage"
-                onClick={() => {
-                  setBuka(false);
-                  /* Personas are edited in "Agent Customizations", the modal
-                     panel that follows VS Code's own agent surface. It is a
-                     surface of its own, not a page buried in Settings, so this
-                     row opens the editor instead of navigating away from the
-                     chat. */
-                  bukaPanel('agent-custom', 'agents');
-                }}
-              >
-                <span className="mode-item-teks">
-                  <b>{tr('Manage personas & sub-agents')}</b>
-                  <i>{tr('Opens the persona editor')}</i>
-                </span>
-              </button>
-            </>
-          )}
-        </div>
+          <div className="mode-div" aria-hidden="true" />
+          <button
+            type="button"
+            role="menuitem"
+            className="mode-item"
+            data-testid="ai-mode-manage"
+            onClick={() => {
+              setBuka(false);
+              bukaPanel('agent-custom', 'agents');
+            }}
+          >
+            <span className="mode-item-teks">
+              <b>{tr('Create Agent')}</b>
+              <i>{tr('Opens the persona editor')}</i>
+            </span>
+          </button>
+</div>
       )}
     </span>
   );
@@ -396,7 +335,9 @@ export function PermissionMenu() {
 
       {buka && (
         <div className="mode-pop is-naik" data-testid="ai-izin-pop" role="menu">
-          <div className="pick-seksi">{tr('Permissions')}</div>
+          <div className="pick-seksi">
+            {tr('How should Agent actions be approved?')}
+          </div>
           {APPROVAL.map((a) => (
             <button
               key={a.id}
