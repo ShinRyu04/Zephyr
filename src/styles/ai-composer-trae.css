@@ -126,15 +126,26 @@
 }
 
 /*
- * The model name is NOT capped.
+ * The model name is never truncated.
  *
- * It used to be `max-width: 180px`, which cut "deepseek-v4.1-flash" short with
- * an ellipsis — the name the user chose was the one thing in this row they
- * needed to read. The chip already truncates only when the panel is genuinely
- * too narrow, via the flex rules below; a hard cap only hurt the wide case.
+ * Three separate rules were cutting it: `max-width: 180px` here, and in ai.css
+ * a base `.ai-model-name { max-width: 190px; overflow: hidden; text-overflow:
+ * ellipsis }`. Overriding only `max-width` left the ellipsis machinery in
+ * place, so the name still collapsed the moment its box was squeezed. All three
+ * are reset below, and the chip is locked to its content so no flex parent can
+ * shrink it into an ellipsis.
  */
+.ai-input-row .ai-input-toolbar .ai-model-wrap,
+.ai-input-row .ai-input-toolbar .ai-model-btn,
 .ai-input-row .ai-input-toolbar .ai-model-name {
+  flex: 0 0 auto;
+  min-width: max-content;
   max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.ai-input-row .ai-input-toolbar .ai-model-name {
   white-space: nowrap;
 }
 
