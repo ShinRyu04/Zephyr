@@ -27,6 +27,7 @@ import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } f
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
+import ZephyrLogo from '../shell/ZephyrLogo';
 import { useSched, useSchedBuka } from '../../lib/schedStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useGit } from '../../lib/gitStore';
@@ -1121,28 +1122,25 @@ const bukaModels = () => bukaPanel('models');
         {jumlahPesan === 0 ? (
           <div className="ai-empty" data-testid="ai-empty">
             {/*
-             * The Agent intro, laid out like TRAE's own starting screen: a mark
-             * and "Agent" on one line, one muted tagline under it, then three
-             * checked capability lines. Centred, no cards.
+             * The intro: the product's initial, the title, one tagline, then
+             * three lines about what this agent does.
              *
-             * The four category cards that used to live here filled the
-             * composer with a canned prompt, but they read as a menu of
-             * features rather than as a place to type - and the reference's
-             * starting screen has no such menu. The composer below is the only
-             * thing to act on.
+             * The title and tagline are the reference's wording by request. The
+             * three lines are Zephyr's own - they describe what this agent
+             * actually does here rather than repeating the reference's list.
              */}
             <div className="ai-intro" data-testid="ai-intro">
               <div className="ai-intro-head">
-                <span className="ai-intro-mark" aria-hidden="true">
-                  <AiIkon name="terminal" size={17} />
+                <span className="ai-intro-z" aria-hidden="true">
+                  <ZephyrLogo size={22} glyphOnly />
                 </span>
                 <span className="ai-intro-judul">{tr('Agent')}</span>
               </div>
               <p className="ai-intro-tagline">{tr('Deep understanding of complex tasks')}</p>
               <ul className="ai-intro-poin">
-                <li>{tr('Handles iterations, bug fixes, and refactoring in large projects')}</li>
-                <li>{tr('Plans tasks intelligently and drives execution with precision')}</li>
-                <li>{tr('Orchestrates intelligent multi-agent collaboration')}</li>
+                <li>{tr('Reads your workspace and works in real files')}</li>
+                <li>{tr('Runs commands, tests and fixes in one turn')}</li>
+                <li>{tr('Keeps every change reviewable before it lands')}</li>
               </ul>
             </div>
           </div>

@@ -1699,12 +1699,17 @@
 }
 
 /* The empty state grows to fill the space above the composer, and the
-   composer stops being pushed to the bottom by the scroller. */
+   composer stops being pushed to the bottom by the scroller.
+ *
+ * `center`, not `flex-start` or `flex-end`: the intro is the screen's whole
+ * content while there is no conversation, so it sits in the middle of the band
+ * above the composer. Top-anchored it read as a page header; bottom-anchored it
+ * read as a caption on the input box. */
 .ai-panel.is-kosong .ai-chat {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   padding-bottom: 0;
 }
 
@@ -1713,7 +1718,7 @@
   margin: 0 auto;
   width: 100%;
   max-width: 760px;
-  padding-bottom: 18px;
+  padding: 0 0 8px;
 }
 
 /* No scroller padding in the starting screen: the centred block defines its
@@ -1750,15 +1755,21 @@
   gap: 9px;
 }
 
-.ai-intro-mark {
+/*
+ * The mark is the product's own logo glyph, at the height of the title beside
+ * it — not a plate or a badge. `glyphOnly` drops the rounded background, so what
+ * is drawn is the Z with its wind strokes, and the size (22) matches the 22px
+ * heading's cap height rather than overpowering it.
+ */
+.ai-intro-z {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  /* The glyph is wider than it is tall; the box only needs to centre it. */
   width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  height: 22px;
+  color: var(--text);
 }
 
 .ai-intro-judul {
@@ -1798,15 +1809,24 @@
   gap: 7px;
 }
 
-/* The check mark is drawn, not typed: a text glyph changes shape per font. */
+/*
+ * The check mark is the same ink as the heading, not a success colour.
+ *
+ * A green tick reads as "verified", which is not what these lines are — they
+ * are capabilities, not test results. `var(--text)` keeps it neutral and at the
+ * same weight as the word beside it.
+ *
+ * WHY not literally `#000`: on the dark panel a true black mark on a near-black
+ * background is invisible. `--text` is the theme's strongest ink, so it reads as
+ * black on the light theme and as the strongest neutral on the dark one.
+ */
 .ai-intro-poin li::before {
   content: '';
   flex: 0 0 auto;
   width: 12px;
   height: 12px;
   margin-top: 3px;
-  background: currentColor;
-  color: var(--success);
+  background: var(--text);
   -webkit-mask: var(--ai-check-mask) center / contain no-repeat;
   mask: var(--ai-check-mask) center / contain no-repeat;
 }
