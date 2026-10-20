@@ -265,6 +265,15 @@ export const lspSetIdle = (server: string, secs: number) =>
   invoke<void>('lsp_set_idle', { server, secs });
 export const lspProbe = (spec: { id: string; cmd: string[]; lang: string }, root?: string) =>
   invoke<unknown>('lsp_probe', { spec, root });
+/**
+ * The reason a server that probes green still refuses to start.
+ *
+ * `lsp_probe` only asks "is the binary there" — that is the one question that
+ * does NOT require the workspace folder to be trusted. Starting a server does
+ * require it, and that refusal used to reach the LSP log only, never Settings.
+ */
+export const lspPenghalang = (root?: string) =>
+  invoke<{ ok: boolean; alasan: string | null }>('lsp_penghalang', { root });
 /* Which rows this build can install by itself (ids, in the same order as lsp.ts). */
 export const lspResep = () => invoke<string[]>('lsp_resep');
 /* Install one server into the app's private slot. It REJECTS with the reason
@@ -1605,6 +1614,17 @@ export const browserPaneVisible = (paneId: string, visible: boolean) =>
 
 export const browserPaneClose = (paneId: string) =>
   invoke<boolean>('browser_pane_close', { paneId });
+
+/**
+ * Close browser child webviews the page no longer owns.
+ *
+ * `hidup` is every pane id this page still renders. Anything else is an orphan
+ * from before a reload: a child webview belongs to the Rust process, so it
+ * survives the page and keeps painting on top of the UI. Call this once at
+ * boot instead of relying on unmount cleanup, which never survives a reload.
+ */
+export const browserPaneSync = (hidup: string[]) =>
+  invoke<number>('browser_pane_sync', { hidup });
 
 export const browserPaneNav = (paneId: string, aksi: string) =>
   invoke<string>('browser_pane_nav', { paneId, aksi });

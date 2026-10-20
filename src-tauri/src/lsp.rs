@@ -197,6 +197,16 @@ fn dir_cari_tambahan() -> Vec<PathBuf> {
             tambah(PathBuf::from(&h).join("go").join("bin"));
             tambah(PathBuf::from(&h).join(".cargo").join("bin"));
             tambah(PathBuf::from(&h).join(".local").join("bin"));
+            /*
+             * Binaries installed by rustup --no-modify-path, and by `npm i -g`
+             * under a custom prefix, never reach the machine PATH. The reader
+             * installed the server, PATH says nothing, and the row said "not
+             * found" - which is the report this lookup exists to answer.
+             */
+            tambah(PathBuf::from(&h).join(".rustup").join("toolchains"));
+            tambah(PathBuf::from(&h).join(".npm-global").join("bin"));
+            tambah(PathBuf::from(&h).join(".bun").join("bin"));
+            tambah(PathBuf::from(&h).join(".deno").join("bin"));
             let gem = PathBuf::from(&h).join(".gem").join("ruby");
             if let Ok(rd) = std::fs::read_dir(&gem) {
                 for e in rd.flatten() {
@@ -213,6 +223,33 @@ fn dir_cari_tambahan() -> Vec<PathBuf> {
             if !pf.trim().is_empty() {
                 tambah(PathBuf::from(&pf).join("LLVM").join("bin"));
             }
+        }
+    }
+    /*
+     * Package managers that install OUTSIDE PATH on Windows.
+     *
+     * `winget install` (Dart, LuaLS) and the Go toolchain win installer land in
+     * their own folders and add nothing to PATH for a process that was started
+     * before the install. That is exactly the "I installed it, Zephyr still
+     * says not found" case: the binary is on disk, in a place a PATH lookup
+     * cannot see.
+     */
+    if let Ok(la) = std::env::var("LOCALAPPDATA") {
+        if !la.trim().is_empty() {
+            let la = PathBuf::from(&la);
+            tambah(la.join("Programs").join("Microsoft").join("WinGet").join("Links"));
+            tambah(la.join("Pub").join("Cache").join("bin"));
+        }
+    }
+    if let Ok(up) = std::env::var("USERPROFILE") {
+        if !up.trim().is_empty() {
+            tambah(PathBuf::from(&up).join("go").join("bin"));
+            tambah(PathBuf::from(&up).join("scoop").join("shims"));
+        }
+    }
+    if let Ok(pd) = std::env::var("ProgramData") {
+        if !pd.trim().is_empty() {
+            tambah(PathBuf::from(&pd).join("chocolatey").join("bin"));
         }
     }
     d
@@ -1057,6 +1094,30 @@ pub fn lsp_probe(app: AppHandle, spec: ServerSpec, root: Option<String>) -> ZRes
     match resolve_cmd(&app, &spec, Path::new(&r)) {
         Ok((exe, args)) => Ok(json!({ "ok": true, "exe": exe, "args": args })),
         Err(e) => Ok(json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
+/// Why a server that looks installed still does not work.
+///
+/// WHY this is a separate question from `lsp_probe`: the probe answers "is the
+/// binary on PATH", which is the one thing that does NOT need the folder to be
+/// trusted. `lsp_start` additionally requires trust, and that refusal was only
+/// written to the LSP output log - never to the Settings page. So a row could
+/// show a green "installed" tick while the editor got nothing, and the reason
+/// was invisible unless the reader knew to open a log from the command palette.
+///
+/// Returns the same string the start command would fail with, so there is one
+/// source of truth for the wording.
+#[tauri::command(async)]
+pub fn lsp_penghalang(app: AppHandle, root: Option<String>) -> ZResult<Value> {
+    let r = root.unwrap_or_default().trim().to_string();
+    if r.is_empty() {
+        return Ok(json!({ "ok": false, "alasan": "Language servers need an open workspace folder." }));
+    }
+    let state = app.state::<crate::app_state::AppState>();
+    match crate::workspace::ensure_trusted_path(&state, Path::new(&r), "Language server") {
+        Ok(()) => Ok(json!({ "ok": true, "alasan": null })),
+        Err(e) => Ok(json!({ "ok": false, "alasan": e.to_string() })),
     }
 }
 

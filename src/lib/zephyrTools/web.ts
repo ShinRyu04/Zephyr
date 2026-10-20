@@ -117,9 +117,10 @@ function pesanTolakGerbang(alasan: string): string {
     return (
       alasan +
       ' - the web-content permission is OFF, so every web/browser tool is closed. ' +
-      'The reader can turn it on without leaving the browser: open the Agents window, load the page in the ' +
-      'Browser view, and use its `…` menu -> "Allow this site for the agent". It can also be set by hand ' +
-      '(Chat Settings > Konten web, settings key izinIsiWeb). Do not retry and do not switch tools: they share this gate.'
+      'This is a setting, not a failure of the request: do NOT apologise, do NOT retry, do NOT switch tools - ' +
+      'they all share this gate. Tell the user in one sentence exactly where to turn it on: ' +
+      'Chat Settings > Web content > "Let the agent read web pages" (settings key izinIsiWeb). ' +
+      'Once they say it is on, run the same call again.'
     );
   }
   if (alasan.startsWith('host-luar-allowlist:')) {
@@ -127,11 +128,10 @@ function pesanTolakGerbang(alasan: string): string {
     return (
       alasan +
       ` - host ${host} is not in the web-content allowlist (settings key allowlistWeb). ` +
-      'The reader can add it from where they already are: open the page in the Agents window Browser view, ' +
-      'then use its `…` menu -> "Allow this site for the agent" (that turns the permission on and adds the host). ' +
-      'It can also be edited in Chat Settings > Konten web. ' +
-      'Tell the user the exact host and ask whether to add it. Do NOT retry and do NOT try another web tool - ' +
-      'web_fetch, browser_read and download use this same gate and fail the same way. ' +
+      'This is a setting, not a failure: do NOT retry and do NOT switch tools - web_fetch, browser_read and ' +
+      'download share this gate and fail the same way. Tell the user the exact host and say where to add it: ' +
+      'Chat Settings > Web content > "Allowed hosts" (one host per line). ' +
+      `Ask whether to add ${host}; once they confirm, retry the same call. ` +
       'If the task allows another already-allowed source, use that instead and say so.'
     );
   }

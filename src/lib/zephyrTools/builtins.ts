@@ -1728,14 +1728,22 @@ export const TOOL_BAWAAN: AgentTool[] = [
         (t) => t.status === 'done' || t.status === 'completed',
       ).length;
       /*
-       * Kalau tidak ada satu pun yang diterima, itu bukan sukses - dan
-       * melaporkannya sebagai sukses adalah cara paling halus membuat agen
-       * mengulang panggilan yang sama tanpa henti. Sebutkan sebabnya.
+       * Kalau tidak ada satu pun yang diterima, itu bukan sukses - tetapi juga
+       * bukan kegagalan yang perlu dicat merah.
+       *
+       * Mencatatnya sebagai sukses membuat agen mengulang panggilan yang sama
+       * tanpa henti, jadi sebabnya harus disebut. Tapi `throw` di sini berarti
+       * `ok: false`, dan `ok: false` satu-satunya yang mewarnai kartu tool
+       * merah di chat - padahal tidak ada yang rusak: model sekadar mengirim
+       * entri yang tidak menunjuk tugas mana pun. Pesan yang bisa dibaca model
+       * sudah cukup; kartu merah untuk kesalahan argumen membuat riwayat
+       * percakapan terlihat seperti aplikasinya bermasalah.
        */
       if (bersih.length > 0 && diterima === 0) {
-        throw new Error(
-          'ERROR: tidak ada tugas yang diterima karena teksnya kosong. ' +
-            'Isi medan "title" atau "content" pada setiap tugas.',
+        return (
+          'Tidak ada tugas yang bisa dipasangkan: setiap entri tidak membawa teks dan ' +
+          'id/nomornya tidak menunjuk tugas yang sudah ada. Kirim daftar LENGKAP dengan ' +
+          'medan "title" untuk setiap tugas.'
         );
       }
       const dipangkas = todoTerpangkas();

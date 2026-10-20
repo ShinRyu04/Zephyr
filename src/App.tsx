@@ -73,6 +73,7 @@ import { notifyWarn } from './lib/notificationStore';
 import { cekPengumuman } from './lib/announcements';
 import { flushTab, getActiveView } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
+import * as cmd from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
@@ -1096,6 +1097,25 @@ export default function App() {
     void useTerminal.getState().loadShells();
     void useTerminal.getState().loadAgents();
     void import('./lib/aiCliStore').then((m) => m.bindCliChatListener());
+
+    /*
+     * Sweep browser child webviews left behind by the PREVIOUS page.
+     *
+     * A child webview lives in the Rust process, so it outlives a reload: the
+     * unmount cleanup in `BrowserPane` fires while the document is being torn
+     * down and that IPC never arrives. What the reader saw was a browser pane
+     * that refused to disappear and painted over whatever was underneath it,
+     * with no way to close it because the new page had an empty terminal store
+     * and so did not know the pane id.
+     *
+     * At this point the store has just been re-created, so every pane listed
+     * here is one THIS page will render. Anything else is an orphan.
+     */
+    void cmd
+      .browserPaneSync(useTerminal.getState().allPanes().map((p) => p.id))
+      .catch(() => {
+        /* non-Tauri or older backend: nothing to sweep */
+      });
 
     ptyListenerConsumers++;
     if (!ptyListenersBound && !ptyListenersBinding) {
