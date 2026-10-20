@@ -2914,20 +2914,41 @@ body.is-resizing-v {
   margin: 0 2px 0 -4px;
   background: var(--border);
 }
-/* Command center: a wide pill in the MIDDLE of the menu row, like VS Code —
-   flush after Help but stretching to the right (not a small box in the corner). */
+/* Command center: sits directly after the last menu entry (Help), flush left —
+   no vw padding pushing it into the middle of the bar. */
 .mb-cc-wrap {
   display: flex;
   align-items: center;
-  /* Left of centre, with the "Open in Agents" pill flush against the search
-     box's right edge. It used to be centred, but the user wants the pair
-     sitting further left so it does not eat the right-hand side of the bar. */
+  /* The "Open in Agents" pill rides flush against the search box's right edge;
+     the whole pair is anchored to the menu, not to the centre of the bar. */
   justify-content: flex-start;
   flex: 1 1 auto;
   min-width: 0;
-  margin-left: 12px;
+  margin-left: 10px;
   padding-right: 12px;
-  padding-left: 7.5vw;
+  padding-left: 11px;
+  /*
+   * The divider that marks where the menu ends and the search begins.
+   *
+   * Drawn as a pseudo-element, not a `border-left`: a border on this box would
+   * run the full height of the wrapper (taller than the 24px control), and a
+   * border on the control itself would be a second stroke around something
+   * that already has one. A 14px hairline, vertically centred, matches the
+   * separator before the layout cluster on the right — the two sides of the
+   * title bar then read with the same rhythm.
+   */
+  position: relative;
+}
+.mb-cc-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 14px;
+  transform: translateY(-50%);
+  background: var(--border);
+  pointer-events: none;
 }
 .mb-cc {
   display: flex;
@@ -2940,8 +2961,10 @@ body.is-resizing-v {
   background: var(--bg0, var(--surface-2));
   color: var(--text-muted);
   font-size: 12px;
-  width: min(480px, 100%);
-  flex: 0 1 auto;
+  /* Sized to its label ("Search"), not to the old sentence. A 480px field with
+     one word in it read as an empty bar; 140px reads as a control. */
+  width: 140px;
+  flex: 0 0 auto;
   cursor: pointer;
   text-align: left;
   transition: border-color 120ms, background 120ms;
@@ -3032,7 +3055,10 @@ body.is-resizing-v {
   margin: 0 0 0 4px;
   padding: 0 5px;
   flex-shrink: 0;
-  border: 1px solid transparent;
+  /* A hairline by default: a bare glyph next to a bordered Search box read as
+     decoration rather than as a button. Same border token as the box so the
+     pair looks drawn by the same hand; the accent arrives on hover. */
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   background: transparent;
   color: var(--text-muted);

@@ -129,7 +129,7 @@ export function AddModelDialog({
      * URL and no key name — so it borrows the first entry's shape with the id
      * `custom`, which is the provider id the backend already understands.
      */
-    setProvider({ ...PROVIDERS[0], id: 'custom', label: tr('Custom endpoint'), baseUrl: '' });
+    setProvider({ ...PROVIDERS[0], id: 'custom', label: tr('Custom Model'), baseUrl: '' });
     setBaseUrl('');
     setKey('');
     setTerdeteksi(null);
@@ -267,6 +267,26 @@ export function AddModelDialog({
           {!provider && (
             <p className="aim-sub">{tr('Pick a provider. The endpoint is filled in for you.')}</p>
           )}
+          {/*
+            * The close mark is on the GRID step only.
+            *
+            * The form step already has Cancel beside Add Model at the bottom,
+            * and two ways out of one small dialog made the footer look like the
+            * secondary one. The grid step has no footer button on the reference
+            * either — the X is how it is left.
+            */}
+          {!provider && (
+            <button
+              type="button"
+              className="aim-add-x"
+              data-testid="aim-add-x"
+              title={tr('Close')}
+              aria-label={tr('Close')}
+              onClick={onTutup}
+            >
+              <AiIkon name="close" size={13} />
+            </button>
+          )}
         </div>
 
         {!provider ? (
@@ -290,7 +310,7 @@ export function AddModelDialog({
                 onClick={pilihKustom}
               >
                 <span className="aim-preset-logo" aria-hidden="true">
-                  <AiIkon name="plus" size={18} />
+                  <AiIkon name="package" size={16} />
                 </span>
                 <span className="aim-preset-teks">
                   <span className="aim-preset-nama">{tr('Custom Model')}</span>
@@ -318,23 +338,21 @@ export function AddModelDialog({
                   </span>
                   <span className="aim-preset-teks">
                     {/*
-                      * NAME ONLY. The reference shows no endpoint subtitle here;
-                      * the URL is long enough to be clipped at this width, and a
-                      * clipped URL is worse than none — it reads as the address
-                      * being known when only its beginning is visible. The URL
-                      * is shown on the next screen, in an editable field.
+                      * NAME ONLY, and the name the reference uses.
+                      *
+                      * The tile said "Google Gemini" where the reference says
+                      * just "Google" — the reader compares the two lists tile by
+                      * tile, and one longer name shifts nothing else but reads
+                      * as a mismatch. The modal keeps the full label on the
+                      * form step.
                       */}
-                    <span className="aim-preset-nama">{p.label}</span>
+                    <span className="aim-preset-nama">
+                      {p.id === 'gemini' ? tr('Google') : p.label}
+                    </span>
                   </span>
                   <AiIkon name="chev-right" size={13} />
                 </button>
               ))}
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="btn" data-testid="aim-add-tutup" onClick={onTutup}>
-                {tr('Cancel')}
-              </button>
             </div>
           </>
         ) : (

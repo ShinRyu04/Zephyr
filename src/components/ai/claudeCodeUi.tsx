@@ -266,6 +266,7 @@ export const EditDiff = memo(function EditDiff({
   newText,
   rows: given,
   mode,
+  path,
   onPickHunks,
   testidPrefix = 'cli',
 }: {
@@ -273,6 +274,14 @@ export const EditDiff = memo(function EditDiff({
   newText?: string;
   /** Pre-computed rows, for callers that already hold a diff table. */
   rows?: DiffRow[];
+  /**
+   * The file this diff belongs to, shown in the head strip.
+   *
+   * Optional: the Source Control viewer already has the path in its own header
+   * and a second copy would be noise, while the chat diff has nothing else
+   * saying which file a box belongs to.
+   */
+  path?: string;
   /**
    * `unified` (default) is one column with a sign gutter; `split` puts the
    * before and after side by side.
@@ -309,6 +318,11 @@ export const EditDiff = memo(function EditDiff({
   const long = rows.length > DIFF_PEEK + 6;
   const shown = long && !expand ? rows.slice(0, DIFF_PEEK) : rows;
   const hidden = rows.length - shown.length;
+  /* For the head strip. Counted over ALL rows, not the shown slice: the counts
+     say how big the change is, and cutting them at the peek limit would report
+     a 200-line change as "30 lines". */
+  const adds = rows.reduce((n, r) => n + (r.kind === 'add' ? 1 : 0), 0);
+  const dels = rows.reduce((n, r) => n + (r.kind === 'del' ? 1 : 0), 0);
 
   /*
    * Per-hunk selection.
@@ -380,6 +394,26 @@ export const EditDiff = memo(function EditDiff({
       data-mode={split ? 'split' : 'unified'}
       data-auto={wantSplit === null ? '1' : '0'}
     >
+      {/*
+        * The head: which file, and how much of it moved.
+        *
+        * A diff without a filename forces the reader to scroll back to the tool
+        * row to find out what they are looking at - and on a turn that touched
+        * three files, the boxes look identical. The counts use the same
+        * `+n −n` badges as the collapsed tool row, so the two agree.
+        */}
+      {path && (
+        <div className="cli-diff-head" data-testid="cli-diff-head">
+          <span className="cli-diff-path" title={path}>
+            {path.split(/[\\/]/).pop()}
+          </span>
+          <span className="cli-diff-dir">{path.split(/[\\/]/).slice(0, -1).join('/')}</span>
+          <span className="cli-diff-counts">
+            {adds > 0 && <span className="cli-diff-add">+{adds}</span>}
+            {dels > 0 && <span className="cli-diff-del">-{dels}</span>}
+          </span>
+        </div>
+      )}
       <div className="cli-diff-body">
         {split
           ? pairs.map((p, i) => (

@@ -46,6 +46,13 @@ const h = await cdp.json(
   }
 
   const pesan = [...document.querySelectorAll('.ai-msg.is-assistant')];
+  /* Buka semua fold lebih dulu: narasi tinggal DI DALAM fold, dan isi fold
+     tidak dirender saat tertutup. Dibaca tertutup, rincian segmen selalu 0. */
+  for (const head of document.querySelectorAll('[data-testid="ai-kerja-toggle"]')) {
+    if (head.getAttribute('aria-expanded') !== 'true') head.click();
+  }
+  await tunggu(500);
+
   const denganTool = pesan.filter(
     (p) => p.querySelector('.ai-kerja') || p.querySelector('.cli-tool'),
   );
@@ -53,7 +60,10 @@ const h = await cdp.json(
   out.rincian = denganTool.map((p) => ({
     akordion: p.querySelectorAll('.ai-kerja').length,
     kartu: p.querySelectorAll('.cli-tool').length,
-    segmen: p.querySelectorAll('.ai-segmen').length,
+    /* Narasi kini hidup DI DALAM fold (.ai-kerja-narasi); .ai-segmen hanya
+       bentuk lama di luar fold. Membaca satu nama saja melaporkan 0 padahal
+       narasinya tampil. */
+    segmen: p.querySelectorAll('.ai-segmen, [data-testid="ai-kerja-narasi"]').length,
     judul: [...p.querySelectorAll('.ai-kerja-judul')].map((x) => x.textContent),
   }));
 
@@ -63,7 +73,13 @@ const h = await cdp.json(
   out.bernarasiTanpaKartu = bernarasi.length > 0 && bernarasi.every((r) => r.kartu === 0);
   out.bernarasiPunyaAkordion = bernarasi.length > 0 && bernarasi.every((r) => r.akordion > 0);
 
-  /* G5: ukuran bar akordion. */
+  /* G5: ukuran bar akordion. Tutup lagi dulu - blok di atas membukanya untuk
+     membaca narasi, dan G5 mengukur bentuk TERTUTUP setelah run selesai. */
+  for (const head of document.querySelectorAll('[data-testid="ai-kerja-toggle"]')) {
+    if (head.getAttribute('aria-expanded') === 'true') head.click();
+  }
+  await tunggu(400);
+
   const kerja = [...document.querySelectorAll('.ai-kerja')];
   out.akordionTotal = kerja.length;
   if (kerja.length) {

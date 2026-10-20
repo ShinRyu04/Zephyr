@@ -71,6 +71,18 @@ function ukuranKonteks(ctx?: number): string {
   return `${Math.round(ctx / 1000)}K`;
 }
 
+/**
+ * The provider's NAME for a row's subtitle.
+ *
+ * Rows printed the raw provider id — "gemini", "zai", "openrouter" — which is a
+ * key, not something anyone says: the picker and Add Model both call the same
+ * thing "Google Gemini". A row that names its provider differently from the
+ * dialog it was added from reads as belonging to something else.
+ */
+function providerNama(id: string): string {
+  return PROVIDERS.find((p) => p.id === id)?.label ?? id;
+}
+
 function barisDari(p: string, m: ProviderModel): Baris {
   const note = m.note ?? '';
   return {
@@ -274,8 +286,14 @@ export default function AiModelsPage() {
             * `ModelLogo` derives the family from the model ID (see
             * `modelFamily`), so a model detected from any gateway gets its own
             * brand without per-model configuration.
+            *
+            * HydraFusion is the exception: it is not a model from any vendor but
+            * a router built into Zephyr, so `modelFamily` fell through to the
+            * two-letter "HY" monogram. It gets the sparkle instead — the same
+            * mark the live line sweeps while a run works — so the router reads as
+            * "Zephyr decides", not as a company abbreviated HY.
             */}
-          <ModelLogo id={b.id} size={16} />
+          {b.hydra ? <AiIkon name="thought" size={16} /> : <ModelLogo id={b.id} size={16} />}
         </span>
 
         <span className="aim-baris-teks">
@@ -287,7 +305,7 @@ export default function AiModelsPage() {
           <span className="aim-sub-teks">
             {b.hydra
               ? tr('the app picks the model and the workflow per task')
-              : b.provider}
+              : providerNama(b.provider)}
             {b.note && !b.hydra ? ' · ' + b.note : ''}
           </span>
         </span>

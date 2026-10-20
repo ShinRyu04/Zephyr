@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAi,
   extractCommand,
@@ -28,6 +28,8 @@ import {
   saringRef,
   ratakan,
   muatRef,
+  refTerakhir,
+  catatRefTerakhir,
   LABEL_JENIS,
   type RefItem,
   type SaringanJenis,
@@ -720,7 +722,7 @@ const bukaModels = () => bukaPanel('models');
   const { items: saranSlash } = matchPrompts(draft);
   const { items: saranSnippet } = matchSnippets(draft);
   const modeSnippet = saranSnippet.length > 0;
-  const saran = modeSnippet ? saranSnippet : saranSlash;
+  const saranMentah = modeSnippet ? saranSnippet : saranSlash;
   /* The trigger symbol the user typed (`>` or `#`) so the rows echo it back. */
   const pemicuSnippet = modeSnippet ? snippetTrigger(draft) ?? '>' : '>';
 
@@ -739,7 +741,7 @@ const bukaModels = () => bukaPanel('models');
   const grupPrompt = useMemo(() => {
     if (modeSnippet) return [] as { jenis: JenisPrompt; items: PromptItem[] }[];
     const peta = new Map<JenisPrompt, PromptItem[]>();
-    for (const p of saran) {
+    for (const p of saranMentah) {
       const j = jenisPrompt(p);
       const ada = peta.get(j);
       if (ada) ada.push(p);
@@ -749,7 +751,7 @@ const bukaModels = () => bukaPanel('models');
       jenis: j,
       items: peta.get(j) as PromptItem[],
     }));
-  }, [saran, modeSnippet]);
+  }, [saranMentah, modeSnippet]);
 
   /*
    * Inline `@` references, in CATEGORIES.
@@ -761,8 +763,56 @@ const bukaModels = () => bukaPanel('models');
    */
   const [refs, setRefs] = useState<RefItem[]>([]);
   const [refTerbuka, setRefTerbuka] = useState(false);
-  /* Which category chip is active, or null for "all of them". */
+  /*
+   * Set by `tutupRef` for the ONE case `refTerbuka` cannot express.
+   *
+   * The popup is drawn while the suggestion list is non-empty, and a token is
+   * still in the composer after Escape (the reader only pressed the key, they
+   * did not delete the `@`). Without this flag the render kept drawing the
+   * popup from the list contents alone, so Escape looked like it did nothing.
+   * Cleared again whenever the token moves or the popup is reopened.
+   */
+  const [daftarTutup, setDaftarTutup] = useState(false);
+  /*
+   * Which kind the popup is narrowed to, or null for ALL of them.
+   *
+   * There is no chip any more: the reference product opens on the whole list,
+   * and the reader narrows by TYPING a prefix (`@folder:`) or by pressing the
+   * group heading. A chip row locked the first thing the reader saw to one
+   * category, which is what made "@ never showed my folders".
+   */
   const [jenisRef, setJenisRef] = useState<SaringanJenis>(null);
+  /*
+   * The popup's own search field.
+   *
+   * Separate from the composer on purpose: the reference product keeps a field
+   * INSIDE the popup, and it earns its place. Typing `@` and then the name
+   * means the composer now holds a half-typed path, so looking for one file and
+   * then deciding against it leaves `@src/lib/aist` in the message to clean up.
+   * With a field in the popup the composer keeps only `@`, the search is
+   * thrown away on close, and Escape leaves nothing behind.
+   */
+  const [cariRef, setCariRef] = useState('');
+  const cariRefBox = useRef<HTMLInputElement | null>(null);
+  /*
+   * The `/` popup gets the same field, for the same reason: `/` then Escape
+   * used to wipe the whole draft, and a reader who was midway through a
+   * sentence lost it just for peeking at the command list.
+   */
+  const [cariSlash, setCariSlash] = useState('');
+  const cariSlashBox = useRef<HTMLInputElement | null>(null);
+  /*
+   * The `/` popup's own field filters the list too.
+   *
+   * A composer holding only "/" would otherwise show nineteen rows every time,
+   * and the reader has to type into the composer to narrow it - which puts the
+   * command name into the draft they may not send. Same rule as the `@` popup:
+   * the field wins, the composer's text is the fallback.
+   */
+  const kueriSlash = cariSlash.trim().toLowerCase();
+  const saran = kueriSlash
+    ? saranMentah.filter((p) => p.cmd.toLowerCase().includes(kueriSlash))
+    : saranMentah;
 
   /*
    * The caret position is tracked in state, not read from the DOM during
@@ -806,11 +856,60 @@ const bukaModels = () => bukaPanel('models');
    */
   const urai = token ? uraiToken(token.teks) : { jenis: null, q: '' };
   const jenisAktif: SaringanJenis = urai.jenis ?? jenisRef;
+  /*
+   * Closing the `@` popup, in ONE place.
+   *
+   * The filter and the search text used to be cleared one call site at a time -
+   * `pakaiRef` cleared them, the Escape handler cleared only one, the
+   * token-watcher cleared only the text. Whichever path a reader took (clicking
+   * away, deleting the `@`, pressing Escape in the field), whatever that path
+   * forgot stayed behind, so the next `@` opened already narrowed to the last
+   * kind that was picked. That is the reported "popup nyangkut, harus refresh
+   * dulu baru ilang": nothing was broken, the state simply outlived the popup.
+   *
+   * Every close goes through here now, and `tutupRef` also puts the caret back
+   * in the composer so a stray focus cannot keep the old field alive.
+   */
+  const tutupRef = (fokusKeComposer = false) => {
+    setRefTerbuka(false);
+    setJenisRef(null);
+    setCariRef('');
+    setIdxSaran(0);
+    /*
+     * `tutupRef` juga menutup popup yang BUKAN popup `@`.
+     *
+     * Render memakai `saranRefSemua.length > 0 || ...`, jadi selama daftar
+     * saran tidak kosong popup tetap tergambar walau `refTerbuka` sudah false.
+     * Dulu semuanya tampak baik-baik saja karena `pakaiRef` ikut memindahkan
+     * kursor keluar dari token; Escape tidak melakukan itu, sehingga popup
+     * tertinggal di layar dengan daftar kosong. Menutupnya harus eksplisit.
+     */
+    setDaftarTutup(true);
+    if (fokusKeComposer) {
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
+  /*
+   * What the list is filtered by: the popup's field when it has text, the
+   * composer otherwise. The field WINS rather than being AND-ed with it, so a
+   * half-typed `@src` plus "lib" in the field searches for "lib" - the field is
+   * the more deliberate of the two, and the reader can see what it contains.
+   */
+  const kueriRef = cariRef.trim() || urai.q;
   const grupRef =
     token && refTerbuka
-      ? saringRef(refs, jenisAktif ? `${jenisAktif}:${urai.q}` : urai.q)
+      ? saringRef(refs, { jenis: jenisAktif, q: kueriRef })
       : [];
   const saranRef = ratakan(grupRef);
+  /*
+   * The recent block, shown only while nothing has been typed.
+   *
+   * Once a query exists the reader is looking for something specific and the
+   * recent rows are noise that pushes the matches down; with an empty query
+   * they are the fastest route to what was being worked on a minute ago.
+   */
+  const recentRef = !kueriRef && !jenisAktif ? refTerakhir(refs) : [];
+  const saranRefSemua = recentRef.length ? [...recentRef, ...saranRef] : saranRef;
 
   /*
    * The token being edited is what decides whether the list is open, so a
@@ -820,7 +919,9 @@ const bukaModels = () => bukaPanel('models');
    */
   useEffect(() => {
     if (!token || /\s/.test(token.teks)) {
-      setRefTerbuka(false);
+      /* Closing through the shared path, so the filter cannot survive a close
+         that happened by deleting the `@` instead of pressing Escape. */
+      if (refTerbuka) tutupRef();
       return;
     }
     /*
@@ -837,6 +938,8 @@ const bukaModels = () => bukaPanel('models');
      * `adaBerkas` is the flag that matters, not the total length.
      */
     const adaBerkas = refs.some((r) => r.jenis === 'file' || r.jenis === 'folder');
+    /* Any new keystroke inside the token reopens a list closed by Escape. */
+    setDaftarTutup(false);
     if (!adaBerkas) {
       void muatRef().then((f) => {
         setRefs(f);
@@ -859,13 +962,35 @@ const bukaModels = () => bukaPanel('models');
    */
   const pakaiRef = (f: RefItem) => {
     const t = token;
-    if (!t) return;
+    const el = inputRef.current;
+    if (!t || !el) return;
     if (f.mode) useAi.getState().setAgentMode(f.mode);
-    const sesudah = draft.slice(posisi);
-    const teks = `${draft.slice(0, t.mulai)}@${f.sisip}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
+    /*
+     * Splice into the DOM value, not into `draft`.
+     *
+     * The popup's search field owns the caret while it is open, so the
+     * textarea's own selection is still where it was when the popup opened.
+     * `draft` may also be one render behind — the field's keystrokes do not
+     * touch it — and reading it produced a splice against stale text. The
+     * element's value is the one thing that is always current.
+     */
+    const nilai = el.value;
+    const sesudah = nilai.slice(posisi);
+    const teks = `${nilai.slice(0, t.mulai)}@${f.sisip}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
+    /*
+     * Write the textarea directly BEFORE telling React.
+     *
+     * The caret has to move into the textarea right after the pick, and the
+     * value React is about to render is the one this handler just computed.
+     * Setting it here means `setSelectionRange` below sees the new text, not
+     * the old one — otherwise it clamps the caret and the popup reopens on a
+     * half-token. React's next render sets the same string, so it is a no-op.
+     */
+    el.value = teks;
     setDraft(teks);
-    setRefTerbuka(false);
-    setJenisRef(null);
+    tutupRef();
+    /* A picked ref is by definition a recent one. */
+    catatRefTerakhir(f.kunci);
     /*
      * Move the caret past the inserted path. Without this the tracked position
      * still pointed inside the old "@pack" token, so the token was recomputed
@@ -873,8 +998,15 @@ const bukaModels = () => bukaPanel('models');
      */
     const ujung = t.mulai + 1 + f.sisip.length + (sesudah.startsWith(' ') ? 0 : 1);
     setKursor(ujung);
-    inputRef.current?.focus();
-    inputRef.current?.setSelectionRange(ujung, ujung);
+    /* The caret position is set in a timer, not here: `setDraft` above has not
+       reached the DOM yet, so the textarea still holds the OLD value and
+       `setSelectionRange` would clamp the caret to its end. That clamp is what
+       reopened the popup immediately after a pick - the tracked caret then
+       pointed at a half-token in the old text. */
+    window.setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(ujung, ujung);
+    }, 0);
   };
 
   useEffect(() => {
@@ -902,7 +1034,33 @@ const bukaModels = () => bukaPanel('models');
 
   /* A new query or a new category restarts the highlight at the top, or the
      reader would keep a selection that no longer means the same row. */
-  useEffect(() => setIdxSaran(0), [draft, jenisAktif]);
+  useEffect(() => setIdxSaran(0), [draft, jenisAktif, cariRef, cariSlash]);
+
+  /*
+   * Move the caret into the popup's field as soon as the list opens.
+   *
+   * The field is where the reader is going to type next, so leaving the caret
+   * in the composer means the first keystroke lands in the message instead —
+   * the same thing that made the old popup feel read-only. It is focused in an
+   * effect (after the popup is in the DOM) rather than on the click that
+   * opened it, because the field does not exist until `saranRef` is non-empty.
+   */
+  useEffect(() => {
+    if (!refTerbuka) return;
+    /* Only when the composer's token is bare (`@` or `@file:`): a token that
+       already carries text is being typed there, and stealing focus would
+       split one query across two inputs. */
+    if (urai.q.trim()) return;
+    const id = window.setTimeout(() => cariRefBox.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [refTerbuka, urai.q]);
+
+  useEffect(() => {
+    if (saran.length === 0 || modeSnippet) return;
+    const id = window.setTimeout(() => cariSlashBox.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saran.length > 0, modeSnippet]);
 
   const pakaiPrompt = (p: { cmd: string; body: string; aksi?: string }) => {
     /*
@@ -1969,40 +2127,81 @@ const bukaModels = () => bukaPanel('models');
           </div>
         )}
         {/*
-          * References for an "@" token, GROUPED BY KIND.
+          * References for an "@" token, ALL KINDS IN ONE LIST.
           *
-          * The reference product's composer promises "@ for context" and offers
-          * a file, a folder, a rule and an agent from one keystroke. The chips
-          * are what make the grouping discoverable: without them a reader sees
-          * only the first category and never learns the others exist.
+          * There is no chip row. It used to sit above the list and lock the
+          * popup to one category, so the first thing a reader saw after typing
+          * "@" was a filtered slice - the reported "isinya udah di-filter
+          * duluan, gabisa ngikutin kayak TRAE". Now every kind is on screen at
+          * once, in order (files, folders, rules, agents), and the heading of
+          * each kind is a button that narrows the list for anyone who wants it.
           *
-          * THE CHIPS ARE OUTSIDE THE SCROLLER, and that is the fix for the
-          * clipping. They used to be `position: sticky` INSIDE it, which meant
-          * the list scrolled UNDER a 35px band that had no idea it was there:
-          * the highlighted row disappeared beneath the chips and the last rows
-          * were cut by a scroll box sized for a list that no longer had the
-          * height. A header that does not move cannot cover what it sits above.
+          * The heading is the chip, moved inside the list where it labels the
+          * rows it filters instead of floating above all of them.
           */}
-        {saranRef.length > 0 && (
-          <div className="ai-slash is-ref" data-pemicu="ref">
-            <div className="ai-ref-chips" role="tablist" aria-label={tr('Filter by kind')}>
-              {grupRef.map((g) => (
-                <button
-                  key={g.jenis}
-                  type="button"
-                  role="tab"
-                  aria-selected={jenisAktif === g.jenis}
-                  className={`ai-ref-chip${jenisAktif === g.jenis ? ' is-on' : ''}`}
-                  data-testid={`ai-ref-chip-${g.jenis}`}
-                  /* A chip only NARROWS; pressing the active one clears the
-                     filter so the reader is never stuck in one category. */
-                  onClick={() => setJenisRef(jenisAktif === g.jenis ? null : g.jenis)}
-                >
-                  {tr(LABEL_JENIS[g.jenis])}
-                  <span className="ai-ref-chip-jml">{g.items.length}</span>
-                </button>
-              ))}
-            </div>
+        {(saranRefSemua.length > 0 || cariRef.length > 0) && !daftarTutup && (
+          <div
+            className="ai-slash is-ref"
+            data-pemicu="ref"
+            /*
+             * Escape always wins, from anywhere inside the popup.
+             *
+             * Capture phase, and it does NOT branch on whether the search field
+             * has text. It used to clear the query first and close on the second
+             * press - but after a heading click the reader has a filtered list
+             * with an EMPTY field, so the first Escape had nothing to clear and
+             * only closed the filter, leaving the popup open with zero rows.
+             * Measured: one Escape → filter cleared, popup still up, no rows.
+             * Escape means "get me out of here", so it closes, every time.
+             */
+            onKeyDownCapture={(e) => {
+              if (e.key !== 'Escape') return;
+              e.preventDefault();
+              e.stopPropagation();
+              tutupRef(true);
+            }}
+          >
+            {/* Recent picks, above the divider. Only with an empty query: see
+                `recentRef` for why. */}
+            {recentRef.length > 0 && (
+              <div className="ai-ref-recent" data-testid="ai-ref-recent">
+                {/*
+                 * A plain label, NOT a filter button.
+                 *
+                 * It shares `.ai-ref-head` for the type but must not be a
+                 * `<button>`: the harness (and any reader tabbing through)
+                 * counts filter headings, and counting "Terbaru" as one shifted
+                 * every index by one - the first "filter" click then hit the
+                 * label and did nothing.
+                 */}
+                <div className="ai-ref-head is-label">{tr('Terbaru')}</div>
+                {recentRef.map((f) => {
+                  const i = saranRefSemua.indexOf(f);
+                  return (
+                    <button
+                      key={`recent-${f.kunci}`}
+                      role="option"
+                      aria-selected={i === idxSaran}
+                      className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                      data-testid={`ai-ref-recent-${i}`}
+                      data-ref={f.sisip}
+                      onMouseEnter={() => setIdxSaran(i)}
+                      onClick={() => pakaiRef(f)}
+                    >
+                      {f.jenis === 'file' ? (
+                        <FileIkon nama={f.label} />
+                      ) : (
+                        <span className="ai-ref-ikon" aria-hidden="true">
+                          <AiIkon name="folder" size={13} />
+                        </span>
+                      )}
+                      <span className="ai-slash-cmd">@{f.label}</span>
+                      <span className="ai-slash-label">{f.detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div
               className="ai-ref-list"
               data-testid="ai-file-list"
@@ -2012,12 +2211,25 @@ const bukaModels = () => bukaPanel('models');
             >
               {grupRef.map((g) => (
                 <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
-                  {/* The heading only appears when more than one kind is on
-                      screen. With a single kind the chip above already says it,
-                      and repeating it would be a title over a list of one. */}
-                  {grupRef.length > 1 && (
-                    <div className="ai-ref-head">{tr(LABEL_JENIS[g.jenis])}</div>
-                  )}
+                  {/*
+                   * The heading is the filter, in place of the old chip row.
+                   *
+                   * Pressing it narrows the list to that kind; pressing it again
+                   * (when it is already the only kind on screen) goes back to
+                   * all of them, so the reader is never stuck inside a filter
+                   * with no visible way out.
+                   */}
+                  <button
+                    type="button"
+                    className={`ai-ref-head${jenisAktif === g.jenis ? ' is-on' : ''}`}
+                    data-testid={`ai-ref-head-${g.jenis}`}
+                    aria-pressed={jenisAktif === g.jenis}
+                    title={tr('Filter by kind')}
+                    onClick={() => setJenisRef(jenisAktif === g.jenis ? null : g.jenis)}
+                  >
+                    {tr(LABEL_JENIS[g.jenis])}
+                    <span className="ai-ref-head-jml">{g.items.length}</span>
+                  </button>
                   {g.items.map((f) => {
                     const i = saranRef.indexOf(f);
                     return (
@@ -2061,7 +2273,57 @@ const bukaModels = () => bukaPanel('models');
                   })}
                 </div>
               ))}
+              {saranRefSemua.length === 0 && (
+                <p className="ai-ref-empty" data-testid="ai-ref-empty">
+                  {tr('Tidak ada file atau folder yang cocok.')}
+                </p>
+              )}
             </div>
+            {/* The search field lives at the BOTTOM of the popup, like the
+                reference product: the list is the important part and the field
+                is what you reach for once you know the list is long. */}
+            <label className="ai-ref-cari">
+              <span className="ai-ref-cari-label">@{tr(LABEL_JENIS[jenisAktif ?? 'file'])}:</span>
+              <input
+                ref={cariRefBox}
+                className="ai-ref-cari-input"
+                data-testid="ai-ref-cari"
+                value={cariRef}
+                spellCheck={false}
+                autoComplete="off"
+                placeholder={tr('Masukkan nama untuk mencari')}
+                aria-label={tr('Cari rujukan konteks')}
+                onChange={(e) => setCariRef(e.target.value)}
+                onKeyDown={(e) => {
+                  /* The field is inside the popup, so the keys that walk the
+                     list must keep working from here — otherwise typing a
+                     query means the arrow keys stop responding. */
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    /* Closing ALWAYS reaches `tutupRef`, so the filter and the
+                       text go together with the popup. It no longer clears the
+                       query first: a filtered list with an empty field would
+                       then need a second Escape to get out of. */
+                    tutupRef(true);
+                    return;
+                  }
+                  if (saranRefSemua.length === 0) return;
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const n = saranRefSemua.length;
+                    setIdxSaran((i) =>
+                      e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n,
+                    );
+                    return;
+                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    pakaiRef(saranRefSemua[idxSaran]);
+                  }
+                }}
+              />
+            </label>
           </div>
         )}
 
@@ -2070,15 +2332,14 @@ const bukaModels = () => bukaPanel('models');
             a new question. The trigger is marked on the first line of the list so the
             user knows which one is currently active, and the row prints the
             symbol actually typed. */}
-        {saranRef.length === 0 && saran.length > 0 && (
+        {saranRef.length === 0 && (saran.length > 0 || cariSlash.length > 0) && (
           <div
-            className="ai-slash"
+            className={`ai-slash${modeSnippet ? '' : ' is-cmd'}`}
             data-testid="ai-slash"
             data-pemicu={modeSnippet ? 'snippet' : 'slash'}
-            role="listbox"
-            ref={slashRef}
             aria-label={tr('Prompt commands')}
           >
+          <div className="ai-slash-list" role="listbox" ref={slashRef}>
             {/*
               * Rows, grouped by what they DO when not showing snippets.
               *
@@ -2112,13 +2373,64 @@ const bukaModels = () => bukaPanel('models');
                 })}
               </div>
             ))}
+            {saran.length === 0 && (
+              <p className="ai-ref-empty" data-testid="ai-slash-empty">
+                {tr('No matching commands.')}
+              </p>
+            )}
+          </div>
+          {/* Snippets are a text-insertion feature, not a command menu: no
+              search field of their own. `is-cmd` marks the popup that has one. */}
+          {!modeSnippet && (
+            <label className="ai-ref-cari">
+              <span className="ai-ref-cari-label">/</span>
+              <input
+                ref={cariSlashBox}
+                className="ai-ref-cari-input"
+                data-testid="ai-slash-cari"
+                value={cariSlash}
+                spellCheck={false}
+                autoComplete="off"
+                placeholder={tr('Ketik untuk mencari…')}
+                aria-label={tr('Search commands')}
+                onChange={(e) => setCariSlash(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (cariSlash) setCariSlash('');
+                    else {
+                      /* Close the popup WITHOUT wiping the draft. Escape here
+                         used to clear the whole message, which punished the
+                         reader for having looked at the list. */
+                      setCariSlash('');
+                      inputRef.current?.focus();
+                    }
+                    return;
+                  }
+                  if (saran.length === 0) return;
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const n = saran.length;
+                    setIdxSaran((i) =>
+                      e.key === 'ArrowDown' ? (i + 1) % n : (i - 1 + n) % n,
+                    );
+                    return;
+                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    pakaiPrompt(saran[idxSaran]);
+                  }
+                }}
+              />
+            </label>
+          )}
           </div>
         )}
         <textarea
           ref={inputRef}
           className="ai-input"
           data-testid="ai-input"
-          rows={2}
+          rows={1}
           placeholder={
             sibuk
               ? tr('Agent is working…')
@@ -2137,23 +2449,41 @@ const bukaModels = () => bukaPanel('models');
 
             // The reference list takes the keys while it is open: Enter there
             // means "insert this reference", not "send".
-            if (saranRef.length > 0) {
+            if (saranRefSemua.length > 0) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                const nf = saranRef.length;
+                const nf = saranRefSemua.length;
                 setIdxSaran((i) => (e.key === 'ArrowDown' ? (i + 1) % nf : (i - 1 + nf) % nf));
                 return;
               }
-              if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+              /*
+               * Enter here INSERTS the highlighted row — which is right while
+               * the reader is mid-`@`, and wrong the moment the popup was only
+               * re-opened behind a finished message.
+               *
+               * The popup stays mounted on its suggestion list, so a stale
+               * list after a send swallowed the Enter that was meant to send
+               * the next message: the key inserted a path instead, and the
+               * only way out was the mouse. `daftarTutup` says the reader has
+               * already dismissed this one, so Enter goes back to sending.
+               */
+              if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !daftarTutup)) {
                 e.preventDefault();
-                pakaiRef(saranRef[idxSaran]);
+                pakaiRef(saranRefSemua[idxSaran]);
                 return;
               }
               if (e.key === 'Escape') {
                 e.preventDefault();
-                setRefTerbuka(false);
+                tutupRef();
                 return;
               }
+            }
+            /* Escape with the `@` popup open but nothing to highlight still
+               closes it — otherwise a failed search traps the reader in it. */
+            if (e.key === 'Escape' && token && refTerbuka) {
+              e.preventDefault();
+              tutupRef();
+              return;
             }
             if (saran.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
               e.preventDefault();
@@ -2165,7 +2495,12 @@ const bukaModels = () => bukaPanel('models');
             // Prompt History Navigation
             const st = useAi.getState();
             const inHistory = st.promptHistoryIdx >= 0 && draft === st.promptHistory[st.promptHistoryIdx];
-            if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && saran.length === 0 && saranRef.length === 0) {
+            if (
+              !e.shiftKey &&
+              (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+              saran.length === 0 &&
+              saranRefSemua.length === 0
+            ) {
               if (draft === '' || inHistory) {
                 e.preventDefault();
                 const nextDraft = e.key === 'ArrowUp' ? historyUp() : historyDown();
@@ -2180,13 +2515,32 @@ const bukaModels = () => bukaPanel('models');
               pakaiPrompt(saran[idxSaran]);
               return;
             }
+            /*
+             * Escape closes the `/` popup without touching the draft.
+             *
+             * It used to call `setDraft('')`, which is a destructive answer to
+             * a reader who only glanced at the command list — the sentence they
+             * had typed was gone. Closing the list is what Escape means; the
+             * text is not the list.
+             */
             if (e.key === 'Escape' && saran.length > 0) {
               e.preventDefault();
-              setDraft('');
+              setCariSlash('');
+              setDraft(draft.replace(/^[>#/][\w-]*$/, ''));
               return;
             }
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
+              /*
+               * Enter with an EMPTY draft falls through to the default.
+               *
+               * It used to `preventDefault()` unconditionally and then call
+               * `kirimSekarang`, which returns at once when there is no text —
+               * so Enter did nothing at all, visibly. The button is `disabled`
+               * in the same state and that is fine; a key that is swallowed
+               * silently is not. No text means no send, and nothing to block.
+               */
+              if (!draft.trim() && draftImages.length === 0) return;
               /*
                * While a run is in flight, Ctrl+Enter cuts it short and sends
                * this now; a plain Enter lines the message up behind it. Idle,

@@ -621,7 +621,13 @@ export const useStore = create<Store>((set, get) => ({
   setSidebarVisible: (v) => set({ sidebarVisible: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(180, Math.min(600, w)) }),
 
-  setAiWidth: (w) => set({ aiWidth: Math.max(320, Math.min(1000, w)) }),
+  /*
+   * The floor is 360px, not 320px: below that the transcript's prose column
+   * drops under ~45 characters per line, tool paths clip mid-name, and code
+   * blocks start scrolling horizontally — the panel stops being usable. 360
+   * still leaves the editor plenty of room on a 1366px screen.
+   */
+  setAiWidth: (w) => set({ aiWidth: Math.max(360, Math.min(1000, w)) }),
   setAiMax: (v) => set({ aiMax: v }),
   setAiKolomVisible: (v) => set({ aiKolomVisible: v }),
   toggleAiKolom: () => set((s) => ({ aiKolomVisible: !s.aiKolomVisible })),

@@ -12,7 +12,7 @@ import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { MsgTime } from './ChatStamp';
 import { ThinkingLine } from './CliTimeline';
-import { ToolRow, EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
+import { EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
 import PerubahanBerkas from './PerubahanBerkas';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
@@ -66,6 +66,8 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   if (lang === 'kotak') return <KotakKotak teks={code} />;
 
   const [pratinjau, setPratinjau] = useState<DiffRow[] | null>(null);
+  /* The file the preview belongs to, for the diff's head strip. */
+  const [pratinjauPath, setPratinjauPath] = useState('');
 
   const terapkan = () => {
     void import('../../lib/store').then(({ useStore }) => {
@@ -75,6 +77,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
       const tab = s.tabs.find((t) => t.id === id);
       const lama = tab?.content ?? '';
       if (lama === code) return setToast(tx('The file contents are already the same as this code'));
+      setPratinjauPath(tab?.path ?? '');
       setPratinjau(barisDiff(lama, code));
     });
   };
@@ -194,7 +197,12 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
               Cancel
             </button>
           </div>
-          <EditDiff rows={pratinjau} testidPrefix="ai" onPickHunks={terapkanSebagian} />
+          <EditDiff
+            rows={pratinjau}
+            path={pratinjauPath}
+            testidPrefix="ai"
+            onPickHunks={terapkanSebagian}
+          />
         </div>
       )}
     </div>
@@ -400,11 +408,17 @@ const MD_JAWABAN: Components = {
  */
 function GrupKerja({
   tools,
+  narasi,
   tr,
   tf,
   live,
 }: {
   tools: readonly AgentToolRun[];
+  /* The narration the model wrote before/while these calls ran. Shown INSIDE
+     the fold, so the closed transcript reads "Worked for Xs" alone - the TRAE
+     shape the reader asked for - instead of narration paragraph, bar,
+     narration paragraph, bar. */
+  narasi?: string;
   tr: (s: string) => string;
   tf: (s: string, v: Record<string, string | number>) => string;
   live: boolean;
@@ -436,14 +450,25 @@ function GrupKerja({
   if (lain) bagian.push(tf('{n} steps', { n: lain }));
   const ringkas = bagian.join(' · ');
 
-  /* "Worked for 6s" / "Worked for 1m 4s" - the duration the reader sees first. */
+  /* "Created 1 file, Read 1 file, Ran 2 commands" - the bar's headline. */
+  const kerja = ringkasKerja(tools, tf);
+
+  /* The duration moves INSIDE the fold: it is context, not the headline. */
   const durasi =
     totalMs >= 60000
       ? `${Math.floor(totalMs / 60000)}m ${Math.round((totalMs % 60000) / 1000)}s`
       : `${Math.max(1, Math.round(totalMs / 1000))}s`;
+  /*
+   * The headline is the DURATION, as in the reference product: "Worked for 12s".
+   *
+   * It was briefly the work summary ("Read 1 file"), and that read as a caption
+   * rather than a fold title - the compactness the reader asked for comes from
+   * the thin bar, not from putting the counts in its label. The counts live one
+   * level down, as the fold's subtitle.
+   */
   const judul = live
-    ? tf('Working… {t}', { t: durasi })
-    : tf('Worked for {t}', { t: durasi });
+    ? tf('Sedang bekerja… {t}', { t: durasi })
+    : tf('Selesai dalam {t}', { t: durasi });
 
   return (
     <div
@@ -458,22 +483,51 @@ function GrupKerja({
         data-testid="ai-kerja-toggle"
         aria-expanded={terbuka}
         onClick={() => setPilihan(!terbuka)}
-        title={ringkas || judul}
+        title={kerja || ringkas || judul}
       >
-        <span className="ai-kerja-caret" aria-hidden="true">
-          {terbuka ? '▾' : '▸'}
+        {/*
+         * TRAE's bar is a single quiet line: a small mark on the left, the
+         * duration in muted text, and the chevron on the RIGHT. The
+         * "1 files · 3 commands" counts are not shown here — they made the bar
+         * read as a caption and pushed the chevron out of its corner. The
+         * counts still exist inside the fold as its subtitle.
+         */}
+        <span className="ai-kerja-mark" aria-hidden="true">
+          {live ? (
+            <span className="ai-kerja-spin" />
+          ) : (
+            <AiIkon name={gagal ? 'info' : 'check'} size={12} />
+          )}
         </span>
         <span className="ai-kerja-judul">{judul}</span>
-        {ringkas && <span className="ai-kerja-ringkas">{ringkas}</span>}
         {gagal > 0 && (
           <span className="ai-kerja-gagal">
             {tf('{n} failed', { n: gagal })}
           </span>
         )}
+        <span className="ai-kerja-caret" aria-hidden="true">
+          {terbuka ? '▾' : '›'}
+        </span>
       </button>
 
       {terbuka && (
         <div className="ai-kerja-isi" data-testid="ai-kerja-isi">
+          {ringkas ? (
+            <div className="ai-kerja-sub" data-testid="ai-kerja-sub">
+              {live ? ringkas : `${tf('Selesai dalam {t}', { t: durasi })} · ${ringkas}`}
+            </div>
+          ) : (
+            <div className="ai-kerja-sub" data-testid="ai-kerja-sub">
+              {tf('Selesai dalam {t}', { t: durasi })}
+            </div>
+          )}
+          {narasi ? (
+            <div className="ai-kerja-narasi" data-testid="ai-kerja-narasi">
+              <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                {narasi}
+              </Markdown>
+            </div>
+          ) : null}
           {tools.map((t, k) => {
             const info = infoAksi(t.name);
             const target = sasaranAksi(t.args);
@@ -503,59 +557,57 @@ function GrupKerja({
 }
 
 /*
- * The one-line fact strip for a tool row: "42 lines · 1.2KB · +3 -1".
+ * Split a message's tools into groups — ONE GROUP PER RUN OF WORK.
  *
- * Only numbers the tool actually reported go in, so a call with no measurable
- * output shows nothing rather than a false zero. Extracted from the render body
- * because both layouts (the interleaved rows and the accordion's list) describe
- * the same facts, and two copies would drift.
- */
-function statUntuk(t: AgentToolRun, tf: (s: string, v: Record<string, string | number>) => string): string {
-  const bit: string[] = [];
-  if (typeof t.lines === 'number' && t.lines > 1) bit.push(tf('{n} lines', { n: t.lines }));
-  if (typeof t.bytes === 'number' && t.bytes >= 1024) bit.push(`${(t.bytes / 1024).toFixed(1)}KB`);
-  if (typeof t.additions === 'number' && t.additions > 0) bit.push(`+${t.additions}`);
-  if (typeof t.deletions === 'number' && t.deletions > 0) bit.push(`-${t.deletions}`);
-  return bit.join(' · ');
-}
-
-/*
- * Split a message's tools into groups — now ONE group per turn.
+ * ## What a "run" is
  *
- * WHY this replaced the narration-splitting version: it closed a group every
- * time the model wrote a sentence before calling a tool. Models narrate
- * constantly ("let me check…", "now I'll run…"), so almost every call landed in
- * a group of its own and the transcript filled with separate one-line bars —
- * the "tools are never grouped" the reader reported. The grouping key was the
- * narration, and the narration is exactly what varies most.
+ * A new group starts when the model spoke, then called another tool. The
+ * narration between two calls is the boundary: "let me check…" followed by a
+ * call is a new step of work, and the reference product shows exactly that —
+ * `Created 1 file, Read 1 file ❯` on one line, then a sentence, then
+ * `Created 1 file, Edited 3 files ❯` on the next (`Trae.png`).
  *
- * The narration is NOT thrown away: it is still rendered, above the single
- * block, as prose. What changed is that it no longer decides the block
- * boundaries.
+ * ## Why not one group per message, and why not per sentence
  *
- * The call in flight is pulled out of the fold and rendered as its own full row,
- * because that is the one the reader is watching.
+ * One group per MESSAGE was where this started, and it merged two visibly
+ * separate runs into a single bar. One group per SENTENCE was the version
+ * before that, and it was worse: models narrate constantly, so nearly every
+ * call landed alone and the transcript filled with one-line bars.
+ *
+ * The rule that holds both ends is the one above: a sentence only opens a new
+ * group if a tool ran BEFORE it. Narration with no call behind it is prose, not
+ * a boundary — it stays attached to the group it followed.
+ *
+ * The tail (prose after the last call) never opens a group. It is rendered
+ * outside the fold as the answer.
  */
 function kelompokPerNarasi(
   tools: readonly AgentToolRun[],
   narasi: readonly string[],
   indeksSibuk: number,
+  /* Kept for the caller's signature; the tail is rendered outside the fold by
+     `ChatMessageInner`, not grouped. */
+  ekor = '',
 ): Array<{ narasi: string; items: number[] }> {
   if (tools.length === 0) return [];
-
-  /* Every narration slice, joined in order, as the prose above the block. */
-  const teks = narasi
-    .map((t) => (t ?? '').trim())
-    .filter(Boolean)
-    .join('\n\n');
-
-  const items: number[] = [];
-  for (let i = 0; i < tools.length; i += 1) items.push(i);
+  void ekor;
 
   const grup: Array<{ narasi: string; items: number[] }> = [];
-  if (items.length > 0) grup.push({ narasi: teks, items });
+  for (let i = 0; i < tools.length; i += 1) {
+    const kalimat = (narasi[i] ?? '').trim();
+    /* A group is open AND this call follows a sentence that came after the
+       previous call -> the model finished a step and started another. */
+    const bukaBaru = grup.length > 0 && kalimat !== '';
+    if (grup.length === 0 || bukaBaru) grup.push({ narasi: kalimat, items: [i] });
+    else grup[grup.length - 1].items.push(i);
+  }
 
-  /* The call in flight must stay visible: pull it out of the folded block. */
+  /*
+   * The call in flight is pulled out of the fold and rendered as its own row.
+   *
+   * It must not be the last item of a group, or the fold would swallow the one
+   * call the reader is watching.
+   */
   if (indeksSibuk >= 0 && indeksSibuk < tools.length) {
     for (const g of grup) {
       const pos = g.items.indexOf(indeksSibuk);
@@ -568,6 +620,47 @@ function kelompokPerNarasi(
   }
 
   return grup.filter((g) => g.items.length > 0);
+}
+
+/**
+ * The bar's headline: what the run TOUCHED, in the model's own verbs.
+ *
+ * "Created 1 file, Read 1 file, Ran 2 commands" — the reference product's
+ * wording. It used to read "Worked for 12s", which told the reader how long
+ * they waited and nothing about what happened; the duration still exists, one
+ * level down inside the fold.
+ *
+ * Counts are grouped by verb+noun so the line stays short: five reads are
+ * "Read 5 files", not five clauses.
+ */
+function ringkasKerja(
+  tools: readonly AgentToolRun[],
+  tf: (s: string, v: Record<string, string | number>) => string,
+): string {
+  const n: Record<string, number> = {};
+  const naik = (k: string) => {
+    n[k] = (n[k] ?? 0) + 1;
+  };
+  for (const t of tools) {
+    const nama = namaPolos(t.name);
+    /* The verb comes from the tool's own family, not from a guess about the
+       args: `write_file` on a new path still counts as "Edited", because the
+       model used a write tool either way. */
+    if (nama === 'bash_run' || nama === 'sh' || nama === 'run_command') naik('cmd');
+    else if (nama.startsWith('read') || nama === 'grep' || nama === 'glob') naik('read');
+    else if (nama.startsWith('write') || nama.startsWith('edit') || nama.startsWith('apply')) naik('edit');
+    else if (nama.startsWith('create')) naik('create');
+    else if (nama.startsWith('search') || nama.startsWith('find')) naik('search');
+    else naik('step');
+  }
+  const bit: string[] = [];
+  if (n.create) bit.push(tf('Created {n} file', { n: n.create }));
+  if (n.edit) bit.push(tf('Edited {n} file', { n: n.edit }));
+  if (n.read) bit.push(tf('Read {n} file', { n: n.read }));
+  if (n.search) bit.push(tf('Searched files {n} times', { n: n.search }));
+  if (n.cmd) bit.push(tf('Ran {n} commands', { n: n.cmd }));
+  if (n.step) bit.push(tf('{n} steps', { n: n.step }));
+  return bit.join(', ');
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
@@ -626,6 +719,19 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
     }
     ekorNarasi = isiNarasi.slice(a0);
   }
+  /*
+   * The tail — prose after the LAST call — stays OUTSIDE the fold.
+   *
+   * It used to be folded in when the turn finished, so a closed transcript read
+   * "bar, answer" with no sentence in between. The reference product keeps that
+   * closing line visible above the bar (`Trae.png`: the sentence sits between
+   * two bars), because it is the model explaining what it just did — reading it
+   * should not need a click.
+   *
+   * While the turn is live the tail is empty anyway (it is the sentence being
+   * typed right now), so the same expression covers both states.
+   */
+  const narasiEkor = ekorNarasi;
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
   const [gambarBuka, setGambarBuka] = useState<string | null>(null);
   const tr = useT();
@@ -696,10 +802,10 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    */
   const indeksToolSibuk = indeksSibuk;
   const grupTools = useMemo(
-    () => kelompokPerNarasi(msg.tools ?? [], potongNarasi, indeksSibuk),
+    () => kelompokPerNarasi(msg.tools ?? [], potongNarasi, indeksSibuk, narasiEkor),
     // `potongNarasi` is rebuilt each render from `msg.content`; keying on the
     // content and the tools is what keeps this from recomputing on every tick.
-    [msg.tools, msg.content, indeksSibuk],
+    [msg.tools, msg.content, indeksSibuk, msg.streaming],
   );
 
   /*
@@ -956,7 +1062,15 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 const sibukDiSini = g.items.includes(indeksToolSibuk);
                 return (
                   <Fragment key={`g-${gi}`}>
-                    {g.narasi ? (
+                    {/*
+                     * The narration does NOT render as its own paragraph out
+                     * here. On a finished group it lives inside the fold (see
+                     * GrupKerja), so the closed transcript is exactly the TRAE
+                     * shape: answer prose, one "Worked for Xs" bar, answer.
+                     * Only the LIVE row keeps its narration outside, because
+                     * that sentence is the context for the step in flight.
+                     */}
+                    {sibukDiSini && g.narasi ? (
                       <div className="ai-segmen" data-testid="ai-segmen">
                         <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
                           {g.narasi}
@@ -964,42 +1078,59 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                       </div>
                     ) : null}
                     {/*
-                     * The call in flight stays a full row: it is the one the
-                     * reader is watching, and folding it away would hide the
-                     * progress they came to see. A finished group folds.
+                     * The call in flight is a THIN ROW, not a bordered card.
+                     *
+                     * It used to render as a full `ToolRow`: a bordered box
+                     * with a head, a body and its own collapse, which is the
+                     * "kotak tools" the reader asked to stop seeing. The row
+                     * still has to exist - it is the only sign the run is alive
+                     * - so it keeps the information and drops the chrome: an
+                     * icon, the verb, the target, a spinner. Same family as the
+                     * fold bar directly above it.
                      */}
                     {sibukDiSini ? (
-                      <ToolRow
-                        name={namaPolos(items[0].name)}
-                        labelName={infoAksi(items[0].name).label}
-                        title={sasaranAksi(items[0].args) || perintahAksi(items[0].name, items[0].args)}
-                        input={perintahAksi(items[0].name, items[0].args) ? '' : items[0].args}
-                        output={items[0].result}
-                        status={items[0].ok ? 'ok' : 'fail'}
-                        exitCode={items[0].exitCode}
-                        diffPatch={items[0].result}
-                        stat={statUntuk(items[0], tf)}
-                        ms={items[0].ms}
-                        onImage={setGambarBuka}
-                      />
-                    ) : items.length === 1 ? (
-                      /* A group of one is its own row, not a summary of one. */
-                      <ToolRow
-                        name={namaPolos(items[0].name)}
-                        labelName={infoAksi(items[0].name).label}
-                        title={sasaranAksi(items[0].args) || perintahAksi(items[0].name, items[0].args)}
-                        input={perintahAksi(items[0].name, items[0].args) ? '' : items[0].args}
-                        output={items[0].result}
-                        status={items[0].ok ? 'ok' : 'fail'}
-                        exitCode={items[0].exitCode}
-                        diffPatch={items[0].result}
-                        stat={statUntuk(items[0], tf)}
-                        ms={items[0].ms}
-                        onImage={setGambarBuka}
-                      />
+                      <div className="ai-kerja-live" data-testid="ai-kerja-live">
+                        <span
+                          className={`cli-tool-ikon is-${toolKind(items[0].name)}`}
+                          aria-hidden="true"
+                        >
+                          <AiIkon name={toolGlyph(items[0].name) as never} size={12} />
+                        </span>
+                        <span className="ai-kerja-live-label">
+                          {infoAksi(items[0].name).label}
+                        </span>
+                        {(sasaranAksi(items[0].args) ||
+                          perintahAksi(items[0].name, items[0].args)) && (
+                          <code
+                            className="ai-grup-args"
+                            title={
+                              sasaranAksi(items[0].args) ||
+                              perintahAksi(items[0].name, items[0].args)
+                            }
+                          >
+                            {sasaranAksi(items[0].args) ||
+                              perintahAksi(items[0].name, items[0].args)}
+                          </code>
+                        )}
+                        <span className="ai-kerja-spin" aria-hidden="true" />
+                      </div>
                     ) : (
+                      /*
+                       * EVERY finished group folds, even a single call.
+                       *
+                       * A group of one used to render as a full row on the
+                       * argument that a summary of one is noise. The result was
+                       * the reported "1 1 terus": the active call is always a
+                       * full row, so a turn of two tools showed TWO separate
+                       * rows and the fold only ever appeared at three or more.
+                       * Folding from one keeps the transcript to the shape the
+                       * reader asked for — narration, one "Worked for Xs" bar,
+                       * the call in flight, the answer — and the single call is
+                       * still one click away inside the bar.
+                       */
                       <GrupKerja
                         tools={items}
+                        narasi={g.narasi}
                         tr={tr}
                         tf={tf}
                         live={Boolean(msg.streaming) && gi === grupTools.length - 1}
@@ -1053,7 +1184,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                 </div>
               )}
               <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
-              {ekorNarasi}
+              {msg.tools && msg.tools.length > 0 ? narasiEkor : ekorNarasi}
             </Markdown>
             </>
           )}

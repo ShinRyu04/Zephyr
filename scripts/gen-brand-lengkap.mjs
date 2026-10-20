@@ -61,6 +61,9 @@ const PETA = {
   vertexai: { lobe: 'vertexai', warna: '#4285F4' },
   antgroup: { lobe: 'antgroup', warna: '#1677FF' },
   siliconcloud: { lobe: 'siliconcloud', warna: '#6E29F6' },
+  novita: { lobe: 'novita', warna: '#7C5CFF' },
+  ppio: { lobe: 'ppio', warna: '#4B5BFF' },
+  vercel: { simple: 'vercel', warna: null },
   fireworks: { lobe: 'fireworks', warna: null },
   inclusionai: { lobe: 'inclusionai', warna: null },
 };
@@ -77,7 +80,14 @@ async function pathDariLobe(nama) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const svg = await res.text();
-  const m = svg.match(/<path d="([^"]+)"/);
+  /*
+   * LobeHub ships single-colour marks with the path attribute BEFORE `d` and a
+   * trailing `</path>`, so the original `/<path d="..."/` never matched and the
+   * brand was dropped silently — that is how SiliconFlow, Novita and PPIO ended
+   * up as two-letter monograms while every neighbour had a real mark. The
+   * attribute order is not part of the contract, so match `d` on its own.
+   */
+  const m = svg.match(/<path[^>]*\sd="([^"]+)"/) ?? svg.match(/ d="([^"]+)"/);
   if (!m) throw new Error('tidak ada path');
   return m[1];
 }
