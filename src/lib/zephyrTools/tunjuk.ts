@@ -39,19 +39,16 @@ import { cariFakta } from '../zephyrCari';
  * words. "AI-nya boros token" is not the string "agents", and no search over
  * labels bridges that - the bridge is what this table is.
  *
- * Order matters: the first section with a matching trigger wins, so the more
- * specific entries come first.
+ * ONLY sections that still have a row in the Settings nav belong here. Agent
+ * settings (`agents`, `rules`, `subagent`, `permissions`) and `mcp` moved into
+ * the Agent Customizations panel and are reachable only from the tables below -
+ * opening the Settings window for them lands the reader on a page whose nav has
+ * no such row.
+ *
+ * Matching picks the entry with the LONGEST matching trigger, not the first one,
+ * so a narrow word ("agent") can no longer swallow a more specific intent.
  */
 const NIAT_SETELAN: { seksi: string; kata: string[]; apa: string }[] = [
-  {
-    seksi: 'agents',
-    kata: [
-      'boros token', 'hemat token', 'konteks', 'context', 'permission tool', 'izin tool',
-      'agent', 'subagent', 'custom instruction', 'instruksi tetap', 'max step', 'batas langkah',
-      'persona', 'system prompt',
-    ],
-    apa: 'cara agen bekerja: instruksi tetap, izin tool, batas langkah, dan anggaran konteks',
-  },
   {
     seksi: 'theme',
     kata: ['tema', 'theme', 'warna', 'gelap', 'terang', 'dark mode', 'light mode', 'ukuran huruf'],
@@ -66,11 +63,6 @@ const NIAT_SETELAN: { seksi: string; kata: string[]; apa: string }[] = [
     seksi: 'shortcuts',
     kata: ['pintasan', 'shortcut', 'keybind', 'hotkey'],
     apa: 'daftar dan pengubahan pintasan papan tombol',
-  },
-  {
-    seksi: 'mcp',
-    kata: ['mcp', 'tools luar', 'tools eksternal', 'server eksternal', 'port 9222'],
-    apa: 'server MCP: port, token, dan server luar yang terpasang',
   },
   {
     seksi: 'models',
@@ -219,12 +211,41 @@ const NIAT_PERMUKAAN: {
     id: 'agent-custom',
     kata: [
       'kustomisasi agen', 'agent custom', 'agent customization', 'customization', 'kustomisasi',
-      'peran agen', 'agent role', 'atur agen', 'aturan agen', 'agent rules', 'agent hooks',
-      'agent skills', 'agent personas', 'persona', 'hooks', 'skill agen',
+      'peran agen', 'agent role', 'atur agen', 'aturan agen', 'agent rules',
+      'agent hooks', 'agent personas', 'skill agen',
+      /*
+       * These used to sit in the Settings table as the `agents` section. That
+       * section has no row in the Settings nav any more - the panel owns it - so
+       * the triggers moved here rather than disappearing.
+       */
+      'boros token', 'hemat token', 'anggaran konteks', 'konteks agen', 'agent context',
+      'permission tool', 'izin tool', 'subagent', 'max step', 'batas langkah',
+      'system prompt', 'instruksi tetap', 'agent', 'agen',
     ],
     apa:
       'panel Agent Customizations (Agents, Skills, Rules, Hooks, Personas, Browser, Conversations)',
     buka: () => bukaAgentCustom(''),
+  },
+  {
+    /*
+     * MCP servers are a tab of the Agent Customizations panel, not a Settings
+     * page. The old entry pointed at `seksi: 'mcp'`, which no longer has a nav
+     * row - the reader ended up in the Settings window looking at a list that
+     * does not contain it.
+     */
+    id: 'agent-mcp',
+    kata: ['mcp', 'tools luar', 'tools eksternal', 'server eksternal', 'port 9222', 'server mcp'],
+    apa: 'tab MCP di panel Agent Customizations: port, token, dan server luar yang terpasang',
+    buka: () => bukaAgentCustom('mcp'),
+  },
+  {
+    id: 'agent-todo',
+    kata: [
+      'to-do', 'to do', 'todo', 'todo list', 'daftar tugas', 'kartu tugas', 'task list',
+      'todo_write', 'rencana tugas',
+    ],
+    apa: 'daftar To-Do List agen, di panel Agent Customizations > Conversations',
+    buka: () => bukaAgentCustom('todo'),
   },
 ];
 
@@ -244,21 +265,33 @@ const NIAT_PERMUKAAN: {
  * actually 'instructions') opens the panel on the wrong tab with no error.
  */
 const TAB_AGEN: { kata: string[]; tab: string; label: string }[] = [
-  { kata: ['rule', 'aturan agen', 'agent rules', 'memori agen', 'memory agen'], tab: 'instructions', label: 'Rules & Memories' },
+  { kata: ['rule', 'aturan agen', 'agent rules'], tab: 'instructions', label: 'Rules & Memories' },
   { kata: ['hook'], tab: 'hooks', label: 'Hooks' },
   { kata: ['skill'], tab: 'skills', label: 'Skills' },
-  { kata: ['persona', 'plugin'], tab: 'plugins', label: 'Plugins' },
-  { kata: ['conversation', 'percakapan', 'riwayat chat'], tab: 'conversations', label: 'Conversations' },
+  { kata: ['plugin'], tab: 'plugins', label: 'Plugins' },
+  {
+    kata: ['conversation', 'percakapan', 'riwayat chat', 'to-do', 'to do', 'todo', 'daftar tugas', 'kartu tugas', 'task list', 'todo_write'],
+    tab: 'conversations',
+    label: 'Conversations',
+  },
   { kata: ['browser agen', 'agent browser'], tab: 'browser', label: 'Browser' },
+  { kata: ['mcp', 'tools luar', 'tools eksternal', 'server eksternal', 'port 9222'], tab: 'mcp', label: 'MCP' },
+  { kata: ['izin tool', 'permission tool', 'permission', 'permissions'], tab: 'permissions', label: 'Permissions' },
 ];
 
 async function bukaAgentCustom(niat: string): Promise<string> {
-  const pilih = TAB_AGEN.find((t) => cocok(niat, t.kata));
+  const pilih = pilihTerbaik(niat, TAB_AGEN);
   const tab = pilih?.tab ?? 'agents';
   const label = pilih?.label ?? 'Agents';
   const m = await import('../bukaPanel');
   m.bukaPanel('agent-custom', tab);
-  return `Sudah saya buka panel Agent Customizations, tab ${label}. Tab lain di panel itu: Overview, Agents, Skills, Rules & Memories, Hooks, Plugins, MCP, Browser, Conversations, Permissions, Tools, Migrations.`;
+  /*
+   * The To-Do List is not a tab of its own: it is the first section of the
+   * Conversations tab. Saying "tab Conversations" alone still leaves the reader
+   * scanning the page, so name where inside it to look.
+   */
+  const dalam = tab === 'conversations' ? ' — To-Do List ada di bagian paling atas tab itu' : '';
+  return `Sudah saya buka panel Agent Customizations, tab ${label}${dalam}. Tab lain di panel itu: Overview, Agents, Skills, Rules & Memories, Hooks, Plugins, MCP, Browser, Conversations, Permissions, Tools, Migrations.`;
 }
 
 /**
@@ -281,7 +314,7 @@ const SEKSI_CHAT: { kata: string[]; seksi: string; label: string }[] = [
 ];
 
 async function bukaChatSettings(niat: string): Promise<string> {
-  const pilih = SEKSI_CHAT.find((s) => cocok(niat, s.kata));
+  const pilih = pilihTerbaik(niat, SEKSI_CHAT);
   const seksi = pilih?.seksi ?? 'mode';
   const label = pilih?.label ?? 'Mode';
   const m = await import('../bukaPanel');
@@ -305,15 +338,38 @@ const CATATAN_PERMUKAAN: Record<string, string> = {
     'Yang terbuka adalah DAFTAR pilihannya. Memilih model adalah keputusan pembaca (dan berubah saat dia mengetik) - jangan mengklaim sudah mengganti modelnya.',
   'chat-settings':
     'Yang terbuka adalah JENDELA Chat Settings dan bagian di dalamnya sudah saya pilih sesuai niat. Bagian yang ada: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced - isinya milik pembaca, jangan mengklaim sudah mengubah setelannya.',
+  'agent-todo':
+    'Yang saya buka adalah panel Agent Customizations, tab Conversations, tempat saklar To-Do List. Mengaktifkannya (saklar IDE untuk panel chat di jendela utama, Agent untuk jendela Agents) adalah keputusan pembaca. Kalau yang dia cari kartu tugas yang tampil saat agen bekerja, itu dibuka dari menu … di header chat → "Show task list" (default tersembunyi) - setelan saklar di atas hanya mengizinkan agen memakainya.',
+  'agent-mcp':
+    'Yang terbuka adalah tab MCP di panel Agent Customizations. Isi server, port dan token milik pembaca - jangan mengklaim sudah mengubahnya.',
   explorer: 'Yang terbuka adalah bilah Explorer di kiri; berkas yang dia cari tetap dia yang membuka.',
 };
 
 /** Normalise: lowercase, collapse whitespace. Indonesian and English mixed. */
 const rapikan = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
-function cocok(niat: string, kata: string[]): boolean {
+/**
+ * Pick the entry whose matched trigger is the LONGEST.
+ *
+ * The tables used to rely on `find()` - first match wins - which made their
+ * order load-bearing and produced exactly the bug this function removes: the
+ * `agents` entry owned the word "agent", sat first, and swallowed every
+ * complaint that merely mentioned it. Longest match is order-independent: a
+ * narrow trigger ("agent") can only win when nothing more specific matched.
+ */
+function pilihTerbaik<T extends { kata: string[] }>(niat: string, daftar: T[]): T | undefined {
   const n = rapikan(niat);
-  return kata.some((k) => n.includes(k));
+  let best: T | undefined;
+  let bestLen = 0;
+  for (const d of daftar) {
+    for (const k of d.kata) {
+      if (k.length > bestLen && n.includes(k)) {
+        best = d;
+        bestLen = k.length;
+      }
+    }
+  }
+  return best;
 }
 
 export const tunjukTool: AgentTool = {
@@ -353,11 +409,11 @@ export const tunjukTool: AgentTool = {
           Settings, the palette, the Explorer. Checked first because the words
           overlap - "where do I pick the model" also matches the Settings table's
           `models` entry, and the pop-up is the wrong screen for it. */
-    const permukaan = NIAT_PERMUKAAN.find((p) => cocok(niat, p.kata));
+    const permukaan = pilihTerbaik(niat, NIAT_PERMUKAAN);
     /* 2. A Settings section the complaint is really about. */
-    const seksi = NIAT_SETELAN.find((s) => cocok(niat, s.kata));
+    const seksi = pilihTerbaik(niat, NIAT_SETELAN);
     /* 3. A panel, when the complaint is about a surface rather than a setting. */
-    const panel = NIAT_PANEL.find((p) => cocok(niat, p.kata));
+    const panel = pilihTerbaik(niat, NIAT_PANEL);
 
     if (permukaan) {
       if (!buka) {

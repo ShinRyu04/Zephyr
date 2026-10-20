@@ -105,6 +105,8 @@ export const DESKRIPSI_TOOL_EN: Record<string, string> = {
   bash_run: 'Run a command and wait for it to finish',
   run_subagent: 'Run one subagent for a self-contained task',
   todo_write: "Replace the agent's task list for this task",
+  ask_user:
+    'Ask the user one question and wait for the answer. Use ONLY when the plausible choices really differ and picking wrong would waste work; never for something you can check yourself.',
   notes_write: "Change the user's notes or todos",
   schedule_command: 'Schedule a command to run later',
   inspect: 'Inspect the available commands, panes, tabs, workspaces, or settings',
@@ -150,6 +152,8 @@ export const DESKRIPSI_TOOL_JA: Record<string, string> = {
   bash_run: 'コマンドを実行し完了まで待機する',
   run_subagent: '独立したタスク用にサブエージェントを1つ実行する',
   todo_write: 'エージェントのこのタスク用タスク一覧を置き換える',
+  ask_user:
+    'ユーザーに1つ質問して回答を待つ。考えられる選択肢が本当に異なり、選び間違えると作業が無駄になる場合に限り使う。自分で確認できることに使わない。',
   notes_write: 'ユーザーのノートやタスクを変更する',
   schedule_command: 'コマンドを後で実行するようスケジュールする',
   inspect: '利用可能なコマンド、ペイン、タブ、ワークスペース、設定を調べる',
@@ -195,6 +199,8 @@ export const DESKRIPSI_TOOL_KO: Record<string, string> = {
   bash_run: '명령을 실행하고 끝날 때까지 기다립니다',
   run_subagent: '독립적인 작업을 위해 서브에이전트 하나를 실행합니다',
   todo_write: '이 작업의 에이전트 할 일 목록을 교체합니다',
+  ask_user:
+    '사용자에게 질문 하나를 던지고 답을 기다립니다. 가능한 선택지가 실제로 다르고 잘못 고르면 작업이 낭비될 때만 사용하세요. 직접 확인할 수 있는 일에는 쓰지 마세요.',
   notes_write: '사용자의 노트나 할 일을 수정합니다',
   schedule_command: '나중에 실행할 명령을 예약합니다',
   inspect: '사용 가능한 명령, 페인, 탭, 워크스페이스, 설정을 검사합니다',
@@ -240,6 +246,8 @@ export const DESKRIPSI_TOOL_ZH: Record<string, string> = {
   bash_run: '运行命令并等待其结束',
   run_subagent: '为独立任务运行一个子代理',
   todo_write: '替换该任务下代理的任务列表',
+  ask_user:
+    '向用户提出一个问题并等待回答。仅在可能的选择确实不同、选错会浪费工作时使用；能自己核实的事不要问。',
   notes_write: '修改用户的笔记或待办',
   schedule_command: '安排一条命令稍后执行',
   inspect: '查看可用的命令、窗格、标签页、工作区或设置',
@@ -285,6 +293,8 @@ export const DESKRIPSI_TOOL_ES: Record<string, string> = {
   bash_run: 'Ejecutar un comando y esperar a que termine',
   run_subagent: 'Ejecutar un subagente para una tarea autónoma',
   todo_write: 'Reemplazar la lista de tareas del agente para esta tarea',
+  ask_user:
+    'Preguntar al usuario una sola cosa y esperar su respuesta. Úsalo SOLO cuando las opciones plausibles difieran de verdad y elegir mal desperdicie trabajo; nunca para algo que puedas comprobar tú mismo.',
   notes_write: 'Cambiar las notas o tareas pendientes del usuario',
   schedule_command: 'Programar un comando para ejecutarlo más tarde',
   inspect: 'Inspeccionar los comandos, paneles, pestañas, espacios de trabajo o ajustes disponibles',
@@ -330,6 +340,8 @@ export const DESKRIPSI_TOOL_FR: Record<string, string> = {
   bash_run: 'Exécuter une commande et attendre la fin',
   run_subagent: 'Lancer un sous-agent pour une tâche autonome',
   todo_write: 'Remplacer la liste de tâches de l\'agent pour cette tâche',
+  ask_user:
+    'Poser une seule question à l\'utilisateur et attendre sa réponse. À utiliser UNIQUEMENT quand les choix plausibles diffèrent vraiment et qu\'un mauvais choix gâcherait du travail ; jamais pour ce que tu peux vérifier toi-même.',
   notes_write: 'Modifier les notes ou tâches de l\'utilisateur',
   schedule_command: 'Programmer une commande pour une exécution ultérieure',
   inspect: 'Inspecter les commandes, volets, onglets, espaces de travail ou réglages disponibles',
@@ -375,6 +387,8 @@ export const DESKRIPSI_TOOL_DE: Record<string, string> = {
   bash_run: 'Einen Befehl ausführen und auf den Abschluss warten',
   run_subagent: 'Einen Subagenten für eine eigenständige Aufgabe ausführen',
   todo_write: 'Die Aufgabenliste des Agenten für diese Aufgabe ersetzen',
+  ask_user:
+    'Dem Nutzer eine einzige Frage stellen und auf die Antwort warten. NUR verwenden, wenn die möglichen Optionen wirklich verschieden sind und eine falsche Wahl Arbeit verschwendet; nie für etwas, das du selbst prüfen kannst.',
   notes_write: 'Die Notizen oder Aufgaben des Nutzers ändern',
   schedule_command: 'Einen Befehl für die spätere Ausführung planen',
   inspect: 'Verfügbare Befehle, Panes, Tabs, Workspaces oder Einstellungen prüfen',
@@ -420,6 +434,8 @@ export const DESKRIPSI_TOOL_PT: Record<string, string> = {
   bash_run: 'Executar um comando e esperar até terminar',
   run_subagent: 'Executar um subagente para uma tarefa autocontida',
   todo_write: 'Substituir a lista de tarefas do agente para esta tarefa',
+  ask_user:
+    'Perguntar ao usuário uma única coisa e esperar a resposta. Use SOMENTE quando as opções plausíveis diferirem de fato e escolher errado desperdiçar trabalho; nunca para algo que você mesmo pode verificar.',
   notes_write: 'Alterar as notas ou tarefas do usuário',
   schedule_command: 'Agendar um comando para rodar mais tarde',
   inspect: 'Inspecionar comandos, painéis, abas, workspaces ou configurações disponíveis',
@@ -465,6 +481,8 @@ export const DESKRIPSI_TOOL_AR: Record<string, string> = {
   bash_run: 'يشغّل أمراً وينتظر انتهاءه',
   run_subagent: 'يشغّل وكيلاً فرعياً لمهمة مستقلة',
   todo_write: 'يستبدل قائمة مهام الوكيل لهذه المهمة',
+  ask_user:
+    'اسأل المستخدم سؤالاً واحداً وانتظر جوابه. استخدمه فقط عندما تكون الخيارات المحتملة مختلفة فعلاً واختيار الخطأ يهدر العمل؛ لا تستخدمه لما يمكنك التحقق منه بنفسك.',
   notes_write: 'يغيّر ملاحظات المستخدم أو مهامه',
   schedule_command: 'يُجدول أمراً ليعمل لاحقاً',
   inspect: 'يفحص الأوامر أو الأجزاء أو التبويبات أو مساحات العمل أو الإعدادات',
