@@ -5,8 +5,13 @@ import { tx } from '../../lib/i18n';
 import AgentsChanges from './AgentsChanges';
 import AgentsEditor from './AgentsEditor';
 import EditorTabBar from '../editor/EditorTabBar';
+import { AgentsStartHere, type KartuMulai } from './ui/AgentsStartHere';
 
-const ExplorerPanel = lazy(() => import('../explorer/ExplorerPanel'));
+const AgentsFiles = lazy(() => import('./AgentsFiles'));
+const AgentsTaskSummary = lazy(() => import('./AgentsTaskSummary'));
+const AgentsSideChat = lazy(() => import('./AgentsSideChat'));
+const AgentsTerminal = lazy(() => import('./AgentsTerminal'));
+const AgentsDiffView = lazy(() => import('./AgentsDiffView'));
 const SearchPanel = lazy(() => import('../explorer/SearchPanel'));
 const AgentsBrowser = lazy(() => import('./AgentsBrowser'));
 
@@ -25,7 +30,7 @@ const AgentsBrowser = lazy(() => import('./AgentsBrowser'));
  * a menu; offering `…` there would open a menu of dead controls, which is the
  * same lie the old Shortcuts page told.
  */
-type TabId = 'changes' | 'files' | 'search' | 'browser';
+type TabId = 'changes' | 'files' | 'search' | 'browser' | 'task' | 'sidechat' | 'terminal' | 'diff';
 
 interface Tab {
   id: TabId;
@@ -40,10 +45,24 @@ interface Tab {
  * `+` menu below (four entries, like VS Code's) is the way back — a pinned tab
  * and a menu that can reopen everything are redundant, so the pin is what goes.
  */
-const AWAL: Tab[] = [
-  { id: 'changes', judul: 'Changes' },
-  { id: 'files', judul: 'Files' },
-];
+const AWAL: Tab[] = [];
+
+/*
+ * The six "Start here" cards, mapped to the tab each one opens.
+ *
+ * Files, Browser and Diff already have tabs; Task Summary, Side Chat and
+ * Terminal only ever arrive from this list, so they are opened here rather than
+ * pre-existing. Keeping the mapping NEXT to the tab ids (instead of inside the
+ * card component) is what stops the two from disagreeing about a name.
+ */
+const TAB_DARI_KARTU: Record<KartuMulai['id'], { id: TabId; judul: string }> = {
+  files: { id: 'files', judul: 'Files' },
+  task: { id: 'task', judul: 'Task Summary' },
+  sidechat: { id: 'sidechat', judul: 'Side Chat' },
+  browser: { id: 'browser', judul: 'Browser' },
+  terminal: { id: 'terminal', judul: 'Terminal' },
+  diff: { id: 'diff', judul: 'Diff View' },
+};
 
 export default function AgentsRight({
   maks,
@@ -85,6 +104,15 @@ export default function AgentsRight({
    * split out of step with the view.
    */
   const bisaBelah = aktif === 'changes' || aktif === 'files';
+  /*
+   * The column opens on "Start here", NOT on a split showing nothing.
+   *
+   * `tabs` starts empty for the same reason: the card list is the first screen,
+   * and it has no tab of its own — it is the absence of one. Opening Changes
+   * and Files by default was what filled this column with two empty panels on a
+   * fresh conversation.
+   */
+  const [mulai, setMulai] = useState(true);
 
   const jumlah = useGit((s) => s.status?.changes.length ?? 0);
   const isRepo = useGit((s) => s.status?.isRepo ?? false);
@@ -177,8 +205,16 @@ export default function AgentsRight({
   const bukaTab = (id: TabId, judul: string) => {
     setTabs((t) => (t.some((x) => x.id === id) ? t : [...t, { id, judul }]));
     setAktif(id);
+    setMulai(false);
     setMenuPlus(false);
     setSentuh(true);
+  };
+
+  /* A card from "Start here": the mapping decides the tab, so the card list and
+     the tab ids cannot drift apart. */
+  const pilihKartu = (id: KartuMulai['id']) => {
+    const t = TAB_DARI_KARTU[id];
+    bukaTab(t.id, t.judul);
   };
 
   const tutupTab = (id: TabId) => {
@@ -190,6 +226,8 @@ export default function AgentsRight({
         const idx = t.findIndex((x) => x.id === id);
         const berikut = sisa[Math.max(0, idx - 1)];
         if (berikut) setAktif(berikut.id);
+        /* Last tab closed: back to Start here, not to an empty body. */
+        if (sisa.length === 0) setMulai(true);
       }
       return sisa;
     });
@@ -277,6 +315,27 @@ export default function AgentsRight({
              * from here.
              */
             <div className="ag-menu" role="menu" data-testid="ag-menu-plus">
+              {/*
+                * "Search file names" leads, as in the reference, and it is the
+                * one row that is not a TAB: it opens the command palette in
+                * file mode, the same surface Ctrl+P reaches. Listing it here is
+                * honest — the reference's menu carries it too — and it is what a
+                * reader who has closed every tab is looking for.
+                */}
+              <button
+                role="menuitem"
+                className="ag-menu-item"
+                data-testid="ag-open-searchnama"
+                onClick={() => {
+                  setMenuPlus(false);
+                  void import('../../lib/paletteStore').then((m) =>
+                    m.usePalette.getState().openPalette('file'),
+                  );
+                }}
+              >
+                <span>{tx('Search file names')}</span>
+                <span className="ag-menu-kbd">Ctrl+P</span>
+              </button>
               <button
                 role="menuitem"
                 className="ag-menu-item"
@@ -312,6 +371,44 @@ export default function AgentsRight({
               >
                 <span>{tx('Search')}</span>
                 <span className="ag-menu-kbd">Ctrl+Shift+F</span>
+              </button>
+              {/*
+                * The three views that have no global shortcut, appended after
+                * the four that do. They are the same set "Start here" offers, so
+                * a reader who closed one can reopen it from the same place the
+                * other views live instead of hunting the card list again.
+                */}
+              <button
+                role="menuitem"
+                className="ag-menu-item"
+                data-testid="ag-open-task"
+                onClick={() => bukaTab('task', 'Task Summary')}
+              >
+                <span>{tx('Task Summary')}</span>
+              </button>
+              <button
+                role="menuitem"
+                className="ag-menu-item"
+                data-testid="ag-open-sidechat"
+                onClick={() => bukaTab('sidechat', 'Side Chat')}
+              >
+                <span>{tx('Side Chat')}</span>
+              </button>
+              <button
+                role="menuitem"
+                className="ag-menu-item"
+                data-testid="ag-open-terminal"
+                onClick={() => bukaTab('terminal', 'Terminal')}
+              >
+                <span>{tx('Terminal')}</span>
+              </button>
+              <button
+                role="menuitem"
+                className="ag-menu-item"
+                data-testid="ag-open-diff"
+                onClick={() => bukaTab('diff', 'Diff View')}
+              >
+                <span>{tx('Diff View')}</span>
               </button>
             </div>
           )}
@@ -464,23 +561,42 @@ export default function AgentsRight({
         * above): they are full-width surfaces, and an idle editor half beside
         * them was neither informative nor usable.
         */}
-      <div className={`ag-tab-body${bisaBelah ? ' is-belah' : ''}${detailBuka ? '' : ' no-detail'}`}>
-        {bisaBelah && (
-          <div className="ag-body-ed" data-testid="ag-body-editor">
-            <Suspense fallback={null}>
-              <AgentsEditor tanpaBar />
-            </Suspense>
-          </div>
-        )}
-        {detailBuka && (
+      <div className={`ag-tab-body${bisaBelah && !mulai ? ' is-belah' : ''}${detailBuka ? '' : ' no-detail'}`}>
+        {/*
+          * "Start here" takes the whole body while no tab is open.
+          *
+          * It is not a tab: it is what the column IS before anything is picked,
+          * which is why closing the last tab falls back to it instead of to an
+          * empty box. Every card opens a real tab (see TAB_DARI_KARTU).
+          */}
+        {mulai && tabs.length === 0 ? (
           <div className="ag-body-list" data-testid="ag-body-list">
-            <Suspense fallback={null}>
-              {aktif === 'changes' && <AgentsChanges />}
-              {aktif === 'files' && <ExplorerPanel />}
-              {aktif === 'search' && <SearchPanel />}
-              {aktif === 'browser' && <AgentsBrowser />}
-            </Suspense>
+            <AgentsStartHere onPilih={pilihKartu} tr={tx} />
           </div>
+        ) : (
+          <>
+            {bisaBelah && (
+              <div className="ag-body-ed" data-testid="ag-body-editor">
+                <Suspense fallback={null}>
+                  <AgentsEditor tanpaBar />
+                </Suspense>
+              </div>
+            )}
+            {detailBuka && (
+              <div className="ag-body-list" data-testid="ag-body-list">
+                <Suspense fallback={null}>
+                  {aktif === 'changes' && <AgentsChanges />}
+                  {aktif === 'files' && <AgentsFiles />}
+                  {aktif === 'search' && <SearchPanel />}
+                  {aktif === 'browser' && <AgentsBrowser />}
+                  {aktif === 'task' && <AgentsTaskSummary composerId="agents" />}
+                  {aktif === 'sidechat' && <AgentsSideChat composerId="agents-side" />}
+                  {aktif === 'terminal' && <AgentsTerminal />}
+                  {aktif === 'diff' && <AgentsDiffView />}
+                </Suspense>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -59,6 +59,50 @@ import {
   type FaktaKategori,
 } from './zephyrIndeks';
 
+/**
+ * What each dev bridge exposes, keyed by the name on `window`.
+ *
+ * The roster alone ("__ZEPHYR_AI__ exists") cannot answer "can I read the git
+ * status from the bridge" - the model then guesses a method name and the
+ * reader gets a plausible-sounding lie. Each line names the shape the model
+ * will actually find, harvested from `devBridge.ts`.
+ *
+ * Bridges this map does not name fall back to the honest sentence in
+ * `entriBridge()` ("shape not listed, check devBridge.ts") rather than
+ * silence, so the roster stays complete even when a name is added there.
+ */
+/** Names with a known shape; only the rest get the fallback line. */
+const BRIDGE_KENAL: Record<string, string> = {
+  __ZEPHYR_AI__:
+    'objek { store, subsetAlat(teks, adaFolder?), subsetTugas, ... } - jalur kirim AI yang nyata; store-nya ada di .store',
+  __ZEPHYR_GIT__:
+    'objek { store, status(), refresh(), ... } - BUKAN store: tidak ada .getState(); status() mengembalikan keadaan git, refresh() memuat ulang',
+  __ZEPHYR_TERM__: 'store terminal (useTerminal): terminalTabs[].panes[], addPane, closePane, allPanes',
+  __ZEPHYR_EX__: 'store Explorer (useExplorer): tree, expanded, refreshDir',
+  __ZEPHYR__: 'store utama (useStore): getState() → workspace, tabs, settings, openWorkspace',
+  __ZEPHYR_CM__: '() → CodeMirror EditorView yang aktif',
+  __ZEPHYR_FS__: '{ read, sessionLoad, scanDir, searchFiles }',
+  __ZEPHYR_SET__: '{ ui, activeTheme, themes, bindings, conflicts, publicModels, set, state, setting, t, ... }',
+  __ZEPHYR_PTY__: '{ write, interrupt, list, read, ids, copy, paste, clipRead, ... } - clipboard lewat plugin Tauri, bukan navigator.clipboard',
+};
+
+function entriBridge(): FaktaEntri[] {
+  const baris = FAKTA_INDEKS.find((e) => e[0] === 'bridge');
+  if (!baris) return [];
+  /* The roster is one comma-separated entry; split it so each name is its own
+   * hit, then attach the shape when one is known. */
+  const nama = baris[1].match(/__ZEPHYR_[A-Z0-9_]*__/g) ?? [];
+  return nama.map((n) => [
+    'bridge',
+    n,
+    BRIDGE_KENAL[n]
+      ? `jembatan dev di window (hanya build dev): ${n} = ${BRIDGE_KENAL[n]}`
+      : `jembatan dev di window (hanya build dev, dibuka bridge devBridge.ts).`,
+  ]);
+}
+
+const INDEKS: readonly FaktaEntri[] = [...FAKTA_INDEKS, ...entriBridge()];
+
 export { FAKTA_HASH_BERKAS, FAKTA_KATEGORI, FAKTA_VERSI, type FaktaEntri, type FaktaKategori } from './zephyrIndeks';
 
 /** Jumlah hasil yang dikirim kalau pemanggil tidak menyebut batasnya. */
@@ -214,7 +258,7 @@ function kamusIndeks(): Set<string> {
       for (const bagian of t.split(/[.@_-]+/)) if (bagian.length > 1) kamus.add(bagian);
     }
   };
-  for (const e of FAKTA_INDEKS) {
+  for (const e of INDEKS) {
     serap(e[1]);
     serap(e[2]);
   }
@@ -245,7 +289,7 @@ export function kataTakDikenal(kueri: string): string[] {
 }
 
 export function jumlahEntri(): number {
-  return FAKTA_INDEKS.length;
+  return INDEKS.length;
 }
 
 export function versiFakta(): { aplikasi: string; hashSumber: string } {
@@ -312,7 +356,7 @@ export function capBasi(capNyata: { aplikasi: string; hashSumber: string } | nul
  *  menjawab "kategori apa saja yang bisa ditanya" tanpa menebak. */
 export function kategoriTersedia(): Array<{ kategori: FaktaKategori; jumlah: number }> {
   const hitung = new Map<FaktaKategori, number>();
-  for (const e of FAKTA_INDEKS) hitung.set(e[0], (hitung.get(e[0]) ?? 0) + 1);
+  for (const e of INDEKS) hitung.set(e[0], (hitung.get(e[0]) ?? 0) + 1);
   return FAKTA_KATEGORI.map((k) => ({ kategori: k, jumlah: hitung.get(k) ?? 0 }));
 }
 
@@ -426,7 +470,7 @@ export function cariFakta(
 
   const kumpul = (fn: (e: FaktaEntri) => number): HasilFakta[] => {
     const hasil: HasilFakta[] = [];
-    for (const e of FAKTA_INDEKS) {
+    for (const e of INDEKS) {
       if (kategori && e[0] !== kategori) continue;
       const s = fn(e);
       if (s >= 0) hasil.push({ kategori: e[0], kunci: e[1], teks: e[2], skor: s });
@@ -470,7 +514,7 @@ export function hitungCocok(kueri: string, kategori?: FaktaKategori | 'semua'): 
   const kueriNormal = normal(kueri).trim();
   const kat = kategori && kategori !== 'semua' ? kategori : undefined;
   let n = 0;
-  for (const e of FAKTA_INDEKS) {
+  for (const e of INDEKS) {
     if (kat && e[0] !== kat) continue;
     if (nilai(e, tokens, kueriNormal) >= 0) n += 1;
   }

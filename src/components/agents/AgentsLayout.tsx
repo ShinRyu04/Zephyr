@@ -146,6 +146,27 @@ export default function AgentsLayout() {
      Browser — while the chat STAYS and grows into the freed space. */
   const toggleDetails = () => setKananBuka(!kananBuka);
 
+  /*
+   * `Ctrl+Alt+B` — the shortcut the reference prints on its own tooltip
+   * ("Expand panel" / "Hide right panel"), and the one VS Code uses for the
+   * secondary side bar.
+   *
+   * Bound HERE, not in `ACTIONS` (shortcuts.ts), for the same reason as
+   * Ctrl+Alt+L in `AgentsRight`: that table is the MAIN window's remappable
+   * keymap and has no concept of "only in the agents window". A global entry
+   * would fire in the editor window, where there is no agents right panel to
+   * hide.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.altKey || e.shiftKey || e.key.toLowerCase() !== 'b') return;
+      e.preventDefault();
+      setKananPilih(!kananBuka);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [kananBuka]);
+
   return (
     <div className={`ag-root${maks ? ' is-maks' : ''}`} data-testid="agents-layout">
       <AgentsTitlebar

@@ -907,6 +907,7 @@ const LARANGAN_EN = [
   '7. Never answer a Zephyr question from memory: the facts above + `zephyr_self`.',
   '8. Any output you quote must come from a tool that actually ran this turn; if it failed, quote the error as it is.',
   '9. A backtick only exists in PAIRS, and never after Ctrl+/Alt+/Shift+: write Ctrl+J, NOT Ctrl+`. A lone backtick swallows the text after it and the answer reaches the reader cut in pieces - that is a bug you caused, not a rendering quirk.',
+  '10. When a surface has an inner layer `tunjuk` cannot click (a tile of Agent Customizations, a section of Chat Settings, a row of AI Models), say which one the reader must pick; "it is open" alone is not the answer.',
 ].join('\n');
 
 const LARANGAN_ID = [
@@ -920,6 +921,7 @@ const LARANGAN_ID = [
   '7. Jangan menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas + `zephyr_self`.',
   '8. Keluaran yang kamu kutip harus dari tool yang benar-benar jalan giliran ini; kalau gagal, kutip error-nya apa adanya.',
   '9. Backtick hanya ada BERPASANGAN, dan jangan pernah dipakai setelah Ctrl+/Alt+/Shift+: tulis Ctrl+J, BUKAN Ctrl+`. Satu backtick nyasar menelan teks sesudahnya, dan jawabanmu sampai ke pembaca dalam potongan-potongan - itu bug yang kamu bikin, bukan salah tampilan.',
+  '10. Kalau sebuah permukaan punya lapisan DALAM yang tidak bisa diklik `tunjuk` (tab di Agent Customizations, bagian di Chat Settings, baris di AI Models), sebut yang mana yang harus dipilih pembaca; "sudah terbuka" saja bukan jawaban.',
 ].join('\n');
 
 /** Blok larangan dalam bahasa aktif (bahasa lain jatuh ke Inggris). */

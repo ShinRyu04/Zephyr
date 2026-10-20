@@ -2913,6 +2913,16 @@ interface AiState {
 
     draftImages: string[];
 
+    /*
+     * Folder chosen in a composer's `Local` row, per surface.
+     *
+     * `Workspace` is the main window's folder, and the reference lets each
+     * composer say WHERE a task runs without moving the whole editor to another
+     * folder. When this is absent the workspace applies — so it is a real
+     * override, not a copy that can go stale.
+     */
+    cwdSurface: Record<string, string>;
+
   lastTruncated: { from: number; to: number } | null;
   keys: PublicModel[];
 
@@ -3047,6 +3057,30 @@ interface AiActions {
   setDraft: (v: string, id?: string) => void;
   /** The draft for one composer; '' when it has not typed anything yet. */
   draftOf: (id: string) => string;
+  /**
+   * HOW MANY `@`/`/` pickers are open, across every composer.
+   *
+   * A composer with an open picker owns the keyboard: Enter picks the
+   * highlighted row instead of sending. The agents composer could not see the
+   * panel's local popup state, so it had to ask the store — and a counter
+   * rather than a boolean because two composers can be mounted side by side.
+   * Only the OPENING composer's Enter is affected: the field being typed in
+   * and the picker it opened are the same surface.
+   */
+  pickerOpen: number;
+  pushPicker: () => void;
+  popPicker: () => void;
+  /** Point one composer's `Local` row at a folder; '' clears the override. */
+  setCwdSurface: (composerId: string, dir: string) => void;
+  /**
+   * Point one surface at a chat WITHOUT stealing it from the others.
+   *
+   * `selectChat` is the reader's own choice and takes the chat for the surface
+   * that asked. Side Chat needs the opposite: it opens a second conversation
+   * about the SAME context while the main chat keeps running. Writing
+   * `activeIds[composerId]` directly is the whole operation.
+   */
+  bindSurface: (composerId: string, chatId: string) => void;
     setAttachActive: (v: boolean) => void;
 
     addDraftImage: (dataUrl: string) => boolean;
@@ -3183,7 +3217,7 @@ interface AiActions {
     clearAllOpen: boolean;
     setClearAllOpen: (v: boolean) => void;
 
-    regenerate: () => Promise<void>;
+    regenerate: (composerId?: string) => Promise<void>;
     activeSession: () => ChatSession | null;
 
     exportChat: (composerId?: string) => Promise<void>;
@@ -3528,6 +3562,8 @@ export const useAi = create<AiStore>((set0, get) => {
   loops: {},
   goals: {},
   drafts: { '': '' },
+  pickerOpen: 0,
+  cwdSurface: {},
     attachActive: false,
     draftImages: [],
     lastTruncated: null,
@@ -3763,6 +3799,20 @@ export const useAi = create<AiStore>((set0, get) => {
   setModelMenuOpen: (v) => set({ modelMenuOpen: v }),
   setDraft: (v, id = '') => set((s) => ({ drafts: { ...s.drafts, [id]: v } })),
   draftOf: (id) => get().drafts[id] ?? '',
+  /* Refcounted, never negative: a picker that unmounts twice (StrictMode dev)
+     must not leave the counter below zero, or every later Enter would be
+     swallowed as "a list is open". */
+  pushPicker: () => set((s) => ({ pickerOpen: s.pickerOpen + 1 })),
+  popPicker: () => set((s) => ({ pickerOpen: Math.max(0, s.pickerOpen - 1) })),
+  bindSurface: (composerId, chatId) =>
+    set((s) => ({ activeIds: { ...s.activeIds, [composerId]: chatId } })),
+  setCwdSurface: (composerId, dir) =>
+    set((s) => {
+      const next = { ...s.cwdSurface };
+      if (dir) next[composerId] = dir;
+      else delete next[composerId];
+      return { cwdSurface: next };
+    }),
 
   /*
    * Every queue mutator takes the id of the composer whose queue it edits.
@@ -4546,7 +4596,7 @@ export const useAi = create<AiStore>((set0, get) => {
       set({ toast: tf('No conversation is open', {}) });
       return 0;
     }
-    const sesi = get().activeSession();
+    const sesi = get().sessions.find((x) => x.id === id) ?? null;
     if (!sesi) {
       set({ toast: tf('No conversation is open', {}) });
       return 0;
@@ -4811,9 +4861,13 @@ export const useAi = create<AiStore>((set0, get) => {
 
   setClearAllOpen: (v) => set({ clearAllOpen: v }),
 
-  regenerate: async () => {
-    if (get().pending) return;
-    const s = get().activeSession();
+  regenerate: async (composerId = '') => {
+    /* Scoped to THIS surface: the button lives on one transcript, and the
+       primary chat's `pending`/`activeSession` are a different conversation. */
+    const pend = get().pendings[composerId] ?? (composerId === '' ? get().pending : null);
+    if (pend) return;
+    const sid = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+    const s = sid ? get().sessions.find((x) => x.id === sid) ?? null : null;
     if (!s) return;
     const last = [...s.messages].reverse().find((m) => m.role === 'user' && !m.error);
     if (!last) return;
@@ -4825,7 +4879,7 @@ export const useAi = create<AiStore>((set0, get) => {
         x.id === s.id ? { ...x, messages: keep } : x,
       ),
     }));
-    await get().send(last.content, last.images ?? (last.image ? [last.image] : undefined));
+    await get().send(last.content, last.images ?? (last.image ? [last.image] : undefined), composerId);
   },
 
   activeSession: () => get().sessions.find((s) => s.id === get().activeId) ?? null,
