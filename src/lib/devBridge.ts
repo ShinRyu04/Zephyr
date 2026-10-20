@@ -97,6 +97,7 @@ import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
 import { useCli } from './cliStore';
 import { useWs } from './workspaceStore';
+import { useUpdater } from './updaterStore';
 
 import {
   nilaiVariabel,
@@ -1995,7 +1996,6 @@ export function installDevBridge(): void {
     store: () => useWs,
     state: () => useWs.getState(),
     muat: () => useWs.getState().muat(),
-
     roots: () => useWs.getState().roots,
     activeRoot: () => useWs.getState().activeRoot,
     file: () => useWs.getState().file,
@@ -2087,6 +2087,29 @@ export function installDevBridge(): void {
     mentahExt: (id: string) => extensionsLoadCmd(id),
 
     matikanTask: (id: string) => tasksKillCmd(id),
+  };
+
+  /*
+   * The updater, so the "Update" badge can be inspected without waiting for a
+   * real release to be published.
+   *
+   * `seed` writes the LIVE store the button reads from - not a copy imported
+   * into the harness - so the button renders through its real gate
+   * (`status === 'available'` + the 20s settle delay) instead of being forced
+   * into the DOM. Always call `reset()` afterwards: a seeded state says there
+   * is a release that does not exist, and clicking install on it would fail.
+   */
+  w.__ZEPHYR_UPD__ = {
+    store: useUpdater,
+    state: () => useUpdater.getState(),
+    seed: (versi: string, notes?: string) =>
+      useUpdater.setState({
+        status: 'available',
+        version: versi,
+        pubDate: new Date().toISOString(),
+        notes: notes ?? null,
+      }),
+    reset: () => useUpdater.getState().reset(),
   };
 
   w.__ZEPHYR_SNIP__ = {

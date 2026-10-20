@@ -4,8 +4,6 @@ import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
 import type { ApprovalMode } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
-import { ikonPersona } from '../../lib/subagentIcons';
-import { IkonAgen } from './IkonAgen';
 
 /*
  * The persona's mark, shown at the head of its row.
@@ -22,15 +20,6 @@ import { IkonAgen } from './IkonAgen';
  * to the generic star, which is what a persona written by an older version
  * looks like.
  */
-function IkonPersonaBaris({ id }: { id: string }) {
-  const ik = ikonPersona(id);
-  return (
-    <span className="mode-item-ikon" data-ikon={ik.id} aria-hidden="true">
-      <IkonAgen ik={ik} size={15} />
-    </span>
-  );
-}
-
 /*
  * Two menus for how a message is dispatched.
  *
@@ -52,13 +41,14 @@ function IkonPersonaBaris({ id }: { id: string }) {
  * which is exactly what happened with the old popovers.
  */
 
+/*
+ * The composer's four permission rows (composer 6/7). `readonly` stays a REAL
+ * mode behind the scenes (Chat Settings still offers it, the store still
+ * honours it) but it is not one of the four answers shown while typing - the
+ * reference product shows Manual / Auto / Full Access / Custom, where Custom
+ * is not a mode at all but a jump into the tool-rule editor.
+ */
 const APPROVAL: { id: ApprovalMode; label: string; hint: string; kelas: string }[] = [
-  {
-    id: 'readonly',
-    label: 'Read-only',
-    hint: 'Only reads - changes nothing',
-    kelas: 'is-aman',
-  },
   {
     id: 'ask',
     label: 'Manual Approval',
@@ -150,7 +140,6 @@ export function ModeMenu() {
 
   /* The list may not be loaded yet on a cold start, so the popup falls back to
      describing the row generically rather than rendering an empty label. */
-  const aktifPersona = daftarPersona.find((p) => p.id === personaAktif);
 
   /*
    * Load the list the first time this menu opens.
@@ -203,19 +192,13 @@ export function ModeMenu() {
       </button>
 
       {buka && (
-        <div className="mode-pop is-naik" data-testid="ai-mode-pop" role="menu">
+        <div className="mode-pop is-naik is-trae" data-testid="ai-mode-pop" role="menu">
           {/*
-            * Chat or Agent. That is the whole menu.
-            *
-            * The reference product puts this exact pair in the composer: a
-            * plain conversation, or the agent that reads files and runs tools.
-            * Everything else that used to live here - the persona catalogue, the
-            * run mode, the sub-agent editor - was a SETTINGS question asked at
-            * the moment of typing, and it turned a two-answer picker into a
-            * scrolling catalogue that covered the transcript it was meant to
-            * help with.
+            * The TRAE "Built-In Agents" box (composer 5 reference): a small
+            * header, the Chat / Agent pair, then Create Agent. The header is
+            * part of the reference design - it was dropped once and came back.
             */}
-          <div className="pick-seksi">{tr('Mode')}</div>
+          <div className="pick-seksi">{tr('Built-In Agents')}</div>
           <button
             type="button"
             role="menuitemradio"
@@ -241,7 +224,6 @@ export function ModeMenu() {
             </span>
             <span className="mode-item-teks">
               <b>{tr('Chat')}</b>
-              <i>{tr('Ask questions and talk - no tools, no file changes')}</i>
             </span>
             {modeAktif === 'chat' && <span className="pick-check">✓</span>}
           </button>
@@ -252,16 +234,23 @@ export function ModeMenu() {
             aria-checked={modeAktif === 'agent'}
             className={`mode-item${modeAktif === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-persona-aktif"
-            title={aktifPersona?.deskripsi ?? undefined}
             onClick={() => {
               setAgentMode('agent');
               setBuka(false);
             }}
           >
-            <IkonPersonaBaris id={personaAktif} />
+            <span className="mode-item-ikon" aria-hidden="true">
+              {/* The robot head, as the reference draws the agent. */}
+              <svg viewBox="0 0 16 16" width="13" height="13">
+                <rect x="3" y="5.4" width="10" height="7.2" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M8 3.2v2.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <circle cx="8" cy="2.6" r="1.1" fill="currentColor" stroke="none" />
+                <circle cx="6.2" cy="9" r="0.95" fill="currentColor" stroke="none" />
+                <circle cx="9.8" cy="9" r="0.95" fill="currentColor" stroke="none" />
+              </svg>
+            </span>
             <span className="mode-item-teks">
               <b>{tr('Agent')}</b>
-              <i>{aktifPersona?.nama ?? tr('Reads files, runs tools, changes code')}</i>
             </span>
             {modeAktif === 'agent' && <span className="pick-check">✓</span>}
           </button>
@@ -277,9 +266,13 @@ export function ModeMenu() {
               bukaPanel('agent-custom', 'agents');
             }}
           >
+            <span className="mode-item-ikon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="13" height="13">
+                <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </span>
             <span className="mode-item-teks">
               <b>{tr('Create Agent')}</b>
-              <i>{tr('Opens the persona editor')}</i>
             </span>
           </button>
 </div>
@@ -317,10 +310,7 @@ export function PermissionMenu() {
       </button>
 
       {buka && (
-        <div className="mode-pop is-naik" data-testid="ai-izin-pop" role="menu">
-          <div className="pick-seksi">
-            {tr('How should Agent actions be approved?')}
-          </div>
+        <div className="mode-pop is-naik is-trae" data-testid="ai-izin-pop" role="menu">
           {APPROVAL.map((a) => (
             <button
               key={a.id}
@@ -334,20 +324,30 @@ export function PermissionMenu() {
                 setBuka(false);
               }}
             >
-              <span className={`pick-item-dot ${a.kelas}`} aria-hidden="true" />
               <span className="mode-item-teks">
-                <b>{tr(a.label)}</b>
+                <b className={a.kelas === 'is-auto' ? 'is-warn' : undefined}>{tr(a.label)}</b>
                 <i>{tr(a.hint)}</i>
               </span>
               {a.id === mode && <span className="pick-check">✓</span>}
             </button>
           ))}
 
-          {/*
-           * The "Manage personas & sub-agents" row lived here. It belongs to
-           * the persona menu - the one that PICKS a persona, and the one
-           * Copilot keeps its equivalent row in - so it moved there.
-           */}
+          {/* Custom is not a mode: it opens the per-tool rule editor. */}
+          <button
+            type="button"
+            role="menuitem"
+            className="mode-item"
+            data-testid="ai-approval-custom"
+            onClick={() => {
+              setBuka(false);
+              bukaPanel('chat-settings', 'chat');
+            }}
+          >
+            <span className="mode-item-teks">
+              <b>{tr('Custom')}</b>
+              <i>{tr('Set rules in a config file')}</i>
+            </span>
+          </button>
         </div>
       )}
     </span>

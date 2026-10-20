@@ -406,20 +406,19 @@
  */
 .modal.aim-add {
   /*
-   * 700px — MEASURED off the reference, not chosen.
+   * 640px — MEASURED off the reference.
    *
-   * Its Add Model dialog occupies x=24..723 of an 832px-wide capture, and the
-   * provider grid inside it is two 332px columns with a 10px gutter. Both of
-   * those fall out of 700px and neither does out of the 860px this used to be:
-   * at 860 the columns became 400px each and the tiles read as wide empty bars
-   * rather than as list rows.
+   * Its own capture is 737x951, i.e. the dialog is TALLER than it is wide, and
+   * the two tile columns are ~330px each with a 10px gutter. 640px reproduces
+   * both proportions (2 x ~297 + gutter) where 700 made it read as a wide, flat
+   * sheet. A capture is not a screen, so this is a proportion, not a pixel copy.
    *
    * `94vw` keeps it inside a narrow window; `max-height: 88vh` with a scrolling
    * grid means a short window scrolls the tiles instead of pushing the footer
    * buttons off-screen.
    */
-  width: min(700px, 94vw);
-  max-width: min(700px, 94vw);
+  width: min(640px, 94vw);
+  max-width: min(640px, 94vw);
   max-height: 88vh;
   display: flex;
   flex-direction: column;
@@ -430,7 +429,36 @@
 }
 
 .aim-add-judul {
+  flex: 0 0 auto;
+  position: relative;
   margin-bottom: 12px;
+}
+/*
+ * The close mark, top-right, as in the reference.
+ *
+ * Absolutely positioned inside the title block so it does not shift the heading
+ * or the subtitle when it appears: the grid step has no footer button, and a
+ * heading that moves between steps reads as the dialog jumping.
+ */
+.aim-add-x {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.aim-add-x:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 /*
@@ -461,7 +489,11 @@
   gap: 8px;
   overflow: auto;
   min-height: 0;
-  flex: 0 1 auto;
+  /* `1 1 auto` so the grid takes the leftover height and SCROLLS inside it.
+     At `0 1 auto` the grid stayed at its content height, the dialog grew past
+     `max-height`, and the tile list pushed the footer out of view instead of
+     scrolling — measured 803px tall in an 88vh box. */
+  flex: 1 1 auto;
 }
 
 .aim-preset-btn {
@@ -507,12 +539,13 @@
   justify-content: center;
   flex: 0 0 auto;
   /* 24px, matching the reference's icon box. It was 32px, which alone added 8px
-     to every tile and made a ten-tile grid scroll for no reason. */
+     to every tile and made a ten-tile grid scroll for no reason.
+     NO background chip: in the reference the brand mark sits on the tile's own
+     surface. The grey square behind it read as a second, empty icon box and made
+     every tile look like it had a broken image. */
   width: 24px;
   height: 24px;
-  border-radius: 6px;
-  background: var(--surface-3, var(--surface-2));
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .aim-preset-teks {
@@ -522,9 +555,17 @@
   min-width: 0;
 }
 
+/*
+ * 13.5px, medium weight.
+ *
+ * 12.5px/600 measured visibly smaller and heavier than the reference set side by
+ * side. The name is the ONLY thing in the tile, so it has to carry the row: one
+ * step up in size and one step down in weight reads calmer at the same scanning
+ * speed, which is what a list of thirty names needs.
+ */
 .aim-preset-nama {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;

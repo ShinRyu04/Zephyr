@@ -23,6 +23,30 @@
   }
 }
 
+/*
+ * ANCHORED MODE — the palette dropped under the title-bar search box.
+ *
+ * Opened by clicking that box, the palette is a search panel, not a page
+ * change: no dimming, no blur, so the editor stays readable behind it. The
+ * overlay still covers the window — that is what makes "click anywhere else to
+ * dismiss" work — it is simply transparent. The centred modal (Ctrl+Shift+P)
+ * keeps the scrim, because there the palette really is the whole task.
+ */
+.cp-overlay.is-anchored {
+  background: transparent;
+  backdrop-filter: none;
+  padding-top: 0;
+  display: block;
+}
+
+.cp-overlay.is-anchored .cp-modal {
+  /* Position, size and max-height are set inline from the box's own rect. */
+  width: auto;
+  max-width: none;
+  animation: cp-fade 90ms ease-out;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
 .cp-modal {
   width: min(680px, calc(100vw - 48px));
   max-height: calc(100vh - 160px);
@@ -34,6 +58,37 @@
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   animation: cp-pop 110ms ease-out;
+}
+
+/*
+ * The drop-down under the Search box needs its own typography.
+ *
+ * It used to inherit the centred modal's numbers, which are tuned for a
+ * full-screen 680px panel: a 12.5px row inside a 360px box looked like a
+ * tooltip that happened to be clickable. Anchored mode gets the size of a
+ * real list — 13px labels, roomier rows — because it is read at a glance,
+ * not scanned line by line.
+ */
+.cp-overlay.is-anchored .cp-inputrow {
+  padding: 12px 14px;
+}
+
+.cp-overlay.is-anchored .cp-input {
+  font-size: 14.5px;
+}
+
+/* Height is re-stated, not inherited: a row is a <button>, and the user-agent
+   sheet's `align-self: flex-start` lets it shrink to its text unless the flex
+   container is explicitly told to stretch its children. */
+.cp-overlay.is-anchored .cp-row {
+  height: 34px;
+  align-self: stretch;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.cp-overlay.is-anchored .cp-detail {
+  font-size: 11.5px;
 }
 
 @keyframes cp-pop {
@@ -51,15 +106,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-bottom: 1px solid var(--border);
 }
 
-.cp-prefix {
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  color: var(--accent);
-  min-width: 8px;
+/* The magnifier that replaced the ">" prefix (see CommandPalette.tsx): the
+   same glyph as the title-bar box, so the drop-down is visibly the thing that
+   box opens. */
+.cp-prefix-ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
 }
 
 .cp-input {
@@ -98,7 +156,11 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  height: 30px;
+  /* `flex: none` keeps the height honest: as a <button> the row would otherwise
+     be squeezed by the list's own flex layout and collapse to its text height
+     (measured: 19.5px against the 34px asked for). */
+  flex: none;
+  height: 34px;
   padding: 0 12px;
   background: transparent;
   border: none;

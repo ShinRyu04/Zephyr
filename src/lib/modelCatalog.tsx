@@ -1087,19 +1087,30 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
     alibaba: 'qwen',
     tencent: 'tencent',
     mimo: 'mimo',
-    siliconflow: 'qwen',
     /*
-     * DELIBERATELY ABSENT: gmi, novita, gitee, ppio, vercel.
+     * These three HAVE official marks in the brand table and were falling
+     * through to the two-letter monogram anyway (SF / NO / PP), because the map
+     * had no entry for them — the reader pointed at exactly that: three tiles in
+     * a row of logos wearing initials instead of their company. The connection
+     * is one line each; nothing else was missing.
+     */
+    siliconflow: 'siliconcloud',
+    novita: 'novita',
+    ppio: 'ppio',
+    vercel: 'vercel',
+    /*
+     * STILL ABSENT: gmi, gitee.
      *
-     * These used to map to `together`, `antgroup` and `vertexai` — companies they
-     * have nothing to do with. The result was GMI Cloud wearing Together's mark
-     * and Gitee wearing Ant Group's: a logo that names the WRONG company is worse
-     * than no logo, because the reader trusts it.
+     * These two used to map to `together`, `antgroup` and `vertexai` — companies
+     * they have nothing to do with. The result was GMI Cloud wearing Together's
+     * mark and Gitee wearing Ant Group's: a logo that names the WRONG company is
+     * worse than no logo, because the reader trusts it.
      *
-     * `BRAND_MARKS` has no official mark for any of them, so they fall through to
-     * the monogram below: their own initials in their own brand colour. That is
-     * honest — it does not claim to be a published logo, and it is still
-     * distinguishable at a glance, which is the job.
+     * Neither has an official mark in `BRAND_MARKS` (LobeHub publishes no
+     * `gmi`, and `gitee` 404s), so they fall through to the monogram below:
+     * their own initials in their own brand colour. That is honest — it does not
+     * claim to be a published logo, and it is still distinguishable at a glance,
+     * which is the job.
      */
   };
 

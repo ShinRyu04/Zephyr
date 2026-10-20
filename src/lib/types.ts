@@ -155,6 +155,12 @@ export interface QuickFile {
   name: string;
 }
 
+/** A workspace directory, relative to the root (`list_workspace_folders`). */
+export interface QuickFolder {
+  rel: string;
+  name: string;
+}
+
 export interface ProbeResult {
   url: string;
   reachable: boolean;

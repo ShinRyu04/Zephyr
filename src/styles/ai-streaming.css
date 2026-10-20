@@ -90,38 +90,50 @@
 }
 
 /*
- * RIGHT-COLUMN MODE: use the full width.
+ * RIGHT-COLUMN MODE: comfortable inset, like TRAE.
  *
- * In the narrow right-hand column (the default home of the chat) 12px of
- * padding on BOTH sides plus the 9px scrollbar left the answer's text column
- * visibly inset - measured: text started 12px from the column's left edge and
- * ended 32px from its right edge. In a 488px column that is ~9% of the width
- * spent on nothing, and the reader asked for it to reach the edges.
+ * An earlier round cut the side column's padding to 4px on the argument that
+ * the answer should reach the edges. The reader then reported the opposite
+ * problem: prose glued to the panel border reads as clipped, not spacious —
+ * TRAE keeps a clear inset (roughly 14px) on both sides and lets the text
+ * column breathe. 14px is restored here; the scrollbar keeps its reserved
+ * gutter so the right edge stays put when the transcript grows.
  *
- * Why this is scoped to the COLUMN and not applied everywhere: in maximised
- * mode the transcript draws a continuous rail with a node per tool row, and
- * that rail needs its own gutter. Trimming the padding there would push the
- * text onto the line. `.is-max` is the maximised column, so `:not(.is-max)`
+ * Why scoped to the COLUMN and not applied everywhere: in maximised mode the
+ * transcript draws a continuous rail with a node per tool row, and that rail
+ * needs its own gutter. `.is-max` is the maximised column, so `:not(.is-max)`
  * is exactly "the side column".
- *
- * The left padding is not taken to zero: the rail's node dots sit at
- * `--rail-x: 17px` inside each tool row, and a small outer inset keeps prose
- * from touching the panel border. 4px reads as "flush" without looking clipped.
  */
 .ai-side-col:not(.is-max) .ai-chat {
-  --ai-chat-pad-x: 4px;
+  --ai-chat-pad-x: 14px;
   /*
    * The scrollbar is taken OUT of the flow instead of eating the right edge.
    * `stable` reserves the gutter whether or not it is needed, so the text does
    * not jump sideways when the transcript grows past one screen.
    */
   scrollbar-gutter: stable;
-  padding-right: 0;
+  padding-right: 10px;
 }
 
 /* Tool rows keep their rail gutter; only the outer inset shrinks. */
 .ai-side-col:not(.is-max) [data-timeline] > * {
   padding-left: 26px;
+}
+
+/*
+ * MAXIMISED: cap the reading measure, keep it centred.
+ *
+ * A maximised column can be 1200px wide; prose laid out at that width runs to
+ * ~150 characters per line, which the eye loses its place in on the way back
+ * to the next line. TRAE keeps its answer column near 760px for the same
+ * reason. The cap is applied to the turns only — the composer and the header
+ * stay full width so the input never looks like a narrow widget.
+ */
+.ai-side-col.is-max .ai-chat > .ai-msg {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .ai-chat > * {
@@ -134,8 +146,8 @@
 .ai-msg {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 7px 0 9px;
+  gap: 5px;
+  padding: 8px 0 10px;
   /* No divider: the side a message sits on already tells you whose turn it is,
      so a rule between turns is decoration. */
   border-bottom: 0;
@@ -146,16 +158,24 @@
   border-bottom: 0;
 }
 
-/* Assistant: plain text, full column. */
+/* Assistant: plain text, full column, TRAE rhythm. */
 .ai-msg.is-assistant,
 .ai-msg.is-system {
   align-items: flex-start;
   padding-top: 12px;
 }
 
-/* User: a left-aligned Copilot-style card, not a right-hugging bubble. */
+/*
+ * User: a right-hugging bubble, the TRAE shape.
+ *
+ * The reader asked for the layout back where their own turn is a compact
+ * bubble on the RIGHT — the side their message "comes from" — while the
+ * assistant's answer stays full-width plain text on the left. The card used
+ * to stretch across the whole column, which made it read as another block of
+ * the answer rather than as the question.
+ */
 .ai-msg.is-user {
-  align-items: stretch;
+  align-items: flex-end;
   /*
    * 5px above, 2px below, with the 4px column gap.
    *
@@ -174,25 +194,20 @@
   padding-bottom: 2px;
 }
 
-/* ── User message: Copilot-style left-aligned card ────────────────────── */
+/* ── User message: right-hugging bubble (TRAE) ────────────────────────── */
 
 /*
- * Copilot shows the user's turn as a quiet rounded card flush with the LEFT
- * edge, directly above the assistant's answer — the conversation reads straight
- * down the column instead of ping-ponging left/right. The old look hugged the
- * right edge with no container; the user asked for the Copilot layout, so the
- * card and the left alignment come back.
- *
- * ai.css styles .ai-plain with a background, border, radius and padding — we
- * KEEP those for the user card (unlike before, which stripped them), and only
- * normalise the width so it fills the column.
+ * The bubble hugs the RIGHT edge and only takes the width its text needs:
+ * `align-self: flex-end` on the body plus `width: auto` on the text card.
+ * The old full-width card is gone; `.ai-msg-head` below still spreads to
+ * full width so the action row can sit under the bubble, aligned right.
  */
 .ai-msg.is-user .ai-body {
-  width: 100%;
-  max-width: none;
+  width: auto;
+  max-width: 85%;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-end;
   padding: 0;
   background: none;
   border: 0;
@@ -200,21 +215,37 @@
   box-shadow: none;
 }
 
-/* The user's text sits in a subtle full-width card on the left. */
+/*
+ * The bubble is FLAT: a slightly lighter fill, no stroke.
+ *
+ * The 1px border made the bubble read as a box sitting on the panel rather
+ * than as the reader's own turn, and on a dark theme a hairline around a small
+ * element is the loudest thing on screen. TRAE's bubble is fill-only, and the
+ * fill is derived from the text colour so it lifts off the background in every
+ * theme instead of only in the one it was tuned on.
+ */
 .ai-msg.is-user .ai-plain {
-  width: 100%;
+  width: auto;
   max-width: 100%;
-  align-self: stretch;
-  padding: 9px 12px;
-  background: var(--surface-2, var(--surface));
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  align-self: flex-end;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border: 0;
+  border-radius: 12px;
   box-shadow: none;
   word-break: normal;
   overflow-wrap: anywhere;
   color: var(--text);
   font-size: 12.5px;
   line-height: 1.62;
+  text-align: left;
+}
+
+/* Engines without color-mix keep a visible fill rather than none at all. */
+@supports not (background: color-mix(in srgb, red 8%, transparent)) {
+  .ai-msg.is-user .ai-plain {
+    background: var(--surface-2, var(--surface));
+  }
 }
 
 /* A code block inside your own message keeps its block shape. */
@@ -225,9 +256,9 @@
 /* ── Assistant: no container, no rail ─────────────────────────────────── */
 
 /*
- * The 2px border-left from ai.css was the vertical line beside every answer,
- * and .ai-plain carries a fill + stroke + radius. All of it cleared: the
- * assistant's answer is plain text in the column, nothing drawn around it.
+ * The answer is plain text in the column, nothing drawn around it: the reader
+ * asked for the assistant turn to stay unwrapped. Fill, border and radius all
+ * cleared so the answer sits directly on the panel like TRAE's.
  */
 .ai-msg.is-assistant .ai-body,
 .ai-msg.is-assistant .ai-plain,
@@ -294,8 +325,9 @@
 
 .ai-msg.is-user .ai-msg-head {
   order: 2;
-  justify-content: flex-start;
+  justify-content: flex-end;
   margin-top: 1px;
+  align-self: stretch;
 }
 
 /*
@@ -372,6 +404,12 @@
   margin: 0 0 10px;
   padding-left: 20px;
   list-style: revert;
+}
+
+/* Disc bullets. `revert` alone inherits the browser's default marker, which at
+   this font size reads as a speck rather than a list marker. */
+.ai-body ul {
+  list-style-type: disc;
 }
 
 .ai-body li {
@@ -1157,49 +1195,31 @@
 
 /* ── Typing indicator ─────────────────────────────────────────────────── */
 
+/*
+ * The wait label is bare text, not a pill.
+ *
+ * It used to be a bordered capsule with a sweeping gradient — a second piece
+ * of chrome appearing at the top of every answer, and the thing most
+ * responsible for the transcript looking busy. TRAE shows only a short muted
+ * line here, and this follows it: same text, no border, no fill, no sweep.
+ * The dot wave is the only motion left, which is enough to say "live" without
+ * competing with the answer arriving underneath.
+ */
 .ai-typing {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 9px 2px 7px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-size: 10.5px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  border: 0;
+  font-size: 11.5px;
   color: var(--text-muted);
   line-height: 1.6;
-
-  /* The chip breathes so the row reads as live even when a token is slow to
-     arrive and the dots are between beats. */
-  animation: typing-breathe 2s ease-in-out infinite;
 }
 
-/*
- * A soft sweep across the chip, under the text.
- *
- * The dots alone are 3px of motion in a wide panel; the sweep gives the row a
- * second, larger signal without adding a spinner. `overflow: hidden` keeps it
- * inside the pill.
- */
 .ai-typing::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    100deg,
-    transparent 20%,
-    var(--accent-subtle) 50%,
-    transparent 80%
-  );
-  transform: translateX(-100%);
-  animation: typing-sweep 2.4s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.ai-typing {
-  position: relative;
-  overflow: hidden;
+  content: none;
 }
 
 @keyframes typing-breathe {

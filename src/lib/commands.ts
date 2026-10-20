@@ -1,4 +1,4 @@
-﻿import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import type {
   AgentInfo,
   AiMessage,
@@ -29,6 +29,7 @@ import type {
   ProbeResult,
   PublicModel,
   QuickFile,
+  QuickFolder,
   ExtensionInfo,
   ExtInstallHasil,
   ExtManifestStatus,
@@ -564,6 +565,14 @@ export const revealPath = (path: string) => invoke<void>('reveal_path', { path }
 
 export const listWorkspaceFiles = (limit?: number) =>
   invoke<QuickFile[]>('list_workspace_files', { limit });
+
+/**
+ * Every directory in the workspace, empty ones included.
+ *
+ * The `@` popup's folder category used to be inferred from the file list, so a
+ * folder with no readable file in it could not be mentioned at all.
+ */
+export const listWorkspaceFolders = () => invoke<QuickFolder[]>('list_workspace_folders');
 
 /**
  * Drop the Quick Open file index.

@@ -312,6 +312,7 @@ pub fn run() {
             explorer::fs_unwatch,
             explorer::search_files,
             explorer::list_workspace_files,
+            explorer::list_workspace_folders,
             explorer::workspace_file_index_clear,
             browser::browser_probe,
             browser::browser_download_url,

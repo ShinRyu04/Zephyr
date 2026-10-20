@@ -2544,6 +2544,19 @@
 }
 
 /*
+ * `---` between the body of an answer and the closing line ("kalau setuju,
+ * ini yang dikerjakan"). Had no rule at all, so it rendered as the browser
+ * default: an inset double groove in the OS colours, which was the one element
+ * in the transcript that ignored the theme.
+ */
+.ai-body hr {
+  height: 0;
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/*
  * `kotak` - the formatted answer box the `kotak` tool produces.
  *
  * A bordered card with a title strip, then rows of label/value. The label column
@@ -3778,6 +3791,9 @@
      (rather than being cut off) so every option stays reachable; the keyboard arrows
      follow the highlight via scrollIntoView in AiPanel. */
   max-height: 220px;
+  /* `is-cmd` / `is-ref` put their own scroller inside (`.ai-slash-list`,
+     `.ai-ref-list`) so the search field stays pinned; the plain list — the
+     snippet popup — still scrolls as one box. */
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--border-strong, var(--border));
@@ -3862,10 +3878,90 @@
  * cut - which is the "kepotong" report. A header outside the scroller cannot
  * overlap anything inside it.
  */
-.ai-slash.is-ref {
-  /* The popup is a column: fixed chips, then the list that scrolls. */
+.ai-slash.is-ref,
+.ai-slash.is-cmd {
+  /* The popup is a column: fixed chips, then the list that scrolls, then the
+     search field pinned to the bottom. */
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 10px;
+  background: var(--popup-bg, #17181c);
+  border-color: var(--popup-border, var(--border-strong, var(--border)));
+  box-shadow: var(--popup-shadow, 0 -12px 30px rgb(0 0 0 / 55%));
+  padding: 0;
+  /* The boxes above scroll the inner list instead. */
+  overflow: hidden;
+}
+
+/* The scrolling list inside the `/` popup — `is-ref` already has one. */
+.ai-slash-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  scroll-padding: 4px;
+}
+
+/* ── the popup's own search field ─────────────────────────────────────────
+ * Pinned to the BOTTOM, in the reference product's order: the list is what
+ * the reader scans, the field is what they reach for once it is too long.
+ * The `@File:` / `@Folder:` prefix doubles as the active-category label, so
+ * the field says what it is searching without a second heading above it. */
+.ai-ref-cari {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border-top: 1px solid var(--popup-border, var(--border));
+}
+
+.ai-ref-cari-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.ai-ref-cari-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  outline: none;
+}
+
+.ai-ref-cari-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* The recent block sits above the divider and does not scroll with the
+   categories: it is a shortcut, and a shortcut that scrolls away is a row. */
+.ai-ref-recent {
+  flex: 0 0 auto;
+  max-height: calc(3 * var(--row, 26px) + 16px);
+  overflow: hidden;
+  padding: 0 0 3px;
+  border-bottom: 1px solid var(--popup-border, var(--border));
+}
+
+.ai-ref-empty {
+  margin: 0;
+  padding: 10px 9px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-slash.is-ref {
   /*
    * Height = a whole number of ROWS plus the chip row, so the bottom edge never
    * lands mid-row. Compact on purpose: the popup hangs above the input row, so
@@ -3882,7 +3978,9 @@
    * seven rows whole with slack for the sub-pixel heights a 11.5px font
    * produces.
    */
-  max-height: calc(7 * var(--row, 26px) + 54px);
+  /* The +36 is the search field row added below the list (7+7 pad + ~17
+     content + 1 border + slack), so seven rows still fit whole. */
+  max-height: calc(7 * var(--row, 26px) + 90px);
   overflow: hidden;
   padding: 0;
   /* The list inside scrolls; its own scroll-padding keeps a row off the edge. */
@@ -3945,16 +4043,52 @@
   opacity: 0.65;
 }
 
-/* A group heading inside the list. Only drawn when more than one kind is on
-   screen, so a filtered list is not a heading over a list of one. It is NOT
-   sticky: the list is short enough that a heading which scrolls away costs
-   nothing, and sticky was what made the first row disappear under it. */
+/*
+ * The kind heading, which is ALSO the filter.
+ *
+ * It replaced a chip row above the list. A chip row made the popup open on a
+ * filtered view; a heading that sits on the rows it names does the same job
+ * without hiding the rest. `is-on` marks a narrowed list so the reader can see
+ * why the other kinds are gone and click it again to bring them back.
+ */
 .ai-ref-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
   padding: 5px 8px 3px;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ai-ref-head:hover {
+  color: var(--text-secondary, var(--text));
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+}
+.ai-ref-head.is-on {
+  color: var(--accent);
+}
+.ai-ref-head-jml {
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+/* A heading that labels but does not filter ("Terbaru"). It must not show the
+   hover affordance a button has, or the reader clicks it expecting a filter. */
+.ai-ref-head.is-label {
+  cursor: default;
+}
+.ai-ref-head.is-label:hover {
+  background: transparent;
   color: var(--text-muted);
 }
 
@@ -8120,7 +8254,10 @@
  * cards read as eight unrelated things.
  */
 .ai-kerja {
-  margin: 2px 0;
+  /* Breathing room above the summary bar: the folded bar is a distinct unit
+     between narration/answer prose, and butting it straight against a
+     paragraph made the transcript read as one wall of text. */
+  margin: 6px 0;
 }
 
 .ai-kerja-head {
@@ -8128,14 +8265,14 @@
   align-items: center;
   gap: 7px;
   width: 100%;
-  min-height: 28px;
-  padding: 3px 8px;
+  min-height: 26px;
+  padding: 2px 4px;
   background: transparent;
   border: 0;
   border-radius: 5px;
   cursor: pointer;
   text-align: left;
-  color: var(--text-secondary, var(--fg1));
+  color: var(--text-muted, var(--fg1));
   font-size: 12px;
 }
 .ai-kerja-head:hover {
@@ -8143,25 +8280,93 @@
   color: var(--text);
 }
 
+/* The small leading mark: a quiet tick once the run is done, an info dot when
+   something failed. Muted on purpose — TRAE keeps this row almost silent. */
+.ai-kerja-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted, var(--fg1));
+}
+.ai-kerja.is-gagal .ai-kerja-mark {
+  color: var(--danger);
+}
+
+/*
+ * In-flight mark: a small ring, the TRAE shape.
+ *
+ * The tick only makes sense once the run is done; while it is still going the
+ * same slot shows a spinner, so "working" and "worked" differ at a glance
+ * without adding a second row.
+ */
+.ai-kerja-spin {
+  width: 11px;
+  height: 11px;
+  border: 1.6px solid var(--border-strong, var(--border));
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: ai-kerja-spin 0.8s linear infinite;
+}
+@keyframes ai-kerja-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * The call in flight: ONE thin row, no box.
+ *
+ * It used to be a full tool card - border, head, body, its own collapse - which
+ * is what the reader saw flashing during every run and asked to get rid of.
+ * The row keeps only what tells them work is happening: icon, verb, target,
+ * spinner. Height matches the fold bar (26px) so a live step and a finished one
+ * read as the same family.
+ */
+.ai-kerja-live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 2px 4px 2px 25px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--fg1));
+  /* No border, no background: the rail already groups it. */
+}
+.ai-kerja-live .ai-kerja-spin {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.ai-kerja-live-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.ai-kerja-live .ai-grup-args {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chevron lives on the RIGHT, pushed there by the auto margin. */
 .ai-kerja-caret {
   flex: 0 0 auto;
+  margin-left: auto;
   width: 10px;
-  font-size: 9px;
+  font-size: 11px;
+  line-height: 1;
   color: var(--text-muted, var(--fg1));
+  text-align: center;
 }
 
 .ai-kerja-judul {
   flex: 0 0 auto;
   font-weight: 500;
+  color: var(--text-secondary, var(--fg1));
 }
 
-/* The "3 files · 1 command" part: quiet, and the first thing to be cut when the
-   column is narrow - the duration is the fact that must survive. */
-.ai-kerja-ringkas {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* The counts line inside the fold: quiet context, no longer on the bar. */
+.ai-kerja-sub {
+  padding: 1px 8px 4px 25px;
   color: var(--text-muted, var(--fg1));
   font-size: 11.5px;
 }
@@ -8176,14 +8381,57 @@
 /* Live: a subtle pulse so an in-flight run is distinguishable from a finished
    one at a glance, without a spinner competing with the tool row's own. */
 .ai-kerja:not(.is-open) .ai-kerja-judul {
-  color: var(--text-muted, var(--fg1));
+  color: var(--text-secondary, var(--fg1));
 }
 
 .ai-kerja-isi {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
   padding: 1px 0 3px;
+}
+
+/*
+ * The thread that runs down the fold, from under the mark to the last step.
+ *
+ * Only while open: closed, the bar is one line and a hanging rule would be a
+ * stray line under it. It sits under the head's mark (x ≈ 9px) so the steps
+ * read as children of that mark — the vertical version of the chevron.
+ */
+.ai-kerja.is-open .ai-kerja-isi::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 9px;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/*
+ * The narration folded INSIDE the "Worked for Xs" bar.
+ *
+ * The model's mid-run sentences ("let me check the config…") used to render as
+ * standalone paragraphs above the bar, so a talkative turn read as
+ * narration, bar, narration, bar. They now live behind the bar: the closed
+ * transcript keeps only the answer prose and the one summary line — the TRAE
+ * shape — and the sentences are one click away inside the fold.
+ */
+.ai-kerja-narasi {
+  padding: 2px 8px 6px 25px;
+  color: var(--text-secondary, var(--fg1));
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.ai-kerja-narasi p {
+  margin: 0 0 6px;
+}
+
+.ai-kerja-narasi p:last-child {
+  margin-bottom: 0;
 }
 
 /* A failed run keeps its colour on the summary so a tidy fold cannot hide it. */
@@ -8208,6 +8456,54 @@
   font-size: 12px;
   line-height: 1.55;
 }
+
+/*
+ * The head strip: file name, its folder, and the change counts.
+ *
+ * The folder is pushed to the right and ellipsised, so a long path never pushes
+ * the counts out of the box - the file name is what the reader scans for, and
+ * it stays whole.
+ */
+.cli-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  min-width: 0;
+}
+.cli-diff-path {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.cli-diff-dir {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ai-meta);
+  direction: rtl;
+  text-align: left;
+}
+.cli-diff-counts {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.cli-diff-add {
+  color: var(--added, var(--success));
+}
+.cli-diff-del {
+  color: var(--deleted, var(--danger));
+}
 .cli-diff-row {
   display: grid;
   grid-template-columns: 42px 42px 16px 1fr;
@@ -8227,6 +8523,15 @@
   opacity: 1;
   user-select: none;
   font-size: 11px;
+  /*
+   * Tabular digits, so the gutter does not jog sideways when the numbers reach
+   * a new digit width. Without it every line past 9 (and every line past 99)
+   * shifts the sign column, and a diff where the `+`/`-` wanders is hard to
+   * scan. `font-variant-numeric` is the standard spelling; the others are the
+   * older ones WebView2 still needs.
+   */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 .cli-diff-sign {
   text-align: center;

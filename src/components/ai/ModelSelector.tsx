@@ -152,6 +152,18 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
   useEffect(() => {
     if (!open) return;
+    /*
+     * The hovered-row card must not survive a close/open cycle.
+     *
+     * `intip` kept the LAST row the pointer had touched. Reopening the menu
+     * then rendered that stale card immediately — before any new hover — at
+     * coordinates measured against the PREVIOUS opening, and with `rect` null
+     * (the fresh menu is not measured yet) the panel fell back to the window's
+     * top-left corner. The reader pressed the button and a wrong model's
+     * "Available for" card appeared above the list. Clearing on every open
+     * means the card only ever describes a row under the pointer NOW.
+     */
+    setIntip(null);
     const onDown = (e: MouseEvent) => {
       if (!wrap.current?.contains(e.target as Node)) setOpen(false);
     };

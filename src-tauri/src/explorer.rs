@@ -278,6 +278,14 @@ pub struct QuickFile {
     pub name: String,
 }
 
+/// One directory of the workspace, relative to the root.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuickFolder {
+    pub rel: String,
+    pub name: String,
+}
+
 fn build_regex(query: &str, regex: bool, case_sensitive: bool) -> ZResult<regex::Regex> {
     let pattern = if regex {
         query.to_string()
@@ -311,6 +319,69 @@ fn collect_files(root: &Path, out: &mut Vec<PathBuf>, depth: usize) {
             out.push(p);
         }
     }
+}
+
+fn collect_folders(root: &Path, out: &mut Vec<PathBuf>, depth: usize) {
+    if depth > MAX_DEPTH || out.len() > 20_000 {
+        return;
+    }
+    let rd = match std::fs::read_dir(root) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    for entry in rd.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        if is_ignored(&name, true) {
+            continue;
+        }
+        let p = entry.path();
+        out.push(p.clone());
+        collect_folders(&p, out, depth + 1);
+    }
+}
+
+/// Every DIRECTORY in the workspace, relative to the root.
+///
+/// `list_workspace_files` implies the folders from the files it finds, which
+/// is enough to spend `@folder` — but it silently drops the ones that hold no
+/// files at all (an empty folder, or one where every file is ignored). Those
+/// are exactly the folders a reader is most likely to be looking for right
+/// after creating them, so the `@` popup needs its own walk.
+///
+/// The answer is derived from the same `is_ignored`/`MAX_DEPTH` rules as the
+/// file walk, so the two lists can never disagree about what exists.
+#[tauri::command(async)]
+pub fn list_workspace_folders(state: State<AppState>) -> ZResult<Vec<QuickFolder>> {
+    let ws = state
+        .workspace_path()
+        .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
+
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    collect_folders(&ws, &mut dirs, 0);
+
+    let mut out: Vec<QuickFolder> = dirs
+        .iter()
+        .map(|p| {
+            let rel = p
+                .strip_prefix(&ws)
+                .unwrap_or(p)
+                .to_string_lossy()
+                .replace('\\', "/");
+            QuickFolder {
+                name: p
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default(),
+                rel,
+            }
+        })
+        .collect();
+
+    out.sort_by(|a, b| a.rel.to_lowercase().cmp(&b.rel.to_lowercase()));
+    Ok(out)
 }
 
 #[tauri::command(async)]

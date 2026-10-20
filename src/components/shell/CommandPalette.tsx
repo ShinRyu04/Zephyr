@@ -1,10 +1,25 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePalette, type PaletteItem } from '../../lib/paletteStore';
 import { useT } from '../../lib/i18n';
 import { useLabel } from '../../lib/labelI18n';
 
 const WINDOW = 40;
-const ROW_H = 30;
+const ROW_H = 34;
+
+/*
+ * Anchored width — the drop-down under the Search box.
+ *
+ * The box is only 140px wide (it is labelled, not a field), and a panel that
+ * matched it was unreadable: nearly every command label was truncated and the
+ * detail column had no room at all. The panel is a scrolling list, so it is
+ * sized for its CONTENT instead — wide enough for a typical command name plus
+ * its "Group: detail" tail and the chord — and still clamped to the window so
+ * it never runs off the right edge (the box itself is measured from, so the
+ * panel is clamped so it stays on screen).
+ */
+const ANCHOR_W = 520;
+const ANCHOR_MIN_W = 380;
+const VIEWPORT_PAD = 12;
 
 function GroupIcon({ group }: { group?: string }) {
   const p = { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none' as const };
@@ -147,6 +162,44 @@ export default function CommandPalette() {
     return acceptItem(item, true);
   };
   const close = usePalette((s) => s.close);
+  const anchored = usePalette((s) => s.anchored);
+
+  /*
+   * Anchored geometry: the panel is positioned under the title-bar search box.
+   *
+   * Measured on every open (and on resize) rather than cached, because the box
+   * moves with the window width and the menu row's own contents. Falling back to
+   * the centred modal when the box is not on screen keeps Ctrl+Shift+P working
+   * from any layout, including the agent window where there is no menu row.
+   */
+  const [kotak, setKotak] = useState<{ left: number; top: number; width: number } | null>(null);
+  useEffect(() => {
+    if (!open || !anchored) {
+      setKotak(null);
+      return;
+    }
+    const ukur = () => {
+      const el = document.querySelector<HTMLElement>('[data-testid="mb-command-center"]');
+      if (!el) {
+        setKotak(null);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      /* Wider than the box, so the width is chosen here and then clamped: a
+         panel anchored at the box's left edge would otherwise run past the
+         right of a narrow window. `left` is pulled back only when it has to be. */
+      const width = Math.min(ANCHOR_W, window.innerWidth - VIEWPORT_PAD * 2);
+      const left = Math.max(VIEWPORT_PAD, Math.min(r.left, window.innerWidth - width - VIEWPORT_PAD));
+      setKotak({
+        left,
+        top: r.bottom + 6,
+        width: Math.max(Math.min(ANCHOR_MIN_W, window.innerWidth - VIEWPORT_PAD * 2), width),
+      });
+    };
+    ukur();
+    window.addEventListener('resize', ukur);
+    return () => window.removeEventListener('resize', ukur);
+  }, [open, anchored]);
   
   const items = open ? usePalette.getState().items() : [];
 
@@ -169,9 +222,17 @@ export default function CommandPalette() {
   const start = Math.max(0, Math.min(index - Math.floor(WINDOW / 2), Math.max(0, items.length - WINDOW)));
   const visible = items.slice(start, start + WINDOW);
 
+  /*
+   * Anchored mode has no scrim: the click target outside the panel covers the
+   * whole window but is fully transparent, so clicking anywhere else closes the
+   * palette while the editor stays readable behind it. The centred modal keeps
+   * its dimming overlay.
+   */
+  const pakaiAnchor = Boolean(anchored && kotak);
+
   return (
     <div
-      className="cp-overlay"
+      className={`cp-overlay${pakaiAnchor ? ' is-anchored' : ''}`}
       data-testid="cp-overlay"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
@@ -184,11 +245,30 @@ export default function CommandPalette() {
         aria-label={mode === 'file' ? 'Quick Open' : 'Command Palette'}
         data-testid="cp-modal"
         data-mode={mode}
+        data-anchored={pakaiAnchor ? '1' : '0'}
+        style={
+          pakaiAnchor && kotak
+            ? {
+                position: 'fixed',
+                left: kotak.left,
+                top: kotak.top,
+                width: kotak.width,
+                maxHeight: `calc(100vh - ${kotak.top + 16}px)`,
+              }
+            : undefined
+        }
       >
         <div className="cp-inputrow">
-          <span className="cp-prefix" aria-hidden="true">
-            {mode === 'file' ? '' : '>'}
-          </span>
+          {/* Not a ">" prefix: this list mixes files and commands, and a command
+              prompt in front of a file name read as a mode the user had to know.
+              A magnifier says "search", which is what the box in the title bar
+              says too. It turns into the accent chevron in command mode only. */}
+          <svg className="cp-prefix-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M10.5 5.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0zm-.8 3.9 4 4.1-1 1-4-4.1a5 5 0 0 1-6.7-6.7L1 7 1.9 5.6A5 5 0 0 1 8 1a5 5 0 0 1 5.5 4.3l.4 2.6-1.9.5-2.3.5z"
+              fill="currentColor"
+            />
+          </svg>
           <input
             ref={inputRef}
             className="cp-input"
@@ -197,7 +277,9 @@ export default function CommandPalette() {
             spellCheck={false}
             autoComplete="off"
             placeholder={
-              mode === 'file' ? 'Type a file name…' : 'Type a command name, e.g. "git commit"'
+              mode === 'file'
+                ? tr('Search files by name')
+                : tr('Search commands, or type > for a command')
             }
             aria-label={mode === 'file' ? tr('Search files') : tr('Search commands')}
             onChange={(e) => setQuery(e.target.value)}
@@ -256,7 +338,7 @@ export default function CommandPalette() {
           {items.length === 0 && (
             <p className="cp-empty" data-testid="cp-empty">
               {loading
-                ? 'Loading file list…'
+                ? tr('Loading file list…')
                 : (filesError ??
                   (mode === 'file'
                     ? tr('No matching files.')
@@ -268,10 +350,10 @@ export default function CommandPalette() {
         <div className="cp-foot">
           <span>
             <kbd>↑</kbd>
-            <kbd>↓</kbd> select
+            <kbd>↓</kbd> {tr('navigate')}
           </span>
           <span>
-            <kbd>Enter</kbd> run
+            <kbd>Enter</kbd> {tr('open')}
           </span>
           {/* The one-shot has to be discoverable, or the only way to find it is
               to have read the source. Muted styling so it reads as secondary
@@ -281,10 +363,12 @@ export default function CommandPalette() {
             <kbd>Enter</kbd> {tr('run without remembering')}
           </span>
           <span>
-            <kbd>Esc</kbd> close
+            <kbd>Esc</kbd> {tr('close')}
           </span>
           <span className="cp-foot-mode">
-            {mode === 'file' ? 'Ctrl+Shift+P for commands' : 'Ctrl+P to search files'}
+            {mode === 'file'
+              ? tr('Ctrl+Shift+P for commands')
+              : tr('Ctrl+P to search files')}
           </span>
         </div>
       </div>

@@ -45,11 +45,25 @@ const h = await cdp.json(
     const k = kerja[0];
     const head = k.querySelector('.ai-kerja-head');
     const judul = k.querySelector('.ai-kerja-judul');
+    /*
+     * Both selectors are the CURRENT ones. The counts moved off the bar into
+     * the fold (.ai-kerja-sub) so the bar reads as one quiet line, and the
+     * narration inside a fold (.ai-kerja-narasi) replaced the old interleaved
+     * .ai-segmen paragraphs. Reading the old names reported "ringkas: null /
+     * bernarasi: 0" while both were plainly on screen.
+     */
     const ringkas = k.querySelector('.ai-kerja-ringkas');
+    if (k.getAttribute('data-open') !== '1') head?.click();
+    await tunggu(300);
+    /* Read the counts AFTER opening: since the counts line moved inside the
+       fold, it is not in the DOM while the bar is collapsed. */
+    const ringkasTeks = k.querySelector('[data-testid="ai-kerja-sub"]')?.textContent ?? null;
+    const narasiFold = k.querySelectorAll('[data-testid="ai-kerja-narasi"]').length;
     out.akordion = {
       judul: judul ? judul.textContent : null,
-      ringkas: ringkas ? ringkas.textContent : null,
+      ringkas: ringkasTeks ?? (ringkas ? ringkas.textContent : null),
       open: k.getAttribute('data-open'),
+      narasiFold,
       tinggiHead: head ? Math.round(head.getBoundingClientRect().height) : null,
       baris: k.querySelectorAll('[data-testid="ai-kerja-baris"]').length,
       punyaCaret: !!k.querySelector('.ai-kerja-caret'),
@@ -59,10 +73,13 @@ const h = await cdp.json(
   /* A5: state SETELAH dibuka, diukur oleh pemanggil terpisah (lihat bawah). */
   out.setelahBuka = null;
 
-  /* A6: narasi tetap terlihat di dalam pesan (bukan dihilangkan). */
+  /* A6: narasi tidak dihilangkan - ia ada di dalam fold sebagai
+     .ai-kerja-narasi, atau sebagai segmen di luar fold pada bentuk lama. */
   const pesan = [...document.querySelectorAll('.ai-msg.is-assistant')];
   out.interleaved = pesan.reduce((n, p) => n + p.querySelectorAll('.ai-segmen').length, 0);
-  out.bernarasi = pesan.filter((p) => p.querySelectorAll('.ai-segmen').length > 0).length;
+  out.bernarasi = pesan.filter(
+    (p) => p.querySelectorAll('.ai-segmen, [data-testid="ai-kerja-narasi"]').length > 0,
+  ).length;
   out.pakaiAkordion = pesan.filter((p) => p.querySelectorAll('.ai-kerja').length > 0).length;
 
   /* A7: grup yang gagal harus menandai dirinya. */
@@ -160,7 +177,8 @@ cek(
 );
 cek(
   'A3 judul menyebut durasi kerja',
-  typeof d.akordion?.judul === 'string' && /Worked for|Working/.test(d.akordion.judul),
+  typeof d.akordion?.judul === 'string' &&
+    /Worked for|Working|Selesai dalam|Sedang bekerja/.test(d.akordion.judul),
   String(d.akordion?.judul),
 );
 cek(

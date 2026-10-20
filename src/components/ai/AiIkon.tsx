@@ -144,6 +144,9 @@ export type NamaAiIkon =
        explanation of what the list is. */
     | 'lock'
     | 'info'
+    /* A cube: the reference's mark for "Custom Model" in Add Model — a thing
+       you bring yourself, rather than a vendor you pick from the list. */
+    | 'package'
     | 'x';
 
 interface Props {
@@ -813,6 +816,21 @@ export default function AiIkon({ name, size = 15 }: Props) {
           <circle cx="8" cy="8" r="5.9" />
           <path d="M8 7.2v4" />
           <path d="M8 4.9v.1" />
+        </svg>
+      );
+    /*
+     * A cube seen slightly from above: the "Custom Model" mark.
+     *
+     * Three visible faces, drawn as one outline plus the two edges that meet at
+     * the front corner. At 16px the box alone reads as a square; those two
+     * lines are what make it a solid object.
+     */
+    case 'package':
+      return (
+        <svg {...box} strokeWidth="1.25">
+          <path d="M8 1.9 13.7 5v6L8 14.1 2.3 11V5z" />
+          <path d="M2.3 5 8 8.1 13.7 5" />
+          <path d="M8 8.1v6" />
         </svg>
       );
 
