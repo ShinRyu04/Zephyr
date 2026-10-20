@@ -50,9 +50,12 @@ export function AgentsStarting({ composerId }: { composerId: string }) {
 
   return (
     <div className="agx-starting" data-testid="agx-starting">
-      <h1 className="agx-heading" data-testid="agx-heading" style={{ marginBottom: 55 }}>
+      <h1 className="agx-heading" data-testid="agx-heading" style={{ marginBottom: 12 }}>
         Build with Zephyr
       </h1>
+      <p className="agx-sub" data-testid="agx-sub" style={{ marginBottom: 43 }}>
+        More than writing every line of code — delivering production-grade results end-to-end.
+      </p>
 
       <AgentsComposer composerId={composerId} variant="centered" />
 

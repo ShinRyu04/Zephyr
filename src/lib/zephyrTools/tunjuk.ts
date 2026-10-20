@@ -148,7 +148,12 @@ const NIAT_PERMUKAAN: {
   id: string;
   kata: string[];
   apa: string;
-  buka: () => void | Promise<void>;
+  /**
+   * Opens the surface. A string is the sentence the model must forward
+   * verbatim when the surface has its own detail worth naming (the tab that was
+   * picked); returning nothing means the generic line is enough.
+   */
+  buka: () => void | string | Promise<void | string>;
 }[] = [
   {
     id: 'picker-model',
@@ -179,6 +184,7 @@ const NIAT_PERMUKAAN: {
          picker only renders its menu while it exists. */
       await new Promise((r) => window.setTimeout(r, 120));
       useAi.getState().setModelMenuOpen(true);
+      return 'Sudah saya buka daftar pilihan model di header chat.';
     },
   },
   {
@@ -188,14 +194,15 @@ const NIAT_PERMUKAAN: {
       'atur persona', 'aturan chat', 'sub-agent settings', 'setelan subagent',
     ],
     apa: 'jendela Chat Settings',
-    buka: () => import('../bukaPanel').then((m) => m.bukaPanel('chat-settings')),
+    buka: () => bukaChatSettings(''),
   },
   {
     id: 'command-palette',
     kata: ['command palette', 'palet perintah', 'palet', 'perintah apa saja'],
     apa: 'palet perintah (Ctrl+Shift+P)',
-    buka: () =>
-      import('../paletteStore').then((m) => m.usePalette.getState().openPalette('command')),
+    buka: () => {
+      void import('../paletteStore').then((m) => m.usePalette.getState().openPalette('command'));
+    },
   },
   {
     id: 'explorer',
@@ -210,11 +217,96 @@ const NIAT_PERMUKAAN: {
   },
   {
     id: 'agent-custom',
-    kata: ['kustomisasi agen', 'agent custom', 'peran agen', 'agent role', 'atur agen'],
-    apa: 'panel Agent Customizations',
-    buka: () => import('../bukaPanel').then((m) => m.bukaPanel('agent-custom')),
+    kata: [
+      'kustomisasi agen', 'agent custom', 'agent customization', 'customization', 'kustomisasi',
+      'peran agen', 'agent role', 'atur agen', 'aturan agen', 'agent rules', 'agent hooks',
+      'agent skills', 'agent personas', 'persona', 'hooks', 'skill agen',
+    ],
+    apa:
+      'panel Agent Customizations (Agents, Skills, Rules, Hooks, Personas, Browser, Conversations)',
+    buka: () => bukaAgentCustom(''),
   },
 ];
+
+/**
+ * A named tab INSIDE the Agent Customizations window.
+ *
+ * "Where do I write my own rules for the agent" is a Settings question the
+ * panel answers, and opening the panel onto its first tab still leaves the
+ * reader one click short. The tab travels as the panel's section argument,
+ * which `panelWindow.ts` puts in the window's URL hash (`&s=`), so it reaches
+ * the separate WebView even though the two windows share no store.
+ */
+/*
+ * Keys are the REAL `NAV` ids from `AgentCustomPage.tsx`, not the labels: the
+ * page validates the incoming id against that list and silently keeps its old
+ * section when the two disagree, so an invented id (e.g. 'rules' for what is
+ * actually 'instructions') opens the panel on the wrong tab with no error.
+ */
+const TAB_AGEN: { kata: string[]; tab: string; label: string }[] = [
+  { kata: ['rule', 'aturan agen', 'agent rules', 'memori agen', 'memory agen'], tab: 'instructions', label: 'Rules & Memories' },
+  { kata: ['hook'], tab: 'hooks', label: 'Hooks' },
+  { kata: ['skill'], tab: 'skills', label: 'Skills' },
+  { kata: ['persona', 'plugin'], tab: 'plugins', label: 'Plugins' },
+  { kata: ['conversation', 'percakapan', 'riwayat chat'], tab: 'conversations', label: 'Conversations' },
+  { kata: ['browser agen', 'agent browser'], tab: 'browser', label: 'Browser' },
+];
+
+async function bukaAgentCustom(niat: string): Promise<string> {
+  const pilih = TAB_AGEN.find((t) => cocok(niat, t.kata));
+  const tab = pilih?.tab ?? 'agents';
+  const label = pilih?.label ?? 'Agents';
+  const m = await import('../bukaPanel');
+  m.bukaPanel('agent-custom', tab);
+  return `Sudah saya buka panel Agent Customizations, tab ${label}. Tab lain di panel itu: Overview, Agents, Skills, Rules & Memories, Hooks, Plugins, MCP, Browser, Conversations, Permissions, Tools, Migrations.`;
+}
+
+/**
+ * A named section INSIDE Chat Settings. Ids are the real `SECTIONS` ids from
+ * `ChatSettingsPage.tsx`; the page takes the value from the window hash, so a
+ * wrong id silently leaves it on Mode.
+ */
+const SEKSI_CHAT: { kata: string[]; seksi: string; label: string }[] = [
+  { kata: ['mode', 'read-only', 'readonly', 'kerja'], seksi: 'mode', label: 'Mode' },
+  { kata: ['context', 'konteks'], seksi: 'context', label: 'Context' },
+  { kata: ['sub-agent', 'subagent', 'sub agent'], seksi: 'subagent', label: 'Sub-agents' },
+  { kata: ['tool', 'alat'], seksi: 'tools', label: 'Tools' },
+  { kata: ['web', 'isi web', 'internet'], seksi: 'web', label: 'Web content' },
+  { kata: ['rule', 'aturan chat'], seksi: 'rules', label: 'Rules' },
+  { kata: ['model'], seksi: 'models', label: 'Models' },
+  { kata: ['appearance', 'tampilan'], seksi: 'appearance', label: 'Appearance' },
+  { kata: ['session', 'sesi'], seksi: 'session', label: 'Session' },
+  { kata: ['advanced', 'lanjutan'], seksi: 'advanced', label: 'Advanced' },
+  { kata: ['agent', 'agen'], seksi: 'agent', label: 'Agent' },
+];
+
+async function bukaChatSettings(niat: string): Promise<string> {
+  const pilih = SEKSI_CHAT.find((s) => cocok(niat, s.kata));
+  const seksi = pilih?.seksi ?? 'mode';
+  const label = pilih?.label ?? 'Mode';
+  const m = await import('../bukaPanel');
+  m.bukaPanel('chat-settings', seksi);
+  return `Sudah saya buka jendela Chat Settings, bagian ${label}. Bagian lain: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced.`;
+}
+
+/**
+ * What the tool tells the model after opening each surface.
+ *
+ * Every surface here has an INNER layer the tool cannot click (a tile inside a
+ * panel, a row inside a pop-up). Without this sentence the model answers "it is
+ * open" and the reader then has to hunt inside a window they were told was
+ * already the answer - the same homework the tool exists to remove. Silence is
+ * the bug; one honest line fixes it.
+ */
+const CATATAN_PERMUKAAN: Record<string, string> = {
+  'agent-custom':
+    'Yang terbuka adalah PANEL-nya, dan tab di dalamnya sudah saya pilih sesuai niat. Tab yang ada: Overview, Agents, Skills, Rules & Memories, Hooks, Plugins, MCP, Browser, Conversations, Permissions, Tools, Migrations - kalau yang dimaksud lain, sebut tabnya; isi tab tidak bisa saya isi untuk pembaca.',
+  'picker-model':
+    'Yang terbuka adalah DAFTAR pilihannya. Memilih model adalah keputusan pembaca (dan berubah saat dia mengetik) - jangan mengklaim sudah mengganti modelnya.',
+  'chat-settings':
+    'Yang terbuka adalah JENDELA Chat Settings dan bagian di dalamnya sudah saya pilih sesuai niat. Bagian yang ada: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced - isinya milik pembaca, jangan mengklaim sudah mengubah setelannya.',
+  explorer: 'Yang terbuka adalah bilah Explorer di kiri; berkas yang dia cari tetap dia yang membuka.',
+};
 
 /** Normalise: lowercase, collapse whitespace. Indonesian and English mixed. */
 const rapikan = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -230,8 +322,9 @@ export const tunjukTool: AgentTool = {
     description:
       'Buka halaman, panel, MENU, atau jendela yang pembaca MAKSUD, dari keluhan berbahasa bebas. Pakai ini ketika pembaca bertanya "di mana X", "cara X gimana", atau jelas tidak tahu letaknya - bukan ketika mereka sudah menyebut nama setelannya. ' +
       'Ini MENCARI lalu MEMBUKA, bukan menjelaskan: hasilnya yang benar-benar terbuka, dan jawabannya menyebut apa yang baru saja dibuka. ' +
-      'Cakupannya: semua bagian Settings, panel bawah (terminal/problems/output/debug/ports/subagents), DAFTAR PILIHAN MODEL di header chat, jendela Chat Settings, Agent Customizations, palet perintah, dan bilah Explorer. ' +
+      'Cakupannya: semua bagian Settings, panel bawah (terminal/problems/output/debug/ports/subagents), DAFTAR PILIHAN MODEL di header chat, jendela Chat Settings, panel Agent Customizations beserta tabnya, pop-up AI Models, palet perintah, dan bilah Explorer. ' +
       'niat = kalimat pembaca apa adanya (mis. "biar AI nggak boros token", "gimana ganti modelnya", "setelan chat di mana"). ' +
+      'Untuk Agent Customizations, sebut juga tab yang dimaksud dalam niat ("aturan agen" → Rules & Memories, "hooks agen", "skill agen") supaya tab itu langsung terpilih; untuk Chat Settings sebut bagiannya ("aturan chat", "sub-agent", "konteks"). ' +
       'buka=false kalau hanya ingin tahu lokasinya tanpa memindahkan layar pembaca. ' +
       'Kalau tidak ada yang cocok, tool ini bilang tidak ketemu dan menyebut yang tersedia - JANGAN mengarang nama halaman.',
     parameters: {
@@ -271,14 +364,17 @@ export const tunjukTool: AgentTool = {
         return `Ada di ${permukaan.apa}. (Tidak saya buka, karena buka=false.)`;
       }
       try {
-        await permukaan.buka();
+        const hasil = await permukaan.buka();
+        return (
+          (typeof hasil === 'string' ? hasil : `Sudah saya buka ${permukaan.apa}.`) +
+          `\nPemicunya: "${niat}".\n${CATATAN_PERMUKAAN[permukaan.id] ?? ''}`
+        );
       } catch (e) {
         return (
           `Gagal membuka ${permukaan.apa}: ${(e as Error)?.message ?? e}. ` +
           `Sebutkan lokasinya ke pembaca alih-alih mencoba lagi.`
         );
       }
-      return `Sudah saya buka ${permukaan.apa}.\nPemicunya: "${niat}".`;
     }
 
     /*
@@ -296,22 +392,20 @@ export const tunjukTool: AgentTool = {
        */
       if (seksi.seksi === 'models') {
         if (!buka) {
-          return `Ada di pop-up AI Models - ${seksi.apa}. Buka dari tombol model di panel chat, atau Settings > AI Models. (Tidak saya buka, karena buka=false.)`;
+          return `Ada di pop-up AI Models - ${seksi.apa}. Buka dari tombol model di panel chat, atau perintah palet "AI: Configure Models & API Keys". (Tidak saya buka, karena buka=false.)`;
         }
         /*
-         * The same three calls `commandRegistry.openSettingsSection` makes; it is
-         * module-private, so they are repeated here rather than exported just for
-         * this tool. Keeping them identical matters: a reader who reaches the
-         * page from the palette and from `tunjuk` must land on the same screen.
+         * The pop-up, NOT the Settings page. `models` has no row in the Settings
+         * nav any more (see the core block in `zephyrFakta.ts`): the key, base URL
+         * and model list all live in `AiModelsModal`, and sending the reader to a
+         * Settings page for them is the exact mistake the core block forbids.
          */
-        const { useStore } = await import('../store');
-        const { useSettingsUi } = await import('../settingsStore');
-        const s = useStore.getState();
-        s.setActivity('settings');
-        s.setSettingsOpen(true);
-        useSettingsUi.getState().setSection('models' as never);
-        if (!s.sidebarVisible) s.toggleSidebar();
-        return `Sudah saya buka AI Models - ${seksi.apa}.\nPemicunya: "${niat}".`;
+        await import('../aiModelsStore').then((m) => m.useAiModels.getState().buka());
+        return (
+          `Sudah saya buka pop-up AI Models - ${seksi.apa}.\n` +
+          `Pemicunya: "${niat}".\n` +
+          'Isi kunci API, base URL dan daftar model adalah milik pembaca - JANGAN mengetik atau menebak kuncinya untuk dia.'
+        );
       }
       const sah = daftarSetelan();
       if (!sah.includes(seksi.seksi as never)) {

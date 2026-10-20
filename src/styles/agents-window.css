@@ -1137,6 +1137,744 @@
   flex-basis: 0;
 }
 
+/*
+ * "Start here" — the column's first screen, six named surfaces.
+ *
+ * A plain vertical list, not a grid: each row is an icon, a name and one
+ * explanatory line, and the column is narrow enough that two columns of cards
+ * would leave the descriptions narrower than the words in them. The whole
+ * block scrolls, because a short window must still reach the last card.
+ */
+.ag-start {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 12px 18px;
+}
+.ag-start-judul {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  padding: 0 4px 8px;
+  text-transform: none;
+}
+.ag-start-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ag-start-kartu {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.ag-start-kartu:hover {
+  background: var(--hover);
+}
+.ag-start-kartu:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.ag-start-ikon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.ag-start-kartu:hover .ag-start-ikon {
+  color: var(--text);
+}
+.ag-start-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ag-start-nama {
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 500;
+}
+.ag-start-desc {
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+/* ── File tab: preview over the tree ─────────────────────────────────────── */
+.ag-files {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-files.kosong {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+}
+/*
+ * Preview takes the UPPER half and the tree the lower one, as in the
+ * reference. `flex-basis: 0` on both plus `flex-grow` shares means the split
+ * holds whatever the content height is — a tall file must scroll, not push the
+ * tree off the bottom.
+ */
+.ag-files-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+.ag-files-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ag-files-nama {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.ag-files-nama:hover {
+  text-decoration: underline;
+}
+.ag-files-lang {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ag-files-kode {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 10px 12px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text);
+  tab-size: 2;
+  white-space: pre;
+}
+.ag-files-hint {
+  margin: 0;
+  padding: 14px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.ag-files-tree {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0 8px;
+}
+.ag-files-treerow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding-right: 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.ag-files-treerow:hover {
+  background: var(--hover);
+}
+.ag-files-treerow.is-aktif {
+  background: var(--surface-2);
+}
+.ag-files-treerow.is-root {
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: default;
+}
+.ag-files-treerow.is-root:hover {
+  background: transparent;
+}
+.ag-files-twisty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--text-muted);
+}
+.ag-files-twisty svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  transition: transform 0.12s ease;
+}
+.ag-files-twisty svg.is-open {
+  transform: rotate(90deg);
+}
+.ag-files-treenama {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-files-tool {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-files-tool:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.ag-files-tool svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+.ag-files-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+/* ── Task Summary ────────────────────────────────────────────────────────── */
+.ag-task {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ag-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ag-task-judul {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.ag-task-stat {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ag-task-sec {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ag-task-sec:last-child {
+  border-bottom: 0;
+}
+.ag-task-secjudul {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ag-task-badge {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 15px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ag-task-kosong {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.ag-task-daftar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ag-task-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  font-size: 12px;
+  color: var(--text);
+}
+.ag-task-cek {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--ok, #6fbf73);
+}
+.ag-task-baris.is-gagal .ag-task-cek {
+  color: var(--warn, #d9a441);
+}
+.ag-task-cek svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ag-task-teks {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-task-aksi {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ag-task-meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.ag-task-meta li {
+  display: flex;
+  align-items: center;
+}
+.ag-task-angka {
+  margin-left: auto;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Side Chat ───────────────────────────────────────────────────────────── */
+.ag-side {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-side-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+}
+.ag-side-tag {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ag-side-transcript {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 6px;
+}
+.ag-side-kosong {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.ag-side-msg {
+  margin-bottom: 12px;
+}
+.ag-side-peran {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.ag-side-msg-assistant .ag-side-peran {
+  color: var(--text);
+  font-size: 12px;
+}
+.ag-side-teks {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.ag-side-composer {
+  flex: 0 0 auto;
+  padding: 0 12px 12px;
+  min-width: 0;
+}
+/* The composer is given a fixed width by its prop; inside this card it must
+   not exceed the padding box. */
+.ag-side-composer .agx-composer {
+  max-width: 100%;
+}
+
+/* ── Terminal in the right column ────────────────────────────────────────── */
+.ag-term {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg0, var(--bg));
+}
+.ag-term-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text);
+}
+.ag-term-nama {
+  margin-right: auto;
+}
+.ag-term-tutup,
+.ag-term-panel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.ag-term-tutup {
+  width: 20px;
+  padding: 0;
+}
+.ag-term-tutup:hover:not(:disabled),
+.ag-term-panel:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.ag-term-tutup:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ag-term-tutup svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.ag-term-cwd {
+  flex: 0 0 auto;
+  padding: 3px 12px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-term-galat {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--warn, #d9a441);
+}
+.ag-term-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 4px 4px;
+}
+/* `XtermPane` fills its parent: the panel's grid gives it a `.pane-body` box,
+   and here it gets this one. */
+.ag-term-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.ag-term-kosong {
+  margin: 0;
+  padding: 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ── Diff View ───────────────────────────────────────────────────────────── */
+.ag-diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.ag-diff-kosong {
+  padding: 18px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.ag-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ag-diff-judul {
+  margin-right: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+.ag-diff-aksi {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ag-diff-aksi:hover:not(:disabled) {
+  background: var(--hover);
+}
+.ag-diff-aksi.is-utama {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg, #fff);
+}
+.ag-diff-aksi.is-utama:hover:not(:disabled) {
+  opacity: 0.9;
+  background: var(--accent);
+}
+.ag-diff-aksi:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ag-diff-pesan {
+  flex: 0 0 auto;
+  padding: 6px 12px 0;
+}
+.ag-diff-input,
+.ag-diff-filter {
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg0, var(--surface-2));
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  outline: none;
+}
+.ag-diff-input:focus,
+.ag-diff-filter:focus {
+  border-color: var(--accent);
+}
+.ag-diff-galat {
+  margin: 6px 12px 0;
+  font-size: 11px;
+  color: var(--warn, #d9a441);
+}
+.ag-diff-total {
+  flex: 0 0 auto;
+  padding: 8px 12px 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ag-diff-alat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 4px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.ag-diff-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ag-diff-sakelar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.ag-diff-sakelar input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+.ag-diff-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 0 10px;
+}
+.ag-diff-bersih {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.ag-diff-item {
+  border-bottom: 1px solid transparent;
+}
+.ag-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 24px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ag-diff-row:hover {
+  background: var(--hover);
+}
+.ag-diff-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ag-diff-dir {
+  margin-left: 6px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.ag-diff-angka {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 5px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ag-diff-kode {
+  flex: 0 0 auto;
+  width: 12px;
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.ag-diff-kode.kode-A {
+  color: var(--ok, #6fbf73);
+}
+.ag-diff-kode.kode-D {
+  color: var(--danger, #d16a6a);
+}
+.ag-diff-kode.kode-U {
+  color: var(--warn, #d9a441);
+}
+/* The inline unified patch, coloured line by line. */
+.ag-diff-patch {
+  margin: 0;
+  padding: 4px 12px 8px;
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
 /* ── Editor: a real editor in the agent column ───────────────────────────── */
 .ag-ed {
   display: flex;
@@ -1474,6 +2212,123 @@
 .ag-browser-kosong p {
   margin: 0;
   max-width: 260px;
+}
+.ag-browser-kosong-judul {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+/*
+ * The empty state now holds buttons (the running services), so the layer must
+ * accept pointer events. It used to be `pointer-events: none` because it was
+ * text only — but the services inside it are the one way to open a page from
+ * here without typing, and a list of dead rows is worse than no list.
+ */
+.ag-browser-kosong {
+  pointer-events: auto;
+}
+.ag-browser-layanan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: min(280px, 100%);
+  margin-top: 2px;
+  text-align: left;
+}
+.ag-browser-layanan-judul {
+  padding: 0 4px 3px;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+.ag-browser-layanan-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ag-browser-layanan-baris:hover {
+  background: var(--hover);
+  border-color: var(--border);
+}
+.ag-browser-layanan-port {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent);
+}
+.ag-browser-layanan-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.ag-browser-layanan-proto {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+/* "New Tab" sits inside the address form, left of the field. */
+.ag-browser-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 22px;
+  margin-right: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ag-browser-tab:hover {
+  color: var(--text);
+}
+.ag-browser-tab svg {
+  width: 11px;
+  height: 11px;
+}
+/* The submit arrow at the right end of the field. */
+.ag-browser-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ag-browser-go:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.ag-browser-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ag-browser-go svg {
+  width: 13px;
+  height: 13px;
 }
 .ag-browser-kosong-petunjuk {
   opacity: 0.7;

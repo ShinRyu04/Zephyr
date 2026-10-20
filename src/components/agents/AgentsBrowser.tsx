@@ -11,6 +11,7 @@ import {
   saatRegistryAgentsBerubah,
 } from '../../lib/agentsBrowserStore';
 import { paneHarusTampil } from '../../lib/nativeOverlay';
+import { usePorts } from '../../lib/portsStore';
 
 /**
  * The browser view for the Agents window's right column.
@@ -68,6 +69,8 @@ export default function AgentsBrowser() {
   const tr = useT();
   const applySettings = useStore((s) => s.applySettings);
   const allowlistWeb = useStore((s) => s.settings.allowlistWeb ?? []);
+  /* Local dev servers, for "select a running service" in the empty state. */
+  const ports = usePorts((s) => s.ports);
   /* The COMMITTED address. '' means "nothing loaded yet" — the state the pane
      opens in, and the one the placeholder below describes. */
   const [url, setUrl] = useState('');
@@ -671,14 +674,56 @@ export default function AgentsBrowser() {
             buka(draft);
           }}
         >
+          {/*
+            * "New Tab": clears the address and closes the page.
+            *
+            * Not a new TAB — this view has one page. It is the browser's own
+            * wording for "start over at nothing", which is what clearing the
+            * address does (`url` empty closes the child webview). Reusing the
+            * label the reader already knows beats inventing "Clear".
+            */}
+          <button
+            type="button"
+            className="ag-browser-tab"
+            data-testid="ag-browser-newtab"
+            title={tr('New Tab')}
+            onClick={() => {
+              setDraft('');
+              setUrl('');
+              setJudul('');
+            }}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 3.4v9.2M3.4 8h9.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <span>{tr('New Tab')}</span>
+          </button>
           <input
             className="ag-browser-url"
             data-testid="ag-browser-url"
-            placeholder={tr('Enter a URL…')}
+            /*
+             * The reference's placeholder is the whole instruction: type a URL
+             * or pick one of the dev servers this machine is already running.
+             * Written out rather than shortened, because the second half is the
+             * part a reader would not guess.
+             */
+            placeholder={tr('Enter URL or select a running service')}
             value={draft}
             spellCheck={false}
             onChange={(e) => setDraft(e.target.value)}
           />
+          <button
+            type="submit"
+            className="ag-browser-go"
+            data-testid="ag-browser-go"
+            title={tr('Open')}
+            aria-label={tr('Open')}
+            disabled={!draft.trim()}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.4 8h9.2M8.8 4.2 12.6 8l-3.8 3.8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </form>
 
         {/*
@@ -907,7 +952,46 @@ export default function AgentsBrowser() {
               <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.3" />
               <path d="M3.2 9.4h17.6M3.2 14.6h17.6M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" fill="none" stroke="currentColor" strokeWidth="1.1" />
             </svg>
-            <p>{tr('Enter a URL to preview a page here.')}</p>
+            {/*
+              * The reference's empty state, verbatim in meaning: "No preview
+              * yet", the reason, and the way out. It names the agent because
+              * that is who loads a page here in practice — the address bar is
+              * the manual route, not the expected one.
+              */}
+            <p className="ag-browser-kosong-judul">{tr('No preview yet')}</p>
+            <p className="ag-browser-kosong-petunjuk">
+              {tr('Let AI generate something to explore, or enter a URL above.')}
+            </p>
+            {/*
+              * Running services — REAL ports, not a suggestion list.
+              *
+              * "select a running service" in the placeholder is only honest if
+              * there is somewhere to select one, so the ones already forwarded
+              * to this machine are listed here. `usePorts` is the same store the
+              * Ports view reads; a click fills the address bar and opens it.
+              */}
+            {ports.length > 0 && (
+              <div className="ag-browser-layanan" data-testid="ag-browser-services">
+                <div className="ag-browser-layanan-judul">{tr('Running services')}</div>
+                {ports.map((p) => {
+                  const alamat = `${p.protocol}://localhost:${p.hostPort}`;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="ag-browser-layanan-baris"
+                      data-testid={`ag-browser-service-${p.hostPort}`}
+                      title={`${alamat}${p.process ? ` · ${p.process}` : ''}`}
+                      onClick={() => buka(alamat)}
+                    >
+                      <span className="ag-browser-layanan-port">{p.hostPort}</span>
+                      <span className="ag-browser-layanan-nama">{p.process || p.forwarder}</span>
+                      <span className="ag-browser-layanan-proto">{p.protocol}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <p className="ag-browser-kosong-petunjuk">
               {tr('Shortcuts: Ctrl+Shift+C inspect · F12 developer tools')}
             </p>
