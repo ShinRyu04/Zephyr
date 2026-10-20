@@ -395,9 +395,11 @@ export const useDevenv = create<DevenvState>((set, get) => ({
 
   bukaSettings: () => {
     const s = useStore.getState();
-    s.setSettingsOpen(true);
-    s.setActivity('settings');
+    s.setSettingsOpen(false);
     useSettingsUi.getState().setSection('devenv');
+    /* `setActivity('settings')` is the door that actually opens the Settings
+       window; setting the popup flag first only left a flag nothing renders. */
+    s.setActivity('settings');
   },
 
   registerShim: () => {

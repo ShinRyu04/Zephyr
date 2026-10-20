@@ -306,39 +306,6 @@ export default function MenuBar() {
           </svg>
           <span className="mb-cc-label">{tr('Search')}</span>
         </button>
-
-        {/* "Open in Agents" — VS Code's title-bar pill, immediately RIGHT of the
-            command-centre box (not in the right-hand icon group: it belongs with
-            the search field, and the user asked for it flush against it).
-
-            Compact by default (the Z glyph alone) and it EXPANDS on hover to
-            show the label. The chord deliberately does NOT sit inside the pill —
-            VS Code puts it in the hover tooltip instead, so a Tip wrapper
-            carries it. Ctrl+Shift+A matches VS Code's own "Open in Agents". */}
-        <Tip label={tr('Open in Agents Window')} kbd="Ctrl+Shift+A">
-          <button
-            className="mb-aipill"
-            data-testid="mb-ai-pill"
-            aria-label={tr('Open in Agents')}
-            onClick={() => {
-              tutup();
-              void import('../../lib/agentsWindow').then((m) => m.bukaAgentsWindow());
-            }}
-          >
-            {/* The Zephyr "Z" on its own — no wind strokes and no accent dot.
-                At 14px the wind curves and the dot collapse into noise, so the
-                bare letter is the only part that still reads. */}
-            <svg className="mb-aipill-ic" viewBox="268 300 488 424" aria-hidden="true">
-              <path
-                d="M268 300 L756 300 L756 396 L464 628 L756 628 L756 724 L268 724 L268 628 L560 396 L268 396 Z"
-                fill="currentColor"
-              />
-            </svg>
-            <span className="mb-aipill-body">
-              <span className="mb-aipill-label">{tr('Open in Agents')}</span>
-            </span>
-          </button>
-        </Tip>
       </div>
 
       {/* Layout controls collapse to a SINGLE "Customize Layout" button.
@@ -375,6 +342,46 @@ export default function MenuBar() {
               <rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
               <path d="M6.4 2.2v11.6" stroke="currentColor" strokeWidth="1.3" />
               <path d="M9.6 6.2h3.4M9.6 9.4h3.4" stroke="currentColor" strokeWidth="1.1" />
+            </svg>
+          </button>
+        </Tip>
+        {/*
+          * "Agent ↗" — the way into the pop-out Agents window.
+          *
+          * TRAE's placement: AFTER Customize Layout, separated by a rule and
+          * hard against the window controls. The arrow sits to the RIGHT of the
+          * label and points up-away from the bar, which is exactly what the
+          * glyph means here: this opens a separate WINDOW, not a panel.
+          *
+          * It replaces the old "Open in Agents" pill that lived beside Search.
+          * Two buttons that open the same window in one bar is one too many, and
+          * this slot is where TRAE puts it. Ctrl+Shift+A still does the same
+          * thing, so the chord lives in the tooltip.
+          *
+          * BOXED, TRAE-style: the label sits inside its own hairline frame with
+          * a rule on BOTH sides, which is what makes it read as a distinct
+          * title-bar control rather than as loose text that happens to be there.
+          */}
+        <div className="mb-layout-sep" role="separator" />
+        <Tip label={tr('Open in Agents Window')} kbd="Ctrl+Shift+A">
+          <button
+            className="mb-agent"
+            data-testid="mb-open-agents"
+            onClick={() => {
+              tutup();
+              void import('../../lib/agentsWindow').then((m) => m.bukaAgentsWindow());
+            }}
+          >
+            <span className="mb-agent-label">{tr('Agent')}</span>
+            <svg className="mb-agent-arrow" viewBox="0 0 10 10" aria-hidden="true">
+              <path
+                d="M2.4 7.6 7.6 2.4M3.7 2.4h3.9v3.9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </button>
         </Tip>

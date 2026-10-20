@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -2887,10 +2887,12 @@ body.is-resizing-v {
 .wc-btn:hover {
   background: var(--surface-2);
 }
-.wc-btn.is-close:hover {
-  background: #e81123;
-  color: #fff;
-}
+/*
+ * Close uses the SAME grey as the other two. Windows' own chrome turns it red
+ * (#e81123), but that red belongs to the native title bar's palette; on this
+ * custom dark bar it read as a foreign accent pasted onto the corner. TRAE
+ * keeps all three neutral, which is the calmer, more consistent choice here.
+ */
 .mb-layout-sep {
   width: 1px;
   height: 16px;
@@ -3036,79 +3038,51 @@ body.is-resizing-v {
 .mb-arrow { color: var(--text-muted); font-size: 13px; line-height: 1; }
 
 /*
- * "Open in Agents" pill — the title-bar button that opens the pop-out AI window.
+ * "Agent ↗" — the button that opens the pop-out Agents window, sitting between
+ * Customize Layout and the window controls.
  *
- * COLLAPSED it is a square icon button; HOVERED (or focused by keyboard) it grows
- * into a pill with the label and the chord, the way VS Code's own does. The width
- * transition needs a concrete target, so the body is clipped with `max-width: 0`
- * + `opacity: 0` rather than `width: auto` (which cannot animate), and the label
- * is `nowrap` so it does not reflow mid-transition.
+ * BOXED, TRAE-style: a hairline frame around the label, with a rule on each
+ * side (`.mb-layout-sep`) so it reads as its own title-bar control instead of
+ * loose text. The frame is `--border-strong`, the same token the Search box
+ * uses, so the two controls look drawn by the same hand; the accent arrives
+ * only on hover.
  */
-.mb-aipill {
+.mb-agent {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 5px;
   height: 22px;
-  /* Flush against the command-centre box on its LEFT — it lives inside
-     .mb-cc-wrap, right after .mb-cc. No left margin; a small right margin keeps
-     it from touching whatever the wrap's edge is. */
-  margin: 0 0 0 4px;
-  padding: 0 5px;
+  padding: 0 9px;
+  margin: 0 2px;
   flex-shrink: 0;
-  /* A hairline by default: a bare glyph next to a bordered Search box read as
-     decoration rather than as a button. Same border token as the box so the
-     pair looks drawn by the same hand; the accent arrives on hover. */
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
-.mb-aipill:hover,
-.mb-aipill:focus-visible {
-  /* Accent-tinted on hover, not the neutral grey the other title-bar buttons
-     use: this pill opens a whole window, so it reads as the accent action. */
-  background: var(--accent-subtle);
-  border-color: var(--accent);
+.mb-agent:hover,
+.mb-agent:focus-visible {
   color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--text-muted);
 }
-/* Only the Z glyph takes the accent — the label and the chord stay in the
-   normal title-bar colours, so the pill does not turn into a block of colour. */
-.mb-aipill:hover .mb-aipill-ic,
-.mb-aipill:focus-visible .mb-aipill-ic {
-  color: var(--accent);
-}
-.mb-aipill-ic {
-  /* The Zephyr "Z" glyph is WIDER than tall (488x424 viewBox), so a square
-     14x14 box would letterbox it and shrink the letter. Fixed height with
-     auto width keeps the Z at its true proportions and full 14px cap height. */
-  height: 14px;
-  width: auto;
+/* The arrow is deliberately smaller than the label: it is a hint that this
+   opens a separate window, not a second word in the button. */
+.mb-agent-arrow {
+  width: 9px;
+  height: 9px;
   flex: 0 0 auto;
+  opacity: 0.75;
 }
-.mb-aipill-body {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* Animated: 0 -> natural width. The label's own width is the target because
-     max-width on the WRAPPER is what the transition can interpolate. */
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-width 0.2s ease, opacity 0.14s ease, margin-left 0.2s ease;
-}
-.mb-aipill:hover .mb-aipill-body,
-.mb-aipill:focus-visible .mb-aipill-body {
-  max-width: 180px;
+.mb-agent:hover .mb-agent-arrow,
+.mb-agent:focus-visible .mb-agent-arrow {
   opacity: 1;
-  margin-left: 6px;
-}
-.mb-aipill-label {
-  white-space: nowrap;
 }
 .mb-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 .mb-sub-wrap { position: relative; }

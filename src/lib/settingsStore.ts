@@ -84,8 +84,13 @@ export const SECTION_ORDER: SectionId[] = [
  * `agents`, `rules` and `mcp` left the nav earlier for the same reason: they
  * moved into the Agent Customizations modal (its Agents / Instructions / MCP
  * Servers panes reuse the very same components).
+ *
+ * `agents`, `rules`, `subagent`, `permissions` and `mcp` are also NOT in the nav
+ * order: opening that window for one of them lands the reader on a page whose
+ * nav has no such row. `tunjuk` and the `mcp.panel` / `view.mcp` commands route
+ * them to the Agent Customizations panel instead (`bukaPanel('agent-custom',
+ * <tab>)`), and Chat Settings for the sub-agent / permission controls.
  */
-
 interface SettingsUiState {
   section: SectionId;
 

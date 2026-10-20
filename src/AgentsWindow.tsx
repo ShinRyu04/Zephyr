@@ -11,7 +11,7 @@ import { onFsChanged } from './lib/events';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { fokusEditorWindow } from './lib/agentsWindow';
 
-const AgentsLayout = lazy(() => import('./components/agents/AgentsLayout'));
+const AgentsLayout = lazy(() => import('./components/agents/AgentsApp'));
 const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 /*
  * The notification centre is a SEPARATE mount per window, not a global.

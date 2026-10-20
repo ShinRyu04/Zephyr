@@ -5,7 +5,6 @@ import { useTerminal } from './terminalStore';
 import { usePanel } from './panelStore';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
-import { useSettingsUi } from './settingsStore';
 import { useExtensions } from './extensionStore';
 import { useProblems } from './problemsStore';
 import { useOutput } from './outputStore';
@@ -771,15 +770,14 @@ async function runEditorCommand(id: string): Promise<unknown> {
 
     case 'view.settings':
       s.setActivity('settings');
-      s.setSettingsOpen(true);
       if (!s.sidebarVisible) s.toggleSidebar();
       return { ok: true, id };
 
     case 'view.mcp':
-      s.setActivity('settings');
-      s.setSettingsOpen(true);
-      useSettingsUi.getState().setSection('mcp');
-      if (!s.sidebarVisible) s.toggleSidebar();
+      /* MCP is a tab of the Agent Customizations panel now, not a Settings
+         section: the Settings nav has no `mcp` row, so `setSection('mcp')` put
+         the reader in front of a list that did not contain it. */
+      void import('./bukaPanel').then((m) => m.bukaPanel('agent-custom', 'mcp'));
       return { ok: true, id };
 
     case 'editor.save': {
