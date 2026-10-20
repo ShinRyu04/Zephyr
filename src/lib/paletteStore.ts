@@ -135,10 +135,23 @@ interface PaletteState {
    * (it is already 0) and left the first open showing an empty list.
    */
   rev: number;
+
+  /**
+   * TRUE when the palette was opened by CLICKING the title-bar search box.
+   *
+   * The two entry points want different shapes. From the keyboard the palette
+   * is a modal in the middle of the screen, because the eyes are already there.
+   * From the search box the same modal appears far from the thing that was
+   * clicked, under a dimming overlay, which reads as a page change rather than
+   * as opening a field. Anchored mode instead drops a panel directly under that
+   * box — the shape a reader expects from a search control — with no scrim, so
+   * the editor stays visible behind it.
+   */
+  anchored: boolean;
 }
 
 interface PaletteActions {
-  openPalette: (mode: PaletteMode) => Promise<void>;
+  openPalette: (mode: PaletteMode, anchored?: boolean) => Promise<void>;
   close: () => void;
   setQuery: (q: string) => void;
   move: (delta: number) => void;
@@ -171,9 +184,10 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   recent: loadRecent(),
   lastRun: null,
   rev: 0,
+  anchored: false,
 
-  openPalette: async (mode) => {
-    set({ open: true, mode, query: '', index: 0, filesError: null });
+  openPalette: async (mode, anchored = false) => {
+    set({ open: true, mode, query: '', index: 0, filesError: null, anchored });
     if (mode === 'command') {
       await muatRegistry();
       // The command list is loaded lazily, so on the very first open the store

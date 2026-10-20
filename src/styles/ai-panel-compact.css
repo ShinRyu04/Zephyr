@@ -624,25 +624,27 @@
   width: 100%;
   box-sizing: border-box;
   resize: none;
-  min-height: 34px;
+  /* TRAE shape: the composer starts as ONE line and grows as you type.
+     `field-sizing: content` (WebView2/Chrome 123+) grows the box with its
+     text up to max-height, then it scrolls. */
+  min-height: 22px;
   max-height: 160px;
   field-sizing: content;
-  padding: 9px 11px;
+  padding: 8px 11px;
   font-family: var(--font-ui);
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: 0;
   outline: none;
 }
 
-/* Focus moves the border to the accent instead of adding a ring: the wrapper
-   already tints its own border on focus-within, and two cues on nested boxes
-   read as a double frame. */
+/* Focus lives on the wrapper: the field is borderless so the capsule reads as
+   one input, like the reference composer. */
 .ai-input:focus {
-  border-color: var(--accent);
+  border: 0;
 }
 
 .ai-input::placeholder {
@@ -1619,6 +1621,98 @@
   border-radius: 8px;
   background: var(--surface-2);
   box-shadow: 0 -10px 28px color-mix(in srgb, var(--bg) 50%, transparent);
+}
+
+/*
+ * TRAE-style popovers (the Agent and Permission menus).
+ *
+ * The compact rows above put label and hint on ONE line to save height, which
+ * made the two menus read as a pile of pills rather than a decision box. The
+ * reference product draws them as a small card: each option on TWO floors -
+ * bold label over a muted one-line description - with a checkmark on the
+ * active row, and NO section header. `is-trae` applies that only to these two
+ * menus; the effort menu and the header menus keep the compact row.
+ */
+.mode-pop.is-trae {
+  min-width: 148px;
+  max-width: 180px;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+/* The one small header the reference keeps ("Built-In Agents"). */
+.mode-pop.is-trae .pick-seksi {
+  padding: 5px 8px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.mode-pop.is-trae .mode-item {
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-radius: 7px;
+}
+
+/* Two floors: the icon aligns with the label line, the description hangs under. */
+.mode-pop.is-trae .mode-item-teks {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.mode-pop.is-trae .mode-item-teks b {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.mode-pop.is-trae .mode-item-teks i {
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: normal;
+  color: var(--text-muted);
+}
+
+/*
+ * Two floors, ENFORCED. The compact one-line rule above ships under a
+ * `.ai-input-row .ai-input-toolbar` selector, which out-specifies a bare
+ * `.mode-pop.is-trae .mode-item-teks` - and the description ended up to the
+ * RIGHT of the label instead of under it. The parent chain is repeated here so
+ * the two-floor layout always wins.
+ */
+.ai-input-row .ai-input-toolbar .mode-pop.is-trae .mode-item-teks,
+.mode-pop.is-trae .mode-item-teks {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+
+/* The description sits UNDER the label: full width, no flex row, muted.
+ * `text-align: right` from the compact one-line rule MUST also be undone -
+ * the flex column fix alone left the text hugging the right edge. */
+.ai-input-row .ai-input-toolbar .mode-pop.is-trae .mode-item-teks i,
+.mode-pop.is-trae .mode-item-teks i {
+  flex: none;
+  white-space: normal;
+  text-align: left;
+  color: var(--text-muted);
+}
+
+/* Full Access keeps its warning color on the label, as the reference does. */
+.mode-pop.is-trae .mode-item-teks b.is-warn {
+  color: var(--warn);
+}
+
+.izin-wrap .mode-pop.is-trae {
+  min-width: 250px;
+  max-width: 290px;
+}
+
+.mode-pop.is-trae .pick-check {
+  margin-top: 1px;
 }
 
 /*

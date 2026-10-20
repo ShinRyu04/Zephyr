@@ -123,7 +123,7 @@ const h = await cdp.json(
   };
   out.kontras = {
     waktu: warna('.ai-msg-time'),
-    fakta: warna('.cli-tool-facts') ?? warna('.ai-kerja-ringkas'),
+    fakta: warna('.cli-tool-facts') ?? warna('.ai-kerja-sub'),
     diffNum: warna('.cli-diff-num') ?? warna('.ai-kerja-caret'),
   };
   const kartu = document.querySelector('.cli-tool') ?? document.querySelector('.ai-kerja');

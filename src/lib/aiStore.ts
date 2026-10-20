@@ -525,12 +525,17 @@ function agentToolCacheKey(name: string, args: Record<string, unknown>): string 
  */
 const BATAS_AKSI_SAMA = 3;
 /*
- * The same read, repeated. Higher than the write limit because a read after a
- * write is legitimate verification — the model checks its own work — and a
- * directory listing that genuinely changed between calls is progress. Six is
- * comfortably past "checking" and well short of the eleven seen in a live run.
+ * The same read, repeated.
+ *
+ * Higher than the write limit because a read after a write is legitimate
+ * verification — the model checks its own work — and a directory listing that
+ * genuinely changed between calls is progress. Six was too generous: a live
+ * run spent eleven identical reads before the guard fired, and readers see four
+ * re-reads of the same unchanged bytes as a stuck loop, not as checking. Four
+ * still allows "write, verify, adjust, verify", and the `BATAS_MANDEK` guard
+ * above catches the broader circling that never repeats a fingerprint.
  */
-const BATAS_BACA_SAMA = 6;
+const BATAS_BACA_SAMA = 4;
 const BATAS_AKSI_INGAT = 2;
 
 /*
@@ -567,6 +572,23 @@ const BATAS_TANPA_KEMAJUAN = 4;
  * MAX_AGENT_STEPS; ini hanya rem untuk "menyodok terus".
  */
 const BATAS_LANJUT_TANPA_TOOL = 4;
+
+/*
+ * Langkah berturut-turut tanpa PERUBAHAN APA PUN sebelum agen ditegur lalu
+ * dihentikan.
+ *
+ * Berbeda dari `BATAS_TANPA_KEMAJUAN`, yang hanya menghitung pembacaan ulang
+ * berkas yang baru ditulis giliran ini. Penghitung ini menghitung SEMUA langkah
+ * yang tidak menghasilkan tulisan berkas dan tidak menghasilkan perintah sukses
+ * baru - pola `grep -> list -> read -> grep` yang lolos dari penjaga lain dan
+ * membuat run berjalan sampai batas langkah sementara pembaca melihat agen yang
+ * tidak pernah selesai.
+ *
+ * Delapan cukup untuk satu investigasi wajar (beberapa bacaan + satu perintah
+ * gagal yang dicoba ulang) dan jauh di bawah puluhan langkah yang terlihat pada
+ * run yang benar-benar mandek.
+ */
+const BATAS_MANDEK = 8;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -6285,6 +6307,30 @@ export const useAi = create<AiStore>((set0, get) => {
      */
     let sudahDiberiPeringatanTanpaKemajuan = false;
     /*
+     * STALL COUNTER — the guard the no-progress one above could not be.
+     *
+     * `langkahTanpaKemajuan` only moves when a READ repeats a file this turn
+     * already wrote. A model that circles without ever touching that pattern -
+     * grep, then list the directory, then read another file, then grep again -
+     * keeps it at zero while doing nothing, so the run walks to the step limit
+     * while the reader watches an agent that never stops.
+     *
+     * This counter asks the only question that matters: did anything actually
+     * CHANGE? A step that wrote a file, or a command that ran successfully for
+     * the first time this turn, is progress and resets it. Everything else -
+     * every read, every repeat, every failed command - advances it. Two good
+     * nudges, then the run is closed honestly rather than spinning.
+     *
+     * It is deliberately generous (STALL_LIMIT steps is a lot of reading) so a
+     * legitimate investigation is never cut short; the failure it exists for is
+     * not "read too much", it is "read for ever".
+     */
+    let langkahMandek = 0;
+    /* Commands already completed successfully this turn, so re-running one is
+       not counted as fresh progress. Keyed on the normalized command text. */
+    const perintahSukses = new Set<string>();
+    let sudahDiberiPeringatanMandek = false;
+    /*
      * Peringatan sekali untuk guard treadmill BROWSER.
      *
      * Sama alasannya dengan peringatan di atas: guard ini dulu langsung
@@ -7640,6 +7686,44 @@ let autoLanjut = 0;
            */
           const sisaTodoNyata = sisaTodo.filter((t) => !todoSudahDitulis(t));
           /*
+           * Close the plan itself when every item is already on disk.
+           *
+           * The guard below reads an open todo as "work left". A model that
+           * writes all its files but forgets ONE `todo_write` leaves the list
+           * full, and the run is then nudged to redo work that is already
+           * done — the "agent keeps working after the job is finished" report.
+           *
+           * `todoSudahDitulis` already recognises those items (they name a file
+           * this turn wrote). If EVERY open item is one of them and none has a
+           * file still missing, the plan is complete in fact, whatever the list
+           * says; the list is brought in line here so the panel and the guards
+           * both see the truth. Narrow on purpose: an item like "run the tests"
+           * names no file and keeps the plan open.
+           */
+          const todoTerbuka = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
+          const semuaTodoBerkasSelesai =
+            todoTerbuka.length > 0 && todoTerbuka.every((t) => todoSudahDitulis(t));
+          if (semuaTodoBerkasSelesai) {
+            useAi.setState((s) => ({
+              agentTodos: s.agentTodos.map((t) =>
+                t.status !== 'done' ? { ...t, status: 'done' as const } : t,
+              ),
+            }));
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(todo)',
+                  args: '{}',
+                  result: `${todoTerbuka.length} tugas ditandai selesai: berkas yang disebut semuanya sudah ditulis giliran ini.`,
+                  ok: true,
+                  at: Date.now(),
+                },
+              ],
+            }));
+          }
+          /*
            * A todo marked `done` is a CLAIM, and claims are checked.
            *
            * Measured in Fase 5: the plan had ten items, all marked done, and
@@ -8509,6 +8593,35 @@ let autoLanjut = 0;
             agenAksiBerulang.clear();
             sudahDiberiPeringatanTanpaKemajuan = false;
           }
+          /*
+           * STALL: did this call CHANGE anything at all?
+           *
+           * The no-progress counter above is a narrow guard — it only moves for
+           * a re-read of a file this turn already wrote. The pattern the reader
+           * reports ("it keeps working after the job is open") is broader: grep
+           * a symbol, list a directory, read an unrelated file, grep again. None
+           * of those trip it, so the run walks to the step limit.
+           *
+           * Progress here is a fact, not an intention:
+           *   - a WRITE that produced a real result, or
+           *   - a command that completed successfully for the FIRST time this
+           *     turn (re-running the same passing command is not news).
+           * Everything else — every read, every repeat, every command that
+           * failed — advances the stall counter. One nudge, then the run is
+           * closed with an honest message instead of spinning.
+           */
+          const kunciPerintah =
+            tc.name === 'bash_run' ? String(argsObj.command ?? '').trim() : '';
+          const tulisBerhasil = TOOL_PENULIS.has(tc.name) && ok && !galatSamaBerulang;
+          const perintahBaruSukses =
+            Boolean(kunciPerintah) && ok && !perintahSukses.has(kunciPerintah);
+          if (perintahBaruSukses) perintahSukses.add(kunciPerintah);
+          if (tulisBerhasil || perintahBaruSukses) {
+            langkahMandek = 0;
+            sudahDiberiPeringatanMandek = false;
+          } else {
+            langkahMandek += 1;
+          }
           set((s) => ({
             agentSteps: [
               ...s.agentSteps,
@@ -8824,6 +8937,63 @@ let autoLanjut = 0;
           agentStopReason = 'guard';
           /* Same reason as the other guards: `break` only leaves the step loop
              when the flag is set, so the flag is what actually ends the run. */
+          agentBatal = true;
+          break;
+        }
+
+        /*
+         * STALL GUARD — the broad one.
+         *
+         * Fires when several steps in a row changed NOTHING (see `langkahMandek`
+         * above). Unlike the guards that compare fingerprints, this catches the
+         * agent that is busy in appearance only: a different call every step,
+         * none of them producing a file or a new passing command.
+         *
+         * Two-stage, deliberately. The first trip NUDGES: the work may be on
+         * disk already and the model simply has not said so, and killing there
+         * ended healthy runs. If the counter fills up again after that nudge,
+         * the run is closed and the reader is told plainly what happened —
+         * better an honest stop than a run that spins until the step limit.
+         */
+        if (langkahMandek >= BATAS_MANDEK) {
+          if (!sudahDiberiPeringatanMandek) {
+            sudahDiberiPeringatanMandek = true;
+            langkahMandek = 0;
+            history.push({
+              role: 'user',
+              content:
+                `You have spent ${BATAS_MANDEK} steps in a row without writing a file or running a ` +
+                'new command successfully. If the work is already done, STOP now and write the final ' +
+                'answer in prose — do not investigate further. If it is NOT done, take the concrete ' +
+                'next step (write_file / edit / run the command) instead of reading more.',
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(mandek)',
+                  args: '{}',
+                  result:
+                    `Tidak ada perubahan selama ${BATAS_MANDEK} langkah; model diminta menyimpulkan atau menulis sekarang.`,
+                  ok: true,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            continue;
+          }
+          akhir =
+            `Stopped: ${BATAS_MANDEK} steps changed nothing — no file written, no new command ` +
+            'completed. The work is either already on disk or blocked; reporting what was done ' +
+            'instead of continuing to investigate.';
+          set((s) => ({
+            agentSteps: [
+              ...s.agentSteps,
+              { kind: 'tool', name: '(watchdog)', args: '{}', result: akhir.slice(0, 400), ok: false, at: Date.now() },
+            ],
+          }));
+          agentStopReason = 'guard';
           agentBatal = true;
           break;
         }

@@ -293,7 +293,9 @@ export default function MenuBar() {
           aria-haspopup="dialog"
           onClick={() => {
             tutup();
-            void usePalette.getState().openPalette('command');
+            /* `true` = anchored: the palette drops directly under this box
+               instead of opening as a centred modal over a dimmed editor. */
+            void usePalette.getState().openPalette('command', true);
           }}
         >
           <svg className="mb-cc-ico" viewBox="0 0 16 16" aria-hidden="true">
@@ -302,7 +304,7 @@ export default function MenuBar() {
               fill="currentColor"
             />
           </svg>
-          <span className="mb-cc-label">{tr('Search files & commands…')}</span>
+          <span className="mb-cc-label">{tr('Search')}</span>
         </button>
 
         {/* "Open in Agents" — VS Code's title-bar pill, immediately RIGHT of the
