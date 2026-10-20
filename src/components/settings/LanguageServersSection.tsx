@@ -3,7 +3,7 @@ import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
 import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, effectiveSpec, type LspServerDef, type LspSettings } from '../../lib/lsp';
-import { lspPasang, lspResep } from '../../lib/commands';
+import { lspPasang, lspPenghalang, lspResep } from '../../lib/commands';
 import { Section, Toggle } from './SettingsControls';
 
 /*
@@ -229,6 +229,33 @@ export default function LanguageServersSection() {
     void probeAll();
   }, [sudahAdaProbe, probeAll]);
 
+  /*
+   * Why an installed server still does not start.
+   *
+   * The probe only answers "is the binary there", and that question does NOT
+   * require the workspace folder to be trusted - so a row can be green while
+   * every start attempt is refused. That refusal used to reach the LSP output
+   * log only, which is why "I installed it and it still does not work" was
+   * impossible to diagnose from this page. Asked separately, and asked again
+   * whenever the folder changes, because trust is per folder.
+   */
+  const root = useStore((s) => s.workspace);
+  const [penghalang, setPenghalang] = useState<string | null>(null);
+  useEffect(() => {
+    let hidup = true;
+    void lspPenghalang(root ?? undefined)
+      .then((r) => {
+        if (hidup) setPenghalang(r?.ok ? null : (r?.alasan ?? null));
+      })
+      .catch(() => {
+        /* Non-Tauri or older backend: no extra reason to show. */
+        if (hidup) setPenghalang(null);
+      });
+    return () => {
+      hidup = false;
+    };
+  }, [root]);
+
   const labelStatus = (st: ReturnType<typeof statusServer>) =>
     st === 'hidup'
       ? tr('running')
@@ -288,6 +315,14 @@ export default function LanguageServersSection() {
       {!semua && (
         <div className="lsp-mati-nota" data-testid="lsp-mati-nota">
           {tr('IntelliSense is off. Turn it on above to change the servers below.')}
+        </div>
+      )}
+
+      {/* A green row that never starts is the confusing case, so the reason is
+          stated once above the list instead of being buried in a log. */}
+      {semua && penghalang && (
+        <div className="lsp-mati-nota" data-testid="lsp-penghalang">
+          {tr('Servers can be found but not started')}: {penghalang}
         </div>
       )}
 
@@ -382,7 +417,7 @@ export default function LanguageServersSection() {
                       disabled={!semua}
                       onClick={() => void stop(s.id)}
                     >
-                      {tr('Stop all servers')}
+                      {tr('Stop server')}
                     </button>
                   )}
                   {/*

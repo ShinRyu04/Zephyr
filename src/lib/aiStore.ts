@@ -49,6 +49,7 @@ import { stopLoop, startLoop, parseInterval, formatInterval, MAX_LOOP_RUNS, type
 import { activeSelection } from './editorRegistry';
 import { useAiDebug } from './aiDebugStore';
 import { useToolGate, TOOL_DISK_TULIS } from './toolGate';
+import { pathDariPanggilan } from './diffStore';
 import {
   alatRencanaPertama,
   catatAlatTerakhir,
@@ -4255,7 +4256,22 @@ export const useAi = create<AiStore>((set0, get) => {
       const seposisi =
         (idMasuk ? sebelum.find((x) => x.id === idMasuk) : undefined) ??
         (nomorMasuk >= 0 && nomorMasuk < sebelum.length ? sebelum[nomorMasuk] : undefined);
-      const content = String(o?.content ?? seposisi?.content ?? '').trim();
+      /*
+       * Teks boleh diambil dari entri lama PADA POSISI YANG SAMA.
+       *
+       * `seposisi` hanya ketemu kalau model mengirim id yang mengena atau nomor
+       * urut yang masih di dalam rentang daftar lama. Model yang mengirim id
+       * sembarang (`"td-3"`, `"langkah-2"`) atas tugas yang memang sudah ada
+       * tidak akan cocok di keduanya, padahal maksudnya jelas: entri ke-i dari
+       * panggilan ini menunjuk entri ke-i dari daftar lama. Tanpa jaring
+       * terakhir ini entri seperti itu tersaring, `diterima` jadi 0, dan
+       * panggilan yang benar dilaporkan gagal.
+       *
+       * Hanya dipakai kalau TEKSNYA kosong - entri yang membawa teks baru
+       * selalu memakai teksnya sendiri.
+       */
+      const teksMasuk = String(o?.content ?? '').trim();
+      const content = teksMasuk || String(seposisi?.content ?? sebelum[iMasuk]?.content ?? '').trim();
       if (!content) continue;
       const dariId = seposisi;
 
@@ -6028,6 +6044,12 @@ export const useAi = create<AiStore>((set0, get) => {
      * `tulis` a two-line function.
      */
     void import('./checkpoint').then((m) => m.mulaiTurn(composerId, botMsg.id));
+    /*
+     * The diff snapshots are per turn for the same reason the checkpoint is:
+     * the "files changed" card and the DiffView tab describe THIS run, and a
+     * list that kept growing with the session would mix runs together.
+     */
+    void import('./diffStore').then((m) => m.useDiff.getState().mulaiTurn(botMsg.id));
     resetAgentToolCache();
     persist(get());
     agentBatal = false;
@@ -8609,6 +8631,31 @@ let autoLanjut = 0;
               hasil = hasil.slice(meta[0].length);
             }
           }
+          /*
+           * The +N −N on an edit row, taken from the turn's snapshot rather than
+           * from the tool's result text.
+           *
+           * The result text differs per tool (a patch lists files, an edit
+           * prints a unified hunk), so parsing it would be seven parsers. The
+           * diff store already knows the numbers for every path the call
+           * touched, computed from the content before and after the write.
+           */
+          if (ok && TOOL_PENULIS.has(tc.name)) {
+            /*
+             * Only the paths THIS call named - a turn that edits one file ten
+             * times must not report the running total on every row.
+             */
+            const kaliIni = new Set(pathDariPanggilan(tc.name, argsObj, hasil));
+            const catatan = (await import('./diffStore')).useDiff
+              .getState()
+              .berkas.filter((b) => kaliIni.has(b.path));
+            const jumlahTambah = catatan.reduce((n, b) => n + b.tambah, 0);
+            const jumlahHapus = catatan.reduce((n, b) => n + b.hapus, 0);
+            if (jumlahTambah + jumlahHapus > 0) {
+              status.additions = jumlahTambah;
+              status.deletions = jumlahHapus;
+            }
+          }
           const run = {
             name: tc.name,
             args: JSON.stringify(argsObj),
@@ -9656,54 +9703,20 @@ let autoLanjut = 0;
     }
 
     /*
-     * Tell the reader the run is over, if they are not looking at it.
+     * No in-app notification for a finished run.
      *
-     * An agent run is exactly the kind of work people start and then leave:
-     * "read these twelve files and write the report", "run the tests and fix
-     * what fails". Waiting in front of it is wasted attention, and the thing
-     * that makes leaving possible is a signal when it finishes.
+     * This used to raise a `notifyInfo` banner for every unfocused run, which
+     * duplicated the toast.
      *
-     * Only when the window is NOT focused. Notifying a reader who is watching
-     * the answer appear is noise, and noise is what makes people turn
-     * notifications off — after which the one that mattered is missed too.
+     * The OS toast is the one kept. It is the only one that can reach a reader
+     * who is in another application, it carries the chat's own name, it has its
+     * own length threshold (a five-second run deserves no alert at all), and it
+     * is the one the Banner switch controls. Anything else here would be a
+     * second, uncontrollable copy of it.
      *
-     * Cancelled runs say nothing: the reader stopped it deliberately, so they
-     * already know, and a "finished" banner for work they killed would be a lie.
-     * Failures DO notify, because a run that died while they were away is the
-     * case where knowing soonest matters most.
+     * The transcript still reports the outcome — "Worked for Xs" and the error
+     * bubble — so nothing about the run itself is lost by removing this.
      */
-    if (!runWasCancelled) {
-      const fokus = typeof document !== 'undefined' && document.hasFocus();
-      if (!fokus) {
-        void import('./notificationStore').then((m) => {
-          const judul = agentFailure ? tx('Agent run failed') : tx('Agent run finished');
-          const isi = agentFailure
-            ? String(agentFailure.message).split('\n')[0].slice(0, 120)
-            : (akhir || '').trim().split('\n')[0].slice(0, 120) || tx('No summary was produced.');
-          /*
-           * The button is the point of notifying at all.
-           *
-           * A reader who left the window gets "Agent run finished" and then has
-           * to find the chat themselves. `ai.panel` is the registered command
-           * that brings the chat back - the same one the Command Palette runs -
-           * so the notification is a way BACK to the work, not just a report
-           * that it happened. Failures get it too: the run that died is exactly
-           * the one worth reopening.
-           *
-           * `runCommand` is the registry's own runner, imported lazily like the
-           * store above, so this path adds nothing to the boot bundle.
-           */
-          const aksi = [
-            { label: tx('Open chat'), command: 'ai.panel' },
-          ];
-          if (agentFailure) {
-            m.notifyError(judul, { detail: isi, source: 'AI', actions: aksi });
-          } else {
-            m.notifyInfo(judul, { detail: isi, source: 'AI', actions: aksi });
-          }
-        });
-      }
-    }
 
     /*
      * Read the answer aloud, if the user asked for that.

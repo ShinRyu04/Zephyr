@@ -299,6 +299,44 @@ pub fn browser_pane_close(app: AppHandle, pane_id: String) -> ZResult<bool> {
     Ok(ada)
 }
 
+/// Close every browser child webview EXCEPT the ones this page still owns.
+///
+/// WHY this exists: a child webview lives in the RUST process, not in the page.
+/// Reloading the frontend (`Developer: Reload Window`, or a dev-server reload)
+/// destroys every React component, so the unmount cleanup that calls
+/// `browser_pane_close` fires while the document is being torn down and the IPC
+/// never arrives. The webview then outlives the page: it keeps painting at its
+/// last coordinates, on top of whatever UI is rendered there — the pane "does
+/// not go away and covers everything", and nothing in the new page knows its id
+/// because the terminal store does not survive a reload.
+///
+/// So the page tells us which panes it has, right after it boots, and anything
+/// else is killed. `hidup` is the list of pane ids the page actually renders;
+/// an empty list is the normal case (no browser pane open) and closes all.
+///
+/// Returns how many orphans were closed, which is `0` for a healthy reload with
+/// no pane open — an honest answer, not an error.
+#[tauri::command(async)]
+pub fn browser_pane_sync(app: AppHandle, hidup: Vec<String>) -> ZResult<usize> {
+    let milik_halaman: std::collections::HashSet<String> = hidup.into_iter().collect();
+    let yatim: Vec<String> = app
+        .webviews()
+        .keys()
+        .filter(|label| label.starts_with("browser-"))
+        .filter_map(|label| label.strip_prefix("browser-").map(str::to_string))
+        .filter(|id| !milik_halaman.contains(id))
+        .collect();
+
+    let mut jumlah = 0usize;
+    for pane_id in yatim {
+        if browser_pane_close(app.clone(), pane_id.clone()).unwrap_or(false) {
+            jumlah += 1;
+            tracing::info!("browser pane yatim ditutup pane_id={pane_id}");
+        }
+    }
+    Ok(jumlah)
+}
+
 /// Open the WebView2 developer tools for this pane.
 ///
 /// WHY it lives here rather than in the frontend: DevTools is a property of the

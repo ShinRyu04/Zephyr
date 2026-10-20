@@ -91,6 +91,9 @@ const CONTOH = [
    */
   { pesan: 'refactor beberapa berkas sekaligus jadi satu patch', kelas: ['subagent', 'patch', 'eksekusi'] },
   { pesan: 'jalankan skrip untuk baca banyak berkas lalu ringkas', kelas: ['subagent', 'eksekusi'] },
+  /* Kelas bahasa: garis merah / LSP ditanya langsung. */
+  { pesan: 'kenapa kodeku ada garis merah padahal nggak ada error', kelas: ['galat'] },
+  { pesan: 'apakah Zephyr punya 88 language server?', kelas: ['galat'] },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -312,6 +315,20 @@ for (const [lang, d] of [['en', en], ['id', id]]) {
   /* Fakta yang dipotong dari blok inti wajib masih terjangkau lewat kelasnya. */
   uji('B', 4, d.onDemandModel.includes('"AI Models" (Settings group'), `kelas model memuat bullet setelan AI Models (${d.onDemandModel.length} char)`);
   uji('B', 5, d.onDemandGalat.includes('zephyr-YYYY-MM-DD.log') && d.onDemandGalat.includes('settings.json'), `kelas galat memuat jalur log + settings.json (${d.onDemandGalat.length} char)`);
+  /*
+   * Fakta bahasa TIDAK di blok inti: anggarannya sudah penuh, dan pertanyaan
+   * "kenapa garis merah / berapa server" hanya muncul saat ditanya. Yang wajib
+   * dibuktikan: saat ditanya, angkanya keluar benar (88 grammar, 21 server)
+   * dan larangan "kosong = bersih" ikut terkirim.
+   */
+  const faktaBahasa = d.sampel[CONTOH.findIndex((c) => c.pesan.includes('88 language server'))].teks;
+  uji(
+    'B',
+    8,
+    faktaBahasa.includes('88') && faktaBahasa.includes('21') && faktaBahasa.includes('BUKAN berarti "bersih"'),
+    `kelas galat menjawab 88 grammar vs 21 server + peringatan daftar kosong (${faktaBahasa.length} char)`,
+  );
+  uji('B', 9, !d.fakta.includes('## Languages: 88 grammars'), 'fakta bahasa tidak lagi menumpang di blok generated inti (anggaran token)');
   /*
    * Dibalik dari uji sebelumnya: dulu butir ini menuntut bullet on-demand
    * KELUAR dari blok inti. Sekarang pemangkasan itu dihapus (user: "tau semua
