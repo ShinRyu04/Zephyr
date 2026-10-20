@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Conversations â€” the page TRAE calls "Conversation", inside Agent Customizations.
  *
  * WHAT IT IS: a page of SETTINGS about how a conversation behaves, not a list of
@@ -10,18 +10,23 @@
  *
  * THE SIX SECTIONS, in TRAE's order:
  *
- *   1. To-Do List                    [IDE] [SOLO]
- *   2. Auto Fix Lints                [IDE] [SOLO]
- *   3. Agent Questioning Proactively [IDE] [SOLO]
+ *   1. To-Do List                    [IDE] [Agent]
+ *   2. Auto Fix Lints                [IDE] [Agent]
+ *   3. Agent Questioning Proactively [IDE] [Agent]
  *   4. Code Review                   Review Scope + Jump to next change
  *   5. Terminal Tool Preferences     Terminal Environment + Auto Open
  *   6. Task Status Notification      Banner + Sound + Volume + 3 sounds
  *
  * WHY EVERY FEATURE CARRIES TWO SWITCHES: a conversation runs in two different
- * places â€” the EDITOR (the AI panel in the main window) and OPEN IN AGENTS (an
- * external agent CLI in a pane). They are separate execution paths, so enabling
- * auto-fix for the editor must not silently enable it for an external agent's
- * pane. One switch for both would be a promise the app cannot keep.
+ * places - the EDITOR (the AI panel in the main window) and the AGENTS window
+ * (an external agent CLI in a pane). They are separate execution paths, so
+ * enabling auto-fix for the editor must not silently enable it for an external
+ * agent's pane. One switch for both would be a promise the app cannot keep.
+ *
+ * The right-hand column is labelled "Agent", not TRAE's "SOLO": Zephyr has no
+ * separate SOLO mode, only the editor and the Agents window. The settings keys
+ * still say `*Solo` for compatibility with saved data - the label is the only
+ * thing that changed.
  *
  * WHY HISTORY IS A SECOND TAB: the old page showed the reader's past sessions and
  * the notifications Zephyr sent. That is genuinely useful, and deleting it to make
@@ -45,7 +50,7 @@ type Tab = 'setelan' | 'riwayat' | 'notifikasi';
  *
  * TRAE's own layout, measured from its screenshots (855px page):
  *   heading x=17, description x=33 wrapping before ~580px
- *   IDE switch label x=725, SOLO x=709 and 38px BELOW it
+ *   IDE switch label x=725, Agent x=709 and 38px BELOW it
  *
  * So the controls sit BESIDE the text and are STACKED, not side by side under it.
  *
@@ -254,7 +259,7 @@ export default function AgcConversations() {
           {tr('Conversation')}{' '}
           <span
             className="agx-tanya"
-            title={tr('How a conversation behaves, in the editor and in Open in Agents.')}
+            title={tr('How a conversation behaves, in the editor and in the Agents window.')}
           >
             ?
           </span>
@@ -314,13 +319,16 @@ export default function AgcConversations() {
       {tab === 'setelan' && (
         <div className="conv-setelan" data-testid="agx-conv-setelan">
           {/*
-            * IDE vs SOLO is explained ONCE, at the top, instead of beside every
+            * IDE vs Agent is explained ONCE, at the top, instead of beside every
             * switch. Thirteen repetitions of the same two-word legend would be
             * noise; one line tells the reader what the two columns mean.
+            *
+            * "Agent" rather than TRAE's "SOLO": Zephyr has no SOLO mode - the two
+            * columns are the editor's chat panel and the Agents window.
             */}
           <p className="conv-legend">
-            <strong>IDE</strong> {tr('= the editor')} Â· <strong>SOLO</strong>{' '}
-            {tr('= Open in Agents')}
+            <strong>IDE</strong> {tr('= the editor')} · <strong>{tr('Agent')}</strong>{' '}
+            {tr('= the Agents window')}
           </p>
 
           <Bagian
@@ -336,7 +344,7 @@ export default function AgcConversations() {
                 testid="agx-conv-todo-ide"
               />
               <Saklar
-                label="SOLO"
+                label={tr('Agent')}
                 checked={c.todoListSolo}
                 onChange={(v) => set({ todoListSolo: v })}
                 testid="agx-conv-todo-solo"
@@ -359,7 +367,7 @@ export default function AgcConversations() {
                 testid="agx-conv-lint-ide"
               />
               <Saklar
-                label="SOLO"
+                label={tr('Agent')}
                 checked={c.autoFixSolo}
                 onChange={(v) => set({ autoFixSolo: v })}
                 testid="agx-conv-lint-solo"
@@ -382,7 +390,7 @@ export default function AgcConversations() {
                 testid="agx-conv-tanya-ide"
               />
               <Saklar
-                label="SOLO"
+                label={tr('Agent')}
                 checked={c.questioningSolo}
                 onChange={(v) => set({ questioningSolo: v })}
                 testid="agx-conv-tanya-solo"

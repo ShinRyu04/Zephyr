@@ -153,6 +153,29 @@ function openSettingsSection(section: Parameters<ReturnType<typeof useSettingsUi
   S().setActivity('settings');
 }
 
+/**
+ * Open the Agent Customizations panel on a named tab.
+ *
+ * MCP servers used to be a Settings section; they are a tab of that panel now,
+ * and its nav has no such row. `openSettingsSection('mcp')` therefore opened a
+ * window the reader could not find MCP in - the same dead door the panel exists
+ * to close.
+ */
+function openAgentTab(tab: string) {
+  bukaPanel('agent-custom', tab);
+}
+
+/**
+ * Chat Settings is its own window, not a Settings section.
+ *
+ * Without these two commands the only id a model could reach for when asked to
+ * "open chat settings" was `view.settings` - which opens the Settings window.
+ * The reader asked for one window and got another.
+ */
+function openChatSettingsSection(seksi: string) {
+  bukaPanel('chat-settings', seksi);
+}
+
 export const COMMANDS: CommandDef[] = [
 
   {
@@ -578,6 +601,20 @@ export const COMMANDS: CommandDef[] = [
     run: () => bukaPanel('models'),
   },
   {
+    id: 'ai.chatSettings',
+    title: 'AI: Open Chat Settings',
+    group: 'AI',
+    keywords: 'chat settings setelan chat mode persona context subagent',
+    run: () => openChatSettingsSection('mode'),
+  },
+  {
+    id: 'ai.agentCustomizations',
+    title: 'Agent: Open Customizations',
+    group: 'AI',
+    keywords: 'agent customizations agen kustomisasi skills rules hooks mcp',
+    run: () => openAgentTab('agents'),
+  },
+  {
     id: 'ai.compact',
     title: 'AI: Compact Context',
     group: 'AI',
@@ -594,7 +631,7 @@ export const COMMANDS: CommandDef[] = [
     title: 'MCP: Control Zephyr from your AI CLI',
     group: 'MCP',
     keywords: 'mcp 9222 register cli agent',
-    run: () => openSettingsSection('mcp'),
+    run: () => openAgentTab('mcp'),
   },
   {
     id: 'mcp.toggle',
@@ -603,7 +640,7 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'nyalakan matikan server',
     run: async () => {
       const m = useMcp.getState();
-      openSettingsSection('mcp');
+      openAgentTab('mcp');
       await m.toggleServer(!m.status?.running);
     },
   },

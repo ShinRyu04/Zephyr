@@ -138,6 +138,13 @@ const PINTU_POPUP = [
     testid: 'ai-open-models',
     tempat: 'the "AI Models" row in the chat panel\'s "..." menu',
   },
+  /*
+   * `tunjuk` opens the same pop-up for "where do I put my API key". It is a real
+   * door the reader reaches (the tool opens the pop-up for them), and it calls
+   * `useAiModels.getState().buka()`, so the generator counts it - the table has
+   * to as well or the fact block would omit a door that exists.
+   */
+  { berkas: 'src/lib/zephyrTools/tunjuk.ts', tempat: 'the `tunjuk` tool, when the reader asks where their API key goes' },
   { berkas: 'src/lib/commandRegistry.ts', perintah: true },
 ];
 
@@ -1131,9 +1138,12 @@ function daftarSemuaKunciSetelan(setelan) {
        tidak diulang dua kali seperti saat ada seksi yang keluar dari union. */
     baris.push(
       `- Settings sections that are NOT in that nav: ${hanyaChat.join(', ')} - never send the user hunting in the Settings ` +
-        'nav for them. These are still Settings sections that simply have no row in the nav: they are opened from Chat Settings ' +
-        '(the "..." menu in the AI view) or from the Agent Customizations panel. ' +
-        'If you are asked where one of them is opened from, look it up instead of naming a place.',
+        'nav for them. They are still Settings keys, but the nav has no row for them, so opening the Settings window for ' +
+        'one of them lands the reader on a page that does not list it. Where each one actually lives: ' +
+        '`agents` (agent behaviour: fixed instructions, step limit, context budget) is the Agents tab of the Agent ' +
+        'Customizations panel; `rules` is its Rules & Memories tab; `mcp` (MCP servers, port, token) is its MCP tab; ' +
+        '`subagent` and `permissions` are sections of Chat Settings (the "..." menu in the AI view). ' +
+        'Open them with `tunjuk` rather than naming a place.',
     );
   }
   /* Pop-up yang BERDIRI SENDIRI: bukan halaman Settings (tidak ada barisnya di
@@ -1154,6 +1164,33 @@ function daftarSemuaKunciSetelan(setelan) {
     baris.push(
       `- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: ${chat.join(', ')}.`,
     );
+  /*
+   * Dua jendela ini sering mendarat di Settings karena `view.settings` adalah
+   * satu-satunya id yang terlihat seperti pintu. Kalimat di bawah menyebut
+   * pintu yang benar beserta id-nya, supaya tidak ada alasan menebak.
+   */
+  baris.push(
+    '- Chat Settings and Agent Customizations are NOT Settings pages and are NOT opened by the Settings command ' +
+      '(`view.settings`) or by `run_command` with `settings: ...`. Sending the reader there lands them in the Settings ' +
+      'window - the wrong window. Their own commands: "AI: Open Chat Settings" (`ai.chatSettings`) and "Agent: Open ' +
+      'Customizations" (`ai.agentCustomizations`). The sure way is `tunjuk`, which picks the section or tab from the ' +
+      "reader's own words.",
+  );
+  /*
+   * To-Do List: the one question about it that keeps coming back is "why does
+   * `todo_write` never do anything". Three separate gates stand between the
+   * tool and a visible list, and a model that only knows the first one tells the
+   * reader it is broken. Stated here as fact, not as a guess.
+   */
+  baris.push(
+    '- To-Do List has THREE gates, and `todo_write` looks broken when any one of them is shut: ' +
+      '(1) the `conversation.todoListIde` / `conversation.todoListSolo` switches, both default false - while they are ' +
+      'false the tool is filtered out of the request entirely (and refused if called anyway); they live in the Agent ' +
+      'Customizations panel, Conversations tab, first section, where the columns are labelled IDE (the editor chat) and ' +
+      'Agent (the Agents window). (2) A plan must be ready first: the tool only unlocks once `todo_write` plus at least ' +
+      'two other plan tools have been used. (3) The task card itself is hidden by default - it is opened from the chat ' +
+      'header "..." menu, "Show task list". Never claim the tool does not exist; say which gate is shut and open it with `tunjuk`.',
+  );
   baris.push(
     `- Setting keys kept in this block (${KUNCI_INTI.length} of ${jumlahKunci}; the rest is in the index - look it up with ` +
       '`zephyr_self`):',

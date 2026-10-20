@@ -72,7 +72,8 @@ const blokSetelan = /KONTROL_SETELAN[^=]*=\s*\{([\s\S]*?)\};/.exec(kendali);
 const seksiNyata = new Set(
   [...(blokSetelan?.[1] ?? '').matchAll(/^\s*(\w+):/gm)].map((m) => m[1]),
 );
-const seksiTabel = [...tunjuk.matchAll(/seksi: '([a-z]+)'/g)].map((m) => m[1]);
+const blokTabelSetelan = /const NIAT_SETELAN[^=]*=\s*\[([\s\S]*?)\n\];/.exec(tunjuk)?.[1] ?? '';
+const seksiTabel = [...blokTabelSetelan.matchAll(/seksi: '([a-z]+)'/g)].map((m) => m[1]);
 console.log(`        seksi nyata (${seksiNyata.size}): ${[...seksiNyata].join(', ')}`);
 /*
  * `models` is NOT a Settings section - it is a stand-alone popup
@@ -99,17 +100,21 @@ hasil(
   `tidak ada: ${panelAsing.join(', ')} (nyata: ${[...panelNyata].join(', ')})`,
 );
 
-console.log('\n3. Perilaku: niat nyata -> seksi yang benar');
+console.log('\n3. Perilaku: niat nyata -> tujuan yang benar');
 /*
  * The mapping is duplicated here ON PURPOSE for the check: a harness that calls
  * the module's own matcher would pass even if the table were empty. These pairs
  * are the reader's own words, taken from the conversation.
+ *
+ * Destinations that are NOT Settings sections carry a `panel:` prefix - agent
+ * settings and MCP moved into the Agent Customizations panel, and the Settings
+ * nav has no row for them any more.
  */
 const NIAT_UJI = [
-  ['biar AI nggak boros token', 'agents'],
+  ['biar AI nggak boros token', 'panel:agent-custom'],
   ['cara ganti tema', 'theme'],
   ['gimana ganti pintasan keyboard', 'shortcuts'],
-  ['di mana atur server mcp', 'mcp'],
+  ['di mana atur server mcp', 'panel:agent-mcp'],
   ['mau ganti api key', 'models'],
   ['intellisense saya mati', 'lsp'],
   ['pasang ekstensi dari marketplace', 'extensions'],
@@ -117,19 +122,49 @@ const NIAT_UJI = [
   ['atur izin akses web', 'security'],
   ['ganti bahasa antarmuka', 'general'],
   ['cek versi aplikasi', 'about'],
+  ['agennya gak munculin to-do list', 'panel:agent-todo'],
+  /* Dua jendela yang dilaporkan mendarat di Settings. Yang benar adalah
+     jendela miliknya sendiri, bukan `settings`. */
+  ['buka chat settings', 'panel:chat-settings'],
+  ['buka agent customizations', 'panel:agent-custom'],
 ];
 
-/* Re-implement the matcher from the module's own table so a table edit is felt. */
-const entri = [...tunjuk.matchAll(/seksi: '([a-z]+)',\s*\n\s*kata: \[([\s\S]*?)\],/g)].map((m) => ({
+/* Re-implement the matchers from the module's own tables so a table edit is felt.
+   Longest matching trigger wins, exactly like `pilihTerbaik()` in the module. */
+const bacaKata = (blok) => [...blok.matchAll(/'([^']+)'/g)].map((x) => x[1]);
+
+const permukaan = [
+  ...tunjuk.matchAll(/id: '([a-z-]+)',\s*\n\s*kata: \[([\s\S]*?)\],/g),
+].map((m) => ({ id: m[1], kata: bacaKata(m[2]) }));
+
+const entri = [...blokTabelSetelan.matchAll(/seksi: '([a-z]+)',\s*\n\s*kata: \[([\s\S]*?)\],/g)].map((m) => ({
   seksi: m[1],
-  kata: [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]),
+  kata: bacaKata(m[2]),
 }));
 hasil(`tabel niat terbaca (${entri.length} seksi)`, entri.length >= 10, `cuma ${entri.length}`);
+hasil(`tabel permukaan terbaca (${permukaan.length})`, permukaan.length >= 5, `cuma ${permukaan.length}`);
+
+const terbaik = (niat, daftar, ambil) => {
+  const n = niat.toLowerCase();
+  let best;
+  let len = 0;
+  for (const d of daftar) {
+    for (const k of d.kata) {
+      if (k.length > len && n.includes(k)) {
+        best = d;
+        len = k.length;
+      }
+    }
+  }
+  return best ? ambil(best) : null;
+};
 
 const cocok = (niat) => {
-  const n = niat.toLowerCase();
-  const e = entri.find((x) => x.kata.some((k) => n.includes(k)));
-  return e?.seksi ?? null;
+  /* Same precedence as the tool: a surface first, then a Settings section. */
+  return (
+    terbaik(niat, permukaan, (p) => `panel:${p.id}`) ??
+    terbaik(niat, entri, (e) => e.seksi)
+  );
 };
 
 for (const [niat, harus] of NIAT_UJI) {
