@@ -111,10 +111,10 @@ export default function AgcSkillsCommands() {
   const jumlah = jenis === 'skills' ? barisSkill.length : barisCommand.length;
 
   return (
-    <div className="agc-pane agx-pane skc" data-testid="agx-skills">
+    <div className="agc-pane agset-pane skc" data-testid="agx-skills">
       <h2 className="agc-pane-title">
         {tr('Skills & Commands')}{' '}
-        <span className="agx-tanya" title={tr('What the agent can be taught, and what it can be told to run.')}>
+        <span className="agset-tanya" title={tr('What the agent can be taught, and what it can be told to run.')}>
           ?
         </span>
       </h2>
@@ -151,7 +151,7 @@ export default function AgcSkillsCommands() {
         {/* ── Right pane ─────────────────────────────────────────────── */}
         <div className="skc-pane">
           <div className="skc-kepala">
-            <button type="button" className="agx-btn-utama" data-testid="agx-skc-create">
+            <button type="button" className="agset-btn-utama" data-testid="agx-skc-create">
               + {tr('Create Skill')}
             </button>
           </div>
@@ -169,7 +169,7 @@ export default function AgcSkillsCommands() {
               {jenis === 'skills' ? tr('Skills') : tr('Commands')} ({jumlah})
             </span>
             {jenis === 'skills' && (
-              <label className="agx-toggle agx-toggle-inline">
+              <label className="agset-toggle agset-toggle-inline">
                 <input
                   type="checkbox"
                   data-testid="agx-skills-filter"
@@ -182,17 +182,17 @@ export default function AgcSkillsCommands() {
           </div>
 
           {galat && jenis === 'skills' && (
-            <p className="agx-galat" data-testid="agx-skills-galat" role="alert">
+            <p className="agset-galat" data-testid="agx-skills-galat" role="alert">
               {galat}
-              <button type="button" className="agx-tautan" onClick={bersihkanGalat}>
+              <button type="button" className="agset-tautan" onClick={bersihkanGalat}>
                 {tr('Dismiss')}
               </button>
             </p>
           )}
 
           {jumlah === 0 ? (
-            <div className="agx-kosong" data-testid="agx-skills-kosong">
-              <span className="agx-kosong-ikon" aria-hidden="true">
+            <div className="agset-kosong" data-testid="agx-skills-kosong">
+              <span className="agset-kosong-ikon" aria-hidden="true">
                 <AiIkon name={jenis === 'skills' ? 'thought' : 'terminal'} size={18} />
               </span>
               <span>{cari.trim() ? tr('Nothing matches that search.') : tr('Nothing here yet.')}</span>
@@ -212,10 +212,10 @@ export default function AgcSkillsCommands() {
                       <div className="skc-teks">
                         <span className="skc-nama">
                           {b.nama}
-                          {b.scope && <span className="agx-chip-kecil">{b.scope}</span>}
+                          {b.scope && <span className="agset-chip-kecil">{b.scope}</span>}
                         </span>
                         <span className="skc-ket">{b.ket}</span>
-                        {b.catatan && <span className="agx-skill-catatan">{tr(b.catatan)}</span>}
+                        {b.catatan && <span className="agset-skill-catatan">{tr(b.catatan)}</span>}
                       </div>
                       {b.terpasang ? (
                         <button

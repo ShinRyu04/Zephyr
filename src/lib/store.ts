@@ -172,7 +172,9 @@ interface StoreActions {
    * is at most ONE chat tab and ONE Chat Settings tab, so pressing the button
    * twice focuses rather than stacking duplicates.
    */
-  bukaViewAi: (view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools') => void;
+  bukaViewAi: (
+    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view',
+  ) => void;
 
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
@@ -1088,7 +1090,9 @@ export const useStore = create<Store>((set, get) => ({
               ? 'Extensions'
               : view === 'tools'
                 ? 'Tools'
-                : 'Search Results',
+                : view === 'diff-view'
+                  ? 'Changes'
+                  : 'Search Results',
       encoding: 'utf8' as Encoding,
       lineEnding: 'crlf' as LineEnding,
       unsaved: false,

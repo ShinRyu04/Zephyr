@@ -15,6 +15,7 @@ import { useAiModels } from './aiModelsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT, jalurKonteksKerja, jejakPemadatan } from './aiStore';
+import { useDiff } from './diffStore';
 import { useToolGate } from './toolGate';
 /*
  * Memori lintas sesi (ai-ingat-sesi). Jembatan uji memakai modul yang BENAR-BENAR
@@ -1116,6 +1117,31 @@ export function installDevBridge(): void {
     },
     baca: () => useAi.getState().agentTodos,
     bersih: () => useAi.getState().setAgentTodos([]),
+  };
+
+  /*
+   * Snapshot DiffView, dibuka untuk HARNESS.
+   *
+   * WHY: the "files changed" card in the transcript is the ONLY entry point to
+   * the DiffView tab, and it renders nothing when its own copy of the numbers
+   * is empty. A harness that only looked at the DOM could not tell a card that
+   * was never mounted from one that was mounted over an empty snapshot. These
+   * getters expose the store both halves read, so a test can say which half
+   * failed.
+   */
+  w.__ZEPHYR_DIFF__ = {
+    store: useDiff,
+    berkas: () =>
+      useDiff.getState().berkas.map((b) => ({
+        path: b.path,
+        tambah: b.tambah,
+        hapus: b.hapus,
+        gagal: b.gagal === true,
+      })),
+    mulai: (turnId: string) => useDiff.getState().mulaiTurn(turnId),
+    reset: () => useDiff.getState().reset(),
+    sorot: () => useDiff.getState().sorot,
+    pilih: (path: string) => useDiff.getState().pilih(path),
   };
 
   /*

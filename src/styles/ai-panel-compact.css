@@ -656,6 +656,78 @@
   border-color: var(--accent);
 }
 
+/*
+ * The composer as a CARD, the way the reference agent window draws it.
+ *
+ * What changed against the old wrapper: the row is inset from both sides and
+ * lifted off the panel with `--surface` instead of sharing the panel's own
+ * `--bg`, so it reads as a box floating over the transcript rather than as the
+ * bottom edge of the same slab. The radius is the full 12px on all four corners
+ * - the composer no longer shares a seam with the status stack above it,
+ * because on this design the two are separate objects with air between them.
+ *
+ * The title line and the toolbar are separated from the field by hairlines
+ * INSIDE the card, not by borders between siblings: one rounded box, three
+ * bands. That is what keeps the shape quiet while still saying "name / text /
+ * actions" in reading order.
+ */
+.ai-input-row {
+  margin: 0 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 3%) inset;
+}
+
+/* The stack-to-composer seam is gone: both are cards now. */
+.ai-work-stack + .ai-input-row {
+  margin-top: 10px;
+  border-radius: var(--ai-dock-radius, 10px);
+}
+
+/*
+ * The session name, as the card's own first line.
+ *
+ * Muted, one line, ellipsis: it is a label, not a heading. The hairline under
+ * it is what makes the field below read as the part you type into - without it
+ * the title and the draft share a paragraph and the card looks like two lines
+ * of text under a border.
+ */
+.ai-draft-judul {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.ai-draft-judul span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The field is transparent ON PURPOSE, and this is the one place the earlier
+ * comments below are superseded: the card now supplies `--surface`, so a field
+ * that also painted `--bg` drew a darker rectangle inside it - the "kotak di
+ * dalam kotak" the reader kept seeing. Transparent lets the card's tone show
+ * through, which is what makes the three bands read as one box.
+ */
+.ai-input {
+  background: transparent;
+  padding: 9px 12px;
+}
+
+/* The toolbar is the card's bottom band: no line, no fill of its own. */
+.ai-input-toolbar {
+  border-top: 0;
+  padding: 6px 10px;
+}
+
 .ai-input-side {
   display: flex;
   flex-direction: row;

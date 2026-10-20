@@ -24,12 +24,30 @@
 }
 
 .ai-tanya-label {
-  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 5px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--accent);
   text-transform: none;
+}
+
+/* Titik berdenyut: kartu ini sedang MENUNGGU, bukan sekadar tampil. */
+.ai-tanya-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: ai-tanya-denyut 1.6s ease-in-out infinite;
+}
+
+@keyframes ai-tanya-denyut {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 .ai-tanya-isi {
@@ -44,17 +62,71 @@
 
 .ai-tanya-pilihan {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
-.ai-tanya-pilihan .btn {
-  /* Pilihan yang panjang tidak boleh mendorong tombol lain keluar kartu. */
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/*
+ * Satu opsi = satu tombol blok selebar penuh, bertumpuk vertikal.
+ *
+ * Bentuk ini (bukan chips kecil yang berbaris horizontal) adalah yang dipakai
+ * Claude dan TRAE: opsi adalah keputusan utama kartu, jadi ia diberi ruang
+ * penuh dan tidak dipadatkan ke samping di mana jawaban panjang akan terpotong.
+ */
+.ai-tanya-op {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 0.8px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg0);
+  font-size: 12.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.ai-tanya-op:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: var(--accent);
+}
+
+.ai-tanya-op:active {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+}
+
+.ai-tanya-op-teks {
+  /* Opsi panjang turun baris, bukan memotong diri sendiri. */
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.ai-tanya-op-panah {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.ai-tanya-op:hover .ai-tanya-op-panah {
+  color: var(--accent);
+}
+
+/* Pemisah antara pilihan dan input bebas. */
+.ai-tanya-pemisah {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
 }
 
 .ai-tanya-isi-jawab {

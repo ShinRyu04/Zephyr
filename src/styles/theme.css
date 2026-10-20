@@ -70,6 +70,17 @@
   --diff-add-gutter: color-mix(in srgb, var(--added) 40%, transparent);
   --diff-del-bg: color-mix(in srgb, var(--deleted) 26%, transparent);
   --diff-del-gutter: color-mix(in srgb, var(--deleted) 40%, transparent);
+  /*
+   * The text INSIDE a diff row, as opposed to the row's own wash.
+   *
+   * A themed green on a green wash is two shades of the same colour: the line
+   * reads as "green", and every distinction inside it is lost. On a dark theme
+   * the code keeps the normal foreground, because the wash is already the
+   * signal that the line changed - the words only have to stay legible on top
+   * of it. The light theme overrides these below, where the wash is a pastel.
+   */
+  --diff-add-fg: var(--text);
+  --diff-del-fg: var(--text);
 
   /* editor */
   --editor-bg: #0d1117;

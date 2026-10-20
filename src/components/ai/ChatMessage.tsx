@@ -13,7 +13,6 @@ import ReasoningBlock from './ReasoningBlock';
 import { MsgTime } from './ChatStamp';
 import { ThinkingLine } from './CliTimeline';
 import { EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
-import PerubahanBerkas from './PerubahanBerkas';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
@@ -1142,16 +1141,14 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             </div>
           )}
           {/*
-            * The "files changed" card closes the tool block.
+            * The "files changed" card used to close EVERY turn's tool block.
             *
-            * Placed AFTER the tool rows and BEFORE the answer: it summarises
-            * the work the reader just scrolled past, and the answer stays the
-            * last thing on screen. Rendered only when the turn actually wrote a
-            * file — a read-only turn has nothing to summarise.
+            * It now lives once per session, at the end of the transcript (see
+            * `AiPanel`), because it summarises the whole chat: a session that
+            * rewrote one file five times showed five cards with the same path
+            * and a fifth of the numbers each. Nothing is lost from the turn —
+            * the tool rows above still list every call in order.
             */}
-          {!isUser && msg.tools && msg.tools.length > 0 && (
-            <PerubahanBerkas tools={msg.tools} />
-          )}
           {isUser ? (
             <p className="ai-plain">{msg.content}</p>
           ) : (

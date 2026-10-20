@@ -112,10 +112,10 @@ export default function AgcRulesMemories() {
   };
 
   return (
-    <div className="agc-pane agx-pane" data-testid="agx-rules">
+    <div className="agc-pane agset-pane" data-testid="agx-rules">
       <h2 className="agc-pane-title">
         {tr('Rules & Memories')}{' '}
-        <span className="agx-tanya" title={tr('What the agent reads before it answers.')}>
+        <span className="agset-tanya" title={tr('What the agent reads before it answers.')}>
           ?
         </span>
       </h2>
@@ -124,24 +124,24 @@ export default function AgcRulesMemories() {
       </p>
 
       {/* ── 1. Import settings ─────────────────────────────────────────── */}
-      <h3 className="agx-seksi">{tr('Import Settings')}</h3>
-      <div className="agx-kotak">
-        <div className="agx-kotak-isi">
+      <h3 className="agset-seksi">{tr('Import Settings')}</h3>
+      <div className="agset-kotak">
+        <div className="agset-kotak-isi">
           {BERKAS_KONTEKS.map((b) => {
             const nyala = b.kunci === 'bacaAgentsMd' ? bacaAgents : bacaClaude;
             return (
-              <label className="agx-tool-baris agx-tool-pil" key={b.kunci} data-testid={`agx-ctx-${b.nama}`}>
+              <label className="agset-tool-baris agset-tool-pil" key={b.kunci} data-testid={`agx-ctx-${b.nama}`}>
                 <input
                   type="checkbox"
                   checked={nyala}
                   onChange={(e) => simpan({ [b.kunci]: e.target.checked })}
                 />
-                <span className="agx-tool-ikon">
+                <span className="agset-tool-ikon">
                   <AiIkon name="doc" size={13} />
                 </span>
-                <span className="agx-baris-teks">
-                  <span className="agx-baris-nama">{tr(b.ket)}</span>
-                  <span className="agx-baris-desk">{tr(b.detail)}</span>
+                <span className="agset-baris-teks">
+                  <span className="agset-baris-nama">{tr(b.ket)}</span>
+                  <span className="agset-baris-desk">{tr(b.detail)}</span>
                 </span>
               </label>
             );
@@ -150,16 +150,16 @@ export default function AgcRulesMemories() {
       </div>
 
       {/* ── 2. Rules ───────────────────────────────────────────────────── */}
-      <div className="agx-seksi-baris">
-        <h3 className="agx-seksi">{tr('Rules')}</h3>
-        <div className="agx-seg" role="tablist" data-testid="agx-rules-tab">
+      <div className="agset-seksi-baris">
+        <h3 className="agset-seksi">{tr('Rules')}</h3>
+        <div className="agset-seg" role="tablist" data-testid="agx-rules-tab">
           {(['global', 'proyek'] as Lingkup[]).map((l) => (
             <button
               key={l}
               type="button"
               role="tab"
               aria-selected={lingkup === l}
-              className={`agx-seg-btn${lingkup === l ? ' is-on' : ''}`}
+              className={`agset-seg-btn${lingkup === l ? ' is-on' : ''}`}
               data-testid={`agx-rules-${l}`}
               onClick={() => setLingkup(l)}
             >
@@ -170,17 +170,17 @@ export default function AgcRulesMemories() {
       </div>
 
       {galatAturan && (
-        <p className="agx-galat" data-testid="agx-rules-galat" role="alert">
+        <p className="agset-galat" data-testid="agx-rules-galat" role="alert">
           {galatAturan}
-          <button type="button" className="agx-tautan" onClick={bersihkanGalatAturan}>
+          <button type="button" className="agset-tautan" onClick={bersihkanGalatAturan}>
             {tr('Dismiss')}
           </button>
         </p>
       )}
 
       {aturan.length === 0 ? (
-        <div className="agx-kosong" data-testid="agx-rules-kosong">
-          <span className="agx-kosong-ikon" aria-hidden="true">
+        <div className="agset-kosong" data-testid="agx-rules-kosong">
+          <span className="agset-kosong-ikon" aria-hidden="true">
             <AiIkon name="doc" size={18} />
           </span>
           <span>
@@ -190,7 +190,7 @@ export default function AgcRulesMemories() {
           </span>
           <button
             type="button"
-            className="agx-btn-utama"
+            className="agset-btn-utama"
             data-testid="agx-rules-create"
             onClick={() => {
               setGalatSunting(null);
@@ -202,13 +202,13 @@ export default function AgcRulesMemories() {
         </div>
       ) : (
         <>
-          <div className="agx-seksi-baris">
-            <span className="agx-muted">
+          <div className="agset-seksi-baris">
+            <span className="agset-muted">
               {aturan.length} {tr('rules')}
             </span>
             <button
               type="button"
-              className="agx-btn-utama"
+              className="agset-btn-utama"
               data-testid="agx-rules-create"
               onClick={() => {
                 setGalatSunting(null);
@@ -218,20 +218,20 @@ export default function AgcRulesMemories() {
               + {tr('Create')}
             </button>
           </div>
-          <div className="agx-daftar" data-testid="agx-rules-daftar">
+          <div className="agset-daftar" data-testid="agx-rules-daftar">
             {aturan.map((a) => (
-              <div className="agx-baris" key={a.path} data-testid={`agx-rule-${a.name}`}>
-                <span className="agx-avatar" aria-hidden="true">
+              <div className="agset-baris" key={a.path} data-testid={`agx-rule-${a.name}`}>
+                <span className="agset-avatar" aria-hidden="true">
                   <AiIkon name="doc" size={15} />
                 </span>
-                <div className="agx-baris-teks">
-                  <span className="agx-baris-nama">{a.name}</span>
-                  <span className="agx-baris-desk">{a.description || a.apply_to}</span>
+                <div className="agset-baris-teks">
+                  <span className="agset-baris-nama">{a.name}</span>
+                  <span className="agset-baris-desk">{a.description || a.apply_to}</span>
                 </div>
-                <div className="agx-baris-aksi">
+                <div className="agset-baris-aksi">
                   <button
                     type="button"
-                    className="agx-btn-batal"
+                    className="agset-btn-batal"
                     data-testid={`agx-rule-hapus-${a.name}`}
                     disabled={sibukAturan}
                     onClick={() => void hapusAturan(a.name)}
@@ -246,18 +246,18 @@ export default function AgcRulesMemories() {
       )}
 
       {/* ── 3. Memory ──────────────────────────────────────────────────── */}
-      <div className="agx-seksi-baris">
-        <h3 className="agx-seksi">
-          {tr('Memory')} <span className="agx-beta">Beta</span>
+      <div className="agset-seksi-baris">
+        <h3 className="agset-seksi">
+          {tr('Memory')} <span className="agset-beta">Beta</span>
         </h3>
-        <div className="agx-seg" role="tablist" data-testid="agx-mem-tab">
+        <div className="agset-seg" role="tablist" data-testid="agx-mem-tab">
           {(['global', 'proyek'] as Lingkup[]).map((l) => (
             <button
               key={l}
               type="button"
               role="tab"
               aria-selected={lingkupMemori === l}
-              className={`agx-seg-btn${lingkupMemori === l ? ' is-on' : ''}`}
+              className={`agset-seg-btn${lingkupMemori === l ? ' is-on' : ''}`}
               data-testid={`agx-mem-${l}`}
               onClick={() => setLingkupMemori(l)}
             >
@@ -267,45 +267,45 @@ export default function AgcRulesMemories() {
         </div>
       </div>
 
-      <label className="agx-tool-baris agx-tool-pil agx-mem-toggle" data-testid="agx-mem-toggle">
+      <label className="agset-tool-baris agset-tool-pil agset-mem-toggle" data-testid="agx-mem-toggle">
         <input
           type="checkbox"
           checked={memoriNyala}
           onChange={(e) => simpan({ memoriAktif: e.target.checked })}
         />
-        <span className="agx-baris-teks">
-          <span className="agx-baris-nama">
+        <span className="agset-baris-teks">
+          <span className="agset-baris-nama">
             {tr('Enable Zephyr to remember relevant context from your chat history')}
           </span>
-          <span className="agx-baris-desk">
+          <span className="agset-baris-desk">
             {tr('Decisions and preferences are stored in a file you can read and edit.')}
           </span>
         </span>
       </label>
 
-      <div className="agx-mem-kartu" data-testid="agx-user-memory">
-        <span className="agx-mem-ikon" aria-hidden="true">
+      <div className="agset-mem-kartu" data-testid="agx-user-memory">
+        <span className="agset-mem-ikon" aria-hidden="true">
           <AiIkon name="thought" size={18} />
         </span>
-        <div className="agx-baris-teks">
-          <span className="agx-baris-nama">{tr('User Memory')}</span>
-          <code className="agx-mem-path">%APPDATA%\zephyr\memory\user_profile.md</code>
+        <div className="agset-baris-teks">
+          <span className="agset-baris-nama">{tr('User Memory')}</span>
+          <code className="agset-mem-path">%APPDATA%\zephyr\memory\user_profile.md</code>
         </div>
       </div>
 
       {/* ── Rule editor: a real free-text document ─────────────────────── */}
       {sunting && (
         <div className="modal-backdrop" role="presentation" data-testid="agx-rule-editor">
-          <div className="modal agx-rule-modal" role="dialog" aria-modal="true" aria-label={tr('Rule')}>
+          <div className="modal agset-rule-modal" role="dialog" aria-modal="true" aria-label={tr('Rule')}>
             <h2 className="modal-title">{sunting.baru ? tr('New Rule') : tr('Edit Rule')}</h2>
-            <p className="agx-muted" style={{ marginBottom: 10 }}>
+            <p className="agset-muted" style={{ marginBottom: 10 }}>
               {lingkup === 'global'
                 ? tr('This rule applies to every workspace.')
                 : tr('This rule applies to the current workspace only.')}
             </p>
 
-            <label className="agx-field">
-              <span className="agx-field-label">{tr('Name')}</span>
+            <label className="agset-field">
+              <span className="agset-field-label">{tr('Name')}</span>
               <input
                 data-testid="agx-rule-nama"
                 value={sunting.nama}
@@ -314,8 +314,8 @@ export default function AgcRulesMemories() {
               />
             </label>
 
-            <label className="agx-field">
-              <span className="agx-field-label">
+            <label className="agset-field">
+              <span className="agset-field-label">
                 {tr('Rule')}
                 <em>
                   {sunting.isi.length}/{8000}
@@ -329,7 +329,7 @@ export default function AgcRulesMemories() {
                 */}
               <textarea
                 data-testid="agx-rule-isi"
-                className="agx-rule-teks"
+                className="agset-rule-teks"
                 rows={12}
                 maxLength={8000}
                 value={sunting.isi}
@@ -339,7 +339,7 @@ export default function AgcRulesMemories() {
             </label>
 
             {galatSunting && (
-              <p className="agx-galat" data-testid="agx-rule-galat">
+              <p className="agset-galat" data-testid="agx-rule-galat">
                 {galatSunting}
               </p>
             )}

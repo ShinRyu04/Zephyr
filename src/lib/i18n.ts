@@ -5,6 +5,17 @@ import { EN as SRC } from './i18n-src';
 type Dict = Record<string, string>;
 
 const ID: Dict = {
+  /*
+   * DiffView: the tab that shows what the AI changed this turn. Keys are the
+   * English text the component passes, values the Indonesian.
+   */
+  'Changes': 'Perubahan',
+  'Before': 'Sebelum',
+  'After': 'Sesudah',
+  'Open file': 'Buka berkas',
+  '{n} hidden lines': '{n} baris disembunyikan',
+  'No changes from the AI in this turn yet.': 'Belum ada perubahan dari AI di giliran ini.',
+  'Open DiffView': 'Buka DiffView',
   'tokens': 'token',
   'the provider reported no token usage': 'provider tidak melaporkan pemakaian token',
   'Stored in Zephyr settings (mcp.servers); Zephyr runs/connects to it. Settings > MCP can also write it into the CLI config files.': 'Tersimpan di setelan Zephyr (mcp.servers); Zephyr yang menjalankan/menghubunginya. Settings > MCP juga bisa menuliskannya ke berkas config CLI.',

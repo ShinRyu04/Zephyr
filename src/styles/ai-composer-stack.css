@@ -325,9 +325,9 @@
   color: var(--success, #10b981);
 }
 
-/* Sambungan rapat ke .ai-input-row */
+/* Sambungan ke .ai-input-row: kartu utuh, jadi tidak ada garis sambung */
 .composer-status-stack + .ai-input-row {
-  border-top: 1px solid var(--border) !important;
-  border-radius: 0 0 12px 12px !important;
-  margin-top: 0 !important;
+  border-top: 1px solid var(--border);
+  border-radius: var(--ai-dock-radius, 10px);
+  margin-top: 10px;
 }

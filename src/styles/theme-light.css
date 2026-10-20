@@ -25,6 +25,19 @@
   --modified: #9a6700;
   --added: #1a7f37;
   --deleted: #cf222e;
+  /*
+   * The diff wash, declared here rather than inherited from the dark theme.
+   *
+   * The dark value mixes 26% green into a near-black surface, which is a thin
+   * wash. On white that same mix is a pastel the code text sits on - readable,
+   * but too pale to register as "this line changed" at a glance. The light
+   * theme therefore uses a slightly stronger mix, and keeps its normal
+   * foreground for the text inside the row (see `--diff-add-fg` in theme.css).
+   */
+  --diff-add-bg: color-mix(in srgb, var(--added) 15%, transparent);
+  --diff-add-gutter: color-mix(in srgb, var(--added) 26%, transparent);
+  --diff-del-bg: color-mix(in srgb, var(--deleted) 13%, transparent);
+  --diff-del-gutter: color-mix(in srgb, var(--deleted) 24%, transparent);
 
   --editor-bg: #ffffff;
   --editor-gutter: #6d7785;
