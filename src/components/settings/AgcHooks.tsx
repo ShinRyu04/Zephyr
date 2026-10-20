@@ -66,25 +66,25 @@ export default function AgcHooks() {
   };
 
   return (
-    <div className="agc-pane agx-pane" data-testid="agx-hooks">
+    <div className="agc-pane agset-pane" data-testid="agx-hooks">
       <h2 className="agc-pane-title">
         {tr('Hooks')}{' '}
-        <span className="agx-tanya" title={tr('Commands the agent runs at points in its lifecycle.')}>
+        <span className="agset-tanya" title={tr('Commands the agent runs at points in its lifecycle.')}>
           ?
         </span>
       </h2>
 
       {/* ── 1. Configuration ───────────────────────────────────────────── */}
-      <div className="agx-seksi-baris">
-        <h3 className="agx-seksi">{tr('Configuration')}</h3>
-        <div className="agx-seg" role="tablist" data-testid="agx-hooks-tab">
+      <div className="agset-seksi-baris">
+        <h3 className="agset-seksi">{tr('Configuration')}</h3>
+        <div className="agset-seg" role="tablist" data-testid="agx-hooks-tab">
           {(['global', 'proyek'] as Lingkup[]).map((l) => (
             <button
               key={l}
               type="button"
               role="tab"
               aria-selected={lingkup === l}
-              className={`agx-seg-btn${lingkup === l ? ' is-on' : ''}`}
+              className={`agset-seg-btn${lingkup === l ? ' is-on' : ''}`}
               data-testid={`agx-hooks-${l}`}
               onClick={() => setLingkup(l)}
             >
@@ -94,28 +94,28 @@ export default function AgcHooks() {
         </div>
       </div>
 
-      <label className="agx-tool-baris agx-tool-pil" data-testid="agx-hooks-impor">
+      <label className="agset-tool-baris agset-tool-pil" data-testid="agx-hooks-impor">
         <input
           type="checkbox"
           checked={imporClaude}
           onChange={(e) => simpan({ imporHookClaude: e.target.checked })}
         />
-        <span className="agx-tool-ikon">
+        <span className="agset-tool-ikon">
           <AiIkon name="bolt" size={13} />
         </span>
-        <span className="agx-baris-teks">
-          <span className="agx-baris-nama">{tr('Import Hooks configuration in Claude')}</span>
-          <span className="agx-baris-desk">
+        <span className="agset-baris-teks">
+          <span className="agset-baris-nama">{tr('Import Hooks configuration in Claude')}</span>
+          <span className="agset-baris-desk">
             {tr('Read hook definitions from ~/.claude/settings.json.')}
           </span>
         </span>
       </label>
 
-      <div className="agx-seksi-baris">
-        <h3 className="agx-seksi">{tr('Configured Hooks')}</h3>
+      <div className="agset-seksi-baris">
+        <h3 className="agset-seksi">{tr('Configured Hooks')}</h3>
         <button
           type="button"
-          className="agx-btn-utama"
+          className="agset-btn-utama"
           data-testid="agx-hooks-create"
           onClick={() => addHook(lingkup === 'global' ? 'user' : 'workspace')}
         >
@@ -124,30 +124,30 @@ export default function AgcHooks() {
       </div>
 
       {tampil.length === 0 ? (
-        <div className="agx-kosong" data-testid="agx-hooks-kosong">
-          <span className="agx-kosong-ikon" aria-hidden="true">
+        <div className="agset-kosong" data-testid="agx-hooks-kosong">
+          <span className="agset-kosong-ikon" aria-hidden="true">
             <AiIkon name="queue" size={18} />
           </span>
           <span>{tr('No hooks configured. Click Create to add your first hook')}</span>
         </div>
       ) : (
-        <div className="agx-daftar" data-testid="agx-hooks-daftar">
+        <div className="agset-daftar" data-testid="agx-hooks-daftar">
           {tampil.map((h) => {
             const ev = HOOK_EVENTS.find((e) => e.id === h.event);
             return (
-              <div className="agx-baris" key={h.id} data-testid={`agx-hook-${h.id}`}>
-                <span className="agx-avatar" aria-hidden="true">
+              <div className="agset-baris" key={h.id} data-testid={`agx-hook-${h.id}`}>
+                <span className="agset-avatar" aria-hidden="true">
                   <AiIkon name="queue" size={15} />
                 </span>
-                <div className="agx-baris-teks">
+                <div className="agset-baris-teks">
                   <input
-                    className="agx-hook-nama"
+                    className="agset-hook-nama"
                     value={h.name}
                     placeholder={tr('Hook name')}
                     onChange={(e) => updateHook(h.id, { name: e.target.value })}
                   />
                   <select
-                    className="agx-hook-ev"
+                    className="agset-hook-ev"
                     value={h.event}
                     onChange={(e) => updateHook(h.id, { event: e.target.value as HookEvent })}
                   >
@@ -159,13 +159,13 @@ export default function AgcHooks() {
                     ))}
                   </select>
                   {ev && !ev.live && (
-                    <span className="agx-hook-warn" data-testid={`agx-hook-warn-${h.id}`}>
+                    <span className="agset-hook-warn" data-testid={`agx-hook-warn-${h.id}`}>
                       {tr(ev.why ?? 'This event is not wired up in this build.')}
                     </span>
                   )}
                 </div>
-                <div className="agx-baris-aksi">
-                  <label className="agx-switch" title={tr('Enabled')}>
+                <div className="agset-baris-aksi">
+                  <label className="agset-switch" title={tr('Enabled')}>
                     <input
                       type="checkbox"
                       checked={h.enabled}
@@ -175,7 +175,7 @@ export default function AgcHooks() {
                   </label>
                   <button
                     type="button"
-                    className="agx-menu-btn"
+                    className="agset-menu-btn"
                     title={tr('Delete')}
                     data-testid={`agx-hook-hapus-${h.id}`}
                     onClick={() => removeHook(h.id)}
@@ -190,11 +190,11 @@ export default function AgcHooks() {
       )}
 
       {/* ── 2. Execution mode ──────────────────────────────────────────── */}
-      <h3 className="agx-seksi">{tr('Execution Mode')}</h3>
-      <label className="agx-field">
-        <span className="agx-field-label">{tr('Hooks Command Execution Mode')}</span>
+      <h3 className="agset-seksi">{tr('Execution Mode')}</h3>
+      <label className="agset-field">
+        <span className="agset-field-label">{tr('Hooks Command Execution Mode')}</span>
         <select
-          className="agx-pil"
+          className="agset-pil"
           data-testid="agx-hooks-mode"
           value={mode}
           onChange={(e) => simpan({ modeHook: e.target.value })}
@@ -205,16 +205,16 @@ export default function AgcHooks() {
             </option>
           ))}
         </select>
-        <span className="agx-baris-desk">
+        <span className="agset-baris-desk">
           {tr(MODE.find((m) => m.id === mode)?.ket ?? MODE[0].ket)}
         </span>
       </label>
 
-      <div className="agx-log-baris">
-        <span className="agx-baris-nama">{tr('Execution Log')}</span>
+      <div className="agset-log-baris">
+        <span className="agset-baris-nama">{tr('Execution Log')}</span>
         <button
           type="button"
-          className="agx-btn-batal"
+          className="agset-btn-batal"
           data-testid="agx-hooks-log"
           onClick={() => setLogBuka((v) => !v)}
         >
@@ -222,7 +222,7 @@ export default function AgcHooks() {
         </button>
       </div>
       {logBuka && (
-        <div className="agx-log" data-testid="agx-hooks-log-isi">
+        <div className="agset-log" data-testid="agx-hooks-log-isi">
           {hooks.length === 0
             ? tr('No hook has run yet.')
             : tr('Hook runs are recorded in the app log file. Nothing has been recorded for the hooks above yet.')}

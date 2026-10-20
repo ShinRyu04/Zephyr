@@ -19,6 +19,7 @@ const ChatSettingsPage = lazy(() => import('../ai/ChatSettingsPage'));
 const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
 const ToolsView = lazy(() => import('./ToolsView'));
 const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
+const DiffViewTab = lazy(() => import('../ai/DiffViewTab'));
 /*
  * Dev Environment, API Client and SFTP are NO LONGER editor views.
  *
@@ -193,6 +194,14 @@ function EditorPane({ gid }: { gid: string }) {
             <ErrorBoundary nama="SearchEditor">
               <Suspense fallback={null}>
                 <SearchEditorView />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'diff-view' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-diff-view">
+            <ErrorBoundary nama="DiffView">
+              <Suspense fallback={null}>
+                <DiffViewTab />
               </Suspense>
             </ErrorBoundary>
           </div>

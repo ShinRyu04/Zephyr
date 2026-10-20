@@ -355,12 +355,63 @@ export async function lspWorkspaceSymbolsTool(
   }
 }
 
-/** Diagnostics the server has already published for one file. */
+/** The last start failure the frontend recorded, if any. */
+function galatTerakhir(): string | null {
+  const e = useLsp.getState().lspError;
+  return e && e.trim() ? e.trim() : null;
+}
+
+/**
+ * Explain why there is no answer, preferring the REAL failure over a guess.
+ *
+ * `adaServer` only knows that Zephyr has a row for this language - not that the
+ * binary exists. When a start was attempted and failed, the recorded error says
+ * exactly what went wrong ("... not found. Checked: ..."), which is the line
+ * that tells the reader whether to install something or trust the folder.
+ */
+function sebabTanpaServer(path: string): string {
+  const dasar = pesanTanpaServer(path);
+  const gagal = galatTerakhir();
+  return gagal ? `${dasar} (percobaan terakhir: ${gagal})` : dasar;
+}
+
+/**
+ * Diagnostics the server has already published for one file.
+ *
+ * ## Empty is not the same as clean
+ *
+ * This returns the diagnostics the language server PUSHED (see the note below),
+ * so an empty list has two completely different meanings: "the server read the
+ * file and found nothing" or "no server ever read the file". The old shape
+ * collapsed both into `{ ok: true, hasil: [] }`, and the agent - which only sees
+ * the JSON - reported the second case to the user as "Diagnostics: clean". That
+ * is a false all-clear on code nobody checked, and it is exactly the trap this
+ * module's header warns about for every other query.
+ *
+ * So: no running server for the file is now an ERROR that says so, not an empty
+ * success. A server that IS running but has not published yet also says so,
+ * rather than implying the file is clean.
+ */
 export async function lspDiagnosticsTool(path: string): Promise<
-  | { ok: true; hasil: { line: number; column: number; severity: string; pesan: string; sumber: string }[] }
+  | {
+      ok: true;
+      hasil: { line: number; column: number; severity: string; pesan: string; sumber: string }[];
+      catatan?: string;
+    }
   | { ok: false; pesan: string }
 > {
-  if (!adaServer(path)) return { ok: false, pesan: pesanTanpaServer(path) };
+  if (!adaServer(path)) return { ok: false, pesan: sebabTanpaServer(path) };
+
+  /*
+   * A file can have a server row and still have no server RUNNING: `openDoc`
+   * silently gives up when the binary is missing or the folder is untrusted,
+   * and nothing is recorded against this path. Ask for one the same way the
+   * editor does, so "start the server I need" and "what does it say" are one
+   * call instead of two chances to disagree.
+   */
+  const serverId = await useLsp.getState().ensureFor(path);
+  if (!serverId) return { ok: false, pesan: sebabTanpaServer(path) };
+
   try {
     /*
      * Read from `problemsStore` rather than asking the server.
@@ -373,6 +424,19 @@ export async function lspDiagnosticsTool(path: string): Promise<
      */
     const { useProblems } = await import('./problemsStore');
     const semua = useProblems.getState().byFile.get(path) ?? [];
+    /*
+     * An empty list here is only trustworthy when the server has been told
+     * about the file. `ensureFor` proved a server exists, but it starts EMPTY -
+     * it has published nothing until it has read the document, which the editor
+     * does on open. Say that instead of letting `hasil: []` read as "clean".
+     */
+    if (semua.length === 0 && !useLsp.getState().docs[path]) {
+      return {
+        ok: true,
+        hasil: [],
+        catatan: `Language server "${serverId}" sudah jalan tetapi belum pernah menerima berkas ini, jadi daftar kosong ini BUKAN bukti kode bersih. Buka berkasnya di editor supaya server membacanya, lalu tanyakan lagi.`,
+      };
+    }
     return {
       ok: true,
       hasil: semua.slice(0, 100).map((d) => ({

@@ -1,0 +1,390 @@
+/* ai-diffview.css — the DiffView tab: what the AI changed this turn.
+ *
+ * Two columns, one scroll.
+ *
+ * The body is a single CSS grid with six fixed columns (old number, old sign,
+ * old text, new number, new sign, new text). One grid, not two panes side by
+ * side: a row on the left and its counterpart on the right are the SAME grid
+ * row, so they can never drift apart vertically no matter which side has the
+ * longer line. Two independent panes would need a scroll sync in JS and still
+ * jitter by a pixel on every wheel event.
+ *
+ * The text columns are `minmax(0, 1fr)` so a long line scrolls the whole grid
+ * horizontally instead of pushing the second pane off screen.
+ *
+ * Colours come from `--added` / `--deleted` through `color-mix`, exactly like
+ * `scm.css` does. Every theme then gets a tint of its own green and red rather
+ * than a hard-coded hue that clashes with half of them.
+ */
+
+.dv {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+/* ── File list (left) ─────────────────────────────────────────────────── */
+
+.dv-daftar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dv-daftar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dv-daftar-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dv-daftar-isi {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.dv-berkas {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dv-berkas:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+  color: var(--text);
+}
+
+.dv-berkas.is-aktif {
+  background: var(--accent-subtle);
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+
+.dv-berkas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dv-ikon {
+  flex: 0 0 16px;
+  width: 16px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.dv-berkas-teks {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dv-berkas-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dv-berkas-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Totals ───────────────────────────────────────────────────────────── */
+
+.dv-stat {
+  display: inline-flex;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-tambah {
+  color: var(--added);
+}
+
+.dv-hapus {
+  color: var(--deleted);
+}
+
+/* ── Diff pane (right) ────────────────────────────────────────────────── */
+
+.dv-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dv-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dv-pane-nama {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dv-pane-folder {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Column headers, aligned with the grid below by the same template. */
+.dv-kolom-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dv-kolom {
+  padding: 4px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dv-kolom + .dv-kolom {
+  border-left: 1px solid var(--border);
+}
+
+.dv-isi {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+  tab-size: 4;
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────────── */
+
+.dv-baris {
+  display: grid;
+  grid-template-columns:
+    44px 14px minmax(0, 1fr)
+    44px 14px minmax(0, 1fr);
+  min-width: max-content;
+}
+
+.dv-no {
+  padding: 0 6px;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* The divider between the two halves, drawn on the after-number cell. */
+.dv-no-baru {
+  border-left: 1px solid var(--border);
+}
+
+.dv-sel {
+  text-align: center;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.dv-teks {
+  padding-right: 9px;
+  white-space: pre;
+  overflow: hidden;
+}
+
+/*
+ * A modified line is ONE row with both cells filled: the left cell tinted red,
+ * the right green. That is why the tint sits on the cells rather than on the
+ * row - tinting the row would paint both halves, and a substitution would read
+ * as a deletion and an addition sharing a colour.
+ *
+ * The wash is the BACKGROUND only. The text keeps its own colour (see
+ * `.dv-tok-*` below); a diff used to paint whole lines green or red and the
+ * code inside them lost every distinction - an identifier, a string and a
+ * comment all read as "green". The wash still says "this line changed", the
+ * tokens say "this is what the line says".
+ *
+ * The wash goes through `--diff-add-bg`, the same variable the tool cards use,
+ * so the diff, the cards and the transcript tint identically. The value is a
+ * color-mix over `--added`/`--deleted`, which every theme defines in its own
+ * hue - a hard-coded rgba here would clash with 18 of the 19 themes.
+ */
+.dv-lama {
+  background: var(--diff-del-bg, rgba(248, 81, 73, 0.18));
+  color: var(--diff-del-fg, var(--text));
+}
+
+.dv-baru {
+  background: var(--diff-add-bg, rgba(63, 185, 80, 0.18));
+  color: var(--diff-add-fg, var(--text));
+}
+
+.dv-baris.is-kosong .dv-teks {
+  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+}
+
+/*
+ * The gutter follows the row it labels: a green number column beside a green
+ * line, a red one beside a red line. Without this the numbers stayed grey and
+ * the row read as a tinted text block with a table bolted to its left.
+ */
+.dv-baris:has(.dv-baru) .dv-no-baru,
+.dv-baris:has(.dv-baru) .dv-sel {
+  background: var(--diff-add-gutter, rgba(63, 185, 80, 0.26));
+  color: var(--diff-add-fg, var(--text));
+}
+
+.dv-baris:has(.dv-lama) .dv-no {
+  background: var(--diff-del-gutter, rgba(248, 81, 73, 0.26));
+  color: var(--diff-del-fg, var(--text));
+}
+
+.dv-baris:has(.dv-lama) .dv-sel {
+  color: var(--deleted);
+}
+
+/* ── Token colours inside a line ──────────────────────────────────────── */
+
+/*
+ * The same palette the editor parser uses (`--syn-*`), so a keyword looks the
+ * same in the diff as it does in the file you open next to it. `--syn-*` is
+ * declared by every theme; the fallbacks only matter for a theme that predates
+ * a token.
+ */
+.dv-tok-komentar {
+  color: var(--syn-comment, var(--text-muted));
+  font-style: italic;
+}
+
+.dv-tok-teks {
+  color: var(--syn-string, var(--success));
+}
+
+.dv-tok-angka {
+  color: var(--syn-number, var(--warning));
+}
+
+.dv-tok-kata-kunci {
+  color: var(--syn-keyword, var(--accent));
+}
+
+.dv-tok-tipe {
+  color: var(--syn-type, var(--syn-keyword, var(--accent)));
+}
+
+.dv-tok-fungsi {
+  color: var(--syn-function, var(--accent));
+}
+
+/* ── Folded runs ──────────────────────────────────────────────────────── */
+
+.dv-lipat {
+  display: block;
+  width: 100%;
+  padding: 2px 12px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dv-lipat:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.dv-lipat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.dv-kosong {
+  grid-column: 1 / -1;
+  align-self: center;
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Narrow editors ───────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .dv {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}

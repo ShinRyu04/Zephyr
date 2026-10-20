@@ -91,7 +91,7 @@ function Dialog({
   return (
     <div className="modal-backdrop" role="presentation" data-testid={testid}>
       <div
-        className="modal agx-dialog"
+        className="modal agset-dialog"
         ref={ref}
         role="dialog"
         aria-modal="true"
@@ -138,8 +138,8 @@ export function AvatarPicker({
 
   return (
     <Dialog judul={tr('Change Avatar')} onTutup={onTutup} testid="agx-avatar-modal">
-      <div className="agx-dialog-tengah">
-        <span className="agx-avatar agx-avatar-jumbo" aria-hidden="true" data-testid="agx-avatar-calon">
+      <div className="agset-dialog-tengah">
+        <span className="agset-avatar agset-avatar-jumbo" aria-hidden="true" data-testid="agx-avatar-calon">
           <AiIkon name={ikonSubagent(calon).id as never} size={44} />
         </span>
       </div>
@@ -150,12 +150,12 @@ export function AvatarPicker({
         * ships a small, known set and a reader who wants the dragon should not
         * have to press a shuffle button eight times to find it.
         */}
-      <div className="agx-avatar-grid" data-testid="agx-avatar-grid">
+      <div className="agset-avatar-grid" data-testid="agx-avatar-grid">
         {AVATAR.map((id) => (
           <button
             key={id}
             type="button"
-            className={`agx-avatar-pil${calon === id ? ' is-on' : ''}`}
+            className={`agset-avatar-pil${calon === id ? ' is-on' : ''}`}
             data-testid={`agx-avatar-${id}`}
             title={id}
             onClick={() => setCalon(id)}
@@ -165,13 +165,13 @@ export function AvatarPicker({
         ))}
       </div>
 
-      <div className="agx-dialog-aksi">
-        <button type="button" className="agx-btn-batal" data-testid="agx-avatar-acak" onClick={acak}>
+      <div className="agset-dialog-aksi">
+        <button type="button" className="agset-btn-batal" data-testid="agx-avatar-acak" onClick={acak}>
           {tr('Try Another')}
         </button>
         <button
           type="button"
-          className="agx-btn-batal"
+          className="agset-btn-batal"
           data-testid="agx-avatar-unggah"
           onClick={() => berkasRef.current?.click()}
         >
@@ -192,7 +192,7 @@ export function AvatarPicker({
           data-testid="agx-avatar-berkas"
           onChange={() => onTutup()}
         />
-        <span className="agx-muted agx-dialog-catatan">{tr('Drawn avatars only in this build')}</span>
+        <span className="agset-muted agset-dialog-catatan">{tr('Drawn avatars only in this build')}</span>
       </div>
 
       <div className="modal-actions">
@@ -271,18 +271,18 @@ export function SmartGenerate({
 
   return (
     <Dialog judul={tr('Smart Generate')} onTutup={onTutup} testid="agx-smart-modal">
-      <p className="agx-muted" style={{ marginBottom: 10 }}>
+      <p className="agset-muted" style={{ marginBottom: 10 }}>
         {tr('Describe the agent in one or two sentences. It writes a draft you can edit.')}
       </p>
 
-      <label className="agx-field">
-        <span className="agx-field-label">
+      <label className="agset-field">
+        <span className="agset-field-label">
           {tr('What should this agent do?')}
           <em>{teks.length}/500</em>
         </span>
         <textarea
           data-testid="agx-smart-teks"
-          className="agx-smart-teks"
+          className="agset-smart-teks"
           rows={6}
           maxLength={500}
           value={teks}
@@ -292,7 +292,7 @@ export function SmartGenerate({
       </label>
 
       {galat && (
-        <p className="agx-galat" data-testid="agx-smart-galat">
+        <p className="agset-galat" data-testid="agx-smart-galat">
           {galat}
         </p>
       )}

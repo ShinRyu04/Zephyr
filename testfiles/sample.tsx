@@ -1,4 +1,3 @@
-// ZEPHYR_VERIFY_1792312805943
 // Berkas uji fase 03 - cek syntax highlight TSX.
 import { useState } from 'react';
 

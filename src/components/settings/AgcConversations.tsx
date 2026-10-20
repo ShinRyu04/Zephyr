@@ -253,12 +253,12 @@ export default function AgcConversations() {
   };
 
   return (
-    <div className="agc-pane agx-pane conv" data-testid="agx-conv">
+    <div className="agc-pane agset-pane conv" data-testid="agx-conv">
       <div className="conv-kepala">
         <h2 className="agc-pane-title" style={{ marginBottom: 0 }}>
           {tr('Conversation')}{' '}
           <span
-            className="agx-tanya"
+            className="agset-tanya"
             title={tr('How a conversation behaves, in the editor and in the Agents window.')}
           >
             ?
@@ -268,7 +268,7 @@ export default function AgcConversations() {
           {tab === 'riwayat' && (sessions ?? []).length > 0 && (
             <button
               type="button"
-              className="agx-btn-batal conv-clear"
+              className="agset-btn-batal conv-clear"
               data-testid="agx-conv-clear-all"
               title={tr('Clear all conversations')}
               onClick={() => {
@@ -281,7 +281,7 @@ export default function AgcConversations() {
               {tr('Clear All')}
             </button>
           )}
-          <div className="agx-seg" role="tablist" data-testid="agx-conv-tab">
+          <div className="agset-seg" role="tablist" data-testid="agx-conv-tab">
             {(
               [
                 ['setelan', 'Settings'],
@@ -294,15 +294,15 @@ export default function AgcConversations() {
                 type="button"
                 role="tab"
                 aria-selected={tab === id}
-                className={`agx-seg-btn${tab === id ? ' is-on' : ''}`}
+                className={`agset-seg-btn${tab === id ? ' is-on' : ''}`}
                 data-testid={`agx-conv-${id}`}
                 onClick={() => setTab(id)}
               >
                 {tr(label)}
                 {id === 'riwayat' && (
-                  <span className="agx-seg-jml">{(sessions ?? []).length}</span>
+                  <span className="agset-seg-jml">{(sessions ?? []).length}</span>
                 )}
-                {id === 'notifikasi' && <span className="agx-seg-jml">{riwayat.length}</span>}
+                {id === 'notifikasi' && <span className="agset-seg-jml">{riwayat.length}</span>}
               </button>
             ))}
           </div>
@@ -580,8 +580,8 @@ export default function AgcConversations() {
               onChange={(e) => setCari(e.target.value)}
             />
             {daftarSesi.length === 0 ? (
-              <div className="agx-kosong" data-testid="agx-conv-kosong">
-                <span className="agx-kosong-ikon" aria-hidden="true">
+              <div className="agset-kosong" data-testid="agx-conv-kosong">
+                <span className="agset-kosong-ikon" aria-hidden="true">
                   <AiIkon name="comment" size={18} />
                 </span>
                 <span>
@@ -695,8 +695,8 @@ export default function AgcConversations() {
 
           <div className="conv-kanan" data-testid="agx-conv-detail">
             {!terpilih ? (
-              <div className="agx-kosong">
-                <span className="agx-kosong-ikon" aria-hidden="true">
+              <div className="agset-kosong">
+                <span className="agset-kosong-ikon" aria-hidden="true">
                   <AiIkon name="comment" size={18} />
                 </span>
                 <span>{tr('Pick a conversation to read it.')}</span>
@@ -710,14 +710,14 @@ export default function AgcConversations() {
                       {(terpilih.messages ?? []).length} {tr('messages')} Â·{' '}
                       {waktu(terpilih.createdAt)}
                       {terpilih.id === aktifId && (
-                        <span className="agx-chip-kecil">{tr('open in chat')}</span>
+                        <span className="agset-chip-kecil">{tr('open in chat')}</span>
                       )}
                     </span>
                   </div>
                   <div className="conv-detail-aksi">
                     <button
                       type="button"
-                      className="agx-btn-batal"
+                      className="agset-btn-batal"
                       data-testid={`agx-conv-ekspor-${terpilih.id}`}
                       title={tr('Copy this conversation as Markdown')}
                       onClick={() => {
@@ -739,7 +739,7 @@ export default function AgcConversations() {
                     </button>
                     <button
                       type="button"
-                      className="agx-btn-utama"
+                      className="agset-btn-utama"
                       data-testid={`agx-conv-buka-${terpilih.id}`}
                       onClick={() => selectChat(terpilih.id)}
                     >
@@ -747,7 +747,7 @@ export default function AgcConversations() {
                     </button>
                     <button
                       type="button"
-                      className="agx-btn-batal"
+                      className="agset-btn-batal"
                       data-testid={`agx-conv-hapus-${terpilih.id}`}
                       onClick={() => {
                         deleteChat(terpilih.id);
@@ -792,8 +792,8 @@ export default function AgcConversations() {
           </p>
 
           {riwayat.length === 0 ? (
-            <div className="agx-kosong" data-testid="agx-conv-notif-kosong">
-              <span className="agx-kosong-ikon" aria-hidden="true">
+            <div className="agset-kosong" data-testid="agx-conv-notif-kosong">
+              <span className="agset-kosong-ikon" aria-hidden="true">
                 <AiIkon name="warn" size={18} />
               </span>
               <span>
@@ -818,7 +818,7 @@ export default function AgcConversations() {
                         <span className="skc-nama">{n.judul}</span>
                         <span className="skc-ket">{n.isi}</span>
                       </div>
-                      <span className={`agx-chip-kecil${terkirim ? ' is-on' : ''}`}>
+                      <span className={`agset-chip-kecil${terkirim ? ' is-on' : ''}`}>
                         {terkirim
                           ? tr('sent')
                           : n.fokus

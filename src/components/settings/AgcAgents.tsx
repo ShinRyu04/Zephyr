@@ -145,17 +145,17 @@ export default function AgcAgents() {
   /* ── List ─────────────────────────────────────────────────────────────── */
   if (tampilan.jenis === 'daftar') {
     return (
-      <div className="agc-pane agx-pane">
-        <div className="agx-head">
+      <div className="agc-pane agset-pane">
+        <div className="agset-head">
           <h2 className="agc-pane-title">
             {tr('Agents')}{' '}
-            <span className="agx-tanya" title={tr('An agent is a reusable role with its own prompt and tools.')}>
+            <span className="agset-tanya" title={tr('An agent is a reusable role with its own prompt and tools.')}>
               ?
             </span>
           </h2>
           <button
             type="button"
-            className="agx-btn-utama"
+            className="agset-btn-utama"
             data-testid="agx-create"
             onClick={() => bukaEditor(null)}
           >
@@ -163,16 +163,16 @@ export default function AgcAgents() {
           </button>
         </div>
 
-        <h3 className="agx-seksi">{tr('Custom Agents')}</h3>
+        <h3 className="agset-seksi">{tr('Custom Agents')}</h3>
         {daftar.length === 0 ? (
-          <div className="agx-kosong" data-testid="agx-kosong">
+          <div className="agset-kosong" data-testid="agx-kosong">
             {tr('No custom agents available.')}{' '}
-            <button type="button" className="agx-tautan" onClick={() => bukaEditor(null)}>
+            <button type="button" className="agset-tautan" onClick={() => bukaEditor(null)}>
               {tr('Create')}
             </button>
           </div>
         ) : (
-          <div className="agx-daftar" data-testid="agx-custom">
+          <div className="agset-daftar" data-testid="agx-custom">
             {daftar.map((a) => (
               <BarisAgen
                 key={a.id}
@@ -201,8 +201,8 @@ export default function AgcAgents() {
           </div>
         )}
 
-        <h3 className="agx-seksi">{tr('Built-In Agents')}</h3>
-        <div className="agx-daftar" data-testid="agx-bawaan">
+        <h3 className="agset-seksi">{tr('Built-In Agents')}</h3>
+        <div className="agset-daftar" data-testid="agx-bawaan">
           {BAWAAN.map((a) => (
             <BarisAgen
               key={a.id}
@@ -228,8 +228,8 @@ export default function AgcAgents() {
   if (tampilan.jenis === 'detail') {
     if (!detail) {
       return (
-        <div className="agc-pane agx-pane">
-          <button type="button" className="agx-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
+        <div className="agc-pane agset-pane">
+          <button type="button" className="agset-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
             ← {tr('Agents')}
           </button>
           <p className="agc-pane-desc">{tr('That agent no longer exists.')}</p>
@@ -237,13 +237,13 @@ export default function AgcAgents() {
       );
     }
     return (
-      <div className="agc-pane agx-pane" data-testid="agx-detail">
-        <button type="button" className="agx-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
+      <div className="agc-pane agset-pane" data-testid="agx-detail">
+        <button type="button" className="agset-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
           ← {tr('Agents')}
         </button>
 
-        <div className="agx-detail-head">
-          <span className="agx-avatar" aria-hidden="true">
+        <div className="agset-detail-head">
+          <span className="agset-avatar" aria-hidden="true">
             <AiIkon name="robot" size={22} />
           </span>
           <div>
@@ -258,41 +258,41 @@ export default function AgcAgents() {
 
         {detail.custom && detail.bisaDipanggil && (
           <>
-            <h3 className="agx-seksi">{tr('Callable Agents')}</h3>
-            <div className="agx-kotak">
-              <div className="agx-tool-baris">
-                <span className="agx-tool-ikon">
+            <h3 className="agset-seksi">{tr('Callable Agents')}</h3>
+            <div className="agset-kotak">
+              <div className="agset-tool-baris">
+                <span className="agset-tool-ikon">
                   <AiIkon name="search" size={13} />
                 </span>
-                <span className="agx-tool-nama">{detail.idInggris || detail.nama}</span>
+                <span className="agset-tool-nama">{detail.idInggris || detail.nama}</span>
                 {detail.kapanDipanggil && (
-                  <span className="agx-tool-ket">{detail.kapanDipanggil}</span>
+                  <span className="agset-tool-ket">{detail.kapanDipanggil}</span>
                 )}
               </div>
             </div>
           </>
         )}
 
-        <h3 className="agx-seksi">{tr('Tools')}</h3>
-        <div className="agx-kotak">
-          <div className="agx-kotak-head">{tr('MCP')}</div>
-          <div className="agx-kotak-isi">
-            <span className="agx-muted">{tr('No MCP servers configured for this agent.')}</span>
+        <h3 className="agset-seksi">{tr('Tools')}</h3>
+        <div className="agset-kotak">
+          <div className="agset-kotak-head">{tr('MCP')}</div>
+          <div className="agset-kotak-isi">
+            <span className="agset-muted">{tr('No MCP servers configured for this agent.')}</span>
           </div>
-          <div className="agx-kotak-head">{tr('Built-In')}</div>
-          <div className="agx-kotak-isi">
+          <div className="agset-kotak-head">{tr('Built-In')}</div>
+          <div className="agset-kotak-isi">
             {detail.alat.length === 0 ? (
-              <span className="agx-muted">{tr('No tools selected.')}</span>
+              <span className="agset-muted">{tr('No tools selected.')}</span>
             ) : (
               detail.alat.map((id) => {
                 const info = ALAT_TAMPIL.find((x) => x.id === id);
                 if (!info) return null;
                 return (
-                  <div className="agx-tool-baris" key={id} data-testid={`agx-detail-alat-${id}`}>
-                    <span className="agx-tool-ikon">
+                  <div className="agset-tool-baris" key={id} data-testid={`agx-detail-alat-${id}`}>
+                    <span className="agset-tool-ikon">
                       <AiIkon name={info.ikon as never} size={13} />
                     </span>
-                    <span className="agx-tool-nama">{tr(info.label)}</span>
+                    <span className="agset-tool-nama">{tr(info.label)}</span>
                   </div>
                 );
               })
@@ -306,14 +306,14 @@ export default function AgcAgents() {
   /* ── Editor ───────────────────────────────────────────────────────────── */
   const idSunting = tampilan.id;
   return (
-    <div className="agc-pane agx-pane" data-testid="agx-editor">
-      <div className="agx-head">
-        <button type="button" className="agx-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
+    <div className="agc-pane agset-pane" data-testid="agx-editor">
+      <div className="agset-head">
+        <button type="button" className="agset-kembali" onClick={() => setTampilan({ jenis: 'daftar' })}>
           ← {tr('Agents')}
         </button>
         <button
           type="button"
-          className="agx-btn-utama"
+          className="agset-btn-utama"
           data-testid="agx-smart"
           onClick={() => setDialog('smart')}
         >
@@ -331,10 +331,10 @@ export default function AgcAgents() {
         * smudge. Clicking the avatar is the obvious gesture, so the avatar opens
         * a dialog with one large preview, the full set, and a shuffle.
         */}
-      <div className="agx-avatar-baris">
+      <div className="agset-avatar-baris">
         <button
           type="button"
-          className="agx-avatar agx-avatar-besar agx-avatar-tombol"
+          className="agset-avatar agset-avatar-besar agset-avatar-tombol"
           data-testid="agx-avatar-buka"
           title={tr('Change Avatar')}
           aria-label={tr('Change Avatar')}
@@ -342,11 +342,11 @@ export default function AgcAgents() {
         >
           <AiIkon name={ikonSubagent(draft.ikon).id as never} size={30} />
         </button>
-        <div className="agx-avatar-ket">
-          <span className="agx-baris-nama">{tr('Avatar')}</span>
+        <div className="agset-avatar-ket">
+          <span className="agset-baris-nama">{tr('Avatar')}</span>
           <button
             type="button"
-            className="agx-tautan"
+            className="agset-tautan"
             data-testid="agx-avatar-ganti"
             onClick={() => setDialog('avatar')}
           >
@@ -355,8 +355,8 @@ export default function AgcAgents() {
         </div>
       </div>
 
-      <label className="agx-field">
-        <span className="agx-field-label">
+      <label className="agset-field">
+        <span className="agset-field-label">
           {tr('Name')} <b>*</b>
           <em>
             {draft.nama.length}/20
@@ -371,8 +371,8 @@ export default function AgcAgents() {
         />
       </label>
 
-      <label className="agx-field">
-        <span className="agx-field-label">
+      <label className="agset-field">
+        <span className="agset-field-label">
           {tr('Prompt')}
           <em>{draft.prompt.length}/10000</em>
         </span>
@@ -386,9 +386,9 @@ export default function AgcAgents() {
         />
       </label>
 
-      <div className="agx-field">
-        <span className="agx-field-label">{tr('Callable by other agents')}</span>
-        <label className="agx-toggle">
+      <div className="agset-field">
+        <span className="agset-field-label">{tr('Callable by other agents')}</span>
+        <label className="agset-toggle">
           <input
             type="checkbox"
             data-testid="agx-bisa-dipanggil"
@@ -401,8 +401,8 @@ export default function AgcAgents() {
 
       {draft.bisaDipanggil && (
         <>
-          <label className="agx-field">
-            <span className="agx-field-label">
+          <label className="agset-field">
+            <span className="agset-field-label">
               {tr('English Identifier')} <b>*</b>
               <em>{(draft.idInggris ?? '').length}/50</em>
             </span>
@@ -414,8 +414,8 @@ export default function AgcAgents() {
               onChange={(e) => setDraft({ ...draft, idInggris: e.target.value })}
             />
           </label>
-          <label className="agx-field">
-            <span className="agx-field-label">
+          <label className="agset-field">
+            <span className="agset-field-label">
               {tr('When to Call')} <b>*</b>
               <em>{(draft.kapanDipanggil ?? '').length}/5000</em>
             </span>
@@ -431,18 +431,18 @@ export default function AgcAgents() {
         </>
       )}
 
-      <h3 className="agx-seksi">{tr('Tools')}</h3>
-      <div className="agx-kotak">
-        <div className="agx-kotak-head">
+      <h3 className="agset-seksi">{tr('Tools')}</h3>
+      <div className="agset-kotak">
+        <div className="agset-kotak-head">
           {tr('MCP')}
-          <span className="agx-muted">{tr('No MCP servers')}</span>
+          <span className="agset-muted">{tr('No MCP servers')}</span>
         </div>
-        <div className="agx-kotak-head">{tr('Built-In')}</div>
-        <div className="agx-kotak-isi">
+        <div className="agset-kotak-head">{tr('Built-In')}</div>
+        <div className="agset-kotak-isi">
           {ALAT_TAMPIL.map((a) => {
             const aktif = draft.alat.includes(a.id);
             return (
-              <label className="agx-tool-baris agx-tool-pil" key={a.id}>
+              <label className="agset-tool-baris agset-tool-pil" key={a.id}>
                 <input
                   type="checkbox"
                   data-testid={`agx-alat-${a.id}`}
@@ -456,10 +456,10 @@ export default function AgcAgents() {
                     })
                   }
                 />
-                <span className="agx-tool-ikon">
+                <span className="agset-tool-ikon">
                   <AiIkon name={a.ikon as never} size={13} />
                 </span>
-                <span className="agx-tool-nama">{tr(a.label)}</span>
+                <span className="agset-tool-nama">{tr(a.label)}</span>
               </label>
             );
           })}
@@ -467,15 +467,15 @@ export default function AgcAgents() {
       </div>
 
       {galat && (
-        <p className="agx-galat" data-testid="agx-galat">
+        <p className="agset-galat" data-testid="agx-galat">
           {galat}
         </p>
       )}
 
-      <div className="agx-aksi">
+      <div className="agset-aksi">
         <button
           type="button"
-          className="agx-btn-utama"
+          className="agset-btn-utama"
           data-testid="agx-simpan"
           disabled={sibuk || !draft.nama.trim()}
           onClick={() => void simpanDraft()}
@@ -484,7 +484,7 @@ export default function AgcAgents() {
         </button>
         <button
           type="button"
-          className="agx-btn-batal"
+          className="agset-btn-batal"
           data-testid="agx-batal"
           onClick={() => setTampilan({ jenis: 'daftar' })}
         >
@@ -537,25 +537,25 @@ function BarisAgen({
   tr: (s: string) => string;
 }) {
   return (
-    <div className={`agx-baris${aktif ? '' : ' is-mati'}`} data-testid={`agx-baris-${nama}`}>
-      <span className="agx-avatar" aria-hidden="true">
+    <div className={`agset-baris${aktif ? '' : ' is-mati'}`} data-testid={`agx-baris-${nama}`}>
+      <span className="agset-avatar" aria-hidden="true">
         <AiIkon name={(ikon as never) ?? 'robot'} size={17} />
       </span>
-      <div className="agx-baris-teks">
-        <span className="agx-baris-nama">{nama}</span>
-        <span className="agx-baris-desk">{deskripsi}</span>
+      <div className="agset-baris-teks">
+        <span className="agset-baris-nama">{nama}</span>
+        <span className="agset-baris-desk">{deskripsi}</span>
       </div>
-      <div className="agx-baris-aksi">
+      <div className="agset-baris-aksi">
         {onToggle && (
-          <label className="agx-switch" title={tr('Enabled')}>
+          <label className="agset-switch" title={tr('Enabled')}>
             <input type="checkbox" checked={aktif} onChange={(e) => onToggle(e.target.checked)} />
             <span />
           </label>
         )}
-        <div className="agx-menu-wrap">
+        <div className="agset-menu-wrap">
           <button
             type="button"
-            className="agx-menu-btn"
+            className="agset-menu-btn"
             aria-label={tr('More')}
             data-testid={`agx-menu-${nama}`}
             onClick={onMenu}
@@ -563,7 +563,7 @@ function BarisAgen({
             ⋮
           </button>
           {menuBuka && (
-            <div className="agx-menu" role="menu">
+            <div className="agset-menu" role="menu">
               <button type="button" role="menuitem" data-testid="agx-menu-detail" onClick={onDetail}>
                 {tr('View Details')}
               </button>

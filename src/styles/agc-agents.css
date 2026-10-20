@@ -11,14 +11,14 @@
  *     edited. Two different row styles for the same list is what makes an
  *     editor feel like a different product.
  */
-.agx-pane {
+.agset-pane {
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
-.agx-head {
+.agset-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -26,7 +26,7 @@
   margin-bottom: 14px;
 }
 
-.agx-tanya {
+.agset-tanya {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -42,7 +42,7 @@
   vertical-align: middle;
 }
 
-.agx-btn-utama {
+.agset-btn-utama {
   padding: 6px 13px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -53,16 +53,16 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.agx-btn-utama:hover:not(:disabled) {
+.agset-btn-utama:hover:not(:disabled) {
   border-color: var(--accent);
   background: var(--surface-3, var(--surface-2));
 }
-.agx-btn-utama:disabled {
+.agset-btn-utama:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.agx-btn-batal {
+.agset-btn-batal {
   padding: 6px 13px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -71,12 +71,12 @@
   font-size: 12.5px;
   cursor: pointer;
 }
-.agx-btn-batal:hover {
+.agset-btn-batal:hover {
   color: var(--text);
   border-color: var(--border-strong);
 }
 
-.agx-kembali {
+.agset-kembali {
   padding: 2px 0;
   border: 0;
   background: transparent;
@@ -84,24 +84,24 @@
   font-size: 12.5px;
   cursor: pointer;
 }
-.agx-kembali:hover {
+.agset-kembali:hover {
   color: var(--text);
 }
 
 /* ── Section headings ───────────────────────────────────────────────────── */
-.agx-seksi {
+.agset-seksi {
   margin: 16px 0 8px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.01em;
 }
-.agx-seksi:first-of-type {
+.agset-seksi:first-of-type {
   margin-top: 4px;
 }
 
 /* ── Empty state ────────────────────────────────────────────────────────── */
-.agx-kosong {
+.agset-kosong {
   padding: 22px 16px;
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
@@ -109,7 +109,7 @@
   font-size: 12.5px;
   color: var(--text-muted);
 }
-.agx-tautan {
+.agset-tautan {
   border: 0;
   background: none;
   padding: 0;
@@ -121,13 +121,13 @@
 }
 
 /* ── Agent row ──────────────────────────────────────────────────────────── */
-.agx-daftar {
+.agset-daftar {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.agx-baris {
+.agset-baris {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -137,15 +137,15 @@
   background: var(--surface);
   transition: border-color 120ms, background 120ms;
 }
-.agx-baris:hover {
+.agset-baris:hover {
   border-color: var(--border-strong);
   background: var(--surface-2);
 }
-.agx-baris.is-mati {
+.agset-baris.is-mati {
   opacity: 0.55;
 }
 
-.agx-avatar {
+.agset-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -156,25 +156,25 @@
   background: var(--accent-subtle);
   color: var(--accent);
 }
-.agx-avatar-besar {
+.agset-avatar-besar {
   width: 48px;
   height: 48px;
   border-radius: 10px;
 }
 
-.agx-baris-teks {
+.agset-baris-teks {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
   flex: 1 1 auto;
 }
-.agx-baris-nama {
+.agset-baris-nama {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
-.agx-baris-desk {
+.agset-baris-desk {
   font-size: 11.5px;
   color: var(--text-muted);
   overflow: hidden;
@@ -182,7 +182,7 @@
   white-space: nowrap;
 }
 
-.agx-baris-aksi {
+.agset-baris-aksi {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -190,11 +190,11 @@
 }
 
 /* ── ⋮ menu ─────────────────────────────────────────────────────────────── */
-.agx-menu-wrap {
+.agset-menu-wrap {
   position: relative;
 }
 
-.agx-menu-btn {
+.agset-menu-btn {
   width: 24px;
   height: 24px;
   border: 0;
@@ -205,12 +205,12 @@
   line-height: 1;
   cursor: pointer;
 }
-.agx-menu-btn:hover {
+.agset-menu-btn:hover {
   background: var(--hover, rgba(127, 127, 127, 0.1));
   color: var(--text);
 }
 
-.agx-menu {
+.agset-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -224,7 +224,7 @@
   display: flex;
   flex-direction: column;
 }
-.agx-menu button {
+.agset-menu button {
   padding: 6px 9px;
   border: 0;
   border-radius: 5px;
@@ -234,34 +234,34 @@
   text-align: left;
   cursor: pointer;
 }
-.agx-menu button:hover {
+.agset-menu button:hover {
   background: var(--hover, rgba(127, 127, 127, 0.12));
 }
-.agx-menu button.is-hapus {
+.agset-menu button.is-hapus {
   color: var(--danger);
 }
 
 /* ── Switch ─────────────────────────────────────────────────────────────── */
-.agx-switch {
+.agset-switch {
   position: relative;
   display: inline-flex;
   width: 30px;
   height: 17px;
   cursor: pointer;
 }
-.agx-switch input {
+.agset-switch input {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
 }
-.agx-switch span {
+.agset-switch span {
   flex: 1 1 auto;
   border-radius: 999px;
   background: var(--border-strong);
   transition: background 140ms;
 }
-.agx-switch span::after {
+.agset-switch span::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -272,28 +272,28 @@
   background: #fff;
   transition: transform 140ms;
 }
-.agx-switch input:checked + span {
+.agset-switch input:checked + span {
   background: var(--accent);
 }
-.agx-switch input:checked + span::after {
+.agset-switch input:checked + span::after {
   transform: translateX(13px);
 }
 
 /* ── Details ────────────────────────────────────────────────────────────── */
-.agx-detail-head {
+.agset-detail-head {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 10px 0 4px;
 }
 
-.agx-kotak {
+.agset-kotak {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   background: var(--surface);
 }
-.agx-kotak-head {
+.agset-kotak-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -305,14 +305,14 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
-.agx-kotak-isi {
+.agset-kotak-isi {
   display: flex;
   flex-direction: column;
   gap: 0;
   padding: 3px 0;
 }
 
-.agx-tool-baris {
+.agset-tool-baris {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -320,22 +320,22 @@
   font-size: 12.5px;
   color: var(--text);
 }
-.agx-tool-pil {
+.agset-tool-pil {
   cursor: pointer;
 }
-.agx-tool-pil:hover {
+.agset-tool-pil:hover {
   background: var(--hover, rgba(127, 127, 127, 0.08));
 }
-.agx-tool-ikon {
+.agset-tool-ikon {
   display: inline-flex;
   flex: 0 0 auto;
   color: var(--text-muted);
 }
-.agx-tool-nama {
+.agset-tool-nama {
   flex: 0 0 auto;
   font-weight: 500;
 }
-.agx-tool-ket {
+.agset-tool-ket {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -343,25 +343,25 @@
   color: var(--text-muted);
   font-size: 11.5px;
 }
-.agx-muted {
+.agset-muted {
   padding: 4px 0;
   font-size: 11.5px;
   color: var(--text-muted);
 }
 
 /* ── Editor ─────────────────────────────────────────────────────────────── */
-.agx-avatar-baris {
+.agset-avatar-baris {
   display: flex;
   align-items: center;
   gap: 14px;
   margin: 10px 0 16px;
 }
-.agx-avatar-pilih {
+.agset-avatar-pilih {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
-.agx-ikon-pil {
+.agset-ikon-pil {
   width: 26px;
   height: 26px;
   display: inline-flex;
@@ -373,23 +373,23 @@
   color: var(--text-muted);
   cursor: pointer;
 }
-.agx-ikon-pil:hover {
+.agset-ikon-pil:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
-.agx-ikon-pil.is-on {
+.agset-ikon-pil.is-on {
   border-color: var(--accent);
   background: var(--accent-subtle);
   color: var(--accent);
 }
 
-.agx-field {
+.agset-field {
   display: flex;
   flex-direction: column;
   gap: 5px;
   margin-bottom: 14px;
 }
-.agx-field-label {
+.agset-field-label {
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -397,11 +397,11 @@
   font-weight: 600;
   color: var(--text);
 }
-.agx-field-label b {
+.agset-field-label b {
   color: var(--danger);
   font-weight: 600;
 }
-.agx-field-label em {
+.agset-field-label em {
   margin-left: auto;
   font-style: normal;
   font-size: 10.5px;
@@ -410,9 +410,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.agx-field input[type='text'],
-.agx-field input:not([type]),
-.agx-field textarea {
+.agset-field input[type='text'],
+.agset-field input:not([type]),
+.agset-field textarea {
   padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -422,13 +422,13 @@
   font-size: 12.5px;
   resize: vertical;
 }
-.agx-field input:focus,
-.agx-field textarea:focus {
+.agset-field input:focus,
+.agset-field textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.agx-toggle {
+.agset-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -436,19 +436,19 @@
   color: var(--text-secondary);
   cursor: pointer;
 }
-.agx-toggle input {
+.agset-toggle input {
   width: 14px;
   height: 14px;
   accent-color: var(--accent);
 }
 
-.agx-aksi {
+.agset-aksi {
   display: flex;
   gap: 8px;
   margin-top: 18px;
 }
 
-.agx-galat {
+.agset-galat {
   margin: 0 0 10px;
   padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
@@ -464,25 +464,25 @@
  * control on the SAME line as the title is what makes the scope read as a
  * property of that list rather than as a page-level tab.
  */
-.agx-seksi-baris {
+.agset-seksi-baris {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 18px 0 8px;
 }
-.agx-seksi-baris .agx-seksi {
+.agset-seksi-baris .agset-seksi {
   margin: 0;
 }
 
-.agx-seg {
+.agset-seg {
   display: inline-flex;
   padding: 2px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface);
 }
-.agx-seg-btn {
+.agset-seg-btn {
   padding: 3px 11px;
   border: 0;
   border-radius: 5px;
@@ -491,28 +491,28 @@
   font-size: 11.5px;
   cursor: pointer;
 }
-.agx-seg-btn:hover {
+.agset-seg-btn:hover {
   color: var(--text);
 }
-.agx-seg-btn.is-on {
+.agset-seg-btn.is-on {
   background: var(--surface-3, var(--surface-2));
   color: var(--text);
   font-weight: 500;
 }
 
 /* The empty state needs to stack: icon, sentence, button. */
-.agx-kosong {
+.agset-kosong {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 9px;
 }
-.agx-kosong-ikon {
+.agset-kosong-ikon {
   color: var(--text-muted);
   opacity: 0.7;
 }
 
-.agx-beta {
+.agset-beta {
   display: inline-block;
   margin-left: 5px;
   padding: 1px 5px;
@@ -524,11 +524,11 @@
   vertical-align: middle;
 }
 
-.agx-mem-toggle {
+.agset-mem-toggle {
   margin-bottom: 10px;
 }
 
-.agx-mem-kartu {
+.agset-mem-kartu {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -537,7 +537,7 @@
   border-radius: 8px;
   background: var(--surface);
 }
-.agx-mem-ikon {
+.agset-mem-ikon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -548,7 +548,7 @@
   background: color-mix(in srgb, #a78bfa 18%, transparent);
   color: #a78bfa;
 }
-.agx-mem-path {
+.agset-mem-path {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -560,7 +560,7 @@
  * label, so the row grows taller than an agent row. The inputs are bare - a
  * bordered field inside a bordered card is two boxes for one value.
  */
-.agx-hook-nama {
+.agset-hook-nama {
   border: 0;
   border-bottom: 1px solid transparent;
   background: transparent;
@@ -570,11 +570,11 @@
   padding: 1px 0;
   font-family: inherit;
 }
-.agx-hook-nama:focus {
+.agset-hook-nama:focus {
   outline: none;
   border-bottom-color: var(--accent);
 }
-.agx-hook-ev {
+.agset-hook-ev {
   margin-top: 3px;
   max-width: 260px;
   padding: 2px 4px;
@@ -585,14 +585,14 @@
   font-size: 11px;
   font-family: inherit;
 }
-.agx-hook-warn {
+.agset-hook-warn {
   margin-top: 3px;
   font-size: 10.5px;
   color: var(--warning, #d29922);
   line-height: 1.35;
 }
 
-.agx-pil {
+.agset-pil {
   padding: 6px 9px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -603,7 +603,7 @@
   max-width: 320px;
 }
 
-.agx-log-baris {
+.agset-log-baris {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -613,7 +613,7 @@
   border-radius: 8px;
   background: var(--surface);
 }
-.agx-log {
+.agset-log {
   margin: 8px 0 0;
   padding: 9px 11px;
   border: 1px solid var(--border);
@@ -626,7 +626,7 @@
   white-space: pre-wrap;
 }
 
-.agx-btn-hapus {
+.agset-btn-hapus {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -639,10 +639,10 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.agx-btn-hapus:hover:not(:disabled) {
+.agset-btn-hapus:hover:not(:disabled) {
   background: color-mix(in srgb, var(--danger) 20%, transparent);
 }
-.agx-btn-hapus:disabled {
+.agset-btn-hapus:disabled {
   opacity: 0.6;
   cursor: default;
 }
@@ -651,12 +651,12 @@
  * A rule is prose, so the modal gives the textarea the room: a rule can be one
  * line or forty, and a two-row box would make the long case look like a mistake.
  */
-.agx-rule-modal {
+.agset-rule-modal {
   max-width: 680px;
   width: min(680px, 94vw);
 }
 
-.agx-rule-teks {
+.agset-rule-teks {
   min-height: 220px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -665,14 +665,14 @@
 }
 
 /* Bar above a list: a count on the left, the Create button on the right. */
-.agx-bar {
+.agset-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
 
-.agx-cari {
+.agset-cari {
   flex: 1 1 auto;
   min-width: 0;
   padding: 6px 10px;
@@ -683,25 +683,25 @@
   font-size: 12px;
   font-family: inherit;
 }
-.agx-cari:focus {
+.agset-cari:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.agx-toggle-inline {
+.agset-toggle-inline {
   flex: 0 0 auto;
   white-space: nowrap;
   font-size: 11.5px;
 }
 
-.agx-skill-catatan {
+.agset-skill-catatan {
   margin-top: 2px;
   font-size: 10.5px;
   line-height: 1.35;
   color: var(--warning, #d29922);
 }
 
-.agx-chip-kecil {
+.agset-chip-kecil {
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: 999px;
@@ -717,21 +717,21 @@
  * telling one mark from another - a 13px row could not do that, which is why
  * the old inline palette was replaced.
  */
-.agx-dialog {
+.agset-dialog {
   max-width: 460px;
   width: min(460px, 94vw);
 }
-.agx-dialog:focus {
+.agset-dialog:focus {
   outline: none;
 }
 
-.agx-dialog-tengah {
+.agset-dialog-tengah {
   display: flex;
   justify-content: center;
   padding: 8px 0 14px;
 }
 
-.agx-avatar-jumbo {
+.agset-avatar-jumbo {
   width: 84px;
   height: 84px;
   border-radius: 18px;
@@ -739,14 +739,14 @@
   color: var(--accent);
 }
 
-.agx-avatar-grid {
+.agset-avatar-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 6px;
   margin-bottom: 12px;
 }
 
-.agx-avatar-pil {
+.agset-avatar-pil {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -757,49 +757,49 @@
   color: var(--text-secondary);
   cursor: pointer;
 }
-.agx-avatar-pil:hover {
+.agset-avatar-pil:hover {
   border-color: var(--border-strong);
   color: var(--text);
   background: var(--surface-2);
 }
-.agx-avatar-pil.is-on {
+.agset-avatar-pil.is-on {
   border-color: var(--accent);
   background: var(--accent-subtle);
   color: var(--accent);
 }
 
-.agx-dialog-aksi {
+.agset-dialog-aksi {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 7px;
   margin-bottom: 4px;
 }
-.agx-dialog-catatan {
+.agset-dialog-catatan {
   flex: 1 1 auto;
   text-align: right;
   font-size: 10.5px;
 }
 
 /* The avatar as a button: it must look pressable, not decorative. */
-.agx-avatar-tombol {
+.agset-avatar-tombol {
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
   transition: border-color 120ms, background 120ms;
 }
-.agx-avatar-tombol:hover {
+.agset-avatar-tombol:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.agx-avatar-ket {
+.agset-avatar-ket {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.agx-smart-teks {
+.agset-smart-teks {
   font-family: inherit;
   font-size: 12.5px;
   line-height: 1.55;
@@ -810,7 +810,7 @@
  * "default browser" and "clear data" look like the same kind of choice, which
  * is why they are now in separate cards with their own heading.
  */
-.agx-kartu-setelan {
+.agset-kartu-setelan {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -818,7 +818,7 @@
   margin-bottom: 4px;
 }
 
-.agx-kartu-baris {
+.agset-kartu-baris {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -826,15 +826,15 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
-.agx-kartu-baris:last-child {
+.agset-kartu-baris:last-child {
   border-bottom: 0;
 }
-.agx-kartu-baris .agx-baris-teks {
+.agset-kartu-baris .agset-baris-teks {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.agx-seg-jml {
+.agset-seg-jml {
   margin-left: 5px;
   padding: 0 5px;
   border-radius: 999px;
@@ -844,17 +844,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.agx-cari-sempit {
+.agset-cari-sempit {
   flex: 0 1 180px;
   min-width: 100px;
 }
 
-.agx-baris.is-aktif {
+.agset-baris.is-aktif {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
-.agx-chip-kecil.is-on {
+.agset-chip-kecil.is-on {
   background: color-mix(in srgb, var(--success, #3fb950) 20%, transparent);
   color: var(--success, #3fb950);
 }

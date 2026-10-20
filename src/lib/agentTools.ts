@@ -30,6 +30,21 @@ import { AWALAN_MCP, POLA_AWALAN_MCP } from './zephyrTools/awalan';
 import { mcpExternalSpecs, pecahNamaMcp } from './mcpTools';
 import { asZephyrError, fsRead, fsStat, fsRealpath } from './commands';
 import { useStore } from './store';
+import { perubahanTool, pasangJembatanBacaDiff } from './zephyrTools/perubahanTool';
+
+/*
+ * The diff tracker reads files through the same `fsRead` every tool uses. Bound
+ * once at module load: a file that cannot be read (a directory, a delete of a
+ * file already gone) yields null, which the tracker treats as "no information"
+ * rather than as an empty file.
+ */
+pasangJembatanBacaDiff(async (p) => {
+  try {
+    return (await fsRead(p)).content;
+  } catch {
+    return null;
+  }
+});
 
 export { TOOL_TULIS };
 
@@ -323,7 +338,13 @@ export async function jalankanAgentTool(
        hanya untuk `zephyr_kode`, dan hanya kalau ada folder terbuka. Kalau
        tidak, tool-nya menjawab "belum tersambung" apa adanya. */
     if (targetName === 'zephyr_kode') pasangJembatanBacaKodeDariWorkspace();
-    return await tool.run(args);
+    /*
+     * Every write goes through the diff tracker, so the "files changed" card
+     * and the DiffView tab describe the AI's own change - not `git diff`, which
+     * answers nothing outside a repo and mixes in edits the user made before the
+     * run. Installed here, at the one choke point, rather than at each tool.
+     */
+    return await perubahanTool.jalankan(targetName, args, () => tool.run(args));
   } catch (e) {
     throw galatToolUntukModel(e, targetName);
   }

@@ -13,6 +13,7 @@
     "verify:06": "node scripts/verify06.mjs",
     "verify:08": "node scripts/verify08.mjs",
     "verify:09": "node scripts/verify09.mjs",
+    "uji:diff": "node scripts/uji-diff.mjs",
     "verify:10": "node scripts/verify10.mjs",
     "verify:11": "node scripts/verify11.mjs",
     "verify:12": "node scripts/verify12.mjs",

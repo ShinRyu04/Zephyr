@@ -798,6 +798,9 @@ const ON_DEMAND: { penanda: string; kelas: string }[] = [
   { penanda: '- "AI Models" (Settings group', kelas: 'model' },
   /* Jalur log: kelas `galat`, yang memang blok prosedur debugging. */
   { penanda: '- Logs: %APPDATA%', kelas: 'galat' },
+  /* Baris setelan LSP: kelas yang sama, karena pertanyaannya selalu "kenapa
+     LSP/garis merah begini". Kalau penandanya hilang, baris tetap di blok inti. */
+  { penanda: '- lsp: enabled=', kelas: 'galat' },
 ];
 
 /**
@@ -988,11 +991,11 @@ const KONDISIONAL: AturanKondisional[] = [
   },
   {
     kelas: 'galat',
-    cocok: /\b(error|err|gagal|rusak|crash|hang|macet|tidak jalan|nggak jalan|log|debug|lsp)\b/i,
+    cocok: /\b(error|err|gagal|rusak|crash|hang|macet|tidak jalan|nggak jalan|log|debug|lsp|language servers?|squiggly|squiggle|diagnostics?|masalah bahasa|server bahasa)\b/i,
     teks: (bahasa) =>
       bahasa === 'id'
-        ? `# Prosedur tambahan: ada yang bermasalah\n${faktaOnDemand('galat')}\n- Urutannya: blok keadaan di atas (yang dilaporkan aplikasi ini GILIRAN INI) -> tab Problems/Output di panel bawah -> berkas log di atas (satu berkas per hari). Kumpulkan bukti dulu; jangan menebak sebab dari nama berkas. Port 9223 itu CDP WebView2 (debug), bukan MCP.\n- Satu langkah, lalu baca hasilnya. Panggilan tool yang gagal adalah HASIL, bukan jalan buntu: laporkan error-nya apa adanya, jangan diam-diam mencoba hal lain.`
-        : `# Extra procedure: something is broken\n${faktaOnDemand('galat')}\n- Order: the state block above (what the app reports about itself THIS turn) -> the Problems/Output tabs of the bottom panel -> the log file above (one file per day). Gather evidence first; do not guess a cause from a file name. Port 9223 is the WebView2 CDP debug port, not MCP.\n- One step, then read the result. A failed tool call is a RESULT, not a dead end: report its exact error instead of silently trying something else.`,
+        ? `# Prosedur tambahan: ada yang bermasalah\n${faktaOnDemand('galat')}\n- Urutannya: blok keadaan di atas (yang dilaporkan aplikasi ini GILIRAN INI) -> tab Problems/Output di panel bawah -> berkas log di atas (satu berkas per hari). Kumpulkan bukti dulu; jangan menebak sebab dari nama berkas. Port 9223 itu CDP WebView2 (debug), bukan MCP.\n- Satu langkah, lalu baca hasilnya. Panggilan tool yang gagal adalah HASIL, bukan jalan buntu: laporkan error-nya apa adanya, jangan diam-diam mencoba hal lain.\n- Bahasa: 88 itu paket GRAMMAR bawaan (\`PAKET_BAHASA\`, pewarnaan + squiggle sintaks, tanpa type-check). Language SERVER hanya 21 baris di \`src/lib/lsp.ts\` dan tiap baris binary luar yang harus dipasang user - \`lsp.enabled=true\` cuma sakelar induk, bukan bukti servernya ada. "88 language server" itu SALAH: katakan 88 grammar, 21 server.\n- Garis merah bukan bukti ada error compile, dan daftar diagnostics kosong BUKAN berarti "bersih": kosong juga bisa berarti belum ada yang membaca berkasnya. Sebut bersih hanya kalau server benar-benar memeriksa berkas ITU; server hanya melapor untuk dokumen yang sudah dibuka di editor.`
+        : `# Extra procedure: something is broken\n${faktaOnDemand('galat')}\n- Order: the state block above (what the app reports about itself THIS turn) -> the Problems/Output tabs of the bottom panel -> the log file above (one file per day). Gather evidence first; do not guess a cause from a file name. Port 9223 is the WebView2 CDP debug port, not MCP.\n- One step, then read the result. A failed tool call is a RESULT, not a dead end: report its exact error instead of silently trying something else.\n- Languages: the 88 are bundled GRAMMAR packages (\`PAKET_BAHASA\` - colouring plus the editor's own syntax squiggles, no type-check). Language SERVERS are only 21 rows in \`src/lib/lsp.ts\`, each an external binary the user must install; \`lsp.enabled=true\` is a master switch, not proof one exists. "88 language servers" is FALSE - say 88 grammars, 21 servers.\n- A red squiggle is NOT proof of a compile error, and an empty diagnostics list does NOT mean "clean": it also means nothing has read the file yet. Only say clean when a server really checked THIS file; a server only reports on documents opened in the editor.`,
   },
   {
     kelas: 'keamanan',

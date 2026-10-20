@@ -369,7 +369,7 @@ export function AddModelDialog({
               </span>
               <button
                 type="button"
-                className="agx-tautan"
+                className="agset-tautan"
                 data-testid="aim-add-ganti-prov"
                 onClick={() => setProvider(null)}
               >
@@ -495,7 +495,7 @@ export function AddModelDialog({
                   <span>{tr('Tick the models to add')}</span>
                   <button
                     type="button"
-                    className="agx-tautan"
+                    className="agset-tautan"
                     onClick={() =>
                       setDipilih(
                         dipilih.size === terdeteksi.length ? new Set() : new Set(terdeteksi),
