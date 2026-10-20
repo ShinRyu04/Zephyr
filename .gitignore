@@ -3,6 +3,11 @@ node_modules/
 dist/
 .vite/
 src-tauri/target/
+# Target dir alternatif. Dulu `CARGO_TARGET_DIR=target2` sekali dipakai dan
+# meninggalkan 11,5 GB artefak yang TIDAK tercakup `src-tauri/target/`, jadi
+# `git status` menawarkan seluruh isinya untuk di-commit.
+src-tauri/target*/
+target2/
 src-tauri/gen/
 # Verifikator tanda tangan rilis punya target/ sendiri. Tanpa baris ini, 15 MB
 # artefak build ikut ter-commit setiap kali ia dibangun ulang.

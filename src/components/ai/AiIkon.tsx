@@ -41,6 +41,7 @@ export type NamaAiIkon =
        answerable at a glance, from across the panel. */
     | 'speaker-on'
     | 'plus'
+    | 'diff'
     | 'search'
     | 'chev-up'
     | 'chev-down'
@@ -320,6 +321,17 @@ export default function AiIkon({ name, size = 15 }: Props) {
       return (
         <svg {...box}>
           <path d="M8 3.2v9.6M3.2 8h9.6" />
+        </svg>
+      );
+    /*
+     * Two stacked rows, one with a minus and one with a plus: the universal
+     * "show me the diff" mark. Drawn as rows rather than as the usual fork
+     * glyph so it still reads at 12px, which is the size the card uses.
+     */
+    case 'diff':
+      return (
+        <svg {...box}>
+          <path d="M2.5 5h4M2.5 11h4M9.5 5h4M11.5 3v4" />
         </svg>
       );
     // A chevron: this control opens a menu.

@@ -1,4 +1,4 @@
-﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAi,
   extractCommand,
@@ -38,8 +38,10 @@ import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
+import PerubahanBerkas from './PerubahanBerkas';
 import { DayDivider } from './ChatStamp';
-import type { ChatMsg } from '../../lib/types';
+import type { ChatMsg, AgentToolRun } from '../../lib/types';
+import { namaToolTulis, pathsDari } from '../../lib/zephyrTools/tulisBerkas';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import TodoPanel from './TodoPanel';
@@ -72,6 +74,23 @@ import StatusArea from './StatusArea';
  * state (cleared chat, first run before init()) is exactly when that fires.
  */
 const PESAN_KOSONG: ChatMsg[] = [];
+
+/*
+ * Close the transcript with the session's "files changed" card.
+ *
+ * WHY once per SESSION and not once per turn: the card answers "what has this
+ * chat touched?", and a turn-scoped card answered a narrower question while
+ * looking like the wider one. Five rewrites of the same file produced five
+ * cards, each listing the same path with a fifth of the numbers, and the
+ * reader had to add them up. The session map is built once in `PesanList`.
+ *
+ * Only when the session actually wrote something - a read-only chat shows no
+ * card at all, and `PerubahanBerkas` returns null for an empty map anyway.
+ */
+function kartu(baris: React.ReactNode[], peta: Map<string, AgentToolRun[]>): React.ReactNode {
+  if (peta.size === 0) return baris;
+  return [...baris, <PerubahanBerkas key="ubah-sesi" peta={peta} />];
+}
 
 /*
  * Same trick for the per-surface queue: a stable empty array, so the selector's
@@ -146,6 +165,46 @@ const PesanList = memo(function PesanList({
   });
 
   /*
+   * Every file this CHAT SESSION wrote, in first-touch order.
+   *
+   * WHY it is computed here and not inside `PerubahanBerkas`: the card reads
+   * this to show one "files changed" summary per session. Computing it inside
+   * the card would mean every message's card walked the whole transcript, so a
+   * 200-message session would pay for 200 full scans on every streamed token.
+   * One pass here, memoised on the message list, is O(n) once.
+   *
+   * A tool row is included only when it succeeded OR carried numbers: a call
+   * rejected by a gate never wrote anything, and listing it would claim a file
+   * changed when none did.
+   */
+  const berkasSesi = useMemo(() => {
+    const peta = new Map<string, AgentToolRun[]>();
+    for (const m of msgs) {
+      if (!m.tools) continue;
+      for (const t of m.tools) {
+        if (!namaToolTulis(t.name)) continue;
+        /* A call rejected before it ran wrote nothing; a FAILED call may still
+           have written half a patch, so only the untouched ones are dropped. */
+        if (t.ok === false && typeof t.additions !== 'number') continue;
+        let args: Record<string, unknown> = {};
+        try {
+          const o = JSON.parse(t.args || '{}');
+          if (o && typeof o === 'object') args = o as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+        const paths = pathsDari(args, t.result ?? '');
+        for (const p of paths) {
+          const ada = peta.get(p);
+          if (ada) ada.push(t);
+          else peta.set(p, [t]);
+        }
+      }
+    }
+    return peta;
+  }, [msgs]);
+
+  /*
    * Keep the newest output in view while the agent works.
    *
    * "Lengket ke bawah" (stick-to-bottom), bukan "cek jarak < 120px tiap render".
@@ -200,7 +259,7 @@ const PesanList = memo(function PesanList({
   /* From Chat Settings. Turning it off must actually remove the dividers. */
   if (!showDividers) {
     for (const m of msgs) baris.push(<ChatMessage key={m.id} msg={m} />);
-    return <>{baris}</>;
+    return <>{kartu(baris, berkasSesi)}</>;
   }
   for (const m of msgs) {
     const t = new Date(m.at);
@@ -220,7 +279,7 @@ const PesanList = memo(function PesanList({
     }
     baris.push(<ChatMessage key={m.id} msg={m} />);
   }
-  return <>{baris}</>;
+  return <>{kartu(baris, berkasSesi)}</>;
 });
 
 function AiPanelInner({ composerId = '' }: { composerId?: string }) {
@@ -2935,21 +2994,30 @@ const bukaModels = () => bukaPanel('models');
         */}
       {agentTanya && (
         <div className="ai-tanya" role="alertdialog" data-testid="ai-agent-tanya">
-          <p className="ai-tanya-label">{tr('The agent needs your answer')}</p>
+          <p className="ai-tanya-label">
+            <span className="ai-tanya-dot" aria-hidden="true" />
+            {tr('The agent needs your answer')}
+          </p>
           <p className="ai-tanya-isi">{agentTanya.pertanyaan}</p>
           {agentTanya.pilihan.length > 0 && (
-            <div className="ai-tanya-pilihan">
-              {agentTanya.pilihan.map((p, i) => (
-                <button
-                  key={i}
-                  className="btn btn-sm"
-                  data-testid={`ai-tanya-pilih-${i}`}
-                  onClick={() => jawabTanya(p)}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="ai-tanya-pilihan">
+                {agentTanya.pilihan.map((p, i) => (
+                  <button
+                    key={i}
+                    className="ai-tanya-op"
+                    data-testid={`ai-tanya-pilih-${i}`}
+                    onClick={() => jawabTanya(p)}
+                  >
+                    <span className="ai-tanya-op-teks">{p}</span>
+                    <span className="ai-tanya-op-panah" aria-hidden="true">
+                      →
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="ai-tanya-pemisah">{tr('or write your own')}</p>
+            </>
           )}
           <div className="ai-tanya-isi-jawab">
             <input

@@ -1,33 +1,35 @@
-/**
- * Placeholder sementara untuk jendela Agents.
+import { useState } from 'react';
+import AgentsTitleBar from './AgentsTitleBar';
+import AgentsSidebar from './AgentsSidebar';
+import AgentsKontrolSudut from './AgentsKontrolSudut';
+import AgentsComposer from './AgentsComposer';
+/* Gaya jendela ini (`.agx-*`). Ia halaman sendiri (`#agents`), bukan bagian
+   panel editor, jadi berkasnya dimuat di sini — `App.tsx` tidak mengimpornya. */
+import '../../styles/agents2.css';
+
+/*
+ * Kerangka jendela Agents.
  *
- * Seluruh isi jendela ini sudah dibongkar (dihapus) dan akan ditulis ulang dari
- * nol. File ini hanya menjaga satu hal: `AgentsWindow.tsx` meng-import modul ini
- * secara lazy, dan Vite menolak mentransformasi file dengan import yang tidak
- * bisa di-resolve. Karena `AgentsWindow` diimpor statis dari entry point, import
- * yang gagal itu ikut mematikan main window — layar berhenti di
- * "ZEPHYR Menyiapkan editor…".
- *
- * Jadi jangan hapus file ini selama isi jendela Agents belum ditulis ulang.
+ * Jendela ini frameless (`decorations: false`), jadi seluruh chrome-nya digambar
+ * sendiri. Isinya: title bar di atas, sidebar di kiri, lalu kotak besar di
+ * tengah yang memuat kontrol sudut (`IDE ↗` + toggle panel kanan) dan composer.
  */
 export default function AgentsApp() {
+  const [sidebarTerbuka, setSidebarTerbuka] = useState(true);
+
   return (
-    <div
-      className="agents-window-root"
-      data-testid="agents-placeholder"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        padding: '24px',
-        color: 'var(--text-muted)',
-        fontFamily: 'var(--font-mono)',
-        fontSize: '13px',
-        textAlign: 'center',
-      }}
-    >
-      Jendela Agents sedang dibangun ulang.
+    <div className="agx" data-testid="agx-root">
+      <AgentsTitleBar
+        sidebarTerbuka={sidebarTerbuka}
+        onToggleSidebar={() => setSidebarTerbuka((v) => !v)}
+      />
+      <div className="agx-body">
+        {sidebarTerbuka && <AgentsSidebar />}
+        <main className="agx-canvas" data-testid="agx-canvas">
+          <AgentsKontrolSudut />
+          <AgentsComposer />
+        </main>
+      </div>
     </div>
   );
 }

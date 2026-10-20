@@ -91,10 +91,10 @@ export default function AgcBrowser() {
         : tr('Local and external links open in different places.');
 
   return (
-    <div className="agc-pane agx-pane" data-testid="agx-browser">
+    <div className="agc-pane agset-pane" data-testid="agx-browser">
       <h2 className="agc-pane-title">
         {tr('Browser')}{' '}
-        <span className="agx-tanya" title={tr('How the agent opens and captures web pages.')}>
+        <span className="agset-tanya" title={tr('How the agent opens and captures web pages.')}>
           ?
         </span>
       </h2>
@@ -103,18 +103,18 @@ export default function AgcBrowser() {
       </p>
 
       {/* ── 1. General ─────────────────────────────────────────────────── */}
-      <h3 className="agx-seksi">{tr('General')}</h3>
+      <h3 className="agset-seksi">{tr('General')}</h3>
 
-      <div className="agx-kartu-setelan">
-        <div className="agx-kartu-baris">
-          <div className="agx-baris-teks">
-            <span className="agx-baris-nama">{tr('Default Browser for AI Tasks')}</span>
-            <span className="agx-baris-desk">
+      <div className="agset-kartu-setelan">
+        <div className="agset-kartu-baris">
+          <div className="agset-baris-teks">
+            <span className="agset-baris-nama">{tr('Default Browser for AI Tasks')}</span>
+            <span className="agset-baris-desk">
               {tr(PILIHAN.find((p) => p.id === bawaan)?.ket ?? '')}
             </span>
           </div>
           <select
-            className="agx-pil"
+            className="agset-pil"
             data-testid="agx-br-bawaan"
             aria-label={tr('Default Browser for AI Tasks')}
             value={bawaan}
@@ -128,14 +128,14 @@ export default function AgcBrowser() {
           </select>
         </div>
 
-        <div className="agx-kartu-baris">
-          <div className="agx-baris-teks">
-            <span className="agx-baris-nama">{tr('Auto Screenshot')}</span>
-            <span className="agx-baris-desk">
+        <div className="agset-kartu-baris">
+          <div className="agset-baris-teks">
+            <span className="agset-baris-nama">{tr('Auto Screenshot')}</span>
+            <span className="agset-baris-desk">
               {tr('Automatically capture a screenshot after browser actions, for display only.')}
             </span>
           </div>
-          <label className="agx-switch" title={tr('Auto Screenshot')}>
+          <label className="agset-switch" title={tr('Auto Screenshot')}>
             <input
               type="checkbox"
               data-testid="agx-br-autoshot"
@@ -148,18 +148,18 @@ export default function AgcBrowser() {
       </div>
 
       {/* ── 2. URL opening ─────────────────────────────────────────────── */}
-      <h3 className="agx-seksi">{tr('URL Link Opening')}</h3>
+      <h3 className="agset-seksi">{tr('URL Link Opening')}</h3>
 
-      <div className="agx-kartu-setelan">
-        <div className="agx-kartu-baris">
-          <div className="agx-baris-teks">
-            <span className="agx-baris-nama">{tr('Local URL')}</span>
-            <span className="agx-baris-desk">
+      <div className="agset-kartu-setelan">
+        <div className="agset-kartu-baris">
+          <div className="agset-baris-teks">
+            <span className="agset-baris-nama">{tr('Local URL')}</span>
+            <span className="agset-baris-desk">
               {tr('For example localhost:3000, the dev server you are working on.')}
             </span>
           </div>
           <select
-            className="agx-pil"
+            className="agset-pil"
             data-testid="agx-br-lokal"
             aria-label={tr('Local URL')}
             value={urlLokal}
@@ -173,15 +173,15 @@ export default function AgcBrowser() {
           </select>
         </div>
 
-        <div className="agx-kartu-baris">
-          <div className="agx-baris-teks">
-            <span className="agx-baris-nama">{tr('External URL')}</span>
-            <span className="agx-baris-desk">
+        <div className="agset-kartu-baris">
+          <div className="agset-baris-teks">
+            <span className="agset-baris-nama">{tr('External URL')}</span>
+            <span className="agset-baris-desk">
               {tr('Any other address the agent opens, such as documentation or a repository.')}
             </span>
           </div>
           <select
-            className="agx-pil"
+            className="agset-pil"
             data-testid="agx-br-luar"
             aria-label={tr('External URL')}
             value={urlLuar}
@@ -196,23 +196,23 @@ export default function AgcBrowser() {
         </div>
       </div>
 
-      <p className="agx-muted" data-testid="agx-br-ringkas">
+      <p className="agset-muted" data-testid="agx-br-ringkas">
         {ringkasUrl}
       </p>
 
       {/* ── 3. Browser data ────────────────────────────────────────────── */}
-      <h3 className="agx-seksi">{tr('Built-in Browser')}</h3>
+      <h3 className="agset-seksi">{tr('Built-in Browser')}</h3>
 
-      <div className="agx-log-baris">
-        <div className="agx-baris-teks">
-          <span className="agx-baris-nama">{tr('Browser Data')}</span>
-          <span className="agx-baris-desk">
+      <div className="agset-log-baris">
+        <div className="agset-baris-teks">
+          <span className="agset-baris-nama">{tr('Browser Data')}</span>
+          <span className="agset-baris-desk">
             {tr('Website data stored in the built-in browser, such as cookies and local storage.')}
           </span>
         </div>
         <button
           type="button"
-          className="agx-btn-hapus"
+          className="agset-btn-hapus"
           data-testid="agx-br-clear"
           disabled={sibuk}
           onClick={() => void bersihkan()}
@@ -222,7 +222,7 @@ export default function AgcBrowser() {
         </button>
       </div>
       {pesan && (
-        <p className="agx-log" data-testid="agx-br-pesan" role="status">
+        <p className="agset-log" data-testid="agx-br-pesan" role="status">
           {pesan}
         </p>
       )}

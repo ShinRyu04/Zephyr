@@ -1,7 +1,8 @@
-/* ai-perubahan.css — the "files changed" card that closes an agent turn.
+/* ai-perubahan.css — the "files changed" card that closes a chat transcript.
  *
- * Centred, like the reference: the card summarises the turn rather than adding
- * another step to it, so it reads as a break between the work and the answer.
+ * A folder tree, following the reference: a folder row per directory carrying
+ * that folder's totals, a file row under it with the extension icon, the name,
+ * the folder as dim context and `+N -N` flush right.
  *
  * Two animations, both pure CSS:
  *   - the body expands via `grid-template-rows: 0fr -> 1fr`, so the height is
@@ -32,12 +33,25 @@
 
 /* ── Header ───────────────────────────────────────────────────────────── */
 
+/*
+ * Toggle + Diff pill live side by side. The wrapper, not the button, spans the
+ * row, so the pill is a sibling of the toggle (no nested buttons) and still
+ * sits at the right edge.
+ */
+.ai-ubah-head-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
 .ai-ubah-head {
   display: flex;
   align-items: center;
   gap: 7px;
-  width: 100%;
-  padding: 2px 10px 2px 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 4px 2px 4px;
   font-family: inherit;
   font-size: 12px;
   color: var(--text-muted);
@@ -92,6 +106,42 @@
   color: var(--deleted);
 }
 
+/*
+ * The Diff pill in the card header.
+ *
+ * Sits after the totals and looks pressable — bordered, unlike the flat rows
+ * below — because it is the only thing in this card that does NOT fold it.
+ * Without a border it read as one more piece of the header text and the
+ * pointer cursor was the only hint it could be clicked.
+ */
+.ai-ubah-diff {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 7px 1px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-ubah-diff:hover {
+  color: var(--text);
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+}
+
+.ai-ubah-diff:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* ── Body: real height animation ──────────────────────────────────────── */
 
 /*
@@ -115,23 +165,89 @@
   overflow: hidden;
 }
 
-/* ── Rows ─────────────────────────────────────────────────────────────── */
+/* The list itself. It gets its own scroller because a long session writes to
+   dozens of files, and a card that grew without bound would push the answer
+   off the bottom of the transcript. */
+.ai-ubah-gulir {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Folder rows ──────────────────────────────────────────────────────── */
+
+.ai-ubah-folder + .ai-ubah-folder {
+  margin-top: 2px;
+}
+
+.ai-ubah-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-ubah-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-ubah-folder-head:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+  color: var(--text);
+}
+
+.ai-ubah-folder-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ai-ubah-folder-ikon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.ai-ubah-folder-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The path varies in length; the totals must stay put at the right edge. */
+  direction: rtl;
+  text-align: left;
+}
+
+/* ── File rows ────────────────────────────────────────────────────────── */
 
 .ai-ubah-baris {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 4px;
   width: 100%;
-  padding: 3px 10px 3px 21px;
+  padding: 1px 4px 1px 26px;
   font-family: inherit;
   font-size: 11.5px;
   color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  border-top: 0;
-  border-radius: 0;
-  cursor: pointer;
-  text-align: left;
+  border-radius: 5px;
 
   /*
    * The stagger. `--i` is set inline per row; multiplying it here keeps the
@@ -147,9 +263,26 @@
   color: var(--text);
 }
 
-.ai-ubah-baris:focus-visible {
+.ai-ubah-baris-buka {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-ubah-baris-buka:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+  border-radius: 4px;
 }
 
 .ai-ubah-ikon {
@@ -162,17 +295,69 @@
   color: var(--danger);
 }
 
-.ai-ubah-path {
-  flex: 1 1 auto;
+/* The file name is the thing being scanned for, so it gets the normal tone;
+   the folder repeats what the folder row already said, so it steps back. */
+.ai-ubah-nama {
+  flex: 0 1 auto;
   min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* The path is the part that varies in length; the numbers must stay put. */
+}
+
+/* The folder repeats itself on every row underneath, so it steps back to
+   near-invisible: still readable on hover, never competing with the name. */
+.ai-ubah-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   direction: rtl;
   text-align: left;
+}
+
+/* Per-file Diff: faint until the row is hovered or the control is focused, so
+   a thirty-file list is not thirty buttons shouting at once. */
+.ai-ubah-file-diff {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  user-select: none;
+}
+
+.ai-ubah-baris:hover .ai-ubah-file-diff,
+.ai-ubah-baris:focus-within .ai-ubah-file-diff,
+.ai-ubah-file-diff:focus-visible {
+  opacity: 1;
+}
+
+.ai-ubah-file-diff:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.ai-ubah-file-diff:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The folder's Diff pill is the same pill as the header's, one size down. */
+.ai-ubah-diff-kecil {
+  margin-left: 0;
+  padding: 0 6px;
+  font-size: 10.5px;
+  line-height: 15px;
 }
 
 @keyframes ai-ubah-masuk {

@@ -26,10 +26,29 @@
   padding: 0;
   gap: 0;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: var(--ai-dock-radius, 10px);
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 3%) inset;
   overflow: visible;
   transition: border-color 120ms ease;
+}
+
+/* The composer stands apart from the status stack above it: both are cards. */
+.ai-work-stack + .ai-input-row {
+  margin-top: 10px;
+  border-radius: var(--ai-dock-radius, 10px);
+}
+
+/*
+ * The card must float on all four sides.
+ *
+ * `ai.css` pins `.ai-panel .ai-input-row { margin-bottom: 0 }` so the old flat
+ * composer sat flush on the panel floor. On a card that reads as a box glued to
+ * the bottom edge, which is exactly what "belum kotak" described. The bottom
+ * gap is restored here because this file is loaded last.
+ */
+.ai-panel .ai-input-row {
+  margin-bottom: 12px;
 }
 
 .ai-input-row:focus-within {
