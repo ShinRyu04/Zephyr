@@ -546,6 +546,38 @@ fn preset(nama: &str) -> Option<Matcher> {
             4,
             "error",
         ),
+
+        /*
+         * javac prints `Main.java:3: error: ';' expected` - file, line, then
+         * the severity BEFORE the message, which is why `$gcc` cannot serve it
+         * (that one has `:col:` between line and severity). The column is left
+         * unset: javac only prints one for some diagnostics, and a wrong column
+         * puts the caret on the wrong character.
+         */
+        "$javac" => m(
+            "$javac",
+            r"^\s*(\S.*?\.java):(\d+):\s+(error|warning|note):\s+(.*)$",
+            1,
+            2,
+            0,
+            3,
+            0,
+            4,
+            "error",
+        ),
+
+        /* `a.c:7: error: ...` - from `dotnet build`, which omits the column. */
+        "$csc" => m(
+            "$csc",
+            r"^\s*(\S.*?):(\d+):\s*error\s+(CS\d+):\s+(.*)$",
+            1,
+            2,
+            0,
+            0,
+            3,
+            4,
+            "error",
+        ),
         _ => None,
     }
 }
@@ -682,6 +714,8 @@ pub fn tasks_matchers() -> Vec<String> {
         "$gcc".into(),
         "$cargo".into(),
         "$go".into(),
+        "$javac".into(),
+        "$csc".into(),
     ]
 }
 
@@ -1277,6 +1311,41 @@ mod tests {
     fn alias_matcher_watch_dikenal() {
         for nama in ["$tsc-watch", "$eslint-stylish", "$gcc-compile", "$rustc"] {
             assert!(preset(nama).is_some(), "alias {nama} harus punya pola",);
+        }
+    }
+
+    #[test]
+    fn matcher_javac_tanpa_kolom() {
+        let mut st = MatcherState::baru(&["$javac".to_string()]);
+        let p = st
+            .proses("Main.java:3: error: ';' expected", Path::new("D:/p"))
+            .expect("baris javac harus cocok");
+        assert_eq!(p.line, 3);
+        assert_eq!(p.column, 1);
+        assert_eq!(p.severity, "error");
+        assert!(p.message.contains("';' expected"));
+        let w = st
+            .proses("Catatan.java:10: warning: [deprecation] run()", Path::new("D:/p"))
+            .expect("warning javac harus cocok");
+        assert_eq!(w.severity, "warning");
+    }
+
+    #[test]
+    fn matcher_csc_ambil_kode_cs() {
+        let mut st = MatcherState::baru(&["$csc".to_string()]);
+        let p = st
+            .proses("Program.cs:7: error CS0103: The name 'x' does not exist", Path::new("D:/p"))
+            .expect("baris csc harus cocok");
+        assert_eq!(p.line, 7);
+        assert_eq!(p.code, "CS0103");
+        assert!(p.message.contains("does not exist"));
+    }
+
+    #[test]
+    fn daftar_matcher_memuat_javac_dan_csc() {
+        let semua = tasks_matchers();
+        for nama in ["$javac", "$csc"] {
+            assert!(semua.iter().any(|m| m == nama), "{nama} harus terdaftar");
         }
     }
 }

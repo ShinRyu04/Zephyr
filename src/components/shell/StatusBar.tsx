@@ -8,6 +8,7 @@ import { NotifBell } from '../notifications/NotificationCenter';
 import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { useT, useTf } from '../../lib/i18n';
+import { useRun } from '../../lib/runStore';
 /*
  * StrictMode memasang effect DUA kali. onRamUsage masih berjalan saat cleanup
  * dipanggil, jadi unlisten belum ada dan cleanup tidak melepas apa pun; mount
@@ -104,6 +105,53 @@ function ProblemsBadge() {
   );
 }
 
+/**
+ * Run indicator.
+ *
+ * A run is a background thing: the menu that started it closes immediately, so
+ * without this row the only evidence a program is still going is the Output
+ * panel being open. It doubles as the Stop button while the run is live, and
+ * as the "click to see the error" link once it failed.
+ */
+function RunBadge() {
+  const status = useRun((s) => s.status);
+  const phase = useRun((s) => s.phase);
+  const path = useRun((s) => s.path);
+
+  if (status === 'idle' || !path) return null;
+
+  const nama = path.replace(/\\/g, '/').split('/').pop() ?? path;
+  const berjalan = status === 'running';
+
+  const teks = berjalan
+    ? `${phase === 'compile' ? 'Building' : 'Running'} ${nama}`
+    : status === 'ok'
+      ? `${nama}: done`
+      : status === 'build-failed'
+        ? `${nama}: build failed`
+        : status === 'run-failed'
+          ? `${nama}: exited with an error`
+          : `${nama}: stopped`;
+
+  return (
+    <>
+      <button
+        className={`sb-item sb-run ${berjalan ? 'sb-run-busy' : ''} sb-run-${status}`}
+        data-testid="sb-run"
+        data-status={status}
+        title={berjalan ? 'Click to stop' : 'Click to show the output'}
+        onClick={() => {
+          if (berjalan) void useRun.getState().hentikan();
+          else void runCommand('run.showOutput');
+        }}
+      >
+        <span aria-hidden="true">{berjalan ? '◼' : status === 'ok' ? '✓' : '!'}</span> {teks}
+      </button>
+      <span className="sb-sep">|</span>
+    </>
+  );
+}
+
 export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
   const ramBytes = useStore((s) => s.ramBytes);
@@ -162,6 +210,7 @@ export default function StatusBar() {
       <span className="sb-sep">|</span>
       <GitBadge />
       <ProblemsBadge />
+      <RunBadge />
       <span className="sb-item" title="Zephyr process memory" data-testid="sb-ram">
         RAM: {ramText}
       </span>

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useOutput } from '../../lib/outputStore';
+import { useRun, kanalRun } from '../../lib/runStore';
 import { useT, useTf } from '../../lib/i18n';
 
 const ROW_H = 18;
@@ -16,6 +17,34 @@ export default function OutputView() {
   const toggleAutoScroll = useOutput((s) => s.toggleAutoScroll);
   const toggleWrap = useOutput((s) => s.toggleWrap);
   const clear = useOutput((s) => s.clear);
+
+  /*
+   * Interactive stdin: a program like `input()` / `scanf` / `Scanner` blocks
+   * forever without a pipe, so the run panel grows an input box while the
+   * program phase is live. Only primitives come out of the selectors - a
+   * zustand v5 selector that builds an object re-renders forever.
+   */
+  const runStatus = useRun((s) => s.status);
+  const runPhase = useRun((s) => s.phase);
+  const runPath = useRun((s) => s.path);
+  const kirimInput = useRun((s) => s.kirimInput);
+  const akhiriInput = useRun((s) => s.akhiriInput);
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const adalahKanalRun =
+    !!runPath && activeChannel === kanalRun(runPath.replace(/\\/g, '/').split('/').pop() ?? runPath);
+  const bisaInput = adalahKanalRun && runStatus === 'running' && runPhase === 'program';
+
+  const kirim = async () => {
+    const teks = input;
+    setInput('');
+    // Echo the line: the program's own stdout may not repeat what it read, and
+    // a prompt with an empty answer is indistinguishable from a hang.
+    useOutput.getState().append(activeChannel, `> ${teks}`);
+    await kirimInput(teks);
+    inputRef.current?.focus();
+  };
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -90,6 +119,42 @@ export default function OutputView() {
           {total}
         </span>
       </div>
+
+      {bisaInput && (
+        <div className="ov-stdin" data-testid="ov-stdin">
+          <span className="ov-stdin-caret" aria-hidden>
+            &gt;
+          </span>
+          <input
+            ref={inputRef}
+            className="ov-stdin-input"
+            data-testid="ov-stdin-input"
+            value={input}
+            placeholder={tr('Type input for the running program and press Enter')}
+            aria-label={tr('Program input')}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void kirim();
+              }
+            }}
+          />
+          <button className="btn btn-sm" data-testid="ov-stdin-send" onClick={() => void kirim()}>
+            {tr('Send')}
+          </button>
+          <button
+            className="btn btn-sm"
+            data-testid="ov-stdin-eof"
+            title={tr('Close stdin so input() / read() loops finish')}
+            onClick={() => void akhiriInput()}
+          >
+            {tr('End of input')}
+          </button>
+        </div>
+      )}
 
       <div
         className={`ov-list${wrap ? ' is-wrap' : ''}`}

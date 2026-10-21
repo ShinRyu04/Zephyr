@@ -1,76 +1,32 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { IkonPanelKanan } from './AgentsKontrolSudut';
+import { useAgxTabs, type Tab } from '../../lib/agentsTabs';
 import AgentsPanelKananFile from './AgentsPanelKananFile';
+import { ikonFile } from '../../lib/fileIcons';
+import AgentsPanelKananStart from './AgentsPanelKananStart';
+import AgentsViewDropdown, { BUTIR, type Tampilan } from './AgentsViewDropdown';
+import AgentsPanelKananTerminal from './AgentsPanelKananTerminal';
+import AgentsPanelKananBrowser from './AgentsPanelKananBrowser';
+import AgentsPanelKananSummary from './AgentsPanelKananSummary';
+import AgentsPanelKananSideChat from './AgentsPanelKananSideChat';
+import AgentsPanelKananDiff from './AgentsPanelKananDiff';
 
 /*
- * Panel kanan jendela Agents — keadaan "Start here".
+ * Panel kanan jendela Agents — model MULTI-TAB seperti TRAE.
  *
- * Acuannya `Referensi TRAE Agent Window/4.png` dan `6.png`: panel kanan yang
- * masih kosong menampilkan daftar pintasan bertumpuk di tengah secara
- * vertikal, plus tombol `+` di baris atas.
+ * Baris atas = `+` (dropdown view) + deretan tab + tombol panel. Semua view
+ * adalah tab sungguhan di store (`useAgxTabs`), termasuk File: tidak ada view
+ * yang tampil sendiri tanpa dibuka. Tidak ada tab = layar "Start here".
  *
- * Tombol expand & split dari acuan dibuang (keputusan user). Sebagai gantinya,
- * tombol panel kanan — yang biasanya ada di kontrol sudut (`IDE ↗` | panel) —
- * pindah ke bar panel ini selama panel terbuka, lalu kembali ke kontrol sudut
- * saat panel ditutup. `data-testid`-nya tetap `agx-panel-kanan`, jadi satu
- * tombol, bukan dua yang bentrok.
+ * Panel ini TIDAK menyimpan state tab sendiri. Dulu ada bendera lokal
+ * `fileTampil` untuk menahan tab File; karena state itu ikut ter-reset tiap
+ * panel kanan ditutup/buka, File muncul lagi tanpa diminta. Sekarang sumber
+ * kebenaran hanya store, jadi tutup panel tidak membuang dan tidak
+ * memunculkan tab apa pun.
+ *
+ * Tab File tetap ter-mount (hanya disembunyikan) selama tabnya ada, supaya
+ * pilihan file dan isi pohonnya tidak hilang saat user pindah ke tab lain.
  */
-
-type Butir = { id: string; label: string; ket: string; ikon: ReactNode };
-
-/* Urutan daftar di dropdown `+` menurut acuan (gambar): File, Terminal,
-   Browser, Task Summary, Side Chat, Diff View — beda dengan urutan daftar
-   "Start here" di bawah. */
-const URUT_DROPDOWN = ['file', 'terminal', 'browser', 'task-summary', 'side-chat', 'diff-view'];
-
-const BUTIR: Butir[] = [
-  {
-    id: 'file',
-    label: 'File',
-    ket: 'Browse and preview task files',
-    ikon: <path d="M2.4 4.6h4l1.3 1.6h5.9v6.2H2.4z" />,
-  },
-  {
-    id: 'task-summary',
-    label: 'Task Summary',
-    ket: 'View task progress, output summary, and related information',
-    ikon: <path d="M3.2 4.2h9.6M3.2 8h9.6M3.2 11.8h6" />,
-  },
-  {
-    id: 'side-chat',
-    label: 'Side Chat',
-    ket: 'Start an independent conversation using the current context without interrupting the current',
-    ikon: <path d="M2.6 3.6h10.8v7.2H7.4L4.2 13.4v-2.6H2.6z" />,
-  },
-  {
-    id: 'browser',
-    label: 'Browser',
-    ket: 'Browse and debug web pages',
-    ikon: (
-      <>
-        <circle cx="8" cy="8" r="5.4" />
-        <path d="M2.6 8h10.8M8 2.6c1.9 2 1.9 8.8 0 10.8M8 2.6c-1.9 2-1.9 8.8 0 10.8" />
-      </>
-    ),
-  },
-  {
-    id: 'terminal',
-    label: 'Terminal',
-    ket: 'Run commands and scripts',
-    ikon: (
-      <>
-        <rect x="2.2" y="3" width="11.6" height="10" rx="1.6" />
-        <path d="M4.6 6.6 6.6 8.2 4.6 9.8M7.8 10h3.4" />
-      </>
-    ),
-  },
-  {
-    id: 'diff-view',
-    label: 'Diff View',
-    ket: 'Review pending, committed, and AI changes',
-    ikon: <path d="M5.6 3.2 2.8 6l2.8 2.8M10.4 7.2l2.8 2.8-2.8 2.8M9.2 2.6 6.8 13.4" />,
-  },
-];
 
 function Ikon({ children }: { children: ReactNode }) {
   return (
@@ -90,25 +46,40 @@ function Ikon({ children }: { children: ReactNode }) {
   );
 }
 
-export default function AgentsPanelKanan({ onTogglePanel }: { onTogglePanel: () => void }) {
-  /* Dropdown tombol `+` (gambar acuan): kolom cari "Search file names" di atas
-     daftar. Itemnya belum punya aksi — sama seperti butir "Start here". */
-  const [dropdownTerbuka, setDropdownTerbuka] = useState(false);
-  const [cari, setCari] = useState('');
-  /* Isi panel: `start` = daftar "Start here", `file` = pohon file + pratinjau
-     (acuan gambar user; tombol `File` membukanya). Tampilan lain menyusul. */
-  const [tampilan, setTampilan] = useState<'start' | 'file'>('start');
+const LABEL_VIEW: Record<Tampilan, string> = {
+  start: 'Start here',
+  file: 'File',
+  terminal: 'PowerShell',
+  browser: 'Browser',
+  'task-summary': 'Task Summary',
+  'side-chat': 'Side Chat',
+  'diff-view': 'Diff View',
+};
 
-  const daftar = URUT_DROPDOWN.map((id) => BUTIR.find((b) => b.id === id)!).filter(
-    (b) => b.label.toLowerCase().includes(cari.trim().toLowerCase())
-  );
+/* View selain File di-unmount saat tidak aktif supaya PTY/browser tidak
+   tertinggal; File dibiarkan ter-mount (lihat komentar di atas). */
+function IsiTab({ tampilan, tab }: { tampilan: Tampilan; tab: Tab }) {
+  if (tampilan === 'terminal') return <AgentsPanelKananTerminal tab={tab} />;
+  if (tampilan === 'browser') return <AgentsPanelKananBrowser tab={tab} />;
+  if (tampilan === 'task-summary') return <AgentsPanelKananSummary />;
+  if (tampilan === 'side-chat') return <AgentsPanelKananSideChat />;
+  return <AgentsPanelKananDiff />;
+}
 
-  const pilihButir = (id: string) => {
-    if (id === 'file') setTampilan('file');
-  };
+export default function AgentsPanelKanan({
+  onTogglePanel,
+  lebar,
+}: {
+  onTogglePanel: () => void;
+  /* Lebar panel dalam persen — di-drag lewat splitter (lihat AgentsApp). */
+  lebar: number;
+}) {
+  const tabs = useAgxTabs((s) => s.tabs);
+  const aktifId = useAgxTabs((s) => s.aktifId);
+  const buka = useAgxTabs((s) => s.buka);
+  const fokus = useAgxTabs((s) => s.fokus);
+  const tutup = useAgxTabs((s) => s.tutup);
 
-  /* Satu tombol panel (bukan dua): elemen yang sama dipakai di bar `Start here`
-     dan di bar tampilan `File` — pindah tempat, tidak pernah tampil bersamaan. */
   const tombolPanel = (
     <button
       className="agx-tb-btn agx-panel-toggle"
@@ -122,101 +93,94 @@ export default function AgentsPanelKanan({ onTogglePanel }: { onTogglePanel: () 
     </button>
   );
 
-  /* Tampilan `File` punya barnya sendiri (tab `File` + `+`), jadi bar umum di
-     atas hanya untuk `Start here`; tombol panel ikut pindah ke bar `File`. */
-  if (tampilan === 'file') {
-    return (
-      <aside className="agx-kanan" data-testid="agx-panel-kanan-isi">
-        <AgentsPanelKananFile onKembali={() => setTampilan('start')} tombolKanan={tombolPanel} />
-      </aside>
-    );
-  }
+  /* `start` bukan tab (ia justru layar kosong); selain itu semuanya lewat
+     store — File pun, supaya bisa ditutup dan tidak muncul sendiri. */
+  const pilih = (id: Tampilan) => {
+    if (id === 'start') return;
+    buka(id, LABEL_VIEW[id]);
+  };
+
+  const tabAktif = aktifId ? tabs.find((t) => t.id === aktifId) : undefined;
+  const tabFile = tabs.find((t) => t.tampilan === 'file');
+  const adaFile = !!tabFile;
 
   return (
-    <aside className="agx-kanan" data-testid="agx-panel-kanan-isi">
-      <div className="agx-kanan-bar" data-testid="agx-kanan-bar">
-        <span className="agx-kanan-tambah-wrap">
-          <button
-            className="agx-kanan-ikon"
-            data-testid="agx-kanan-tambah"
-            title="New"
-            aria-label="New"
-            aria-expanded={dropdownTerbuka}
-            onClick={() => setDropdownTerbuka((v) => !v)}
-          >
-            <Ikon>
-              <path d="M8 3.4v9.2M3.4 8h9.2" />
-            </Ikon>
-          </button>
-          {dropdownTerbuka && (
-            <div className="agx-kanan-dd" data-testid="agx-kanan-dd">
-              <div className="agx-kanan-dd-cari">
-                <Ikon>
-                  <circle cx="7.2" cy="7.2" r="4.2" />
-                  <path d="M10.4 10.4 13.2 13.2" />
-                </Ikon>
-                <input
-                  data-testid="agx-kanan-dd-input"
-                  placeholder="Search file names"
-                  value={cari}
-                  onChange={(e) => setCari(e.target.value)}
-                  aria-label="Search file names"
-                  spellCheck={false}
-                />
-                <kbd>⌘P</kbd>
-              </div>
-              <div className="agx-kanan-dd-daftar" data-testid="agx-kanan-dd-daftar">
-                {daftar.map((b) => (
-                  <button
-                    key={b.id}
-                    className="agx-kanan-dd-butir"
-                    data-testid={`agx-kanan-dd-${b.id}`}
-                    onClick={() => {
-                      setDropdownTerbuka(false);
-                      pilihButir(b.id);
-                    }}
-                  >
-                    <span className="agx-kanan-butir-ikon">
-                      <Ikon>{b.ikon}</Ikon>
-                    </span>
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </span>
-        <span className="agx-kanan-aksi">
-          {/* Tombol expand & split dibuang (keputusan user). Yang tinggal di sini
-              hanya tombol panel — pindahan dari kontrol sudut; mengkliknya
-              menutup panel dan tombolnya kembali ke `.agx-sudut`. */}
-          {tombolPanel}
-        </span>
-      </div>
-
-      <div className="agx-kanan-tengah">
-        <div className="agx-kanan-judul" data-testid="agx-kanan-judul">
-          Start here
-        </div>
-        <div className="agx-kanan-daftar" data-testid="agx-kanan-daftar">
-          {BUTIR.map((b) => (
+    <aside
+      className="agx-kanan"
+      data-testid="agx-panel-kanan-isi"
+      style={{ flex: `0 0 ${lebar}%` }}
+    >
+      {/* Bar tab: deretan tab, `+` tepat di belakang tab terakhir (seperti
+          TRAE, ikut bergeser saat tab bertambah), lalu tombol panel di ujung
+          kanan. Deretan tab yang di-scroll ada di `.agx-tabs-lajur`; `+` di
+          luarnya supaya dropdown-nya tidak terpotong `overflow`. */}
+      <div className="agx-kanan-bar agx-tabs-bar" data-testid="agx-kanan-bar">
+        <div className="agx-tabs">
+        <div className="agx-tabs-lajur" role="tablist">
+          {tabs.map((t) => (
             <button
-              key={b.id}
-              className="agx-kanan-butir"
-              data-testid={`agx-kanan-${b.id}`}
-              onClick={() => pilihButir(b.id)}
+              key={t.id}
+              className={`agx-tab${tabAktif?.id === t.id ? ' is-aktif' : ''}`}
+              role="tab"
+              aria-selected={tabAktif?.id === t.id}
+              data-testid={`agx-tab-${t.tampilan}`}
+              title={t.judul}
+              onClick={() => fokus(t.id)}
             >
-              <span className="agx-kanan-butir-ikon">
-                <Ikon>{b.ikon}</Ikon>
+              <span className="agx-tab-ikon">
+                {t.tampilan === 'file' && t.path ? (
+                  /* Tab File yang sudah memilih file: ikon file SAMA dengan di pohon. */
+                  <span
+                    className="agx-file-glyph"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: ikonFile(t.path).svg ?? '' }}
+                  />
+                ) : (
+                  <Ikon>{BUTIR.find((b) => b.id === t.tampilan)?.ikon ?? <circle cx="8" cy="8" r="5" />}</Ikon>
+                )}
               </span>
-              <span className="agx-kanan-butir-teks">
-                <b>{b.label}</b>
-                <i>{b.ket}</i>
+              <span className="agx-tab-nama">{t.judul}</span>
+              {/* X = posisi ABSOLUT di ujung tab, muncul saat hover — nimpa
+                  ujung nama seperti TRAE, jadi tab di kanannya TIDAK ikut
+                  terdorong. */}
+              <span
+                className="agx-tab-x"
+                role="button"
+                data-testid={`agx-tab-x-${t.id}`}
+                title="Close"
+                aria-label="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  tutup(t.id);
+                }}
+              >
+                <Ikon>
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </Ikon>
               </span>
             </button>
           ))}
         </div>
+        <AgentsViewDropdown onPilih={pilih} />
+        </div>
+        <span className="agx-kanan-aksi">{tombolPanel}</span>
       </div>
+
+      {tabs.length === 0 ? (
+        <AgentsPanelKananStart onPilih={pilih} />
+      ) : (
+        <>
+          {/* File tetap ter-mount (disembunyikan) selama tabnya ada. */}
+          {adaFile && (
+            <div className={`agx-panel-slot${tabAktif?.tampilan === 'file' ? '' : ' is-sembunyi'}`}>
+              <AgentsPanelKananFile />
+            </div>
+          )}
+          {tabAktif && tabAktif.tampilan !== 'file' && (
+            <IsiTab tampilan={tabAktif.tampilan} tab={tabAktif} />
+          )}
+        </>
+      )}
     </aside>
   );
 }

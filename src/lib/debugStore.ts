@@ -29,6 +29,7 @@ import { useKb } from './keybindingStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
 import { kunciPath } from './pathKey';
 import { tf, tx } from './i18n';
+import { deteksiDebug } from './debugDetect';
 
 export interface Breakpoint {
   path: string;
@@ -304,18 +305,35 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     }
 
     /*
-     * No recognised marker: still write a config, because an empty list leaves
-     * the user exactly where they started. The generic entry runs the file that
-     * is open, which is the most common thing anyone wants from F5.
+     * No recognised marker: pick the debug type from the FILE that is open,
+     * not from a fixed guess.
+     *
+     * This used to write `{ type: 'node', program: '${file}' }` for every
+     * workspace without a marker, so pressing F5 on a .cpp file asked the Node
+     * adapter to debug it - and the reader got "The Node adapter (js-debug) is
+     * not present", which says nothing about the real problem (there is no
+     * C++ debugger). A `.cpp` file now gets a `cppdbg` entry served by the
+     * bundled codelldb adapter, which fails with "LLDB is not installed"
+     * instead of pointing at the wrong adapter.
+     *
+     * Files whose language has no debugger at all get the `type` guessed from
+     * the extension and an empty list, so the UI can say "Run this file
+     * instead" rather than offering a config that cannot work.
      */
     if (konfigurasi.length === 0) {
-      konfigurasi.push({
-        type: 'node',
-        request: 'launch',
-        name: 'Debug Current File',
-        program: '${file}',
-        console: 'integratedTerminal',
-      });
+      const s = useStore.getState();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      const deteksi = deteksiDebug(tab?.path ?? null);
+      /*
+       * Only a language with a REAL adapter gets written. `adapter === ''`
+       * means the extension is recognised but this build has no debugger for
+       * it (Ruby, PHP) - writing `{type:'…'}` there would just move the
+       * failure from "wrong adapter" to "unknown type", so the file is left
+       * without a config and the UI points at Run instead.
+       */
+      if (deteksi && deteksi.adapter) {
+        konfigurasi.push(deteksi.konfig(tab?.path ?? '${file}'));
+      }
     }
 
     const isi =
@@ -330,6 +348,15 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
 
     const folder = `${ws}\\.zephyr`;
     const file = `${folder}\\launch.json`;
+
+    /*
+     * No debugger for this file: do not write an empty launch.json at all.
+     * An empty file would replace a working one from another project open in
+     * the same folder, and it tells the reader nothing - the caller shows the
+     * "use Run instead" message.
+     */
+    if (konfigurasi.length === 0) return false;
+
     try {
       if (!(await fsExists(folder))) await fsCreateDir(folder);
       await fsWrite(file, isi);
@@ -398,7 +425,27 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
      */
     if (!cfg) {
       const dibuat = await get().buatLaunch();
-      if (!dibuat) return false;
+      if (!dibuat) {
+        /*
+         * `buatLaunch` refuses when the open file's language has no debugger
+         * (a .cpp file, a .go file, ...). Say so once, and point at Run -
+         * which exists for exactly those languages - instead of leaving the
+         * reader with a missing js-debug message.
+         */
+        const s3 = get();
+        if (s3.launch && s3.launch.configurations.length === 0) {
+          const tab = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
+          const det = deteksiDebug(tab?.path ?? null);
+          notifyWarn(
+            det ? `Debug ${det.label} belum tersedia` : 'Debug belum tersedia untuk file ini',
+            {
+              source: 'debug',
+              detail: 'Pakai Run (Ctrl+Shift+B) untuk menjalankannya tanpa debugger.',
+            },
+          );
+        }
+        return false;
+      }
       const s2 = get();
       cfg = s2.launch?.configurations.find((c) => c.name === s2.configTerpilih);
       if (!cfg) return false;

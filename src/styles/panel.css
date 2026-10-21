@@ -367,6 +367,37 @@ html[data-bg='solid'] .panel-area {
   height: auto !important;
 }
 
+/* Interactive stdin, shown only while a program is running and reading. */
+.ov-stdin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg1, var(--bg));
+  flex-shrink: 0;
+}
+.ov-stdin-caret {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+.ov-stdin-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--input-bg, var(--bg0));
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: var(--radius);
+}
+.ov-stdin-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ─────────── Debug Console ─────────── */
 .dc-body {
   flex: 1;
@@ -482,6 +513,31 @@ html[data-bg='solid'] .panel-area {
 }
 .sb-prob-warn {
   color: var(--warning);
+}
+
+/*
+ * Run indicator. Colour alone carries the state, so every state also changes
+ * the glyph - a reader who cannot tell red from green still sees "◼" while a
+ * program is live and "✓" when it finished clean.
+ */
+.sb-run {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-run-busy {
+  color: var(--accent);
+}
+.sb-run-ok {
+  color: var(--success);
+}
+.sb-run-build-failed,
+.sb-run-run-failed {
+  color: var(--danger);
+}
+.sb-run-killed {
+  color: var(--text-muted);
 }
 
 /* ─────────── Gutter diagnostik editor ─────────── */

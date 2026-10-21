@@ -1,0 +1,44 @@
+﻿{
+ "mountModels": true,
+ "t1": {
+  "ok": true,
+  "nilai": "model-uji",
+  "fokusDi": true
+ },
+ "t2": {
+  "ok": true,
+  "nilai": "https://x.test",
+  "fokusDi": true
+ },
+ "t3": {
+  "ok": true,
+  "nilai": "64000",
+  "fokusDi": true
+ },
+ "mountAgents": true,
+ "t4": {
+  "ok": true,
+  "nilai": "AgenUji",
+  "fokusDi": true
+ },
+ "t5": {
+  "ok": true,
+  "nilai": "Selalu baca dulu.",
+  "fokusDi": true
+ },
+ "t6": {
+  "ok": true,
+  "nilai": "Review kode untuk bug",
+  "fokusDi": true
+ }
+}
+
+Bukti ΓÇö input dialog BISA DIKETIK (bug fokus direbut):
+  LULUS  T1 Add Model: Model ID bisa diketik  nilai="model-uji"
+  LULUS  T2 Add Model: Base URL bisa diketik  nilai="https://x.test"
+  LULUS  T3 Add Model: Context size bisa diketik  nilai="64000"
+  LULUS  T4 Agents: Name bisa diketik  nilai="AgenUji"
+  LULUS  T5 Agents: Prompt bisa diketik  nilai="Selalu baca dulu."
+  LULUS  T6 Agents: Smart Generate bisa diketik  nilai="Review kode untuk bug"
+
+== 6/6 lulus ==

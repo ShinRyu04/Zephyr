@@ -53,6 +53,7 @@ mod plugins;
 mod proc;
 mod pty;
 mod rag;
+mod run;
 pub mod search;
 mod secrets;
 mod settings;
@@ -189,6 +190,7 @@ pub fn run() {
         .manage(tasks::TasksRuntime::default())
         .manage(search::SearchRuntime::default())
         .manage(dap::DapRuntime::default())
+        .manage(run::RunRuntime::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
@@ -292,6 +294,7 @@ pub fn run() {
             lsp::lsp_probe,
             lsp::lsp_penghalang,
             lsp::lsp_resep,
+            lsp::lsp_jenis_resep,
             lsp::lsp_pasang,
             settings::set_window_size,
             settings::list_recents,
@@ -505,6 +508,13 @@ pub fn run() {
             tasks::tasks_kill,
             tasks::tasks_runs,
             tasks::tasks_clear_runs,
+            run::run_start,
+            run::run_stop,
+            run::run_input,
+            run::run_input_eof,
+            run::run_selesai,
+            run::run_active,
+            run::run_tool_status,
             agent_exec::agent_exec,
             agent_patch::file_patch,
             tasks::tasks_detect_port,

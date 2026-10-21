@@ -188,6 +188,10 @@ export const MENUS: MenuDef[] = [
     label: 'Run',
     mnemonic: 'r',
     items: [
+      { label: 'Run Current File', command: 'run.file' },
+      { label: 'Stop', command: 'run.stop' },
+      { label: 'Show Run Output', command: 'run.showOutput' },
+      SEP,
       { label: 'Start Debugging', command: 'debug.start' },
       { label: 'Stop Debugging', command: 'debug.stop' },
       { label: 'Restart Debugging', command: 'debug.restart' },

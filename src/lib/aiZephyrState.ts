@@ -234,7 +234,7 @@ const URUT_KONTRIBUSI = ['themes', 'snippets', 'iconThemes', 'keymaps', 'languag
 const JENIS_TAK_DIDUKUNG: Record<string, string> = {
   grammars: 'Zephyr belum punya mesin TextMate - penyorotan warna tetap memakai bahasa bawaan',
   debugAdapters:
-    'adapter terdeteksi, belum dijalankan: registry adapter Zephyr tetap (node, python) dan tidak ada jalur kode yang membaca program/runtime dari manifest',
+    'adapter terdeteksi, belum dijalankan: registry adapter Zephyr tetap (node, python, codelldb, dlv, java-debug, netcoredbg) dan tidak ada jalur kode yang membaca program/runtime dari manifest',
 };
 
 const urutTeks = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

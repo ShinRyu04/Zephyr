@@ -1,0 +1,2 @@
+﻿powershell -ExecutionPolicy Bypass -File "C:\Users\Zyrex\.config\opencode\skills\modlens\scripts\run.ps1" -i "D:\Referensi TRAE Agent Window\2.png" --prompt "One sentence: what state of the app is this? Then list the 3 most notable UI elements." -o "D:\Zephyr\scratch\p2.json" 2>&1 | Out-Null
+node -e "const o=require('D:/Zephyr/scratch/p2.json');console.log(o.result.summary.slice(0,300));console.log('OCR:',(o.result.ocr?.full_text||'').slice(0,200).replace(/\n/g,' | '))"

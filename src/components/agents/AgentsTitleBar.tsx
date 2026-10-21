@@ -24,20 +24,22 @@ type ArahResize =
   | 'SouthWest'
   | 'West';
 
-const TINGGI = 44;
+const TINGGI = 48;
 
 /* Delapan strip tipis di tepi jendela. Frameless window tidak bisa di-resize
    tanpa ini. Ditempatkan di luar bar supaya geser dari tepi tidak ikut
-   memindahkan jendela. */
+   memindahkan jendela.
+   Tepi 6px dan sudut 14px: 4/10px terasa "tidak kena" saat kursor mendekati
+   pojok — target sekecil itu sulit ditangkap mouse (keluhan user). */
 const TEPI: { dir: ArahResize; style: React.CSSProperties }[] = [
-  { dir: 'North', style: { top: 0, left: 0, right: 0, height: 4, cursor: 'ns-resize' } },
-  { dir: 'South', style: { bottom: 0, left: 0, right: 0, height: 4, cursor: 'ns-resize' } },
-  { dir: 'West', style: { top: 0, bottom: 0, left: 0, width: 4, cursor: 'ew-resize' } },
-  { dir: 'East', style: { top: 0, bottom: 0, right: 0, width: 4, cursor: 'ew-resize' } },
-  { dir: 'NorthWest', style: { top: 0, left: 0, width: 10, height: 10, cursor: 'nwse-resize' } },
-  { dir: 'NorthEast', style: { top: 0, right: 0, width: 10, height: 10, cursor: 'nesw-resize' } },
-  { dir: 'SouthWest', style: { bottom: 0, left: 0, width: 10, height: 10, cursor: 'nesw-resize' } },
-  { dir: 'SouthEast', style: { bottom: 0, right: 0, width: 10, height: 10, cursor: 'nwse-resize' } },
+  { dir: 'North', style: { top: 0, left: 0, right: 0, height: 6, cursor: 'ns-resize' } },
+  { dir: 'South', style: { bottom: 0, left: 0, right: 0, height: 6, cursor: 'ns-resize' } },
+  { dir: 'West', style: { top: 0, bottom: 0, left: 0, width: 6, cursor: 'ew-resize' } },
+  { dir: 'East', style: { top: 0, bottom: 0, right: 0, width: 6, cursor: 'ew-resize' } },
+  { dir: 'NorthWest', style: { top: 0, left: 0, width: 14, height: 14, cursor: 'nwse-resize' } },
+  { dir: 'NorthEast', style: { top: 0, right: 0, width: 14, height: 14, cursor: 'nesw-resize' } },
+  { dir: 'SouthWest', style: { bottom: 0, left: 0, width: 14, height: 14, cursor: 'nesw-resize' } },
+  { dir: 'SouthEast', style: { bottom: 0, right: 0, width: 14, height: 14, cursor: 'nwse-resize' } },
 ];
 
 /* Isi tiap menu. Semuanya belum punya aksi — user minta tombolnya dipasang
@@ -83,8 +85,8 @@ function IkonSearch() {
   return (
     <svg
       viewBox="0 0 16 16"
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.2"
@@ -100,7 +102,7 @@ function IkonSearch() {
 
 function IkonSidebar() {
   return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+    <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
       <rect
         x="1.5"
         y="3"
@@ -300,7 +302,7 @@ export default function AgentsTitleBar({
         <div className="agx-titlebar-kanan">
           <span className="agx-win">
             <button
-              className="agx-tb-btn agx-win-btn"
+              className="agx-win-btn"
               data-testid="agx-win-min"
               title="Minimize"
               aria-label="Minimize"
@@ -309,7 +311,7 @@ export default function AgentsTitleBar({
               <IkonMinimize />
             </button>
             <button
-              className="agx-tb-btn agx-win-btn"
+              className="agx-win-btn"
               data-testid="agx-win-max"
               title={maks ? 'Restore' : 'Maximize'}
               aria-label={maks ? 'Restore' : 'Maximize'}
@@ -319,7 +321,7 @@ export default function AgentsTitleBar({
               <IkonMaximize restore={maks} />
             </button>
             <button
-              className="agx-tb-btn agx-win-btn is-close"
+              className="agx-win-btn is-close"
               data-testid="agx-win-close"
               title="Close"
               aria-label="Close"

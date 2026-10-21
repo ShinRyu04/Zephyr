@@ -19,24 +19,35 @@ export interface LspServerDef {
 
 /*
  * ONE ROW PER LANGUAGE SERVER: how to recognise the files it serves, the command
- * to run, and the install hint.
+ * to run, and the install instructions.
  *
- * The hint is DOCUMENTATION, not a button - no code in the app runs the `install`
- * string, so it has to be followable letter for letter. Two rules keep it honest:
+ * `install` is DOCUMENTATION, and it is written for BOTH readers at once:
+ *
+ *   - the Settings dialog, which prints it line by line: `#` lines are the
+ *     explanation, `>` lines are a command the reader can copy;
+ *   - a person reading the source, who needs to know WHY a server cannot be
+ *     installed in one step.
+ *
+ * Two rules keep it honest:
  *
  * 1. `cmd[0]` must be the binary the package ACTUALLY ships, character for
  *    character. The npm bundle backing css/html/json exports
  *    `vscode-<lang>-language-server` (hyphen before `server`), so an older name
  *    with no hyphen could never be satisfied by any install, however correct the
  *    user was.
- * 2. When one command cannot install the server, the hint says WHERE to put the
- *    binary instead of ending in "put it on PATH": `%APPDATA%\zephyr\lsp\<id>\`
+ * 2. When one command cannot install the server, the instructions say WHERE to
+ *    put the binary instead of ending in "put it on PATH": `%APPDATA%\zephyr\lsp\<id>\`
  *    is the private per-server slot `resolve_cmd` (src-tauri/src/lsp.rs) reads
  *    before PATH, so dropping the file there works without touching PATH.
  *
  * The same applies to installers that are correct but never reach the app's PATH
  * (`winget` does not edit PATH; `go install` and `gem install` land in their own
- * bin dirs): those hints name the directory, and `resolve_cmd` searches them.
+ * bin dirs): those instructions name the directory, and `resolve_cmd` searches
+ * them.
+ *
+ * Servers that need a parent toolchain say so FIRST. "go install gopls" on a
+ * machine without Go fails with `go: not found`, which tells the reader nothing;
+ * naming the toolchain, and how to get it, is the part that unblocks them.
  */
 export const LSP_SERVERS: LspServerDef[] = [
   {
@@ -47,7 +58,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'],
     
     cmd: ['typescript-language-server', '--stdio'],
-    install: 'npm i -g typescript-language-server typescript',
+    install: `# Butuh Node.js (npm). Cek dulu:
+> node --version
+# Lalu pasang server + TypeScript-nya:
+> npm i -g typescript-language-server typescript
+# Sudah terpasang? klik "Install with Zephyr" - hasilnya masuk ke folder Zephyr sendiri.`,
   },
   {
     id: 'python',
@@ -56,7 +71,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['python'],
     extensions: ['.py', '.pyi'],
     cmd: ['pyright-langserver', '--stdio'],
-    install: 'npm i -g pyright',
+    install: `# Butuh Node.js (npm). Cek dulu:
+> node --version
+# Lalu pasang pyright:
+> npm i -g pyright
+# Alternatif resmi: instalasi "pyright" lewat pip juga menyediakan pyright-langserver.`,
   },
   {
     id: 'rust',
@@ -65,7 +84,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['rust'],
     extensions: ['.rs'],
     cmd: ['rust-analyzer'],
-    install: 'rustup component add rust-analyzer',
+    install: `# rust-analyzer dikirim bersama toolchain Rust (rustup).
+# Tanpa rustup, tidak ada jalan otomatis - pasang rustup dulu:
+> winget install Rustlang.Rustup
+# Lalu tambahkan komponennya:
+> rustup component add rust-analyzer`,
   },
   {
     id: 'go',
@@ -74,7 +97,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['go'],
     extensions: ['.go'],
     cmd: ['gopls'],
-    install: 'go install golang.org/x/tools/gopls@latest - hasilnya di %USERPROFILE%\\go\\bin (Zephyr mencari di sana juga)',
+    install: `# Butuh toolchain Go dulu - gopls adalah paket Go, bukan npm:
+> winget install GoLang.Go
+# Buka terminal BARU (PATH baru terbaca), lalu:
+> go install golang.org/x/tools/gopls@latest
+# Hasilnya di %USERPROFILE%\\go\\bin - Zephyr mencari di sana juga.`,
   },
   {
     id: 'clangd',
@@ -83,7 +110,10 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['c', 'cpp'],
     extensions: ['.c', '.h', '.cpp', '.cc', '.cxx', '.hpp', '.hh'],
     cmd: ['clangd', '--background-index'],
-    install: 'winget install LLVM.LLVM - clangd.exe ada di C:\\Program Files\\LLVM\\bin (Zephyr mencari di sana juga)',
+    install: `# clangd dikirim bersama LLVM:
+> winget install LLVM.LLVM
+# clangd.exe ada di C:\\Program Files\\LLVM\\bin - Zephyr mencari di sana juga.
+# Sesudah LLVM terpasang, klik "Install with Zephyr" (Zephyr menjalankan winget untuk ini).`,
   },
   {
     id: 'bash',
@@ -92,7 +122,8 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['shell'],
     extensions: ['.sh', '.bash'],
     cmd: ['bash-language-server', 'start'],
-    install: 'npm i -g bash-language-server',
+    install: `# Butuh Node.js (npm):
+> npm i -g bash-language-server`,
   },
   {
     id: 'json',
@@ -101,7 +132,8 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['json'],
     extensions: ['.json', '.jsonc'],
     cmd: ['vscode-json-language-server', '--stdio'],
-    install: 'npm i -g vscode-langservers-extracted',
+    install: `# Butuh Node.js (npm). Paket ini berisi JSON, HTML, dan CSS sekaligus:
+> npm i -g vscode-langservers-extracted`,
   },
   {
     id: 'yaml',
@@ -110,7 +142,8 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['yaml'],
     extensions: ['.yaml', '.yml'],
     cmd: ['yaml-language-server', '--stdio'],
-    install: 'npm i -g yaml-language-server',
+    install: `# Butuh Node.js (npm):
+> npm i -g yaml-language-server`,
   },
   {
     id: 'html',
@@ -119,7 +152,8 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['html'],
     extensions: ['.html', '.htm'],
     cmd: ['vscode-html-language-server', '--stdio'],
-    install: 'npm i -g vscode-langservers-extracted',
+    install: `# Butuh Node.js (npm). Paket ini berisi JSON, HTML, dan CSS sekaligus:
+> npm i -g vscode-langservers-extracted`,
   },
   {
     id: 'css',
@@ -128,7 +162,8 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['css'],
     extensions: ['.css', '.scss', '.less'],
     cmd: ['vscode-css-language-server', '--stdio'],
-    install: 'npm i -g vscode-langservers-extracted',
+    install: `# Butuh Node.js (npm). Paket ini berisi JSON, HTML, dan CSS sekaligus:
+> npm i -g vscode-langservers-extracted`,
   },
   {
     id: 'dart',
@@ -138,7 +173,10 @@ export const LSP_SERVERS: LspServerDef[] = [
     extensions: ['.dart'],
     
     cmd: ['dart', 'language-server', '--protocol=lsp'],
-    install: 'winget install Google.DartSDK',
+    install: `# Dart SDK sudah membawa language server-nya sendiri:
+> winget install Google.DartSDK
+# Alternatif: https://dart.dev/get-dart
+# Zephyr menjalankan winget ini untuk Anda.`,
   },
   {
     id: 'php',
@@ -147,7 +185,10 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['php'],
     extensions: ['.php'],
     cmd: ['intelephense', '--stdio'],
-    install: 'npm i -g intelephense',
+    install: `# Butuh Node.js (npm):
+> npm i -g intelephense
+# Intelephense juga butuh PHP terpasang (untuk membaca konfigurasi proyek):
+> winget install PHP.PHP`,
   },
   {
     id: 'java',
@@ -156,7 +197,12 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['java'],
     extensions: ['.java'],
     cmd: ['jdtls'],
-    install: 'jdtls tak ada di winget - unduh rilis eclipse-jdtls, ekstrak ke %APPDATA%\\zephyr\\lsp\\java\\ (jdtls.bat), atau set command baris ini manual',
+    install: `# jdtls TIDAK bisa dipasang otomatis dari Zephyr - tidak ada di winget/npm.
+# 1) Butuh JDK 17+ :
+> winget install EclipseAdoptium.Temurin.21.JDK
+# 2) Unduh rilis jdtls: https://download.eclipse.org/jdtls/snapshots/
+# 3) Ekstrak ke: %APPDATA%\\zephyr\\lsp\\java\\  sampai ada jdtls.bat di situ
+# 4) Klik Re-check di halaman ini`,
   },
   {
     id: 'csharp',
@@ -165,7 +211,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['csharp'],
     extensions: ['.cs'],
     cmd: ['omnisharp'],
-    install: 'OmniSharp tak ada di winget - unduh rilis omnisharp-roslyn (win-x64), taruh OmniSharp.exe di %APPDATA%\\zephyr\\lsp\\csharp\\',
+    install: `# Zephyr bisa mengunduh ini untuk Anda (tombol Install with Zephyr).
+# Manual: unduh rilis omnisharp-roslyn (win-x64), taruh OmniSharp.exe di:
+#   %APPDATA%\\zephyr\\lsp\\csharp\\
+# Butuh .NET 6+ runtime:
+> winget install Microsoft.DotNet.Runtime.6`,
   },
   {
     id: 'ruby',
@@ -174,7 +224,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['ruby'],
     extensions: ['.rb'],
     cmd: ['solargraph', 'stdio'],
-    install: 'gem install solargraph - Zephyr mencari juga di %USERPROFILE%\\.gem\\ruby\\<versi>\\bin',
+    install: `# Butuh Ruby dulu - solargraph adalah gem:
+> winget install RubyInstallerTeam.Ruby
+# Buka terminal BARU, lalu:
+> gem install solargraph
+# Hasilnya di %USERPROFILE%\\.gem\\ruby\\<versi>\\bin - Zephyr mencari di sana juga.`,
   },
   {
     id: 'lua',
@@ -183,7 +237,9 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['lua'],
     extensions: ['.lua'],
     cmd: ['lua-language-server'],
-    install: 'winget install LuaLS.lua-language-server',
+    install: `# Tidak butuh Node/Ruby:
+> winget install LuaLS.lua-language-server
+# Zephyr menjalankan winget ini untuk Anda.`,
   },
   {
     id: 'kotlin',
@@ -192,7 +248,11 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['kotlin'],
     extensions: ['.kt', '.kts'],
     cmd: ['kotlin-language-server'],
-    install: 'unduh rilis kotlin-language-server (fwcd), ekstrak ke %APPDATA%\\zephyr\\lsp\\kotlin\\ (bin\\kotlin-language-server.bat)',
+    install: `# Tidak ada paket winget/npm untuk yang ini.
+# 1) Butuh JDK 17+ :
+> winget install EclipseAdoptium.Temurin.21.JDK
+# 2) Unduh rilis: https://github.com/fwcd/kotlin-language-server/releases
+# 3) Ekstrak ke %APPDATA%\\zephyr\\lsp\\kotlin\\  sampai ada bin\\kotlin-language-server.bat`,
   },
   {
     id: 'swift',
@@ -201,7 +261,9 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['swift'],
     extensions: ['.swift'],
     cmd: ['sourcekit-lsp'],
-    install: 'sourcekit-lsp ikut Xcode (macOS) — Windows butuh build manual',
+    install: `# sourcekit-lsp hanya dikirim bersama Xcode (macOS).
+# Di Windows praktis tidak ada distribusi resmi - Zephyr tidak bisa memasangnya.
+# Kalau Swift toolchain resmi sudah ada, sourcekit-lsp ikut di dalamnya.`,
   },
   {
     id: 'r',
@@ -210,7 +272,10 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['r'],
     extensions: ['.r', '.R'],
     cmd: ['R', '--no-echo', '-e', 'languageserver::run()'],
-    install: 'install.packages("languageserver") in R',
+    install: `# Butuh R dulu - language server ini adalah paket R:
+> winget install RProject.R
+# Buka terminal BARU, lalu:
+> Rscript -e "install.packages('languageserver', repos='https://cloud.r-project.org')"`,
   },
   {
     id: 'docker',
@@ -219,7 +284,9 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['dockerfile'],
     extensions: ['.dockerfile'],
     cmd: ['docker-langserver', '--stdio'],
-    install: 'npm i -g dockerfile-language-server-nodejs',
+    install: `# Butuh Node.js (npm):
+> npm i -g dockerfile-language-server-nodejs
+# Zephyr menjalankan npm ini untuk Anda (tombol Install with Zephyr).`,
   },
   {
     id: 'vue',
@@ -228,7 +295,9 @@ export const LSP_SERVERS: LspServerDef[] = [
     langs: ['vue'],
     extensions: ['.vue'],
     cmd: ['vue-language-server', '--stdio'],
-    install: 'npm i -g @vue/language-server',
+    install: `# Butuh Node.js (npm):
+> npm i -g @vue/language-server
+# Zephyr menjalankan npm ini untuk Anda (tombol Install with Zephyr).`,
   },
 ];
 

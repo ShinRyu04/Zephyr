@@ -96,6 +96,8 @@ import { useTasks } from './tasksStore';
 import { useHistory } from './historyStore';
 import { useSearch } from './searchStore';
 import { useDebug } from './debugStore';
+import { useRun, kanalRun } from './runStore';
+import { rencanaJalan, resepUntuk } from './runLanguages';
 import { useCli } from './cliStore';
 import { useWs } from './workspaceStore';
 import { useUpdater } from './updaterStore';
@@ -506,6 +508,25 @@ export function installDevBridge(): void {
     toolGate: {
       aktif: () => [...useToolGate.getState().aktif],
       isi: (nama: string[]) => useToolGate.getState().dari(nama),
+    },
+  };
+
+  /* Run (compile + execute, no debugger) - the harness drives it directly so a
+     language can be proven end-to-end without clicking through the UI. */
+  w.__ZEPHYR_RUN__ = {
+    store: useRun,
+    state: () => useRun.getState(),
+    rencana: (path: string) => rencanaJalan(path, useStore.getState().workspace),
+    resep: (path: string | null) => resepUntuk(path),
+    jalankan: () => useRun.getState().jalankan(),
+    hentikan: () => useRun.getState().hentikan(),
+    tools: (t: string[]) => useRun.getState().cekTool(t),
+    /** Text of the Output channel the current run writes to. */
+    output: () => {
+      const s = useRun.getState();
+      if (!s.path) return '';
+      const nama = s.path.replace(/\\/g, '/').split('/').pop() ?? '';
+      return useOutput.getState().lines(kanalRun(nama)).join('\n');
     },
   };
 

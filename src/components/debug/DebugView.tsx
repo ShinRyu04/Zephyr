@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDebug, type Variable } from '../../lib/debugStore';
 import { useStore } from '../../lib/store';
 import { useT, useTf, tx } from '../../lib/i18n';
+import { useRun } from '../../lib/runStore';
+import { resepUntuk } from '../../lib/runLanguages';
 
 const baseOf = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p;
 
@@ -133,6 +135,14 @@ export default function DebugView() {
   const watch = useDebug((s) => s.watch);
   const loadedSources = useDebug((s) => s.loadedSources);
 
+  const runStatus = useRun((s) => s.status);
+  const runPhase = useRun((s) => s.phase);
+  const jalankan = useRun((s) => s.jalankan);
+  const hentikan = useRun((s) => s.hentikan);
+  const tabAktif = useStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path ?? null);
+  const bisaRun = tabAktif != null && resepUntuk(tabAktif) !== null;
+  const runBusy = runStatus === 'running';
+
   const muatLaunch = useDebug((s) => s.muatLaunch);
   const muatAdapters = useDebug((s) => s.muatAdapters);
   const pilihConfig = useDebug((s) => s.pilihConfig);
@@ -214,6 +224,31 @@ export default function DebugView() {
               </button>
             </>
           )}
+
+          {/* Run = compile + execute without a debugger. Works for languages
+              that have no DAP adapter yet (C++, Go, Java, …). */}
+          <button
+            className={`dbg-btn is-run${runBusy ? ' is-busy' : ''}`}
+            title={
+              bisaRun
+                ? 'Run Current File (Ctrl+Shift+B)'
+                : 'This file has no run recipe'
+            }
+            data-testid="dbg-run"
+            data-status={runStatus}
+            disabled={!bisaRun && !runBusy}
+            onClick={() => void (runBusy ? hentikan() : jalankan())}
+          >
+            {runBusy ? '■' : '▷'}
+          </button>
+        </div>
+
+        <div className="dbg-status" data-testid="dbg-run-status" data-status={runStatus}>
+          {runBusy && (runPhase === 'compile' ? tr('building…') : tr('running'))}
+          {runStatus === 'ok' && tr('run finished')}
+          {runStatus === 'build-failed' && tr('build failed')}
+          {runStatus === 'run-failed' && tr('exited with an error')}
+          {runStatus === 'killed' && tr('run stopped')}
         </div>
 
         <div className="dbg-status" data-testid="dbg-status" data-state={state}>

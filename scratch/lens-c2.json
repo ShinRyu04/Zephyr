@@ -1,0 +1,161 @@
+{
+  "image": "D:\\Referensi TRAE Agent Window\\composer 2.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed chat or code assistant composer widget with a borderless rounded container. The upper area contains gray placeholder/help text spanning two lines, and the bottom row has left-side controls (plus icon, Manual Approval dropdown with hand icon, @ Agent dropdown) and right-side controls (model selector reading deepseek-v4.1-flash, microphone icon, and a green send button with an up arrow). No content appears above or below the widget within the crop.",
+    "ocr": {
+      "full_text": "Help you write code, debug, optimize performance and other development work, deliver production-ready code.\n+\nManual Approval\n@ Agent\ndeepseek-v4.1-flash",
+      "lines": [
+        {
+          "text": "Help you write code, debug, optimize performance and other development work, deliver",
+          "language": "en"
+        },
+        {
+          "text": "production-ready code.",
+          "language": "en"
+        },
+        {
+          "text": "+",
+          "language": "en"
+        },
+        {
+          "text": "Manual Approval",
+          "language": "en"
+        },
+        {
+          "text": "@ Agent",
+          "language": "en"
+        },
+        {
+          "text": "deepseek-v4.1-flash",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "paragraph",
+          "reading_order": 1,
+          "text": "Help you write code, debug, optimize performance and other development work, deliver production-ready code."
+        },
+        {
+          "type": "icon",
+          "reading_order": 2,
+          "text": "sparkle/star icon at the far right of the placeholder text row"
+        },
+        {
+          "type": "button",
+          "reading_order": 3,
+          "text": "+ (add/attach) icon at bottom-left"
+        },
+        {
+          "type": "button",
+          "reading_order": 4,
+          "text": "hand icon followed by 'Manual Approval' with dropdown chevron"
+        },
+        {
+          "type": "button",
+          "reading_order": 5,
+          "text": "'@ Agent' with dropdown chevron"
+        },
+        {
+          "type": "button",
+          "reading_order": 6,
+          "text": "'deepseek-v4.1-flash' model selector with dropdown chevron"
+        },
+        {
+          "type": "icon",
+          "reading_order": 7,
+          "text": "microphone icon"
+        },
+        {
+          "type": "button",
+          "reading_order": 8,
+          "text": "green square send button with upward arrow"
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "Software UI component: an AI coding assistant input/composer box",
+      "intent": "To let a user enter prompts or instructions for an AI development assistant, with options for approval mode, agent selection, model choice, voice input, and send",
+      "entities": [
+        {
+          "name": "Manual Approval",
+          "type": "dropdown control",
+          "evidence": "bottom row, second control from left"
+        },
+        {
+          "name": "@ Agent",
+          "type": "dropdown control",
+          "evidence": "bottom row, third control from left"
+        },
+        {
+          "name": "deepseek-v4.1-flash",
+          "type": "model selector",
+          "evidence": "bottom row, right side"
+        },
+        {
+          "name": "Send",
+          "type": "button",
+          "evidence": "green square with up arrow at bottom right"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "Manual Approval",
+          "predicate": "is a setting within",
+          "object": "composer widget"
+        },
+        {
+          "subject": "deepseek-v4.1-flash",
+          "predicate": "is the selected model in",
+          "object": "composer widget"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#2b2b2b dark gray background",
+        "#3a3a3a slightly lighter inner box",
+        "#8a8a8a gray placeholder text",
+        "#7a7a7a light gray control text",
+        "#3d7a4f dark green send button",
+        "#ffffff icons"
+      ],
+      "style": "Minimalist dark-mode chat composer, flat design with rounded corners",
+      "notes": [
+        "Outer container is a rounded rectangle with subtle lighter gray border and dark fill, no visible shadow",
+        "Placeholder text is a muted gray, wrapping to two lines, left-aligned",
+        "Bottom row controls are evenly spaced: three on the left, three on the right",
+        "Send button is a green rounded square with a white upward arrow and appears enabled",
+        "Sparkle icon floats at right of the top text area"
+      ]
+    },
+    "uncertainty": [
+      "Exact border radius, border width, and precise hex color values cannot be measured exactly from the image",
+      "The sparkle icon's exact shape (one large plus several small stars) is approximated",
+      "Whether the microphone icon is a button is ambiguous, but styling suggests a control"
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T08:51:07.857Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 8.317,
+    "usage": {
+      "prompt_tokens": 473,
+      "completion_tokens": 860,
+      "total_tokens": 1333,
+      "cost": 0.001343
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 8.319
+      }
+    ],
+    "warnings": []
+  }
+}

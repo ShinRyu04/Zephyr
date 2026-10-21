@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { bukaPanel } from '../../lib/bukaPanel';
+import { useAgxDraft } from '../../lib/agentsDraft';
 import type { ApprovalMode } from '../../lib/types';
 import ModelSelector from '../ai/ModelSelector';
 
@@ -206,13 +207,20 @@ function MenuIzin() {
 }
 
 export default function AgentsComposer() {
-  const [draft, setDraft] = useState('');
+  /*
+   * Draft disimpan di store modul (`useAgxDraft`), bukan `useState` lokal:
+   * menu klik kanan pohon File di panel kanan menitipkan path lewat
+   * "Add to Chat", dan komponen itu tidak bisa menjangkau state di sini.
+   */
+  const draft = useAgxDraft((s) => s.draft);
+  const setDraft = useAgxDraft((s) => s.setDraft);
   const [adaPesan, setAdaPesan] = useState(false);
   const [idDraft, setIdDraft] = useState('');
   const [lokal, setLokal] = useState('Local');
   const [bukaLokal, setBukaLokal] = useState(false);
   const [bukaFolder, setBukaFolder] = useState(false);
   const [folder, setFolder] = useState<string | null>(null);
+  const [cariFolder, setCariFolder] = useState('');
   const akar = useRef<HTMLDivElement | null>(null);
 
   const workspace = useStore((s) => s.workspace);
@@ -387,7 +395,16 @@ export default function AgentsComposer() {
                     setBukaLokal(false);
                   }}
                 >
-                  <span>{l}</span>
+                  <span className="agx-comp-menu-teks-ikon">
+                    <Ikon>
+                      {l === 'Local' && <rect x="1.6" y="2.6" width="12.8" height="8.6" rx="1.4" />}
+                      {l === 'Cloud' && <path d="M4.5 12.2h7a2.7 2.7 0 0 0 .3-5.4 4 4 0 0 0-7.7 1A2.2 2.2 0 0 0 4.5 12.2z" />}
+                      {l === 'Worktree' && <path d="M4.5 3v10M4.5 9.5a2 2 0 1 0 0 .01M11.5 3.5v3a2 2 0 0 1-2 2h-3" />}
+                      {l === 'Connect SSH' && <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2M3.5 7h9v6h-9z" />}
+                      {l === 'Connect WSL' && <path d="M2.5 4.5l3 3-3 3M7.5 11.5h6" />}
+                    </Ikon>
+                    {l}
+                  </span>
                   {l === lokal && <span className="agx-comp-centang">✓</span>}
                 </button>
               ))}
@@ -416,8 +433,22 @@ export default function AgentsComposer() {
           </button>
           {bukaFolder && (
             <div className="agx-comp-menu is-folder" data-testid="agx-comp-folder-menu" role="menu">
-              <div className="agx-comp-menu-judul">Search folders</div>
-              {daftarFolder.map((f) => (
+              <label className="agx-comp-folder-cari">
+                <Ikon>
+                  <path d="M2.4 4.6h4l1.3 1.6h5.9v6.2H2.4z" />
+                </Ikon>
+                <input
+                  type="text"
+                  placeholder="Search folders"
+                  value={cariFolder}
+                  onChange={(e) => setCariFolder(e.target.value)}
+                  data-testid="agx-comp-folder-input"
+                  autoFocus
+                />
+              </label>
+              {daftarFolder
+                .filter((f) => f.toLowerCase().includes(cariFolder.trim().toLowerCase()))
+                .map((f) => (
                 <button
                   key={f}
                   role="menuitemradio"
@@ -446,7 +477,12 @@ export default function AgentsComposer() {
                 data-testid="agx-comp-folder-pilih"
                 onClick={() => setBukaFolder(false)}
               >
-                <span>Select a folder</span>
+                <span className="agx-comp-menu-teks-ikon">
+                  <Ikon>
+                    <path d="M8 3.2v9.6M3.2 8h9.6" />
+                  </Ikon>
+                  Select a folder
+                </span>
               </button>
             </div>
           )}

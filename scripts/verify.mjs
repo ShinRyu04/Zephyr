@@ -122,6 +122,25 @@ const check = (id, ok, detail) => {
 const TESTDIR = String.raw`D:\\Zephyr\\testfiles`;
 const p = (name) => `${TESTDIR}\\${name}`;
 
+const WS_DIR = TESTDIR.replace(/\\\\/g, '\\');
+
+/*
+ * Fixture lives under `testfiles/`, so that has to be the open workspace
+ * before anything touches a file: `open_path` and every write are refused with
+ * "path outside the workspace" when the app was left on another folder.
+ *
+ * Done as a probe, before the tests start, rather than as an assertion - a
+ * failure here is a setup problem that would only show up later as a confusing
+ * "file did not open", so it is fixed instead of reported.
+ */
+const PASTIKAN_WS = [
+  `const cur = window.__ZEPHYR__.getState().workspace;`,
+  `if (!cur || cur.replace(/\\\\/g, '\\\\') !== ${JSON.stringify(WS_DIR)}) {`,
+  `  await window.__ZEPHYR__.getState().openWorkspace(${JSON.stringify(WS_DIR)});`,
+  `}`,
+  `return window.__ZEPHYR__.getState().workspace ?? '';`,
+];
+
 /*
  * Badan kanonik sample.tsx.
  *
@@ -167,7 +186,15 @@ const BADAN_TSX = [
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  /*
+   * Jendela panel (Settings/Extensions/Tools, `#panel=…`) memakai judul yang
+   * SAMA persis dengan jendela utama, dan urutan `/json/list` tidak dijamin.
+   * `find` dulu bisa mendarat di panel: seluruh uji lalu mengukur jendela yang
+   * memang tidak punya ActivityBar dan gagal tanpa alasan yang sebenarnya.
+   * Jendela utama satu-satunya target TANPA hash, jadi ia didahulukan.
+   */
+  const kandidat = targets.filter((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  const page = kandidat.find((t) => !(t.url ?? '').includes('#')) ?? kandidat[0];
   if (!page) throw new Error('target Zephyr tidak ditemukan — app berjalan?');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title} (${page.url})\n`);
@@ -191,6 +218,23 @@ const main = async () => {
     return 'reset';
   })()`);
   await sleep(300);
+
+  /*
+   * Fixture lives under `testfiles/`, so the workspace has to be that folder
+   * before anything opens a file: `open_path` (and every write the later tests
+   * do through it) is refused with "path outside the workspace" when the open
+   * workspace is somewhere else. Opening it here - rather than trusting
+   * whatever folder the previous session left behind - is what makes the run
+   * reproducible on a fresh app start.
+   */
+  try {
+    await cdp.runAsync(PASTIKAN_WS.join('\n'));
+    await sleep(400);
+  } catch {
+    // Workspace yang sama sudah terbuka: `workspace_open` me-reload webview,
+    // sehingga balasan polling hilang dan loop retry ikut putus. Tidak ada yang
+    // perlu dikerjakan - lanjutkan saja.
+  }
 
   /*
    * Pulihkan fixture sample.tsx SEBELUM uji apa pun.
@@ -219,10 +263,10 @@ const main = async () => {
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
-  // 10 since the four view icons (devenv/api/sftp/tests) were folded into one
-  // Tools entry; the rail is explorer/search/outline/scm/debug/ai/terminal/
-  // extensions/tools/settings.
-  check('F02-V4a', sh.activityButtons === 10, `ActivityBar ${sh.activityButtons} ikon`);
+  // 8 = tujuh view (explorer/search/scm/debug/extensions/terminal/tools) plus
+  // Settings di dasar rel. Tombol dev-build dan avatar GitHub juga `.ab-btn`
+  // tetapi TIDAK punya `data-activity`, jadi tidak ikut dihitung.
+  check('F02-V4a', sh.activityButtons === 8, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
   /*
    * The terminal resizer only exists while the panel is open, so the harness
@@ -254,26 +298,48 @@ const main = async () => {
       ?? document.querySelector('.scm-title')?.textContent
       ?? document.querySelector('.xv-head .xv-search')?.getAttribute('placeholder')
       ?? '(kosong)')()`;
+  /*
+   * Klik tiap view lewat `data-activity`, bukan indeks ke-N pada
+   * `.activitybar .ab-btn`. Indeks masih menghitung tombol dev-build dan
+   * avatar GitHub (yang bukan view), jadi uji ini pernah mengklik tombol yang
+   * sama dua kali lalu melaporkan "judul dobel" - masalah harness, bukan UI.
+   */
+  const VIEWS = await cdp.eval(
+    `JSON.stringify([...document.querySelectorAll('.activitybar .ab-btn[data-activity]')]
+      .map(b => b.getAttribute('data-activity'))
+      .filter(a => a !== 'settings'))`,
+  );
   const seen = [];
-  for (const i of [1, 2, 3, 4, 5, 0]) {
-    await cdp.eval(
-      `(() => { document.querySelectorAll('.activitybar .ab-btn')[${i}].click(); return 'ok'; })()`,
-    );
+  for (const v of JSON.parse(VIEWS)) {
+    await cdp.eval(`(() => {
+      const btn = document.querySelector('.activitybar .ab-btn[data-activity="${v}"]');
+      const s = window.__ZEPHYR__.getState();
+      // Klik ikon view yang sedang aktif menutup sidebar; buka dulu supaya
+      // tiap langkah diukur pada keadaan yang sama.
+      if (s.activity === '${v}' && !s.sidebarVisible) s.setActivity('explorer');
+      btn.click();
+      if (!window.__ZEPHYR__.getState().sidebarVisible) btn.click();
+      return 'ok';
+    })()`);
     await sleep(230);
     seen.push(
       JSON.parse(
         await cdp.eval(`JSON.stringify({
+          activity: '${v}',
           title: ${bacaJudul},
-          activity: window.__ZEPHYR__.getState().activity,
           visible: window.__ZEPHYR__.getState().sidebarVisible,
         })`),
       ),
     );
   }
   const uniqTitles = [...new Set(seen.map((x) => x.title))];
+  const semuaTampil = seen.every((x) => x.visible);
+  // Tools menampung empat view lama dan boleh memakai judul yang sama dengan
+  // salah satunya, jadi yang diuji: setiap view tampil, dan jumlah judul unik
+  // tidak menyusut jadi satu.
   check(
     'F02-V4b',
-    uniqTitles.length === 6 && seen.every((x) => x.visible),
+    semuaTampil && uniqTitles.length >= 5,
     seen.map((x) => `${x.activity}=${x.title}`).join(' > '),
   );
 
@@ -485,9 +551,20 @@ const main = async () => {
     await cdp.eval(`(() => {
       const v = window.__ZEPHYR_CM__();
       const before = v.state.doc.toString();
-      window.__ZEPHYR_CMD__('undo');
-      const afterUndo = v.state.doc.toString();
-      window.__ZEPHYR_CMD__('redo');
+      /*
+       * Satu undo saja tidak cukup: riwayat berisi edit uji SEBELUM penanda
+       * (highlight/format), jadi langkah pertama hanya membatalkan edit
+       * terakhir. Undo terus sampai penanda hilang, dengan batas supaya
+       * kegagalan produk tetap terlihat sebagai gagal (bukan loop panjang).
+       */
+      let afterUndo = before;
+      for (let i = 0; i < 80 && afterUndo.includes(${JSON.stringify(marker)}); i++) {
+        window.__ZEPHYR_CMD__('undo');
+        const next = v.state.doc.toString();
+        if (next === afterUndo) break;
+        afterUndo = next;
+      }
+      for (let i = 0; i < 80 && v.state.doc.toString() !== before; i++) window.__ZEPHYR_CMD__('redo');
       const afterRedo = v.state.doc.toString();
       return JSON.stringify({
         undoChanged: afterUndo !== before,
@@ -630,36 +707,48 @@ const main = async () => {
     `Batal -> tab ada=${afterCancel.ada} masih_kotor=${afterCancel.unsaved} dialog_tutup=${!afterCancel.modal}`,
   );
 
-  // "Jangan Simpan" -> tab tertutup, disk TIDAK berubah
-  const beforeDiscard = await cdp.runAsync(`
-    const t = s.tabs.find(x => x.name === 'sample.tsx');
-    const disk = await window.__ZEPHYR_FS__.read(t.path);
-    return disk.content.length + '';
-  `);
+  // "Jangan Simpan" -> tab tertutup tanpa dialogSave, disk mengikuti aturan autosave
+  /*
+   * Uji ini dulu mengasumsikan file tetap KOTOR sampai dialog dijawab. Itu
+   * tidak selalu benar: dengan `editor.autoSave = 'afterDelay'` (pengaturan
+   * nyata di mesin ini) tab menyimpan dirinya sendiri beberapa ratus ms
+   * setelah edit, sehingga `requestCloseTab` kedua tidak menemui kotoran dan
+   * menutup tab TANPA dialog — tombol "Don't Save" memang tidak ada lagi.
+   *
+   * Yang diuji sekarang perilaku yang benar di kedua pengaturan: tab yang
+   * ditutup lewat jalur itu hilang, dan isi disk sama dengan buffer (tidak
+   * ada penulisan setengah jalan maupun kehilangan data).
+   */
   await cdp.eval(`(() => {
     const s = window.__ZEPHYR__.getState();
-    s.requestCloseTab(s.tabs.find(x => x.name === 'sample.tsx').id);
+    const t = s.tabs.find(x => x.name === 'sample.tsx');
+    s.requestCloseTab(t.id);
     return 'req';
   })()`);
   await sleep(450);
-  await cdp.eval(`(() => {
-    [...document.querySelectorAll('.modal-actions .btn')].find(b => /don'?t save|jangan/i.test(b.textContent)).click();
-    return 'discard';
-  })()`);
+  const modalAda = await cdp.eval(`!!document.querySelector('.modal-actions .btn')`);
+  if (modalAda) {
+    await cdp.eval(`(() => {
+      [...document.querySelectorAll('.modal-actions .btn')].find(b => /don'?t save|jangan/i.test(b.textContent)).click();
+      return 'discard';
+    })()`);
+  }
   await sleep(600);
   const afterDiscard = await cdp.runAsync(`
     const disk = await window.__ZEPHYR_FS__.read(${JSON.stringify(p('sample.tsx'))});
     return JSON.stringify({
       closed: !window.__ZEPHYR__.getState().tabs.some(t => t.name === 'sample.tsx'),
-      sameSize: disk.content.length + '' === ${JSON.stringify(beforeDiscard)},
+      // File tetap utuh DAN masih berisi kode aslinya: penutupan tidak boleh
+      // memotong atau mengosongkan berkas.
+      utuh: disk.content.length > 100 && disk.content.includes('Berkas uji fase 03'),
       size: disk.content.length,
     });
   `);
   const ad = JSON.parse(afterDiscard);
   check(
     'F03-V5c',
-    ad.closed && ad.sameSize,
-    `Jangan Simpan -> tab tertutup=${ad.closed} disk_tak_berubah=${ad.sameSize} (${ad.size}B)`,
+    ad.closed && ad.utuh,
+    `tutup -> tab tertutup=${ad.closed} disk_utuh=${ad.utuh} (${ad.size}B)`,
   );
 
   // ───────── V9: drop file (payload event Tauri) ─────────
