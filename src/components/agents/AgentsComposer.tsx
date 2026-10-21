@@ -294,68 +294,81 @@ export default function AgentsComposer() {
         </header>
       )}
 
-      <div className="agx-comp-kotak" data-testid="agx-comp-kotak">
-        <textarea
-          className="agx-comp-input"
-          data-testid="agx-comp-input"
-          rows={2}
-          spellCheck={false}
-          value={draft}
-          placeholder={modeChat ? SUBJUDUL : PLACEHOLDER_AWAL}
-          aria-label="Message for the agent"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              kirim();
-            }
-          }}
-        />
+      {/* Satu bungkus untuk kotak input + strip `Local`. Keduanya tetap dua
+          elemen terpisah (strip di BAWAH kotak, bukan di dalamnya — seperti
+          TRAE), tapi satu bingkai luar membungkus keduanya supaya terbaca
+          sebagai satu blok composer. */}
+      <div className="agx-comp-gabung" data-testid="agx-comp-gabung">
+        <div className="agx-comp-kotak" data-testid="agx-comp-kotak">
+          <textarea
+            className="agx-comp-input"
+            data-testid="agx-comp-input"
+            spellCheck={false}
+            value={draft}
+            placeholder={modeChat ? SUBJUDUL : PLACEHOLDER_AWAL}
+            aria-label="Message for the agent"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                kirim();
+              }
+            }}
+          />
 
-        <div className="agx-comp-bar" data-testid="agx-comp-bar">
-          <button className="agx-comp-plus" data-testid="agx-comp-plus" title="Add context">
-            <Ikon>
-              <path d="M8 3.4v9.2M3.4 8h9.2" />
-            </Ikon>
-          </button>
-
-          <MenuIzin />
-
-          {/* Kanan: model tepat di samping tombol kirim, seperti composer
-              panel kanan di jendela utama. `margin-left: auto` ada di sini,
-              bukan di tombol kirim, supaya keduanya terdorong bersama. */}
-          <span className="agx-comp-kanan" data-testid="agx-comp-kanan">
-            <ModelSelector />
-            <button
-              className="agx-comp-kirim"
-              data-testid="agx-comp-kirim"
-              title="Send"
-              aria-label="Send"
-              disabled={!draft.trim()}
-              onClick={kirim}
-            >
+          <div className="agx-comp-bar" data-testid="agx-comp-bar">
+            <button className="agx-comp-plus" data-testid="agx-comp-plus" title="Add context">
               <Ikon>
-                <path d="M8 12.6V3.6M4.4 7.2 8 3.6l3.6 3.6" />
+                <path d="M8 3.4v9.2M3.4 8h9.2" />
               </Ikon>
             </button>
-          </span>
-        </div>
-      </div>
 
-      {/* Kotak KEDUA: `Local` + folder. Sengaja di luar `.agx-comp-kotak` —
-          di acuan baris ini punya garis dan radius sendiri. */}
-      <div className="agx-comp-lokasi" data-testid="agx-comp-kaki">
+            <MenuIzin />
+
+            {/* Kanan: model tepat di samping tombol kirim, seperti composer
+                panel kanan di jendela utama. `margin-left: auto` ada di sini,
+                bukan di tombol kirim, supaya keduanya terdorong bersama. */}
+            <span className="agx-comp-kanan" data-testid="agx-comp-kanan">
+              <ModelSelector />
+              <button
+                className="agx-comp-kirim"
+                data-testid="agx-comp-kirim"
+                title="Send"
+                aria-label="Send"
+                disabled={!draft.trim()}
+                onClick={kirim}
+              >
+                <Ikon>
+                  <path d="M8 12.6V3.6M4.4 7.2 8 3.6l3.6 3.6" />
+                </Ikon>
+              </button>
+            </span>
+          </div>
+        </div>
+
+        {/* Strip `Local` + folder: kotak TERPISAH di bawah kotak input (persis
+            TRAE), hanya berbagi bingkai luar dengan kotak di atasnya.
+            HILANG setelah pesan pertama — di TRAE composer mode chat polos,
+            tanpa strip di bawahnya. */}
+        {!modeChat && (
+        <div className="agx-comp-lokasi" data-testid="agx-comp-kaki">
         <span className="agx-comp-dd">
           <button
             className="agx-comp-dd-btn"
             data-testid="agx-comp-lokal"
             aria-expanded={bukaLokal}
+            title={lokal}
             onClick={() => {
               setBukaFolder(false);
               setBukaLokal((v) => !v);
             }}
           >
-            {lokal}
+            <Ikon>
+              {/* Ikon komputer (monitor + kaki), bukan titik bulat. */}
+              <rect x="1.6" y="2.6" width="12.8" height="8.6" rx="1.4" />
+              <path d="M8 11.2v2.2M5.4 13.4h5.2" />
+            </Ikon>
+            <span className="agx-comp-dd-teks">{lokal}</span>
             <span className="agx-comp-caret">▾</span>
           </button>
           {bukaLokal && (
@@ -382,11 +395,12 @@ export default function AgentsComposer() {
           )}
         </span>
 
-        <span className="agx-comp-dd is-kanan">
+        <span className="agx-comp-dd">
           <button
             className="agx-comp-dd-btn is-folder"
             data-testid="agx-comp-folder"
             aria-expanded={bukaFolder}
+            title={folderAktif ?? 'Select a folder (optional)'}
             onClick={() => {
               setBukaLokal(false);
               setBukaFolder((v) => !v);
@@ -437,17 +451,21 @@ export default function AgentsComposer() {
             </div>
           )}
         </span>
+        </div>
+        )}
       </div>
 
       {!modeChat && (
         <div className="agx-comp-chip" data-testid="agx-comp-chip">
           {CHIP.map((c) => (
-            <button key={c.judul} className="agx-comp-chip-item" data-testid="agx-comp-chip-item">
+            <button
+              key={c.judul}
+              className="agx-comp-chip-item"
+              data-testid="agx-comp-chip-item"
+              title={c.ket}
+            >
               <Ikon>{c.ikon}</Ikon>
-              <span className="agx-comp-chip-teks">
-                <b>{c.judul}</b>
-                <i>{c.ket}</i>
-              </span>
+              <span className="agx-comp-chip-teks">{c.judul}</span>
             </button>
           ))}
         </div>
