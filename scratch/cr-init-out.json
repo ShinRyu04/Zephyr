@@ -1,0 +1,17 @@
+{
+  "project": "proj-e67e358c",
+  "projectRoot": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c",
+  "taskRoot": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1",
+  "roots": {
+    "contaminated": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1\\contaminated",
+    "clean": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1\\clean",
+    "implementation": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\implementation",
+    "quarantine": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1\\quarantine"
+  },
+  "metadata": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1\\clean-room-bootstrap.json",
+  "projectMetadata": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\clean-room-project.json",
+  "repoStub": "D:\\Zephyr\\.clean-room\\README.md",
+  "localState": "D:\\Zephyr\\.clean-room\\local-state.json",
+  "localGitignore": "D:\\Zephyr\\.clean-room\\.gitignore",
+  "targetProfile": "speckit-feature-folder"
+}

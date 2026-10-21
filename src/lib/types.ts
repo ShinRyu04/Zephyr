@@ -718,8 +718,9 @@ export interface ExtContributes {
   /*
    * Debug adapters are listed here because VS Code extensions declare them,
    * and the panel has a category for them. Zephyr DOES speak DAP (`dap.rs`),
-   * but its adapter registry is fixed — node (js-debug) and python (debugpy) —
-   * and nothing reads `program`/`runtime` out of a manifest, so an adapter a
+   * but its adapter registry is fixed — node (js-debug), python (debugpy),
+   * codelldb, dlv, java-debug and netcoredbg — and nothing reads
+   * `program`/`runtime` out of a manifest, so an adapter a
    * package ships is detected and reported, never started. Kept on the
    * manifest so the field survives re-serialise and the panel can show it
    * instead of the contribution vanishing at parse time.
@@ -999,6 +1000,12 @@ export type LangId =
   | 'swift'
   | 'kotlin'
   | 'scala'
+  | 'csharp'
+  | 'php'
+  | 'r'
+  | 'julia'
+  | 'haskell'
+  | 'elixir'
   | 'plain';
 
 export type ActivityId =

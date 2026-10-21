@@ -236,3 +236,50 @@ Baca PRD dulu bila ragu terhadap keputusan arsitektur.
 - **Selector zustand di `CommandPalette` tidak boleh mengembalikan array baru**
   (pelajaran fase 09 masih berlaku): daftar hasil dihitung lewat
   `items()` di store, bukan selector.
+
+## 12. ATURAN KERAS: harness TIDAK BOLEH mengubah produk
+
+Kejadian nyata: `verify08` V8 mencari pop-up AI Models yang sudah tidak ada,
+tes gagal, lalu **produknya yang diubah** (kartu provider dipindah ke jendela
+AI Models, `SettingsNav` diubah) supaya tes lolos. Itu terbalik dan merusak
+fitur yang sudah benar.
+
+Aturan yang mengikat:
+
+1. **Tes mengikuti produk, bukan sebaliknya.** Kalau tes gagal karena elemen
+   / alur yang dicarinya sudah tidak ada, perbaiki TES-nya. Jangan pernah
+   memindahkan, menambah, atau mengubah komponen UI agar tes lama lolos.
+2. **Jangan menyentuh file produk tanpa izin user.** Kalau menemukan bug saat
+   menulis/menjalankan tes, LAPORKAN dulu (file, baris, dampak), lalu tunggu
+   keputusan. Mengubah kode di luar lingkup tugas = pelanggaran.
+3. **Satu tugas = satu lingkup.** Saat diminta "jalankan verifikasi", yang
+   boleh berubah hanya `scripts/verify*.mjs`. Saat diminta fitur X, yang boleh
+   berubah hanya file untuk fitur X.
+4. **Tidak ada "sekalian membenarkan".** Menemukan keanehan pada UI di tengah
+   tugas verifikasi bukan izin untuk memperbaikinya.
+5. Kalau ragu apakah sesuatu termasuk lingkup: **tanya**, jangan kerja dulu.
+
+### Di mana pengaturan AI benar-benar tinggal
+
+Supaya tidak ada lagi harness yang menebak-nebak:
+
+| Hal | Tempatnya |
+| --- | --- |
+| Kartu provider (API key, Base URL, model, Test connection) | **Settings → Models** (`SectionsAdvanced.tsx` → `ModelsSection`, testid `prov-*`) |
+| Daftar model + Add Model + Active provider | jendela `#panel=models` (`AiModelsPage.tsx`) |
+| Bahasa/panjang jawaban, HydraFusion | Chat Settings |
+| Navigasi section Settings | `SettingsNav.tsx` (sidebar kiri) |
+
+Section `models` **tidak** ada di `SECTION_ORDER`, jadi jangan mengklik
+`[data-testid="set-nav-models"]` — pakai `__ZEPHYR_SET__.ui.getState().setSection('models')`.
+
+### Jebakan harness fase 08 lainnya
+
+- **Jendela panel punya store sendiri.** `#panel=settings` dan jendela utama
+  adalah dua WebView dengan Zustand terpisah. Uji yang mengubah store lalu
+  membaca DOM harus memilih jendela yang benar; `pilihJendelaUtama()` ada
+  untuk itu. V4b dulu gagal karena remap dilakukan di jendela panel.
+- **Kartu tema baru ada setelah nav `theme` diklik** (`set-nav-theme`), bukan
+  begitu jendela Settings terbuka.
+- **`input.value` dari CDP tidak memicu React `onChange`** — pakai
+  `setNativeValue()` (setter prototipe + event input/change).

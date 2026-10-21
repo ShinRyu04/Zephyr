@@ -1,0 +1,325 @@
+{
+  "image": "D:\\Zephyr\\scratch\\zephyr-agents.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed desktop application window for 'ZephyrDesktop', an AI coding assistant. It has a top title bar, a left sidebar for tasks/chats, a central chat panel with an empty state and composer, and a right panel with tabs and a file list. The layout is composed of distinct panels separated by thin borders, with a floating rounded composer and rounded suggestion cards in the center.",
+    "ocr": {
+      "full_text": "ZephyrDesktop\nNew task\nZephyrDesktop\nToday\nNew chat\nNew chat\nAsk about this code.\nEnter sends · Shift+Enter new line · Ctrl+I focuses\nhere. A `bash` block runs in the terminal.\nExplain this file\nWalk through what it does\nFind the bug\nLook at the current errors\nWrite a test\nCover the main path\nType a task for the agent (Enter to send)...\nZephyr · mr-vip\nInteractive\nWork\nAuto\n0 messages\n0%\nChanges\nFiles\n.zephyr\nzephyr-context.md\ndev-run.log\nindex.html\nmain.js\npackage-lock.json\npackage.json\npreload.js\nREADME.md\nrenderer.js\nrun-log.txt\nstore.js\nstyles.css\nOpen a file from Files or Changes to\nsee it here.\nZephyrDesktop\nFile\nView\nHelp",
+      "lines": [
+        {
+          "text": "ZephyrDesktop",
+          "language": "en"
+        },
+        {
+          "text": "New task",
+          "language": "en"
+        },
+        {
+          "text": "ZephyrDesktop",
+          "language": "en"
+        },
+        {
+          "text": "Today",
+          "language": "en"
+        },
+        {
+          "text": "New chat",
+          "language": "en"
+        },
+        {
+          "text": "New chat",
+          "language": "en"
+        },
+        {
+          "text": "Ask about this code.",
+          "language": "en"
+        },
+        {
+          "text": "Enter sends · Shift+Enter new line · Ctrl+I focuses",
+          "language": "en"
+        },
+        {
+          "text": "here. A `bash` block runs in the terminal.",
+          "language": "en"
+        },
+        {
+          "text": "Explain this file",
+          "language": "en"
+        },
+        {
+          "text": "Walk through what it does",
+          "language": "en"
+        },
+        {
+          "text": "Find the bug",
+          "language": "en"
+        },
+        {
+          "text": "Look at the current errors",
+          "language": "en"
+        },
+        {
+          "text": "Write a test",
+          "language": "en"
+        },
+        {
+          "text": "Cover the main path",
+          "language": "en"
+        },
+        {
+          "text": "Type a task for the agent (Enter to send)...",
+          "language": "en"
+        },
+        {
+          "text": "Zephyr · mr-vip",
+          "language": "en"
+        },
+        {
+          "text": "Interactive",
+          "language": "en"
+        },
+        {
+          "text": "Work",
+          "language": "en"
+        },
+        {
+          "text": "Auto",
+          "language": "en"
+        },
+        {
+          "text": "0 messages",
+          "language": "en"
+        },
+        {
+          "text": "0%",
+          "language": "en"
+        },
+        {
+          "text": "Changes",
+          "language": "en"
+        },
+        {
+          "text": "Files",
+          "language": "en"
+        },
+        {
+          "text": ".zephyr",
+          "language": "en"
+        },
+        {
+          "text": "zephyr-context.md",
+          "language": "en"
+        },
+        {
+          "text": "dev-run.log",
+          "language": "en"
+        },
+        {
+          "text": "index.html",
+          "language": "en"
+        },
+        {
+          "text": "main.js",
+          "language": "en"
+        },
+        {
+          "text": "package-lock.json",
+          "language": "en"
+        },
+        {
+          "text": "package.json",
+          "language": "en"
+        },
+        {
+          "text": "preload.js",
+          "language": "en"
+        },
+        {
+          "text": "README.md",
+          "language": "en"
+        },
+        {
+          "text": "renderer.js",
+          "language": "en"
+        },
+        {
+          "text": "run-log.txt",
+          "language": "en"
+        },
+        {
+          "text": "store.js",
+          "language": "en"
+        },
+        {
+          "text": "styles.css",
+          "language": "en"
+        },
+        {
+          "text": "Open a file from Files or Changes to",
+          "language": "en"
+        },
+        {
+          "text": "see it here.",
+          "language": "en"
+        },
+        {
+          "text": "ZephyrDesktop",
+          "language": "en"
+        },
+        {
+          "text": "File",
+          "language": "en"
+        },
+        {
+          "text": "View",
+          "language": "en"
+        },
+        {
+          "text": "Help",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "title bar",
+          "reading_order": 1,
+          "text": "Top bar: back/forward arrows, sidebar toggle, ZephyrDesktop logo and title, File/View/Help menus, right-side icons (bell, sidebar, refresh, minimize, maximize, close)"
+        },
+        {
+          "type": "sidebar",
+          "reading_order": 2,
+          "text": "Left sidebar: New task button, ZephyrDesktop section, Today section, New chat item highlighted"
+        },
+        {
+          "type": "chat panel",
+          "reading_order": 3,
+          "text": "Center chat panel: New chat header, empty-state icon, heading 'Ask about this code.', helper text, three suggestion cards, composer input at bottom"
+        },
+        {
+          "type": "composer",
+          "reading_order": 4,
+          "text": "Bottom composer: placeholder text, plus button, Zephyr model selector, mr-vip selector, send button"
+        },
+        {
+          "type": "status bar",
+          "reading_order": 5,
+          "text": "Bottom status row: Interactive, Work, Auto, 0 messages, 0%"
+        },
+        {
+          "type": "right panel",
+          "reading_order": 6,
+          "text": "Right panel: Changes and Files tabs, file tree, empty-state message 'Open a file from Files or Changes to see it here.'"
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "Desktop application UI, dark theme, AI coding assistant workspace",
+      "intent": "Provide an interface for chatting with an AI agent about code, browsing files, and viewing changes",
+      "entities": [
+        {
+          "name": "ZephyrDesktop",
+          "type": "application",
+          "evidence": "title bar and bottom-left label"
+        },
+        {
+          "name": "New chat",
+          "type": "chat session",
+          "evidence": "left sidebar and center header"
+        },
+        {
+          "name": "Explain this file",
+          "type": "suggestion action",
+          "evidence": "center panel card"
+        },
+        {
+          "name": "Find the bug",
+          "type": "suggestion action",
+          "evidence": "center panel card"
+        },
+        {
+          "name": "Write a test",
+          "type": "suggestion action",
+          "evidence": "center panel card"
+        },
+        {
+          "name": "Files",
+          "type": "tab",
+          "evidence": "right panel tab strip"
+        },
+        {
+          "name": "Changes",
+          "type": "tab",
+          "evidence": "right panel tab strip"
+        },
+        {
+          "name": "zephyr-context.md",
+          "type": "file",
+          "evidence": "right panel file list"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "left sidebar",
+          "predicate": "contains",
+          "object": "New chat item"
+        },
+        {
+          "subject": "right panel",
+          "predicate": "contains",
+          "object": "Files tab and file list"
+        },
+        {
+          "subject": "center chat panel",
+          "predicate": "contains",
+          "object": "suggestion cards and composer"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#0d0d0f",
+        "#1a1a1e",
+        "#2a2a30",
+        "#3a5fd9",
+        "#e0e0e0"
+      ],
+      "style": "Dark, minimal, flat-column application UI with rounded floating elements",
+      "notes": [
+        "Three-column layout: narrow left sidebar, wide central chat panel, medium right files panel",
+        "Panels are divided by thin vertical borders rather than being separate floating cards",
+        "Left sidebar sits directly on window background",
+        "Composer is a large rounded rectangle with pill-shaped inner controls",
+        "Suggestion cards are rounded rectangles stacked vertically",
+        "Right panel tab strip has rounded active tab",
+        "Empty-state icon is a blue rounded square with a white lightning/arrow symbol"
+      ]
+    },
+    "uncertainty": [
+      "Small icons and model selector text may be partially ambiguous due to resolution",
+      "Exact pixel widths of columns are approximate",
+      "Some file tree icons are small and could be misidentified"
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T07:53:03.629Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 9.596,
+    "usage": {
+      "prompt_tokens": 493,
+      "completion_tokens": 1480,
+      "total_tokens": 1973,
+      "cost": 0.002171
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 9.598
+      }
+    ],
+    "warnings": []
+  }
+}

@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
+use crate::lsp::cari_berulang;
 
 const REQ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 
@@ -213,6 +214,17 @@ pub struct AdapterSpec {
     pub tcp: bool,
 
     pub missing: String,
+
+    /// Environment variables the adapter process needs (`LLDB`,
+    /// `JAVA_DEBUG`). The resolver in `adapter_env` finds the library in the
+    /// machine's private `dap` folder, so a downloaded adapter loads its own
+    /// debug library instead of relying on the caller's environment.
+    pub env: Vec<(String, String)>,
+
+    /// Extra arguments inserted before the port in `dap_start`. `dlv`'s
+    /// headless DAP binary insists on its `dap` sub-command and `--listen`
+    /// flag; everything else takes a bare `port host`.
+    pub args: Vec<String>,
 }
 
 fn dap_dir(state: &AppState) -> PathBuf {
@@ -237,6 +249,8 @@ fn spec_node(state: &AppState) -> AdapterSpec {
                 entry.display()
             )
         },
+        env: vec![],
+        args: vec![],
     }
 }
 
@@ -275,7 +289,199 @@ fn spec_python(state: &AppState) -> AdapterSpec {
             }
             (true, true) => String::new(),
         },
+        env: vec![],
+        args: vec![],
     }
+}
+
+/// `codelldb`: C, C++ and Rust through LLDB.
+///
+/// Two pieces have to line up: the executable and the `lldb` library its
+/// `lldb.debugger` package wraps. `adapter_env` looks for the library inside
+/// the adapter folder first, so a tree downloaded into `%APPDATA%\zephyr\dap`
+/// works without an `LLDB` variable in the user's environment, and falls back
+/// to whatever LLVM `/ adapth.path` is on PATH.
+fn spec_codelldb(state: &AppState) -> AdapterSpec {
+    const CARA_PASANG: &str = "winget install LLVM.LLVM  then  code --install-extension vadimcn.vscode-lldb (or copy the adapter into %APPDATA%\\zephyr\\dap\\codelldb)";
+    let slot = dap_dir(state).join("codelldb");
+    let exe = cari_berulang(&slot, "codelldb.exe", 4)
+        .or_else(|| cari_berulang(&slot, "codelldb", 4))
+        .or_else(|| cari_tool("codelldb"));
+    AdapterSpec {
+        id: "codelldb".into(),
+        cmd: vec![
+            exe.as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "codelldb".into()),
+        ],
+        tcp: true,
+        missing: match &exe {
+            Some(p) => {
+                if adapter_env(state, &slot, p).is_empty() {
+                    "codelldb needs the LLDB library; install LLVM (winget install LLVM.LLVM) or put the lldb.debugger folder next to codelldb.exe".into()
+                } else {
+                    String::new()
+                }
+            }
+            None => format!("codelldb (C/C++/Rust debugger) not found. {CARA_PASANG}"),
+        },
+        env: exe
+            .as_ref()
+            .map(|p| {
+                adapter_env(state, &slot, p)
+                    .into_iter()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default(),
+        args: vec![],
+    }
+}
+
+/// `dlv dap`: Delve's headless DAP server for Go.
+fn spec_dlv(state: &AppState) -> AdapterSpec {
+    let slot = dap_dir(state).join("dlv");
+    let exe = cari_berulang(&slot, "dlv.exe", 3)
+        .or_else(|| cari_berulang(&slot, "dlv", 3))
+        .or_else(|| cari_tool("dlv"));
+    AdapterSpec {
+        id: "dlv".into(),
+        cmd: vec![
+            exe.as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "dlv".into()),
+            "dap".into(),
+            "--listen".into(),
+        ],
+        tcp: true,
+        missing: match &exe {
+            Some(_) => String::new(),
+            None => "Delve (dlv) not found. Run: go install github.com/go-delve/delve/cmd/dlv@latest  (needs the Go toolchain)".into(),
+        },
+        env: vec![],
+        args: vec![],
+    }
+}
+
+/// `java debug`: the java-debug plugin that jdtls loads, started as its own
+/// process with `-agentlib:jdwp`.
+fn spec_java(state: &AppState) -> AdapterSpec {
+    const CARA_PASANG: &str = "install the Java extension (jdtls) or download com.microsoft.java.debug.plugin into %APPDATA%\\zephyr\\dap\\java-debug";
+    let slot = dap_dir(state).join("java-debug");
+    let jar = cari_jar(&slot)
+        .or_else(|| std::env::var("JAVA_DEBUG").ok().map(PathBuf::from).filter(|p| p.is_file()));
+    let java = cari_tool("java");
+    AdapterSpec {
+        id: "java-debug".into(),
+        cmd: vec![
+            java.as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "java".into()),
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:0".into(),
+            "-jar".into(),
+            jar.as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "java-debug.jar".into()),
+        ],
+        /* java-debug announces its own port on stdout; the generic tcp start
+         * cannot guess it, so the session has to be attached by the plugin. */
+        tcp: false,
+        missing: match (java.is_some(), &jar) {
+            (false, _) => format!("Java not found on PATH; install a JDK first. {CARA_PASANG}"),
+            (true, None) => format!("java-debug plugin not found. {CARA_PASANG}"),
+            (true, Some(_)) => String::new(),
+        },
+        env: vec![],
+        args: vec![],
+    }
+}
+
+/// `coreclr` through netcoredbg, which is what the C# extension uses on
+/// Windows without Visual Studio.
+fn spec_netcoredbg(state: &AppState) -> AdapterSpec {
+    let slot = dap_dir(state).join("netcoredbg");
+    let exe = cari_berulang(&slot, "netcoredbg.exe", 3)
+        .or_else(|| cari_berulang(&slot, "netcoredbg", 3))
+        .or_else(|| cari_tool("netcoredbg"));
+    AdapterSpec {
+        id: "netcoredbg".into(),
+        cmd: vec![
+            exe.as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "netcoredbg".into()),
+            "--interpreter=vscode".into(),
+        ],
+        tcp: false,
+        missing: match &exe {
+            Some(_) => String::new(),
+            None => "netcoredbg (C# debugger) not found. winget install Samsung.netcoredbg, or put netcoredbg.exe in %APPDATA%\\zephyr\\dap\\netcoredbg".into(),
+        },
+        env: vec![],
+        args: vec![],
+    }
+}
+
+/// First match for an executable, using the same resolver the Run pipeline
+/// uses (PATH, then WinGet packages, LLVM, Go, Java, ...), so a debugger that
+/// is installed but missing from the GUI `PATH` still counts.
+fn cari_tool(nama: &str) -> Option<PathBuf> {
+    crate::run::cari_di_path(nama)
+}
+
+/// Any `*.jar` inside the slot, a few folders deep (`java-debug` releases
+/// unpack as `com.microsoft.java.debug.plugin-0.53.1/...`).
+fn cari_jar(dir: &std::path::Path) -> Option<PathBuf> {
+    fn telusur(d: &std::path::Path, sisa: u8) -> Option<PathBuf> {
+        if sisa == 0 {
+            return None;
+        }
+        for e in std::fs::read_dir(d).ok()?.flatten() {
+            let p = e.path();
+            if p.is_file() && p.extension().is_some_and(|x| x.eq_ignore_ascii_case("jar")) {
+                return Some(p);
+            }
+        }
+        for e in std::fs::read_dir(d).ok()?.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if let Some(f) = telusur(&p, sisa - 1) {
+                    return Some(f);
+                }
+            }
+        }
+        None
+    }
+    telusur(dir, 4)
+}
+
+/// Environment for a downloaded adapter: `LLDB` (codelldb) and `JAVA_DEBUG`
+/// (java-debug) point at libraries inside the adapter's own folder when they
+/// are there, so nothing has to be installed system-wide.
+fn adapter_env(state: &AppState, slot: &std::path::Path, exe: &std::path::Path) -> Vec<(String, String)> {
+    let mut env = Vec::new();
+    let _ = state;
+
+    /* codelldb ships `lldb.adapter` + an `lldb` folder holding bin and
+     * libraries; the library root is the folder that has `lldb\bin`, or the
+     * exe's own folder in a flat unpack. */
+    let mut kandidat_lldb = vec![slot.to_path_buf()];
+    if let Some(p) = exe.parent() {
+        kandidat_lldb.push(p.to_path_buf());
+        if let Some(p2) = p.parent() {
+            kandidat_lldb.push(p2.to_path_buf());
+        }
+    }
+    for d in kandidat_lldb {
+        if d.join("lldb").join("bin").is_dir() || d.join("liblldb.dll").is_file() {
+            env.push(("LLDB".to_string(), d.to_string_lossy().to_string()));
+            break;
+        }
+    }
+
+    if let Some(jar) = cari_jar(&slot.join("java-debug")) {
+        env.push(("JAVA_DEBUG".to_string(), jar.to_string_lossy().to_string()));
+    }
+
+    env
 }
 
 fn cari_python(_state: &AppState) -> Option<PathBuf> {
@@ -304,6 +510,10 @@ fn bawaan_untuk(tipe: &str) -> Option<&'static str> {
     match tipe {
         "node" | "pwa-node" | "node-terminal" | "pwa-chrome" => Some("node"),
         "python" | "debugpy" => Some("python"),
+        "cppdbg" | "cppdbg-lldb" | "codelldb" | "lldb" | "rust" => Some("codelldb"),
+        "go" | "dlv" => Some("dlv"),
+        "java" => Some("java-debug"),
+        "coreclr" | "netcoredbg" => Some("netcoredbg"),
         _ => None,
     }
 }
@@ -313,8 +523,9 @@ fn bawaan_untuk(tipe: &str) -> Option<&'static str> {
 /// Exposed for the extension report (`ext_pkg::pengaruh_paket`): a package that
 /// declares `contributes.debuggers` is judged against the registry that
 /// actually exists here, instead of against a second list kept in the report.
-/// The registry is fixed — node (js-debug) and python (debugpy) — and nothing
-/// in it is read from a package manifest.
+/// The registry is fixed and built in: node (js-debug), python (debugpy),
+/// codelldb (C/C++/Rust), dlv (Go), java-debug (Java) and netcoredbg (C#).
+/// Nothing in it is read from a package manifest.
 pub fn adapter_bawaan(tipe: &str) -> Option<&'static str> {
     bawaan_untuk(tipe)
 }
@@ -323,11 +534,15 @@ pub fn spec_untuk(state: &AppState, tipe: &str) -> ZResult<AdapterSpec> {
     match bawaan_untuk(tipe) {
         Some("node") => Ok(spec_node(state)),
         Some("python") => Ok(spec_python(state)),
+        Some("codelldb") => Ok(spec_codelldb(state)),
+        Some("dlv") => Ok(spec_dlv(state)),
+        Some("java-debug") => Ok(spec_java(state)),
+        Some("netcoredbg") => Ok(spec_netcoredbg(state)),
         Some(lain) => Err(ZephyrError::Internal(format!(
             "built-in adapter \"{lain}\" has no spec"
         ))),
         None => Err(ZephyrError::InvalidInput(format!(
-            "debug type \"{tipe}\" is not supported yet (v1: node, python)"
+            "debug type \"{tipe}\" is not supported yet (node, python, cppdbg/codelldb, go, java, coreclr)"
         ))),
     }
 }
@@ -337,13 +552,21 @@ pub fn tipe_untuk_adapter(tipe: &str) -> &str {
         "node" => "pwa-node",
         "chrome" => "pwa-chrome",
         "msedge" => "pwa-msedge",
+        "codelldb" | "cppdbg-lldb" => "lldb",
         lain => lain,
     }
 }
 
 #[tauri::command(async)]
 pub fn dap_adapters(state: State<AppState>) -> ZResult<Vec<AdapterSpec>> {
-    Ok(vec![spec_node(&state), spec_python(&state)])
+    Ok(vec![
+        spec_node(&state),
+        spec_python(&state),
+        spec_codelldb(&state),
+        spec_dlv(&state),
+        spec_java(&state),
+        spec_netcoredbg(&state),
+    ])
 }
 
 enum Tulis {
@@ -766,10 +989,23 @@ pub fn dap_start(
 
     let mut cmd_vec = spec.cmd.clone();
     let port = if spec.tcp { Some(port_bebas()?) } else { None };
+    /* Adapter-specific arguments come before the port. `dlv` takes its
+     * address in `--listen=` and nothing else, so that flag is built from the
+     * bind port itself; every other adapter gets `port host` appended. */
+    let pakai_listen = spec.args.iter().any(|a| a == "--listen");
+    for extra in &spec.args {
+        if extra != "--listen" {
+            cmd_vec.push(extra.clone());
+        }
+    }
     if let Some(p) = port {
-        cmd_vec.push(p.to_string());
+        if pakai_listen {
+            cmd_vec.push(format!("--listen=127.0.0.1:{p}"));
+        } else {
+            cmd_vec.push(p.to_string());
 
-        cmd_vec.push("127.0.0.1".to_string());
+            cmd_vec.push("127.0.0.1".to_string());
+        }
     }
 
     let mut cmd = crate::proc::cmd(&cmd_vec[0]);
@@ -778,6 +1014,9 @@ pub fn dap_start(
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
+    for (k, v) in &spec.env {
+        cmd.env(k, v);
+    }
     let mut child = cmd.spawn().map_err(|e| {
         ZephyrError::Io(format!(
             "failed to start adapter {}: {e}",
@@ -968,6 +1207,27 @@ pub fn dap_start(
             .map(|(k, v)| (k.clone(), ekspansi_var(v, ws.as_deref(), file_aktif)))
             .collect();
         args["env"] = json!(env);
+    }
+    /* Adapters whose launch arguments are not the shared subset. Filled only
+     * when the configuration did not already say so (`extra` wins below). */
+    match spec.id.as_str() {
+        "codelldb" => {
+            /* codelldb runs `program` through LLDB and needs to know which
+             * source languages to break in. Its own `stopOnEntry` is the same
+             * field, already set above. */
+            args["sourceLanguages"] = json!(["rust", "c", "cpp"]);
+        }
+        "dlv" => {
+            /* DLV refuses a launch without `mode` and a `program`. `auto`
+             * lets it pick file/folder from what it is given. */
+            if args.get("mode").is_none() {
+                args["mode"] = json!("auto");
+            }
+            if args.get("program").is_none() {
+                args["program"] = json!(cwd.to_string_lossy());
+            }
+        }
+        _ => {}
     }
     for (k, v) in &config.extra {
         args[k] = v.clone();
@@ -1350,8 +1610,44 @@ mod tests {
         for t in ["python", "debugpy"] {
             assert_eq!(adapter_bawaan(t), Some("python"), "{t}");
         }
-        for t in ["", "acme-dap", "chrome", "msedge", "ruby", "go"] {
+        for t in ["cppdbg", "codelldb", "lldb", "rust"] {
+            assert_eq!(adapter_bawaan(t), Some("codelldb"), "{t}");
+        }
+        for t in ["go", "dlv"] {
+            assert_eq!(adapter_bawaan(t), Some("dlv"), "{t}");
+        }
+        assert_eq!(adapter_bawaan("java"), Some("java-debug"));
+        for t in ["coreclr", "netcoredbg"] {
+            assert_eq!(adapter_bawaan(t), Some("netcoredbg"), "{t}");
+        }
+        for t in ["", "acme-dap", "chrome", "msedge", "ruby", "php"] {
             assert_eq!(adapter_bawaan(t), None, "{t} harus di luar registry");
+        }
+    }
+
+    /// Every id in the registry must have a spec, or `dap_start` answers
+    /// "built-in adapter has no spec" for a type the report says is served.
+    #[test]
+    fn setiap_adapter_bawaan_punya_spec() {
+        for t in [
+            "node",
+            "python",
+            "cppdbg",
+            "codelldb",
+            "lldb",
+            "rust",
+            "go",
+            "dlv",
+            "java",
+            "coreclr",
+            "netcoredbg",
+        ] {
+            let id = bawaan_untuk(t).unwrap_or_else(|| panic!("{t} tanpa adapter"));
+            assert!(
+                ["node", "python", "codelldb", "dlv", "java-debug", "netcoredbg"]
+                    .contains(&id),
+                "{t} -> {id} tidak punya spec di spec_untuk"
+            );
         }
     }
 }

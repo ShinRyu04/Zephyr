@@ -1094,7 +1094,7 @@ pub fn pengaruh_paket(dir: &Path, m: &ExtManifest) -> Pengaruh {
                 "type \"{tipe}\" is already served by the built-in {bawaan} adapter Zephyr ships (dap.rs), so launch.json of that type works — but through that adapter, not through this package: {biner}, and an adapter from a package is never started"
             ),
             None => format!(
-                "type \"{tipe}\" is not in Zephyr's debug registry, which is fixed (node, python — dap.rs): {biner}, and no code path reads program/runtime from a manifest, so this adapter is detected but never run"
+                "type \"{tipe}\" is not in Zephyr's debug registry, which is fixed (node, python, codelldb, dlv, java-debug, netcoredbg — dap.rs): {biner}, and no code path reads program/runtime from a manifest, so this adapter is detected but never run"
             ),
         };
         p.diabaikan.push(ki("debugAdapter", &label, detail));

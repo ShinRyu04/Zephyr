@@ -834,10 +834,11 @@ async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
      * The loader does not start them - nothing does - so this list is the only
      * place a user finds out. The reason is not "unsupported": Zephyr speaks
      * DAP (`dap.rs`), but its adapter registry is fixed (node via js-debug,
-     * python via debugpy) and `dap_start` builds the command line from
-     * `spec_node`/`spec_python`; no code path reads `program`/`runtime` out of
-     * a manifest. Saying that is the difference between "this pack is broken"
-     * and "this pack is detected but never started".
+     * python via debugpy, codelldb, dlv, java-debug, netcoredbg) and
+     * `dap_start` builds the command line from the built-in specs; no code
+     * path reads `program`/`runtime` out of a manifest. Saying that is the
+     * difference between "this pack is broken" and "this pack is detected but
+     * never started".
      */
     const dap = (m.contributes as { debugAdapters?: Array<{ type?: string; label?: string }> })
       .debugAdapters ?? [];
@@ -848,7 +849,7 @@ async function muatSemuaEkstensiAsli(): Promise<LoaderRingkasan> {
       hasil.tidakDidukung.push({
         id: m.id,
         fitur: 'debugAdapters',
-        alasan: `paket ini menyumbang ${dap.length} debug adapter (${nama}), tetapi Zephyr belum menjalankan adapter dari paket: registry-nya tetap (node, python) dan tidak ada jalur kode yang membaca program/runtime dari manifest - adapter terdeteksi, belum dijalankan.`,
+        alasan: `paket ini menyumbang ${dap.length} debug adapter (${nama}), tetapi Zephyr belum menjalankan adapter dari paket: registry-nya tetap (node, python, codelldb, dlv, java-debug, netcoredbg) dan tidak ada jalur kode yang membaca program/runtime dari manifest - adapter terdeteksi, belum dijalankan.`,
       });
     }
   }

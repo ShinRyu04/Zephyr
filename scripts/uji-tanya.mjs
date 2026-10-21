@@ -1,4 +1,4 @@
-/*
+  /*
  * Kartu pertanyaan agen (tool ask_user) — gaya Claude/TRAE.
  *
  * Yang diperiksa: kartu muncul lewat jalur asli (`agentAjukanTanya`), opsi

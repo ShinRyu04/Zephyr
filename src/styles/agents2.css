@@ -49,7 +49,7 @@
   justify-content: space-between;
   gap: 8px;
   /* Tinggi tetap supaya tombol jendela bisa mengisi penuh (100%). */
-  height: 40px;
+  height: 48px;
   padding: 0 0 0 8px;
   background: var(--surface);
   /* TANPA border-bottom — lihat catatan 1 di atas. */
@@ -62,6 +62,21 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+/* Item kiri rata bawah title bar, supaya turun dan sejajar dengan baris sidebar. */
+.agx-titlebar-kiri {
+  align-self: flex-end;
+  margin-bottom: 4px;
+  margin-left: 6px;
+  height: 30px;
+}
+
+/* Kanan title bar setinggi bar penuh, supaya `.agx-win` (height 100%) dan
+   petak tombolnya ikut 40px. Tanpa ini tingginya jatuh ke konten (11px). */
+.agx-titlebar-kanan {
+  align-self: flex-end;
+  height: 40px;
 }
 
 .agx-tb-btn {
@@ -88,11 +103,30 @@
   color: var(--text);
 }
 
+/* Glyph tombol title bar berukuran tetap; `flex: none` pada SVG mencegahnya
+   menyusut ketika `.agx-win` dibagi ruang dengan sisa title bar. */
+.agx-tb-btn svg {
+  flex: none;
+}
+
 .agx-menu {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
   margin-left: 6px;
+  padding-left: 10px;
+}
+
+/* Garis pemisah antara tombol search dan menu File (seperti TRAE). */
+.agx-menu::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border);
 }
 
 .agx-menu-bungkus {
@@ -107,7 +141,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -162,39 +196,68 @@
   background: var(--border);
 }
 
-/* Tombol jendela: lebar 46px dan SETINGGI title bar, tanpa jarak antar
-   tombol (gaya Windows / TRAE). Glyph 11px di tengah. */
+/* Tombol jendela: petak selebar 46px setinggi title bar (gaya Windows / TRAE),
+   dan kotak hover-nya MENGISI petak itu (46 x tinggi bar). Versi lama
+   mengecilkan hover jadi 40x32 / 30x30 di tengah, sehingga saat kursor
+   mendekati tombol sorotannya tampak "menyusut" lalu menghilang — itu yang
+   dikeluhkan user. */
 .agx-win {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 0;
   height: 100%;
-}
-
-.agx-win-btn {
-  width: 50px;
-  height: 100%;
-  padding: 0;
-  border-radius: 0;
-}
-
-/* Glyph 12px dan hover memakai latar netral tipis — dulu glyph 11px dan
-   latar hover dari `.agx-tb-btn` membuat tombol terasa mengecil saat
-   didekati kursor. */
-.agx-win-btn:hover {
-  background: color-mix(in srgb, var(--text) 10%, transparent);
-  color: var(--text);
-}
-
-.agx-win-btn svg {
-  width: 12px;
-  height: 12px;
   flex: none;
 }
 
+.agx-win-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+}
+
+.agx-win-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  transition: background 120ms;
+  pointer-events: none;
+}
+
+.agx-win-btn:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.agx-win-btn:hover::before {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+/* Glyph 11px DI TENGAH petak — ukurannya tetap, tidak berubah saat hover. */
+.agx-win-btn svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  position: relative;
+}
+
 .agx-win-btn.is-close:hover {
-  background: color-mix(in srgb, var(--danger) 78%, var(--surface));
+  background: transparent;
   color: var(--surface);
+}
+
+.agx-win-btn.is-close:hover::before {
+  background: var(--danger);
 }
 
 /* ---------- body: sidebar + kotak besar ---------- */
@@ -213,7 +276,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 248px;
   flex: none;
   min-height: 0;
   padding: 8px 8px 10px;
@@ -398,7 +460,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 50;
+  z-index: 60;
   width: 296px;
   padding: 8px;
   border: 1px solid var(--border);
@@ -490,72 +552,30 @@
   min-height: 0;
 }
 
-/* Tab pil: ikon + nama + x (x muncul saat hover tab). */
-.agx-file-tab {
+/* Wadah dropdown `+` di bar view mana pun: posisi relatif supaya menunya
+   turun dari tombolnya, bukan dari bar. */
+.agx-view-dd-wadah {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 60%;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
-  color: var(--text);
-  font-size: 13px;
-}
-
-.agx-file-tab-ikon {
-  display: inline-flex;
+  /* `+` selalu di kiri deretan tab: tidak menyusut dan tidak ikut bergeser
+     saat tab bertambah (deretan tab yang di-scroll ada di sebelahnya). */
   flex: none;
-  color: var(--text-secondary);
 }
 
-.agx-file-tab-nama {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agx-file-tab-x {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.agx-file-tab-x:hover {
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  color: var(--text);
-}
-
-.agx-file-tab:hover .agx-file-tab-x {
-  display: inline-flex;
-}
-
-.agx-file-tab-kanan {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-/* Baris 2: label + tombol `Open`/collapse di kanan; garis pemisah tipis. */
+/* Baris 2: label + tombol `Open`/collapse di kanan; garis pemisah tipis.
+   Border-bottom WAJIB dua-duanya: atas memisahkan dari bar tab, bawah
+   memisahkan dari isi (preview + pohon) — tanpa yang bawah baris header
+   menyatu dengan pohon di bawahnya dan garisnya "hilang". */
 .agx-file-kepala {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex: none;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 10px 0 12px;
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-bottom: 1px solid var(--border);
   color: var(--text);
   font-size: 13px;
 }
@@ -594,12 +614,14 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .agx-file-pratinjau {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  /* Lebar pratinjau = inline `flex-basis` (%); pohon = sisanya. */
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -656,11 +678,14 @@
 .agx-file-pohon {
   display: flex;
   flex-direction: column;
-  flex: none;
-  width: 38%;
+  /* Pohon mengisi sisa ruang di kanan pratinjau: menempel ke ujung kanan
+     panel dan ikut melebar saat splitter digeser (bukan lebar tetap). */
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
-  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  /* Garis pemisah dipakai penuh: versi lama 70% transparent terlalu samar
+     dan batas antara preview dengan pohon nyaris tak terlihat. */
+  border-left: 1px solid var(--border);
 }
 
 .agx-file-isi.is-pohon-sembunyi .agx-file-pohon {
@@ -676,10 +701,65 @@
   padding: 10px 12px;
   color: var(--text);
   font-size: 13px;
+  /* Garis penghalang: di acuan TRAE daftar file dipisahkan dari kepalanya
+     oleh garis tipis; tanpa ini kepala dan isi menyatu jadi satu blok. */
+  border-bottom: 1px solid var(--border);
 }
 
 .agx-file-pohon-kepala svg {
   color: var(--text-muted);
+}
+
+.agx-file-pohon-kepala-aksi {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Wadah tombol "…": supaya menunya menempel relatif ke tombolnya. */
+.agx-file-menu-wadah {
+  position: relative;
+  display: inline-flex;
+}
+
+.agx-file-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--bg) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agx-file-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-file-menu-item:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.agx-file-menu-item svg {
+  flex: none;
+  color: var(--text-secondary);
 }
 
 .agx-file-pohon-isi {
@@ -701,7 +781,8 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  height: 28px;
+  /* 28px dulu bikin pohon terlihat rapat; acuan TRAE ±30px. */
+  height: 30px;
   padding: 0 6px;
   border: 0;
   border-radius: 7px;
@@ -724,6 +805,44 @@
 .agx-file-baris svg {
   flex: none;
   color: var(--text-secondary);
+}
+
+/* Glyph ikon per tipe file (material-icon-theme, warnanya ikut dari SVG).
+   Ukurannya sama dengan `.ai-fikon` (16px) supaya baris sejajar dengan
+   pohon di panel AI dan explorer. */
+.agx-file-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.agx-file-glyph svg {
+  width: 16px;
+  height: 16px;
+}
+
+/*
+ * Tombol collapse file tree sengaja LEBIH BESAR dari `.agx-kanan-ikon`
+ * bawaan (30px): di acuan TRAE tombol ini menonjol sebagai tombol utama
+ * baris header, bukan ikon kecil yang menyatu dengan tombol lain. Versi
+ * 36x30 masih terasa kecil di layar, jadi dinaikkan lagi ke 42x36 dengan
+ * ikon 17px.
+ */
+.agx-file-collapse {
+  width: 42px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  color: var(--text);
+}
+
+.agx-file-collapse svg {
+  width: 17px;
+  height: 17px;
 }
 
 .agx-file-panah {
@@ -757,10 +876,10 @@
 .agx-kanan {
   display: flex;
   flex-direction: column;
-  /* Seperti screenshot TRAE: panel kanan mengambil sebagian besar sisa lebar
-     (±60%), kolom chat menyempit ke kiri. `.agx-canvas` flex-grow 1, jadi
-     panel ini pakai 1.5 supaya bagiannya lebih besar. */
-  flex: 1.5 1 0;
+  /* Lebar dikendalikan inline oleh splitter (persen) — `flex: none` supaya
+     nilai `flex-basis` dari `style` yang menang, bukan grow/flex-shrink. */
+  flex: none;
+  width: 45%;
   min-width: 0;
   min-height: 0;
   margin: 10px 10px 10px 0;
@@ -769,25 +888,69 @@
   overflow: hidden;
 }
 
+/* Splitter antara canvas dan panel kanan (drag = resize seperti VS Code).
+   Transparan di keadaan normal; garis terlihat + kursor col-resize saat
+   kursor mendekat. */
+.agx-splitter {
+  flex: none;
+  width: 5px;
+  margin: 10px 0 10px -1px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 20;
+}
+
+.agx-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+  transition: background 120ms;
+}
+
+.agx-splitter:hover::after,
+.agx-splitter:active::after {
+  background: var(--accent);
+}
+
+/* Saat splitter di-drag: seluruh halaman tidak boleh menyeleksi teks (dulu
+   canvas ikut tersorot dan terasa "ikut tertarik"), dan kursor tetap
+   kolom walau pointer sempat keluar dari strip. */
+body.agx-dragging-kolom {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .agx-kanan-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 4px;
   flex: none;
   padding: 8px 10px;
+  /* Dropdown `+` turun ke bawah bar. Dua-duanya WAJIB: `.agx-kanan` memakai
+     `overflow: hidden` (sudut membulat), jadi tanpa aturan ini menu terpotong
+     — di tampilan File itu terbaca sebagai "`+` tidak membuka apa-apa"
+     karena baris pertama pohon menutupinya. */
+  position: relative;
+  z-index: 40;
 }
 
 .agx-kanan-aksi {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: none;
+  /* Tombol panel kanan menempel ke ujung kanan bar; deretan tab (`+` + tab)
+     mengisi sisa ruang di kirinya dan yang di-scroll saat penuh. */
+  margin-left: auto;
 }
+
 
 .agx-kanan-ikon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 30px;
   height: 30px;
   border: 0;
@@ -797,8 +960,120 @@
   cursor: pointer;
 }
 
+/* Ikon di dalam tombol berukuran tetap. Tanpa ini SVG boleh menyusut saat
+   ruang bar sempit (nama file panjang), dan user melihat tombol "mengecil". */
+.agx-kanan-ikon svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
 .agx-kanan-ikon:hover {
   background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--text);
+}
+
+/* ---------- deretan tab panel kanan (model TRAE) ---------- */
+
+.agx-tabs-bar {
+  gap: 8px;
+}
+
+/* Wadah `+` + deretan tab. Deretan tab (`.agx-tabs-lajur`) hanya selebar
+   isinya, jadi `+` menempel tepat di belakang tab terakhir. */
+.agx-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Deretan tab yang di-scroll saat penuh. `+` berada di luar elemen ini
+   (lihat AgentsPanelKanan) supaya dropdown-nya tidak terpotong `overflow`. */
+.agx-tabs-lajur {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.agx-tabs-lajur::-webkit-scrollbar {
+  display: none;
+}
+
+/* Satu tab: pill dengan ikon + nama. Nama panjang dipotong elipsis lewat
+   `max-width` tab, bukan mendorong tab lain. */
+.agx-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* `flex: none` = tab tidak menyusut; saat ruang habis deretan yang
+     di-scroll, bukan tiap tab yang dipotong sampai tak terbaca (ala VS Code). */
+  flex: none;
+  max-width: 160px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  position: relative;
+}
+
+.agx-tab.is-aktif {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--text);
+}
+
+.agx-tab-ikon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.agx-tab-ikon svg {
+  display: block;
+}
+
+.agx-tab-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* X close = posisi ABSOLUT di ujung tab dan hanya tampil saat hover —
+   menimpa ujung nama (persis TRAE), sehingga tab + tombol `+` di sebelahnya
+   TIDAK ikut terdorong tiap hover. Latar solid menutupi nama di belakangnya. */
+.agx-tab-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--agx-panel);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-tab:hover .agx-tab-x {
+  display: inline-flex;
+}
+
+.agx-tab-x:hover {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   color: var(--text);
 }
 
@@ -1264,6 +1539,258 @@
   box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
 }
 
+/* ---------- view panel kanan: Terminal / Browser / Task Summary / Side Chat /
+   Diff View. Semua memakai pola yang sama: bar atas (dari panel), isi `flex 1`
+   yang menggulir sendiri. ---------- */
+
+/* Slot tab File: tetap ter-mount supaya pilihan file + pohonnya tidak hilang
+   saat pindah tab; disembunyikan (bukan di-unmount) ketika tab lain aktif. */
+.agx-panel-slot {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agx-panel-slot.is-sembunyi {
+  display: none;
+}
+
+.agx-view-isi {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  /* Anchor untuk `.xterm-pane` (absolute inset:0, lihat index.css) dan
+     stage browser native. Tanpa ini keduanya salah mengukur → layar hitam. */
+  position: relative;
+}
+
+.agx-view-judul {
+  flex: none;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.agx-view-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* Terminal view: xterm mengisi panel sampai penuh.
+   `.xterm-pane` dari index.css sudah `position: absolute; inset: 0`, jadi
+   `flex: 1` di sini tidak berpengaruh — yang menentukan ukuran adalah induk
+   relative-nya (`.agx-view-isi`). Padding dipakai supaya isi shell tidak
+   menempel ke tepi kartu panel. */
+.agx-view-isi .xterm-pane {
+  inset: 0;
+  padding: 6px 10px 4px 10px;
+}
+
+/* Latar kanvas xterm di panel kanan memakai `--terminal-bg` (sama dengan
+   terminal jendela utama), bukan hitam kosong tanpa petunjuk — dulu panelnya
+   terlihat "hitam" karena kotak xterm tidak pernah mendapat tinggi dan yang
+   tampak hanya latar kosong panel. */
+.agx-terminal-view .xterm-pane,
+.agx-terminal-view .xterm-pane > div,
+.agx-terminal-view .xterm {
+  height: 100%;
+}
+
+.agx-terminal-view .xterm-viewport {
+  background: var(--terminal-bg);
+}
+
+
+/* Browser view: bar alamat + panggung webview. Kelas `bp-*` dipinjam dari
+   pane browser terminal supaya tampilannya identik. */
+.agx-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agx-browser-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Logo Zephyr di layar kosong browser: sama dengan layar kosong editor, tapi
+   redup (muted) supaya jadi penanda tempat, bukan pusat perhatian. */
+.agx-browser-logo {
+  display: inline-flex;
+  opacity: 0.55;
+}
+
+/* Side chat: AiPanel mengisi penuh; lebarnya sudah dibatasi panel. */
+.agx-sidechat {
+  overflow: auto;
+}
+
+/* Pratinjau kode File view: host CodeMirror read-only. `.cm-editor` butuh
+   tinggi penuh supaya menggulir di dalam panel, bukan meluber. */
+.agx-file-kode {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agx-file-kode .cm-editor {
+  height: 100%;
+  font-size: 12.5px;
+}
+
+.agx-file-kode .cm-scroller {
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Pratinjau read-only: tanpa garis kursor berkedip (bukan tempat mengetik). */
+.agx-file-kode .cm-cursor,
+.agx-file-kode .cm-dropCursor {
+  display: none;
+}
+
+/* ---------- menu klik kanan pohon file ---------- */
+
+.agx-tree-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 14px 32px rgb(0 0 0 / 50%);
+}
+
+.agx-tree-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-tree-menu-item:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.agx-tree-menu-item.is-bahaya {
+  color: var(--danger);
+}
+
+.agx-tree-menu-item.is-bahaya:hover {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.agx-tree-menu-pemisah {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* ---------- dialog nama file/folder ---------- */
+
+.agx-dialog-latar {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  background: rgb(0 0 0 / 45%);
+}
+
+.agx-dialog {
+  width: 320px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 55%);
+}
+
+.agx-dialog-judul {
+  margin-bottom: 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agx-dialog-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.agx-dialog-input:focus {
+  border-color: var(--accent);
+}
+
+.agx-dialog-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agx-dialog-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.agx-dialog-btn:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.agx-dialog-btn.is-utama {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg, var(--bg));
+}
+
 .agx-comp.is-chat .agx-comp-menu {
   top: auto;
   bottom: calc(100% + 6px);
@@ -1344,7 +1871,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   text-align: left;
   cursor: pointer;
 }
@@ -1365,8 +1892,54 @@
   color: var(--text-secondary);
 }
 
-.agx-comp-centang {
+.agx-comp-menu-teks-ikon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agx-comp-menu-teks-ikon svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.agx-comp-folder-cari {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 4px 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--text-muted);
+}
+
+.agx-comp-folder-cari svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.agx-comp-folder-cari input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
   color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.agx-comp-folder-cari input::placeholder {
+  color: var(--text-muted);
+}
+
+.agx-comp-centang {
+  color: var(--accent);
   font-size: 11px;
 }
 

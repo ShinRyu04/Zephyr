@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
@@ -258,12 +258,12 @@ fn dir_cari_tambahan() -> Vec<PathBuf> {
 /*
  * ---------------------------------------------------------------- pasang LSP
  *
- * Which servers this app can install ITSELF, and with what. Only npm packages
- * are listed: `npm install` resolves the dependency tree, while fetching a
- * tarball by hand would drop the server's own dependencies and leave a binary
- * that dies on its first `require`. Rows whose toolchain this app cannot assume
- * (rustup, go, LLVM, JDK, .NET, Ruby, Xcode, R) keep their written hint rather
- * than pretending to be installable.
+ * Which servers this app can install ITSELF with npm. `npm install` resolves
+ * the dependency tree, while fetching a tarball by hand would drop the server's
+ * own dependencies and leave a binary that dies on its first `require`.
+ *
+ * The ones that are NOT npm packages are handled by `resep_manual` below; the
+ * two tables together are what `id_punya_resep` reports.
  *
  * The package names are the same ones the hint in `src/lib/lsp.ts` shows, so the
  * button and the documentation cannot drift apart.
@@ -282,15 +282,133 @@ fn resep_npm(id: &str) -> Option<Vec<&'static str>> {
     })
 }
 
-/// Ids that have an install recipe - what the Settings row may offer a button for.
+/*
+ * ------------------------------------------------------------ resep non-npm
+ *
+ * Not every language server is an npm package. The old code stopped at
+ * `resep_npm` and therefore offered no button for C/C++, Go, Ruby, R, C# and
+ * Swift - the row showed a sentence telling the reader to go install something
+ * themselves. That is a dead end in a window that is supposed to manage
+ * language servers.
+ *
+ * Four strategies, in the order they are tried:
+ *
+ *   Npm     - `npm install --prefix <slot>`. Resolves dependencies, so the
+ *             server actually starts instead of dying on a missing require.
+ *   Winget  - `winget install <id>`. Installs machine-wide; the binary shows up
+ *             in the WinGet Links folder, which the resolver already searches.
+ *   Induk   - the server ships WITH a language toolchain (`go install`,
+ *             `gem install`, `Rscript -e install.packages`). Tries the toolchain
+ *             itself first; when that is missing the answer is a sentence
+ *             naming what to install, never a silent failure.
+ *   Zip     - no package manager has it (OmniSharp, Kotlin). Downloads the
+ *             release archive named by `url` into the private slot.
+ *
+ * Swift is deliberately absent from all four: sourcekit-lsp ships inside Xcode
+ * and has no Windows distribution, so its row keeps the honest written hint.
+ */
+
+/// How one non-npm server is fetched.
+enum ResepManual {
+    /// `winget install <paket>`; the binary lands in WinGet's Links folder.
+    Winget { paket: &'static str },
+    /// Needs a toolchain first: (`binary penanda`, `cara pasang induk`, `perintah server`).
+    Induk {
+        induk: &'static str,
+        cara_induk: &'static str,
+        perintah: &'static [&'static str],
+    },
+    /// Download this URL and unpack it into the slot.
+    Zip { url: &'static str },
+}
+
+fn resep_manual(id: &str) -> Option<ResepManual> {
+    Some(match id {
+        /* clangd ships with LLVM. winget puts the EXE under
+         * `C:\Program Files\LLVM\bin`, which `dir_cari_tambahan` already probes,
+         * and also drops a shim in WinGet\Links. */
+        "clangd" => ResepManual::Winget {
+            paket: "LLVM.LLVM",
+        },
+        "lua" => ResepManual::Winget {
+            paket: "LuaLS.lua-language-server",
+        },
+        /* OmniSharp has no winget package and is not on npm. The release is a
+         * zip; unpacking it into the slot is exactly what the written hint told
+         * the reader to do by hand. */
+        "csharp" => ResepManual::Zip {
+            url: "https://github.com/OmniSharp/omnisharp-roslyn/releases/latest/download/omnisharp-win-x64-net6.0.zip",
+        },
+        /* gopls is installed BY the Go toolchain. `go install` writes to
+         * %USERPROFILE%\go\bin, which `dir_cari_tambahan` includes. */
+        "go" => ResepManual::Induk {
+            induk: "go",
+            cara_induk: "winget install GoLang.Go  (atau unduh dari https://go.dev/dl/)",
+            perintah: &["go", "install", "golang.org/x/tools/gopls@latest"],
+        },
+        /* solargraph is a gem. RubyInstaller is the usual Windows route. */
+        "ruby" => ResepManual::Induk {
+            induk: "gem",
+            cara_induk: "winget install RubyInstallerTeam.Ruby  (lalu buka terminal baru)",
+            perintah: &["gem", "install", "solargraph"],
+        },
+        /* The R server is an R package, so R itself has to be there. */
+        "r" => ResepManual::Induk {
+            induk: "Rscript",
+            cara_induk: "winget install RProject.R",
+            perintah: &[
+                "Rscript",
+                "-e",
+                "install.packages('languageserver', repos='https://cloud.r-project.org')",
+            ],
+        },
+        _ => return None,
+    })
+}
+
+/// Ids this build can install by itself, whatever the strategy.
 pub fn id_punya_resep() -> Vec<&'static str> {
     [
         "typescript", "python", "bash", "json", "html", "css", "yaml", "php", "docker", "vue",
+        "clangd", "lua", "csharp", "go", "ruby", "r",
     ]
     .iter()
     .copied()
-    .filter(|id| resep_npm(id).is_some())
+    .filter(|id| resep_npm(id).is_some() || resep_manual(id).is_some())
     .collect()
+}
+
+/// The strategy per id, for the Settings row to label its button with.
+///
+/// Answered by the backend because the backend owns the recipes: a second list
+/// in TypeScript would drift the moment a recipe changes here.
+#[tauri::command(async)]
+pub fn lsp_jenis_resep() -> Vec<Value> {
+    id_punya_resep()
+        .into_iter()
+        .map(|id| {
+            let jenis = if resep_npm(id).is_some() {
+                "npm"
+            } else {
+                match resep_manual(id) {
+                    Some(ResepManual::Winget { .. }) => "winget",
+                    Some(ResepManual::Induk { .. }) => "induk",
+                    Some(ResepManual::Zip { .. }) => "zip",
+                    None => "manual",
+                }
+            };
+            /* The sentence the row shows when the install cannot even start -
+             * e.g. "install Go first" - is written next to the recipe, so the
+             * UI does not have to invent an explanation. */
+            let prasyarat = match resep_manual(id) {
+                Some(ResepManual::Induk {
+                    induk, cara_induk, ..
+                }) => Some(json!({ "tool": induk, "cara": cara_induk })),
+                _ => None,
+            };
+            json!({ "id": id, "jenis": jenis, "prasyarat": prasyarat })
+        })
+        .collect()
 }
 
 /*
@@ -299,15 +417,25 @@ pub fn id_punya_resep() -> Vec<&'static str> {
  * npm shims sit two levels down (`node_modules/.bin/<exe>.cmd`). Bounded depth
  * keeps a probe over a 200 MB node_modules cheap.
  */
-fn cari_berulang(dir: &Path, exe: &str, sisa: u8) -> Option<PathBuf> {
+pub(crate) fn cari_berulang(dir: &Path, exe: &str, sisa: u8) -> Option<PathBuf> {
     if sisa == 0 {
         return None;
     }
     let mut anak: Vec<PathBuf> = Vec::new();
     for e in std::fs::read_dir(dir).ok()?.flatten() {
         let p = e.path();
+        /* An archive that carries its own `node_modules` (OmniSharp does not,
+         * but a packaged Node server does) keeps its shim under `.bin`, which
+         * the plain-directory pass below would miss because `.bin` is a
+         * directory like any other but the shim's name is only in there. */
         if p.is_dir() {
-            anak.push(p);
+            anak.push(p.clone());
+            let bin = p.join("node_modules").join(".bin");
+            if bin.is_dir() {
+                if let Some(f) = cari_di_dir(&bin, exe) {
+                    return Some(f);
+                }
+            }
         }
     }
     for d in &anak {
@@ -993,15 +1121,221 @@ pub fn lsp_resep() -> Vec<String> {
 #[tauri::command(async)]
 pub fn lsp_pasang(app: AppHandle, state: State<'_, AppState>, spec: ServerSpec) -> ZResult<Value> {
     let slot = state.data_dir.join("lsp").join(&spec.id);
-    let paket = resep_npm(&spec.id).ok_or_else(|| {
+
+    /* Strategy 1: npm package. */
+    if let Some(paket) = resep_npm(&spec.id) {
+        return pasang_npm(&app, &spec, &slot, paket);
+    }
+
+    let resep = resep_manual(&spec.id).ok_or_else(|| {
         ZephyrError::InvalidInput(format!(
-            "no automatic install for '{}'. Pick the server named '{}' with your own tools, or drop the binary into {}",
+            "no automatic install for '{}'. Install the server named '{}' with your own tools, or drop the binary into {}",
             spec.id,
             spec.cmd.first().cloned().unwrap_or_default(),
             slot.display()
         ))
     })?;
-    std::fs::create_dir_all(&slot)
+
+    match resep {
+        ResepManual::Winget { paket } => {
+            let winget = which::which("winget").map_err(|_| {
+                ZephyrError::NotFound(
+                    "winget is not available. Install the language server with your own tools, then press Re-check"
+                        .into(),
+                )
+            })?;
+            /* `--accept-*` because an unattended install cannot answer prompts;
+             * without them winget blocks on the first licence agreement and the
+             * command would sit there until the timeout. */
+            let (kode, log) = jalan_tunggu(
+                &winget,
+                &[
+                    "install",
+                    "--id",
+                    paket,
+                    "-e",
+                    "--silent",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ],
+                900,
+            )?;
+            let found = cari_di_slot(&slot, &spec.cmd[0]).or_else(|| {
+                dir_cari_tambahan()
+                    .iter()
+                    .find_map(|d| cari_di_dir(d, &spec.cmd[0]))
+            });
+            return Ok(laporan(&slot, &[paket], kode, log, found));
+        }
+        ResepManual::Induk {
+            induk,
+            cara_induk,
+            perintah,
+        } => {
+            /* The toolchain has to exist BEFORE the server can be fetched. Say so
+             * in the answer instead of failing on a spawn error the UI cannot
+             * explain: the row turns the message into a link. */
+            if which::which(induk).is_err() {
+                return Ok(json!({
+                    "ok": false,
+                    "slot": slot.display().to_string(),
+                    "paket": [induk],
+                    "keluar": Value::Null,
+                    "exe": Value::Null,
+                    "prasyarat": { "tool": induk, "cara": cara_induk },
+                    "log": format!("'{induk}' belum terpasang. {cara_induk}"),
+                }));
+            }
+            let prog = which::which(induk)
+                .map_err(|e| ZephyrError::NotFound(format!("{induk}: {e}")))?;
+            let (kode, log) = jalan_tunggu(&prog, perintah, 900)?;
+            let found = cari_di_slot(&slot, &spec.cmd[0]).or_else(|| {
+                dir_cari_tambahan()
+                    .iter()
+                    .find_map(|d| cari_di_dir(d, &spec.cmd[0]))
+            });
+            return Ok(laporan(&slot, perintah, kode, log, found));
+        }
+        ResepManual::Zip { url } => {
+            std::fs::create_dir_all(&slot)
+                .map_err(|e| ZephyrError::Io(format!("buat slot {}: {e}", slot.display())))?;
+            let (kode, log) = unduh_dan_ekstrak(url, &slot)?;
+            let found = cari_di_slot(&slot, &spec.cmd[0]);
+            return Ok(laporan(&slot, &[url], kode, log, found));
+        }
+    }
+}
+
+/// The reply shape every strategy reports, so the dialog reads one object.
+fn laporan(
+    slot: &Path,
+    apa: &[&str],
+    kode: Option<i32>,
+    log: String,
+    found: Option<PathBuf>,
+) -> Value {
+    json!({
+        "ok": found.is_some() && kode == Some(0),
+        "slot": slot.display().to_string(),
+        "paket": apa,
+        "keluar": kode,
+        "exe": found.map(|p| p.display().to_string()),
+        "log": log,
+    })
+}
+
+/// Run a program to completion with a ceiling, returning (exit code, tail of output).
+///
+/// Bound on purpose: `winget`, `go install` and `gem install` all talk to a
+/// network registry and can hang. Without the ceiling the command never
+/// returns and the dialog spins forever with no way out.
+fn jalan_tunggu(prog: &Path, args: &[&str], batas_detik: u64) -> ZResult<(Option<i32>, String)> {
+    let mut perintah = std::process::Command::new(prog);
+    perintah
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        perintah.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut anak = perintah
+        .spawn()
+        .map_err(|e| ZephyrError::Io(format!("jalan {}: {e}", prog.display())))?;
+    let out = anak.stdout.take().map(pipa_ke_teks);
+    let err = anak.stderr.take().map(pipa_ke_teks);
+    let batas = std::time::Instant::now() + std::time::Duration::from_secs(batas_detik);
+    let kode = loop {
+        match anak.try_wait() {
+            Ok(Some(st)) => break st.code(),
+            Ok(None) => {
+                if std::time::Instant::now() > batas {
+                    let _ = anak.kill();
+                    break None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(e) => return Err(ZephyrError::Io(format!("tunggu proses: {e}"))),
+        }
+    };
+    Ok((kode, gabung_log(out, err)))
+}
+
+fn gabung_log(
+    out: Option<std::thread::JoinHandle<String>>,
+    err: Option<std::thread::JoinHandle<String>>,
+) -> String {
+    let mut log = String::new();
+    if let Some(h) = out {
+        log.push_str(&h.join().unwrap_or_default());
+    }
+    if let Some(h) = err {
+        let e = h.join().unwrap_or_default();
+        if !e.trim().is_empty() {
+            log.push('\n');
+            log.push_str(&e);
+        }
+    }
+    if log.len() > 8000 {
+        log = log[log.len() - 8000..].to_string();
+    }
+    log
+}
+
+/*
+ * Fetch a release archive and unpack it into the slot.
+ *
+ * `tar` ships with Windows 10 1803+ and reads zip, so there is no archive crate
+ * in the dependency list. The download goes through `curl.exe` for the same
+ * reason: one fewer crate, and the certificate store is the system's.
+ */
+fn unduh_dan_ekstrak(url: &str, slot: &Path) -> ZResult<(Option<i32>, String)> {
+    let tmp = slot.join(".unduhan.zip");
+    let _ = std::fs::remove_file(&tmp);
+    let curl = which::which("curl.exe")
+        .or_else(|_| which::which("curl"))
+        .map_err(|_| ZephyrError::NotFound("curl not found; cannot download the archive".into()))?;
+    let mut c = std::process::Command::new(curl);
+    c.args(["-L", "--fail", "--silent", "--show-error", "-o"])
+        .arg(&tmp)
+        .arg(url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let out = c
+        .output()
+        .map_err(|e| ZephyrError::Io(format!("unduh {url}: {e}")))?;
+    if !out.status.success() {
+        let pesan = String::from_utf8_lossy(&out.stderr).to_string();
+        let _ = std::fs::remove_file(&tmp);
+        return Ok((
+            out.status.code(),
+            format!("gagal mengunduh {url}\n{pesan}"),
+        ));
+    }
+    let tar = which::which("tar.exe")
+        .or_else(|_| which::which("tar"))
+        .map_err(|_| ZephyrError::NotFound("tar not found; cannot unpack the archive".into()))?;
+    let (kode, log) = jalan_tunggu(
+        &tar,
+        &["-xf", &tmp.to_string_lossy(), "-C", &slot.to_string_lossy()],
+        300,
+    )?;
+    let _ = std::fs::remove_file(&tmp);
+    Ok((kode, log))
+}
+
+/// The npm strategy, unchanged apart from the slot being handed in.
+fn pasang_npm(
+    app: &AppHandle,
+    spec: &ServerSpec,
+    slot: &Path,
+    paket: Vec<&'static str>,
+) -> ZResult<Value> {
+    std::fs::create_dir_all(slot)
         .map_err(|e| ZephyrError::Io(format!("buat slot {}: {e}", slot.display())))?;
 
     let npm = npm_program().ok_or_else(|| {
@@ -1021,7 +1355,7 @@ pub fn lsp_pasang(app: AppHandle, state: State<'_, AppState>, spec: ServerSpec) 
     perintah
         .arg("install")
         .arg("--prefix")
-        .arg(&slot)
+        .arg(slot)
         .arg("--no-audit")
         .arg("--no-fund")
         .arg("--no-package-lock")
@@ -1057,23 +1391,10 @@ pub fn lsp_pasang(app: AppHandle, state: State<'_, AppState>, spec: ServerSpec) 
         }
     };
 
-    let mut log = String::new();
-    if let Some(h) = out {
-        log.push_str(&h.join().unwrap_or_default());
-    }
-    if let Some(h) = err {
-        let e = h.join().unwrap_or_default();
-        if !e.trim().is_empty() {
-            log.push('\n');
-            log.push_str(&e);
-        }
-    }
-    if log.len() > 8000 {
-        log = log[log.len() - 8000..].to_string();
-    }
+    let log = gabung_log(out, err);
 
-    let found = cari_di_slot(&slot, &spec.cmd[0]);
-    let dijalankan = resolve_cmd(&app, &spec, Path::new(""))
+    let found = cari_di_slot(slot, &spec.cmd[0]);
+    let dijalankan = resolve_cmd(app, spec, Path::new(""))
         .map(|(e, a)| json!({ "exe": e, "args": a }))
         .unwrap_or(Value::Null);
 

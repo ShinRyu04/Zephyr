@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import WebSocket from 'ws';
-import { keluarBersih } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -240,7 +240,7 @@ const OPENCODE = path.join(HOME, '.config', 'opencode', 'opencode.json');
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  const page = pilihJendelaUtama(targets);
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);

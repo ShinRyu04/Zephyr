@@ -1,0 +1,25 @@
+﻿feat(chat): kartu "files changed" ala TRAE + hapus avatar chat
+
+Kartu perubahan berkas
+- komponen baru PerubahanBerkas.tsx: ringkasan per FILE dari satu turn
+  agent, di tengah transkrip, tepat setelah blok tool dan sebelum jawaban
+- angka diambil dari field additions/deletions yang sama dengan baris
+  tool, jadi kartu tidak bisa berbeda dengan baris yang diringkasnya
+- tutup/buka dengan animasi tinggi nyata (grid 0fr -> 1fr), baris masuk
+  berurutan lewat --i, dan prefers-reduced-motion mematikan semuanya
+- hanya muncul kalau turn benar-benar menulis berkas
+
+Pengelompokan tool
+- satu blok per turn, bukan satu blok per kalimat narasi. Versi lama
+  menutup grup setiap kali model menulis kalimat sebelum memanggil tool,
+  sehingga hampir setiap panggilan jadi baris sendiri. Narasi tetap
+  tampil sebagai teks di atas blok, tapi tidak lagi memisah grup
+
+Avatar chat dihapus total
+- mark avatar, pengaturan chatAvatar, dua toggle di Chat Settings,
+  pemilih foto, RobotAvatar.tsx, PemilihAvatar.tsx, dan seluruh rule
+  .ai-avatar* dihapus. ai-avatar.css sekarang hanya berisi layout .ai-row
+- userAvatarPath dibiarkan di skema supaya profil lama tidak gagal
+  validasi, tapi tidak dibaca/ditulis lagi
+
+Verifikasi: tsc --noEmit 0 error, vite build sukses.

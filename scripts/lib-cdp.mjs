@@ -126,6 +126,25 @@ async function pulihkanLewatBrowser(port) {
   }
 }
 
+/**
+ * Pilih target JENDELA UTAMA Zephyr dari `/json/list`.
+ *
+ * Jendela panel (Settings, Extensions, Tools, AI Models, ...) memakai judul
+ * yang SAMA persis dengan jendela utama dan hanya dibedakan oleh hash
+ * `#panel=`. `targets.find(t => t.title.includes('Zephyr'))` karena itu
+ * kadang mendarat di panel, dan harness yang ditulis untuk jendela utama
+ * gagal dengan cara yang menyesatkan ("ActivityBar 0 ikon", "tree kosong"):
+ * panel memang tidak punya ActivityBar maupun explorer.
+ *
+ * Jendela utama adalah satu-satunya target TANPA hash, jadi ia didahulukan;
+ * target ber-hash tetap dipakai sebagai cadangan supaya harness tidak mati
+ * hanya karena bentuk URL berubah.
+ */
+export function pilihJendelaUtama(targets, judul = 'Zephyr') {
+  const kandidat = targets.filter((t) => t.type === 'page' && (t.title ?? '').includes(judul));
+  return kandidat.find((t) => !(t.url ?? '').includes('#')) ?? kandidat[0] ?? null;
+}
+
 export class Cdp {
   #ws;
   #id = 0;
@@ -209,6 +228,14 @@ export class Cdp {
      * reports "the rail is empty" - a false failure that says nothing about the
      * app. So the MAIN window (no hash) is tried FIRST, and every hashed root
      * after it.
+     */
+    /*
+     * Jendela UTAMA adalah satu-satunya target tanpa hash. Dulu skornya
+     * mencari `#panel=` dan `#agents`, padahal halaman utama di dev dilayani
+     * Vite dengan URL `http://localhost:5173/` (TANPA `/index.html`) —
+     * akibatnya tidak ada kandidat berskor 0, urutannya jatuh ke jendela
+     * panel dan seluruh suite mengukur panel yang memang tak punya
+     * ActivityBar. Sekarang bentuk tautan Tauri/Vite dianggap skor 0.
      */
     const skor = (t) => {
       const u = t.url ?? '';

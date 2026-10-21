@@ -276,6 +276,18 @@ export const lspPenghalang = (root?: string) =>
   invoke<{ ok: boolean; alasan: string | null }>('lsp_penghalang', { root });
 /* Which rows this build can install by itself (ids, in the same order as lsp.ts). */
 export const lspResep = () => invoke<string[]>('lsp_resep');
+/* How each one is fetched, and what has to be on the machine first.
+ *
+ * `jenis` is `npm | winget | induk | zip`; `prasyarat` is only present for
+ * `induk`, where the server ships inside a language toolchain (`go`, `gem`,
+ * `Rscript`). The dialog turns a missing prerequisite into a link instead of
+ * offering an install button that would fail on spawn. */
+export type LspJenisResep = {
+  id: string;
+  jenis: 'npm' | 'winget' | 'induk' | 'zip' | 'manual';
+  prasyarat: { tool: string; cara: string } | null;
+};
+export const lspJenisResep = () => invoke<LspJenisResep[]>('lsp_jenis_resep');
 /* Install one server into the app's private slot. It REJECTS with the reason
  * (no recipe for that id, npm missing, npm could not start) and resolves with
  * the run's report when npm did run - including a non-zero exit, which is a
@@ -1289,6 +1301,42 @@ export const tasksClearRuns = () => invoke<number>('tasks_clear_runs');
 
 export const tasksDetectPort = (line: string) =>
   invoke<{ port: number; https: boolean } | null>('tasks_detect_port', { line });
+
+export interface RunToolStatus {
+  tool: string;
+  found: boolean;
+  path: string;
+  version: string;
+}
+
+export const runStart = (a: {
+  runId: string;
+  cwd: string;
+  compileCmd?: string;
+  compileArgs?: string[];
+  compileOut?: string;
+  runCmd: string;
+  runArgs: string[];
+}) => invoke<string>('run_start', a);
+
+export const runStop = (runId: string) => invoke<boolean>('run_stop', { runId });
+
+/* One line to the running program's stdin. Resolves `false` when there is
+ * nothing to write to (still compiling, or the program already exited), which
+ * is a normal race rather than an error worth a toast. */
+export const runInput = (runId: string, text: string) =>
+  invoke<boolean>('run_input', { runId, text });
+
+/* Close stdin without stopping the program - "end of input" for a program that
+ * reads until EOF instead of asking a fixed number of times. */
+export const runInputEof = (runId: string) => invoke<boolean>('run_input_eof', { runId });
+
+export const runSelesai = (runId: string) => invoke<void>('run_selesai', { runId });
+
+export const runActive = () => invoke<string[]>('run_active');
+
+export const runToolStatus = (tools: string[]) =>
+  invoke<RunToolStatus[]>('run_tool_status', { tools });
 
 export const historySnapshot = (
   path: string,

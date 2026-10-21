@@ -2735,6 +2735,150 @@
   padding: 10px 10px 10px 12px;
 }
 
+/* The install recipe, one line at a time: `#` explanations as muted text, `>`
+ * commands on their own monospace row so the copyable part is obvious. */
+.lsp-langkah {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lsp-langkah-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.lsp-langkah-cmd {
+  display: block;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: var(--bg-1, var(--bg));
+  border: 1px solid var(--border);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+  user-select: all;
+}
+
+.lsp-dialog-prasyarat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn, var(--accent));
+  border-radius: 6px;
+  background: var(--bg-1, var(--bg));
+  margin-bottom: 8px;
+}
+
+/* ─────────── Toolchain (inside the Language Servers page) ───────────
+ * One card per language: a status dot, the tools it needs as chips, and the
+ * debugger. The chips are the point - "server: ok / compiler: missing" in one
+ * glance is what the old two-page split could not say. */
+.tc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.tc-baris {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-1, var(--bg));
+}
+.tc-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+.tc-dot.is-siap {
+  background: var(--ok, var(--accent));
+  opacity: 1;
+}
+.tc-nama {
+  font-size: 12.5px;
+  color: var(--text);
+}
+.tc-ext {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.tc-alat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tc-chip,
+.tc-debug {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-0, var(--bg));
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tc-debug {
+  align-self: flex-start;
+}
+.tc-chip code,
+.tc-debug code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text);
+}
+.tc-chip.is-ada {
+  border-color: var(--ok, var(--accent));
+}
+.tc-chip.is-hilang {
+  border-color: var(--warn, var(--border));
+}
+.tc-chip-peran {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.tc-chip-versi {
+  font-size: 10px;
+  opacity: 0.8;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-chip-versi.is-ok {
+  color: var(--ok, var(--accent));
+  opacity: 1;
+}
+.tc-note {
+  display: block;
+  margin-top: 8px;
+}
+
 .lsp-dialog-perintah pre {
   margin: 0;
   flex: 1;

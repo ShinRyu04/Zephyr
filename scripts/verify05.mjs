@@ -6,7 +6,7 @@
 //         WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9223"
 
 import WebSocket from 'ws';
-import { keluarBersih } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -143,7 +143,7 @@ const httpProbe = async (port, tries = 1) => {
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  const page = pilihJendelaUtama(targets);
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);

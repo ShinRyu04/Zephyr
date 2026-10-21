@@ -1,0 +1,15 @@
+﻿feat(ai): composer satu kotak ala TRAE + rapikan Agents window
+
+Composer panel AI (kanan, maximize, jendela chat):
+- satu kotak tanpa garis dalam: textarea + baris kontrol menyatu
+- kiri rapat: + | Manual Approval | Agent
+- kanan: nama model menempel tombol kirim, panah atas tanpa kotak
+- tip strip, baris Local, botbar, dan mic dihapus dari composer
+
+Perubahan ini hanya menyentuh composer. ModelSelector, ModeMenu,
+ChatMessage, dan ai-avatar.css tidak diubah isinya.
+
+Agents window: komponen ui/ (AgentsComposer, AgentsConversation,
+AgentsStarting, AgentsIcon, tokens) + agents-chrome.css.
+
+Verifikasi: tsc --noEmit 0 error.

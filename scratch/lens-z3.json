@@ -1,0 +1,142 @@
+{
+  "image": "D:\\Referensi TRAE Agent Window\\composer zephyr 2.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed text input composer widget for an AI agent interface. It contains a large placeholder text area and a bottom control row with an add button, a 'Full Access' permission selector, an '@ Agent' mention selector, and a model selector showing truncated text.",
+    "ocr": {
+      "full_text": "Type a task for the agent (Enter to send)...\n+  ● Full Access  ⌄   @ Agent  ⌄   ✦ Type a m...  ⌄",
+      "lines": [
+        {
+          "text": "Type a task for the agent (Enter to send)...",
+          "language": "en"
+        },
+        {
+          "text": "+",
+          "language": "en"
+        },
+        {
+          "text": "● Full Access",
+          "language": "en"
+        },
+        {
+          "text": "@ Agent",
+          "language": "en"
+        },
+        {
+          "text": "Type a m...",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "input",
+          "reading_order": 1,
+          "text": "Type a task for the agent (Enter to send)..."
+        },
+        {
+          "type": "button",
+          "reading_order": 2,
+          "text": "+"
+        },
+        {
+          "type": "button",
+          "reading_order": 3,
+          "text": "● Full Access"
+        },
+        {
+          "type": "button",
+          "reading_order": 4,
+          "text": "@ Agent"
+        },
+        {
+          "type": "button",
+          "reading_order": 5,
+          "text": "Type a m..."
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "Software user interface",
+      "intent": "To compose and send a task to an AI agent, with options to set permissions, target an agent, and select a model.",
+      "entities": [
+        {
+          "name": "Add attachment button",
+          "type": "button",
+          "evidence": "Plus sign at bottom left"
+        },
+        {
+          "name": "Full Access selector",
+          "type": "button",
+          "evidence": "Red dot followed by 'Full Access' and a chevron"
+        },
+        {
+          "name": "Agent mention selector",
+          "type": "button",
+          "evidence": "'@ Agent' followed by a chevron"
+        },
+        {
+          "name": "Model selector",
+          "type": "button",
+          "evidence": "Sparkle icon followed by truncated text 'Type a m...' and a chevron"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "Full Access selector",
+          "predicate": "is part of",
+          "object": "bottom control row"
+        },
+        {
+          "subject": "Agent mention selector",
+          "predicate": "is part of",
+          "object": "bottom control row"
+        },
+        {
+          "subject": "Model selector",
+          "predicate": "is part of",
+          "object": "bottom control row"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "dark gray",
+        "light gray",
+        "red",
+        "blue"
+      ],
+      "style": "Minimalist, dark mode UI",
+      "notes": [
+        "Rounded outer border",
+        "No divider line between text area and controls",
+        "Bottom controls appear evenly spaced"
+      ]
+    },
+    "uncertainty": [
+      "The exact color of the sparkle icon is slightly ambiguous but appears blue/purple.",
+      "The rightmost text is truncated ('Type a m...') so the full label is unknown."
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T09:21:14.301Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 6.278,
+    "usage": {
+      "prompt_tokens": 442,
+      "completion_tokens": 562,
+      "total_tokens": 1004,
+      "cost": 0.000936
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 6.28
+      }
+    ],
+    "warnings": []
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "image": "D:\\Zephyr\\scratch\\trae-cek.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed developer application interface with three visible areas: a left panel showing the 'Agent' product description and bottom chat input; a middle settings sidebar with account info and a vertical navigation menu (Conversation is highlighted); and a right settings content pane titled 'Conversation' with toggle rows and dropdowns for To-Do List, Auto Fix Lints, Agent Questioning Proactively, Code Review, and Terminal Tool Preferences. A top bar shows 'SOLO', 'Select Project', and Editor/Settings/Agents tabs.",
+    "ocr": {
+      "full_text": "SOLO\nSelect Project\nEditor\nSettings\nAgents\nAgent\nShinRyu04\nFree\nCtrl+F to search\nAccount\nGeneral\nTRAE Mobile\nDesktop Floating Ball\nDevelopment Environment\nPermission Approval\nAgent\nMarketplace\nMCP\nCUE\nModels\nConversation\nBrowser\nIndexing & Docs\nSkills & Commands\nRules & Memories\nHooks\nBeta\nAbout TRAE\nAgent\nDeep understanding of complex tasks\nHandles iterations, bug fixes, and refactoring in large projects\nPlans tasks intelligently and drives execution with precision\nOrchestrates intelligent multi-agent collaboration\nConversation\nTo-Do List\nTo-Do List\nAllow Agent to use lists to track progress\nIDE\nSOLO\nAuto Fix Lints\nAuto Fix\nAutomatically fix lint errors in the chat\nIDE\nSOLO\nAgent Questioning Proactively\nAgent Questioning Proactively\nAllows the agent to proactively ask users questions when the task is unclear, clarify requirement details, and guide execution accordingly.\nIDE\nSOLO\nCode Review\nReview Scope\nAI-generated code is automatically written to disk. During review, you can choose to keep or undo the changes.\nIDE\nReview all changes\nSOLO\nReview all changes\nJump to next change after review\nAutomatically jump to the next change in the file after keeping or undoing a change\nTerminal Tool Preferences\nTerminal Environment\nConfigure the terminal environment used when the agent executes terminal commands\nEfficient Terminal\nHelp you write code, debugs, optimize performance and other\ndevelopment work, deliver production-ready code.\nManual Approval\ndeepseek-v4.1.flash",
+      "lines": [
+        {
+          "text": "SOLO",
+          "language": "en"
+        },
+        {
+          "text": "Select Project",
+          "language": "en"
+        },
+        {
+          "text": "Editor",
+          "language": "en"
+        },
+        {
+          "text": "Settings",
+          "language": "en"
+        },
+        {
+          "text": "Agents",
+          "language": "en"
+        },
+        {
+          "text": "Agent",
+          "language": "en"
+        },
+        {
+          "text": "ShinRyu04",
+          "language": "en"
+        },
+        {
+          "text": "Free",
+          "language": "en"
+        },
+        {
+          "text": "Ctrl+F to search",
+          "language": "en"
+        },
+        {
+          "text": "Account",
+          "language": "en"
+        },
+        {
+          "text": "General",
+          "language": "en"
+        },
+        {
+          "text": "TRAE Mobile",
+          "language": "en"
+        },
+        {
+          "text": "Desktop Floating Ball",
+          "language": "en"
+        },
+        {
+          "text": "Development Environment",
+          "language": "en"
+        },
+        {
+          "text": "Permission Approval",
+          "language": "en"
+        },
+        {
+          "text": "Agent",
+          "language": "en"
+        },
+        {
+          "text": "Marketplace",
+          "language": "en"
+        },
+        {
+          "text": "MCP",
+          "language": "en"
+        },
+        {
+          "text": "CUE",
+          "language": "en"
+        },
+        {
+          "text": "Models",
+          "language": "en"
+        },
+        {
+          "text": "Conversation",
+          "language": "en"
+        },
+        {
+          "text": "Browser",
+          "language": "en"
+        },
+        {
+          "text": "Indexing & Docs",
+          "language": "en"
+        },
+        {
+          "text": "Skills & Commands",
+          "language": "en"
+        },
+        {
+          "text": "Rules & Memories",
+          "language": "en"
+        },
+        {
+          "text": "Hooks",
+          "language": "en"
+        },
+        {
+          "text": "Beta",
+          "language": "en"
+        },
+        {
+          "text": "About TRAE",
+          "language": "en"
+        },
+        {
+          "text": "Agent",
+          "language": "en"
+        },
+        {
+          "text": "Deep understanding of complex tasks",
+          "language": "en"
+        },
+        {
+          "text": "Handles iterations, bug fixes, and refactoring in large projects",
+          "language": "en"
+        },
+        {
+          "text": "Plans tasks intelligently and drives execution with precision",
+          "language": "en"
+        },
+        {
+          "text": "Orchestrates intelligent multi-agent collaboration",
+          "language": "en"
+        },
+        {
+          "text": "Conversation",
+          "language": "en"
+        },
+        {
+          "text": "To-Do List",
+          "language": "en"
+        },
+        {
+          "text": "To-Do List",
+          "language": "en"
+        },
+        {
+          "text": "Allow Agent to use lists to track progress",
+          "language": "en"
+        },
+        {
+          "text": "IDE",
+          "language": "en"
+        },
+        {
+          "text": "SOLO",
+          "language": "en"
+        },
+        {
+          "text": "Auto Fix Lints",
+          "language": "en"
+        },
+        {
+          "text": "Auto Fix",
+          "language": "en"
+        },
+        {
+          "text": "Automatically fix lint errors in the chat",
+          "language": "en"
+        },
+        {
+          "text": "IDE",
+          "language": "en"
+        },
+        {
+          "text": "SOLO",
+          "language": "en"
+        },
+        {
+          "text": "Agent Questioning Proactively",
+          "language": "en"
+        },
+        {
+          "text": "Agent Questioning Proactively",
+          "language": "en"
+        },
+        {
+          "text": "Allows the agent to proactively ask users questions when the task is unclear, clarify requirement details, and guide execution accordingly.",
+          "language": "en"
+        },
+        {
+          "text": "IDE",
+          "language": "en"
+        },
+        {
+          "text": "SOLO",
+          "language": "en"
+        },
+        {
+          "text": "Code Review",
+          "language": "en"
+        },
+        {
+          "text": "Review Scope",
+          "language": "en"
+        },
+        {
+          "text": "AI-generated code is automatically written to disk. During review, you can choose to keep or undo the changes.",
+          "language": "en"
+        },
+        {
+          "text": "IDE",
+          "language": "en"
+        },
+        {
+          "text": "Review all changes",
+          "language": "en"
+        },
+        {
+          "text": "SOLO",
+          "language": "en"
+        },
+        {
+          "text": "Review all changes",
+          "language": "en"
+        },
+        {
+          "text": "Jump to next change after review",
+          "language": "en"
+        },
+        {
+          "text": "Automatically jump to the next change in the file after keeping or undoing a change",
+          "language": "en"
+        },
+        {
+          "text": "Terminal Tool Preferences",
+          "language": "en"
+        },
+        {
+          "text": "Terminal Environment",
+          "language": "en"
+        },
+        {
+          "text": "Configure the terminal environment used when the agent executes terminal commands",
+          "language": "en"
+        },
+        {
+          "text": "Efficient Terminal",
+          "language": "en"
+        },
+        {
+          "text": "Help you write code, debugs, optimize performance and other",
+          "language": "en"
+        },
+        {
+          "text": "development work, deliver production-ready code.",
+          "language": "en"
+        },
+        {
+          "text": "Manual Approval",
+          "language": "en"
+        },
+        {
+          "text": "deepseek-v4.1.flash",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "header",
+          "reading_order": 1,
+          "text": "Top bar: SOLO, Select Project, Editor, Settings, Agents tabs"
+        },
+        {
+          "type": "sidebar",
+          "reading_order": 2,
+          "text": "Middle settings navigation: account and menu list with Conversation highlighted"
+        },
+        {
+          "type": "panel",
+          "reading_order": 3,
+          "text": "Left Agent description and bottom chat input"
+        },
+        {
+          "type": "settings",
+          "reading_order": 4,
+          "text": "Right Conversation settings: toggle rows and dropdowns"
+        }
+      ],
+      "regions_note": "reading order approximate"
+    },
+    "semantics": {
+      "scene": "AI coding agent application settings page",
+      "intent": "configure conversation and agent behavior preferences",
+      "entities": [
+        {
+          "name": "ShinRyu04",
+          "type": "user account",
+          "evidence": "settings sidebar header"
+        },
+        {
+          "name": "Conversation",
+          "type": "settings section",
+          "evidence": "highlighted nav item and page title"
+        },
+        {
+          "name": "To-Do List",
+          "type": "toggle setting",
+          "evidence": "settings row with IDE/SOLO switches"
+        },
+        {
+          "name": "Review Scope",
+          "type": "dropdown setting",
+          "evidence": "Code Review section"
+        },
+        {
+          "name": "Terminal Environment",
+          "type": "dropdown setting",
+          "evidence": "Terminal Tool Preferences section"
+        },
+        {
+          "name": "deepseek-v4.1.flash",
+          "type": "model selector",
+          "evidence": "bottom chat input"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "Conversation nav item",
+          "predicate": "selects",
+          "object": "Conversation settings page"
+        },
+        {
+          "subject": "toggle rows",
+          "predicate": "configure",
+          "object": "Agent behavior"
+        },
+        {
+          "subject": "Review Scope dropdown",
+          "predicate": "sets",
+          "object": "code review behavior"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#16181b",
+        "#222428",
+        "#2e3136",
+        "#ffffff",
+        "#a0a4a8",
+        "#22c55e"
+      ],
+      "style": "dark minimal developer IDE settings UI",
+      "notes": [
+        "green toggles indicating enabled states",
+        "rounded dark cards for each setting",
+        "highlighted gray row for active Conversation item",
+        "consistent left-aligned icon navigation"
+      ]
+    },
+    "uncertainty": [
+      "Some icon-only buttons in the top bar and input bar are not transcribed as text.",
+      "The exact reading order between the three columns is inferred from layout, not interaction."
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T07:44:37.937Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 10.158,
+    "usage": {
+      "prompt_tokens": 351,
+      "completion_tokens": 1728,
+      "total_tokens": 2079,
+      "cost": 0.002435
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 10.162
+      }
+    ],
+    "warnings": []
+  }
+}

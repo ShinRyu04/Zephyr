@@ -58,6 +58,7 @@ import { applyTheme, watchSystemTheme } from './lib/themes';
 import { terapkanA11y, umumkan as umumkanA11y } from './lib/a11yStore';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { bindTaskListeners, useTasks } from './lib/tasksStore';
+import { bindRunListeners } from './lib/runStore';
 import { useHistory } from './lib/historyStore';
 import { bindSearchListeners, useSearch } from './lib/searchStore';
 import { bindDebugListeners } from './lib/debugStore';
@@ -74,7 +75,7 @@ import { cekPengumuman } from './lib/announcements';
 import { flushTab, getActiveView } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
 import * as cmd from './lib/commands';
-import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onPtyExit, onPtyOutput } from './lib/events';
+import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onOpenFileInEditor, onPtyExit, onPtyOutput } from './lib/events';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
@@ -245,6 +246,14 @@ let dragDropListenerUnlisten: (() => void) | undefined;
 
 let closeReqListenerBound = false;
 let closeReqListenerUnlisten: (() => void) | undefined;
+
+/*
+ * Jendela Agents meminta file dibuka di tab jendela ini (menu klik kanan
+ * "Open in New Tab" di pohon File panel kanan). Guard modul + unlisten sama
+ * seperti listener lain: StrictMode dev memasang effect dua kali.
+ */
+let openFileReqListenerBound = false;
+let openFileReqListenerUnlisten: (() => void) | undefined;
 
 let focusChgListenerBound = false;
 let focusChgListenerUnlisten: (() => void) | undefined;
@@ -969,6 +978,33 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (openFileReqListenerBound) return;
+    openFileReqListenerBound = true;
+    onOpenFileInEditor((path) => {
+      void (async () => {
+        const s = useStore.getState();
+        try {
+          /* Deliberate open dari jendela lain: pin tab, jangan preview. */
+          await s.openPath(path, { preview: false });
+        } catch {
+          s.setStatus(`Could not open: ${path}`);
+        }
+      })();
+    })
+      .then((un) => {
+        openFileReqListenerUnlisten = un;
+      })
+      .catch(() => {
+        openFileReqListenerBound = false;
+      });
+    return () => {
+      openFileReqListenerUnlisten?.();
+      openFileReqListenerUnlisten = undefined;
+      openFileReqListenerBound = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (closeReqListenerBound) return;
     closeReqListenerBound = true;
 
@@ -1221,6 +1257,8 @@ export default function App() {
 
   useEffect(() => {
     bindTaskListeners();
+
+    bindRunListeners();
 
     bindSearchListeners();
 

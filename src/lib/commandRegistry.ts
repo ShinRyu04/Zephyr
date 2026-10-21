@@ -16,6 +16,8 @@ import { useKb } from './keybindingStore';
 import { usePanel } from './panelStore';
 import { useLayout } from './editorLayoutStore';
 import { useTasks, channelUntuk } from './tasksStore';
+import { useRun, kanalRun } from './runStore';
+import { resepUntuk } from './runLanguages';
 import { useTests } from './testsStore';
 import { useHistory } from './historyStore';
 import { useDebug } from './debugStore';
@@ -58,6 +60,7 @@ export type CmdGroup =
   | 'Settings'
   | 'Extensions'
   | 'Tasks'
+  | 'Run'
   | 'Debug'
   | 'Snippets';
 
@@ -1624,6 +1627,44 @@ export const COMMANDS: CommandDef[] = [
       }),
   })),
 
+  {
+    id: 'run.file',
+    title: 'Run: Run Current File',
+    group: 'Run',
+    keywords: 'run jalankan execute ctrl+shift+b execute compile program',
+    enabled: () => {
+      const s = useStore.getState();
+      const tab = s.tabs.find((t) => t.id === s.activeTabId);
+      return resepUntuk(tab?.path ?? null) !== null;
+    },
+    run: async () => {
+      usePanel.getState().focusTab('output');
+      await useRun.getState().jalankan();
+    },
+  },
+  {
+    id: 'run.stop',
+    title: 'Run: Stop',
+    group: 'Run',
+    keywords: 'stop hentikan kill run kill program',
+    enabled: () => useRun.getState().status === 'running',
+    run: async () => {
+      await useRun.getState().hentikan();
+    },
+  },
+  {
+    id: 'run.showOutput',
+    title: 'Run: Show Output',
+    group: 'Run',
+    keywords: 'output log run hasil',
+    enabled: () => useRun.getState().path !== null,
+    run: () => {
+      const R = useRun.getState();
+      const nama = R.path ? (R.path.replace(/\\/g, '/').split('/').pop() ?? R.path) : '';
+      usePanel.getState().focusTab('output');
+      useOutput.getState().setActiveChannel(kanalRun(nama));
+    },
+  },
   {
     id: 'tasks.runBuild',
     title: 'Tasks: Run Build Task',

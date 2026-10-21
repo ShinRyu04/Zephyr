@@ -1,0 +1,21 @@
+﻿feat(chat): ThinkingBar jadi setelan (default mati), hapus TodoPanel & Notes
+
+ThinkingBar
+- state baru showThinkingBar di aiStore, default MATI (bootTampilMati:
+  hanya '1' yang menyalakan, kunci hilang = mati)
+- toggle di Chat Settings > Appearance: "Thinking bar above the composer"
+- strip di atas composer hanya dirender kalau sibuk DAN setelan aktif
+
+TodoPanel
+- dihapus dari panel AI. Rencana kerja agen tidak lagi digambar di atas
+  composer; agen tetap menulis todo, hanya tidak dirender di situ
+
+Notes & Todos
+- NotesPanel dihapus dari App, file NotesPanel.tsx dihapus
+- tombol Notes & todos di MenuBar dihapus
+- perintah view.notes + pintasan Ctrl+Shift+N dihapus
+- impor notes-todos.css dan sched.css dilepas
+
+Verifikasi DOM: thinkingBar 0, todoPanel 0, notesPanel 0, mb-schedule 0;
+intro Agent tetap ada dengan logo + 3 poin; composer & chip model utuh.
+tsc 0 error, vite build sukses.

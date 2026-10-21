@@ -167,7 +167,7 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+Up', 'terminal.scrollLineUp', 'terminal', 'terminalFocus'),
   D('Ctrl+Down', 'terminal.scrollLineDown', 'terminal', 'terminalFocus'),
 
-  D('Ctrl+Shift+B', 'notifications.show', 'app'),
+  D('Ctrl+Shift+B', 'run.file', 'app', 'editorFocus', 'Run Current File'),
 
   D('Ctrl+K Ctrl+I', 'help.about', 'app', 'global', 'About Zephyr'),
 ];

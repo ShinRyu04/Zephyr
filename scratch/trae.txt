@@ -1,0 +1,134 @@
+﻿{
+ "mountModels": true,
+ "a": {
+  "ada": true,
+  "baris": 49,
+  "denganLogo": 49,
+  "adaGrupBuiltin": true,
+  "adaGrupCustom": true,
+  "adaManageKedua": false,
+  "adaTambah": true
+ },
+ "a2": {
+  "adaIsiBuiltin": false,
+  "baris": 10
+ },
+ "a4": {
+  "adaPanelKey": true,
+  "adaInputKey": true,
+  "adaInputUrl": true
+ },
+ "a5": {
+  "adaGrid": true,
+  "tile": 12,
+  "denganLogo": 12,
+  "kolom": 1,
+  "adaCustom": true
+ },
+ "mountSkc": true,
+ "s": {
+  "ada": true,
+  "rail": true,
+  "tabSkills": true,
+  "tabCommands": true,
+  "baris": 42,
+  "adaCari": true
+ },
+ "s3": {
+  "baris": 410,
+  "contoh": [
+   "file.new",
+   "jalan-file.new",
+   "file.open",
+   "jalan-file.open"
+  ]
+ },
+ "sebelumCari": {
+  "n": 42
+ },
+ "sesudahCari": {
+  "n": 0,
+  "kosong": true
+ },
+ "mountConv": true,
+ "c": {
+  "ada": true,
+  "kolom": 2,
+  "item": 1,
+  "adaDetail": true,
+  "adaIsi": true
+ },
+ "c2": {
+  "adaJudul": true,
+  "pesan": 0,
+  "adaOpen": true
+ },
+ "mountExt": true,
+ "f1": {
+  "adaGrid": true,
+  "kartu": 142,
+  "chip": [
+   "__semua",
+   "Icon Themes",
+   "Keymaps",
+   "Languages",
+   "Snippets",
+   "Themes"
+  ]
+ },
+ "hasilChip": [
+  {
+   "id": "__semua",
+   "n": 142
+  },
+  {
+   "id": "Icon Themes",
+   "n": 13
+  },
+  {
+   "id": "Keymaps",
+   "n": 4
+  },
+  {
+   "id": "Languages",
+   "n": 88
+  },
+  {
+   "id": "Snippets",
+   "n": 7
+  },
+  {
+   "id": "Themes",
+   "n": 30
+  }
+ ],
+ "f3": {
+  "n": 142
+ }
+}
+
+Bukti ΓÇö AI Models ala TRAE:
+  LULUS  A1 tiap baris model punya LOGO provider  logo=49/49
+  LULUS  A2 grup Built-in/Custom bisa dilipat  baris tersisa=10
+  LULUS  A3 tidak ada tombol Manage kedua
+  LULUS  A4 baris provider berisi field API key + Base URL
+  GAGAL  A5 Add Model: grid dengan logo tiap provider  tile=12 logo=12 kolom=1
+  LULUS  A6 ada tile Custom endpoint
+
+Bukti ΓÇö Skills & Commands ala TRAE:
+  LULUS  S1 rail kiri dengan Skills + Commands
+  LULUS  S2 daftar skill memakai baris dengan aksi  baris=42
+  LULUS  S3 tab Commands menampilkan command nyata  410 command, contoh: file.new, jalan-file.new, file.open, jalan-file.open
+  LULUS  S4 kotak cari menyaring skill  42 -> 0
+
+Bukti ΓÇö Conversations ala TRAE:
+  LULUS  C1 dua kolom: daftar kiri + detail kanan  kolom=2 item=1
+  GAGAL  C2 memilih percakapan menampilkan transkripnya  pesan=0
+  LULUS  C3 tombol Open ada di detail
+
+Bukti ΓÇö filter Extensions:
+  LULUS  F1 chip filter berasal dari data  6 chip: __semua, Icon Themes, Keymaps, Languages, Snippets, Themes
+  LULUS  F2 setiap chip yang diklik menghasilkan baris  __semua=142 Icon Themes=13 Keymaps=4 Languages=88 Snippets=7 Themes=30
+  LULUS  F3 chip All mengembalikan seluruh daftar  142 -> 142
+
+== 14/16 lulus ==

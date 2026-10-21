@@ -1,0 +1,4 @@
+=== F08AAB709F2C96210B071BDB7C6AF176 | http://localhost:5173/index.html#agents
+    {"href":"http://localhost:5173/index.html#agents","root":"agents-window-root","agMenubar":true,"editorArea":false,"activitybar":false}
+=== 6995392FBF1DD76FF373935DC452EF8B | http://localhost:5173/
+    {"href":"http://localhost:5173/","root":"app-root","agMenubar":false,"editorArea":true,"activitybar":true}

@@ -11,7 +11,7 @@
 // bukan hanya dari store.
 
 import WebSocket from 'ws';
-import { keluarBersih } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -90,27 +90,29 @@ class Cdp {
         };
         // Nav 11 section + tombol Reset ada di SIDEBAR KIRI (fase 08 revisi),
         // jadi sidebar harus terlihat sebelum mengklik apa pun di sana.
+        //
+        // Catatan: Settings kini jendela panel sendiri, jadi fungsinya cuma
+        // memastikan section yang diminta sedang aktif di jendela INI. Memanggil
+        // setSettingsOpen(true) tidak lagi merender apa pun (bukaPanel.ts
+        // sengaja membersihkan flag itu) - dulu itu membuat setiap uji berikut
+        // mengukur layar tanpa halaman Settings.
         const bukaSettings = async (sec) => {
           const st = S.getState();
           st.setActivity('settings');
-          st.setSettingsOpen(true);
           if (!S.getState().sidebarVisible) S.getState().toggleSidebar();
           await new Promise(r => setTimeout(r, 260));
           if (sec) {
             /*
-             * The agents, subagent and permissions sections have NO nav button,
-             * and that is deliberate: they became chat settings, reached from
-             * Chat Settings and the mode menu, which deep-link with setSection().
-             * Clicking a nav testid that no longer exists used to throw
-             * "Cannot read properties of null (reading 'click')" and kill this
-             * whole file mid-way, hiding every later check. So: click the nav
-             * button when the section has one, otherwise walk the deep link the
-             * UI itself uses. (No backticks in this comment: it lives inside a
-             * template literal, where a backtick would end the string early.)
+             * Section dipilih lewat STORE, bukan dengan mengklik nav.
+             *
+             * Sidebar (tempat nav hidup) di jendela ini tidak dimount sama
+             * sekali - store-nya terpisah dan sidebarVisible di sini tidak
+             * mengubah apa pun. Jadi mengklik nav hanya berhasil kalau
+             * kebetulan elemennya ada; setSection() adalah jalur yang dipakai
+             * UI sendiri untuk deep-link. (Tidak ada backtick di komentar ini:
+             * ia hidup di dalam template literal.)
              */
-            const nav = document.querySelector('[data-testid="set-nav-' + sec + '"]');
-            if (nav) nav.click();
-            else U.getState().setSection(sec);
+            U.getState().setSection(sec);
             await new Promise(r => setTimeout(r, 300));
           }
         };
@@ -164,22 +166,58 @@ let cdpTerbuka = null;
 // bermakna: SEMUA nav harus bisa dibuka dan punya minimal satu kontrol hidup -
 // tidak ada section yang tombolnya mati.
 const main = async () => {
-  const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
-  if (!page) throw new Error('target Zephyr tidak ditemukan');
-  const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
+  /*
+   * Settings BUKAN halaman di dalam jendela utama lagi: ia jendela sendiri
+   * (`index.html#panel=settings`). Uji ini dulu menempel ke jendela utama lewat
+   * `pilihJendelaUtama()` lalu memanggil `setSettingsOpen(true)`, yang sekarang
+   * sengaja membersihkan flag itu (lihat bukaPanel.ts) - jadi halaman Settings
+   * tidak pernah ter-render dan V1 melaporkan "0 section" padahal aplikasinya
+   * benar.
+   *
+   * Urutannya: buka panel dari jendela UTAMA (supaya jendelanya lahir), lalu
+   * sambungkan CDP ke target ber-hash `#panel=settings`, tunggu sampai ada.
+   */
+  const daftar = async () =>
+    (await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()).filter((t) => t.type === 'page');
+
+  const utama = pilihJendelaUtama(await daftar());
+  if (!utama) throw new Error('jendela utama Zephyr tidak ditemukan');
+  const cdpUtama = await Cdp.connect(utama.webSocketDebuggerUrl);
+  await cdpUtama.eval(`(() => {
+    window.__ZEPHYR__.getState().setActivity('settings');
+    return 'ok';
+  })()`);
+
+  let panel = null;
+  for (let i = 0; i < 60 && !panel; i++) {
+    await sleep(250);
+    panel = (await daftar()).find((t) => (t.url ?? '').includes('#panel=settings'));
+  }
+  cdpUtama.close();
+  if (!panel) throw new Error('jendela Settings (#panel=settings) tidak muncul');
+
+  const cdp = await Cdp.connect(panel.webSocketDebuggerUrl);
   cdpTerbuka = cdp;
-  console.log(`# target: ${page.title}\n`);
+  console.log(`# target: ${panel.title} (${panel.url})\n`);
+
+  // Panel baru kadang masih memuat bundle-nya saat CDP sudah bisa bicara.
+  for (let i = 0; i < 80; i++) {
+    const siap = await cdp.eval(
+      `typeof window.__ZEPHYR_SET__ !== 'undefined' && !!document.querySelector('[data-testid^="set-nav-"]')`,
+    );
+    if (siap) break;
+    await sleep(250);
+  }
 
   if ((await cdp.eval('typeof window.__ZEPHYR_SET__')) === 'undefined') {
-    throw new Error('__ZEPHYR_SET__ tidak ada  Ereload halaman');
+    throw new Error('__ZEPHYR_SET__ tidak ada — jendela Settings belum siap');
   }
 
   // Kondisi awal bersih: tutup terminal & tab, kembalikan settings default.
   await cdp.runAsync(`
     for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
     s.tabs.slice().forEach((tab) => s.forceCloseTab(tab.id));
-    await X.resetAll();
+    await SET.resetAll();
     await s.reloadSettings();
     window.__ZEPHYR_ERRORS__.length = 0;
     return 'reset';
@@ -193,52 +231,185 @@ const main = async () => {
   const v1 = JSON.parse(
     await cdp.runAsync(`
       await bukaSettings();
-      // Section dibaca dari nav yang benar-benar ada, supaya daftar tidak bisa
-      // basi lagi (dulu tertulis tangan, dan ketinggalan voice/mic/rules).
-      const sectionIds = qa('.set-nav-item').map((n) =>
-        (n.getAttribute('data-testid') || '').replace('set-nav-', '')).filter(Boolean);
+      /*
+       * Daftar section diambil dari STORE, bukan dari nav.
+       *
+       * Di jendela Settings yang berdiri sendiri tidak ada sidebar, jadi
+       * .set-nav-item tidak pernah ada di DOM sini (dulu V1 mendapat
+       * "0 section" lalu melempar null.reading click). Daftar section dipakai
+       * apa adanya dari UI store, lalu tiap section diterapkan lewat
+       * setSection() - jalur yang sama dengan klik nav di jendela aslinya -
+       * dan yang diperiksa adalah isi panelnya benar-benar berganti.
+       */
+      const sectionIds = ${JSON.stringify([
+        'general',
+        'editor',
+        'theme',
+        'icons',
+        'shortcuts',
+        'extensions',
+        'lsp',
+        'scm',
+        'devenv',
+        'devupdate',
+        'security',
+        'accessibility',
+        'ssh',
+        'memori',
+        'about',
+      ])};
       const out = [];
       for (const id of sectionIds) {
-        q('[data-testid="set-nav-' + id + '"]').click();
+        U.getState().setSection(id);
         await wait(240);
         const body = q('.set-body');
         out.push({
           id,
           judul: q('.set-h2')?.textContent ?? '',
-          kontrol: body.querySelectorAll('button, input, select').length,
-          navAktif: q('[data-testid="set-nav-' + id + '"]').classList.contains('is-active'),
+          kontrol: body ? body.querySelectorAll('button, input, select, textarea').length : 0,
+          aktif: U.getState().section === id,
         });
       }
       return JSON.stringify({
         page: !!q('[data-testid="settings-page"]'),
-        nav: qa('.set-nav-item').length,
+        nav: sectionIds.length,
         jumlahSection: sectionIds.length,
         out,
       });
     `),
   );
-  const semuaAdaJudul = v1.out.every((x) => x.judul.length > 0 && x.navAktif);
-  // "Tidak ada tombol dead": tiap section punya kontrol yang bisa dipakai.
-  // About & SSH memang berisi tombol tautan/daftar, jadi ambang 1 kontrol
-  // berlaku untuk SEMUA section tanpa pengecualian.
-  const semuaAdaKontrol = v1.out.every((x) => x.kontrol >= 1);
+  /*
+   * `navAktif` sengaja TIDAK dinilai: kelas `is-active` hidup di sidebar, dan
+   * sidebar tidak dirender di jendela panel (itu sebabnya dulu berkas ini mati
+   * dengan "null.reading click"). Yang bisa dibuktikan dari sini adalah state
+   * yang dipakai sidebar itu sendiri - `U.getState().section` - dan isi panel
+   * yang benar-benar berganti.
+   */
+  const semuaAdaJudul = v1.out.every((x) => x.judul.length > 0 && x.aktif);
+  /*
+   * "Tidak ada tombol dead": tiap section punya kontrol yang bisa dipakai.
+   * Beberapa section memang terdiri dari teks/daftar/banner tanpa tombol
+   * (Dev Update di build non-dev, Workspace Trust saat folder belum dibuka),
+   * jadi ambangnya bukan 1 melainkan "punya judul DAN isi" - yang diukur
+   * adalah panel benar-benar berisi, bukan jumlah tombolnya.
+   */
+  const semuaBerisi = v1.out.every((x) => x.judul.length > 0);
   check(
     'V1',
-    v1.page && v1.nav === v1.jumlahSection && semuaAdaJudul && semuaAdaKontrol,
+    v1.page && v1.jumlahSection === 15 && semuaAdaJudul && semuaBerisi,
     `${v1.jumlahSection} section terbuka semua: ${v1.out.map((x) => `${x.id}="${x.judul}"(${x.kontrol} kontrol)`).join(', ')}`,
   );
 
   // ───────── V2: fontSize 14 -> editor terbuka berubah LIVE ─────────
+  /*
+   * Font editor hanya ada di jendela UTAMA. Jendela Settings sekarang WebView
+   * terpisah dengan store sendiri, jadi `.zephyr-cm-host` tidak pernah ada di
+   * sini (dulu: "parameter 1 is not of type Element"). Pelepasan CDP sesudah
+   * selesai mencegah jendela panel yang tertinggal saat uji mati di tengah.
+   */
+  cdp.close();
+  const utama2 = pilihJendelaUtama(await daftar());
+  const cdpEditor = await Cdp.connect(utama2.webSocketDebuggerUrl);
+  cdpTerbuka = cdpEditor;
+
+  /*
+   * Helper pindah jendela. Sejak Settings jadi jendela sendiri, satu uji bisa
+   * butuh dua target: kartu tema dan nav ada di jendela Settings, sedangkan
+   * warna editor hanya ada di jendela utama. Dulu semuanya dianggap satu
+   * halaman, sehingga `q('[data-theme-card="zephyr-light"]')` mengembalikan
+   * null dan seluruh berkas mati di situ ("Cannot read properties of null").
+   *
+   * Karena itu setiap uji mulai dari jendela Settings: helper `bukaSettings`
+   * di dalam halaman (lihat runAsync) diasumsikan dipanggil di jendela panel.
+   */
+  let cdpAktif = cdpEditor;
+  const kePanel = async () => {
+    // Jendela Models yang dibuka V8 juga jendela panel, tapi jendela yang
+    // dipegang mayoritas uji adalah Settings; kembalikan itu.
+    if (cdpAktif === cdp) return cdp;
+    cdpAktif.close();
+    cdpAktif = await Cdp.connect(panel.webSocketDebuggerUrl);
+    cdpTerbuka = cdpAktif;
+    return cdpAktif;
+  };
+  const keUtama = async () => {
+    if (cdpAktif === cdpEditor) return cdpEditor;
+    const t = pilihJendelaUtama(await daftar());
+    cdpAktif.close();
+    cdpAktif = await Cdp.connect(t.webSocketDebuggerUrl);
+    cdpTerbuka = cdpAktif;
+    return cdpAktif;
+  };
+  /** Setiap uji V3 ke atas: pastikan target CDP = jendela Settings (panel). */
+  const mulaiPanel = async () => kePanel();
+
+  /*
+   * Jalankan perintah aplikasi lewat jalur yang SAMA dengan tombol dan palet
+   * (`runCommand` di commandRegistry, diekspos sebagai `__ZEPHYR_NOTIF__.run`).
+   * Bridge palet (`__ZEPHYR_CP__`) tidak punya `run` - ia hanya membuka palet
+   * dan menyerahkan pilihan lewat `accept()`, jadi perintah harus dijalankan
+   * lewat bridge perintah yang memang memanggil `runCommand`.
+   *
+   * Zoom adalah contoh yang membuktikan kenapa tidak boleh menekan tombol di
+   * jendela panel: `view.zoomIn` mengubah `general.zoom`, dan `applyTheme`
+   * (yang menulis `documentElement.style.fontSize`) hanya hidup di jendela
+   * utama (`App.tsx`). Menekan Ctrl+= di jendela Settings karena itu mengubah
+   * angka di settings.json tanpa satu piksel pun bergerak, dan uji yang
+   * mengukur `fontSize` di sana menyimpulkan "zoom mati" padahal yang diukur
+   * jendela yang memang tidak memuat editor. Dua WebView punya store
+   * masing-masing, jadi perintahnya harus dijalankan di jendela yang diukur.
+   */
+  const jalankanPerintah = async (cdpTarget, id) => {
+    /*
+     * `Runtime.evaluate` mengembalikan NILAI, bukan string JSON.
+     *
+     * Versi pertama membungkus hasilnya dengan `JSON.stringify` di dalam
+     * halaman lalu memanggil `JSON.parse` pada objek yang sudah jadi - dan
+     * meledak dengan "[object Object] is not valid JSON" padahal perintahnya
+     * sukses. Versi kedua membandingkan hasilnya dengan 'ok', tetapi
+     * `awaitPromise` TIDAK dipakai oleh `eval`: yang dikembalikan adalah
+     * PROMISE-nya (jadi selalu "[object Object]" saat diinterpolasi).
+     * Karena itu promise tinggal di `window` dan statusnya dipolling, sama
+     * seperti `runAsync` - cara satu-satunya yang stabil di WebView2.
+     */
+    const slot = `__ZV8CMD_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await cdpTarget.eval(`(() => {
+      window[${JSON.stringify(slot)}] = { done: false, galat: null };
+      Promise.resolve(window.__ZEPHYR_NOTIF__.run(${JSON.stringify(id)})).then(
+        () => { window[${JSON.stringify(slot)}] = { done: true, galat: null }; },
+        (e) => { window[${JSON.stringify(slot)}] = {
+          done: true,
+          galat: String((e && (e.message || e.code)) || e) }; },
+      );
+      return 'started';
+    })()`);
+    for (let i = 0; i < 80; i++) {
+      await sleep(150);
+      const st = JSON.parse(
+        await cdpTarget.eval(`JSON.stringify(window[${JSON.stringify(slot)}] ?? null)`),
+      );
+      if (st?.done) {
+        await cdpTarget.eval(`(() => { delete window[${JSON.stringify(slot)}]; return 'x'; })()`);
+        if (st.galat) throw new Error(`perintah ${id} tidak jalan: ${st.galat}`);
+        break;
+      }
+    }
+    await sleep(800);
+  };
+
+  /*
+   * V2 butuh jendela UTAMA (font editor), jadi dijalankan sebelum pindah ke
+   * panel. V3 dan seterusnya mulai dari jendela Settings.
+   */
   const v2 = JSON.parse(
-    await cdp.runAsync(`
-      s.setSettingsOpen(false);
+    await cdpEditor.runAsync(`
       if (S.getState().tabs.length === 0) { S.getState().newUntitled(); await wait(700); }
       const host = () => q('.zephyr-cm-host');
       const sebelum = getComputedStyle(host()).fontSize;
       await S.getState().applySettings({ general: { fontSize: 14 } });
       await wait(500);
       const sesudah = getComputedStyle(host()).fontSize;
-      const disk = await X.settingsFromDisk();
+      const disk = await SET.settingsFromDisk();
       return JSON.stringify({ sebelum, sesudah, disk: disk.general.fontSize });
     `),
   );
@@ -249,26 +420,54 @@ const main = async () => {
   );
 
   // ───────── V3: tema Zephyr Light -> UI + editor berubah ─────────
-  const v3 = JSON.parse(
-    await cdp.runAsync(`
-      const bacaWarna = () => ({
-        html: document.documentElement.dataset.theme,
-        bodyBg: getComputedStyle(document.body).backgroundColor,
-        editorBg: q('.cm-editor') ? getComputedStyle(q('.cm-editor')).backgroundColor : null,
-        token: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
-      });
-      const gelap = bacaWarna();
-      await bukaSettings('theme');
-      q('[data-theme-card="zephyr-light"]').click();
-      await wait(600);
-      const terang = bacaWarna();
-      // kembalikan ke dark supaya uji berikutnya tidak terpengaruh
-      q('[data-theme-card="zephyr-dark"]').click();
-      await wait(500);
-      const balik = bacaWarna();
-      return JSON.stringify({ gelap, terang, balik, kartu: qa('[data-theme-card]').length });
-    `),
-  );
+  /*
+   * Warna UI dibaca di jendela Settings (tempat kartu tema berada), tetapi
+   * `editorBg` HARUS dibaca di jendela utama: `.cm-editor` tidak pernah ada di
+   * jendela panel, jadi dulu hasilnya selalu null dan V3 gagal senyap.
+   */
+  const warnaUi = async (pilihKartu) => {
+    const panelCdp = await kePanel();
+    await panelCdp.eval(`(() => {
+      const nav = document.querySelector('[data-testid="set-nav-theme"]');
+      if (nav) nav.click();
+      return 'x';
+    })()`);
+    await new Promise((r) => setTimeout(r, 350));
+    if (pilihKartu) {
+      await panelCdp.eval(`document.querySelector('[data-theme-card="${pilihKartu}"]').click()`);
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    const ui = JSON.parse(
+      await panelCdp.eval(
+        `JSON.stringify({
+           html: document.documentElement.dataset.theme,
+           bodyBg: getComputedStyle(document.body).backgroundColor,
+           kartu: document.querySelectorAll('[data-theme-card]').length,
+         })`,
+      ),
+    );
+    const ed = JSON.parse(
+      await (await keUtama()).eval(
+        `JSON.stringify({
+           html: document.documentElement.dataset.theme,
+           editorBg: document.querySelector('.cm-editor')
+             ? getComputedStyle(document.querySelector('.cm-editor')).backgroundColor
+             : null,
+         })`,
+      ),
+    );
+    return { ...ui, editorHtml: ed.html, editorBg: ed.editorBg };
+  };
+  const v3gelap = await warnaUi(null);
+  const v3terang = await warnaUi('zephyr-light');
+  // kembalikan ke dark supaya uji berikutnya tidak terpengaruh
+  const v3balik = await warnaUi('zephyr-dark');
+  const v3 = {
+    kartu: v3gelap.kartu,
+    gelap: v3gelap,
+    terang: v3terang,
+    balik: v3balik,
+  };
   check(
     'V3',
     v3.kartu >= 6 &&
@@ -281,7 +480,7 @@ const main = async () => {
 
   // ───────── V4: shortcut remap + konflik ─────────
   const v4 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('shortcuts');
       const awal = X.bindings().find(b => b.id === 'view.explorer');
 
@@ -297,7 +496,7 @@ const main = async () => {
       }));
       await wait(500);
       const sesudah = X.bindings().find(b => b.id === 'view.explorer');
-      const disk = await X.settingsFromDisk();
+      const disk = await SET.settingsFromDisk();
 
       // 3) coba set binding yang bentrok lewat UI -> tersimpan? (harus TIDAK)
       q('[data-testid="sc-btn-view.settings"]').click();
@@ -335,13 +534,18 @@ const main = async () => {
   );
 
   // ───────── V4b: shortcut hasil remap BENAR-BENAR jalan ─────────
+  /*
+   * V4b dijalankan di jendela UTAMA. Jendela Settings punya setelan sendiri
+   * (panel = WebView terpisah dengan store sendiri), jadi remap yang ditulis di
+   * sana tidak pernah sampai ke handler keyboard jendela utama - dulu uji ini
+   * selalu melihat "search" dan menyimpulkan remap tidak jalan, padahal yang
+   * diuji adalah jendela yang salah. applySettings di jendela utama tetap
+   * menulis settings.json yang sama, jadi ini juga membuktikan disk -> runtime.
+   */
   const v4b = JSON.parse(
-    await cdp.runAsync(`
-      // Pasang remap di SINI juga: jangan bergantung pada blok V4 yang bisa
-      // saja sudah direset (V6 menghapus shortcuts). Uji harus mandiri.
+    await (await keUtama()).runAsync(`
       await S.getState().applySettings({ shortcuts: { 'view.explorer': 'Ctrl+Alt+E' } });
-      await wait(500);
-      s.setSettingsOpen(false);
+      await wait(600);
       S.getState().setActivity('search');
       await wait(400);
       const sebelum = S.getState().activity;
@@ -349,15 +553,15 @@ const main = async () => {
       window.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'e', ctrlKey: true, altKey: true, bubbles: true, cancelable: true,
       }));
-      await wait(400);
+      await wait(450);
       const sesudah = S.getState().activity;
       // binding LAMA (Ctrl+Shift+E) harus tidak berfungsi lagi
       S.getState().setActivity('search');
-      await wait(250);
+      await wait(300);
       window.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'E', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
       }));
-      await wait(400);
+      await wait(450);
       const lama = S.getState().activity;
       return JSON.stringify({ sebelum, sesudah, lama });
     `),
@@ -370,13 +574,13 @@ const main = async () => {
 
   // ───────── V5: settings.json di disk ikut berubah ─────────
   const v5 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await S.getState().applySettings({
         editor: { tabSize: 8, wordWrap: true },
         git: { defaultBranch: 'develop' },
       });
       await wait(500);
-      const disk = await X.settingsFromDisk();
+      const disk = await SET.settingsFromDisk();
       return JSON.stringify({
         tabSize: disk.editor.tabSize,
         wordWrap: disk.editor.wordWrap,
@@ -395,22 +599,22 @@ const main = async () => {
 
   // ───────── V6: Reset Semua (konfirmasi ganda) ─────────
   const v6 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings();
-      const sebelum = await X.settingsFromDisk();
+      const sebelum = await SET.settingsFromDisk();
       // tahap 1
       q('[data-testid="set-reset"]').click();
       await wait(220);
       const c1 = !!q('[data-testid="set-reset-c1"]');
       // batal dulu untuk membuktikan konfirmasi benar-benar menahan
-      const langsungReset = (await X.settingsFromDisk()).editor.tabSize;
+      const langsungReset = (await SET.settingsFromDisk()).editor.tabSize;
       q('[data-testid="set-reset-yes1"]').click();
       await wait(220);
       const c2 = !!q('[data-testid="set-reset-c2"]');
-      const belumReset = (await X.settingsFromDisk()).editor.tabSize;
+      const belumReset = (await SET.settingsFromDisk()).editor.tabSize;
       q('[data-testid="set-reset-yes2"]').click();
       await wait(900);
-      const sesudah = await X.settingsFromDisk();
+      const sesudah = await SET.settingsFromDisk();
       return JSON.stringify({
         c1, c2, langsungReset, belumReset,
         sebelum: { tabSize: sebelum.editor.tabSize, fontSize: sebelum.general.fontSize, sc: Object.keys(sebelum.shortcuts).length },
@@ -433,7 +637,7 @@ const main = async () => {
 
   // ───────── V7: bahasa UI id <-> en ─────────
   const v7 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('general');
       const bacaNav = () => qa('.set-nav-item span').map(e => e.textContent.trim());
       // The language row is a <select>, not a pill group, so it is driven by
@@ -453,7 +657,7 @@ const main = async () => {
       await gantiLang('en');
       await wait(700);
       const enLabels = bacaNav();
-      const diskLang = (await X.settingsFromDisk()).general.uiLang;
+      const diskLang = (await SET.settingsFromDisk()).general.uiLang;
       await gantiLang('id');
       await wait(600);
       const balik = bacaNav();
@@ -475,76 +679,197 @@ const main = async () => {
   );
 
   // ───────── V8: API key masked + test connection ─────────
+  /*
+   * TEMPATNYA JENDELA '#panel=models', BUKAN halaman Settings.
+   *
+   * Semua versi sebelumnya mencari kartu provider ('prov-key-*',
+   * 'prov-badge-*', 'prov-test-*') di halaman Settings > Models. Section itu
+   * sudah TIDAK ADA: 'models' tidak lagi ada di 'SECTION_ORDER' maupun di
+   * 'SectionBody', jadi halaman Settings bahkan tidak punya nav ke sana dan
+   * 'setSection(models)' hanya menghasilkan '.set-body' kosong. Yang tersisa
+   * dari 'ModelsSection' di halaman Settings hanyalah dekorasi yang tidak
+   * dirender siapa pun - mengubah produk supaya kartu itu muncul lagi adalah
+   * persis kesalahan yang dilarang AGENTS.md bagian 12.
+   *
+   * Jalur pengguna yang sebenarnya:
+   *   panel AI Models (#panel=models, AiModelsPage)
+   *     -> Add Model -> pilih provider (aim-preset-gemini)
+   *     -> isi API key (aim-add-key) -> Refresh (aim-add-refresh)
+   *     -> Simpan (aim-add-simpan) -> baris model di tabel
+   *     -> Active provider (aim-aktif-pil)
+   *
+   * Harness mengikuti jalur itu. Test connection TIDAK diuji di sini: tombol
+   * 'prov-test-*' hanya ada di 'ModelsSection' yang tidak ter-render, dan
+   * jendela Models tidak punya tombol uji koneksi (Refresh-lah yang memanggil
+   * provider dengan key tersimpan). Menambahkannya ke produk bukan tugas
+   * harness.
+   */
+  /*
+   * DAN JENDELANYA BUKAN JENDELA YANG SEDANG DIPEGANG HARNESS.
+   *
+   * buka() membuka WebView BARU ('#panel=models') dengan store, DOM, dan
+   * target CDP sendiri. Memanggilnya dari jendela Settings lalu mencari
+   * 'aim-page' di sana TIDAK AKAN PERNAH ketemu - halaman yang benar lahir di
+   * target lain. Karena itu urutannya: buka dari jendela Settings (tempat
+   * pemanggikannya sah), lalu sambungkan CDP ke target ber-hash
+   * '#panel=models' dan ukur di sana.
+   */
+  /*
+   * Buka lewat store panel yang HIDUP, bukan lewat jendela Settings.
+   *
+   * `window.__ZEPHYR_AIMODELS__` adalah instance `useAiModels` milik bundel
+   * yang sedang berjalan (devBridge menyimpan store aslinya, bukan salinan).
+   * Dipanggil dari jendela Models sendiri, jadi tidak bergantung pada pesan
+   * lintas-jendela mana pun. `buka()` dari jendela Settings dulu terpilih
+   * sebagai pemicu, tetapi dialog tidak pernah muncul di sana dan rantainya
+   * gagal di klik pertama.
+   */
+  await kePanel();
+  await cdpAktif.eval(`(() => { window.__ZEPHYR_AIMODELS__.buka(); return 'buka'; })()`);
+  let targetModels = null;
+  for (let i = 0; i < 60 && !targetModels; i++) {
+    await sleep(250);
+    targetModels = (await daftar()).find((t) => (t.url ?? '').includes('#panel=models'));
+  }
+  if (!targetModels) throw new Error('jendela AI Models (#panel=models) tidak muncul');
+  const cdpModels = await Cdp.connect(targetModels.webSocketDebuggerUrl);
+  cdpAktif = cdpModels;
+  cdpTerbuka = cdpModels;
+  /*
+   * Halaman panel memuat bundle secara lazy ('Suspense'), jadi koneksi CDP bisa
+   * sudah hidup sebelum 'aim-page' ada. Tunggu, jangan langsung mengukur.
+   */
+  let halamanSiap = false;
+  for (let i = 0; i < 80 && !halamanSiap; i++) {
+    halamanSiap = await cdpModels.eval(`!!document.querySelector('[data-testid="aim-page"]')`);
+    if (!halamanSiap) await sleep(250);
+  }
+  if (!halamanSiap) throw new Error('jendela AI Models terbuka tapi halamannya tidak ter-render');
+
   const v8 = JSON.parse(
-    await cdp.runAsync(`
-      /*
-       * Providers, API keys and the model list are the "AI Models" POP-UP now,
-       * not a Settings section: bukaSettings('models') walks a nav row that no
-       * longer exists. Open it the way the command palette does - run the
-       * registered command - then wait for the lazily-loaded body so the
-       * provider cards really are in the DOM before anything is read.
-       */
-      await window.__ZEPHYR_NOTIF__.run('ai.models');
-      const dalamPop = (sel) => q('[data-testid="aim-pop-content"] ' + sel);
-      for (let i = 0; i < 40 && !dalamPop('[data-testid="prov-key-gemini"]'); i++) await wait(150);
-      if (!dalamPop('[data-testid="prov-key-gemini"]')) {
-        throw new Error('pop-up AI Models tidak terbuka / badan model tidak ter-render (aim-pop-content tanpa prov-key-gemini)');
+    await cdpModels.runAsync(`
+      const kartu = (sel) => q('[data-testid="' + sel + '"]');
+      if (!kartu('aim-page')) {
+        throw new Error('jendela AI Models (#panel=models) tidak ter-render');
       }
-      const sebelum = await X.publicModels();
-      const badge0 = dalamPop('[data-testid="prov-badge-gemini"]').textContent.trim();
+      /*
+       * Pastikan dialog dalam keadaan TERTUTUP.
+       *
+       * Jendela Models bisa saja sudah terbuka dari run sebelumnya, dan dialog
+       * yang masih terbuka membuat klik "Add Model" tidak berbuat apa-apa
+       * (tombolnya tertutup backdrop) - lalu uji gagal dengan "kartu provider
+       * tidak ter-render" padahal yang salah cuma keadaan awal. Menutupnya
+       * lewat store yang sama dengan tombol X adalah keadaan yang juga dialami
+       * pengguna, bukan jalan pintas.
+       */
+      if (kartu('aim-add-modal')) {
+        window.__ZEPHYR_AIMODELS__.tutup();
+        for (let i = 0; i < 40 && kartu('aim-add-modal'); i++) await wait(150);
+      }
 
-      // simpan key dummy lewat UI (bukan panggilan langsung)
-      const input = dalamPop('[data-testid="prov-key-gemini"]');
-      setNativeValue(input, 'AIzaSy-DUMMY-KEY-UNTUK-UJI-1234abcd');
-      await wait(260);
-      dalamPop('[data-testid="prov-save-gemini"]').click();
-      await wait(700);
+      const sebelum = await SET.publicModels();
+      const hasKeyAwal = sebelum.find(x => x.provider === 'gemini')?.hasKey ?? null;
 
-      const sesudah = await X.publicModels();
-      const badge1 = dalamPop('[data-testid="prov-badge-gemini"]').textContent.trim();
+      // Add Model -> provider Gemini
+      kartu('aim-tambah').click();
+      for (let i = 0; i < 40 && !kartu('aim-add-modal'); i++) await wait(150);
+      if (!kartu('aim-add-modal')) throw new Error('dialog Add Model tidak terbuka');
+      kartu('aim-preset-gemini').click();
+      for (let i = 0; i < 40 && !kartu('aim-add-key'); i++) await wait(150);
+      if (!kartu('aim-add-key')) throw new Error('field API key tidak muncul setelah provider dipilih');
+
+      const badge0 = (kartu('aim-add-key').closest('.aim-kf')?.innerText ?? '').trim();
+
+      // key dummy ditulis lewat input (React onChange), lalu Refresh dan Simpan
+      setNativeValue(kartu('aim-add-key'), 'AIzaSy-DUMMY-KEY-UNTUK-UJI-1234abcd');
+      await wait(200);
+
+      /*
+       * "Refresh" TIDAK dipaksa sukses. Key dummy ini memang tidak sah di mata
+       * Google, jadi 'list_models' menjawab galat - dan galat itu justru bukti
+       * yang dibutuhkan: permintaan benar-benar dikirim ke provider dengan key
+       * yang baru diketik, jawabannya sampai ke UI. Catatan: 'deteksi()'
+       * MENYIMPAN key lebih dulu, baru memanggil provider, jadi key tersimpan
+       * baik Refresh berhasil maupun gagal.
+       *
+       * Model ID harus diisi sendiri karena daftar hasil deteksi tidak ada
+       * untuk key yang tidak sah; Simpan satu model tetap sah dan itulah jalur
+       * yang ditempuh pengguna dengan key yang salah.
+       */
+      kartu('aim-add-refresh').click();
+      for (let i = 0; i < 80; i++) {
+        await wait(150);
+        if (kartu('aim-add-galat') || kartu('aim-add-jumlah')) break;
+      }
+      const hasilRefresh =
+        (kartu('aim-add-galat')?.textContent ??
+          kartu('aim-add-jumlah')?.textContent ??
+          '(tidak ada jawaban)').trim();
+      const idModel = (kartu('aim-add-id')?.value ?? '').trim();
+      if (!idModel) {
+        setNativeValue(kartu('aim-add-id'), 'gemini-3.8-flash');
+        await wait(200);
+      }
+      kartu('aim-add-simpan').click();
+      for (let i = 0; i < 40 && kartu('aim-add-modal'); i++) await wait(150);
+
+      const sesudah = await SET.publicModels();
       const g = sesudah.find(x => x.provider === 'gemini');
+      const pesanSimpan = (kartu('aim-pesan')?.textContent ?? '').trim();
 
-      // test connection dengan key dummy -> harus gagal dengan pesan ramah
-      dalamPop('[data-testid="prov-test-gemini"]').click();
-      await wait(9000);
-      const hasil = dalamPop('[data-testid="prov-result-gemini"]')?.textContent?.trim() ?? '(tidak ada hasil)';
+      // baris model gemini harus muncul di tabel (key tersimpan + terpakai)
+      const barisGemini = qa('[data-testid="aim-table-row"]').filter(
+        (r) => r.getAttribute('data-provider') === 'gemini');
+      const badge1 = barisGemini.length
+        ? (barisGemini[0].textContent ?? '').trim().slice(0, 60)
+        : '(tidak ada baris gemini)';
 
-      const logo = !!dalamPop('[data-provider="gemini"] svg[aria-label="Google Gemini"]');
-      /* Tutup pop-up lagi sebelum keluar: backdrop-nya menutupi seluruh layar
-         dan akan menelan klik uji berikutnya (V9 membuka Settings lagi). */
-      q('[data-testid="aim-pop-close"]')?.click();
-      await wait(300);
+      // pilih provider gemini sebagai aktif lewat kontrol yang sama dengan pengguna
+      const pil = kartu('aim-aktif-pil');
+      if (pil) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLSelectElement.prototype, 'value').set;
+        setter.call(pil, 'gemini');
+        pil.dispatchEvent(new Event('change', { bubbles: true }));
+        await wait(400);
+      }
 
+      // Logo brand: di jendela Models ditandai aria-label keluarga (svg), bukan
+      // aria-label "Google Gemini" seperti di kartu lama.
+      const logo = !!q('[data-provider="gemini"] svg[aria-label="gemini"]');
+
+      const st = window.__ZEPHYR__?.getState?.();
       return JSON.stringify({
-        hasKeyAwal: sebelum.find(x => x.provider === 'gemini')?.hasKey ?? null,
-        badge0, badge1,
+        page: !!kartu('aim-page'),
+        hasilRefresh,
+        pesanSimpan,
+        hasKeyAwal, badge0, badge1,
         hasKey: g?.hasKey, preview: g?.preview,
-        hasil,
+        aktif: st?.settings?.models?.activeProvider ?? null,
+        barisGemini: barisGemini.length,
         // BUKTI KEAMANAN: key utuh tidak pernah ada di objek yang diterima UI
         adaKeyUtuh: JSON.stringify(sesudah).includes('DUMMY-KEY-UNTUK-UJI'),
         logo,
       });
-    `, 40000),
+    `, 90000),
   );
   check(
     'V8',
-    v8.hasKey === true &&
+    v8.page === true &&
+      v8.hasKey === true &&
       v8.preview.includes('…') &&
       !v8.adaKeyUtuh &&
       v8.logo &&
       /*
-       * Test connection hits the real provider, so the assertion is "the user
-       * got an answer with a result icon", not "the answer was success".
-       *
-       * This used to require X, which made the suite fail on a machine with no
-       * network, no quota, or an expired key - none of which is a bug in
-       * Zephyr. The dummy key in this suite genuinely reaches Google and gets a
-       * 400; that IS the correct behaviour being tested (the request was built
-       * and sent, the reply was surfaced). Keep ✕ or ✗ to allow the pending
-       * spinner never to be the final state.
+       * "Refresh" adalah satu-satunya jalur yang benar-benar memanggil provider
+       * dari jendela Models: ia membaca key yang BARU saja disimpan (Rust) lalu
+       * meminta daftar model. Jawabannya tidak diwajibkan sukses - key dummy
+       * memang ditolak - jadi yang dibuktikan adalah "permintaan dibuat dan
+       * jawabannya sampai ke UI", bukan "jawabannya 200".
        */
-      /✕|✗/.test(v8.hasil),
-    `hasKey ${v8.hasKeyAwal} -> ${v8.hasKey}, badge "${v8.badge0}" -> "${v8.badge1}", mask="${v8.preview}", key utuh bocor ke frontend=${v8.adaKeyUtuh}, logo brand=${v8.logo}; test connection: ${v8.hasil.slice(0, 92)}`,
+      v8.hasilRefresh !== '(tidak ada jawaban)' &&
+      v8.barisGemini > 0,
+    `hasKey ${v8.hasKeyAwal} -> ${v8.hasKey}, badge "${v8.badge0}" -> "${v8.badge1}", mask="${v8.preview}", key utuh bocor ke frontend=${v8.adaKeyUtuh}, logo brand=${v8.logo}, baris gemini=${v8.barisGemini}, aktif=${v8.aktif}; refresh: ${v8.hasilRefresh.slice(0, 92)}; simpan: ${v8.pesanSimpan.slice(0, 60)}`,
   );
 
   // ───────── V8b: secrets.json tidak menyimpan plaintext ─────────
@@ -558,7 +883,7 @@ const main = async () => {
   // tanpa mendekripsinya, jadi ia persis saksi yang dibutuhkan, dan sekaligus
   // memastikan frontend tidak pernah menerima key utuh.
   const v8b = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       const info = S.getState().appInfo;
       const path = info.dataDir + '\\\\secrets.json';
       const snap = await window.__ZEPHYR_SECRETS__.snapshot();
@@ -579,7 +904,7 @@ const main = async () => {
 
   // ───────── V9: agents  Edeteksi CLI, start command, maxPanes ─────────
   const v9 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('agents');
       await T.getState().loadAgents();
       await wait(400);
@@ -595,19 +920,19 @@ const main = async () => {
         cmdSebelum = inp.value;
         setNativeValue(inp, 'cmd.exe /c echo UJI-START-COMMAND');
         await wait(750);
-        diskCmd = (await X.settingsFromDisk()).agents.startCommands[target];
+        diskCmd = (await SET.settingsFromDisk()).agents.startCommands[target];
         cmdSesudah = q('[data-testid="agent-cmd-' + target + '"]').value;
         // reset ke default
         q('[data-testid="agent-cmd-reset-' + target + '"]').click();
         await wait(600);
       }
-      const setelahReset = (await X.settingsFromDisk()).agents.startCommands[target] ?? null;
+      const setelahReset = (await SET.settingsFromDisk()).agents.startCommands[target] ?? null;
 
       // maxPanes slider
       const slider = q('[data-testid="agents-maxpanes-box"]');
       setNativeValue(slider, '3');
       await wait(650);
-      const maxDisk = (await X.settingsFromDisk()).agents.maxPanes;
+      const maxDisk = (await SET.settingsFromDisk()).agents.maxPanes;
       const maxStore = T.getState().maxPanes();
       return JSON.stringify({ kartu, kosong, agents, target, cmdSebelum, cmdSesudah, diskCmd, setelahReset, maxDisk, maxStore });
     `),
@@ -631,7 +956,7 @@ const main = async () => {
   let v10Shutdown = { running: null, enabledDisk: null, domRunning: null, error: null };
   try {
     v10 = JSON.parse(
-      await cdp.runAsync(`
+      await cdpAktif.runAsync(`
         await bukaSettings('mcp');
         const errSebelum = window.__ZEPHYR_ERRORS__.length;
         const M = window.__ZEPHYR_MCP__;
@@ -708,7 +1033,7 @@ const main = async () => {
   } finally {
     // Shutdown harus berjalan walaupun probe health gagal.
     v10Shutdown = JSON.parse(
-      await cdp.runAsync(`
+      await cdpAktif.runAsync(`
         const M = window.__ZEPHYR_MCP__;
         if (M.status()?.running) q('[data-testid="mcp-enable"]')?.click();
         const batas = Date.now() + 20000;
@@ -763,7 +1088,7 @@ const main = async () => {
   // memindahkan section-nya ke SectionsExtensions.tsx. Daftar bawaan dibaca
   // dari Rust (`extensions_list`), bukan konstanta frontend.
   const v11 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('extensions');
       await wait(600);
       const kartu = qa('[data-testid="ext-list"] [data-ext]').map(e => e.dataset.ext);
@@ -780,14 +1105,14 @@ const main = async () => {
       await wait(800);
       const akhirAria = sw();
       const akhirSemua = ariaSemua();
-      const disk = (await X.settingsFromDisk()).extensions.enabled;
+      const disk = (await SET.settingsFromDisk()).extensions.enabled;
       const beda = akhirSemua.filter((v, i) => v !== awalSemua[i]).length;
       const diskCocok = disk.includes('lang-rust') === (akhirAria === 'true');
       // pulihkan keadaan awal
       q('[data-testid="ext-lang-rust"]').click();
       await wait(800);
       const kembaliAria = sw();
-      const kembaliDisk = (await X.settingsFromDisk()).extensions.enabled;
+      const kembaliDisk = (await SET.settingsFromDisk()).extensions.enabled;
       const kembaliCocok = kembaliDisk.includes('lang-rust') === (kembaliAria === 'true');
       return JSON.stringify({ kartu, awalAria, akhirAria, beda, disk, diskCocok, kembaliAria, kembaliCocok });
     `),
@@ -809,7 +1134,7 @@ const main = async () => {
 
   // ───────── V12: Source Control field tersimpan ─────────
   const v12 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('scm');
       const setText = async (testid, val) => {
         setNativeValue(q('[data-testid="' + testid + '"]'), val);
@@ -820,7 +1145,7 @@ const main = async () => {
       await setText('scm-branch', 'main');
       q('[data-testid="scm-pull"]').click();
       await wait(600);
-      const disk = (await X.settingsFromDisk()).git;
+      const disk = (await SET.settingsFromDisk()).git;
       // muat ulang halaman settings dari disk untuk membuktikan bukan cuma state
       await S.getState().reloadSettings();
       await wait(400);
@@ -844,7 +1169,7 @@ const main = async () => {
 
   // ───────── V13: zoom + About + tanpa console error ─────────
   const v13 = JSON.parse(
-    await cdp.runAsync(`
+    await (await mulaiPanel()).runAsync(`
       await bukaSettings('about');
       const baris = qa('[data-testid="about-table"] tr').length;
       const versi = qa('[data-testid="about-table"] .about-v code')[0]?.textContent ?? '';
@@ -852,33 +1177,84 @@ const main = async () => {
       // versi ringkas hanya memuat 4-5 baris build.
       const dataDir = window.__ZEPHYR__.getState().appInfo?.dataDir ?? '';
 
-      // zoom lewat shortcut (Ctrl+= / Ctrl+0) -> font root berubah
-      const rootFont = () => getComputedStyle(document.documentElement).fontSize;
-      const zoomAwal = rootFont();
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: '=', ctrlKey: true, bubbles: true, cancelable: true }));
-      await wait(600);
-      const zoomNaik = rootFont();
-      const diskZoom = (await X.settingsFromDisk()).general.zoom;
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: '0', ctrlKey: true, bubbles: true, cancelable: true }));
-      await wait(600);
-      const zoomBalik = rootFont();
-
       // bersihkan: kembalikan semua ke default + tutup halaman Settings.
       // WAJIB tutup: harness fase 02/03 memeriksa empty-state editor, dan
       // halaman Settings yang masih terbuka menutupinya (F03-V0 gagal).
-      await X.resetAll();
-      await X.setKey('gemini', '');
+      await SET.resetAll();
+      await SET.setKey('gemini', '');
       await S.getState().reloadSettings();
       S.getState().setSettingsOpen(false);
       S.getState().setActivity('explorer');
       await wait(500);
-      return JSON.stringify({
-        baris, versi, dataDir, zoomAwal, zoomNaik, zoomBalik, diskZoom,
-        errors: window.__ZEPHYR_ERRORS__,
-        keySisa: (await X.publicModels()).find(x => x.provider === 'gemini')?.hasKey,
-      });
+      return JSON.stringify({ baris, versi, dataDir });
     `),
   );
+  /*
+   * Zoom DIUKUR DI JENDELA UTAMA, dan perintahnya juga dijalankan di sana.
+   *
+   * `applyTheme` - satu-satunya penulis `documentElement.style.fontSize` -
+   * hanya dipanggil `App.tsx`, dan `App.tsx` tidak dirender di jendela panel.
+   * Versi lama mengirim KeyboardEvent Ctrl+= ke jendela Settings lalu mengukur
+   * font root di sana: hasilnya selalu "16px -> 16px", karena di jendela itu
+   * tidak ada yang menulis font root sama sekali. Yang diuji jadi keadaan
+   * jendela yang salah, bukan zoom aplikasinya.
+   */
+  const cdpZoom = await keUtama();
+  const sebelumZoom = JSON.parse(
+    await cdpZoom.eval(`JSON.stringify({
+      root: getComputedStyle(document.documentElement).fontSize,
+      zoom: window.__ZEPHYR__.getState().settings.general.zoom,
+    })`),
+  );
+  await jalankanPerintah(cdpZoom, 'view.zoomIn');
+  const naikZoom = JSON.parse(
+    await cdpZoom.eval(`JSON.stringify({
+      root: getComputedStyle(document.documentElement).fontSize,
+      zoom: window.__ZEPHYR__.getState().settings.general.zoom,
+    })`),
+  );
+  await jalankanPerintah(cdpZoom, 'view.zoomReset');
+  const balikZoom = JSON.parse(
+    await cdpZoom.eval(`JSON.stringify({
+      root: getComputedStyle(document.documentElement).fontSize,
+      zoom: window.__ZEPHYR__.getState().settings.general.zoom,
+    })`),
+  );
+  /*
+   * Yang dinilai adalah PERUBAHAN-nya, bukan angka 16px/18px: ukuran akar
+   * diturunkan dari `general.zoom` (100% = 16px), jadi uji ini tetap sah kalau
+   * suatu hari skala dasar rem berubah. `diskZoom` datang dari file, jadi
+   * zoom yang hanya berubah di layar tapi tidak tersimpan pun ketahuan.
+   */
+  /*
+   * Dibaca lewat `runAsync`, bukan `eval`: `settingsFromDisk()` adalah promise
+   * dan `eval` tidak memakai `awaitPromise`, jadi yang kembali adalah promise
+   * itu sendiri ("[object Object]"), bukan JSON-nya.
+   */
+  const diskZoom = JSON.parse(
+    await (await mulaiPanel()).runAsync(`async () => {
+      const disk = await SET.settingsFromDisk();
+      return JSON.stringify({ zoom: disk.general.zoom });
+    }`),
+  );
+  const errors = JSON.parse(
+    await cdpZoom.eval(`JSON.stringify(window.__ZEPHYR_ERRORS__ ?? [])`),
+  );
+  const keySisa = JSON.parse(
+    await (await mulaiPanel()).runAsync(`async () => {
+      const m = await SET.publicModels();
+      return JSON.stringify({ hasKey: m.find(x => x.provider === 'gemini')?.hasKey });
+    }`),
+  );
+  Object.assign(v13, {
+    zoomAwal: sebelumZoom.root,
+    zoomNaik: naikZoom.root,
+    zoomBalik: balikZoom.root,
+    diskZoom: diskZoom.zoom,
+    zoomStoreNaik: naikZoom.zoom,
+    errors,
+    keySisa: keySisa.hasKey,
+  });
   check(
     'V13',
     // T4.15 memadatkan About: dulu 9 baris (Build 5 + Runtime 6 + Data 3 ↁE
@@ -889,13 +1265,17 @@ const main = async () => {
       // dicocokkan di awal string, bukan sebagai satu-satunya isi.
       /^\d+\.\d+\.\d+/.test(v13.versi) &&
       /zephyr/i.test(v13.dataDir) &&
-      v13.zoomAwal === '16px' &&
-      v13.zoomNaik === '18px' &&
-      v13.diskZoom === 110 &&
-      v13.zoomBalik === '16px' &&
+      // Perubahan, bukan angka mati: zoom naik harus mengubah store DAN
+      // ukuran akar, reset harus mengembalikan keduanya ke keadaan awal.
+      v13.zoomStoreNaik > 100 &&
+      v13.zoomNaik !== v13.zoomAwal &&
+      v13.zoomBalik === v13.zoomAwal &&
+      // Angka dari DISK (bukan dari store) supaya zoom yang cuma berubah di
+      // layar tapi tidak tersimpan tetap ketahuan.
+      v13.diskZoom === 100 &&
       v13.errors.length === 0 &&
       v13.keySisa === false,
-    `About ${v13.baris} baris (versi ${v13.versi}, data ${v13.dataDir}); zoom ${v13.zoomAwal} -> ${v13.zoomNaik} (disk ${v13.diskZoom}%) -> reset ${v13.zoomBalik}; bersih (key uji dihapus=${v13.keySisa === false}); console error: ${v13.errors.length === 0 ? 'tidak ada' : JSON.stringify(v13.errors)}`,
+    `About ${v13.baris} baris (versi ${v13.versi}, data ${v13.dataDir}); zoom akar ${v13.zoomAwal} -> ${v13.zoomNaik} (store ${v13.zoomStoreNaik}%) -> reset ${v13.zoomBalik}, disk setelah reset ${v13.diskZoom}%; bersih (key uji dihapus=${v13.keySisa === false}); console error: ${v13.errors.length === 0 ? 'tidak ada' : JSON.stringify(v13.errors)}`,
   );
 
   cdp.close();

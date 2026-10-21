@@ -606,7 +606,8 @@ export function laporanBuktiPerubahan(m: ManifestPaket, baca: Baca): LaporanBukt
   }
 
   /* Debug adapter: deklaratif juga, dan Zephyr memang bicara DAP (`dap.rs`) -
-     tetapi registry adapter-nya tetap (node, python) dan tidak ada jalur kode
+     tetapi registry adapter-nya tetap (node, python, codelldb, dlv,
+     java-debug, netcoredbg) dan tidak ada jalur kode
      yang membaca program/runtime dari manifest. Jadi ini dilaporkan sebagai
      diabaikan dengan sebab yang nyata, bukan dihitung sebagai bukti - dan
      BUKAN "unsupported", karena protokolnya ada. Cermin dari blok yang sama di
@@ -623,7 +624,7 @@ export function laporanBuktiPerubahan(m: ManifestPaket, baca: Baca): LaporanBukt
       ki(
         'debugAdapter',
         'debuggers',
-        `${jumlahNama(dap.length, '1 debug adapter', 'debug adapters')} (${nama}) - detected but not started: Zephyr's adapter registry is fixed (node, python - dap.rs) and no code path reads program/runtime from a manifest, so an adapter from a package is never launched`,
+        `${jumlahNama(dap.length, '1 debug adapter', 'debug adapters')} (${nama}) - detected but not started: Zephyr's adapter registry is fixed (node, python, codelldb, dlv, java-debug, netcoredbg - dap.rs) and no code path reads program/runtime from a manifest, so an adapter from a package is never launched`,
       ),
     );
   }
