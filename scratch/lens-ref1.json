@@ -1,0 +1,248 @@
+{
+  "image": "D:\\Referensi TRAE Agent Window\\1.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed AI coding tool interface with a left sidebar and a large central workspace. The sidebar shows navigation items (New task, Marketplace, Automation, My Artifacts), project lists (Abel, Greeting, Jalan Mode Dev Aplikasi Desktop, Default with Halo, Halo, Greeting), and a user footer 'ShinRyu04 Free'. The center shows a large 'Build With TRAE' heading, a prompt input box with Manual Approval and model 'deepseek-v4.1.flash', a 'Local' option with optional folder selector, and four category buttons at the bottom.",
+    "ocr": {
+      "full_text": "Edit View Help\nNew task\nMarketplace\nAutomation\nMy Artifacts\nProjects\nAbel\nGreeting\nJalan Mode Dev Aplikasi Desktop\nDefault\nHalo\nHalo\nGreeting\nBuild With TRAE\nMore than writing every line of code—delivering production-grade results end-to-end.\nManual Approval\ndeepseek-v4.1.flash\nLocal\nSelect a folder (optional)\nApplication Development\nProject Understanding\nGame Creativity\nAutomation Tools\nShinRyu04\nFree\nIDE",
+      "lines": [
+        {
+          "text": "Edit",
+          "language": "en"
+        },
+        {
+          "text": "View",
+          "language": "en"
+        },
+        {
+          "text": "Help",
+          "language": "en"
+        },
+        {
+          "text": "New task",
+          "language": "en"
+        },
+        {
+          "text": "Marketplace",
+          "language": "en"
+        },
+        {
+          "text": "Automation",
+          "language": "en"
+        },
+        {
+          "text": "My Artifacts",
+          "language": "en"
+        },
+        {
+          "text": "Projects",
+          "language": "en"
+        },
+        {
+          "text": "Abel",
+          "language": "en"
+        },
+        {
+          "text": "Greeting",
+          "language": "en"
+        },
+        {
+          "text": "Jalan Mode Dev Aplikasi Desktop",
+          "language": "id"
+        },
+        {
+          "text": "Default",
+          "language": "en"
+        },
+        {
+          "text": "Halo",
+          "language": "id"
+        },
+        {
+          "text": "Halo",
+          "language": "id"
+        },
+        {
+          "text": "Greeting",
+          "language": "en"
+        },
+        {
+          "text": "Build With TRAE",
+          "language": "en"
+        },
+        {
+          "text": "More than writing every line of code—delivering production-grade results end-to-end.",
+          "language": "en"
+        },
+        {
+          "text": "Manual Approval",
+          "language": "en"
+        },
+        {
+          "text": "deepseek-v4.1.flash",
+          "language": "en"
+        },
+        {
+          "text": "Local",
+          "language": "en"
+        },
+        {
+          "text": "Select a folder (optional)",
+          "language": "en"
+        },
+        {
+          "text": "Application Development",
+          "language": "en"
+        },
+        {
+          "text": "Project Understanding",
+          "language": "en"
+        },
+        {
+          "text": "Game Creativity",
+          "language": "en"
+        },
+        {
+          "text": "Automation Tools",
+          "language": "en"
+        },
+        {
+          "text": "ShinRyu04",
+          "language": "en"
+        },
+        {
+          "text": "Free",
+          "language": "en"
+        },
+        {
+          "text": "IDE",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "nav",
+          "reading_order": 1,
+          "text": "Left sidebar navigation and project lists"
+        },
+        {
+          "type": "heading",
+          "reading_order": 2,
+          "text": "Build With TRAE"
+        },
+        {
+          "type": "form",
+          "reading_order": 3,
+          "text": "Prompt input with Manual Approval, deepseek-v4.1.flash, Local folder selector"
+        },
+        {
+          "type": "list",
+          "reading_order": 4,
+          "text": "Category buttons: Application Development, Project Understanding, Game Creativity, Automation Tools"
+        },
+        {
+          "type": "footer",
+          "reading_order": 5,
+          "text": "User footer: ShinRyu04 Free"
+        },
+        {
+          "type": "header",
+          "reading_order": 6,
+          "text": "Top-right IDE indicator and window controls"
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "AI coding assistant/agent landing workspace",
+      "intent": "start a new AI-assisted coding task by entering a prompt and choosing category",
+      "entities": [
+        {
+          "name": "TRAE",
+          "type": "product",
+          "evidence": "'Build With TRAE' heading"
+        },
+        {
+          "name": "deepseek-v4.1.flash",
+          "type": "model selector",
+          "evidence": "input box dropdown"
+        },
+        {
+          "name": "Manual Approval",
+          "type": "mode selector",
+          "evidence": "input box"
+        },
+        {
+          "name": "ShinRyu04",
+          "type": "user account",
+          "evidence": "sidebar footer"
+        },
+        {
+          "name": "Abel",
+          "type": "project",
+          "evidence": "sidebar project list"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "prompt input",
+          "predicate": "is configured by",
+          "object": "model and approval selectors"
+        },
+        {
+          "subject": "category buttons",
+          "predicate": "suggest",
+          "object": "task types"
+        },
+        {
+          "subject": "sidebar",
+          "predicate": "lists",
+          "object": "projects and chats"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#0f1113",
+        "#1b1d20",
+        "#2a2d31",
+        "#ffffff",
+        "#a0a4a8",
+        "#22c55e"
+      ],
+      "style": "dark minimal AI productivity UI",
+      "notes": [
+        "large centered typographic heading",
+        "rounded input container with embedded controls",
+        "pill-shaped category buttons",
+        "green accent on send arrow",
+        "muted gray secondary text"
+      ]
+    },
+    "uncertainty": [
+      "Some icon-only buttons (top-left, top-right, input bar) are not transcribed as text.",
+      "Text 'Jalan Mode Dev Aplikasi Desktop' and 'Halo' appear to be Indonesian but are transcribed exactly."
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T08:25:14.196Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 8.559,
+    "usage": {
+      "prompt_tokens": 351,
+      "completion_tokens": 1038,
+      "total_tokens": 1389,
+      "cost": 0.001525
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 8.561
+      }
+    ],
+    "warnings": []
+  }
+}

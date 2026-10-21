@@ -19,6 +19,9 @@ export const EV = {
   ramUsage: 'ram-usage',
   lspEvent: 'lsp-event',
   cliChatChunk: 'cli-chat-chunk',
+  /* Mintalah jendela editor (utama) membuka file di tab — dikirim dari
+     jendela Agents (menu klik kanan "Open in New Tab" di pohon File). */
+  openFileInEditor: 'open-file-in-editor',
 } as const;
 
 /**
@@ -178,6 +181,11 @@ export function onRamUsage(cb: (bytes: number) => void): Promise<UnlistenFn> {
 
 export function onWorkspaceOpened(cb: (path: string) => void): Promise<UnlistenFn> {
   return listen<{ path: string }>(EV.workspaceOpened, (e) => cb(e.payload.path));
+}
+
+/** Jendela editor meminta file dibuka di tab (dikirim dari jendela Agents). */
+export function onOpenFileInEditor(cb: (path: string) => void): Promise<UnlistenFn> {
+  return listen<{ path: string }>(EV.openFileInEditor, (e) => cb(e.payload.path));
 }
 
 export function onSettingsChanged(cb: (key: string) => void): Promise<UnlistenFn> {

@@ -1,0 +1,80 @@
+ M scratch/probe-sesi.mjs
+ M src-tauri/src/lib.rs
+ M src-tauri/src/plugins.rs
+ M src-tauri/src/secrets.rs
+ M src/App.tsx
+ M src/components/extensions/ExtMarketplace.tsx
+ M src/components/settings/AgcAgents.tsx
+ M src/components/settings/AgcBrowser.tsx
+ M src/components/settings/AgcSkills.tsx
+ M src/components/settings/AgentCustomPage.tsx
+ M src/components/settings/AiModelsPage.tsx
+ D src/components/settings/AiModelsTable.tsx
+ M src/lib/agentCustomStore.ts
+ M src/lib/modelCatalog.tsx
+ M src/lib/types.ts
+ M src/styles/agc-agents.css
+ M src/styles/ai.css
+?? scratch/addmodel-asli.png
+?? scratch/addmodel-warna.png
+?? scratch/aim-hasil.png
+?? scratch/aim-hasil2.png
+?? scratch/aimkeys.txt
+?? scratch/analisa-layout-trae.cjs
+?? scratch/baca-terjemahan.cjs
+?? scratch/baca-terjemahan2.cjs
+?? scratch/banding-provider.cjs
+?? scratch/bongkar-chat-history.mjs
+?? scratch/bongkar-conv-strings.mjs
+?? scratch/bongkar-trae-conv.mjs
+?? scratch/buang-duplikat-aim.cjs
+?? scratch/bukti-logo.mjs
+?? scratch/cari-modul-gagal.mjs
+?? scratch/cari-tabel-terjemahan.cjs
+?? scratch/cek-ai-final.mjs
+?? scratch/cek-conv-apa.mjs
+?? scratch/cek-logo-model.mjs
+?? scratch/diag-ai.mjs
+?? scratch/diag-prov.mjs
+?? scratch/et.txt
+?? scratch/fix-arrsize.cjs
+?? scratch/g1.txt
+?? scratch/ganti-logo-asli.cjs
+?? scratch/git-cek.cjs
+?? scratch/git-hasil.txt
+?? scratch/inspect-catalog.cjs
+?? scratch/ketik.txt
+?? scratch/lihat-model-6.cjs
+?? scratch/model-logo-asli.png
+?? scratch/ocr-shot.ps1
+?? scratch/panel-cdp.mjs
+?? scratch/patch-catalog.cjs
+?? scratch/patch-logo.cjs
+?? scratch/patch-providers.cjs
+?? scratch/providers-baru.txt
+?? scratch/run-dev.ps1
+?? scratch/run-dev2.ps1
+?? scratch/shot-addmodel.mjs
+?? scratch/sisa.txt
+?? scratch/tes-node.cjs
+?? scratch/tes-out.txt
+?? scratch/trae-cdp.mjs
+?? scratch/trae-cek.png
+?? scratch/trae-conv.png
+?? scratch/trae-sekarang.png
+?? scratch/trae-shot.mjs
+?? scratch/trae.txt
+?? scratch/uji-klik.mjs
+?? scratch/uji-lebar.mjs
+?? scratch/ukur-tombol-trae.cjs
+?? scratch/ukur-tombol-trae2.cjs
+?? scripts/verify-aim-keys.mjs
+?? scripts/verify-dialog-ketik.mjs
+?? scripts/verify-trae-sisa.mjs
+?? scripts/verify-trae-tampilan.mjs
+?? src-tauri/src/lint_fix.rs
+?? src-tauri/target2/
+?? src/components/settings/AgcAgentDialogs.tsx
+?? src/components/settings/AgcConversations.tsx
+?? src/components/settings/AiModelsDialog.tsx
+?? src/styles/aim-models.css

@@ -1,0 +1,162 @@
+{
+  "image": "D:\\Referensi TRAE Agent Window\\composer zephyr 2.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed chat or agent composer input widget with a large multiline text area on top and a control bar below. The text area shows placeholder text 'Type a task for the agent (Enter to send)...'. The bottom control bar contains, left to right, a plus icon, a 'Full Access' selector with a red dot, an '@ Agent' selector, a 'Type a mod...' selector with a blue icon, and a green up-arrow send button. The widget has rounded corners, a subtle border, and a divider separating the input area from the controls.",
+    "ocr": {
+      "full_text": "Type a task for the agent (Enter to send)...\n+\n● Full Access\n@ Agent\nType a mod...\n↑",
+      "lines": [
+        {
+          "text": "Type a task for the agent (Enter to send)...",
+          "language": "en"
+        },
+        {
+          "text": "+",
+          "language": "en"
+        },
+        {
+          "text": "Full Access",
+          "language": "en"
+        },
+        {
+          "text": "@ Agent",
+          "language": "en"
+        },
+        {
+          "text": "Type a mod...",
+          "language": "en"
+        },
+        {
+          "text": "↑",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "form",
+          "reading_order": 1,
+          "text": "Type a task for the agent (Enter to send)..."
+        },
+        {
+          "type": "button",
+          "reading_order": 2,
+          "text": "+"
+        },
+        {
+          "type": "button",
+          "reading_order": 3,
+          "text": "Full Access"
+        },
+        {
+          "type": "button",
+          "reading_order": 4,
+          "text": "@ Agent"
+        },
+        {
+          "type": "button",
+          "reading_order": 5,
+          "text": "Type a mod..."
+        },
+        {
+          "type": "button",
+          "reading_order": 6,
+          "text": "↑"
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "Software user interface, dark mode chat/agent task composer",
+      "intent": "Allow a user to type a task for an AI agent and configure access/agent/model options before sending",
+      "entities": [
+        {
+          "name": "task input area",
+          "type": "text field",
+          "evidence": "large dark rounded box containing placeholder text"
+        },
+        {
+          "name": "Full Access selector",
+          "type": "dropdown control",
+          "evidence": "red dot followed by 'Full Access' and a chevron"
+        },
+        {
+          "name": "Agent selector",
+          "type": "dropdown control",
+          "evidence": "'@ Agent' with chevron"
+        },
+        {
+          "name": "Model selector",
+          "type": "dropdown control",
+          "evidence": "blue icon with 'Type a mod...' and chevron"
+        },
+        {
+          "name": "send button",
+          "type": "button",
+          "evidence": "green rounded square with up arrow at far right"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "send button",
+          "predicate": "submits",
+          "object": "task input area"
+        },
+        {
+          "subject": "Full Access selector",
+          "predicate": "configures",
+          "object": "agent access level"
+        },
+        {
+          "subject": "Model selector",
+          "predicate": "configures",
+          "object": "agent model"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#0e1116",
+        "#1a1d23",
+        "#2a2e35",
+        "#8b949e",
+        "#e6edf3",
+        "#ff5c5c",
+        "#3fb950"
+      ],
+      "style": "Dark mode minimal productivity UI",
+      "notes": [
+        "Outer container has rounded corners",
+        "A horizontal divider line separates the text area from the bottom controls",
+        "The send button is a rounded rectangle/square with green tint and green up arrow",
+        "Red dot indicates access status",
+        "Blue pixelated icon precedes the model selector"
+      ]
+    },
+    "uncertainty": [
+      "The model selector text 'Type a mod...' appears truncated with ellipsis; full text is unknown",
+      "Exact color hex values are approximate",
+      "The blue icon before 'Type a mod...' is ambiguous in shape"
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T09:19:58.352Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 6.288,
+    "usage": {
+      "prompt_tokens": 451,
+      "completion_tokens": 729,
+      "total_tokens": 1180,
+      "cost": 0.001161
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 6.289
+      }
+    ],
+    "warnings": []
+  }
+}

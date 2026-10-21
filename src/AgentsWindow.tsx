@@ -7,7 +7,9 @@ import { useAi } from './lib/aiStore';
 import { useStore } from './lib/store';
 import { useGit } from './lib/gitStore';
 import { useWs } from './lib/workspaceStore';
-import { onFsChanged } from './lib/events';
+import { onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
+import { useTerminal } from './lib/terminalStore';
+import { writeTo } from './lib/xtermRegistry';
 import { muatSemuaEkstensi } from './lib/extLoader';
 import { fokusEditorWindow } from './lib/agentsWindow';
 
@@ -78,8 +80,44 @@ function saatSetelanSiap(fn: () => void): () => void {
   });
 }
 
+/*
+ * Output PTY untuk terminal panel kanan.
+ *
+ * `pty-output` hanya dipasang di jendela utama (App.tsx). Jendela ini WebView
+ * sendiri, jadi tanpa listener di sini shell hidup tapi outputnya tidak pernah
+ * sampai ke xterm: tab Terminal tampak kosong. Guard modul mencegah pemasangan
+ * ganda (StrictMode memanggil effect dua kali).
+ */
+let ptyListenerBound = false;
+
+function useTerminalOutputListener() {
+  useEffect(() => {
+    if (ptyListenerBound) return;
+    ptyListenerBound = true;
+    const unlisten = Promise.all([
+      onPtyOutput((id, data) => writeTo(id, data)),
+      onPtyExit((id, code) => {
+        useTerminal.getState().markExited(id, code);
+        const p = useTerminal.getState().findPane(id);
+        if (p && p.kind !== 'private') {
+          const label = code === null || code === undefined ? 'exited' : `exited code ${code}`;
+          writeTo(id, `\r\n\x1b[90m[process ${label}]\x1b[0m\r\n`);
+        }
+      }),
+    ]).catch((): (() => void)[] => {
+      ptyListenerBound = false;
+      return [];
+    });
+    return () => {
+      void unlisten.then((fns) => fns.forEach((f) => f()));
+      ptyListenerBound = false;
+    };
+  }, []);
+}
+
 export default function AgentsWindow() {
   useAiChunkListener();
+  useTerminalOutputListener();
 
   /* Chat, keys and models — same as the chat window. */
   useEffect(() => saatSetelanSiap(() => void useAi.getState().init()), []);

@@ -61,6 +61,12 @@
 .dbg-btn.is-stop {
   color: var(--danger, var(--text));
 }
+.dbg-btn.is-run {
+  color: var(--accent);
+}
+.dbg-btn.is-run.is-busy {
+  color: var(--danger, var(--text));
+}
 
 .dbg-status {
   padding: 0 12px 4px;

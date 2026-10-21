@@ -1,8 +1,25 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { emit } from '@tauri-apps/api/event';
+import { EV } from './events';
 
 /** Label of the "Open in Agents" window. One at a time. */
 export const AGENTS_WINDOW_LABEL = 'agents';
 const EDITOR_WINDOW_LABEL = 'main';
+
+/**
+ * Ask the main editor window to open a file in a tab.
+ *
+ * Used by the file tree's "Open in New Tab" (right-click menu). The Agents
+ * window has no editor tabs of its own, so "open" here can only mean "open it
+ * where the editor lives". The event is broadcast; the main window listens
+ * (App.tsx) and runs the same `openPath` a drag-and-drop would.
+ */
+export async function mintaBukaDiEditor(path: string): Promise<void> {
+  await emit(EV.openFileInEditor, { path });
+  /* Best-effort focus: the file is opened either way, so a missing editor
+     window must not turn this into an error the reader has to handle. */
+  await fokusEditorWindow().catch(() => {});
+}
 
 /** Focus the main editor window from the Agents window. */
 export async function fokusEditorWindow(): Promise<void> {

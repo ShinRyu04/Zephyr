@@ -3,8 +3,9 @@ import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
 import { useLsp } from '../../lib/lspStore';
 import { DEFAULT_LSP_SETTINGS, LSP_SERVERS, effectiveSpec, type LspServerDef, type LspSettings } from '../../lib/lsp';
-import { lspPasang, lspPenghalang, lspResep } from '../../lib/commands';
+import { lspJenisResep, lspPasang, lspPenghalang, type LspJenisResep } from '../../lib/commands';
 import { Section, Toggle } from './SettingsControls';
+import ToolchainPanel from './ToolchainPanel';
 
 /*
  * The backend's report for one in-app install (`lsp_pasang`).
@@ -168,18 +169,19 @@ export default function LanguageServersSection() {
   const [dialogPasang, setDialogPasang] = useState<LspServerDef | null>(null);
 
   /*
-   * Which servers this build can fetch by itself.
+   * Which servers this build can fetch by itself, and how.
    *
-   * Asked of the backend (`lsp_resep`), not derived from a list here: the
+   * Asked of the backend (`lsp_jenis_resep`), not derived from a list here: the
    * question "can Zephyr install this one?" is answered by whether an installer
-   * recipe exists, and the backend owns the recipes. A server that needs rustup,
-   * the Go toolchain or a JDK is deliberately absent from this answer, so its row
-   * keeps the text-only hint instead of a button that could never work.
+   * recipe exists, and the backend owns the recipes. `prasyarat` matters for the
+   * `induk` strategy (gopls needs Go, solargraph needs Ruby, languageserver
+   * needs R): the dialog shows HOW to get the toolchain instead of an install
+   * button that would fail on spawn.
    */
-  const [resepApp, setResepApp] = useState<string[]>([]);
+  const [resepApp, setResepApp] = useState<LspJenisResep[]>([]);
   useEffect(() => {
     let hidup = true;
-    void lspResep()
+    void lspJenisResep()
       .then((r) => {
         if (hidup) setResepApp(Array.isArray(r) ? r : []);
       })
@@ -192,6 +194,9 @@ export default function LanguageServersSection() {
       hidup = false;
     };
   }, []);
+
+  /* The recipe for one server, or undefined when this build has none. */
+  const resepDari = (id: string) => resepApp.find((r) => r.id === id);
 
   /*
    * Install one server from inside the app, then re-probe so the row's tick
@@ -396,7 +401,7 @@ export default function LanguageServersSection() {
                       would need translating ten times. */}
                   {st === 'hilang' && !kustom && (
                     <span className="lsp-install" title={probe[s.id]?.error ?? undefined}>
-                      {tr('Install')}: <code>{s.install}</code>
+                      {tr('Install')}: <code>{perintahPertama(s.install)}</code>
                     </span>
                   )}
                 </div>
@@ -515,12 +520,20 @@ export default function LanguageServersSection() {
           tr={tr}
           sedang={sedangPeriksa !== null}
           kiniSiap={terpasang(dialogPasang.id)}
-          bisaPasang={resepApp.includes(dialogPasang.id)}
+          resep={resepDari(dialogPasang.id)}
           onPasang={() => pasangLewatApp(dialogPasang)}
           onPeriksa={() => void periksaUlang(dialogPasang.id)}
           onTutup={() => setDialogPasang(null)}
         />
       )}
+
+      {/*
+        The compiler/DAP half of the same question, below the servers.
+        "The Python server is green but my program will not run" is answered
+        here rather than on a second page nobody would think to open: both
+        halves are called IntelliSense by the person looking for them.
+      */}
+      <ToolchainPanel />
     </Section>
   );
 }
@@ -539,26 +552,130 @@ export default function LanguageServersSection() {
  * exact text is the difference between "install it yourself" and a fix that
  * actually happens.
  */
+/*
+ * The one command worth showing inside a row.
+ *
+ * `install` is now a multi-step recipe (`#` notes, `>` commands). A row is one
+ * line tall; dropping the whole recipe into it turned a five-line block into a
+ * wall of text that pushed the actions off-screen. The row shows the FIRST
+ * command - the one that actually installs something - and the dialog shows
+ * the rest. A single-line hint with no `>` marker is returned unchanged, so an
+ * older definition still renders.
+ */
+function perintahPertama(teks: string): string {
+  for (const l of teks.split('\n')) {
+    const t = l.trim();
+    if (t.startsWith('>')) return t.slice(1).trim();
+  }
+  return teks.trim();
+}
+
+/*
+ * The install instructions, one line at a time.
+ *
+ * `install` is written for two readers: `#` lines are the explanation and `>`
+ * lines are commands. Printing it as one `<pre>` block made a five-line recipe
+ * read as one long sentence, and the command - the only part anyone copies
+ * twice - was buried in the middle of it.
+ *
+ * A command line is rendered in its own monospace row; an explanation is a
+ * muted paragraph above it. Unknown lines fall through as text, so an older
+ * single-line hint still renders exactly as it did.
+ */
+function InstruksiPasang({ teks }: { teks: string }) {
+  const baris = teks.split('\n').filter((l) => l.trim() !== '');
+  return (
+    <div className="lsp-langkah" data-testid="lsp-dialog-langkah">
+      {baris.map((l, i) => {
+        const t = l.trim();
+        if (t.startsWith('>')) {
+          return (
+            <code className="lsp-langkah-cmd" key={i}>
+              {t.slice(1).trim()}
+            </code>
+          );
+        }
+        if (t.startsWith('#')) {
+          return (
+            <p className="lsp-langkah-note" key={i}>
+              {t.slice(1).trim()}
+            </p>
+          );
+        }
+        return (
+          <p className="lsp-langkah-note" key={i}>
+            {t}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/*
+ * What pressing "Install with Zephyr" will actually do, in one sentence.
+ *
+ * The old copy said "installs it with npm" for every row, which became a lie
+ * the moment winget, toolchains and archives were added: a reader who pressed
+ * it for C/C++ was told npm would handle it and then winget ran. Each strategy
+ * says its own thing, including WHERE the result lands, because that is the
+ * next question.
+ */
+function catatanCara(resep: LspJenisResep | undefined, tr: (s: string) => string): string {
+  switch (resep?.jenis) {
+    case 'npm':
+      return tr("Zephyr installs it with npm into Zephyr's own folder. No PATH changes.");
+    case 'winget':
+      return tr(
+        'Zephyr runs winget. The tool installs machine-wide and Zephyr looks for it in the WinGet folder afterwards - no restart needed.',
+      );
+    case 'induk':
+      return tr(
+        'Zephyr runs the toolchain\'s own install command. Depending on the toolchain this can take a minute; the log below shows what it said.',
+      );
+    case 'zip':
+      return tr('Zephyr downloads the release archive and unpacks it into its own folder. No PATH changes.');
+    default:
+      return '';
+  }
+}
+
 function DialogPasang({
   server,
+  resep,
   onPeriksa,
   onPasang,
   onTutup,
   sedang,
   kiniSiap,
-  bisaPasang,
   tr,
 }: {
   server: LspServerDef;
+  resep: LspJenisResep | undefined;
   onPeriksa: () => void;
   onPasang: () => Promise<LaporanPasang>;
   onTutup: () => void;
   sedang: boolean;
   kiniSiap: boolean;
-  bisaPasang: boolean;
   tr: (s: string) => string;
 }) {
   const [tersalin, setTersalin] = useState(false);
+  const bisaPasang = !!resep;
+  /* The toolchain this server is installed FROM (`go`, `gem`, `Rscript`), when
+   * the recipe says one is needed. Shown above the button so the reader learns
+   * the prerequisite before pressing it, not from the error afterwards. */
+  const prasyarat = resep?.prasyarat ?? null;
+  /* Where to read about the toolchain. The `cara` sentence already carries the
+   * winget id and often a URL; this keeps a clickable page next to it so the
+   * reader is not asked to retype a link out of a sentence. */
+  const tautanInduk =
+    prasyarat?.tool === 'go'
+      ? { href: 'https://go.dev/dl/', label: 'go.dev/dl' }
+      : prasyarat?.tool === 'gem'
+        ? { href: 'https://rubyinstaller.org/downloads/', label: 'rubyinstaller.org' }
+        : prasyarat?.tool === 'Rscript'
+          ? { href: 'https://cloud.r-project.org/', label: 'cloud.r-project.org' }
+          : null;
 
   /* The in-app install run: idle, working, or finished with the backend's own
    * report. Kept here because the overlay covers the row behind it - an outcome
@@ -623,6 +740,19 @@ function DialogPasang({
 
         {bisaPasang && (
           <div className="lsp-dialog-pasang-blok">
+            {prasyarat && (
+              <div className="lsp-dialog-prasyarat" data-testid="lsp-dialog-prasyarat">
+                <p className="lsp-dialog-catatan">
+                  {tr('Needs this first')}: <code>{prasyarat.tool}</code>
+                </p>
+                <p className="lsp-langkah-note">{prasyarat.cara}</p>
+                {tautanInduk && (
+                  <a className="lsp-dialog-doc" href={tautanInduk.href} target="_blank" rel="noreferrer">
+                    {tautanInduk.label}
+                  </a>
+                )}
+              </div>
+            )}
             <button
               className="btn"
               data-testid="lsp-dialog-install"
@@ -631,14 +761,12 @@ function DialogPasang({
             >
               {jalanPasang ? tr('Installing...') : tr('Install with Zephyr')}
             </button>
-            <p className="lsp-dialog-catatan">
-              {tr("Zephyr installs it with npm into Zephyr's own folder. No PATH changes.")}
-            </p>
+            <p className="lsp-dialog-catatan">{catatanCara(resep, tr)}</p>
           </div>
         )}
 
         <div className="lsp-dialog-perintah">
-          <pre>{server.install}</pre>
+          <InstruksiPasang teks={server.install} />
           <button
             className="lsp-dialog-salin"
             data-testid="lsp-dialog-salin"

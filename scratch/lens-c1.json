@@ -1,0 +1,168 @@
+{
+  "image": "D:\\Referensi TRAE Agent Window\\composer.png",
+  "provider": "openai",
+  "result": {
+    "summary": "A dark-themed AI coding assistant composer widget: a rounded rectangle with a subtle lighter-gray border on a dark charcoal background. The upper area holds two lines of gray placeholder/help text starting with 'Help you write code,' with a small gray sparkle icon at the far right. The bottom toolbar, read left to right, has a plus icon, a hand icon with 'Manual Approval' and chevron, an '@' with 'Agent' and chevron, then on the right the model label 'deepseek-v4.1-flash' with chevron, a microphone icon, and a dark green rounded-square send button containing a white upward arrow. No tabs, headers, or text appear above or below the box.",
+    "ocr": {
+      "full_text": "Help you write code, debug, optimize performance and other development work, deliver\nproduction-ready code.\n+\nManual Approval\n@ Agent\ndeepseek-v4.1-flash",
+      "lines": [
+        {
+          "text": "Help you write code, debug, optimize performance and other development work, deliver",
+          "language": "en"
+        },
+        {
+          "text": "production-ready code.",
+          "language": "en"
+        },
+        {
+          "text": "+",
+          "language": "en"
+        },
+        {
+          "text": "Manual Approval",
+          "language": "en"
+        },
+        {
+          "text": "@ Agent",
+          "language": "en"
+        },
+        {
+          "text": "deepseek-v4.1-flash",
+          "language": "en"
+        }
+      ]
+    },
+    "layout": {
+      "regions": [
+        {
+          "type": "paragraph",
+          "reading_order": 1,
+          "text": "Help you write code, debug, optimize performance and other development work, deliver production-ready code."
+        },
+        {
+          "type": "icon",
+          "reading_order": 2,
+          "text": "gray sparkle icon at the right of the placeholder text"
+        },
+        {
+          "type": "button",
+          "reading_order": 3,
+          "text": "+ (plus) icon, bottom-left"
+        },
+        {
+          "type": "button",
+          "reading_order": 4,
+          "text": "hand icon + 'Manual Approval' + chevron"
+        },
+        {
+          "type": "button",
+          "reading_order": 5,
+          "text": "'@ Agent' + chevron"
+        },
+        {
+          "type": "button",
+          "reading_order": 6,
+          "text": "'deepseek-v4.1-flash' + chevron"
+        },
+        {
+          "type": "icon",
+          "reading_order": 7,
+          "text": "microphone icon"
+        },
+        {
+          "type": "button",
+          "reading_order": 8,
+          "text": "green square send button with white upward arrow"
+        }
+      ]
+    },
+    "semantics": {
+      "scene": "UI screenshot of a chat/code-assistant input composer in dark mode",
+      "intent": "To let a user type instructions for an AI development assistant and send them, with controls for approval mode, agent, and model",
+      "entities": [
+        {
+          "name": "Manual Approval",
+          "type": "dropdown menu label",
+          "evidence": "bottom row, left-center"
+        },
+        {
+          "name": "Agent",
+          "type": "mention/agent selector label",
+          "evidence": "bottom row, center"
+        },
+        {
+          "name": "deepseek-v4.1-flash",
+          "type": "model selector label",
+          "evidence": "bottom row, right side"
+        },
+        {
+          "name": "send button",
+          "type": "submit button",
+          "evidence": "green square with up arrow, far bottom-right"
+        }
+      ],
+      "relations": [
+        {
+          "subject": "Manual Approval",
+          "predicate": "is a mode option inside",
+          "object": "composer widget"
+        },
+        {
+          "subject": "deepseek-v4.1-flash",
+          "predicate": "is the active model shown in",
+          "object": "composer widget"
+        },
+        {
+          "subject": "send button",
+          "predicate": "submits text entered in",
+          "object": "composer widget"
+        }
+      ]
+    },
+    "visual": {
+      "dominant_colors": [
+        "#1e1e1e dark background (outside box)",
+        "#2b2b2b composer background",
+        "#3d3d3d border (subtle lighter gray)",
+        "#9a9a9a placeholder text gray",
+        "#d0d0d0 control label light gray",
+        "#2e6b45 dark green send button"
+      ],
+      "style": "Minimal, flat, dark-mode chat input; rounded corners; muted monochrome controls with one green accent",
+      "notes": [
+        "Composer is a single rounded rectangle with a thin, slightly lighter border and no visible drop shadow",
+        "Placeholder text wraps to two lines and is left-aligned in a muted gray",
+        "Bottom row is split: three controls left-aligned, three right-aligned",
+        "Send button is a rounded square in dark green with a white upward arrow, appearing enabled/active",
+        "Sparkle icon (AI indicator) sits at the top-right inside the box",
+        "No chips or filled backgrounds behind the bottom-row controls; they sit directly on the composer background"
+      ]
+    },
+    "uncertainty": [
+      "Exact border radius, border width, and precise hex color values cannot be measured exactly from the image",
+      "Sparkle icon's exact shape (one large star plus small stars) is approximated",
+      "Whether the microphone is a button or decorative is ambiguous",
+      "No status text (message count, percent, Interactive/Work/Auto) is visible"
+    ]
+  },
+  "meta": {
+    "generatedAt": "2026-10-19T08:51:14.793Z",
+    "model": "v4.1flash",
+    "conversationId": null,
+    "durationSeconds": 15.236,
+    "usage": {
+      "prompt_tokens": 473,
+      "completion_tokens": 985,
+      "total_tokens": 1458,
+      "cost": 0.001508
+    },
+    "attempts": [
+      {
+        "provider": "openai",
+        "ok": true,
+        "durationSeconds": 15.237
+      }
+    ],
+    "warnings": []
+  }
+}

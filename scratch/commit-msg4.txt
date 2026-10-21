@@ -1,0 +1,28 @@
+﻿fix(chat): kembalikan tombol sesi, garis header, ikon Z, rem agen
+
+Tombol "Show Agent Sessions"
+- dikembalikan di header chat (data-testid ai-toggle-sessions-side).
+  Versi sebelumnya menghapusnya dengan alasan kolom sesi punya kontrol
+  sendiri - itu hanya benar saat kolomnya TERBUKA; saat tertutup tidak
+  ada jalan kembali dari permukaan chat
+
+Garis header
+- border-bottom dan gradien aksen di .ai-head dihapus (3 tempat: ai.css
+  dua, ai-panel-compact.css dua). Header dan transkrip satu permukaan
+
+Ikon Z di titlebar Agents
+- viewBox 488x424 dipaksa ke kotak 15x15 sehingga Z gepeng dan naik.
+  Sekarang width mengikuti rasio (17x15), terpusat (pusat 28 = pusat baris)
+- pointer-events: none: mark itu hiasan aria-hidden, bukan kontrol, dan
+  sebelumnya ikut jadi target hover sehingga baris terasa "loncat"
+
+Rem agen yang terus bekerja
+- BATAS_LANJUT_TANPA_TOOL 20 -> 4
+- todo yang berkasnya SUDAH ditulis turn ini tidak dihitung sebagai sisa
+  pekerjaan, jadi model yang lupa menandai done tidak disodok mengulang
+
+Menu bar: garis pembatas 12px dari Customize Layout, 34px dari tombol jendela.
+TodoPanel: tersembunyi secara default, dimunculkan lewat menu "..." chat.
+
+Verifikasi DOM: headBorder 0px, tombol sesi ada (24x24), mark 17x15
+sejajar, todoPanel 0. tsc 0 error, vite build sukses.

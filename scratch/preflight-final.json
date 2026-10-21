@@ -1,0 +1,130 @@
+{
+  "goal_id": "goal-task-34ac6bb1",
+  "created_at": "2026-10-19T12:49:28.867Z",
+  "end_goal": {
+    "intent": "clean-room-reimplementation",
+    "success_definition": "Jendela Agents diimplementasikan ulang dari nol di root implementasi bersih sebagai aplikasi React + TypeScript + Vite yang berdiri sendiri: tata letak tiga kolom (nav kiri, kanvas chat, panel kanan), layar awal dengan judul, composer dua kotak (field + baris kontrol, lalu baris Local sebagai kotak terpisah), empat kartu kategori berikon satu baris di bawah composer, panel kanan yang muncul hanya setelah pesan pertama, dan kanvas berwarna gelap. Perilaku terverifikasi lewat test otomatis dan dev server yang berjalan.",
+    "destination_kind": "new-project",
+    "existing_destination_policy": "inspect-and-preserve"
+  },
+  "target_stack": {
+    "language": "TypeScript",
+    "runtime": "Node.js 22",
+    "framework": "React 18",
+    "package_manager": "npm",
+    "test_framework": "Vitest"
+  },
+  "license_policy": {
+    "source_license_notes": "Tidak ada kode sumber pihak ketiga yang disalin; acuan hanya pengukuran perilaku dan tangkapan layar yang diotorisasi.",
+    "destination_license": "MIT",
+    "dependency_license_allowlist": [
+      "MIT",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "ISC"
+    ],
+    "dependency_license_blocklist": [
+      "GPL-3.0",
+      "AGPL-3.0"
+    ]
+  },
+  "dependency_policy": {
+    "allow_new_dependencies": true,
+    "prefer_stdlib": true,
+    "require_user_approval_for_native_deps": true,
+    "blocked_dependencies": []
+  },
+  "compatibility_policy": {
+    "mirror_public_behavior": true,
+    "mirror_public_api_names": true,
+    "mirror_private_structure": false,
+    "mirror_comments_or_internal_names": false,
+    "allowed_exactness": [
+      "public API names",
+      "CLI flags",
+      "serialized outputs",
+      "documented protocol behavior",
+      "public error codes"
+    ]
+  },
+  "feature_policy": {
+    "preserve_features": [
+      "Tiga kolom: nav kiri, kanvas chat, panel kanan",
+      "Layar awal dengan judul besar",
+      "Composer dua kotak: field + baris kontrol, lalu baris Local terpisah",
+      "Empat kartu kategori berikon, satu baris, di bawah composer",
+      "Pemilih model dan tingkat izin di baris kontrol dalam kotak pertama",
+      "Panel kanan tersembunyi saat belum ada pesan",
+      "Kanvas gelap"
+    ],
+    "remove_features": [
+      "Tagline pemasaran di atas composer",
+      "Chip Auto dan Interactive di composer",
+      "Tombol Show Agent Sessions Sidebar",
+      "Footer kiri bawah",
+      "Bilah status di bawah composer",
+      "Kontrol suara atau mikrofon"
+    ],
+    "add_features": [
+      "Baris Local sebagai kotak terpisah di bawah kotak composer",
+      "Persona dua baris: Agent dan Create Agent"
+    ],
+    "non_goals": [
+      "Menyalin kode, komentar, atau aset dari aplikasi acuan",
+      "Meniru struktur internal atau nama berkas acuan",
+      "Menambahkan kontrol yang tidak tersambung ke fungsi nyata"
+    ]
+  },
+  "code_hygiene_policy": {
+    "max_lines_per_code_file": 500,
+    "max_lines_per_test_file": 800,
+    "max_files_per_iteration": 12,
+    "split_large_files_by": [
+      "module boundary",
+      "public type",
+      "feature area"
+    ],
+    "exceptions": [
+      "generated files",
+      "fixtures",
+      "snapshots"
+    ],
+    "forbidden_patterns": [
+      "god file",
+      "source-shaped layout"
+    ]
+  },
+  "output_policy": {
+    "artifact_base_root": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\tasks\\task-34ac6bb1",
+    "implementation_root": "C:\\Users\\Zyrex\\.cleanroom\\proj-e67e358c\\implementation",
+    "assumed_output_directory": "implementation/",
+    "write_mode": "create-or-preserve-existing"
+  },
+  "execution_policy": {
+    "backend": "host",
+    "preferred_container_profile": "node22",
+    "network_policy": "off",
+    "dependency_install_policy": "locked",
+    "allow_native_toolchain": false,
+    "resource_limits": {
+      "cpus": 2,
+      "memory_mb": 2048,
+      "timeout_seconds": 300
+    }
+  },
+  "controller_policy": {
+    "mode": "attended",
+    "unattended_allowed_after_preflight": false,
+    "max_iterations": 10
+  },
+  "intent_confirmation": {
+    "confirmed_at": "2026-10-19T12:52:00.000Z",
+    "end_goal_source": "explicit-user-answer",
+    "target_stack_source": "explicit-user-answer",
+    "controller_mode_source": "explicit-user-answer",
+    "user_goal_summary": "Rombak ulang jendela Agents Zephyr dari nol di root implementasi bersih: tata letak tiga kolom, layar awal dengan judul, composer dua kotak dengan baris Local terpisah, empat kartu kategori berikon satu baris di bawah composer, panel kanan yang muncul setelah pesan pertama, kanvas gelap.",
+    "user_target_stack_summary": "React + TypeScript + Vite, Node.js 22, npm, diuji dengan Vitest."
+  },
+  "open_questions": []
+}

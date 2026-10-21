@@ -41,7 +41,15 @@ const BY_EXT: Record<string, LangId> = {
   cc: 'cpp',
   cxx: 'cpp',
   hpp: 'cpp',
-  cs: 'cpp',
+  cs: 'csharp',
+  csx: 'csharp',
+  php: 'php',
+  r: 'r',
+  jl: 'julia',
+  hs: 'haskell',
+  lhs: 'haskell',
+  ex: 'elixir',
+  exs: 'elixir',
   sh: 'shell',
   bash: 'shell',
   zsh: 'shell',
@@ -146,6 +154,12 @@ export const LANG_LABEL: Record<LangId, string> = {
   swift: 'Swift',
   kotlin: 'Kotlin',
   scala: 'Scala',
+  csharp: 'C#',
+  php: 'PHP',
+  r: 'R',
+  julia: 'Julia',
+  haskell: 'Haskell',
+  elixir: 'Elixir',
   plain: 'Plain Text',
 };
 
@@ -238,6 +252,29 @@ async function build(lang: LangId): Promise<Extension[]> {
     case 'cpp':
     case 'c':
       return [(await import('@codemirror/lang-cpp')).cpp()];
+    case 'csharp': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const clike = (await import('@codemirror/legacy-modes/mode/clike')) as unknown as Record<
+        string,
+        Parameters<typeof StreamLanguage.define>[0]
+      >;
+      return [StreamLanguage.define(clike.csharp)];
+    }
+    case 'r': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { r } = await import('@codemirror/legacy-modes/mode/r');
+      return [StreamLanguage.define(r)];
+    }
+    case 'julia': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { julia } = await import('@codemirror/legacy-modes/mode/julia');
+      return [StreamLanguage.define(julia)];
+    }
+    case 'haskell': {
+      const { StreamLanguage } = await import('@codemirror/language');
+      const { haskell } = await import('@codemirror/legacy-modes/mode/haskell');
+      return [StreamLanguage.define(haskell)];
+    }
     case 'toml': {
       const { StreamLanguage } = await import('@codemirror/language');
       const { toml } = await import('@codemirror/legacy-modes/mode/toml');
@@ -298,6 +335,11 @@ async function build(lang: LangId): Promise<Extension[]> {
       >;
       return [StreamLanguage.define(clike.scala)];
     }
+    /*
+     * No CodeMirror mode ships for PHP or Elixir. Until one is bundled they
+     * get plain text: a wrong grammar colours keywords that are not keywords,
+     * which reads worse than no colour at all.
+     */
     default:
       return [];
   }

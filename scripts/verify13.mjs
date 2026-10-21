@@ -248,7 +248,7 @@ function writeBig(root) {
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  const page = pilihJendelaUtama(targets);
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);

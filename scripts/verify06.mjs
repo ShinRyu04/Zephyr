@@ -11,7 +11,7 @@
 // (WinError 10013 — masuk excluded port range Hyper-V/WinNAT).
 
 import WebSocket from 'ws';
-import { keluarBersih } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
 import { createServer } from 'node:http';
 
 const PORT = process.argv[2] ?? '9223';
@@ -138,7 +138,7 @@ function startTestServer() {
 
 const main = async () => {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-  const page = targets.find((t) => t.type === 'page' && t.title.includes('Zephyr'));
+  const page = pilihJendelaUtama(targets);
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);
@@ -476,16 +476,22 @@ const main = async () => {
       const tab0 = T.getState().terminalTabs[0];
       const bp0 = tab0.panes.find(p => p.kind === 'browser');
 
-      // Read the page through the agent's own browser_read tool. That is the
+      // Read the page through the agent's own browser tool. That is the
       // path the agent uses, and reading a child WebView2 is exactly what the
       // old iframe could never do. Calling the raw command here used to hang,
       // because a module imported from the CDP context gets its own copy and
       // the eval never settled.
-      const read = window.__ZEPHYR_TOOLS__?.spec?.('browser_read');
+      //
+      // The separate browser_open/browser_read tools were merged into ONE
+      // "browser" tool with an "aksi" field (open/read/click/type/list/close/
+      // download). Harness yang masih memanggil nama lama gagal dengan
+      // "tool browser_read tidak tersedia di window" padahal pane-nya sehat -
+      // yang salah cuma nama tool-nya.
+      const read = window.__ZEPHYR_TOOLS__?.spec?.('browser');
       let bacaan = '';
       try {
-        if (!read) throw new Error('tool browser_read tidak tersedia di window');
-        bacaan = String(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', { paneId: bp0.id }));
+        if (!read) throw new Error('tool browser tidak tersedia di window');
+        bacaan = String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read', paneId: bp0.id }));
         window.__v7ok = true;
       } catch (e) {
         window.__v7err = String(e.message || e).slice(0, 200);
@@ -498,7 +504,7 @@ const main = async () => {
       /*
        * Baca ulang HARUS lewat jalankan, bukan read.run.
        *
-       * "read" di atas adalah hasil spec('browser_read') - sebuah SKEMA, bukan
+       * "read" di atas adalah hasil spec('browser') - sebuah SKEMA, bukan
        * objek yang bisa dijalankan. Dulu baris ini memanggil read.run(...),
        * yang selalu melempar TypeError, lalu TypeError itu ditelan catch {}
        * kosong di bawah sehingga bacaanReload tinggal string kosong. Akibatnya
@@ -510,7 +516,7 @@ const main = async () => {
        *  hidup DI DALAM template literal, backtick akan menutupnya lebih awal.)
        */
       try {
-        if (read) bacaanReload = String(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', { paneId: bp0.id }));
+        if (read) bacaanReload = String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read', paneId: bp0.id }));
         window.__v7reloadOk = bacaanReload.includes('${MARKER}');
       } catch (e) {
         window.__v7reloadErr = String(e.message || e).slice(0, 200);

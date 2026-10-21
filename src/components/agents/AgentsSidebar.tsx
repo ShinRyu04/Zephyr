@@ -125,7 +125,7 @@ function namaFolder(akar: string): string {
    nyata), dan tanpa disamakan keduanya muncul sebagai dua proyek terpisah. */
 const kunciPath = (akar: string) => akar.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
 
-export default function AgentsSidebar() {
+export default function AgentsSidebar({ lebar }: { lebar: number }) {
   const sessions = useAi((s) => s.sessions);
   const aktif = useAi((s) => s.activeIds[COMPOSER] ?? null);
   const pilihSesi = useAi((s) => s.selectChat);
@@ -181,7 +181,7 @@ export default function AgentsSidebar() {
   const aktifDiRiwayat = grupDefault.some((s) => s.id === aktif);
 
   return (
-    <aside className="agx-sidebar" data-testid="agx-sidebar">
+    <aside className="agx-sidebar" data-testid="agx-sidebar" style={{ width: lebar }}>
       <nav className="agx-side-nav" data-testid="agx-side-nav">
         <button
           className="agx-nav is-aktif"

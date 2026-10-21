@@ -13,6 +13,15 @@ export interface TermHandle {
 
 const handles = new Map<string, TermHandle>();
 
+/*
+ * Output PTY yang datang sebelum xterm-nya dibuat. Shell mencetak prompt
+ * segera setelah spawn, sedangkan XtermPane baru memasang handle saat React
+ * merender pane. Tanpa penampung ini, prompt pertama hilang dan tab terlihat
+ * kosong.
+ */
+const yatim = new Map<string, string[]>();
+const YATIM_MAKS = 200_000;
+
 /**
  * A font stack that actually names fonts.
  *
@@ -124,14 +133,23 @@ export function ensureHandle(
   term.onData(opts.onData);
   term.onResize(({ cols, rows }) => opts.onResize(cols, rows));
 
-  const handle: TermHandle = { term, fit, holder, queue: [] };
+  const sisa = yatim.get(id) ?? [];
+  yatim.delete(id);
+  const handle: TermHandle = { term, fit, holder, queue: sisa };
   handles.set(id, handle);
   return handle;
 }
 
 export function writeTo(id: string, data: string): void {
   const h = handles.get(id);
-  if (!h) return;
+  if (!h) {
+    const buf = yatim.get(id) ?? [];
+    buf.push(data);
+    let total = buf.reduce((n, s) => n + s.length, 0);
+    while (total > YATIM_MAKS && buf.length > 1) total -= buf.shift()!.length;
+    yatim.set(id, buf);
+    return;
+  }
   if (h.term.element) h.term.write(data);
   else h.queue.push(data);
 }
@@ -154,6 +172,7 @@ export function clearTerm(id: string): void {
 }
 
 export function disposeHandle(id: string): void {
+  yatim.delete(id);
   const h = handles.get(id);
   if (!h) return;
   h.queue = [];
