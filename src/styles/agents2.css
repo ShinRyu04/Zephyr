@@ -12,25 +12,31 @@
  *    bingkai kotak, bukan sebagai pemisah bar — kalau dimiliki title bar,
  *    kotaknya kehilangan bingkai dan tampak menyatu dengan chrome.
  *
- * 2. Kotaknya tidak mojok: ada jarak ke tepi kanan dan bawah jendela. Sisi
- *    atas & kiri menempel (di situlah garisnya), sisi kanan & bawah diberi
- *    jarak, dan keempat sudutnya membulat 10px.
+ * 2. Kotaknya tidak mojok: ada jarak ke tepi kanan, kiri, dan bawah jendela
+ *    (margin, bukan padding, supaya sidebar tidak ikut terpotong).
  *
- * 3. Warnanya diturunkan dari `--surface`, tidak ditulis sebagai hex. Token
- *    `--agx-panel` sengaja di-scope di `.agx` (bukan `:root`) supaya tidak
- *    bocor ke jendela utama — jendela ini satu bundel dengan editor.
+ * 3. Kotaknya HITAM (`var(--bg)`) sementara chrome di sekitarnya abu-abu
+ *    (`var(--surface)`), jadi ia terbaca melayang: tanpa pita pembungkus,
+ *    tanpa garis tepi — yang membedakan hanya warna, celah margin, dan
+ *    sudut membulat.
  */
 
 .agx {
-  --agx-panel: color-mix(in srgb, var(--surface) 55%, #000);
   --agx-fs: 15px;
   --agx-baris: 34px;
+  /* Warna kotak besar: HITAM (`--bg`), sementara chrome di sekelilingnya
+     abu-abu (`--surface`). Kontrasnya jadi positif — kanvas lebih gelap dan
+     terbaca melayang tanpa perlu pita/guratan tambahan. */
+  --agx-panel: var(--bg);
 
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
-  background: var(--bg);
+  /* Strip di sekeliling kanvas (kanan & bawah) harus ABU-ABU = sama dengan
+     sidebar dan title bar (ala TRAE), bukan `--bg` yang lebih gelap — kalau
+     pakai `--bg` stripnya jadi hitam dan kanvas terbaca "dibungkus". */
+  background: var(--surface);
   color: var(--text);
   font-size: var(--agx-fs);
 }
@@ -42,7 +48,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 6px 0 8px;
+  /* Tinggi tetap supaya tombol jendela bisa mengisi penuh (100%). */
+  height: 40px;
+  padding: 0 0 0 8px;
   background: var(--surface);
   /* TANPA border-bottom — lihat catatan 1 di atas. */
   user-select: none;
@@ -154,24 +162,33 @@
   background: var(--border);
 }
 
-/* Tombol jendela. Glyph 10px di tengah kotak — sama dengan tinggi glyph
-   menu File/Edit/View/Help, supaya tidak ada yang menonjol. */
+/* Tombol jendela: lebar 46px dan SETINGGI title bar, tanpa jarak antar
+   tombol (gaya Windows / TRAE). Glyph 11px di tengah. */
 .agx-win {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  gap: 0;
+  height: 100%;
 }
 
 .agx-win-btn {
-  width: 32px;
-  height: 30px;
+  width: 50px;
+  height: 100%;
   padding: 0;
-  border-radius: 5px;
+  border-radius: 0;
+}
+
+/* Glyph 12px dan hover memakai latar netral tipis — dulu glyph 11px dan
+   latar hover dari `.agx-tb-btn` membuat tombol terasa mengecil saat
+   didekati kursor. */
+.agx-win-btn:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
 }
 
 .agx-win-btn svg {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   flex: none;
 }
 
@@ -186,8 +203,8 @@
   display: flex;
   min-height: 0;
   overflow: hidden;
-  /* Jarak kanan & bawah kotak ke tepi jendela. */
-  padding: 0 14px 20px 0;
+  /* TANPA padding sama sekali: padding di sini akan memotong `.agx-sidebar`
+     juga. Semua jarak kotak besar diatur di `.agx-canvas` (margin). */
 }
 
 /* ---------- sidebar ---------- */
@@ -357,13 +374,503 @@
   white-space: nowrap;
 }
 
+/* Titik status sesi: NETRAL, bukan `--accent` (yang biru). Di TRAE tidak ada
+   titik biru di daftar sesi; warna biru hanya dipakai untuk fokus. */
 .agx-titik {
   width: 6px;
   height: 6px;
   flex: none;
   margin-left: auto;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--text-muted);
+}
+
+/* ---------- dropdown tombol + ---------- */
+
+.agx-kanan-tambah-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Dropdown `+` (gambar acuan): kotak gelap di bawah tombol, berisi kolom cari
+   lalu daftar pintasan tanpa deskripsi. */
+.agx-kanan-dd {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: 296px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 14px 32px rgb(0 0 0 / 45%);
+}
+
+.agx-kanan-dd-cari {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  color: var(--text-muted);
+}
+
+.agx-kanan-dd-cari input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.agx-kanan-dd-cari kbd {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agx-kanan-dd-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 8px;
+}
+
+/* Tanpa deskripsi di dropdown — cuma ikon + label, ala acuan. */
+.agx-kanan-dd-butir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-kanan-dd-butir:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.agx-kanan-dd-butir .agx-kanan-butir-ikon {
+  margin-top: 0;
+}
+
+/* ---------- panel kanan: tampilan File ---------- */
+
+/*
+ * Tampilan File (`AgentsPanelKananFile`), dari 3 gambar terakhir user:
+ * baris tab `File` + `+` + tombol panel, baris kedua label dengan tombol
+ * collapse, lalu isi dua kolom — pratinjau di KIRI, pohon file di KANAN
+ * (kebalikan explorer IDE). Bar ini menggantikan bar `Start here` di posisi
+ * yang sama — tidak ada negatif margin; padding bawaan `.agx-kanan-bar`
+ * dipakai bersama.
+ */
+.agx-file {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Tab pil: ikon + nama + x (x muncul saat hover tab). */
+.agx-file-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 60%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agx-file-tab-ikon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.agx-file-tab-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-file-tab-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-file-tab-x:hover {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+}
+
+.agx-file-tab:hover .agx-file-tab-x {
+  display: inline-flex;
+}
+
+.agx-file-tab-kanan {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Baris 2: label + tombol `Open`/collapse di kanan; garis pemisah tipis. */
+.agx-file-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  min-height: 40px;
+  padding: 0 10px 0 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agx-file-kepala-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-file-kepala-aksi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agx-file-open {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.agx-file-open:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+/* Dua kolom: pratinjau kiri, pohon kanan. `.is-pohon-sembunyi` = collapse. */
+.agx-file-isi {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agx-file-pratinjau {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+}
+
+.agx-file-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.agx-file-kosong b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agx-file-kosong-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 14px;
+  color: var(--text-muted);
+}
+
+.agx-file-kosong-ikon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Pratinjau teks polos; nomor baris disiapkan lewat counter CSS. */
+.agx-file-kode {
+  margin: 0;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 2;
+}
+
+.agx-file-pohon {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 38%;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.agx-file-isi.is-pohon-sembunyi .agx-file-pohon {
+  display: none;
+}
+
+.agx-file-pohon-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agx-file-pohon-kepala svg {
+  color: var(--text-muted);
+}
+
+.agx-file-pohon-isi {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 6px 10px;
+}
+
+.agx-file-pohon-kosong {
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* Baris pohon: caret + ikon + nama. Folder membuka/tutup, file memilih. */
+.agx-file-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-file-baris:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.agx-file-baris.is-aktif {
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+}
+
+.agx-file-baris svg {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.agx-file-panah {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: transform 0.12s ease;
+}
+
+.agx-file-panah.is-buka {
+  transform: rotate(90deg);
+}
+
+.agx-file-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- panel kanan ---------- */
+
+/*
+ * Panel kanan (`Referensi TRAE Agent Window/4.png` + `6.png`): kolom sempit di
+ * kanan canvas, warna & radius sama dengan canvas supaya ikut "melayang", dan
+ * daftar pintasan "Start here" bertumpuk di tengah secara vertikal.
+ */
+.agx-kanan {
+  display: flex;
+  flex-direction: column;
+  /* Seperti screenshot TRAE: panel kanan mengambil sebagian besar sisa lebar
+     (±60%), kolom chat menyempit ke kiri. `.agx-canvas` flex-grow 1, jadi
+     panel ini pakai 1.5 supaya bagiannya lebih besar. */
+  flex: 1.5 1 0;
+  min-width: 0;
+  min-height: 0;
+  margin: 10px 10px 10px 0;
+  border-radius: 14px;
+  background: var(--agx-panel);
+  overflow: hidden;
+}
+
+.agx-kanan-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  flex: none;
+  padding: 8px 10px;
+}
+
+.agx-kanan-aksi {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.agx-kanan-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agx-kanan-ikon:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--text);
+}
+
+/* Daftar duduk di tengah vertikal — di acuan ruang kosong atas-bawah sama. */
+.agx-kanan-tengah {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 14px 36px;
+  overflow-y: auto;
+}
+
+.agx-kanan-judul {
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.agx-kanan-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agx-kanan-butir {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-kanan-butir:hover {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--text);
+}
+
+.agx-kanan-butir-ikon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-secondary);
+}
+
+.agx-kanan-butir-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agx-kanan-butir-teks b {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.agx-kanan-butir-teks i {
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--text-muted);
 }
 
 /* ---------- kotak besar ---------- */
@@ -374,14 +881,20 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* Melayang ala TRAE: margin tipis 10px di KIRI/KANAN/BAWAH, kanvas hitam
+     (`--agx-panel`) di atas chrome abu-abu (`.agx` = `--surface`). Margin
+     dipakai supaya `.agx-sidebar` tetap setinggi penuh. */
+  margin: 10px 10px 10px 10px;
+  border-radius: 14px;
+  background: var(--agx-panel);
 }
 
 /* Kontrol sudut: menempel di kanan-atas kotak, ikut warnanya.
    Skalanya mengikuti TRAE — sebesar tombol title bar, bukan chip toolbar. */
 .agx-sudut {
   position: absolute;
-  top: 4px;
-  right: 6px;
+  top: 6px;
+  right: 8px;
   z-index: 30;
   display: flex;
   align-items: center;
@@ -391,15 +904,15 @@
 .agx-ide {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 9px;
+  gap: 6px;
+  height: 36px;
+  padding: 0 11px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -422,11 +935,16 @@
   background: var(--border);
 }
 
-/* Tombol panel kanan: 32×32 dengan ikon 18px, sama tinggi dengan `IDE`. */
+/* Tombol panel kanan: 36×36 dengan ikon 19px, sama tinggi dengan `IDE`. */
 .agx-panel-toggle {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.agx-panel-toggle svg {
+  width: 19px;
+  height: 19px;
 }
 
 .agx-panel-toggle[aria-pressed='true'] {
@@ -449,24 +967,29 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 40px 28px 22px;
+  /* Padding atas lebih besar + bawah lebih besar supaya seluruh kelompok
+     composer (termasuk judul) duduk lebih ke atas, dan 4 chip tidak menempel
+     ke tepi bawah kanvas. */
+  padding: 64px 28px 104px;
   container-type: inline-size;
 }
 
 /* Sesudah mengirim: isi menumpuk ke bawah, tidak lagi di tengah. */
 .agx-comp.is-chat {
   justify-content: flex-end;
-  padding-bottom: 18px;
+  padding-bottom: 8px;
 }
 
 .agx-comp-kepala {
   text-align: center;
   max-width: 720px;
+  /* Judul dinaikkan dan dijauhkan dari kotak composer. */
+  margin-bottom: 26px;
 }
 
 .agx-comp-judul {
   margin: 0;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -479,31 +1002,55 @@
   color: var(--text-muted);
 }
 
-/* Kotak input: lebar tetap 1000px seperti acuan, tapi tidak boleh melebihi
-   ruang yang ada saat jendelanya dipepetkan (karena itu `max-width: 100%`).
-   Warnanya `--surface` — token yang sama dengan composer panel kanan jendela
-   utama, BUKAN campuran gelap `--agx-panel` seperti sebelumnya: kotaknya dulu
-   terbaca hitam padahal permukaan di sekitarnya lebih terang. */
-.agx-comp-kotak {
-  width: 1000px;
-  max-width: 100%;
+/* Bingkai luar yang menyatukan kotak input + strip `Local` — bentuknya
+   mengikuti TRAE: dua baris TERPISAH (kotak input di atas, strip di bawah)
+   yang diikat satu border dan satu radius 14px, dengan garis tipis di antara
+   keduanya. Tanpa bingkai ini keduanya terlihat seperti dua kotak acak. */
+/* Lebar composer: tetap 820px ala TRAE. `max-width` memakai `min()` supaya
+   di jendela sempit ia menyusut, tapi di jendela lebar TIDAK ikut melebar. */
+.agx-comp-gabung {
+  width: 820px;
+  max-width: min(820px, 100%);
+  overflow: visible;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) inset;
+  border-radius: 14px;
+  /* Sama dengan latar kanvas (`--agx-panel` = hitam), bukan abu-abu: di TRAE
+     kotak composer menyatu dengan latar, hanya garis tepinya yang terlihat. */
+  background: var(--agx-panel);
   transition: border-color 120ms ease;
 }
 
-.agx-comp-kotak:focus-within {
-  border-color: color-mix(in srgb, var(--border) 55%, var(--text-secondary));
+/* Fokus: garis tepi menguat, TANPA warna biru (dulu memakai `--text-secondary`
+   yang kebiruan sehingga kotak berubah warna saat diklik). */
+.agx-comp-gabung:focus-within {
+  border-color: color-mix(in srgb, var(--border) 40%, var(--text));
+}
+
+/* Kotak input: kini TANPA garis & radius sendiri — bingkainya dipegang
+   `.agx-comp-gabung` supaya keduanya terbaca satu blok. */
+.agx-comp-kotak {
+  width: 100%;
+  border: 0;
+  border-radius: 14px 14px 0 0;
+  background: transparent;
+}
+
+/* Mode chat: strip `Local` hilang, jadi sudut bawah kotak input harus
+   membulat penuh — kalau tidak sudutnya jadi siku. */
+.agx-comp.is-chat .agx-comp-kotak {
+  border-radius: 14px;
 }
 
 .agx-comp-input {
   display: block;
   width: 100%;
-  min-height: 74px;
-  max-height: 220px;
-  padding: 16px 16px 6px;
+  /* `height` eksplisit: `<textarea rows={2}>` membawa tinggi intrinsik sendiri
+     yang bertabrakan dengan `min-height`, menyisakan ruang kosong di bawah
+     teks. 78px ≈ tiga baris. */
+  height: 104px;
+  min-height: 104px;
+  max-height: 260px;
+  padding: 16px 16px 4px;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -522,7 +1069,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 10px 8px;
+  padding: 0 10px 10px;
 }
 
 .agx-comp-plus {
@@ -552,8 +1099,8 @@
   margin-left: auto;
 }
 
-/* Tombol izin: pill bertitik warna tingkat izin, gaya chip yang sama dengan
-   `PermissionMenu` di jendela utama. */
+/* Tombol izin: TANPA bungkus kotak — hanya titik warna, label, dan caret.
+   Di TRAE baris ini polos seperti teks, bukan pill bergaris. */
 .agx-comp-izin {
   position: relative;
   display: inline-flex;
@@ -565,19 +1112,20 @@
   align-items: center;
   gap: 6px;
   height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--border);
+  padding: 0 6px;
+  border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 11.5px;
+  font-size: 12.5px;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .agx-comp-izin-btn:hover {
-  background: var(--surface-3, color-mix(in srgb, var(--surface) 70%, var(--bg)));
+  /* Hover netral supaya baris izin tidak berubah biru/abu saat disentuh. */
+  background: color-mix(in srgb, var(--text) 7%, transparent);
   color: var(--text);
 }
 
@@ -593,8 +1141,9 @@
   background: var(--warning);
 }
 
+/* Mode "kerja" memakai warna netral terang, bukan `--accent` biru. */
 .agx-comp-izin.is-kerja .agx-comp-dot {
-  background: var(--accent);
+  background: var(--text);
 }
 
 .agx-comp-izin.is-auto .agx-comp-dot {
@@ -632,46 +1181,56 @@
   color: var(--text);
 }
 
-/* Kotak KEDUA: `Local ▾` + folder. Punya garis dan radius sendiri, terpisah
-   dari kotak input — di acuan keduanya memang dua kotak, bukan satu. */
+/* Strip `Local ▾` + folder. Terpisah dari kotak input (di bawahnya), tapi
+   TANPA border/radius sendiri — bingkainya milik `.agx-comp-gabung`. Satu
+   garis tipis di atasnya memisahkan kedua baris, persis seperti TRAE. */
 .agx-comp-lokasi {
   position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
-  width: 1000px;
-  max-width: 100%;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 0 0 14px 14px;
+  /* Strip `Local` + folder: ABU-ABU sendiri, tidak menyatu dengan kotak
+     composer hitam — di TRAE baris ini memang berlaku sebagai kaki terpisah. */
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
 }
 
 .agx-comp-dd {
   position: relative;
 }
 
-.agx-comp-dd.is-kanan {
-  margin-left: auto;
-}
-
+/* `Local` dan folder duduk berdempetan di KIRI (TRAE), bukan dipisah ke dua
+   ujung strip. `is-kanan` dibiarkan tak terpakai supaya tidak ada aturan
+   `margin-left:auto` yang diam-diam mendorongnya lagi. */
 .agx-comp-dd-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 7px;
+  height: 30px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   cursor: pointer;
 }
 
+.agx-comp-dd-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
 .agx-comp-dd-btn:hover {
-  background: color-mix(in srgb, var(--surface) 45%, transparent);
+  /* Hover netral, bukan abu-abu terang yang berkedip di atas latar hitam. */
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
 }
 
 .agx-comp-folder-nama,
@@ -687,11 +1246,14 @@
   font-size: 11.5px;
 }
 
-/* Menu naik ke ATAS karena barisnya ada di dasar kotak; menu yang turun akan
-   keluar dari jendela. */
+/* Dropdown: arahnya mengikuti posisi composer.
+   - Mode awal (kondisi awal): composer di tengah, menu turun ke BAWAH.
+   - Mode chat: composer menempel di dasar canvas, menu turun akan terpotong
+     keluar jendela — jadi naik ke ATAS tombolnya (`is-chat`). */
 .agx-comp-menu {
   position: absolute;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
+  bottom: auto;
   left: 0;
   z-index: 40;
   min-width: 190px;
@@ -700,6 +1262,27 @@
   border-radius: 10px;
   background: var(--surface);
   box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+}
+
+.agx-comp.is-chat .agx-comp-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+  box-shadow: 0 -12px 28px rgb(0 0 0 / 45%);
+}
+
+/* Model memakai menu panel AI (`.ai-model-menu`, bawaan naik ke ATAS). Di sini
+   arahnya disamakan dengan menu izin: turun saat kondisi awal, naik saat
+   mode chat — kalau tidak, di kondisi awal menunya menutupi judul. */
+.agx-comp .ai-model-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+}
+
+.agx-comp.is-chat .ai-model-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+  box-shadow: 0 -12px 28px rgb(0 0 0 / 45%);
 }
 
 .agx-comp-menu.is-folder {
@@ -797,19 +1380,19 @@
 .agx-comp-chip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  width: 1000px;
-  max-width: 100%;
+  gap: 8px;
+  width: 760px;
+  max-width: min(760px, 100%);
 }
 
 .agx-comp-chip-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 10px 12px;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -822,26 +1405,13 @@
   color: var(--text);
 }
 
+/* Satu baris saja — di TRAE chip ringkas (ikon + satu label), keterangan
+   pindah ke `title` supaya tetap bisa dibaca saat hover. */
 .agx-comp-chip-teks {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
-}
-
-.agx-comp-chip-teks b {
   color: var(--text);
-  font-size: 13px;
-  font-weight: 550;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agx-comp-chip-teks i {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

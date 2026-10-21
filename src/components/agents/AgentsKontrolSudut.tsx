@@ -10,12 +10,14 @@
  * 26px seperti toolbar composer. Sebelumnya sempat dikecilkan; itu salah baca
  * acuan — di TRAE dua kontrol ini memang sebesar tombol title bar.
  *
- * Tombol panel kanan SENGAJA belum punya aksi: user minta letaknya dulu benar,
- * fungsinya menyusul.
+ * Tombol panel kanan membuka-tutup panel kanan (`AgentsPanelKanan`). Statusnya
+ * dipegang `AgentsApp` supaya panelnya satu tingkat di atas canvas.
  */
 import { fokusEditorWindow } from '../../lib/agentsWindow';
 
-function IkonPanelKanan() {
+/* Ikon panel kanan juga dipakai `AgentsPanelKanan` (tombol pindahannya),
+   jadi ikonnya diekspor dari sini — satu sumber, jangan digambar ulang. */
+export function IkonPanelKanan() {
   return (
     <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
       <rect
@@ -33,7 +35,13 @@ function IkonPanelKanan() {
   );
 }
 
-export default function AgentsKontrolSudut() {
+export default function AgentsKontrolSudut({
+  panelTerbuka,
+  onTogglePanel,
+}: {
+  panelTerbuka: boolean;
+  onTogglePanel: () => void;
+}) {
   return (
     <div className="agx-sudut" data-testid="agx-kontrol-sudut">
       <button
@@ -50,15 +58,21 @@ export default function AgentsKontrolSudut() {
 
       <span className="agx-sudut-halang" aria-hidden="true" />
 
-      <button
-        className="agx-tb-btn agx-panel-toggle"
-        data-testid="agx-panel-kanan"
-        title="Toggle right panel"
-        aria-label="Toggle right panel"
-        aria-pressed="false"
-      >
-        <IkonPanelKanan />
-      </button>
+      {/* Tombol panel hanya tampil saat panel tertutup; begitu panel terbuka,
+          tombolnya pindah ke bar panel kanan (`AgentsPanelKanan`). Jadi tidak
+          pernah ada dua tombol panel sekaligus. */}
+      {!panelTerbuka && (
+        <button
+          className="agx-tb-btn agx-panel-toggle"
+          data-testid="agx-panel-kanan"
+          title="Show right panel"
+          aria-label="Toggle right panel"
+          aria-pressed={panelTerbuka}
+          onClick={onTogglePanel}
+        >
+          <IkonPanelKanan />
+        </button>
+      )}
     </div>
   );
 }
