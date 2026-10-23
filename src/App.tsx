@@ -29,6 +29,7 @@ const ExtApprovalModal = lazy(() => import('./components/extensions/ExtApprovalM
 const KeybindingsEditor = lazy(() => import('./components/shell/KeybindingsEditor'));
 const LspOverlay = lazy(() => import('./components/editor/LspOverlay'));
 const ScmConfirmDialog = lazy(() => import('./components/scm/ScmConfirmDialog'));
+const BreakpointOptionsDialog = lazy(() => import('./components/debug/BreakpointOptionsDialog'));
 const CommandPalette = lazy(() => import('./components/shell/CommandPalette'));
 const McpToast = lazy(() => import('./components/shell/McpToast'));
 /*
@@ -76,6 +77,8 @@ import { flushTab, getActiveView } from './lib/editorRegistry';
 import { logFrontend, perfMark } from './lib/commands';
 import * as cmd from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onOpenFileInEditor, onPtyExit, onPtyOutput } from './lib/events';
+import { bacaIntegrasiShell } from './lib/shellIntegration';
+import { mulaiHotExit, pulihkanHotExit } from './lib/hotExit';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
 import './styles/theme-light.css';
@@ -581,11 +584,17 @@ export default function App() {
       if (usePalette.getState().open) {
         const b = eventToBinding(e);
         const id = b ? bindingMap(useStore.getState().settings.shortcuts).get(b) : null;
-        if (id === 'view.palette' || id === 'view.quickOpen') {
+        if (
+          id === 'view.palette' ||
+          id === 'view.quickOpen' ||
+          id === 'view.workspaceSymbol'
+        ) {
           e.preventDefault();
           void usePalette
             .getState()
-            .openPalette(id === 'view.palette' ? 'command' : 'file');
+            .openPalette(
+              id === 'view.palette' ? 'command' : id === 'view.quickOpen' ? 'file' : 'symbol',
+            );
         }
         return;
       }
@@ -685,6 +694,9 @@ export default function App() {
           break;
         case 'view.quickOpen':
           void usePalette.getState().openPalette('file');
+          break;
+        case 'view.workspaceSymbol':
+          void usePalette.getState().openPalette('symbol');
           break;
         case 'view.nextTab':
           s.cycleTab(1);
@@ -1089,6 +1101,33 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    /*
+     * Hot exit: buffer yang belum di-save disimpan ke localStorage dan
+     * dipulihkan setelah aplikasi sempat memuat sesi/workspace-nya.
+     *
+     * Pemulihan ditunda 2,2 detik karena restore sesi juga membuka tab; kalau
+     * hot exit berjalan lebih dulu, tab yang sama dibuka dua kali dan tab yang
+     * kedua memuat isi dari disk — persis menimpa yang mau diselamatkan.
+     */
+    const lepas = mulaiHotExit();
+    /*
+     * Dua kesempatan, bukan satu.
+     *
+     * Restore sesi membuka tab secara bertahap; kalau ia kebetulan membuka
+     * berkas yang sama SESUDAH pemulihan, isi dari disk menimpa buffer yang
+     * baru diselamatkan. Lewat kedua hanya menerapkan ulang isi yang belum ada
+     * (perbandingan teks), jadi aman dijalankan berkali-kali.
+     */
+    const t1 = window.setTimeout(() => void pulihkanHotExit(), 2200);
+    const t2 = window.setTimeout(() => void pulihkanHotExit(), 6500);
+    return () => {
+      lepas();
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
+
+  useEffect(() => {
     // Auto save on focus change is a global behaviour, not a per-editor one:
     // every open tab has to be flushed, not just the active one. The handler
     // itself decides whether the mode is on, so the listener can stay bound.
@@ -1156,7 +1195,17 @@ export default function App() {
     ptyListenerConsumers++;
     if (!ptyListenersBound && !ptyListenersBinding) {
       ptyListenersBinding = Promise.all([
-        onPtyOutput((id, data) => writeTo(id, data)),
+        onPtyOutput((id, data) => {
+          writeTo(id, data);
+          /*
+           * OSC 633/7 dibaca dari byte yang SAMA yang baru ditulis ke xterm.
+           * xterm tidak menggambar escape OSC, jadi tidak ada yang perlu
+           * dibuang dari data sebelum diteruskan. Yang didapat dari sini: cwd
+           * yang sebenarnya dan kode keluar perintah terakhir.
+           */
+          const info = bacaIntegrasiShell(id, data);
+          if (info) useTerminal.getState().terapkanIntegrasi(id, info);
+        }),
         onPtyExit((id, code) => {
           useTerminal.getState().markExited(id, code);
           const p = useTerminal.getState().findPane(id);
@@ -1824,6 +1873,7 @@ export default function App() {
         <CrashDialog />
         <NotificationCenter />
         <DeleteConfirmDialog />
+        <BreakpointOptionsDialog />
         <ClearChatsDialog />
         <TrustDialog />
         {/* Extension external-runtime permissions - global, they can appear at any

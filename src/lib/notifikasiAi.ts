@@ -42,11 +42,38 @@ export type HasilRun = 'selesai' | 'menunggu' | 'berhenti';
 
 
 /** Runs shorter than this are not worth a notification - they are over before
- *  the reader has looked away, and the toast would arrive after they are back. */
-const AMBANG_MS = 20_000;
+ *  the reader has looked away, and the toast would arrive after they are back.
+ *  The reader's own choice (Settings > Conversation > Notify Only for Long
+ *  Tasks) overrides it. */
+const AMBANG_MS = 5_000;
+
+function ambangDariSetelan(nilai: string | undefined): number {
+  if (nilai === 'always') return 0;
+  if (nilai === '20s') return 20_000;
+  return AMBANG_MS;
+}
 
 /** One run in flight, tracked per composer so parallel chats do not collide. */
 const mulai = new Map<string, number>();
+
+/**
+ * The decision log, newest last, bounded to the last few entries.
+ *
+ * Declared ABOVE `catatSelesaiRun` on purpose. It used to sit near the bottom of
+ * the file, after `catatSelesaiRun` had already been called from the agent exit
+ * path: the very first decision therefore threw (the array was still in its
+ * temporal dead zone), the throw escaped the caller, and the notification path
+ * died silently - the toast never appeared. A module-level `const` is only
+ * initialised when its statement runs, not when the function that uses it is
+ * defined.
+ */
+const riwayat: Array<{ judul: string; isi: string; fokus: boolean; lama: number }> = [];
+export const riwayatNotifikasi = () => riwayat.slice();
+
+function catatRiwayat(judul: string, isi: string, fokus: boolean, lama: number): void {
+  riwayat.push({ judul, isi, fokus, lama });
+  if (riwayat.length > 10) riwayat.shift();
+}
 
 /**
  * Mark the start of a run.
@@ -79,15 +106,6 @@ export function catatSelesaiRun(id: string, judul: string, ringkas: string, hasi
    */
   catatRiwayat(judul.trim().slice(0, 80) || 'Zephyr', ringkas.trim().slice(0, 140), fokus, lama);
 
-  if (lama < AMBANG_MS) return;
-
-  /* Already looking at it: the transcript is the notification. */
-  if (fokus) return;
-
-  const menit = Math.round(lama / 60_000);
-  const isi = ringkas.trim().slice(0, 140);
-  const badan = [isi, menit >= 1 ? `(${menit}m)` : ''].filter(Boolean).join(' ');
-
   /*
    * The reader's own choices, read HERE rather than passed in.
    *
@@ -99,6 +117,16 @@ export function catatSelesaiRun(id: string, judul: string, ringkas: string, hasi
    * off and then watch a run finish.
    */
   const conv = useStore.getState().settings.conversation;
+
+  if (lama < ambangDariSetelan(conv?.notifAmbang)) return;
+
+  /* Already looking at it: the transcript is the notification. */
+  if (fokus) return;
+
+  const menit = Math.round(lama / 60_000);
+  const isi = ringkas.trim().slice(0, 140);
+  const badan = [isi, menit >= 1 ? `(${menit}m)` : ''].filter(Boolean).join(' ');
+
   const hasilAkhir: HasilRun = hasil ?? 'selesai';
 
   const bolehBanner = conv?.notifBanner !== false;
@@ -171,26 +199,6 @@ export function bunyiMenunggu(): void {
 
 /** How many runs are being tracked - for the harness, and for honesty. */
 export const jumlahRunDilacak = (): number => mulai.size;
-
-/**
- * The last notification this module decided to send, for the harness.
- *
- * A toast is drawn by the OS, so nothing inside the page can observe it. Without
- * a record the only testable statement would be "the code ran", which is exactly
- * the kind of claim that passes while the feature does nothing. Recording the
- * DECISION - title, body, and whether the window was focused - lets a probe
- * assert the gate itself: short runs produce nothing, long runs produce one, and
- * a focused window produces none.
- *
- * Bounded to the last few entries so a long session cannot grow it.
- */
-const riwayat: Array<{ judul: string; isi: string; fokus: boolean; lama: number }> = [];
-export const riwayatNotifikasi = () => riwayat.slice();
-
-function catatRiwayat(judul: string, isi: string, fokus: boolean, lama: number): void {
-  riwayat.push({ judul, isi, fokus, lama });
-  if (riwayat.length > 10) riwayat.shift();
-}
 
 /**
  * The last sound this module decided to play, for the harness.

@@ -9,6 +9,7 @@ import {
   asZephyrError,
 } from './commands';
 import type { TaskDef, TaskRun, TaskProblem, TasksFile } from './types';
+import { useStore } from './store';
 import { useOutput } from './outputStore';
 import { useProblems, type Diagnostic } from './problemsStore';
 import { usePorts } from './portsStore';
@@ -186,6 +187,89 @@ const tulisProblems = (runId: string, label: string) => {
   }
 };
 
+/**
+ * Kutip satu argumen untuk shell tujuan.
+ *
+ * PENGGABUNGAN `args.join(' ')` polos SALAH, dan kesalahannya senyap: argumen
+ * `-e console.log('x')` sampai ke PowerShell sebagai tiga potongan yang
+ * diurai ulang, dan yang berjalan bukan perintah yang ditulis di tasks.json.
+ * Karena task dijalankan lewat shell (bukan execve dengan argv), setiap
+ * argumen harus dikutip dengan aturan shell itu sendiri.
+ */
+function kutipArgumen(arg: string, jenis: 'ps' | 'cmd' | 'posix'): string {
+  if (arg === '') return jenis === 'cmd' ? '""' : "''";
+  if (!/[\s"'`$&|<>^(){};]/.test(arg)) return arg;
+  if (jenis === 'cmd') return `"${arg.replace(/"/g, '""')}"`;
+  if (jenis === 'posix') return `'${arg.replace(/'/g, `'\\''`)}'`;
+  /* PowerShell: kutip tunggal itu literal, dan kutip tunggal di dalamnya
+     ditulis dua kali — cara yang sama dipakai prompt dan here-string. */
+  return `'${arg.replace(/'/g, "''")}'`;
+}
+
+function jenisShell(): 'ps' | 'cmd' | 'posix' {
+  const g = useStore.getState().settings?.general;
+  const pil = (g?.shellPath || g?.defaultTerminal || '').toLowerCase();
+  if (/cmd\.exe$|^cmd$/.test(pil)) return 'cmd';
+  if (/bash|wsl|sh$/.test(pil)) return 'posix';
+  return 'ps';
+}
+
+/**
+ * Jalankan satu task di terminal (presentation.panel = terminal/new/dedicated).
+ *
+ * Kembalianya `TaskRun` berstatus `running`: Zephyr TIDAK tahu kapan perintah
+ * di terminal selesai (itu milik shell-nya, bukan proses yang diawasi Rust),
+ * dan mengarang `done` begitu perintah dikirim akan membuat daftar task
+ * berbohong soal build yang masih berjalan.
+ */
+async function jalankanDiTerminalTugas(
+  def: TaskDef,
+  runId: string,
+  label: string,
+): Promise<TaskRun | null> {
+  const nilai = await konteksTugas();
+  const ganti = (x: string) => isiKonteks(x, nilai);
+  const jenis = jenisShell();
+  const bagian = [
+    kutipArgumen(ganti(def.command), jenis),
+    ...def.args.map(ganti).map((a) => kutipArgumen(a, jenis)),
+  ].filter((x) => x !== '');
+  const perintah = bagian.join(' ');
+  const cwd = def.cwd ? ganti(def.cwd) : undefined;
+
+  const { useTerminal } = await import('./terminalStore');
+  const T = useTerminal.getState();
+  const paneId = await T.addPane('shell', cwd ? { cwd } : undefined);
+  if (!paneId) {
+    useNotif.getState().notify({
+      severity: 'error',
+      message: `Task "${label}" could not open a terminal`,
+      detail: useTerminal.getState().terminalError ?? '',
+      source: 'Tasks',
+    });
+    return null;
+  }
+
+  const { writeChunked } = await import('./terminalClipboard');
+  await writeChunked(paneId, `${perintah}\r`);
+
+  const r: TaskRun = {
+    id: runId,
+    label,
+    status: 'running',
+    exitCode: null,
+    pid: null,
+    startedMs: Date.now(),
+    endedMs: null,
+    problems: [],
+    lines: 0,
+    active: true,
+    cwd: cwd ?? '',
+  };
+  useTasks.getState()._upsertRun(r);
+  return r;
+}
+
 export const useTasks = create<TaskState & TaskActions>((set, get) => ({
   file: null,
   runs: [],
@@ -303,6 +387,24 @@ export const useTasks = create<TaskState & TaskActions>((set, get) => ({
     const runId = idBaru(label);
     labelRun.set(runId, label);
     bufferProblem.set(runId, []);
+
+    /*
+     * `presentation.panel` = "terminal" (atau "new"/"dedicated") menjalankan
+     * perintah di terminal, bukan di kanal Output.
+     *
+     * Itu beda yang penting untuk task yang menunggu input: server dev yang
+     * mencetak URL, `npm init`, atau tes yang meminta konfirmasi tidak bisa
+     * dijawab dari Output, dan output-nya hanya bisa dibaca setelah selesai.
+     * Di terminal, task berjalan seperti kalau dibuka sendiri, lengkap dengan
+     * warna, stdin dan prompt.
+     *
+     * Nilainya sudah di-parse Rust (`panel` di TaskDef) sejak awal, hanya saja
+     * tidak pernah dibaca. Nilai lain — termasuk "output" — tetap lewat jalur
+     * Output yang lama.
+     */
+    if (def.panel === 'terminal' || def.panel === 'new' || def.panel === 'dedicated') {
+      return await jalankanDiTerminalTugas(def, runId, label);
+    }
 
     const ch = channelUntuk(label);
     const O = useOutput.getState();

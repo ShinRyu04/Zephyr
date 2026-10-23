@@ -4,10 +4,11 @@ import Toast from './components/notifications/Toast';
 import ConfirmDialog from './components/shell/ConfirmDialog';
 import { useAiChunkListener } from './lib/useAiChunkListener';
 import { useAi } from './lib/aiStore';
-import { useStore } from './lib/store';
+import { pasangSinkronSetelan, useStore } from './lib/store';
 import { useGit } from './lib/gitStore';
 import { useWs } from './lib/workspaceStore';
 import { onFsChanged, onPtyExit, onPtyOutput } from './lib/events';
+import { bacaIntegrasiShell } from './lib/shellIntegration';
 import { useTerminal } from './lib/terminalStore';
 import { writeTo } from './lib/xtermRegistry';
 import { muatSemuaEkstensi } from './lib/extLoader';
@@ -69,6 +70,20 @@ const NotificationCenter = lazy(() => import('./components/notifications/Notific
  */
 void useStore.getState().bootstrap();
 
+/*
+ * Cross-window settings sync, installed at load.
+ *
+ * The main window (App.tsx) and the panel window (PanelWindow.tsx) both call
+ * this; without it here the Agents window kept the `settings` snapshot from its
+ * own `bootstrap()` forever. Two visible consequences:
+ *  - changing the UI language only re-rendered the main window, so the Agents
+ *    window stayed in the old language (i18n reads `settings.general.uiLang`);
+ *  - a gateway/model/key saved elsewhere never reached this window's model
+ *    picker until it was closed and reopened.
+ * Called before React renders, matching `bootstrap()` above.
+ */
+pasangSinkronSetelan();
+
 /** Run `fn` as soon as settings have loaded — immediately if they already have. */
 function saatSetelanSiap(fn: () => void): () => void {
   if (useStore.getState().settingsLoaded) {
@@ -95,7 +110,12 @@ function useTerminalOutputListener() {
     if (ptyListenerBound) return;
     ptyListenerBound = true;
     const unlisten = Promise.all([
-      onPtyOutput((id, data) => writeTo(id, data)),
+      onPtyOutput((id, data) => {
+        writeTo(id, data);
+        /* Sama seperti jendela utama: OSC 633 memberi cwd dan kode keluar. */
+        const info = bacaIntegrasiShell(id, data);
+        if (info) useTerminal.getState().terapkanIntegrasi(id, info);
+      }),
       onPtyExit((id, code) => {
         useTerminal.getState().markExited(id, code);
         const p = useTerminal.getState().findPane(id);

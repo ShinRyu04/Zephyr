@@ -1286,6 +1286,20 @@ body.is-resizing-v {
   font-family: var(--font-mono);
 }
 
+/* Kode keluar bukan nol dari perintah terakhir (shell integration OSC 633).
+   Angkanya ditampilkan, bukan cuma titik: "1" dan "127" berarti hal yang
+   berbeda (gagal umum vs perintah tidak ditemukan). */
+.pane-exit-bad {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+}
+
 .pane-close {
   margin-left: auto;
 }

@@ -239,6 +239,15 @@ export interface PaneMeta {
   url?: string;
 
   exitCode?: number | null;
+
+  /**
+   * Shell integration (OSC 633). `lastExit` adalah kode keluar perintah
+   * TERAKHIR yang dijalankan di pane ini; `undefined` berarti shell belum
+   * memberi tahu apa pun (integrasi mati atau shell tanpa dukungan).
+   */
+  lastExit?: number;
+  /** Perintah terakhir menurut OSC 633 `E` (tidak semua shell mengirimnya). */
+  lastCommand?: string;
 }
 
 export interface TerminalTab {
@@ -321,6 +330,17 @@ export interface ChatMsg extends AiMessage {
    * no reasoning at all, and it can state it without counting characters.
    */
   reasoningMs?: number;
+
+  /*
+   * Token counts the provider reported for THIS turn.
+   *
+   * Kept on the message (not only in the HydraFusion receipt) because the Task
+   * Summary needs a figure that survives scrolling and a reload: "how full is
+   * the context right now" is answered by the newest turn that actually carried
+   * a number. `undefined` means "the provider did not report it" - that is not
+   * zero, and the panel must not render it as 0%.
+   */
+  usage?: { input: number; output: number };
 
   /*
    * What this turn changed on disk, and how to undo it.
@@ -500,6 +520,24 @@ export interface GitStatusResult {
   conflicted: boolean;
 }
 
+/*
+ * Multi-repo Source Control: satu workspace bisa memuat beberapa repo, dan
+ * panel memilih salah satunya. `relative` adalah path repo terhadap workspace
+ * ("" untuk workspace itu sendiri) sehingga UI tidak perlu memotong string
+ * path absolut untuk memberi label.
+ */
+export interface ScmRepo {
+  path: string;
+  name: string;
+  relative: string;
+  branch: string | null;
+}
+
+export interface ScmRepoList {
+  repos: ScmRepo[];
+  active: string | null;
+}
+
 export interface GitBranches {
   current: string | null;
   locals: string[];
@@ -513,6 +551,14 @@ export interface GitCommitInfo {
   date: string;
   refs: string;
   parents?: string[];
+}
+
+/** One file inside a commit (Committed Changes list). */
+export interface GitCommitFile {
+  path: string;
+  status: string;
+  add: number;
+  del: number;
 }
 
 export interface GitUser {
@@ -1102,8 +1148,19 @@ export interface GeneralSettings {
    * these `?` marks are a promise that the UI must fall back rather than assume.
    */
   confirmExit?: boolean;
-  minimizeToTray?: boolean;
-  defaultTerminal?: 'default' | 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'wsl';
+  minimizeToTray?: boolean;    defaultTerminal?: 'default' | 'pwsh' | 'powershell' | 'cmd' | 'bash' | 'wsl';
+    /**
+     * Shell integration (OSC 633): pane PowerShell di-dot-source dengan skrip
+     * kecil supaya Zephyr tahu folder kerja dan kode keluar tiap perintah.
+     * Opsional karena profil lama belum punya key ini.
+     */
+    shellIntegration?: boolean;
+    /**
+     * Simpan buffer yang belum di-save ke localStorage dan pulihkan saat app
+     * dibuka lagi. Nama "hot exit" sama dengan istilah editor lain; mati
+     * berarti menutup jendela sama dengan membuang perubahan.
+     */
+    hotExit?: boolean;
   /* A full path to the shell binary. Empty means "use defaultTerminal". */
   shellPath?: string;
 
@@ -1400,6 +1457,19 @@ export interface BackgroundSettings {
   transparan?: boolean;
 }
 
+export interface TerminalProfile {
+  id: string;
+  name: string;
+  /** Shell id from `list_shells` (pwsh/powershell/cmd/bash/wsl) or a full path. */
+  shell: string;
+  /** Starting folder; empty means the workspace root. */
+  cwd?: string;
+  /** Typed into the shell once it is up (e.g. `npm run dev`). */
+  command?: string;
+  /** Spawn clean: no history, scrollback dropped on close. */
+  private?: boolean;
+}
+
 export interface Settings {
   general: GeneralSettings;
   editor: EditorSettings;
@@ -1411,7 +1481,11 @@ export interface Settings {
   shortcuts: Record<string, string>;
   models: {
       activeProvider: string;
-      providers: Record<string, { baseUrl?: string; model?: string }>;
+      /* `fullUrl`: the reader typed the WHOLE endpoint, not a base URL, so
+         `list_models`/chat must not append `/models` or `/chat/completions`.
+         Saved per provider (camelCase, same as `baseUrl`) and read by Rust in
+         `secrets.rs` when the caller passes no explicit flag. */
+      providers: Record<string, { baseUrl?: string; model?: string; fullUrl?: boolean }>;
 
       answerLang: string;
 
@@ -1524,6 +1598,38 @@ export interface Settings {
    * arrives enabled instead of silently missing, and the list stays short because
    * most users disable a few and leave the rest alone.
    */
+  /**
+   * Named terminal profiles.
+   *
+   * A profile is the answer to "open my dev shell": a shell, a folder and a
+   * command, named once. Without it the reader re-creates the same pane by
+   * hand (open terminal, cd, run) several times a day, and the shell picker
+   * only ever offers bare shells.
+   *
+   * Optional in the schema: profiles written by a newer version must not make
+   * an older profile file invalid.
+   */
+  terminalProfiles?: TerminalProfile[];
+
+  /**
+   * Editor overrides per language, keyed by the identifier
+   * `bahasaDariPath` returns ("typescript", "python", "markdown", …).
+   *
+   * One global tab size is wrong for most real projects: Python wants 4,
+   * JSON/YAML 2, and Makefile wants a tab. This is the same idea as VS Code's
+   * `"[typescript]": { … }` blocks, kept to the handful of settings where the
+   * difference actually matters — tab size, spaces, wrapping and the minimap.
+   */
+  perLanguage?: Record<
+    string,
+    {
+      tabSize?: number;
+      insertSpaces?: boolean;
+      wordWrap?: boolean;
+      minimap?: boolean;
+    }
+  >;
+
   rules?: {
     /** Master switch. Off means the write path runs no checks at all. */
     enabled?: boolean;
@@ -1707,6 +1813,8 @@ export interface Settings {
     notifSound: boolean;
     /** 0-100. */
     notifVolume: number;
+    /** Only notify for runs longer than this - short ones are over before the reader looks away. */
+    notifAmbang: 'always' | '5s' | '20s';
     /** Per-outcome sound choice. */
     soundCompleted: string;
     soundWaiting: string;
@@ -1864,6 +1972,7 @@ export const DEFAULT_SETTINGS: Settings = {
     notifBanner: true,
     notifSound: false,
     notifVolume: 100,
+    notifAmbang: '5s',
     soundCompleted: 'default',
     soundWaiting: 'default',
     soundStopped: 'default',

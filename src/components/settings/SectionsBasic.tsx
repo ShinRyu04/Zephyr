@@ -6,6 +6,7 @@ import { useAi } from '../../lib/aiStore';
 import { useT, useTf, UI_LANGS } from '../../lib/i18n';
 import { resolveTheme, semuaTema, TOKEN_OVERRIDE as TOKEN_WARNA } from '../../lib/themes';
 import { saringTema, type JenisTema } from './temaFilter';
+import { BAHASA_OVERRIDE } from '../../lib/editorPerLanguage';
 import { PratinjauTema } from './TemaPratinjau';
 import { bacaPalet, hexBisa, overrideTerisi } from '../../lib/themeBuilder';
 import { NumberInput, Pills, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
@@ -17,8 +18,34 @@ export function GeneralSection() {
   const g = useStore((s) => s.settings.general);
   const apply = useStore((s) => s.applySettings);
   const dataDir = useStore((s) => s.appInfo?.dataDir ?? '');
+  /*
+   * Daftar diambil TANPA `?? []` di dalam selector: zustand membandingkan
+   * hasil selector dengan `===`, dan `[]` baru di setiap render memicu loop
+   * "Maximum update depth exceeded" (pelajaran fase 09). Fallback-nya di
+   * bawah, di badan komponen.
+   */
+  const daftarProfil = useStore((s) => s.settings.terminalProfiles);
+  const profil = daftarProfil ?? [];
 
   const patch = (p: Partial<typeof g>) => void apply({ general: p });
+
+  const simpanProfil = (next: typeof profil) => void apply({ terminalProfiles: next });
+  const ubahProfil = (id: string, p: Partial<(typeof profil)[number]>) =>
+    simpanProfil(profil.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  const tambahProfil = () =>
+    simpanProfil([
+      ...profil,
+      {
+        /* Id pendek dan stabil: dipakai sebagai kunci React dan sebagai nama
+           tombol di menu pane, dan tidak perlu unik lintas mesin. */
+        id: `tp-${Date.now().toString(36)}`,
+        name: `Terminal ${profil.length + 1}`,
+        shell: 'default',
+        cwd: '',
+        command: '',
+      },
+    ]);
+  const hapusProfil = (id: string) => simpanProfil(profil.filter((x) => x.id !== id));
 
   return (
     <Section title={tr('settings.general')}>
@@ -205,6 +232,123 @@ export function GeneralSection() {
         />
       </Row>
 
+      {/*
+        * Hot exit.
+        *
+        * Default ON, unlike shell integration: menyelamatkan pekerjaan yang
+        * belum disimpan tidak mengubah cara apa pun bekerja, hanya mencegah
+        * kehilangan. Matikan kalau buffer besar membuat memori/kuota penuh.
+        */}
+      <Row
+        label={tr('Restore unsaved files on restart')}
+        hint={tr(
+          'hot exit: buffers that were open and not saved come back when Zephyr is opened again',
+        )}
+      >
+        <Toggle
+          label={tr('Restore unsaved files on restart')}
+          testid="general-hot-exit"
+          checked={g.hotExit !== false}
+          onChange={(v) => patch({ hotExit: v })}
+        />
+      </Row>
+
+      {/*
+        * Shell integration.
+        *
+        * PowerShell pane di-dot-source dengan skrip kecil supaya Zephyr tahu
+        * folder kerja dan kode keluar perintah terakhir (OSC 633). MATI secara
+        * bawaan: ia menyentuh cara prompt bekerja, dan fitur yang mengubah
+        * perilaku shell harus dipilih dulu.
+        */}
+      <Row
+        label={tr('Shell integration')}
+        hint={tr(
+          'PowerShell panes report their working folder and each command exit code, so the pane title follows cd and failed commands are marked',
+        )}
+      >
+        <Toggle
+          label={tr('Shell integration')}
+          testid="general-shell-integration"
+          checked={g.shellIntegration === true}
+          onChange={(v) => patch({ shellIntegration: v })}
+        />
+      </Row>
+
+      {/*
+        * Terminal profiles.
+        *
+        * Satu baris per profil: nama, shell, folder, perintah awal, private.
+        * Tanpa ini, shell picker hanya menawarkan shell mentah dan setiap
+        * "buka dev shell di folder itu, lalu jalankan npm run dev" harus
+        * diketik ulang setiap kali.
+        */}
+      <Row
+        label={tr('Terminal profiles')}
+        hint={tr(
+          'named shells with a folder and a start command; they appear at the top of the new-pane menu',
+        )}
+      >
+        <div className="tp-list" data-testid="terminal-profiles">
+          {profil.map((p) => (
+            <div className="tp-row" key={p.id} data-testid={`tp-row-${p.id}`}>
+              <TextInput
+                label={tr('Profile name')}
+                testid={`tp-nama-${p.id}`}
+                value={p.name}
+                onChange={(v) => ubahProfil(p.id, { name: v })}
+              />
+              <Select
+                label={tr('Shell')}
+                testid={`tp-shell-${p.id}`}
+                value={p.shell}
+                onChange={(v) => ubahProfil(p.id, { shell: v })}
+                options={[
+                  { value: 'default', label: tr('Default (auto-detect)') },
+                  { value: 'pwsh', label: 'PowerShell 7 (pwsh)' },
+                  { value: 'powershell', label: 'Windows PowerShell' },
+                  { value: 'cmd', label: 'Command Prompt (cmd)' },
+                  { value: 'bash', label: 'Bash' },
+                  { value: 'wsl', label: 'WSL' },
+                ]}
+              />
+              <TextInput
+                label={tr('Folder')}
+                testid={`tp-cwd-${p.id}`}
+                mono
+                value={p.cwd ?? ''}
+                onChange={(v) => ubahProfil(p.id, { cwd: v })}
+              />
+              <TextInput
+                label={tr('Start command')}
+                testid={`tp-cmd-${p.id}`}
+                mono
+                value={p.command ?? ''}
+                onChange={(v) => ubahProfil(p.id, { command: v })}
+              />
+              <div className="tp-aksi">
+                <Toggle
+                  label={tr('Private')}
+                  testid={`tp-private-${p.id}`}
+                  checked={p.private === true}
+                  onChange={(v) => ubahProfil(p.id, { private: v })}
+                />
+                <button
+                  className="btn btn-sm"
+                  data-testid={`tp-hapus-${p.id}`}
+                  onClick={() => hapusProfil(p.id)}
+                >
+                  {tr('Remove')}
+                </button>
+              </div>
+            </div>
+          ))}
+          <button className="btn btn-sm" data-testid="tp-tambah" onClick={tambahProfil}>
+            {tr('Add profile')}
+          </button>
+        </div>
+      </Row>
+
       <Row
         label={tr('RAM saver mode')}
         hint={tr('smooth scroll off, minimap/sticky/indent/color decorators off, loaded tab limit 3 (of 12), terminal scrollback 1000 lines')}
@@ -274,6 +418,18 @@ export function EditorSection() {
   const apply = useStore((s) => s.applySettings);
   const patch = (p: Partial<typeof e>) => void apply({ editor: p });
 
+  /* Override per bahasa. Dibaca tanpa `?? {}` di selector supaya objek baru
+     tidak dibuat setiap render (loop render zustand). */
+  const perLangTersimpan = useStore((s) => s.settings.perLanguage);
+  const perLang = perLangTersimpan ?? {};
+  const ubahBahasa = (id: string, p: Record<string, unknown>) =>
+    void apply({
+      perLanguage: {
+        ...perLang,
+        [id]: { ...(perLang[id] ?? {}), ...p },
+      },
+    });
+
   return (
     <Section title={tr('settings.editor')}>
       <Row label={tr('editor.tabSize')}>
@@ -285,6 +441,74 @@ export function EditorSection() {
           value={e.tabSize}
           onChange={(v) => patch({ tabSize: v })}
         />
+      </Row>
+
+      {/*
+        * Override per bahasa.
+        *
+        * Hanya bahasa yang PUNYA entri yang ditampilkan; menambahkan lewat
+        * dropdown, menghapus lewat tombol. Baris kosong untuk dua belas bahasa
+        * sekaligus akan membuat halaman ini terbaca seperti tabel pengaturan
+        * yang belum diisi, padahal semuanya sudah memakai nilai global.
+        */}
+      <Row
+        label={tr('Per-language overrides')}
+        hint={tr(
+          'tabs, wrapping and minimap for one language only; everything else keeps the values above',
+        )}
+      >
+        <div className="pl-list" data-testid="editor-perlang">
+          {Object.entries(perLang).map(([id, o]) => (
+            <div className="pl-row" key={id} data-testid={`pl-row-${id}`}>
+              <span className="pl-nama">
+                {BAHASA_OVERRIDE.find((b) => b.id === id)?.label ?? id}
+              </span>
+              <NumberInput
+                label={`${tr('editor.tabSize')} — ${id}`}
+                testid={`pl-tabsize-${id}`}
+                min={1}
+                max={8}
+                value={o.tabSize ?? e.tabSize}
+                onChange={(v) => ubahBahasa(id, { tabSize: v })}
+              />
+              <Toggle
+                label={`${tr('editor.wordWrap')} — ${id}`}
+                testid={`pl-wrap-${id}`}
+                checked={o.wordWrap ?? e.wordWrap}
+                onChange={(v) => ubahBahasa(id, { wordWrap: v })}
+              />
+              <button
+                className="btn btn-sm"
+                data-testid={`pl-hapus-${id}`}
+                onClick={() => {
+                  const next = { ...perLang };
+                  delete next[id];
+                  void apply({ perLanguage: next });
+                }}
+              >
+                {tr('Remove')}
+              </button>
+            </div>
+          ))}
+          <select
+            className="inp"
+            data-testid="pl-tambah"
+            aria-label={tr('Add a language override')}
+            value=""
+            onChange={(ev) => {
+              const id = ev.target.value;
+              if (!id) return;
+              ubahBahasa(id, {});
+            }}
+          >
+            <option value="">{tr('Add a language override…')}</option>
+            {BAHASA_OVERRIDE.filter((b) => !(b.id in perLang)).map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </Row>
 
       <Row label={tr('editor.insertSpaces')}>

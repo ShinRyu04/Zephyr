@@ -1,25 +1,22 @@
 /*
  * Kartu pertanyaan agen (tool ask_user).
  *
- * Ditempatkan tepat di atas kotak ketik, memakai bentuk "kapsul menyatu" yang
- * sama dengan kartu daftar tugas: sudut atas membulat, sudut bawah lurus, tanpa
- * border bawah - sehingga tepi atas kotak ketik jadi garis pemisah bersama.
- *
- * Kartu ini HARUS menempel pada kotak ketik, bukan mengambang jauh di atasnya:
- * pertanyaannya dijawab lewat kotak itu juga, jadi keduanya harus terbaca
- * sebagai satu benda.
+ * Kartu ini adalah PESAN dari agen, dan dirender DI DALAM area gulir chat
+ * (.ai-chat) - bukan kapsul yang menempel di kotak ketik. Bentuknya mengikuti
+ * bahasa visual bubble chat: kartu mengambang ber-radius penuh dengan bayangan
+ * lembut, bergaris aksen di kiri sebagai penanda "menunggu kamu".
  */
 
 .ai-tanya {
   box-sizing: border-box;
-  margin: 0 10px;
-  padding: 9px 11px 10px;
-  border: 0.8px solid var(--accent);
-  border-bottom: 0;
-  border-radius: var(--ai-dock-radius, 10px) var(--ai-dock-radius, 10px) 0 0;
-  /* Latar sedikit berbeda dari kotak ketik: pertanyaan ini butuh perhatian,
-     dan warna aksen di tepinya sudah menandai itu tanpa perlu berteriak. */
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg0));
+  margin: 10px 12px 14px;
+  padding: 11px 13px 12px;
+  border: 0.8px solid var(--border);
+  /* Garis aksen di kiri: penanda kartu yang butuh tindakan, tanpa berteriak. */
+  border-left: 2.5px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
   flex-shrink: 0;
 }
 
@@ -51,7 +48,7 @@
 }
 
 .ai-tanya-isi {
-  margin: 0 0 8px;
+  margin: 0 0 9px;
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--fg0);
@@ -60,33 +57,35 @@
   word-break: break-word;
 }
 
+/* Pilihan cepat: chips yang mengalir horizontal, wrap kalau panjang. */
 .ai-tanya-pilihan {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 /*
- * Satu opsi = satu tombol blok selebar penuh, bertumpuk vertikal.
+ * Satu opsi = satu chip ringkas.
  *
- * Bentuk ini (bukan chips kecil yang berbaris horizontal) adalah yang dipakai
- * Claude dan TRAE: opsi adalah keputusan utama kartu, jadi ia diberi ruang
- * penuh dan tidak dipadatkan ke samping di mana jawaban panjang akan terpotong.
+ * Chips mengalir mengikuti lebar teksnya, bukan tombol blok selebar penuh:
+ * dalam alur chat yang lebar, baris tombol penuh terasa seperti form, sedangkan
+ * chips terbaca sebagai jawaban cepat. Opsi yang panjang tetap utuh karena
+ * kartu sendiri boleh melebar dan chip yang kelebihan beban turun ke baris
+ * baru (flex-wrap di atas).
  */
 .ai-tanya-op {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
+  gap: 6px;
+  max-width: 100%;
   box-sizing: border-box;
-  padding: 9px 12px;
+  padding: 6px 11px;
   border: 0.8px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: 999px;
+  background: var(--bg0);
   color: var(--fg0);
-  font-size: 12.5px;
+  font-size: 12px;
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -96,25 +95,25 @@
 }
 
 .ai-tanya-op:hover {
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg0));
   border-color: var(--accent);
 }
 
 .ai-tanya-op:active {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg0));
 }
 
 .ai-tanya-op-teks {
   /* Opsi panjang turun baris, bukan memotong diri sendiri. */
   white-space: normal;
   word-break: break-word;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .ai-tanya-op-panah {
   flex-shrink: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .ai-tanya-op:hover .ai-tanya-op-panah {
@@ -138,10 +137,11 @@
 .ai-tanya-isi-jawab .input {
   flex: 1;
   min-width: 0;
+  background: var(--bg0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-tanya {
-    transition: none;
+  .ai-tanya-dot {
+    animation: none;
   }
 }

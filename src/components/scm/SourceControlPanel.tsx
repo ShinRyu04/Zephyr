@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useGit } from '../../lib/gitStore';
 import { useStore } from '../../lib/store';
-import type { GitChange } from '../../lib/types';
+import type { GitChange, ScmRepo } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
 import ConflictEditor from './ConflictEditor';
 
@@ -749,6 +749,68 @@ function GitGraphSection() {
   );
 }
 
+/*
+ * Pemilih repo untuk workspace yang memuat lebih dari satu repo.
+ *
+ * Hanya muncul saat memang ada pilihan (`repos.length > 1` atau workspace
+ * bukan repo tetapi ada repo di dalamnya). Satu repo tunggal tidak butuh baris
+ * tambahan yang tidak bisa dipilih apa-apa.
+ *
+ * Nilai `''` dipakai untuk "workspace itu sendiri", dan hanya sah bila akar
+ * workspace memang repo - karena itu opsi pertama hanya ada dalam kasus itu,
+ * dan selebihnya ada placeholder yang memaksa pengguna memilih.
+ */
+function RepoBar({
+  repos,
+  active,
+  busy,
+  onPick,
+  testid,
+}: {
+  repos: ScmRepo[];
+  active: string | null;
+  busy: boolean;
+  onPick: (path: string | null) => void;
+  testid?: string;
+}) {
+  const tr = useT();
+  const akar = repos.find((r) => r.relative === '');
+  const nilai = active ?? akar?.path ?? '';
+
+  return (
+    <div className="scm-repo-bar" data-testid={testid ?? 'scm-repos'}>
+      <select
+        className="scm-repo-select"
+        data-testid="scm-repo-select"
+        aria-label={tr('Repository')}
+        title={aktifJudul(repos, nilai)}
+        value={nilai}
+        disabled={busy}
+        onChange={(e) => {
+          const dipilih = e.target.value;
+          onPick(!dipilih || (akar && dipilih === akar.path) ? null : dipilih);
+        }}
+      >
+        {!akar && (
+          <option value="" disabled>
+            {tr('Choose a repository…')}
+          </option>
+        )}
+        {repos.map((r) => (
+          <option key={r.path} value={r.path} title={r.path}>
+            {r.relative === '' ? `${r.name} (workspace)` : r.relative}
+            {r.branch ? ` · ${r.branch}` : ''}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function aktifJudul(repos: ScmRepo[], nilai: string): string | undefined {
+  return repos.find((r) => r.path === nilai)?.path;
+}
+
 export default function SourceControlPanel() {
   const tr = useT();
   /*
@@ -780,6 +842,9 @@ export default function SourceControlPanel() {
   const setBranchMenuOpen = useGit((s) => s.setBranchMenuOpen);
   const setNewBranchOpen = useGit((s) => s.setNewBranchOpen);
   const setConfirm = useGit((s) => s.setConfirm);
+  const repos = useGit((s) => s.repos);
+  const activeRepo = useGit((s) => s.activeRepo);
+  const setRepo = useGit((s) => s.setRepo);
   
   const stagedCount = useGit((s) => s.status?.changes.filter((c) => c.staged).length ?? 0);
   const [kebab, setKebab] = useState(false);
@@ -833,7 +898,22 @@ export default function SourceControlPanel() {
       <div className="side-panel" data-testid="scm-empty">
         <div className="side-section">
           <div className="side-title">Source Control</div>
-          <p className="side-muted">{tr('This folder is not a git repository yet.')}</p>
+          {/* Workspace bukan repo, tapi ada repo di dalamnya: itu pilihan yang
+              jauh lebih mungkin dibutuhkan daripada "initialize" di akar. */}
+          {repos.length > 0 && (
+            <RepoBar
+              repos={repos}
+              active={activeRepo}
+              busy={busy}
+              onPick={(p) => void setRepo(p)}
+              testid="scm-repos-empty"
+            />
+          )}
+          <p className="side-muted">
+            {repos.length > 0
+              ? tr('This folder is not a git repository, but it contains repositories. Pick one above.')
+              : tr('This folder is not a git repository yet.')}
+          </p>
           <div className="side-actions">
             <button
               className="btn btn-primary"
@@ -934,6 +1014,15 @@ export default function SourceControlPanel() {
           </button>
         </div>
       </div>
+
+      {repos.length > 1 && (
+        <RepoBar
+          repos={repos}
+          active={activeRepo}
+          busy={busy}
+          onPick={(p) => void setRepo(p)}
+        />
+      )}
 
       {kebab && (
         <div className="scm-menu scm-kebab-menu" role="menu" data-testid="scm-kebab-menu">

@@ -248,6 +248,37 @@
   }
 }
 
+/*
+ * A long pasted prompt is clipped, with Show more / Show less under it.
+ *
+ * The cap itself is applied inline (see `PesanUser`) because it comes from a
+ * MEASUREMENT, not from a breakpoint: the same text wraps into a different
+ * number of lines depending on whether the chat sits in the right column or in
+ * the popped-out window. Only the toggle is styled here.
+ */
+.ai-pesan-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 100%;
+}
+
+.ai-pesan-user-toggle {
+  margin-top: 2px;
+  padding: 1px 4px;
+  background: none;
+  border: 0;
+  color: var(--text-dim, var(--text));
+  font-size: 11px;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.ai-pesan-user-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 /* A code block inside your own message keeps its block shape. */
 .ai-msg.is-user .ai-body .ai-code {
   margin: 6px 0 2px;

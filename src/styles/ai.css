@@ -2304,6 +2304,8 @@
 }
 
 .ai-nokey {
+  /* The dismiss control is pinned to this box's top-right corner. */
+  position: relative;
   margin: 10px 12px 0;
   padding: 10px 12px;
   border: 1px solid var(--warn, #d29922);
@@ -2316,12 +2318,47 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 4px;
+  /* Keep the title clear of the dismiss control in the corner. */
+  padding-right: 20px;
 }
 .ai-nokey-body {
   font-size: 11.5px;
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 8px;
+}
+
+/*
+ * The banner's dismiss control, pinned to its top-right corner.
+ *
+ * Quiet until hovered: the message is read first and dismissed second, and a
+ * full-strength glyph beside a warning border read as a second action sitting
+ * next to "Open AI Models".
+ */
+.ai-nokey-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.ai-nokey-dismiss:hover {
+  opacity: 1;
+}
+.ai-nokey-dismiss:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 1px;
+  opacity: 1;
 }
 
 .ai-msg {
@@ -8347,10 +8384,10 @@
   white-space: nowrap;
 }
 
-/* Chevron lives on the RIGHT, pushed there by the auto margin. */
+/* Chevron sits at the very end of the bar, after the duration. */
 .ai-kerja-caret {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 2px;
   width: 10px;
   font-size: 11px;
   line-height: 1;
@@ -8358,22 +8395,38 @@
   text-align: center;
 }
 
+/*
+ * The headline: WHAT the run touched ("Read 9 files, Ran 1 command").
+ *
+ * It takes the leftover width and truncates with an ellipsis instead of
+ * wrapping, so the bar stays exactly one line high no matter how many verbs a
+ * long run produces. The full text is still reachable from the button's
+ * `title`.
+ */
 .ai-kerja-judul {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 500;
   color: var(--text-secondary, var(--fg1));
 }
 
-/* The counts line inside the fold: quiet context, no longer on the bar. */
-.ai-kerja-sub {
-  padding: 1px 8px 4px 25px;
+/*
+ * Duration on the RIGHT, muted: it is context for the headline, not the
+ * headline. Moving it here is what let the closed bar say what was done —
+ * TRAE and Freebuff both label the folded row with the work, not the clock.
+ */
+.ai-kerja-durasi {
+  flex: 0 0 auto;
   color: var(--text-muted, var(--fg1));
-  font-size: 11.5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-kerja-gagal {
   flex: 0 0 auto;
-  margin-left: auto;
   color: var(--danger);
   font-size: 11px;
 }

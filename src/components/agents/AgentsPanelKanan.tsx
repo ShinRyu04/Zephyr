@@ -108,6 +108,7 @@ export default function AgentsPanelKanan({
     <aside
       className="agx-kanan"
       data-testid="agx-panel-kanan-isi"
+      data-tampilan={tabAktif?.tampilan}
       style={{ flex: `0 0 ${lebar}%` }}
     >
       {/* Bar tab: deretan tab, `+` tepat di belakang tab terakhir (seperti

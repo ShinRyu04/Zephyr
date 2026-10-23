@@ -1429,6 +1429,28 @@ pub fn dap_set_breakpoints(rt: State<DapRuntime>, path: String, lines: Vec<u32>)
     )
 }
 
+/// Set breakpoints with per-line options.
+///
+/// DAP treats `condition`, `hitCondition` and `logMessage` as OPTIONAL fields on
+/// a breakpoint object, so a plain line is still `{ "line": n }` — the same
+/// object the command above sends. A separate command exists instead of widening
+/// the old signature because the old call is used by the save-path and by tests,
+/// and turning `Vec<u32>` into objects would make every caller construct JSON for
+/// the common case that has no options at all.
+#[tauri::command(async)]
+pub fn dap_set_breakpoints_ex(
+    rt: State<DapRuntime>,
+    path: String,
+    breakpoints: Vec<Value>,
+) -> ZResult<Value> {
+    let sesi = sesi_aktif(&rt)?;
+    request(
+        &sesi,
+        "setBreakpoints",
+        json!({ "source": { "path": path }, "breakpoints": breakpoints }),
+    )
+}
+
 #[tauri::command(async)]
 pub fn dap_loaded_sources(rt: State<DapRuntime>) -> ZResult<Value> {
     let sesi = sesi_aktif(&rt)?;

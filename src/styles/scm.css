@@ -874,3 +874,36 @@
 .scm-list.is-tree .scm-row {
   padding-left: 0;
 }
+
+/* ── repo switcher (multi-repo) ── */
+
+/* One row, only when the workspace holds more than one repository. A native
+   <select> rather than a custom popup: this is a list of paths, it must be
+   reachable by keyboard, and it is not worth a menu of its own. */
+.scm-repo-bar {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scm-repo-select {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.scm-repo-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.scm-repo-select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -228,6 +228,34 @@ export function ModelsSection() {
   const answerBuiltin =
     answerLang === 'follow' || answerLang === 'id' || answerLang === 'en';
 
+  /*
+   * Every provider that ACTUALLY exists, not just the built-in catalogue.
+   *
+   * The Active dropdown was `PROVIDERS.map(...)` - six catalogue entries only.
+   * A reader whose gateway is `custom-ryuga` could therefore not name it at all,
+   * and the stored value drifted to the bare `custom` slot, which has no key and
+   * no URL. From there the model picker hides the provider and chat insists on an
+   * API key that is already on disk. A configured custom provider belongs in
+   * this list under the exact id its key is stored under.
+   */
+  const providerAktif = useMemo(() => {
+    const keluar: { id: string; label: string }[] = [];
+    const sudah = new Set<string>();
+    const tambah = (id: string, label: string) => {
+      if (!id || sudah.has(id)) return;
+      sudah.add(id);
+      keluar.push({ id, label });
+    };
+    for (const p of PROVIDERS) tambah(p.id, p.label);
+    /* Custom providers: an entry in `providers` is config; `custom[]` is models. */
+    for (const id of Object.keys(providers).sort()) {
+      if (sudah.has(id)) continue;
+      tambah(id, id.replace(/^custom-/, ''));
+    }
+    for (const c of models?.custom ?? []) tambah(c.provider, c.provider.replace(/^custom-/, ''));
+    return keluar;
+  }, [providers, models?.custom]);
+
   useEffect(() => {
       if (loaded.current) return;
       loaded.current = true;
@@ -237,7 +265,14 @@ export function ModelsSection() {
     const refreshModels = async (p: ProviderInfo) => {
       setFetching(p.id);
       try {
-        const ids = await cmd.listModelIds(p.id, providers[p.id]?.baseUrl || undefined);
+        /* `fullUrl` ikut dikirim, sama seperti pemilih model dan halaman AI
+           Models: tanpa ini daftar diambil dari `{base}/models` padahal
+           endpoint-nya dikonfigurasi sebagai URL penuh. */
+        const ids = await cmd.listModelIds(
+          p.id,
+          providers[p.id]?.baseUrl || undefined,
+          providers[p.id]?.fullUrl === true ? true : undefined,
+        );
         setRemote((r) => ({ ...r, [p.id]: ids }));
         ui.setMessage(
           ids.length > 0
@@ -273,7 +308,7 @@ export function ModelsSection() {
              * gateways configured still had to name one before anything worked.
              */
             { value: PROVIDER_AUTO, label: tr('Auto (use the first provider with a key)') },
-            ...PROVIDERS.map((p) => ({ value: p.id, label: p.label })),
+            ...providerAktif.map((p) => ({ value: p.id, label: p.label })),
           ]}
         />
       </Row>

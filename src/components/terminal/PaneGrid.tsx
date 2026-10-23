@@ -73,6 +73,12 @@ function PaneHeader({
   const setPaneMenuFor = useTerminal((s) => s.setPaneMenuFor);
   const setActivePane = useTerminal((s) => s.setActivePane);
 
+  /*
+   * Judul pane memuat cwd dan hasil perintah terakhir dari shell integration.
+   * Diletakkan di tooltip, bukan di baris: chrome pane sudah memuat ikon, nama,
+   * pid dan tombol tutup, dan dua kolom lagi membuat nama agent terpotong di
+   * panel bawah yang tingginya cuma 260px.
+   */
   return (
     <div
       className={`pane-head${active ? ' is-active' : ''}`}
@@ -96,7 +102,18 @@ function PaneHeader({
         e.stopPropagation();
         setPaneMenuFor(paneMenuFor === pane.id ? null : pane.id);
       }}
-      title={`${pane.title}${pane.pid ? ` - pid ${pane.pid}` : ''}`}
+      title={[
+        pane.title,
+        pane.pid ? `pid ${pane.pid}` : '',
+        pane.cwd ? pane.cwd : '',
+        pane.lastExit !== undefined
+          ? `${pane.lastCommand ? pane.lastCommand + ' → ' : ''}exit ${pane.lastExit}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+      data-cwd={pane.cwd ?? undefined}
+      data-last-exit={pane.lastExit ?? undefined}
     >
       <PaneIcon kind={pane.kind} agentId={pane.agent?.name} />
       <span className="pane-title">
@@ -104,6 +121,18 @@ function PaneHeader({
       </span>
       {pane.pid ? <span className="pane-pid">{pane.pid}</span> : null}
       {pane.status === 'exited' && <span className="tt-dead">exited</span>}
+      {/* Titik kecil untuk perintah terakhir yang gagal: satu-satunya hal dari
+          kode keluar yang perlu terlihat tanpa membuka tooltip. */}
+      {pane.status !== 'exited' && pane.lastExit !== undefined && pane.lastExit !== 0 ? (
+        <span
+          className="pane-exit-bad"
+          data-testid={`pane-exit-bad-${pane.id}`}
+          title={`Last command exited with code ${pane.lastExit}`}
+          aria-label={`Last command exited with code ${pane.lastExit}`}
+        >
+          {pane.lastExit}
+        </span>
+      ) : null}
 
       <button
         className="tt-tab-close pane-close"

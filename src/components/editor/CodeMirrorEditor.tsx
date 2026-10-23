@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { editorUntukBerkas } from '../../lib/editorPerLanguage';
 import { EditorState, Compartment, type Extension } from '@codemirror/state';
 import {
   EditorView,
@@ -56,6 +57,8 @@ import {
 import { highlightSelectionMatches, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightWhitespace } from '@codemirror/view';
+import { emmetKeymap } from '../../lib/cmEmmet';
+import { regionFold } from '../../lib/cmFoldRegion';
 /*
  * Reused from the explorer rather than copied: the same question ("am I in the
  * agents window?") must have one answer. Imported from `lib/`, NOT from
@@ -250,6 +253,7 @@ function scrollFeel(s: EditorSettings, unit: number): Extension {
 function foldingExt(): Extension {
   return [
     codeFolding(),
+    regionFold,
     foldGutter({
       /* Same stroked geometry as the other gutters, so the fold arrow lines up
          with the diagnostic and breakpoint marks instead of sitting on its own
@@ -301,7 +305,17 @@ export default function CodeMirrorEditor({ tab }: Props) {
 
   const updateTabContent = useStore((s) => s.updateTabContent);
   const setCursor = useStore((s) => s.setCursor);
-  const editorSettings = useStore((s) => s.settings.editor);
+  const editorGlobal = useStore((s) => s.settings.editor);
+  const perLanguage = useStore((s) => s.settings.perLanguage);
+  /*
+   * Setelan editor yang DIPAKAI berkas ini: global, lalu ditimpa oleh entri
+   * bahasanya bila ada. Semua kode di bawah membaca satu nilai ini, jadi tidak
+   * ada tempat yang diam-diam memakai tabSize global untuk berkas Python.
+   */
+  const editorSettings = useMemo(
+    () => editorUntukBerkas(tab.path, editorGlobal, perLanguage),
+    [tab.path, editorGlobal, perLanguage],
+  );
   const general = useStore((s) => s.settings.general);
 
   const themeId = useStore((s) => s.activeTheme);
@@ -376,6 +390,9 @@ export default function CodeMirrorEditor({ tab }: Props) {
               { key: 'Tab', run: nextSnippetField, shift: prevSnippetField },
               { key: 'Escape', run: clearSnippet },
             ]),
+            /* Emmet sengaja SETELAH snippet: Tab di dalam snippet harus
+               melanjutkan field, bukan mengembangkan singkatan. */
+            emmetKeymap(() => tab.lang),
             highlightSelectionMatches(),
             ...(adaLsp ? [lspHover(tab.path ?? ''), lspPeekExtension()] : []),
           ]),
@@ -637,7 +654,10 @@ export default function CodeMirrorEditor({ tab }: Props) {
     tab.path
       ? s.breakpoints
           .filter((b) => kunciPath(b.path) === kunciPath(tab.path as string))
-          .map((b) => `${b.line}:${b.verified ? 1 : 0}:${b.enabled ? 1 : 0}`)
+          .map(
+            (b) =>
+              `${b.line}:${b.verified ? 1 : 0}:${b.enabled ? 1 : 0}:${b.condition ? 1 : 0}${b.hitCondition ? 1 : 0}${b.logMessage ? 1 : 0}`,
+          )
           .join(',')
       : '',
   );
@@ -647,9 +667,13 @@ export default function CodeMirrorEditor({ tab }: Props) {
     const daftar = useDebug.getState().breakpointsUntuk(tab.path);
     view.dispatch({
       effects: bpCompartment.reconfigure(
-        breakpointGutter(daftar, (line) => {
-          void useDebug.getState().toggleBreakpoint(tab.path as string, line);
-        }),
+        breakpointGutter(
+          daftar,
+          (line) => {
+            void useDebug.getState().toggleBreakpoint(tab.path as string, line);
+          },
+          (line) => useDebug.getState().bukaEditBreakpoint(tab.path as string, line),
+        ),
       ),
     });
   }, [bpKunci, tab.path]);

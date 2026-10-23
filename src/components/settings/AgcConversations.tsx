@@ -247,6 +247,7 @@ export default function AgcConversations() {
     notifBanner: true,
     notifSound: false,
     notifVolume: 100,
+    notifAmbang: '5s' as const,
     soundCompleted: 'default',
     soundWaiting: 'default',
     soundStopped: 'default',
@@ -522,6 +523,24 @@ export default function AgcConversations() {
                 testid="agx-conv-notif-sound"
               />
             </div>
+
+            {/*
+              * Notifications disappear on their own - Windows owns the timeout,
+              * so the only thing the app can control is whether it notifies at
+              * all. This row makes that explicit instead of leaving the reader
+              * wondering why a task that finished in 15 s said nothing.
+              */}
+            <Pilih
+              label={tr('Notify Only for Long Tasks')}
+              value={c.notifAmbang}
+              onChange={(v) => set({ notifAmbang: v as 'always' | '5s' | '20s' })}
+              testid="agx-conv-notif-ambang"
+              options={[
+                { value: 'always', label: tr('Any task') },
+                { value: '5s', label: tr('Longer than 5 seconds') },
+                { value: '20s', label: tr('Longer than 20 seconds') },
+              ]}
+            />
 
             {/*
               * One sound per OUTCOME, not one sound for all of them. "Finished" and

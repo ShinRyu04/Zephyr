@@ -497,6 +497,163 @@ pub fn set_settings(app: AppHandle, state: State<AppState>, patch: Value) -> ZRe
     Ok(())
 }
 
+/*
+ * ======================= Profil setelan (ekspor / impor) ===================
+ *
+ * Profil = settings.json yang bisa dibawa ke mesin lain atau disimpan sebagai
+ * cadangan. Yang TIDAK ikut sengaja dibuang, karena isinya hanya bermakna di
+ * mesin ini dan akan menyesatkan bila dipulihkan di tempat lain:
+ *
+ *  - `update`: versi terakhir yang dilihat + pengumuman yang sudah dibaca.
+ *    Kalau ikut, mesin baru mengira ia sudah melewati versi yang belum pernah
+ *    dilihatnya, dan banner pembaruan tidak pernah muncul.
+ *  - `general.userAvatarPath` dan `background.image`: path absolut ke berkas
+ *    milik pengguna di mesin lama. Di mesin lain path itu tidak ada, dan latar
+ *    belakang yang menunjuk berkas hilang tampil sebagai kotak kosong.
+ *
+ * Kunci di luar `default_settings()` juga dibuang saat impor: berkas profil
+ * yang ditulis tangan atau dari versi yang jauh lebih baru tidak boleh
+ * menyelipkan kunci asing ke settings.json.
+ */
+
+const PROFIL_APP: &str = "zephyr";
+
+fn profil_bersih(v: &mut Value) {
+    if let Some(o) = v.as_object_mut() {
+        o.remove("update");
+        if let Some(g) = o.get_mut("general").and_then(|x| x.as_object_mut()) {
+            g.remove("userAvatarPath");
+        }
+        if let Some(b) = o.get_mut("background").and_then(|x| x.as_object_mut()) {
+            b.remove("image");
+        }
+    }
+}
+
+/// Buang bagian profil yang tidak boleh masuk ke settings.json mesin ini.
+///
+/// Dipisah dari perintahnya supaya bisa diuji tanpa AppHandle - dan yang diuji
+/// justru bagian yang menentukan berkas apa yang boleh menimpa data pengguna.
+fn saring_profil(v: &mut Value) -> Result<(), String> {
+    let o = match v.as_object_mut() {
+        Some(o) => o,
+        None => return Err("a settings profile must be a JSON object".into()),
+    };
+
+    if let Some(app_name) = o
+        .get("_profile")
+        .and_then(|p| p.get("app"))
+        .and_then(|a| a.as_str())
+    {
+        if app_name != PROFIL_APP {
+            return Err(format!("that profile belongs to \"{app_name}\", not Zephyr"));
+        }
+    }
+    o.remove("_profile");
+    o.remove("update");
+
+    let dikenal: std::collections::HashSet<String> = default_settings()
+        .as_object()
+        .map(|d| d.keys().cloned().collect())
+        .unwrap_or_default();
+    o.retain(|k, _| dikenal.contains(k));
+
+    if o.is_empty() {
+        return Err("no Zephyr settings were found in that file".into());
+    }
+    Ok(())
+}
+
+fn detik_sekarang() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+#[tauri::command(async)]
+pub fn settings_export(app: AppHandle, state: State<AppState>, path: String) -> ZResult<String> {
+    let tujuan = PathBuf::from(path.trim());
+    if tujuan.as_os_str().is_empty() {
+        return Err(ZephyrError::InvalidInput("no destination path given".into()));
+    }
+    /* Path datang dari dialog simpan, jadi pengguna sudah memilihnya sendiri.
+    `allow` mencatatnya supaya jalur tulis lain di aplikasi juga mengenalnya. */
+    state.allow(&tujuan);
+
+    let mut profil = default_settings();
+    if let Some(user) = read_json_um(&state.file("settings.json")) {
+        deep_merge_um(&mut profil, &user);
+    }
+    profil_bersih(&mut profil);
+
+    if let Some(o) = profil.as_object_mut() {
+        o.insert(
+            "_profile".into(),
+            json!({
+                "app": PROFIL_APP,
+                "version": app.package_info().version.to_string(),
+                "exportedAt": detik_sekarang(),
+                "portable": crate::cli_ext::portable_aktif(),
+            }),
+        );
+    }
+
+    let bytes = serde_json::to_vec_pretty(&profil)?;
+    crate::tulis_aman::tulis_atomik(&tujuan, &bytes)?;
+    tracing::info!(path = %tujuan.display(), "settings profile exported");
+    Ok(tujuan.to_string_lossy().to_string())
+}
+
+#[tauri::command(async)]
+pub fn settings_import(app: AppHandle, state: State<AppState>, path: String) -> ZResult<Value> {
+    let sumber = PathBuf::from(path.trim());
+    let meta = std::fs::metadata(&sumber).map_err(|e| {
+        ZephyrError::InvalidInput(format!("the settings profile could not be read: {e}"))
+    })?;
+    if meta.len() > 4 * 1024 * 1024 {
+        return Err(ZephyrError::InvalidInput(
+            "the settings profile is larger than 4 MB; that is not a Zephyr profile".into(),
+        ));
+    }
+    let raw = std::fs::read_to_string(&sumber).map_err(|e| {
+        ZephyrError::InvalidInput(format!("the settings profile could not be read: {e}"))
+    })?;
+    let mut masuk: Value = serde_json::from_str(raw.trim_start_matches('\u{feff}'))
+        .map_err(|e| ZephyrError::InvalidInput(format!("the settings profile is not valid JSON: {e}")))?;
+
+    saring_profil(&mut masuk).map_err(ZephyrError::InvalidInput)?;
+
+    let dipakai: Vec<String> = masuk
+        .as_object()
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default();
+
+    let target = state.file("settings.json");
+    let mut current = match baca_untuk_patch(&target) {
+        Some(v) => v,
+        None => {
+            return Err(ZephyrError::Internal(
+                "settings.json could not be read; the import was cancelled so it will not overwrite your data"
+                    .into(),
+            ))
+        }
+    };
+    deep_merge_um(&mut current, &masuk);
+    write_json(&target, &current)?;
+
+    for k in &dipakai {
+        let _ = app.emit("settings-changed", json!({ "key": k }));
+    }
+    tracing::info!(path = %sumber.display(), keys = dipakai.len(), "settings profile imported");
+
+    let mut merged = default_settings();
+    if let Some(user) = read_json_um(&target) {
+        deep_merge_um(&mut merged, &user);
+    }
+    Ok(merged)
+}
+
 #[tauri::command]
 pub fn set_window_size(app: AppHandle, width: f64, height: f64) -> ZResult<()> {
     if width < 400.0 || height < 300.0 {
@@ -567,6 +724,10 @@ pub fn workspace_open(app: AppHandle, state: State<AppState>, path: String) -> Z
 
     state.clear_roots();
     state.set_workspace(canon.clone())?;
+    /* Pilihan repo Source Control milik workspace LAMA. Membuka folder baru
+    berarti mulai dari workspace itu sendiri; tanpa ini, repo di dalam folder
+    baru yang kebetulan punya path sama bisa langsung terpilih diam-diam. */
+    let _ = state.set_scm_repo(None);
 
     state.allow_exact(&canon);
     push_recent(&state, &as_string)?;
@@ -805,4 +966,57 @@ pub fn spawn_ram_sampler(app: AppHandle, minimized: Arc<AtomicBool>) {
 #[cfg(test)]
 pub fn merge_for_test(base: &mut Value, patch: &Value) {
     deep_merge_um(base, patch)
+}
+
+#[cfg(test)]
+mod tests_profil {
+    use super::*;
+
+    #[test]
+    fn ekspor_membuang_state_yang_hanya_berlaku_di_mesin_ini() {
+        let mut v = default_settings();
+        v["background"]["image"] = json!("C:/Users/lama/foto.png");
+        v["general"]["userAvatarPath"] = json!("C:/Users/lama/avatar.png");
+        v["update"]["lastSeenVersion"] = json!("9.9.9");
+
+        profil_bersih(&mut v);
+
+        assert!(v["background"].get("image").is_none());
+        assert!(v["general"].get("userAvatarPath").is_none());
+        assert!(v.get("update").is_none());
+        /* Yang bukan state mesin tetap ada. */
+        assert!(v["general"].get("fontSize").is_some());
+    }
+
+    #[test]
+    fn impor_menolak_berkas_yang_bukan_profil() {
+        let mut v = json!([1, 2, 3]);
+        assert!(saring_profil(&mut v).is_err());
+
+        let mut kosong = json!({ "halo": "dunia" });
+        assert!(saring_profil(&mut kosong).is_err());
+    }
+
+    #[test]
+    fn impor_menolak_profil_aplikasi_lain() {
+        let mut v = json!({ "_profile": { "app": "editor-lain" }, "general": {} });
+        assert!(saring_profil(&mut v).is_err());
+    }
+
+    #[test]
+    fn impor_membuang_kunci_asing_dan_mempertahankan_yang_dikenal() {
+        let mut v = json!({
+            "_profile": { "app": "zephyr", "version": "1.4.0" },
+            "general": { "fontSize": 15 },
+            "tidakDikenal": { "apa": true },
+            "update": { "lastSeenVersion": "9.9.9" }
+        });
+
+        saring_profil(&mut v).unwrap();
+
+        assert_eq!(v["general"]["fontSize"], json!(15));
+        assert!(v.get("tidakDikenal").is_none());
+        assert!(v.get("update").is_none());
+        assert!(v.get("_profile").is_none());
+    }
 }

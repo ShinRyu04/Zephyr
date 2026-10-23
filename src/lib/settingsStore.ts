@@ -213,7 +213,9 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
        */
       const baseUrl =
         (useStore.getState().settings.models.providers ?? {})[provider]?.baseUrl || undefined;
-      const info = await cmd.listModels(provider, baseUrl);
+      const fullUrl =
+        (useStore.getState().settings.models.providers ?? {})[provider]?.fullUrl === true;
+      const info = await cmd.listModels(provider, baseUrl, fullUrl);
       const ids = info.map((m) => m.id);
       set((s) => ({
         remoteModels: { ...s.remoteModels, [provider]: ids },
@@ -244,8 +246,14 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
      * refuses `custom` with a clear message instead of inventing a host.
      */
     const dikirim = baseUrl === undefined || baseUrl === null ? baseUrl : String(baseUrl).trim();
+    /* `fullUrl` ikut dikirim: provider yang endpoint-nya sudah lengkap akan
+       diuji ke URL apa adanya, sama seperti saat refresh dan saat chat. Tanpa
+       ini "Test connection" bisa lulus/gagal berbeda dari jalur yang dipakai
+       percakapan sebenarnya. */
+    const fullUrl =
+      (useStore.getState().settings.models.providers ?? {})[provider]?.fullUrl === true;
     try {
-      const r = await cmd.testModelConnection(provider, dikirim);
+      const r = await cmd.testModelConnection(provider, dikirim, fullUrl);
       set((s) => ({ testResults: { ...s.testResults, [provider]: r }, testing: null }));
     } catch (e) {
       set((s) => ({

@@ -23,6 +23,7 @@ pub fn prepare(
     model: &str,
     messages: &[ChatMsg],
     base_url: Option<&str>,
+    full_url: Option<bool>,
     key: &str,
     max_tokens: u32,
     effort: Option<ReasoningEffort>,
@@ -35,7 +36,7 @@ pub fn prepare(
             model, messages, base_url, key, max_tokens, effort,
         )),
         _ => Ok(openai::prepare(
-            provider, model, messages, base_url, key, max_tokens, effort,
+            provider, model, messages, base_url, full_url, key, max_tokens, effort,
         )),
     }
 }
@@ -78,6 +79,7 @@ pub fn prepare_tools(
     messages: &[AgentMsg],
     tools: &[ToolSpec],
     base_url: Option<&str>,
+    full_url: Option<bool>,
     key: &str,
     max_tokens: u32,
     effort: Option<ReasoningEffort>,
@@ -90,7 +92,7 @@ pub fn prepare_tools(
             model, messages, tools, base_url, key, max_tokens, effort,
         )),
         _ => Ok(openai::prepare_tools(
-            provider, model, messages, tools, base_url, key, max_tokens, effort,
+            provider, model, messages, tools, base_url, full_url, key, max_tokens, effort,
         )),
     }
 }
@@ -118,12 +120,13 @@ pub fn prepare_tools_stream(
     messages: &[AgentMsg],
     tools: &[ToolSpec],
     base_url: Option<&str>,
+    full_url: Option<bool>,
     key: &str,
     max_tokens: u32,
     effort: Option<ReasoningEffort>,
 ) -> ZResult<Prepared> {
     let mut p = prepare_tools(
-        provider, model, messages, tools, base_url, key, max_tokens, effort,
+        provider, model, messages, tools, base_url, full_url, key, max_tokens, effort,
     )?;
     if provider == "gemini" {
         p.url = p

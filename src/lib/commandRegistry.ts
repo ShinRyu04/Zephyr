@@ -864,6 +864,21 @@ export const COMMANDS: CommandDef[] = [
     run: () => window.dispatchEvent(new Event('zephyr-quickopen')),
   },
   {
+    /*
+     * Go to Symbol in Workspace: `workspace/symbol` lewat language server,
+     * bukan daftar simbol satu berkas. Ctrl+T karena itu pintasan yang biasa
+     * dipakai untuk pencarian lintas-berkas ini.
+     */
+    id: 'view.workspaceSymbol',
+    title: 'Go: Go to Symbol in Workspace…',
+    group: 'Edit',
+    keywords: 'symbol simbol workspace cari fungsi kelas ctrl t lsp',
+    run: async () => {
+      const { usePalette } = await import('./paletteStore');
+      await usePalette.getState().openPalette('symbol');
+    },
+  },
+  {
     id: 'agents.openWindow',
     title: 'Open in Agents',
     group: 'AI',
@@ -1426,6 +1441,29 @@ export const COMMANDS: CommandDef[] = [
   },
 
   {
+    id: 'editor.organizeImports',
+    title: 'Edit: Organize Imports',
+    group: 'Edit',
+    keywords: 'organize imports rapikan import buang import mati sortir',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const s = S();
+      const id = s.activeTabId;
+      if (!id) return;
+      try {
+        const n = await s.organizeImportsTab(id);
+        notifyInfo(n > 0 ? `Imports organized (${n} edits)` : 'Imports already tidy', {
+          source: 'LSP',
+        });
+      } catch (e) {
+        notifyError(tx('Organize imports failed'), {
+          source: 'LSP',
+          detail: asZephyrError(e).message,
+        });
+      }
+    },
+  },
+  {
     id: 'view.zenMode',
     title: 'View: Toggle Zen Mode',
     group: 'View',
@@ -1832,6 +1870,44 @@ export const COMMANDS: CommandDef[] = [
       if (D.state !== 'inactive') return;
       if (!D.launch) await D.muatLaunch();
       await useDebug.getState().start();
+    },
+  },
+  {
+    /*
+     * Run Without Debugging: jalankan konfigurasi terpilih di terminal, tanpa
+     * sesi DAP. Ctrl+F5 supaya sebaris dengan Start Debugging (F5), sama
+     * seperti VS Code.
+     */
+    id: 'debug.runWithoutDebugging',
+    title: 'Debug: Run Without Debugging',
+    group: 'Debug',
+    keywords: 'debug jalan tanpa debugger ctrl f5',
+    run: async () => {
+      const D = useDebug.getState();
+      if (!D.launch) await D.muatLaunch();
+      await D.runTanpaDebug();
+    },
+  },
+  {
+    id: 'debug.editBreakpoint',
+    title: 'Debug: Edit Breakpoint…',
+    group: 'Debug',
+    keywords: 'debug breakpoint kondisi logpoint hit count syarat',
+    enabled: () => {
+      const s = S();
+      return !!s.tabs.find((t) => t.id === s.activeTabId)?.path;
+    },
+    run: async () => {
+      const s = S();
+      const p = s.tabs.find((t) => t.id === s.activeTabId)?.path;
+      if (!p) return;
+      const { activeLine } = await import('./editorRegistry');
+      const line = activeLine();
+      if (line < 1) {
+        notifyWarn(tx('No cursor in the editor'), { source: 'debug' });
+        return;
+      }
+      useDebug.getState().bukaEditBreakpoint(p, line);
     },
   },
   {
@@ -2537,7 +2613,13 @@ export function taskCommands(): CommandDef[] {
     keywords: `${t.group} ${t.command} ${t.kind}`.trim(),
     description: t.command || `dependsOn: ${t.dependsOn.join(', ')}`,
     run: async () => {
-      usePanel.getState().focusTab('output');
+      /*
+       * Task yang `presentation.panel`-nya terminal tidak menulis apa pun ke
+       * Output, jadi membuka tab Output akan menampilkan kanal kosong — pane
+       * yang benar adalah terminal, dan itu yang dibuka.
+       */
+      const keTerminal = t.panel === 'terminal' || t.panel === 'new' || t.panel === 'dedicated';
+      if (!keTerminal) usePanel.getState().focusTab('output');
       await useTasks.getState().jalankan(t.label);
     },
   }));

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { agentToolSpecs, TOOL_TULIS } from './agentTools';
-import { findModel, PROVIDERS, providerSiap } from './modelCatalog';
+import { findModel, daftarProvider, modelTersedia, providerSiap } from './modelCatalog';
 import { routeSubagentModel, type SubagentModelSource, type SubagentModelCandidate } from './subagentRouter';
 import { useStore } from './store';
 import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline, type PeranId } from './subagentRoles';
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
-import { useAi, isDestructive } from './aiStore';
+import { useAi, isDestructive, fullUrlProvider } from './aiStore';
+import { useSettingsUi } from './settingsStore';
 import { TOOL_DISK_TULIS } from './toolGate';
 import { TOOL_BY_NAME } from './zephyrTools/catalog';
 
@@ -663,10 +664,34 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     const defDefault = subModel
       ? findModel(subModel, (setSub?.provider ?? '').trim() || undefined)
       : findModel(ai.model, ai.provider);
-    const configuredCandidates: SubagentModelCandidate[] = PROVIDERS.flatMap((p) => {
+    const configuredCandidates: SubagentModelCandidate[] = daftarProvider(
+      useStore.getState().settings.models.providers,
+    ).flatMap((p) => {
       const hasKey = useAi.getState().hasKey(p.id);
       const ready = providerSiap(p, hasKey, useStore.getState().settings.models.providers);
-      return ready ? p.models.map((model) => ({ ...model, provider: p.id, available: true })) : [];
+      if (!ready) return [];
+      /*
+       * A custom gateway has no catalogue rows (`p.models` is empty), so its
+       * models must come from what is actually configured: the typed ids plus
+       * the provider's configured model. Reading only `p.models` meant a
+       * sub-agent on `custom-ryuga` got zero candidates and silently ran on
+       * whatever default the router picked.
+       */
+      const ids = [
+        ...(p.models ?? []).map((m) => m.id),
+        ...modelTersedia(p.id, [], useSettingsUi.getState().remoteModels[p.id] ?? [], []).map(
+          (m) => m.id,
+        ),
+      ];
+      return [...new Set(ids)].map((id) => {
+        const meta = (p.models ?? []).find((m) => m.id === id);
+        return {
+          id,
+          label: meta?.label || id,
+          provider: p.id,
+          available: true,
+        } as SubagentModelCandidate;
+      });
     });
     const sesiId = ai.activeId ?? ai.newChat();
 
@@ -981,6 +1006,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
               kedalaman: agent.kedalaman ?? 0,
               alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
             }),
+            fullUrl: fullUrlProvider(pilih.provider),
             maxTokens: setSub?.maxSteps ? 8192 : 8192,
             effort: undefined,
           });
@@ -1235,6 +1261,7 @@ async function jalankanSatu(
               alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
             }),
             baseUrl: ctx.baseUrl,
+            fullUrl: fullUrlProvider(ctx.provider),
             maxTokens: ctx.maxTokens,
             effort: ctx.effort,
           })
