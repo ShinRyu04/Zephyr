@@ -252,7 +252,7 @@ const ID: Dict = {
   'Frontend': 'Frontend',
   'Editor': 'Editor',
   'Terminal': 'Terminal',
-  'Automation': 'Automation',
+  'Automation': 'Otomasi',
   'Folder data': 'Folder data',
   'Folder aplikasi': 'Folder aplikasi',
   'Mode portable': 'Mode portable',
@@ -1862,7 +1862,7 @@ const ID: Dict = {
   'Press a combination…': 'Press a combination…',
   'Previous (Shift+Enter)': 'Previous (Shift+Enter)',
   'Program is running - not paused.': 'Program is running - not paused.',
-  'Projects': 'Projects',
+  'Projects': 'Proyek',
   'Query': 'Query',
   'Quick test': 'Quick test',
   'RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines': 'RAM saver mode is on: minimap/sticky/indent/color decorators off, loaded tab limit 3, terminal scrollback 1000 lines',
@@ -2435,6 +2435,25 @@ const ID: Dict = {
   'Run mode': 'Mode jalan',
   'Let sub-agents write': 'Izinkan sub-agen menulis',
   'Turn on "Let sub-agents write" in Chat Settings, in the Sub-agents section, so they can work (write files) instead of only reading.': 'Nyalakan "Izinkan sub-agen menulis" di Pengaturan Chat, di bagian Sub-agen, agar mereka bisa bekerja (menulis berkas) alih-alih hanya membaca.',
+
+  /*
+   * Label jendela Agents.
+   *
+   * Sidebar-nya dulu teks Inggris mati, jadi mengganti bahasa di Setelan hanya
+   * mengubah jendela utama. Kunci-kuncinya ditambahkan di sini supaya jendela
+   * itu ikut bahasa yang sama.
+   */
+  'New task': 'Tugas baru',
+  'My Artifacts': 'Artefak Saya',
+  'Agent is working': 'Agen sedang bekerja',
+  'Task options': 'Opsi tugas',
+  'Chats': 'Chat',
+  'Collapse All': 'Ciutkan semua',
+  'Expand All': 'Bentangkan semua',
+  'Project options': 'Opsi proyek',
+  'Local Task': 'Tugas lokal',
+  'Cloud tasks are not available yet': 'Tugas cloud belum tersedia',
+  'Filter': 'Filter',
 
 };
 const EN: Dict = {

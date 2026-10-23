@@ -104,6 +104,15 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    */
   const [fetching, setFetching] = useState<Record<string, true>>({});
   const sedangAmbil = Object.keys(fetching).length > 0;
+  /*
+   * Why the last Refresh produced nothing.
+   *
+   * The catch below used to be empty, so a rejected key, a wrong base URL or an
+   * unreachable gateway all looked identical to "the button does nothing" —
+   * the reader pressed Refresh, the spinner blinked, and the list stayed as it
+   * was with no explanation. The message is shown in the menu footer.
+   */
+  const [galat, setGalat] = useState<string | null>(null);
 
   /*
    * Which model the detail card is describing — and WHERE that row is.
@@ -351,7 +360,15 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
      * The check happens BEFORE the spinner so a skip cannot leave it spinning.
      */
     const b = baseUrlEfektif(p, useStore.getState().settings.models.providers) || undefined;
-    if (!b) return;
+    if (!b) {
+      /*
+       * No endpoint = nothing to ask. Say so instead of returning silently:
+       * a custom gateway saved without a base URL used to make Refresh look
+       * broken (spinner never even started).
+       */
+      setGalat(tr('No base URL saved for ') + (namaProvider(p) || p) + '.');
+      return;
+    }
     setFetching((f) => ({ ...f, [p]: true }));
     try {
       /* `fullUrl` ikut dikirim: tanpa ini daftar model diambil dari
@@ -373,8 +390,23 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           ? { ...s.remoteInfo, [p]: Object.fromEntries(info.map((m) => [m.id, m])) }
           : s.remoteInfo,
       }));
-    } catch {
-      /* no key / offline - the stored list is still shown */
+      /*
+       * An empty answer is a failure too, not a success.
+       *
+       * `list_models` returns `[]` for a gateway that parsed but served nothing
+       * (wrong path, HTML login page, `{data: []}`). Keeping it as a silent
+       * success meant the picker showed the stored list and looked like the
+       * button had done nothing at all.
+       */
+      if (info.length === 0) setGalat(tr('The provider returned no models.'));
+    } catch (e) {
+      /*
+       * Was an empty `catch`, which is why a rejected key or an unreachable
+       * gateway read as "refresh tidak berfungsi": the stored list stayed, the
+       * spinner stopped, and nothing said why. The provider's own message is
+       * the most useful text here, so it is surfaced verbatim.
+       */
+      setGalat(String((e as { message?: string } | null)?.message ?? e));
     } finally {
       setFetching((f) => {
         const n = { ...f };
@@ -391,6 +423,8 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
      one is already in memory (a Refresh that returns the old list is a Refresh
      that did nothing). */
   const refreshSemua = async () => {
+    /* Pesan lama dibuang dulu: percobaan baru harus mulai dari layar bersih. */
+    setGalat(null);
     /*
      * Disk dibaca ulang lebih dulu: tombol ini yang ditekan orang setelah
      * memasukkan key, dan `keys`/`siapPakai` yang basi membuat provider baru
@@ -1093,6 +1127,18 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             * models.
             */}
           <div className="ai-mp-foot">
+            {/*
+              * The last Refresh failure, verbatim.
+              *
+              * Refresh used to swallow every error, so a rejected key and an
+              * unreachable gateway both looked like a dead button. This row is
+              * the only place the reason can be read without opening a console.
+              */}
+            {galat && (
+              <div className="ai-mp-galat" data-testid={`${pfx}-model-galat`} title={galat}>
+                {galat}
+              </div>
+            )}
             <button
               type="button"
               className="ai-mp-add"

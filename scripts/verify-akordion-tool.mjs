@@ -53,15 +53,22 @@ const h = await cdp.json(
      * bernarasi: 0" while both were plainly on screen.
      */
     const ringkas = k.querySelector('.ai-kerja-ringkas');
+    /*
+     * Hitungan pindah KE BAR lagi (permintaan user: bar tertutup harus mirip
+     * Freebuff/TRAE, yang menulis "Read 35 files, Searched files 22 times").
+     * Jadi yang dibaca sekarang adalah judul bar itu sendiri, dan durasi
+     * dibaca dari elemen terpisah di kanan bar. Membaca elemen sub yang sudah
+     * tidak ada akan melaporkan "ringkas: null" padahal bar-nya benar.
+     */
     if (k.getAttribute('data-open') !== '1') head?.click();
     await tunggu(300);
-    /* Read the counts AFTER opening: since the counts line moved inside the
-       fold, it is not in the DOM while the bar is collapsed. */
-    const ringkasTeks = k.querySelector('[data-testid="ai-kerja-sub"]')?.textContent ?? null;
+    const ringkasTeks = judul ? judul.textContent : null;
+    const durasiTeks = k.querySelector('[data-testid="ai-kerja-durasi"]')?.textContent ?? null;
     const narasiFold = k.querySelectorAll('[data-testid="ai-kerja-narasi"]').length;
     out.akordion = {
       judul: judul ? judul.textContent : null,
       ringkas: ringkasTeks ?? (ringkas ? ringkas.textContent : null),
+      durasi: durasiTeks,
       open: k.getAttribute('data-open'),
       narasiFold,
       tinggiHead: head ? Math.round(head.getBoundingClientRect().height) : null,
@@ -176,15 +183,15 @@ cek(
   `tinggi=${d.akordion?.tinggiHead}px open=${d.akordion?.open}`,
 );
 cek(
-  'A3 judul menyebut durasi kerja',
+  'A3 bar tertutup menyebut APA yang dikerjakan (judul ringkas, bukan durasi)',
   typeof d.akordion?.judul === 'string' &&
-    /Worked for|Working|Selesai dalam|Sedang bekerja/.test(d.akordion.judul),
+    /Read|Edited|Created|Ran|Searched|steps|Working|Done/.test(d.akordion.judul),
   String(d.akordion?.judul),
 );
 cek(
-  'A4 ringkasan menyebut apa yang disentuh',
-  typeof d.akordion?.ringkas === 'string' && d.akordion.ringkas.length > 0,
-  String(d.akordion?.ringkas),
+  'A4 durasi tetap terlihat di kanan bar',
+  typeof d.akordion?.durasi === 'string' && d.akordion.durasi.length > 0,
+  String(d.akordion?.durasi),
 );
 cek(
   'A5 dibuka: langkah tampil sebagai baris datar, bukan kartu',

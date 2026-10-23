@@ -37,6 +37,7 @@ import { useStore } from './store';
 import {
   deteksiKemampuan,
   findModel,
+  idProviderNyata,
   isPlaceholderModel,
   MODEL_FALLBACK,
   PROVIDER_AUTO,
@@ -3812,7 +3813,13 @@ export const useAi = create<AiStore>((set0, get) => {
 
     let adaKey: string[] = [];
     try {
-      const pub = await cmd.getPublicModels();
+      /*
+       * Hanya slot provider yang nyata. `secrets.json` juga menyimpan hal yang
+       * bukan provider (`github` = payload login), dan slot semacam itu dulu
+       * ikut dihitung "punya key" oleh pemilih model serta muncul di daftar
+       * Active provider — memilihnya membuat setiap kiriman gagal.
+       */
+      const pub = (await cmd.getPublicModels()).filter((k) => idProviderNyata(k.provider));
       set({ keys: pub });
       adaKey = pub.filter((k) => k.hasKey).map((k) => k.provider);
     } catch {
@@ -3906,7 +3913,7 @@ export const useAi = create<AiStore>((set0, get) => {
 
   loadKeys: async () => {
     try {
-      set({ keys: await cmd.getPublicModels() });
+      set({ keys: (await cmd.getPublicModels()).filter((k) => idProviderNyata(k.provider)) });
     } catch {
       /* non-fatal: the status badge becomes "no key yet" */
     }
@@ -3979,12 +3986,33 @@ export const useAi = create<AiStore>((set0, get) => {
     if (pilihHydra(get().model)) return;
     const models = useStore.getState().settings.models;
     /*
+     * The stored choice, turned into the provider that will really send.
+     *
+     * MENGOAPA: `activeProvider` bisa berisi slot tunggal `'custom'` - nilai
+     * bawaan `DEFAULT_SETTINGS`, dan yang ditulis tombol "Custom" di daftar
+     * Active model. Slot itu TIDAK punya endpoint, jadi tidak pernah bisa
+     * mengirim; membandingkan panel dengan nilai mentahnya berarti panel tetap
+     * di gateway kustom sedangkan siapa pun yang bertanya "provider mana yang
+     * aktif?" membaca 'custom'. `providerTersimpanValid` memetakannya ke
+     * gateway `custom-*` yang benar-benar tersimpan, dan `providerEfektif`
+     * menyelesaikan `'auto'` - fungsi yang sama yang dipakai saat init, supaya
+     * "provider aktif" hanya punya SATU jawaban di seluruh aplikasi.
+     */
+    const mentah = models?.activeProvider;
+    const diselesaikan =
+      !mentah || mentah === PROVIDER_AUTO
+        ? ''
+        : providerEfektif(
+            providerTersimpanValid(mentah, models.providers),
+            (id) => get().keys.some((k) => k.provider === id && k.hasKey) || get().disk.has(id),
+          );
+    /*
      * `'auto'` is not a provider, so there is nothing to normalise TOWARDS: the
      * live provider was already resolved at init and by the picker. Returning
      * early is what keeps `auto` from snapping the panel onto a provider the
      * reader never chose - the same failure HydraFusion had.
      */
-    const target = models?.activeProvider;
+    const target = diselesaikan || mentah;
     if (!target || target === PROVIDER_AUTO) return;
 
     /*
@@ -9729,7 +9757,18 @@ let autoLanjut = 0;
               jejakKandidat.length ? jejakKandidat.join('; ') : '(tanpa kandidat tercatat)'
             }. Total percobaan kirim: ${jejakPercobaan} kali.`
           : '';
-      finalError = `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}${jejakTeks}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
+      /*
+       * A cancellation is not a failure report, so it does not get the full
+       * post-mortem.
+       *
+       * The template below names the category, the retry trail and the resume
+       * hint — useful when a provider broke, noise when the reader pressed Stop
+       * themselves. They know what happened; the transcript should just end.
+       */
+      finalError =
+        agentFailure.category === 'cancelled'
+          ? 'Dihentikan.'
+          : `Agent stopped: ${agentFailureLabel(agentFailure.category)}: ${agentFailure.message}${jejakTeks}\n\nTugas dihentikan; perubahan yang sudah tersimpan tetap ada.${bisaLanjut ? ' Ketik "lanjut" atau tekan tombol Lanjut untuk meneruskan dari langkah terakhir.' : ''}`;
       const context = akhir.trim();
       akhir = context ? `${context}\n\n${finalError}` : finalError;
       if (bisaLanjut) {

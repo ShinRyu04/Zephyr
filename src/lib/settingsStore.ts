@@ -3,6 +3,7 @@ import * as cmd from './commands';
 import type { ModelInfo } from './commands';
 import type { ModelTestResult, PublicModel } from './types';
 import { useStore } from './store';
+import { idProviderNyata } from './modelCatalog';
 
 export type SectionId =
   | 'general'
@@ -162,7 +163,10 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
 
   loadKeys: async () => {
     try {
-      set({ keys: await cmd.getPublicModels() });
+      /* Slot yang bukan provider (`github` = payload login) tidak boleh ikut:
+         ia muncul sebagai pilihan Active provider dan setiap kiriman ke sana
+         gagal dengan "unknown provider has no base URL". */
+      set({ keys: (await cmd.getPublicModels()).filter((k) => idProviderNyata(k.provider)) });
     } catch (e) {
       set({ message: cmd.asZephyrError(e).message });
     }
@@ -171,7 +175,7 @@ export const useSettingsUi = create<SettingsUiState & SettingsUiActions>((set, g
   saveKey: async (provider, key) => {
     try {
       await cmd.setModelKey(provider, key);
-      const keys = await cmd.getPublicModels();
+      const keys = (await cmd.getPublicModels()).filter((k) => idProviderNyata(k.provider));
       set({ keys, message: key.trim() ? 'API key saved' : 'API key removed' });
 
       /*

@@ -3,14 +3,37 @@ use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 use tauri::State;
 
 const SALT: &str = "zephyr/secrets/v1";
 
-fn machine_seed() -> String {
-    let name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "unknown-host".into());
-    let user = std::env::var("USERNAME").unwrap_or_else(|_| "unknown-user".into());
+/*
+ * Kunci enkripsi dihitung SEKALI per proses, lalu dipakai terus.
+ *
+ * Dulu `machine_seed()` dipanggil ulang pada SETIAP enkripsi dan dekripsi, dan
+ * isinya membaca MachineGuid lewat `reg.exe`. Itu berarti setiap pembacaan
+ * daftar kunci men-spawn puluhan proses `reg` (satu per provider), dan - yang
+ * jauh lebih parah - kalau SATU panggilan itu gagal, seed-nya berubah menjadi
+ * `no-guid` untuk panggilan berikutnya. Dua akibat nyata yang dilaporkan:
+ *
+ *   1. "API key tidak terdeteksi" pada key yang jelas tersimpan: blob di disk
+ *      dienkripsi dengan seed A, lalu dibaca dengan seed B, hasilnya bukan
+ *      UTF-8 yang sah, `has_key` menjadi false, dan panel menampilkan "masukin
+ *      API key" untuk key yang ada.
+ *   2. Active provider melompat-lompat: daftar key yang kosong membuat resolver
+ *      mengambil provider katalog pertama atau jatuh ke slot liar.
+ *
+ * `OnceLock` membuat satu proses hanya punya SATU seed. Nilai lama yang sempat
+ * ditulis saat `reg` gagal tetap bisa dibaca lewat `cadangan` (varian
+ * `no-guid`), jadi memperbaiki ini tidak mengunci key yang sudah ada.
+ */
+struct KunciSekret {
+    utama: String,
+    cadangan: Vec<String>,
+}
 
+fn machine_guid() -> String {
     let mut reg = crate::proc::cmd("reg");
     reg.args([
         "query",
@@ -18,8 +41,7 @@ fn machine_seed() -> String {
         "/v",
         "MachineGuid",
     ]);
-    let guid = reg
-        .output()
+    reg.output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| {
@@ -28,34 +50,81 @@ fn machine_seed() -> String {
                 .map(|x| x.trim().to_string())
                 .filter(|x| x.len() > 8)
         })
-        .unwrap_or_else(|| "no-guid".into());
-
-    format!("{SALT}|{guid}|{name}|{user}")
+        .unwrap_or_else(|| "no-guid".into())
 }
 
-fn keystream(len: usize) -> Vec<u8> {
+fn kunci_sekret() -> &'static KunciSekret {
+    static KUNCI: OnceLock<KunciSekret> = OnceLock::new();
+    KUNCI.get_or_init(|| {
+        let name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "unknown-host".into());
+        let user = std::env::var("USERNAME").unwrap_or_else(|_| "unknown-user".into());
+        let guid = machine_guid();
+        let bikin = |g: &str| format!("{SALT}|{g}|{name}|{user}");
+
+        let utama = bikin(&guid);
+        /*
+         * Seed cadangan khusus untuk blob lama yang sempat ditulis ketika
+         * `reg` gagal pada build sebelumnya (seed-nya jatuh ke `no-guid`).
+         * Hanya dipakai saat DEKRIPSI; enkripsi baru selalu memakai `utama`.
+         */
+        let mut cadangan = Vec::new();
+        if guid != "no-guid" {
+            cadangan.push(bikin("no-guid"));
+        }
+
+        KunciSekret { utama, cadangan }
+    })
+}
+
+fn keystream(seed: &str, len: usize) -> Vec<u8> {
     let mut out = vec![0u8; len];
     blake3::Hasher::new()
-        .update(machine_seed().as_bytes())
+        .update(seed.as_bytes())
         .finalize_xof()
         .fill(&mut out);
     out
 }
 
-fn xor_crypt(data: &[u8]) -> Vec<u8> {
-    let ks = keystream(data.len());
+fn xor_crypt(seed: &str, data: &[u8]) -> Vec<u8> {
+    let ks = keystream(seed, data.len());
     data.iter().zip(ks).map(|(b, k)| b ^ k).collect()
 }
 
 fn encrypt(plain: &str) -> String {
     use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(xor_crypt(plain.as_bytes()))
+    let k = kunci_sekret();
+    base64::engine::general_purpose::STANDARD.encode(xor_crypt(&k.utama, plain.as_bytes()))
 }
 
 fn decrypt(enc: &str) -> Option<String> {
     use base64::Engine;
     let raw = base64::engine::general_purpose::STANDARD.decode(enc).ok()?;
-    String::from_utf8(xor_crypt(&raw)).ok()
+    let k = kunci_sekret();
+    if let Ok(teks) = String::from_utf8(xor_crypt(&k.utama, &raw)) {
+        return Some(teks);
+    }
+    for seed in &k.cadangan {
+        if let Ok(teks) = String::from_utf8(xor_crypt(seed, &raw)) {
+            return Some(teks);
+        }
+    }
+    None
+}
+
+/*
+ * Satu penulis `secrets.json` pada satu waktu.
+ *
+ * `set_secret` dan `set_model_key` sama-sama melakukan baca-ubah-tulis atas
+ * SATU berkas, dan app ini punya dua jendela (utama + Agents) yang bisa
+ * menulisnya hampir bersamaan. Tanpa kunci ini, dua penulisan yang berangkat
+ * dari salinan lama saling menimpa: jendela yang menyimpan token GitHub dari
+ * salinan sebelum key model ditambahkan akan MENGHAPUS key model itu. Gejalanya
+ * persis "key yang tadi saya masukkan hilang sendiri".
+ */
+static TULIS_SEKRET: Mutex<()> = Mutex::new(());
+
+fn kunci_tulis() -> std::sync::MutexGuard<'static, ()> {
+    TULIS_SEKRET.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 pub fn encrypt_string(plain: &str) -> String {
@@ -173,6 +242,17 @@ pub struct PublicModel {
  * `xai` is deliberately absent: the catalogue no longer offers it. A key left
  * over in secrets.json under that name is simply never read.
  */
+/*
+ * Slot di `secrets.json` yang BUKAN provider model.
+ *
+ * `github` menyimpan payload login GitHub (token + profil) dan dibaca Rust
+ * lewat `key_for("github")`. Ia tidak punya endpoint chat, jadi tidak boleh
+ * ikut sebagai "provider": dulu ia muncul di daftar key, lalu muncul sebagai
+ * pilihan "Active provider" - dan memilihnya membuat setiap kiriman gagal
+ * dengan "unknown provider \"github\" has no base URL".
+ */
+const SLOT_BUKAN_PROVIDER: [&str; 1] = ["github"];
+
 const KNOWN_PROVIDERS: [&str; 29] = [
     "gemini",
     "openai",
@@ -211,6 +291,9 @@ pub fn get_public_models(state: State<AppState>) -> ZResult<Vec<PublicModel>> {
 
     let mut names: Vec<String> = KNOWN_PROVIDERS.iter().map(|s| s.to_string()).collect();
     for k in secrets.keys() {
+        if SLOT_BUKAN_PROVIDER.contains(&k.as_str()) {
+            continue;
+        }
         if !names.iter().any(|n| n == k) {
             names.push(k.clone());
         }
@@ -276,6 +359,7 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
     if n.is_empty() {
         return Err(ZephyrError::InvalidInput("secret name is empty".into()));
     }
+    let _pegang = kunci_tulis();
     let mut map = map_untuk_tulis(state)?;
     if value.trim().is_empty() {
         map.remove(n);
@@ -286,18 +370,36 @@ pub fn set_secret(state: &AppState, name: &str, value: &str) -> ZResult<()> {
 }
 
 #[tauri::command(async)]
-pub fn set_model_key(state: State<AppState>, provider: String, key: String) -> ZResult<()> {
+pub fn set_model_key(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    provider: String,
+    key: String,
+) -> ZResult<()> {
     let p = provider.trim();
     if p.is_empty() {
         return Err(ZephyrError::InvalidInput("provider is empty".into()));
     }
+    let _pegang = kunci_tulis();
     let mut map = map_untuk_tulis(&state)?;
     if key.trim().is_empty() {
         map.remove(p);
     } else {
         map.insert(p.to_string(), Value::String(encrypt(key.trim())));
     }
-    write_secrets(&state, &map)
+    write_secrets(&state, &map)?;
+    /*
+     * Umumkan ke SEMUA jendela.
+     *
+     * Tiap jendela menyimpan salinan daftar key sendiri; dulu hanya jendela
+     * yang menyimpan key yang memperbaruinya. Jendela Agents karena itu terus
+     * menampilkan "provider ini belum punya API key" untuk key yang sudah
+     * tertulis di `secrets.json` — persis keluhan "key masuk di jendela utama,
+     * nggak kebaca di jendela agent".
+     */
+    use tauri::Emitter;
+    let _ = app.emit("secrets-changed", json!({ "provider": p }));
+    Ok(())
 }
 
 /// The endpoint to call for a provider, plus the auth header to call it with.
@@ -900,6 +1002,20 @@ pub fn reset_settings(app: tauri::AppHandle, state: State<AppState>) -> ZResult<
 pub fn roundtrip_for_test(plain: &str) -> (String, Option<String>) {
     let enc = encrypt(plain);
     (enc.clone(), decrypt(&enc))
+}
+
+/// Seed utama proses ini, untuk membuktikan bahwa ia tidak berubah antar-panggilan.
+#[cfg(test)]
+pub fn seed_for_test() -> (String, Vec<String>) {
+    let k = kunci_sekret();
+    (k.utama.clone(), k.cadangan.clone())
+}
+
+/// Enkripsi dengan seed PILIHAN, supaya fallback dekripsi bisa diuji.
+#[cfg(test)]
+pub fn encrypt_with_seed_for_test(plain: &str, seed: &str) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(xor_crypt(seed, plain.as_bytes()))
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { folderDialogOpen, revealPath } from '../../lib/commands';
+import { useT } from '../../lib/i18n';
 import type { TampilanAgents } from '../../lib/agentsWindow';
 
 /*
@@ -204,6 +205,15 @@ export default function AgentsSidebar({
   const gantiJudul = useAi((s) => s.renameChat);
   const pinSesi = useAi((s) => s.setChatPinned);
   const workspace = useStore((s) => s.workspace);
+  /*
+   * Label sidebar ikut bahasa UI.
+   *
+   * Jendela Agents dulu menulis semuanya sebagai teks Inggris mati ("New task",
+   * "Marketplace", "My Artifacts", ...), jadi mengganti bahasa di Setelan hanya
+   * mengubah jendela utama — jendela ini tetap Inggris. Yang benar adalah
+   * `tr()` di sini, sama seperti komponen lain.
+   */
+  const tr = useT();
 
   /* Proyek yang dibuka. Bawaannya terbuka: kelompok yang tertutup rapi tidak
      memberi jalan kembali ke percakapan yang sedang berjalan. */
@@ -268,7 +278,16 @@ export default function AgentsSidebar({
   const namaProyekSaja = grupProyek.map((g) => g.nama);
   const labelDefault = namaProyekSaja.includes(namaDefault) ? 'Default' : namaDefault;
 
-  const judul = (t: string) => (t.trim() ? t : 'New task');
+  /*
+   * Judul sesi yang masih bawaan ikut bahasa UI.
+   *
+   * "New chat" tersimpan sebagai JUDUL sesi saat dibuat, jadi ia bukan teks
+   * UI dan tidak pernah diterjemahkan — daftar tetap Inggris walau chromenya
+   * sudah Indonesia. Hanya judul bawaan yang diterjemahkan; judul yang diketik
+   * reader dibiarkan apa adanya.
+   */
+  const judul = (t: string) =>
+    t.trim() ? (t === 'New chat' ? tr('New chat') : t) : tr('New task');
   const aktifDiRiwayat = grupDefault.some((s) => s.id === aktif);
 
   /* Waktu tersentuh terakhir sebuah percakapan: pesan terakhir kalau ada,
@@ -360,7 +379,7 @@ export default function AgentsSidebar({
             className="agx-sesi-ring"
             data-testid="agx-sesi-berjalan"
             aria-label="Agent is working"
-            title="Agent is working"
+            title={tr('Agent is working')}
           />
         )}
 
@@ -368,7 +387,7 @@ export default function AgentsSidebar({
           className="agx-baris-aksi"
           data-testid="agx-sesi-menu"
           aria-label="Task options"
-          title="Task options"
+          title={tr('Task options')}
           onClick={(e) => {
             e.stopPropagation();
             const r = e.currentTarget.getBoundingClientRect();
@@ -406,7 +425,7 @@ export default function AgentsSidebar({
           }}
         >
           <IkonPlusBulat />
-          <span>New task</span>
+          <span>{tr('New task')}</span>
         </button>
         <button
           className={`agx-nav${tampilan === 'marketplace' ? ' is-aktif' : ''}`}
@@ -414,7 +433,7 @@ export default function AgentsSidebar({
           onClick={() => onTampilan('marketplace')}
         >
           <IkonPasar />
-          <span>Marketplace</span>
+          <span>{tr('Marketplace')}</span>
         </button>
         <button
           className={`agx-nav${tampilan === 'automation' ? ' is-aktif' : ''}`}
@@ -422,7 +441,7 @@ export default function AgentsSidebar({
           onClick={() => onTampilan('automation')}
         >
           <IkonJam />
-          <span>Automation</span>
+          <span>{tr('Automation')}</span>
         </button>
         <button
           className={`agx-nav${tampilan === 'artifacts' ? ' is-aktif' : ''}`}
@@ -430,19 +449,19 @@ export default function AgentsSidebar({
           onClick={() => onTampilan('artifacts')}
         >
           <IkonKotak />
-          <span>My Artifacts</span>
+          <span>{tr('My Artifacts')}</span>
         </button>
       </nav>
 
       <div className="agx-side-daftar">
         <div className="agx-daftar-kepala" data-testid="agx-daftar-kepala">
-          <span className="agx-daftar-judul">{mode === 'list' ? 'Chats' : 'Projects'}</span>
+          <span className="agx-daftar-judul">{mode === 'list' ? tr('Chats') : tr('Projects')}</span>
           <span className="agx-grup-aksi">
             <button
               className="agx-ikon-btn"
               data-testid="agx-collapse-all"
-              title={semuaTerbuka ? 'Collapse All' : 'Expand All'}
-              aria-label={semuaTerbuka ? 'Collapse All' : 'Expand All'}
+              title={semuaTerbuka ? tr('Collapse All') : tr('Expand All')}
+              aria-label={semuaTerbuka ? tr('Collapse All') : tr('Expand All')}
               onClick={() => (semuaTerbuka ? tutupSemua() : bukaSemua())}
             >
               <IkonPanahKeluar />
@@ -450,8 +469,8 @@ export default function AgentsSidebar({
             <button
               className={`agx-ikon-btn${menuOpsi ? ' is-on' : ''}`}
               data-testid="agx-view-options"
-              title="View Options"
-              aria-label="View Options"
+              title={tr('View Options')}
+              aria-label={tr('View Options')}
               aria-expanded={!!menuOpsi}
               onClick={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
@@ -498,7 +517,7 @@ export default function AgentsSidebar({
                           className="agx-baris-aksi"
                           data-testid="agx-proyek-menu"
                           aria-label="Project options"
-                          title="Project options"
+                          title={tr('Project options')}
                           onClick={(e) => {
                             e.stopPropagation();
                             const r = e.currentTarget.getBoundingClientRect();
@@ -511,7 +530,7 @@ export default function AgentsSidebar({
                           className="agx-baris-aksi"
                           data-testid="agx-proyek-baru"
                           aria-label="New task in this project"
-                          title="New task"
+                          title={tr('New task')}
                           onClick={(e) => {
                             e.stopPropagation();
                             ikutiWorkspace(g.jalur);
@@ -559,7 +578,7 @@ export default function AgentsSidebar({
               <div className="agx-kartu-judul">{judul(s.title)}</div>
               <div className="agx-kartu-baris">
                 <IkonKotak />
-                <span>Local Task</span>
+                <span>{tr('Local Task')}</span>
               </div>
               {s.workspace && (
                 <div className="agx-kartu-baris">
@@ -731,7 +750,7 @@ export default function AgentsSidebar({
       {menuOpsi &&
         menu(
           <>
-            <div className="agx-ctx-judul">View</div>
+            <div className="agx-ctx-judul">{tr('View')}</div>
             <button
               className="agx-ctx-item"
               data-testid="agx-view-grouped"
@@ -759,7 +778,7 @@ export default function AgentsSidebar({
               {mode === 'list' && <span className="agx-ctx-cek">✓</span>}
             </button>
             <div className="agx-ctx-pisah" />
-            <div className="agx-ctx-judul">Filter</div>
+            <div className="agx-ctx-judul">{tr('Filter')}</div>
             <button
               className="agx-ctx-item"
               data-testid="agx-filter-all"
@@ -777,7 +796,7 @@ export default function AgentsSidebar({
               className="agx-ctx-item is-mati"
               data-testid="agx-filter-cloud"
               disabled
-              title="Cloud tasks are not available yet"
+              title={tr('Cloud tasks are not available yet')}
             >
               <IkonJam />
               Cloud
