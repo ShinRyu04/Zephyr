@@ -1,0 +1,76 @@
+PROMPT: Fitur Multiple Custom Providers untuk Zephyr
+Konteks Proyek
+Zephyr adalah code editor desktop (Tauri 2 + React + TypeScript). Proyek ada di D:\Zephyr. Jalankan npx tsc --noEmit setelah selesai, pastikan 0 error.
+Masalah
+Saat ini di fitur AI, custom model hanya punya 1 slot "custom" — artinya hanya bisa 1 API key dan 1 base URL. Semua model custom numpuk di provider "custom" itu. User ingin bisa menambahkan banyak custom provider (misal "geraikita", "modelrouter"), masing-masing dengan nama, URL, dan API key sendiri-sendiri.
+Kabar Baik: Backend Rust Sudah Siap
+secrets.json (penyimpanan API key) adalah flat map string -> string — menerima key apapun, bukan hanya "custom". Contoh: set_model_key("custom-geraikita", "sk-xxx") langsung bisa.
+settings.models.providers di settings.json adalah Record<string, { baseUrl?, model? }> — bebas ditambah entry baru.
+Adapter routing di src-tauri/src/adapters/mod.rs: semua provider selain "anthropic" dan "gemini" masuk ke adapter OpenAI — artinya "custom-geraikita" otomatis ditangani.
+endpoint_for() di secrets.rs sudah punya fallback arm yang menerima provider tak dikenal asalkan ada base_url.
+get_public_models di secrets.rs line 213-217 sudah menambahkan key apapun yang ada di secrets.json tapi tidak ada di KNOWN_PROVIDERS ke hasil output.
+Kesimpulan: TIDAK perlu ubah file Rust apapun. Semua perubahan di frontend.
+Strategi Naming
+Custom provider ID: custom-{slug}. Slug = nama yang diketik user, di-lowercase, strip karakter non-alphanum, spasi jadi dash. Contoh:
+Nama "GeraiKita" → ID custom-geraikita
+Nama "Model Router" → ID custom-model-router
+Provider lama "custom" (tanpa suffix) tetap didukung untuk backward compatibility.
+Perubahan yang Harus Dilakukan
+1. src/components/settings/AiModelsDialog.tsx
+Sekarang: Fungsi pilihKustom() (sekitar line 126-138) hardcode provider.id = 'custom'.Yang harus diubah:
+Tambahkan state providerName (string, default kosong).
+Setelah klik tile "Custom Model", tampilkan field input "Provider Name" di atas field "API Format". Placeholder: "contoh: geraikita, modelrouter". Label: "Provider Name".
+Generate slug dari nama: const slug = name.trim() ? 'custom-' + name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'custom';
+Gunakan slug ini sebagai provider.id — bukan hardcode "custom".
+Saat save key: ui.saveKey(slug, key) bukan ui.saveKey("custom", key).
+Saat save baseUrl: settings.models.providers[slug].baseUrl bukan settings.models.providers["custom"].baseUrl.
+Model yang ditambahkan mendapat provider: slug.
+Dropdown existing custom providers: Tampilkan juga dropdown/datalist provider custom yang sudah ada (ambil dari settings.models.custom yang provider-nya dimulai dengan "custom-"). Supaya user bisa pilih provider yang sudah ada tanpa ketik ulang nama/key/URL. Jika pilih dari dropdown, isi otomatis nama, URL, dan tampilkan status key.
+Jika nama kosong, fallback ke "custom" (backward compat).
+2. src/lib/aiStore.ts — Fungsi send()
+Sekarang (sekitar line 5666 dan 5828): baseUrl hanya dibaca dari settings.models.providers[provider].baseUrl.Yang harus diubah:
+Setelah resolve def = findModel(...), cari juga entry custom model dari settings.models.custom[] yang cocok provider + id.
+Jika entry custom punya baseUrl sendiri, gunakan itu.
+Prioritas: per-model baseUrl > provider-level settings.models.providers[provider].baseUrl > default.
+Ini cuma 2-3 baris tambahan. Contoh:
+const customEntry = settings.models.custom?.find(c => c.provider === def.provider && c.id === def.id);
+const baseUrl = customEntry?.baseUrl || cfg.baseUrl || undefined;
+3. src/lib/modelCatalog.tsx — findModel() dan providerEfektif()
+findModel(): Saat provider dimulai dengan "custom-", cari di settings.models.custom[] berdasarkan provider + id (sama seperti "custom").
+providerEfektif(): Provider yang dimulai dengan "custom-" harus di-treat sebagai OpenAI-compatible, sama seperti "custom". Kemungkinan ada switch/if yang handle "custom" — tambahkan .startsWith("custom") ke kondisi itu.
+4. src/components/settings/AiModelsPage.tsx — Daftar Model
+Sekarang: Custom model ditampilkan dalam 1 grup "Kustom" (semua dicampur).Yang harus diubah:
+Pecah grup custom berdasarkan provider name.
+Untuk provider "custom-geraikita" → tampilkan header "Geraikita (N)" (strip prefix custom-, capitalize first letter).
+Untuk provider "custom" (legacy tanpa nama) → tetap tampilkan header "Kustom (N)".
+Setiap sub-grup bisa di-collapse/expand seperti grup yang sudah ada.
+5. src/styles/aim-models.css — Styling Minor
+Style field "Provider Name" di dialog (gunakan class yang sudah ada seperti aim-row, aim-field, aim-input).
+Style sub-grup header di daftar model (gunakan pattern yang sudah ada untuk grup "Built-in" dan "Kustom").
+Yang TIDAK Boleh Diubah
+File Rust apapun (src-tauri/) — backend sudah siap.
+Built-in providers (openai, anthropic, gemini, deepseek, dll).
+File verifikasi (scripts/verify*.mjs).
+Fitur lain yang sudah berjalan.
+Validasi
+npx tsc --noEmit → 0 error.
+Tambah custom provider "test1" dengan URL https://example.com/v1 dan API key "sk-test1" → key tersimpan di secrets.json["custom-test1"], baseUrl di settings.json models.providers["custom-test1"].baseUrl.
+Tambah custom provider "test2" dengan URL dan key berbeda → tersimpan terpisah.
+Model dari provider berbeda bisa dipilih dan mengirim chat dengan URL + key yang benar.
+Model custom lama (provider "custom") tetap berfungsi.
+Daftar model menampilkan grup terpisah per custom provider.
+File Referensi Penting
+File	Peran
+src/components/settings/AiModelsDialog.tsx	Dialog "Add Model" — perubahan utama
+src/lib/aiStore.ts	Store AI + fungsi send() — fix baseUrl resolution
+src/lib/modelCatalog.tsx	findModel(), providerEfektif() — treat custom-* sebagai OpenAI-compat
+src/components/settings/AiModelsPage.tsx	Daftar model — grouping per provider
+src/lib/types.ts	Interface Settings.models — lihat custom[] array (line ~1449)
+src/styles/aim-models.css	Styling dialog dan daftar model
+src-tauri/src/secrets.rs	JANGAN DIUBAH — referensi saja untuk memahami storage
+src-tauri/src/ai.rs	JANGAN DIUBAH — referensi saja untuk memahami ai_chat flow
+Itu prompt lengkapnya bro. Tinggal copy-paste ke Claude Code, Codex, atau Hermes dan mereka bisa langsung kerja. Prompt ini sudah mencakup konteks arsitektur, file mana saja yang perlu diubah, apa yang harus dilakukan per file, dan apa yang tidak boleh disentuh.
+
+
+
+

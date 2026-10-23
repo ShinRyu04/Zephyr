@@ -10,7 +10,13 @@ import {
   eventToBinding,
   findConflicts,
 } from '../../lib/shortcuts';
-import { PROVIDERS, PROVIDER_AUTO, ProviderLogo, type ProviderInfo } from '../../lib/modelCatalog';
+import {
+  PROVIDERS,
+  PROVIDER_AUTO,
+  ProviderLogo,
+  providerTersimpanValid,
+  type ProviderInfo,
+} from '../../lib/modelCatalog';
 import * as cmd from '../../lib/commands';
 import { defaultStartCommand, useTerminal } from '../../lib/terminalStore';
 import { NumberInput, Row, Section, Select, TextInput, Toggle } from './SettingsControls';
@@ -253,6 +259,21 @@ export function ModelsSection() {
       tambah(id, id.replace(/^custom-/, ''));
     }
     for (const c of models?.custom ?? []) tambah(c.provider, c.provider.replace(/^custom-/, ''));
+    /*
+     * Slot `custom` tanpa konfigurasi dibuang dari daftar.
+     *
+     * Ia dulu ikut tampil karena masuk katalog bawaan, padahal tidak punya
+     * endpoint dan tidak bisa mengirim. Akibatnya `activeProvider` = 'custom'
+     * bertahan sebagai nilai tersimpan walau pembaca sudah punya gateway
+     * sendiri — dan halaman Models / "Active provider" selalu terbaca "Custom",
+     * sementara panel AI diam-diam mengirim lewat gateway yang lain. Yang
+     * boleh tampil hanya slot yang benar-benar dikonfigurasi, yaitu yang
+     * `providerTersimpanValid` anggap sudah punya URL.
+     */
+    if (providerTersimpanValid('custom', providers) === 'custom') {
+      const i = keluar.findIndex((p) => p.id === 'custom');
+      if (i >= 0) keluar.splice(i, 1);
+    }
     return keluar;
   }, [providers, models?.custom]);
 

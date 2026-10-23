@@ -813,6 +813,16 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  /*
+   * Daftar API key ikut berubah di jendela ini juga.
+   *
+   * Key yang disimpan dari jendela Agents (atau dari panel Models) harus
+   * langsung terbaca di sini, dan sebaliknya — lihat `lib/secretsSync.ts`.
+   */
+  useEffect(() => {
+    void import('./lib/secretsSync').then((m) => m.pasangSinkronKunci());
+  }, []);
+
   useEffect(() => {
     void useKb.getState().load();
 

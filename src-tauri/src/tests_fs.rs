@@ -331,6 +331,36 @@ mod tests {
         assert_ne!(enc, key);
     }
 
+    /// Seed enkripsi tidak boleh berubah di tengah jalan.
+    ///
+    /// Inilah akar "API key tidak terdeteksi": dulu seed dihitung ulang tiap
+    /// panggilan lewat `reg query`, jadi satu kegagalan subprocess sudah cukup
+    /// untuk mengubah kunci dan membuat blob yang tersimpan tidak terbaca.
+    #[test]
+    fn seed_enkripsi_stabil_antar_panggilan() {
+        let (a, _) = crate::secrets::seed_for_test();
+        for _ in 0..5 {
+            let (b, _) = crate::secrets::seed_for_test();
+            assert_eq!(a, b, "seed harus sama di seluruh proses");
+        }
+    }
+
+    /// Blob lama yang sempat ditulis ketika `reg` gagal harus tetap terbaca.
+    #[test]
+    fn dekripsi_menerima_seed_cadangan() {
+        let (_, cadangan) = crate::secrets::seed_for_test();
+        let Some(lama) = cadangan.first() else {
+            return; // mesin tanpa MachineGuid: tidak ada varian cadangan
+        };
+        let key = "sk-lama-1234567890";
+        let enc = crate::secrets::encrypt_with_seed_for_test(key, lama);
+        // Bukti sebenarnya: blob ber-seed lama tetap bisa dibaca jalur normal.
+        assert!(
+            crate::secrets::decrypt_string(&enc).as_deref() == Some(key),
+            "blob dengan seed lama harus tetap terbaca"
+        );
+    }
+
     #[test]
     fn preview_key_menutupi_bagian_tengah() {
         let p = crate::secrets::preview_for_test("sk-abcdefghijklmnop4f2a");

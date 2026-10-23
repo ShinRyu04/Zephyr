@@ -32,7 +32,7 @@ import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { PROVIDERS, ModelLogo, ProviderLogo, type ProviderModel } from '../../lib/modelCatalog';
+import { PROVIDERS, ModelLogo, ProviderLogo, idProviderNyata, type ProviderModel } from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID } from '../../lib/hydraModel';
 import { AddModelDialog, namaProvider, type BarisModel } from './AiModelsDialog';
 
@@ -365,6 +365,72 @@ export default function AiModelsPage() {
 
   const aktif = models?.activeProvider ?? '';
 
+  /*
+   * Pilihan "Active provider" harus menampilkan provider yang BENAR-BENAR
+   * dipakai, bukan nilai mentah `activeProvider`.
+   *
+   * Dua nilai mentah yang bermasalah:
+   *  - `'custom'` adalah slot kosong tanpa URL. Kalau tersimpan, `<select>`
+   *    tidak punya `<option>` bernilai itu, jadi browser menampilkan opsi
+   *    PERTAMA di daftar - dan pembaca melihat "selalu Gemini" padahal yang
+   *    tersimpan adalah slot kosong. Slot itu juga tidak bisa dipilih lagi,
+   *    jadi jangan dimasukkan ke daftar pilihan.
+   *  - `'auto'` bukan provider nyata; resolver memilih kandidat pertama yang
+   *    punya key. Menampilkannya sebagai pilihan berarti pembaca melihat satu
+   *    provider padahal nilai tersimpannya lain, dan mengganti ke provider
+   *    yang sama tidak menulis apa pun.
+   *
+   * Karena itu nilai mentah dipetakan ke provider nyata yang setara, dan
+   * `aktifTampil` diberi nilai itu supaya `<select>` menunjuk opsi yang ada.
+   */
+  const idProviderTampil = useCallback(
+    (id: string): string => {
+      if (!id || id === 'custom') return '';
+      if (id !== 'auto') return id;
+      const punyaKey = (p: string) => ui.keys.some((k) => k.provider === p && k.hasKey);
+      const katalog = PROVIDERS.find((p) => punyaKey(p.id));
+      if (katalog) return katalog.id;
+      const kustomPertama = (models?.custom ?? []).find((c) => c.provider !== 'custom');
+      return kustomPertama?.provider ?? '';
+    },
+    [ui.keys, models],
+  );
+
+  const pilihanAktif = useMemo(() => {
+    const hasil: { id: string; label: string }[] = PROVIDERS.map((p) => ({
+      id: p.id,
+      label: namaProvider(p.id) || p.id,
+    }));
+    /* Provider custom yang nyata (punya URL atau key) - bukan slot kosong. */
+    const tambahan = new Set<string>();
+    for (const c of models?.custom ?? []) {
+      if (c.provider && c.provider !== 'custom') tambahan.add(c.provider);
+    }
+    for (const k of ui.keys) {
+      /*
+       * Hanya id provider yang NYATA. `secrets.json` juga menyimpan slot yang
+       * bukan provider (mis. payload login `github`); dulu slot itu muncul
+       * sebagai opsi di daftar ini, dan memilihnya membuat setiap kiriman
+       * gagal dengan `unknown provider has no base URL`.
+       */
+      if (
+        k.hasKey &&
+        k.provider !== 'custom' &&
+        !k.provider.startsWith('hydra') &&
+        idProviderNyata(k.provider)
+      ) {
+        tambahan.add(k.provider);
+      }
+    }
+    for (const pid of [...tambahan].sort()) {
+      if (hasil.some((h) => h.id === pid)) continue;
+      hasil.push({ id: pid, label: namaProvider(pid) || pid });
+    }
+    return hasil;
+  }, [models, ui.keys]);
+
+  const aktifTampil = idProviderTampil(aktif);
+
   /* ── One row ──────────────────────────────────────────────────────────── */
   const barisJSX = (b: Baris) => {
     const siap = aktif === b.provider;
@@ -601,10 +667,21 @@ export default function AiModelsPage() {
           <select
             className="aim-pil"
             data-testid="aim-aktif-pil"
-            value={aktif}
-            onChange={(e) => void apply({ models: { activeProvider: e.target.value } })}
+            value={aktifTampil}
+            onChange={(e) => {
+              /*
+               * Nilai mentah 'custom' tidak pernah boleh ditulis lagi.
+               *
+               * Slot itu tidak punya endpoint, jadi menyimpannya berarti
+               * "provider aktif" tidak menunjuk apa pun dan pembaca melihat
+               * provider pertama di daftar (Gemini). Pilihan kosong ditolak.
+               */
+              const v = e.target.value;
+              if (!v || v === 'custom') return;
+              void apply({ models: { activeProvider: v } });
+            }}
           >
-            {PROVIDERS.map((p) => (
+            {pilihanAktif.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label}
                 {ui.keys.some((k) => k.provider === p.id && k.hasKey) ? ' ✓' : ''}

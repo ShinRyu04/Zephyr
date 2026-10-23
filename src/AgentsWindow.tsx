@@ -143,6 +143,19 @@ export default function AgentsWindow() {
   useEffect(() => saatSetelanSiap(() => void useAi.getState().init()), []);
 
   /*
+   * Daftar API key ikut jendela lain.
+   *
+   * Key yang disimpan di jendela utama dulu tidak pernah sampai ke sini: jendela
+   * ini memuat daftarnya sekali saat `init`, lalu terus memakai salinan itu.
+   * Akibatnya composer menampilkan "provider ini belum punya API key" walau
+   * key-nya sudah ada di disk. `pasangSinkronKunci` mendengarkan
+   * `secrets-changed` dari Rust dan menyegarkan salinan ini.
+   */
+  useEffect(() => {
+    void import('./lib/secretsSync').then((m) => m.pasangSinkronKunci());
+  }, []);
+
+  /*
    * Extensions, for the editor.
    *
    * `muatSemuaEkstensi` is what installs language modes, themes, snippets and

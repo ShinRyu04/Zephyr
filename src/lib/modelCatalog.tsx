@@ -521,6 +521,27 @@ export const PROVIDERS: ProviderInfo[] = [
 export const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
 
 /**
+ * Apakah id ini provider yang BENAR-BENAR bisa menerima request?
+ *
+ * `get_public_models` mengembalikan SEMUA slot di `secrets.json`, dan berkas
+ * itu juga menyimpan hal yang bukan provider — `github` misalnya menyimpan
+ * payload login (token + profil). Tanpa saringan ini slot tersebut ikut:
+ *
+ *  - masuk daftar "Active provider" di halaman Models, dan memilihnya membuat
+ *    setiap kiriman gagal dengan `unknown provider "github" has no base URL`;
+ *  - dihitung sebagai "ada key" oleh pemilih model, sehingga panel tampak
+ *    punya kredensial padahal provider yang dipakai tidak bisa mengirim.
+ *
+ * Aturannya sama dengan resolver: anggota katalog, atau gateway `custom-*`
+ * buatan reader. Slot lama `custom` ikut karena ia masih dipakai sebagai
+ * penampung alias.
+ */
+export function idProviderNyata(id: string): boolean {
+  const k = (id ?? '').trim();
+  return PROVIDER_BY_ID.has(k) || k.startsWith('custom');
+}
+
+/**
  * `'auto'` — let Zephyr pick the provider.
  *
  * Not a provider id: it is the ABSENCE of a choice. The complaint was having to
@@ -545,12 +566,17 @@ export const PROVIDER_AUTO = 'auto';
  * Order, and why:
  *   1. An explicit provider that HAS a key wins. A deliberate choice must never
  *      be overridden by the resolver - that would make the setting a lie.
- *   2. Otherwise the first provider with a key, in catalogue order. Catalogue
+ *   2. A `custom-*` gateway that is already stored and configured wins over
+ *      the catalogue. Its key may be missing from `punyaKunci` (failed
+ *      decryption, or the key list not reloaded yet after a Refresh), but the
+ *      gateway is still the only provider the reader configured. Skipping it
+ *      here is what made "Active provider" read Gemini no matter what.
+ *   3. Otherwise the first provider with a key, in catalogue order. Catalogue
  *      order, not `hasKey` order, so the same setup resolves the same way on
  *      every launch and on every machine with the same keys.
- *   3. Otherwise the explicit provider even without a key, so the UI can say
+ *   4. Otherwise the explicit provider even without a key, so the UI can say
  *      "this one needs a key" instead of silently pointing somewhere else.
- *   4. Otherwise `'custom'`, the historical fallback.
+ *   5. Otherwise `'custom'`, the historical fallback.
  *
  * Pure: no store reads, no network. That is what lets the harness drive it.
  */
@@ -575,6 +601,18 @@ export function providerEfektif(
   if (!auto && (PROVIDER_BY_ID.has(aktif) || kustom)) {
     if (kustom || punyaKunci(aktif)) return aktif;
   }
+
+  /*
+   * Gateway `custom-*` yang tersimpan tetap dipakai, walau `punyaKunci` belum
+   * mengenalnya.
+   *
+   * Bukti yang sah untuk provider kustom adalah dirinya sendiri: ia hanya ada
+   * karena reader membuatnya, sementara "punya key" bergantung pada daftar key
+   * yang bisa gagal dimuat. Tanpa cabang ini, satu entri yang gagal didekripsi
+   * sudah cukup membuat gateway reader dilewati lalu resolver mengambil provider
+   * katalog pertama yang punya key - itulah "Active provider selalu Gemini".
+   */
+  if (!auto && kustom) return aktif;
 
   /* Auto (or a choice with no key): the first provider in catalogue order. */
   const siap = PROVIDERS.find((p) => punyaKunci(p.id));
@@ -608,6 +646,19 @@ export function providerTersimpanValid(
   const peta = providers ?? {};
   const berUrl = (k: string) => !!peta[k]?.baseUrl?.trim();
   if (id && id !== 'custom' && berUrl(id)) return id;
+
+  /*
+   * Gateway bernama (`custom-*`) yang sudah dipilih TIDAK dipetakan ke provider
+   * lain hanya karena URL-nya sedang kosong.
+   *
+   * URL bisa hilang karena settings baru direset, atau karena satu penulisan
+   * settings yang gagal — sementara namanya masih di `activeProvider`. Dulu
+   * fungsi ini lalu meminjam provider lain yang punya `baseUrl` (hydra, ollama,
+   * openrouter, ...) sehingga "Active provider" berpindah sendiri dari pilihan
+   * reader ke provider yang tidak pernah ia pilih. Yang benar: pertahankan
+   * pilihannya dan biarkan UI meminta URL-nya.
+   */
+  if (id.startsWith('custom-')) return id;
 
   /* The bare slot (or nothing usable): pick the configured gateway. */
   const kustom = Object.keys(peta)

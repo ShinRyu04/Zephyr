@@ -265,6 +265,30 @@ export default function AgentsComposer() {
   );
   const providerAktif = useAi((s) => s.provider);
 
+  /*
+   * Gambar untuk pesan berikutnya.
+   *
+   * Diambil dari store, BUKAN `useState` lokal: `send()` di aiStore membaca
+   * `draftImages` saat pesan berangkat, dan kalau daftarnya hanya hidup di
+   * komponen ini, gambar yang sudah ditempel tidak pernah ikut terkirim (itu
+   * sebabnya "foto tidak bisa masuk di chat agent"). `addDraftImage` yang
+   * mengecilkan + memvalidasi ukuran, jadi logikanya satu dengan panel utama.
+   */
+  const draftImages = useAi((s) => s.draftImages);
+  const addDraftImage = useAi((s) => s.addDraftImage);
+  const removeDraftImage = useAi((s) => s.removeDraftImage);
+  const fileGambar = useRef<HTMLInputElement | null>(null);
+
+  const lampirkan = (files: FileList | File[] | null) => {
+    if (!files) return;
+    for (const f of Array.from(files)) {
+      if (!f.type.startsWith('image/')) continue;
+      const r = new FileReader();
+      r.onload = () => addDraftImage(String(r.result));
+      r.readAsDataURL(f);
+    }
+  };
+
   /* Daftar folder = workspace yang pernah dipakai, diambil dari sesi. Path
      dinormalkan supaya satu folder tidak muncul dua kali dengan garis miring
      berbeda (kasus nyata: `D:\Zephyr` dan `D:/Zephyr`). */
@@ -386,14 +410,64 @@ export default function AgentsComposer() {
                 kirim();
               }
             }}
+            /* Tempel screenshot langsung ke kotak: jalur yang paling sering
+               dipakai, dan tanpa ini gambar hanya bisa lewat tombol +. */
+            onPaste={(e) => {
+              const files = Array.from(e.clipboardData?.files ?? []);
+              if (files.length > 0) {
+                e.preventDefault();
+                lampirkan(files);
+              }
+            }}
           />
 
+          {/* Gambar yang menunggu ikut terkirim. Dihapus dari daftar store,
+              bukan disembunyikan, supaya `send()` benar-benar tidak
+              mengirimnya. */}
+          {draftImages.length > 0 && (
+            <div className="agx-comp-gambar" data-testid="agx-comp-gambar">
+              {draftImages.map((src, i) => (
+                <span className="agx-comp-gambar-item" key={`${i}-${src.slice(0, 24)}`}>
+                  <img src={src} alt={tr('Attached image')} />
+                  <button
+                    type="button"
+                    className="agx-comp-gambar-hapus"
+                    data-testid={`agx-comp-gambar-hapus-${i}`}
+                    title={tr('Remove')}
+                    aria-label={tr('Remove')}
+                    onClick={() => removeDraftImage(i)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="agx-comp-bar" data-testid="agx-comp-bar">
-            <button className="agx-comp-plus" data-testid="agx-comp-plus" title="Add context">
+            <button
+              className="agx-comp-plus"
+              data-testid="agx-comp-plus"
+              title={tr('Add image')}
+              aria-label={tr('Add image')}
+              onClick={() => fileGambar.current?.click()}
+            >
               <Ikon>
                 <path d="M8 3.4v9.2M3.4 8h9.2" />
               </Ikon>
             </button>
+            <input
+              ref={fileGambar}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              data-testid="agx-comp-file"
+              onChange={(e) => {
+                lampirkan(e.target.files);
+                e.target.value = '';
+              }}
+            />
 
             <MenuIzin />
 
@@ -407,7 +481,7 @@ export default function AgentsComposer() {
                 data-testid="agx-comp-kirim"
                 title="Send"
                 aria-label="Send"
-                disabled={!draft.trim()}
+                disabled={!draft.trim() && draftImages.length === 0}
                 onClick={kirim}
               >
                 <Ikon>
