@@ -12,6 +12,9 @@ const ID: Dict = {
   'Changes': 'Perubahan',
   'Before': 'Sebelum',
   'After': 'Sesudah',
+  /* The user bubble's long-message toggle (ChatMessage → PesanUser). */
+  'Show more': 'Tampilkan semua',
+  'Show less': 'Ringkas',
   'Open file': 'Buka berkas',
   '{n} hidden lines': '{n} baris disembunyikan',
   'No changes from the AI in this turn yet.': 'Belum ada perubahan dari AI di giliran ini.',
@@ -101,6 +104,10 @@ const ID: Dict = {
   "The recogniser listens for one language at a time and does not switch by itself.": "Pengenal suara mendengarkan satu bahasa saja dan tidak berganti sendiri.",
   "Dictate messages and read answers aloud. Uses the WebView speech engine, no key needed.": "Dikte pesan dan bacakan jawaban. Memakai mesin suara WebView, tanpa API key.",
   "(saved voice, not available on this machine)": "(suara tersimpan, tidak tersedia di mesin ini)",
+  "Full URL": "URL Penuh",
+  "The URL is used exactly as typed; nothing is appended.": "URL dipakai persis seperti yang diketik; tidak ada yang ditambahkan.",
+  "OpenAI Chat Completions": "OpenAI Chat Completions",
+  "OpenAI Responses API": "OpenAI Responses API",
 
   'settings.subagent': 'Subagent',
   'settings.aiprompt': 'Prompt AI',
@@ -458,6 +465,27 @@ const ID: Dict = {
   'Tools': 'Alat',
   'Vision': 'Visi',
   'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'ekstensi {ext} (bahasa "{lang}") diabaikan: {ext} sudah dipakai {owner}',
+
+  /*
+   * Tab Marketplace.
+   *
+   * Kuncinya teks Inggris, nilainya Indonesia — bentuk yang sudah dipakai di atas
+   * ('Tools' => 'Alat'). Tujuannya satu: tab itu label antarmuka, bukan nama
+   * produk. "Icon Themes", "Keymaps" dan "Snippets" adalah istilah internal
+   * registri, dan membiarkannya Inggris di antarmuka Indonesia adalah hal yang
+   * sama salahnya dengan label mentah `settings.mcp`.
+   *
+   * 'MCP' tidak didaftarkan: itulah namanya di semua bahasa.
+   */
+  'Plugins': 'Plugin',
+  'Skills': 'Skill',
+  'Icon Themes': 'Tema Ikon',
+  'Keymaps': 'Peta Tombol',
+  'Languages': 'Bahasa',
+  'Snippets': 'Cuplikan',
+  'Themes': 'Tema',
+  'Marketplace sections': 'Bagian Marketplace',
+  'Search marketplace': 'Cari di Marketplace',
 };
 
 const EN: Dict = {
@@ -903,6 +931,15 @@ const EN: Dict = {
   'Tools': 'Tools',
   'Vision': 'Vision',
   'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}': 'extension {ext} (language "{lang}") ignored: {ext} is already claimed by {owner}',
+  'Plugins': 'Plugins',
+  'Skills': 'Skills',
+  'Icon Themes': 'Icon Themes',
+  'Keymaps': 'Keymaps',
+  'Languages': 'Languages',
+  'Snippets': 'Snippets',
+  'Themes': 'Themes',
+  'Marketplace sections': 'Marketplace sections',
+  'Search marketplace': 'Search marketplace',
 };
 
 const JA: Dict = {
@@ -4421,6 +4458,23 @@ const DICTS: Record<string, Dict> = { id: ID, en: EN, ja: JA, ko: KO, zh: ZH, es
 let indeksInggris: Map<string, string> | null = null;
 let indeksDariExtra: Record<string, Dict> | null = null;
 
+/**
+ * Does this key NAME a thing, or is it the text itself?
+ *
+ * `'Matikan'` is text: rendered as the value of the key it is filed under, it
+ * reads correctly. `'settings.devenv'`, `'nav.terminal'` and `'settings.mcp'`
+ * are NAMES — addresses in the dictionary, never anything to put on screen.
+ *
+ * It matters in `translate()`'s English reverse index: several names have an
+ * English value that is also a valid call-site key ('settings.mcp' => 'MCP',
+ * 'nav.terminal' => 'Terminal', 'settings.devenv' => 'Dev Environment'). Asking
+ * for `tr('MCP')` finds the name through that index, and the Indonesian value
+ * for the name happens to equal the text asked for — which used to read as
+ * "the placeholder came back, so return the name", printing `settings.mcp` in
+ * the interface. Distinguishing the two shapes fixes that at the root.
+ */
+const KUNCI_SIMBOLIK = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/i;
+
 function enKeId(): Map<string, string> {
   if (indeksInggris && indeksDariExtra === EXTRA) return indeksInggris;
   const m = new Map<string, string>();
@@ -4593,10 +4647,11 @@ export function translate(lang: string, key: string): string {
        * For Indonesian the Indonesian KEY is itself the text (`'Matikan'`), so
        * a value that is only the English placeholder we started from
        * (`'Sembunyikan panel AI' => 'Hide AI panel'`) is skipped in favour of the
-       * key. A symbolic key (`'nav.settings'`) keeps its value, because there the
-       * value is the readable text and the key is not.
+       * key. A symbolic key (`'nav.settings'`, `'settings.mcp'`) is the other
+       * shape: there the VALUE is the readable text and the key is an address,
+       * so the value is what gets returned (see `KUNCI_SIMBOLIK`).
        */
-      if (lang === 'id' && v === key) return lewatInggris;
+      if (lang === 'id' && v === key) return KUNCI_SIMBOLIK.test(lewatInggris) ? v : lewatInggris;
       return v;
     }
     if (lang === 'id') return lewatInggris;

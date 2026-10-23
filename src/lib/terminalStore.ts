@@ -3,7 +3,15 @@ import * as cmd from './commands';
 import { useStore } from './store';
 import { usePanel } from './panelStore';
 import { disposeHandle } from './xtermRegistry';
-import type { AgentInfo, PaneKind, PaneMeta, ShellInfo, TerminalTab } from './types';
+import { argumenIntegrasi } from './shellIntegration';
+import type {
+  AgentInfo,
+  PaneKind,
+  PaneMeta,
+  ShellInfo,
+  TerminalProfile,
+  TerminalTab,
+} from './types';
 
 const closing = new Set<string>();
 
@@ -53,7 +61,19 @@ interface TerminalActions {
   closeTab: (id: string) => Promise<void>;
   setLayout: (id: string, layout: TerminalTab['layout']) => void;
 
-  addPane: (kind: PaneKind, opts?: { agentId?: string; url?: string; cwd?: string }) => Promise<string | null>;
+  addPane: (
+    kind: PaneKind,
+    opts?: {
+      agentId?: string;
+      url?: string;
+      cwd?: string;
+      /** Profil terminal bernama; menggantikan shell/cwd/command bawaan. */
+      profile?: TerminalProfile;
+    },
+  ) => Promise<string | null>;
+
+  /** Buat pane dari profil terminal di Settings, berdasarkan id-nya. */
+  addPaneProfil: (profileId: string) => Promise<string | null>;
   
   /**
    * Daftarkan pane yang sesinya sudah dibuat di luar store ini (mis. SSH).
@@ -70,6 +90,19 @@ interface TerminalActions {
   setPaneUrl: (paneId: string, url: string) => void;
   markExited: (paneId: string, code?: number | null) => void;
   refreshFromBackend: () => Promise<void>;
+
+  /**
+   * Terapkan info dari shell integration (OSC 633) ke satu pane.
+   *
+   * Dipanggil dari listener `pty-output`, jadi hanya menulis bila nilainya
+   * BERUBAH: satu perintah bisa memicu beberapa potongan output, dan menulis
+   * store di setiap potongan membuat seluruh grid terminal render ulang puluhan
+   * kali per ketukan.
+   */
+  terapkanIntegrasi: (
+    id: string,
+    info: { cwd?: string; exitCode?: number; command?: string },
+  ) => void;
 
   /**
    * Run an agent command in a VISIBLE shell pane and wait for it to finish.
@@ -249,7 +282,9 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     }
 
     const paneId = nextId('pane');
-    const workspace = opts?.cwd?.trim() || useStore.getState().workspace;
+    const profil = opts?.profile;
+    const workspace =
+      profil?.cwd?.trim() || opts?.cwd?.trim() || useStore.getState().workspace;
 
     if (kind === 'browser') {
       // Never navigate to an unrelated site as a placeholder. In particular,
@@ -315,6 +350,27 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
      * being silently swapped for a shell that works. A user who typed a path
      * needs to know it is wrong.
      */
+    /*
+     * Profil menang atas default bucket, dan menang SEBELUM cabang di bawah:
+     * itu seluruh gunanya profil — shell, folder dan perintah yang ditulis
+     * sekali lalu dipakai apa adanya. `private` pada profil menentukan kind
+     * pane, jadi profil juga cara mendapat private terminal dengan perintah
+     * awal.
+     */
+    if (profil) {
+      const id = profil.shell.trim();
+      /* 'default' berarti "shell bawaan Zephyr": dikosongkan supaya cabang di
+         bawah (shellPath / defaultTerminal) yang memutuskan, bukan string
+         'default' yang tidak menunjuk ke program mana pun. */
+      if (id && id !== 'default') {
+        command = id;
+        args = undefined;
+      }
+      title = profil.name.trim() || title;
+    }
+
+    /* Profil dengan shell 'default' (atau tanpa pilihan shell) tetap melewati
+       resolusi shell biasa; pane private tidak, karena isinya harus bersih. */
     if (kind === 'shell' && !command) {
       const g = useStore.getState().settings?.general;
       const jalur = g?.shellPath?.trim();
@@ -328,6 +384,26 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         command = g.defaultTerminal;
         args = undefined;
       }
+    }
+
+    /*
+     * Integrasi shell (OSC 633) untuk pane shell PowerShell.
+     *
+     * Hanya `shell` biasa: pane agent punya perintah awal sendiri, dan pane
+     * private justru janjinya bersih — dot-sourcing skrip ke sana akan
+     * melanggar keduanya. Bila skripnya tidak bisa ditulis (folder data tidak
+     * bisa diakses), `argumenIntegrasi` mengembalikan null dan terminal tetap
+     * jalan seperti sebelumnya.
+     */
+    if (kind === 'shell') {
+      const g = useStore.getState().settings?.general;
+      const integrasi = argumenIntegrasi({
+        aktif: g?.shellIntegration === true,
+        shell: command ?? profil?.shell ?? '',
+        defaultTerminal: g?.defaultTerminal,
+        shellPath: g?.shellPath,
+      });
+      if (integrasi) args = integrasi;
     }
 
     try {
@@ -351,6 +427,15 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         agentPickerOpen: false,
         terminalError: null,
       }));
+
+      /* Perintah awal profil diketik setelah shell hidup: mengirimnya di argv
+         akan mengubah shell menjadi program itu, dan pane mati begitu
+         perintahnya selesai. */
+      if (profil?.command?.trim()) {
+        await cmd
+          .ptyWrite(paneId, `${profil.command.trim()}\r`)
+          .catch((e) => console.warn('[terminal] ptyWrite failed for profile pane', paneId, e));
+      }
 
       if (kind === 'agent' && useStore.getState().settings.agents.attachActiveFile) {
         const active = useStore.getState().tabs.find((t) => t.id === useStore.getState().activeTabId);
@@ -392,6 +477,17 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
    * reused while it is alive; if the reader closed it, the next command makes a
    * new one.
    */
+  addPaneProfil: async (profileId) => {
+    const profil = useStore
+      .getState()
+      .settings?.terminalProfiles?.find((p) => p.id === profileId);
+    if (!profil) {
+      set({ terminalError: `terminal profile ${profileId} not found` });
+      return null;
+    }
+    return get().addPane(profil.private ? 'private' : 'shell', { profile: profil });
+  },
+
   jalankanDiTerminal: async (
     perintah: string,
     opts?: { buka?: boolean; timeoutMs?: number; cwd?: string },
@@ -603,6 +699,39 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
         ),
       })),
     })),
+
+  terapkanIntegrasi: (id, info) => {
+    set((s) => {
+      let berubah = false;
+      const terminalTabs = s.terminalTabs.map((t) => {
+        const i = t.panes.findIndex((p) => p.id === id);
+        if (i < 0) return t;
+        const p = t.panes[i];
+        const next = {
+          ...p,
+          ...(info.cwd && info.cwd !== p.cwd ? { cwd: info.cwd } : {}),
+          ...(info.exitCode !== undefined && info.exitCode !== p.lastExit
+            ? { lastExit: info.exitCode }
+            : {}),
+          ...(info.command && info.command !== p.lastCommand
+            ? { lastCommand: info.command }
+            : {}),
+        };
+        if (
+          next.cwd === p.cwd &&
+          next.lastExit === p.lastExit &&
+          next.lastCommand === p.lastCommand
+        ) {
+          return t;
+        }
+        berubah = true;
+        const panes = [...t.panes];
+        panes[i] = next;
+        return { ...t, panes };
+      });
+      return berubah ? { terminalTabs } : {};
+    });
+  },
 
   refreshFromBackend: async () => {
     try {

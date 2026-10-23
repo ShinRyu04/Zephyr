@@ -135,7 +135,13 @@ function muatKeyKamus() {
   for (const b of BERKAS_KAMUS) {
     if (!existsSync(b)) continue;
     const teks = readFileSync(b, 'utf8');
-    for (const m of teks.matchAll(/'((?:[^'\\]|\\.)*)'\s*:/g)) key.add(m[1]);
+    /*
+     * Both quote styles. The dictionary is not consistent: entries written later
+     * use double quotes (`"Selesai": "Done"`), and a single-quote-only pattern
+     * reported those keys as "missing from the dictionary" - nine false findings
+     * in the AI status badges, which were in fact translated.
+     */
+    for (const m of teks.matchAll(/['"]((?:[^'\\"]|\\.)*)['"]\s*:/g)) key.add(m[1]);
   }
   return key;
 }

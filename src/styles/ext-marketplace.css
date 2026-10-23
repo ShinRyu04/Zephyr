@@ -1,379 +1,892 @@
 /*
- * Extensions → Marketplace (Plugins | Skills | MCP | Extensions).
+ * Marketplace — jendela Extensions.
  *
- * A grid of CARDS, not a table: a marketplace is browsed by recognition -
- * logo, name, one line - and a table row gives the eye no anchor. The card is
- * the smallest unit that carries all three without wrapping.
+ * Bentuknya mengikuti acuan TRAE: judul besar + subjudul, `Manage` di kanan,
+ * deretan tab bergaris bawah dengan kotak cari di ujungnya, chip kategori, lalu
+ * baris item tiga kolom (ikon · nama/deskripsi · tombol aksi).
  *
- * The prefix is `xmkt` (extensions-market) so it cannot collide with the `mkt`
- * rules that belong to the SETTINGS marketplace; the two pages are different
- * surfaces and must not inherit each other's spacing.
+ * Prefix `xmkt` (extensions-market) supaya tidak bertabrakan dengan `mkt` milik
+ * Marketplace di Settings — dua permukaan berbeda, jangan saling mewarisi.
+ *
+ * Semua warna dari token tema (theme.css). Tidak ada hex di berkas ini.
  */
 .xmkt {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 14px 14px 22px;
+  padding: 28px 32px 24px;
   overflow: auto;
+  color: var(--text);
 }
 
+/* ── Kepala ────────────────────────────────────────────────────────────── */
 .xmkt-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 20px;
+}
+
+.xmkt-head-teks {
+  min-width: 0;
 }
 
 .xmkt-judul {
-  margin: 0 0 3px;
-  font-size: 15px;
+  margin: 0 0 6px;
+  font-size: 26px;
   font-weight: 700;
+  letter-spacing: -0.3px;
   color: var(--text);
 }
 
 .xmkt-sub {
   margin: 0;
-  font-size: 11.5px;
+  max-width: 680px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.xmkt-head-aksi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .xmkt-kelola {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface-2);
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
   color: var(--text);
-  font-size: 11.5px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
-}
-.xmkt-kelola:hover {
-  border-color: var(--accent);
 }
 
-/* ── Tab row + search ───────────────────────────────────────────────────── */
+.xmkt-kelola:hover {
+  background: color-mix(in srgb, var(--surface-2) 95%, transparent);
+}
+
+.xmkt-menu-wrap {
+  position: relative;
+}
+
+.xmkt-titik {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.xmkt-titik:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+
+.xmkt-menu {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 14px 32px rgb(0 0 0 / 45%);
+}
+
+.xmkt-menu button {
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.xmkt-menu button:hover {
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.xmkt-menu-pisah {
+  height: 1px;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+/* ── Tab + pencarian ───────────────────────────────────────────────────── */
 .xmkt-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 24px;
+  margin-top: 22px;
 }
 
 .xmkt-tab {
-  display: inline-flex;
-  gap: 1px;
-  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
   min-width: 0;
   overflow-x: auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
   scrollbar-width: none;
 }
+
 .xmkt-tab::-webkit-scrollbar {
   display: none;
 }
+
 .xmkt-tab-btn {
-  padding: 5px 10px;
+  position: relative;
+  flex: none;
+  height: 34px;
+  padding: 0 1px;
   border: 0;
-  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  margin-bottom: -1px;
   white-space: nowrap;
 }
+
 .xmkt-tab-btn:hover {
   color: var(--text);
 }
+
 .xmkt-tab-btn.is-on {
   color: var(--text);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
+}
+
+.xmkt-tab-btn.is-on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.xmkt-cari-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  width: min(520px, 44vw);
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 9px;
+  color: var(--text-muted);
+}
+
+.xmkt-cari-wrap:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 .xmkt-cari {
-  width: 150px;
-  flex: 0 1 auto;
-  min-width: 90px;
-  padding: 5px 9px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 11.5px;
-  font-family: inherit;
-}
-.xmkt-cari:focus {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
   outline: none;
-  border-color: var(--accent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
 }
 
-/*
- * When the outer rail is the only navigator there is no tab row to sit beside,
- * so the search box takes the whole width of that line. A 150px box floating
- * at the left edge of an empty row reads as a mistake.
- */
-.xmkt-cari-lebar {
-  width: 100%;
-  flex: 1 1 auto;
+.xmkt-cari::placeholder {
+  color: var(--text-muted);
 }
 
-/* ── Category chips ─────────────────────────────────────────────────────── */
+/* ── Chip kategori ─────────────────────────────────────────────────────── */
 .xmkt-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 12px;
-}
-.xmkt-chip {
-  padding: 3px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.xmkt-chip:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-.xmkt-chip.is-on {
-  background: var(--accent-subtle);
-  border-color: var(--accent);
-  color: var(--accent);
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 8px;
 }
 
-/* ── Grid of cards ──────────────────────────────────────────────────────── */
+.xmkt-chip {
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.xmkt-chip:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.xmkt-chip.is-on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  border-color: color-mix(in srgb, var(--border) 95%, transparent);
+}
+
+.xmkt-segarkan {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.xmkt-segarkan:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.xmkt-galat {
+  margin: 4px 0 10px;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* ── Baris item: tiga kolom ala TRAE ───────────────────────────────────── */
 .xmkt-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 26px;
+  align-content: start;
+}
+
+@media (max-width: 1180px) {
+  .xmkt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .xmkt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .xmkt-kartu {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 9px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  transition: border-color 120ms, background 120ms;
-}
-.xmkt-kartu:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: transparent;
 }
 
 .xmkt-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-size: 10.5px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: var(--text-muted);
+  font-size: 11px;
   font-weight: 700;
   overflow: hidden;
 }
 
-/*
- * Extension packages bring their OWN artwork: a theme's swatches, a language's
- * file mark, a keymap's keyboard. Those marks are drawn at 16px and were sized
- * for the tall cards, so they are scaled to fit this box rather than inheriting
- * the initials' font sizing. `xc-gambar` and friends come from the extension
- * stylesheet; only the box is defined here.
- */
+/* Paket membawa gambar sendiri; kotaknya sama, latarnya dibuat netral supaya
+   warna ikon paket tidak bertabrakan dengan tint aksen. */
 .xmkt-logo-ext {
   background: transparent;
-}
-.xmkt-logo-ext svg,
-.xmkt-logo-ext img,
-.xmkt-logo-ext .xc-gambar,
-.xmkt-logo-ext .xc-gambar-asli {
-  width: 22px;
-  height: 22px;
-  display: block;
-}
-.xmkt-logo-ext .xc-inisial {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
 }
 
 .xmkt-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
-  flex: 1 1 auto;
 }
+
 .xmkt-nama {
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.xmkt-ket {
-  font-size: 11px;
-  line-height: 1.4;
+
+.xmkt-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
   color: var(--text-muted);
-  /* Two lines, then ellipsis: a marketplace card is a summary. */
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.xmkt-ket {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.xmkt-aksi {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }
 
 .xmkt-pasang {
-  flex: 0 0 auto;
-  align-self: center;
-  padding: 3px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 7px;
+  background: transparent;
   color: var(--text);
-  font-size: 10.5px;
-  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
 }
-.xmkt-pasang:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+
+.xmkt-pasang:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
 }
+
 .xmkt-pasang.is-terpasang {
-  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
   color: var(--text-muted);
 }
+
 .xmkt-pasang:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.xmkt-chip-kecil {
-  flex: 0 0 auto;
-  align-self: center;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--surface-3, var(--surface-2));
+.xmkt-hapus-kecil {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--text-muted);
-  font-size: 10px;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.xmkt-hapus-kecil:hover {
+  color: var(--danger);
+}
+
+.xmkt-terpasang-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-/* ── Empty + error ──────────────────────────────────────────────────────── */
+.xmkt-terpasang-chip.is-mati {
+  color: var(--danger);
+}
+
+.xmkt-terpasang-chip.is-lemah {
+  color: var(--text-muted);
+}
+
+/* ── Keadaan kosong ────────────────────────────────────────────────────── */
 .xmkt-kosong {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 9px;
-  padding: 36px 14px;
+  gap: 10px;
+  margin: 48px 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  text-align: center;
 }
 
-.xmkt-galat {
-  margin: 0 0 10px;
-  padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--danger);
-  font-size: 11.5px;
-}
-
-/* ── Manage modal ───────────────────────────────────────────────────────── */
+/* ── Manage: semua yang terpasang ──────────────────────────────────────── */
 .xmkt-manage {
-  max-width: 620px;
-  width: min(620px, 92vw);
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
+  width: min(560px, 92vw);
+  max-height: min(620px, 84vh);
+  overflow: auto;
 }
 
 .xmkt-manage-list {
-  margin: 0;
-  padding: 0;
   list-style: none;
-  overflow: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-}
-.xmkt-manage-list li {
+  margin: 0 0 14px;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  flex-direction: column;
+  gap: 2px;
 }
-.xmkt-manage-list li:last-child {
-  border-bottom: 0;
+
+.xmkt-manage-list li {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 }
 
 .xmkt-manage-jenis {
-  flex: 0 0 auto;
-  min-width: 62px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-size: 9.5px;
-  font-weight: 600;
-  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
 .xmkt-manage-teks {
   display: flex;
   flex-direction: column;
-  gap: 1px;
   min-width: 0;
-  flex: 1 1 auto;
 }
+
 .xmkt-manage-nama {
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
+
 .xmkt-manage-ket {
+  font-size: 11px;
   color: var(--text-muted);
-  font-size: 10.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .xmkt-manage-status {
-  flex: 0 0 auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-muted);
 }
+
 .xmkt-manage-status.is-on {
-  color: var(--success, #3fb950);
+  color: var(--accent);
+}
+
+/* ── Ikon baris (lihat components/extensions/IkonPasar.tsx) ─────────────── */
+
+/*
+ * Semua isi ikon memenuhi kotak 38px `.xmkt-logo`, jadi latar bertint bisa
+ * memakai `currentColor` mereknya sendiri: satu aturan, bukan satu aturan per
+ * merek. Garis tepi kotak tetap milik `.xmkt-logo`.
+ */
+.xmkt-merek {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  color: var(--text-muted);
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.xmkt-merek.is-github,
+.xmkt-merek.is-notion,
+.xmkt-merek.is-everything {
+  color: var(--text);
+}
+
+.xmkt-merek.is-git {
+  color: #f05033;
+}
+
+.xmkt-merek.is-postgres {
+  color: #5c8df6;
+}
+
+.xmkt-merek.is-sqlite {
+  color: #8fb3d9;
+}
+
+.xmkt-merek.is-folder {
+  color: #dcb67a;
+}
+
+.xmkt-merek.is-memory {
+  color: #b98cf0;
+}
+
+.xmkt-merek.is-puppeteer {
+  color: #40b5a4;
+}
+
+.xmkt-merek.is-playwright {
+  color: #2ead4b;
+}
+
+.xmkt-merek.is-chrome {
+  color: #4f8dfd;
+}
+
+.xmkt-merek.is-slack {
+  color: #e01e5a;
+}
+
+.xmkt-merek.is-figma {
+  color: #a259ff;
+}
+
+.xmkt-merek.is-maps {
+  color: #34a853;
+}
+
+.xmkt-merek.is-sentry {
+  color: #a78bfa;
+}
+
+.xmkt-merek.is-brave {
+  color: #fb7c3b;
+}
+
+.xmkt-merek.is-tavily {
+  color: #4cc4e8;
+}
+
+.xmkt-merek.is-context7 {
+  color: #f0a83c;
+}
+
+.xmkt-merek.is-deepwiki {
+  color: #62a8ff;
+}
+
+.xmkt-merek.is-seq {
+  color: #f0b13c;
+}
+
+.xmkt-merek.is-time {
+  color: #6aa8ff;
+}
+
+.xmkt-merek.is-fetch {
+  color: #3fbf72;
+}
+
+/* Bahasa */
+.xmkt-merek.is-ts { color: #4f8df6; }
+.xmkt-merek.is-py { color: #e9c46a; }
+.xmkt-merek.is-rs { color: #d99a72; }
+.xmkt-merek.is-go { color: #43c6dd; }
+.xmkt-merek.is-c { color: #7d9ff5; }
+.xmkt-merek.is-cs { color: #b07ae0; }
+.xmkt-merek.is-java { color: #e8845c; }
+.xmkt-merek.is-ruby { color: #e0675f; }
+.xmkt-merek.is-php { color: #9aa0e0; }
+.xmkt-merek.is-lua { color: #6f8ff0; }
+.xmkt-merek.is-kotlin { color: #9d82f5; }
+.xmkt-merek.is-swift { color: #ef7a5e; }
+.xmkt-merek.is-dart { color: #4aa3e0; }
+.xmkt-merek.is-html { color: #e8764f; }
+.xmkt-merek.is-css { color: #5a8cf0; }
+.xmkt-merek.is-json { color: #b9b9b9; }
+.xmkt-merek.is-yaml { color: #e06a6a; }
+.xmkt-merek.is-bash { color: #6fc26a; }
+.xmkt-merek.is-docker { color: #4f9ce8; }
+.xmkt-merek.is-vue { color: #4fc69a; }
+.xmkt-merek.is-r { color: #6d8ff2; }
+
+/* Keymap */
+.xmkt-merek.is-sublime { color: #f0a040; }
+.xmkt-merek.is-vim { color: #4fbf78; }
+.xmkt-merek.is-emacs { color: #b07ae0; }
+.xmkt-merek.is-ide { color: #f5687f; }
+
+/* Monogram: warna diturunkan dari id (hue), bukan dari daftar nama. */
+.xmkt-mono {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--mono-hue) 30% 24%);
+  color: hsl(var(--mono-hue) 62% 78%);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Swatch tema: tiga pita yang benar-benar memakai token tema itu. */
+.xmkt-swatch {
+  display: grid;
+  grid-template-rows: 1.5fr 1fr 0.7fr;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.xmkt-swatch-atas {
+  background: var(--bg);
+}
+
+.xmkt-swatch-tengah {
+  background: var(--surface-2);
+}
+
+.xmkt-swatch-bawah {
+  background: var(--accent);
+}
+
+/* ── Logo tambahan (IkonPasar: bahasa, keymap, plugin, skill) ────────────
+   Dua keluarga logo yang tidak memakai warna merek dari daftar di atas:
+
+   1. `is-padat` — logo yang aslinya memang kotak penuh berhuruf (TypeScript,
+      C#, PHP, R, YAML, Sublime). Latarnya warna merek, hurufnya putih, jadi
+      bentuknya sama dengan logo aslinya alih-alih huruf abu di kotak abu.
+   2. `is-hue` — plugin dan skill bawaan Zephyr. Tidak ada merek dunia luar
+      untuknya, jadi warnanya diturunkan dari satu angka `--ikon-hue` per item
+      (angka, bukan nilai warna) dan dicampur dengan `--text`: di tema gelap
+      hasilnya lebih terang, di tema terang lebih pekat, tanpa dua aturan. */
+
+.xmkt-merek.is-padat {
+  background: currentColor;
+}
+
+.xmkt-tile-teks {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.xmkt-tile-teks.is-kecil {
+  font-size: 8px;
+  letter-spacing: -0.02em;
+}
+
+/* Angka di dalam perisai HTML5 / CSS3. */
+.xmkt-angka {
+  fill: #fff;
+  font-size: 6.4px;
+  font-weight: 700;
+}
+
+.xmkt-merek.is-hue {
+  color: color-mix(in srgb, hsl(var(--ikon-hue) 72% 62%) 78%, var(--text));
+  background: color-mix(in srgb, hsl(var(--ikon-hue) 65% 58%) 16%, transparent);
+}
+
+/* Ikon tumbuh sedikit saat barisnya disorot: tanda bahwa ini benda hidup,
+   bukan cap mati di samping teks. Skalanya kecil supaya daftar tidak bergoyang. */
+.xmkt-merek svg {
+  display: block;
+  transition: transform 140ms ease;
+}
+
+.xmkt-kartu:hover .xmkt-merek svg {
+  transform: scale(1.08);
+}
+
+/* ── Manage sebagai HALAMAN (jendela Agents) ──────────────────────────────
+ *
+ * Modal `Manage` di jendela utama tetap seperti semula (`.xmkt-manage`, di
+ * atas). Blok ini untuk halaman penuhnya: tab dengan penghitung di kanan
+ * judul, satu kotak berisi baris-baris terpasang, dan sakelar di ujung baris.
+ *
+ * Memakai kelas `.xmkt-*` yang sudah ada untuk tab, pencarian, logo, nama dan
+ * deskripsi: satu bahasa visual untuk Marketplace dan Manage, bukan dua.
+ */
+.xmg {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 28px 32px 24px;
+  overflow: auto;
+  color: var(--text);
+}
+
+.xmg-balik {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 2px 4px 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.xmg-balik:hover {
+  color: var(--text);
+}
+.xmg-balik span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Jarak kepala halaman sama dengan Marketplace, supaya berpindah bolak-balik
+   antara keduanya tidak menggeser judul naik-turun. */
+.xmg-bar {
+  margin-top: 22px;
+}
+
+/* Penghitung di samping label tab: angka kecil yang menyebut berapa yang
+   terpasang, bukan badge notifikasi. */
+.xmg-hitung {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.xmkt-tab-btn.is-on .xmg-hitung {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+  color: var(--text);
+}
+
+/* Satu kotak berisi semua baris, dengan garis pemisah antarbaris — bentuk yang
+   sama dengan acuan. Baris pertama dan terakhir tidak menyentuh tepi kotak. */
+.xmg-daftar {
+  margin-top: 6px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 35%, transparent);
+}
+
+.xmg-baris {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.xmg-baris:last-child {
+  border-bottom: 0;
+}
+
+.xmg-aksi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+/* Baris yang berkasnya sudah hilang: namanya masih tercatat, isinya tidak. */
+.xmg-rusak {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+/* ── Sakelar ─────────────────────────────────────────────────────────────── */
+.xmg-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 19px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+  cursor: pointer;
+  transition: background 130ms ease;
+}
+.xmg-switch:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+}
+.xmg-switch.is-on {
+  background: var(--accent);
+}
+.xmg-switch.is-on:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 82%, var(--text));
+}
+.xmg-switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+/* Fokus keyboard harus terlihat: sakelar ini sering jadi satu-satunya kontrol
+   di barisnya, dan tanpa cincin fokus ia tak bisa dioperasikan dengan Tab. */
+.xmg-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.xmg-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--bg, var(--surface));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 55%, transparent);
+  transition: transform 130ms ease;
+}
+.xmg-switch.is-on .xmg-switch-knob {
+  transform: translateX(15px);
 }

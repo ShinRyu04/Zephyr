@@ -99,10 +99,12 @@ pub fn prepare(
     model: &str,
     messages: &[ChatMsg],
     base_url: Option<&str>,
+    full_url: Option<bool>,
     key: &str,
     max_tokens: u32,
     effort: Option<ReasoningEffort>,
 ) -> Prepared {
+    let full = full_url.unwrap_or(false);
     let base = base_url
         .map(trim_base)
         .filter(|b| !b.is_empty())
@@ -152,7 +154,11 @@ pub fn prepare(
     }
 
     Prepared {
-        url: format!("{base}/chat/completions"),
+        url: if full {
+            base.clone()
+        } else {
+            format!("{base}/chat/completions")
+        },
         headers: vec![
             ("Authorization".into(), format!("Bearer {key}")),
             ("Content-Type".into(), "application/json".into()),
@@ -192,10 +198,12 @@ pub fn prepare_tools(
     messages: &[AgentMsg],
     tools: &[ToolSpec],
     base_url: Option<&str>,
+    full_url: Option<bool>,
     key: &str,
     max_tokens: u32,
     effort: Option<ReasoningEffort>,
 ) -> Prepared {
+    let full = full_url.unwrap_or(false);
     let base = base_url
         .map(trim_base)
         .filter(|b| !b.is_empty())
@@ -261,7 +269,11 @@ pub fn prepare_tools(
         .collect::<Vec<_>>();
 
     let mut prep = Prepared {
-        url: format!("{base}/chat/completions"),
+        url: if full {
+            base.clone()
+        } else {
+            format!("{base}/chat/completions")
+        },
         headers: vec![
             ("Authorization".into(), format!("Bearer {key}")),
             ("Content-Type".into(), "application/json".into()),

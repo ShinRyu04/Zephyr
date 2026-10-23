@@ -57,6 +57,12 @@ interface DiffState {
    */
   sorot: string;
   pilih: (path: string) => void;
+  /**
+   * Drop one file from the list. Used by the Diff View's AI Changes tab after
+   * the reader either keeps the change as it is or reverts it to `sebelum` -
+   * in both cases there is nothing left to review for that path.
+   */
+  buang: (path: string) => void;
   reset: () => void;
 }
 
@@ -160,6 +166,14 @@ export const useDiff = create<DiffState>()((set, get) => ({
       ),
     }));
   },
+
+  buang: (path) =>
+    set((s) => ({
+      berkas: s.berkas.filter((b) => b.path !== path),
+      /* `sudah` sengaja TIDAK dihapus: kalau agen menulis berkas yang sama
+         lagi di giliran ini, "sebelum" tetap harus isi sebelum tulisan
+         pertama, bukan isi hasil revert. */
+    })),
 
   reset: () => set({ turnId: '', berkas: [], sudah: new Set<string>() }),
 }));

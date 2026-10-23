@@ -30,6 +30,7 @@ export const ACTIONS: ActionDef[] = [
   { id: 'view.explorer', label: 'Open Explorer', group: 'View', default: 'Ctrl+Shift+E' },
   { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },
   { id: 'view.quickOpen', label: 'Quick Open file', group: 'View', default: 'Ctrl+P' },
+  { id: 'view.workspaceSymbol', label: 'Go to Symbol in Workspace', group: 'View', default: 'Ctrl+T' },
   { id: 'view.nextTab', label: 'Tab editor berikutnya', group: 'View', default: 'Ctrl+Tab' },
   { id: 'view.prevTab', label: 'Tab editor sebelumnya', group: 'View', default: 'Ctrl+Shift+Tab' },
   { id: 'view.settings', label: 'Open Settings', group: 'View', default: 'Ctrl+,' },
@@ -42,16 +43,13 @@ export const ACTIONS: ActionDef[] = [
   { id: 'terminal.newPane', label: 'Pane terminal baru (alt)', group: 'Terminal', default: 'Ctrl+Shift+`' },
 
   /*
-   * No default chord: `Ctrl+Shift+A` belongs to `agents.openWindow` now
-   * (keybindings.ts), which is what actually opens the 3-column Agents
-   * workspace from the main window. This row used to claim the same chord, so
-   * the Settings page advertised a shortcut for the AI panel that the key
-   * router would never deliver — the Agents command won at resolve time. The
-   * panel is still reachable from the palette and from Customize Layout; the
-   * row is kept so an existing user remap survives, but it ships unbound rather
-   * than shipping a lie.
+   * `Ctrl+Shift+A` belongs to `agents.openWindow` (keybindings.ts), which opens
+   * the 3-column Agents workspace from the main window. This row used to claim
+   * that same chord, so Settings advertised an AI-panel shortcut the key router
+   * never delivered - the Agents command won at resolve time. The panel now
+   * ships `Ctrl+Alt+A` instead, which is also what the router binds.
    */
-  { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: '' },
+  { id: 'ai.panel', label: 'Toggle panel AI', group: 'AI', default: 'Ctrl+Alt+A' },
   { id: 'ai.send', label: 'Send AI prompt', group: 'AI', default: 'Ctrl+Enter' },
   { id: 'git.panel', label: 'Open Source Control', group: 'Git', default: 'Ctrl+Shift+G' },
 

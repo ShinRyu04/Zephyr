@@ -35,12 +35,14 @@ import {
 import * as cmd from './commands';
 import { useStore } from './store';
 import {
+  deteksiKemampuan,
   findModel,
   isPlaceholderModel,
   MODEL_FALLBACK,
   PROVIDER_AUTO,
   PROVIDER_BY_ID,
   providerEfektif,
+  providerTersimpanValid,
 } from './modelCatalog';
 import { buatJendela, jatahJendela, JENDELA_PROVIDER, type JendelaKredensial } from './providerTahan';
 import { useSettingsUi } from './settingsStore';
@@ -171,7 +173,79 @@ const TOOL_NET_SET: ReadonlySet<string> = new Set(
   TOOL_CATALOG.filter((t) => t.effect === 'net').map((t) => t.name),
 );
 
-const LS_KEY = 'zephyr.ai.sessions.v1';
+/*
+ * Which WINDOW this store belongs to.
+ *
+ * Every Zephyr window is its own WebView with its own zustand instances - but
+ * they share ONE localStorage, because they run on the same origin. That is how
+ * the Agents window ended up loading the main window's conversation list: same
+ * key, same array at boot, so a chat started in the column appeared in the
+ * popped-out window, its sidebar listed the editor's chats, and "New task" in
+ * one surface could be reopened from the other. Two windows answering to one
+ * transcript is the opposite of what a second window is for.
+ *
+ * Each window now keeps its OWN list, under its own key. The split is by
+ * WINDOW, not by feature: the editor tab and the right column inside the main
+ * window still share one history (and keep separate active sessions through
+ * `activeIds`), while the Agents window is a workspace of its own - the way a
+ * separate chat view behaves in the editors this one is modelled on.
+ *
+ * Tools are unaffected: both windows talk to the same Rust backend, so shell,
+ * file reads and edits work in either, whichever window the conversation was
+ * started in.
+ */
+const JENDELA_AGENTS =
+  typeof window !== 'undefined' && /^#agents\b/.test(window.location.hash);
+
+const LS_KEY = JENDELA_AGENTS
+  ? 'zephyr.ai.sessions.v1.agents'
+  : 'zephyr.ai.sessions.v1';
+
+/*
+ * PROVIDER + MODEL juga milik jendela ini, bukan milik aplikasi.
+ *
+ * Percakapan yang terpisah tapi modelnya tetap satu sumber masih menghasilkan
+ * bug yang sama dalam bentuk lain: pilih model di jendela utama, dan jendela
+ * Agents tiba-tiba mengirim nama model gateway lain — persis 400 "model or the
+ * message body is invalid" yang dilaporkan. Penyebabnya dua arah:
+ *
+ *   `setModel` menulis `settings.models.activeProvider` + `providers[].model`
+ *   (settings.json, dipakai bersama), lalu `sinkronProvider` menarik SETIAP
+ *   jendela ke nilai itu setiap settings ditulis.
+ *
+ * Jendela utama tetap memakai settings sebagai sumbernya (itu yang dibaca
+ * toolbar, dialog Models, dan `run_command`). Jendela Agents menyimpan
+ * pilihannya sendiri di sini: `setModel` tidak menyentuh settings, dan
+ * `sinkronProvider` tidak menariknya. Konfigurasi provider (baseUrl, daftar
+ * model, key) tetap bersama — yang dipisah hanya PILIHAN, karena itu yang
+ * menentukan request dikirim ke mana.
+ */
+const LS_PILIHAN = JENDELA_AGENTS ? 'zephyr.ai.pilihan.v1.agents' : null;
+
+/** Pilihan provider/model yang tersimpan untuk jendela ini (jendela Agents). */
+function bootPilihan(): { provider?: string; model?: string } {
+  if (!LS_PILIHAN) return {};
+  try {
+    const mentah = localStorage.getItem(LS_PILIHAN);
+    if (!mentah) return {};
+    const o = JSON.parse(mentah) as { provider?: unknown; model?: unknown };
+    return {
+      provider: typeof o.provider === 'string' && o.provider ? o.provider : undefined,
+      model: typeof o.model === 'string' && o.model ? o.model : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function simpanPilihan(provider: string, model: string): void {
+  if (!LS_PILIHAN) return;
+  try {
+    localStorage.setItem(LS_PILIHAN, JSON.stringify({ provider, model }));
+  } catch {
+    /* penuh/diblokir: pilihan tetap hidup di memori */
+  }
+}
 
 /*
  * Satu pesan di antrian kirim.
@@ -554,25 +628,30 @@ const BATAS_AKSI_INGAT = 2;
  */
 export const BATAS_BROWSER_MUTER = 3;
 /* Consecutive read-only steps that teach nothing before the run is ended. */
-const BATAS_TANPA_KEMAJUAN = 4;
+const BATAS_TANPA_KEMAJUAN = 8;
 /*
  * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
  * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai.
  *
- * TURUN dari 20 ke 4.
+ * DULU turun ke 4, sekarang NAIK ke 10.
  *
- * Kenapa: 20 itu cukup untuk membuat agen "terus bekerja" setelah tugasnya
- * benar-benar selesai. Penyebabnya todo yang tidak pernah ditandai `done` -
- * model menulis semua berkasnya tapi lupa memanggil `todo_write`, jadi daftar
- * rencana tetap penuh, dan guard menyodok model sampai 20 kali untuk
- * mengerjakan ulang pekerjaan yang sudah ada di disk. Yang dilihat pembaca:
- * run yang tidak pernah berhenti.
+ * Pelajaran angka 20: cukup untuk membuat agen "terus bekerja" setelah
+ * tugasnya benar-benar selesai (todo lupa ditandai `done`). Tapi 4
+ * berlebihan ke arah sebaliknya - lihat di bawah.
  *
- * Empat cukup untuk satu koreksi yang jujur (model lupa satu langkah) tanpa
- * memberi ruang untuk loop panjang. Batas keras yang sebenarnya tetap
- * MAX_AGENT_STEPS; ini hanya rem untuk "menyodok terus".
+ * NAIK dari 4 ke 10.
+ *
+ * Empat terlalu ketat untuk model yang bekerja dengan cara "berpikir dulu,
+ * lalu menulis": satu giliran teks tanpa tool (menjelaskan rencana, atau
+ * berhenti sejenak untuk membaca hasil tool sebelumnya) sudah menghabiskan
+ * seperempat jatah. Tiga jeda wajar seperti itu berturut-turut - dan run
+ * diakhiri padahal rencananya jelas belum selesai. Itulah keluhan "AI selalu
+ * berhenti saat kerja".
+ *
+ * Sepuluh memberi ruang untuk beberapa jeda berpikir yang jujur. Batas keras
+ * yang sebenarnya tetap MAX_AGENT_STEPS; ini hanya rem untuk "menyodok terus".
  */
-const BATAS_LANJUT_TANPA_TOOL = 4;
+const BATAS_LANJUT_TANPA_TOOL = 10;
 
 /*
  * Langkah berturut-turut tanpa PERUBAHAN APA PUN sebelum agen ditegur lalu
@@ -585,11 +664,13 @@ const BATAS_LANJUT_TANPA_TOOL = 4;
  * membuat run berjalan sampai batas langkah sementara pembaca melihat agen yang
  * tidak pernah selesai.
  *
- * Delapan cukup untuk satu investigasi wajar (beberapa bacaan + satu perintah
- * gagal yang dicoba ulang) dan jauh di bawah puluhan langkah yang terlihat pada
- * run yang benar-benar mandek.
+ * Delapan terbukti terlalu pendek: tugas riset/analisis yang memang tujuannya
+ * MEMBACA (tanpa todo_write) menghabiskan hitungan ini di ~langkah 9 lalu
+ * dihentikan di tengah investigasi yang sehat. Dua puluh memberi ruang
+ * investigasi panjang yang jujur; loop sungguhan tetap ditangkap guard
+ * sidik-jari (BATAS_AKSI_SAMA / BATAS_BACA_SAMA) jauh lebih cepat.
  */
-const BATAS_MANDEK = 8;
+const BATAS_MANDEK = 20;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -1012,6 +1093,40 @@ export function resetCacheKonteks(): void {
   void import('./projectContext').then((m) => m.resetRingkasanProyek());
 }
 
+/**
+ * URL gateway yang benar-benar dipakai untuk satu model.
+ *
+ * Prioritas: baseUrl milik MODEL custom > baseUrl tingkat provider > undefined
+ * (Rust lalu memakai bawaan provider itu).
+ *
+ * Kenapa per-model: beberapa custom provider (mis. `custom-geraikita` dan
+ * `custom-modelrouter`) bisa memakai satu URL sedangkan model-model di dalamnya
+ * dijual lewat path berbeda. Dulu URL hanya dibaca dari tingkat provider,
+ * sehingga baris model yang menyimpan URL sendiri diam-diam diabaikan.
+ */
+export function baseUrlModel(
+  provider: string,
+  modelId: string,
+  providerBaseUrl?: string,
+): string | undefined {
+  const custom = useStore
+    .getState()
+    .settings.models.custom?.find((c) => c.provider === provider && c.id === modelId);
+  return custom?.baseUrl || providerBaseUrl || undefined;
+}
+
+/**
+ * Apakah URL provider dipakai apa adanya (`fullUrl`).
+ *
+ * Kebalikan dari `baseUrlModel`: flag ini hanya hidup di tingkat provider,
+ * karena `fullUrl` menjawab "URL ini sudah lengkap atau masih perlu
+ * ditambahi `/chat/completions`" — pertanyaan tentang endpoint, bukan model.
+ */
+export function fullUrlProvider(provider: string): boolean | undefined {
+  const p = useStore.getState().settings.models.providers?.[provider];
+  return p?.fullUrl === true ? true : undefined;
+}
+
 /** Existing call site name for `resetCacheKonteks`; kept so callers still compile. */
 export function resetKonteksAgent(): void {
   resetCacheKonteks();
@@ -1026,7 +1141,8 @@ export async function oneShot(prompt: string): Promise<string> {
     model: def.id,
     messages: [{ role: 'user', content: prompt }],
     tools: [],
-    baseUrl: cfg.baseUrl || undefined,
+    baseUrl: baseUrlModel(def.provider, def.id, cfg.baseUrl),
+    fullUrl: fullUrlProvider(def.provider),
     maxTokens: def.maxOut ?? 512,
     effort: st.reasoningEffort ?? undefined,
   });
@@ -1441,6 +1557,7 @@ export async function padatkanRiwayat(
       messages: [{ role: 'user', content: prompt }],
       tools: [],
       baseUrl: opts.baseUrl,
+      fullUrl: fullUrlProvider(opts.provider),
       maxTokens: 2048,
       effort: opts.effort,
     });
@@ -2101,6 +2218,35 @@ function gagalKirimToast(pesan: string): false {
 }
 
 /*
+ * Tolak kiriman bergambar ke model yang DIKETAHUI tidak bisa membacanya.
+ *
+ * Kenapa perlu: tanpa ini, lampiran tetap dikirim sebagai bagian `image_url`,
+ * provider yang tidak mendukung gambar membuangnya tanpa suara, dan model
+ * menjawab "saya tidak bisa melihat gambar" — user lalu mengira fiturnya rusak,
+ * padahal modelnya yang tidak punya kemampuan itu. Jawaban seperti itu tidak
+ * memberi satu pun langkah yang bisa diambil.
+ *
+ * Batasnya sengaja konservatif: hanya menolak kalau `deteksiKemampuan` YAKIN
+ * (mengembalikan daftar tanpa 'image'). Model kustom yang tidak dikenali
+ * (`undefined`) tetap dikirim — router pihak ketiga sering memetakan nama model
+ * sendiri, dan menebak "tidak bisa" akan mematikan fitur yang sebenarnya jalan.
+ *
+ * Kembalian `null` berarti "lanjutkan"; `false` berarti sudah ditolak dan toast
+ * sudah dipasang, siap dikembalikan langsung dari `send`.
+ */
+function tolakGambarTakTerbaca(model: string, jumlah: number): false | null {
+  if (!model || jumlah <= 0) return null;
+  const bisa = deteksiKemampuan(model);
+  if (!bisa || bisa.includes('image')) return null;
+  return gagalKirimToast(
+    tf('{name} cannot read images - pick a vision model, or remove the {n} image attachment(s)', {
+      name: model,
+      n: jumlah,
+    }),
+  );
+}
+
+/*
  * The last agent step at which automatic compaction ran. Module-level so it
  * spans the whole run: the cooldown has to survive across loop iterations, and
  * resetting it per send would let a long task compact on every single step.
@@ -2291,11 +2437,12 @@ const BATAS_ARGUMEN_RUSAK_BERTURUT = 4;
 /**
  * How many times a run may resume ITSELF after a protocol stop.
  *
- * Two: enough to get past a broken call and finish the file, few enough that a
- * model that cannot produce valid JSON ends with an honest message instead of
- * looping in the background where nobody can see it.
+ * Two was too few: a transient provider hiccup in the middle of a long task
+ * ended the run for good, which reads to the user as "the agent just stops".
+ * Four resumes cover a flaky gateway without letting a permanently broken
+ * model loop in the background.
  */
-const AUTO_LANJUT_MAKS = 2;
+const AUTO_LANJUT_MAKS = 4;
 
 /*
  * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
@@ -2794,6 +2941,17 @@ interface AiState {
 
   model: string;
   provider: string;
+  /*
+   * Provider terakhir yang sudah disinkronkan `sinkronProvider`.
+   *
+   * `applySettings` memanggil `sinkronProvider` SETIAP kali settings ditulis —
+   * termasuk ketika dialog lain (mis. Add Model → Refresh) menulis baseUrl —
+   * dan dulu setiap panggilan itu menarik panel kembali ke model di
+   * `settings.models.activeProvider`, menghapus pilihan model yang baru saja
+   * dibuat user. Field ini mencatat provider yang terakhir DITERAPKAN, sehingga
+   * sinkronisasi hanya terjadi saat `activeProvider` benar-benar berubah.
+   */
+  lastActiveProvider?: string;
 
   pending: string | null;
 
@@ -2926,6 +3084,13 @@ interface AiState {
 
   lastTruncated: { from: number; to: number } | null;
   keys: PublicModel[];
+  /*
+   * Provider slots that hold a non-empty value in `secrets.json`, read straight
+   * from the file by `segarkanDisk`. Never contains the key itself — only the
+   * slot names — so it is safe to hold in the store and to inspect from a
+   * harness.
+   */
+  disk: Set<string>;
 
   modelMenuOpen: boolean;
 
@@ -3027,6 +3192,12 @@ interface AiState {
 interface AiActions {
   init: () => Promise<void>;
   loadKeys: () => Promise<void>;
+  /*
+   * Re-read `secrets.json` off disk into `disk`. Called whenever the picker is
+   * opened or refreshed, so "no API key" is answered from the file rather than
+   * from a copy that another window may have outdated.
+   */
+  segarkanDisk: () => Promise<void>;
   hasKey: (provider?: string) => boolean;
 
   /**
@@ -3569,8 +3740,10 @@ export const useAi = create<AiStore>((set0, get) => {
     draftImages: [],
     lastTruncated: null,
   keys: [],
+  disk: new Set<string>(),
   modelMenuOpen: false,
   confirmCmd: null,
+  lastActiveProvider: undefined,
   toast: null,
   clearAllOpen: false,
 
@@ -3629,7 +3802,13 @@ export const useAi = create<AiStore>((set0, get) => {
     set({ pending: null, agentBusy: false, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
 
     const st = useStore.getState().settings.models;
-    const dikenal = (id: string) => PROVIDER_BY_ID.has(id);
+    /*
+     * `custom-*` bukan "tidak dikenal": gateway buatan reader memang tidak ada
+     * di katalog. Tanpa pengecualian ini `init` menjatuhkan pilihannya ke
+     * `custom` - provider kosong tanpa URL - dan panel tampil "belum pilih
+     * model" setiap kali window dibuka atau halaman dimuat ulang.
+     */
+    const dikenal = (id: string) => PROVIDER_BY_ID.has(id) || id === 'custom' || id.startsWith('custom-');
 
     let adaKey: string[] = [];
     try {
@@ -3639,6 +3818,15 @@ export const useAi = create<AiStore>((set0, get) => {
     } catch {
       /* non-fatal: falls back to a choice without key info */
     }
+    /*
+     * Slot yang isinya ada di `secrets.json` ikut dihitung "punya key".
+     *
+     * `getPublicModels` bisa melaporkan has_key:false untuk slot yang jelas
+     * berisi, dan itu cukup untuk membuat pemilihan provider jatuh ke default
+     * saat app dibuka - yang terbaca sebagai "key-nya hilang".
+     */
+    await get().segarkanDisk();
+    for (const id of get().disk) if (!adaKey.includes(id)) adaKey.push(id);
 
     const aktif = st.activeProvider;
     /*
@@ -3649,7 +3837,24 @@ export const useAi = create<AiStore>((set0, get) => {
      * every launch.
      */
     let prov = providerEfektif(aktif, (id) => adaKey.includes(id));
+    /*
+     * Provider kustom yang URL-nya tersimpan tetap dipakai.
+     *
+     * `providerEfektif` hanya percaya `adaKey` (dari `getPublicModels`), jadi
+     * gateway `custom-*` yang key-nya gagal didekripsi akan "dipindahkan" ke
+     * provider katalog pertama - dan setiap Refresh/restart mengembalikan
+     * pilihan model reader ke default provider lain. Bukti yang sah untuk
+     * `custom-*` adalah baseUrl di settings, sama seperti `hasKey`.
+     */
+    if (aktif.startsWith('custom-') && st.providers[aktif]?.baseUrl?.trim()) prov = aktif;
     if (!dikenal(prov)) prov = 'custom';
+    /*
+     * The bare `custom` slot is a legacy catch-all with no endpoint, so any key
+     * or URL check against it fails no matter what is stored on disk. If it is
+     * what we would send with, replace it with a gateway that really exists.
+     * `custom-*` is already settled above and must not be re-picked.
+     */
+    if (prov === 'custom') prov = providerTersimpanValid(aktif, st.providers);
 
     /*
      * Resolve the model WITHOUT ever landing on a catalogue placeholder.
@@ -3666,7 +3871,30 @@ export const useAi = create<AiStore>((set0, get) => {
       st.providers[prov]?.model ||
       PROVIDER_BY_ID.get(prov)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
       '';
-    const model = isPlaceholderModel(tersimpan) ? kandidat : tersimpan || kandidat;
+    let model = isPlaceholderModel(tersimpan) ? kandidat : tersimpan || kandidat;
+
+    /*
+     * Jendela Agents memakai pilihan yang TERAKHIR DIPILIH DI JENDELA ITU.
+     *
+     * Tanpa ini, setiap kali jendela dibuka dua permukaan itu kembali
+     * bertemu: pilihan lokal ditimpa `settings.models.activeProvider`, lalu
+     * satu window mengirim nama model milik gateway window lain. Provider yang
+     * tidak dikenal (mis. sisa konfigurasi yang sudah dihapus) diabaikan, jadi
+     * pilihan rusak jatuh kembali ke default settings alih-alih mengirim
+     * request yang pasti gagal.
+     */
+    if (JENDELA_AGENTS) {
+      const sendiri = bootPilihan();
+      if (sendiri.provider && dikenal(sendiri.provider)) {
+        prov = sendiri.provider;
+        const modelSendiri =
+          sendiri.model && !isPlaceholderModel(sendiri.model) ? sendiri.model : '';
+        model =
+          modelSendiri ||
+          PROVIDER_BY_ID.get(prov)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
+          model;
+      }
+    }
     set({
       provider: prov,
       model,
@@ -3682,14 +3910,62 @@ export const useAi = create<AiStore>((set0, get) => {
     } catch {
       /* non-fatal: the status badge becomes "no key yet" */
     }
+    await get().segarkanDisk();
+  },
+
+  segarkanDisk: async () => {
+    const { keyDiDisk } = await import('./apiKeyDisk');
+    const ada = await keyDiDisk();
+    set({ disk: ada });
   },
 
   hasKey: (provider) => {
     const p = provider ?? get().provider;
-    return get().keys.some((k) => k.provider === p && k.hasKey);
+    /*
+     * `disk` = slot yang isinya tidak kosong di `secrets.json`, dibaca saat
+     * pemilih model dibuka / refresh. Ini bukti KEEMPAT, dan yang paling
+     * langsung: `keys` adalah salinan per-jendela yang bisa basi (key baru
+     * diketik di jendela lain, atau `get_public_models` mengembalikan has_key
+     * false untuk slot yang jelas ada isinya). Tanpa bukti ini panel terus
+     * menampilkan "masukin API key" untuk key yang sudah tersimpan.
+     */
+    if (get().disk.has(p)) return true;
+    if (get().keys.some((k) => k.provider === p && k.hasKey)) return true;
+    /*
+     * JUGA siap bila settings menyimpan baseUrl untuk provider itu.
+     *
+     * `keys` berasal dari `get_public_models`, dan satu entri yang gagal
+     * didekripsi membuat `hasKey` false walau key-nya ada di disk. Akibatnya
+     * pengiriman ditolak dengan "masukin API key" padahal provider itu jelas
+     * sudah dikonfigurasi — persis keluhan setelah Refresh. Aturan yang sama
+     * dengan pemilih model: key ATAU endpoint tersimpan = siap.
+     */
+    if (p === 'custom' || p.startsWith('custom-')) {
+      const semua = useStore.getState().settings.models.providers ?? {};
+      if (typeof semua[p]?.baseUrl === 'string' && semua[p]!.baseUrl!.trim().length > 0) return true;
+      /*
+       * The bare `custom` slot never has a URL of its own. Falling through to
+       * "false" here is what produced "add an API key" while `custom-ryuga` sat
+       * configured and keyed: the panel was simply asking about the wrong id.
+       */
+      if (p === 'custom') return providerTersimpanValid('custom', semua) !== 'custom';
+      return false;
+    }
+    return false;
   },
 
   sinkronProvider: () => {
+    /*
+     * Jendela Agents TIDAK ikut settings.
+     *
+     * `sinkronProvider` menarik panel ke `settings.models.activeProvider`, dan
+     * settings dipakai bersama dua jendela. Selama Agents ikut ditarik, memilih
+     * model di jendela utama mengganti model di jendela Agents — request lalu
+     * pergi ke gateway dengan nama model yang bukan miliknya (400). Pilihannya
+     * sendiri disimpan di `LS_PILIHAN` dan hanya berubah lewat pemilih model di
+     * jendela itu.
+     */
+    if (JENDELA_AGENTS) return;
     /*
      * HydraFusion is a selection, not a provider default.
      *
@@ -3711,16 +3987,73 @@ export const useAi = create<AiStore>((set0, get) => {
     const target = models?.activeProvider;
     if (!target || target === PROVIDER_AUTO) return;
 
-    // An unknown provider is left as-is: normalising now
-    // could actually move the panel to the wrong provider.
-    if (!PROVIDER_BY_ID.has(target)) return;
+    /*
+     * Provider kustom TIDAK boleh diserahkan ke `providerEfektif`.
+     *
+     * `providerEfektif` meminta bukti "punya key"; untuk `custom-*` bukti itu
+     * hanya datang dari `keys`. Begitu satu entri gagal didekripsi - atau saat
+     * Refresh baru selesai dan array `keys` belum dimuat ulang - fungsi itu
+     * menganggap provider pilihan reader tidak bisa mengirim lalu MELOMPAT ke
+     * provider katalog pertama yang punya key. Panel berpindah provider, model
+     * kembali ke default, dan pesan "masukin API key" muncul untuk provider
+     * yang URL-nya jelas tersimpan. Bukti untuk `custom-*` adalah baseUrl-nya
+     * sendiri, sama seperti `hasKey`.
+     */
+    if (target.startsWith('custom-')) {
+      if (!models.providers?.[target]?.baseUrl?.trim()) return;
+    } else if (!PROVIDER_BY_ID.has(target) && target !== 'custom') {
+      // An unknown provider is left as-is: normalising now
+      // could actually move the panel to the wrong provider.
+      return;
+    }
+
+    /*
+     * PERBAIKAN BUG: pilihan model reset setelah Refresh.
+     *
+     * Sebelumnya sinkronProvider dipanggil oleh applySettings SETIAP kali
+     * settings ditulis (termasuk saat Refresh dialog Add Model menulis
+     * baseUrl/fullUrl). Ia selalu mencocokkan panel dengan
+     * settings.models.activeProvider, sehingga pilihan model yang baru saja
+     * user pilih di panel hilang — bahkan kalau activeProvider sama sekali
+     * tidak berubah.
+     *
+     * Sekarang: hanya sync kalau `activeProvider` benar-benar berubah sejak
+     * terakhir sinkronisasi. Menulis URL/key/fullUrl di dialog lain tidak
+     * lagi menyentuh pilihan model/user.
+     */
+    if (get().lastActiveProvider === target) return;
 
     const dariSettings = models.providers?.[target]?.model;
-    const providerSama = target === get().provider;
+    /*
+     * PERBAIKAN BUG "model ngulang lagi setelah Refresh".
+     *
+     * `modelSama` dulu bernilai true ketika settings TIDAK menyimpan model
+     * (`!dariSettings`). Akibatnya, begitu activeProvider berubah - dan Refresh
+     * di dialog Add Model memang menulis settings - guard di bawah menganggap
+     * semuanya sudah cocok, lalu jatuh ke blok pencocokan yang MEMILIH ULANG
+     * model dari katalog. Pilihan yang baru saja diklik reader tertimpa.
+     *
+     * Model hanya dianggap sama bila settings benar-benar menyebut model yang
+     * sama dengan yang sedang terpasang. Kalau settings tidak menyebut apa pun,
+     * pilihan di memori adalah satu-satunya sumber kebenaran dan tidak boleh
+     * disentuh.
+     */
     const modelSama = !dariSettings || dariSettings === get().model;
 
-    // If the provider AND model are already the same, there is nothing to change.
-    if (providerSama && modelSama) return;
+    // Provider sama + model sama (atau settings bisu): tidak ada yang diubah.
+    if (target === get().provider && modelSama) {
+      set({ lastActiveProvider: target });
+      return;
+    }
+    /*
+     * Provider sama, tetapi settings menyebut model lain: hanya ikuti kalau
+     * model itu memang BUKAN placeholder. Placeholder berarti "ketik namanya",
+     * bukan pilihan, jadi pilihan di memori dipertahankan.
+     */
+    if (target === get().provider && dariSettings && isPlaceholderModel(dariSettings)) {
+      set({ lastActiveProvider: target });
+      return;
+    }
 
     /*
      * Never sync the panel onto a placeholder. A stored `custom-model` (from an
@@ -3731,14 +4064,25 @@ export const useAi = create<AiStore>((set0, get) => {
      * placeholder. The `modelSama` guard above stays as-is so this cannot spin.
      */
     const tersimpan = dariSettings && !isPlaceholderModel(dariSettings) ? dariSettings : '';
+    /*
+     * Provider kustom tidak ada di katalog, jadi `PROVIDER_BY_ID.get(target)`
+     * kosong dan dulu jatuh ke `get().model` — nama model milik gateway LAIN.
+     * Sumber yang benar untuk mereka adalah model yang tersimpan di
+     * `settings.models.custom` milik provider itu sendiri.
+     */
+    const kustom =
+      target.startsWith('custom') && !tersimpan
+        ? (models.custom ?? []).find((c) => c.provider === target && !isPlaceholderModel(c.id))?.id
+        : undefined;
     const kandidat =
       tersimpan ||
+      kustom ||
       PROVIDER_BY_ID.get(target)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
       '';
     const model = kandidat || get().model;
     if (!model) return;
 
-    set({ provider: target, model });
+    set({ provider: target, model, lastActiveProvider: target });
     const sid = get().activeId;
     if (sid) {
       set((s) => ({
@@ -3773,14 +4117,47 @@ export const useAi = create<AiStore>((set0, get) => {
      * the fallback HydraFusion needs when a plan cannot run.
      */
     const hydra = pilihHydra(modelId);
-    set({ model: hydra ? HYDRA_MODEL_ID : def.id, provider: def.provider, modelMenuOpen: false });
-
+    /*
+     * PERBAIKAN BUG: pilihan model "ngulang lagi" setelah Refresh.
+     *
+     * Klaim target di sini, SEBELUM menulis settings. applySettings() di bawah
+     * menulis models.activeProvider; setelah jeda debounce settings itu dibaca
+     * kembali dan sinkronProvider() dipanggil. Tanpa klaim ini target dianggap
+     * baru ("activeProvider berubah") sehingga provider dicocokkan ulang dan
+     * model yang baru diklik tertimpa pilihan tersimpan yang lama.
+     *
+     * Berlaku juga di Jendela Agents: di sana setModel tidak menulis settings,
+     * tetapi klik model tetap harus mengunci pilihan milik jendela ini supaya
+     * sinkron berikutnya tidak menariknya ke activeProvider bersama.
+     */
+    set({
+      model: hydra ? HYDRA_MODEL_ID : def.id,
+      provider: def.provider,
+      lastActiveProvider: def.provider,
+      modelMenuOpen: false,
+    });
     set((s) => ({
       sessions: s.sessions.map((x) =>
         x.id === s.activeId ? { ...x, model: hydra ? HYDRA_MODEL_ID : def.id, provider: def.provider } : x,
       ),
     }));
     persist(get());
+
+    /*
+     * Jendela Agents: simpan di JENDELA INI dan jangan menulis settings.
+     *
+     * `applySettings` di bawah menulis `models.activeProvider` +
+     * `providers[].model` ke settings.json, dan settings itu dibaca kedua
+     * jendela. Menulisnya dari sini membuat pilihan di jendela Agents menarik
+     * jendela utama (dan sebaliknya) — yang justru mau dihindari. Provider,
+     * baseUrl, dan daftar model tetap dibaca bersama; hanya PILIHAN yang
+     * dipisah. HydraFusion tidak disimpan, sama seperti di jendela utama: ia
+     * sentinel routing, bukan nama model yang bisa dipulihkan.
+     */
+    if (JENDELA_AGENTS) {
+      if (!hydra) simpanPilihan(def.provider, def.id);
+      return;
+    }
 
     const models = useStore.getState().settings.models;
     const providers = models?.providers ?? {};
@@ -5180,6 +5557,11 @@ export const useAi = create<AiStore>((set0, get) => {
     const imgs = images ?? get().draftImages;
     if (!raw && imgs.length === 0) return false;
 
+    /* Model yang tidak bisa melihat gambar ditolak di sini, sebelum satu
+       request pun dibuat — lihat `tolakGambarTakTerbaca`. */
+    const tolakGambar = tolakGambarTakTerbaca(get().model, imgs.length);
+    if (tolakGambar !== null) return tolakGambar;
+
     if (diketik) get().addPromptHistory(diketik);
 
     if (get().agentMode === 'agent') {
@@ -5716,7 +6098,8 @@ export const useAi = create<AiStore>((set0, get) => {
               provider: langkah.provider,
               model: langkah.model,
               messages: pesan,
-              baseUrl: p.baseUrl || undefined,
+              baseUrl: baseUrlModel(langkah.provider, langkah.model, p.baseUrl),
+              fullUrl: fullUrlProvider(langkah.provider),
               maxTokens: findModel(langkah.model, langkah.provider).maxOut ?? 2048,
               effort: get().reasoningEffort ?? undefined,
               sessionId: get().activeSession()?.id,
@@ -5825,7 +6208,8 @@ export const useAi = create<AiStore>((set0, get) => {
           // plus a few screenshots builds the same oversized body - it just
           // takes more turns to get there.
           messages: ringkasUkuran(history),
-          baseUrl: cfg.baseUrl || undefined,
+          baseUrl: baseUrlModel(def.provider, def.id, cfg.baseUrl),
+          fullUrl: fullUrlProvider(def.provider),
           maxTokens: def.maxOut ?? 2048,
           effort: get().reasoningEffort ?? undefined,
           // Stable per-chat id: lets the provider reuse its prompt cache for
@@ -5873,6 +6257,8 @@ export const useAi = create<AiStore>((set0, get) => {
       );
     }
     const agentImages = explicitImages ?? get().draftImages;
+    const tolakGambarAgen = tolakGambarTakTerbaca(get().model, agentImages.length);
+    if (tolakGambarAgen !== null) return tolakGambarAgen;
     /*
      * JEJAK KANDIDAT & PENCACAH PERCOBAAN (temuan d: pesan akhir TIDAK pernah
      * menyebut provider mana pun, dan TIDAK memberi tahu user berapa kali
@@ -6664,7 +7050,7 @@ let autoLanjut = 0;
             const hasil = await padatkanRiwayat(history, {
               provider: def.provider,
               model: def.id,
-              baseUrl: cfg.baseUrl || undefined,
+              baseUrl: baseUrlModel(def.provider, def.id, cfg.baseUrl),
               effort: get().reasoningEffort ?? undefined,
             });
             if (hasil) {
@@ -7279,7 +7665,8 @@ let autoLanjut = 0;
                 model: activeDef.id,
                 messages: pesan,
                 tools: toolSpecs,
-                baseUrl: activeCfg.baseUrl || undefined,
+                baseUrl: baseUrlModel(activeDef.provider, activeDef.id, activeCfg.baseUrl),
+                fullUrl: fullUrlProvider(activeDef.provider),
                 maxTokens: (activeDef.maxOut ?? 2048) + tokenTambahan,
                 effort: get().reasoningEffort ?? undefined,
                 /* Same session id on every step of this run, so the provider
@@ -7946,6 +8333,7 @@ let autoLanjut = 0;
                   messages: pesanKritik(content, akhir),
                   tools: [],
                   baseUrl: pk.baseUrl || undefined,
+                  fullUrl: fullUrlProvider(kritikus.provider),
                   maxTokens: findModel(kritikus.model, kritikus.provider).maxOut ?? 2048,
                   effort: get().reasoningEffort ?? undefined,
                   sessionId: get().activeSession()?.id,
@@ -8013,6 +8401,7 @@ let autoLanjut = 0;
                     messages: pesanRevisi(content, akhir, teksKritik),
                     tools: [],
                     baseUrl: pd.baseUrl || undefined,
+                    fullUrl: fullUrlProvider(hydraDipakai.provider),
                     maxTokens: findModel(hydraDipakai.model, hydraDipakai.provider).maxOut ?? 2048,
                     effort: get().reasoningEffort ?? undefined,
                     sessionId: get().activeSession()?.id,
@@ -10129,6 +10518,7 @@ let autoLanjut = 0;
       flushChunkBuf();
     } else if (c.text || c.reasoning) {
       const buf = chunkBuf.get(c.id) ?? { text: '', reasoning: [] };
+      if (c.usage) buf.usage = c.usage;
       /*
        * Text is always a true delta, so appending it is lossless. Reasoning is
        * NOT: some providers send it CUMULATIVE (a growing snapshot), and the
@@ -10475,7 +10865,16 @@ function lupakanDelta(id: string): void {
  * force a synchronous flush first, so the last characters are never stranded and
  * the agent step machine still sees its result on time.
  */
-type BufChunk = { text: string; reasoning: string[] };
+/*
+ * `usage` rides along with the buffered text.
+ *
+ * A provider usually reports the turn's token counts on its LAST frame, and
+ * that frame often also carries the final answer tokens - so it lands in this
+ * buffer, not in the direct path. Dropping it here meant the number existed in
+ * the stream but was never stored, and anything asking "how full is the context"
+ * had nothing to read. It is kept as the newest value seen within the frame.
+ */
+type BufChunk = { text: string; reasoning: string[]; usage?: { input: number; output: number } };
 const chunkBuf = new Map<string, BufChunk>();
 let chunkFlushHandle: number | null = null;
 let chunkFlushViaTimeout = false;
@@ -10611,6 +11010,16 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
            */
           let patch: Partial<ChatMsg> = {};
 
+          /*
+           * Simpan pemakaian token pada pesan ini.
+           *
+           * Frame yang HANYA membawa `usage` (tanpa teks) tetap sampai ke sini
+           * - ia tidak masuk buffer karena tidak punya isi - jadi satu baris ini
+           * cukup untuk kedua jalur. Ditulis apa adanya; `undefined` tidak
+           * pernah menimpa angka yang sudah tercatat.
+           */
+          if (c.usage) patch = { ...patch, usage: c.usage };
+
           if (frames.length > 0) {
             /*
              * The reasoning clock.
@@ -10727,6 +11136,7 @@ function flushChunkBuf(): void {
       id,
       text: buf.text || undefined,
       reasoningFrames: buf.reasoning.length ? buf.reasoning : undefined,
+      usage: buf.usage,
     });
   }
 }

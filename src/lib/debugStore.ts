@@ -13,6 +13,7 @@ import {
   dapEvaluate,
   dapSetVariable,
   dapSetBreakpoints,
+  dapSetBreakpointsEx,
   dapLoadedSources,
   scanDir,
   fsExists,
@@ -39,6 +40,12 @@ export interface Breakpoint {
   verified: boolean;
   
   message?: string;
+  /** Ekspresi DAP: berhenti hanya bila bernilai benar. */
+  condition?: string;
+  /** Angka DAP: berhenti pada hit ke-n. */
+  hitCondition?: string;
+  /** Logpoint: cetak pesan ini alih-alih berhenti. */
+  logMessage?: string;
 }
 
 export interface StackFrame {
@@ -89,6 +96,8 @@ interface DebugStoreState {
   error: string | null;
 
   breakpoints: Breakpoint[];
+  /** Breakpoint yang opsinya sedang diedit; `null` = dialog tertutup. */
+  editBp: { path: string; line: number } | null;
   threadId: number | null;
   threads: { id: number; name: string }[];
   frames: StackFrame[];
@@ -120,10 +129,19 @@ interface DebugActions {
 
   toggleBreakpoint: (path: string, line: number) => Promise<void>;
   hapusBreakpoint: (path: string, line: number) => Promise<void>;
+  bukaEditBreakpoint: (path: string, line: number) => void;
+  tutupEditBreakpoint: () => void;
+  simpanBreakpointOpsi: (
+    path: string,
+    line: number,
+    opsi: { condition?: string; hitCondition?: string; logMessage?: string },
+  ) => Promise<void>;
   hapusSemuaBreakpoint: () => Promise<void>;
   breakpointsUntuk: (path: string) => Breakpoint[];
 
   start: (nama?: string) => Promise<boolean>;
+  /** Jalankan konfigurasi terpilih TANPA debugger, di terminal. */
+  runTanpaDebug: (nama?: string) => Promise<boolean>;
   stop: () => Promise<void>;
   restart: () => Promise<void>;
   kontrol: (aksi: 'continue' | 'next' | 'stepIn' | 'stepOut' | 'pause') => Promise<void>;
@@ -160,6 +178,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
   error: null,
 
   breakpoints: [],
+  editBp: null,
   threadId: null,
   threads: [],
   frames: [],
@@ -273,6 +292,74 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
         name: 'Python: Current File',
         program: '${file}',
         console: 'integratedTerminal',
+      });
+    }
+
+    /*
+     * ATTACH configs exist for every adapter that can join a process which is
+     * already running, not just Node.
+     *
+     * The reason is practical: the interesting failures in Python, Go, Java and
+     * Rust usually happen inside a server the reader started themselves (a
+     * Django dev server, `dlv --headless`, a JVM under `-agentlib`), and those
+     * processes cannot be launched by a `request: "launch"` config without
+     * changing how the program is started. Node had an Attach entry from the
+     * start; the others simply had no way in.
+     *
+     * `processId: 0` means "ask me which process" in the VS Code adapters, so
+     * the entry is useful before the reader knows the PID.
+     */
+    if (ada('pyproject.toml') || ada('requirements.txt') || ada('setup.py')) {
+      konfigurasi.push({
+        type: 'debugpy',
+        request: 'attach',
+        name: 'Python: Attach to Process',
+        processId: 0,
+      });
+      konfigurasi.push({
+        type: 'debugpy',
+        request: 'attach',
+        name: 'Python: Attach by Port (5678)',
+        connect: { host: '127.0.0.1', port: 5678 },
+      });
+    }
+
+    if (ada('cargo.toml')) {
+      konfigurasi.push({
+        type: 'rust',
+        request: 'attach',
+        name: 'Rust: Attach to Process',
+        processId: 0,
+      });
+    }
+
+    if (ada('go.mod')) {
+      konfigurasi.push({
+        type: 'go',
+        request: 'attach',
+        name: 'Go: Attach to Process',
+        mode: 'local',
+        processId: 0,
+      });
+    }
+
+    if (ada('pom.xml') || ada('build.gradle')) {
+      konfigurasi.push({
+        type: 'java',
+        request: 'attach',
+        name: 'Java: Attach to Process',
+        processId: 0,
+      });
+    }
+
+    /* C/C++ has no marker file; any translation unit in the workspace makes an
+       attach entry worth offering, and codelldb can join a running binary. */
+    if (nama.some((n) => /\.(c|cc|cpp|cxx)$/i.test(n))) {
+      konfigurasi.push({
+        type: 'cppdbg',
+        request: 'attach',
+        name: 'C/C++: Attach to Process',
+        processId: 0,
       });
     }
 
@@ -404,10 +491,138 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     await kirimBreakpoints(path);
   },
 
+  bukaEditBreakpoint: (path, line) => set({ editBp: { path, line } }),
+  tutupEditBreakpoint: () => set({ editBp: null }),
+
+  /*
+   * Simpan condition / hitCondition / logMessage untuk satu baris.
+   *
+   * Breakpoint yang belum ada DIBUAT di sini: orang bisa langsung membuka
+   * dialog dari gutter pada baris yang belum punya titik, dan menolak dengan
+   * "buat breakpoint dulu" membuat satu klik menjadi tiga.
+   *
+   * Field kosong DISIMPAN sebagai `undefined`, bukan string kosong: DAP
+   * memperlakukan `condition: ""` sebagai kondisi yang selalu benar, dan
+   * logpoint dengan pesan kosong mencetak baris kosong.
+   */
+  simpanBreakpointOpsi: async (path, line, opsi) => {
+    const bersih = {
+      condition: opsi.condition?.trim() || undefined,
+      hitCondition: opsi.hitCondition?.trim() || undefined,
+      logMessage: opsi.logMessage?.trim() || undefined,
+    };
+    set((s) => {
+      const ada = s.breakpoints.some(
+        (b) => kunciPath(b.path) === kunciPath(path) && b.line === line,
+      );
+      const daftar = ada
+        ? s.breakpoints.map((b) =>
+            kunciPath(b.path) === kunciPath(path) && b.line === line ? { ...b, ...bersih } : b,
+          )
+        : [...s.breakpoints, { path, line, enabled: true, verified: false, ...bersih }];
+      return { breakpoints: daftar, editBp: null };
+    });
+    await kirimBreakpoints(path);
+  },
+
   hapusSemuaBreakpoint: async () => {
     const paths = [...new Set(get().breakpoints.map((b) => b.path))];
     set({ breakpoints: [] });
     for (const p of paths) await kirimBreakpoints(p);
+  },
+
+  /*
+   * Run Without Debugging.
+   *
+   * Start Debugging always spends a DAP session; when the reader only wants
+   * the program running, that session also wraps the process in a debugger
+   * that slows it down and stops on breakpoints they forgot about. The command
+   * that VS Code calls "Run Without Debugging" exists for that case.
+   *
+   * It is built from the SAME launch config, so the arguments, cwd and program
+   * path match exactly what debugging would have used. Attach configs are
+   * refused: there is no program to start, only a process that already exists.
+   */
+  runTanpaDebug: async (nama) => {
+    let s = get();
+    const cfgNama = nama ?? s.configTerpilih;
+    let cfg = s.launch?.configurations.find((c) => c.name === cfgNama);
+    if (!cfg) {
+      if (!(await get().buatLaunch())) return false;
+      s = get();
+      cfg = s.launch?.configurations.find((c) => c.name === s.configTerpilih);
+    }
+    if (!cfg) return false;
+
+    if (cfg.request === 'attach') {
+      notifyWarn(tf('“{name}” attaches to a process that is already running.', { name: cfg.name }), {
+        source: 'debug',
+        detail: tx('Start the program yourself, then use Start Debugging to attach to it.'),
+      });
+      return false;
+    }
+
+    const toko = useStore.getState();
+    const ws = toko.workspace ?? '';
+    const tab = toko.tabs.find((t) => t.id === toko.activeTabId);
+    const berkas = tab?.path ?? '';
+    const namaWs = ws.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
+    const ganti = (v: string) =>
+      v
+        .replace(/\$\{workspaceFolder\}/g, ws)
+        .replace(/\$\{workspaceFolderBasename\}/g, namaWs)
+        .replace(/\$\{file\}/g, berkas)
+        .replace(/\$\{fileDirname\}/g, berkas.replace(/[\\/][^\\/]+$/, ''));
+    const kutip = (v: string) => (/\s/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
+    const apaAdanya = (v: unknown) => (typeof v === 'string' ? v : '');
+
+    const bagian: string[] = [];
+    const rt = apaAdanya(cfg.runtimeExecutable);
+    const rtArgs = Array.isArray(cfg.runtimeArgs) ? (cfg.runtimeArgs as unknown[]) : [];
+    if (rt) {
+      bagian.push(kutip(ganti(rt)), ...rtArgs.map((a) => kutip(ganti(String(a)))));
+    } else if (cfg.program) {
+      bagian.push(kutip(ganti(cfg.program)));
+    } else if (typeof cfg.module === 'string') {
+      bagian.push('-m', kutip(ganti(cfg.module)));
+    }
+    bagian.push(...(Array.isArray(cfg.args) ? cfg.args : []).map((a) => kutip(ganti(String(a)))));
+
+    const perintah = bagian.filter(Boolean).join(' ');
+    if (!perintah) {
+      notifyWarn(tx('This configuration has nothing to run.'), {
+        source: 'debug',
+        detail: cfg.name,
+      });
+      return false;
+    }
+
+    /* Diimpor malas: terminalStore mengimpor store.ts, jadi impor statis di
+       sini akan menutup siklus (pola yang sama dipakai `jalankan`). */
+    const { useTerminal } = await import('./terminalStore');
+    const t = useTerminal.getState();
+    let pane = t
+      .allPanes()
+      .find((p) => p.status === 'live' && p.kind !== 'browser' && p.kind !== 'agent');
+    if (!pane) {
+      const id = await t.addPane('shell', cfg.cwd ? { cwd: ganti(cfg.cwd) } : undefined);
+      if (!id) {
+        notifyError(tx('Could not open a terminal to run this configuration.'), { source: 'debug' });
+        return false;
+      }
+      await new Promise((r) => setTimeout(r, 700));
+      pane = useTerminal.getState().findPane(id);
+    }
+    if (!pane) return false;
+
+    useTerminal.getState().setVisible(true);
+    useTerminal.getState().setActivePane(
+      useTerminal.getState().activeTabId ?? '',
+      pane.id,
+    );
+    const { writeChunked } = await import('./terminalClipboard');
+    await writeChunked(pane.id, `${perintah}\r`);
+    return true;
   },
 
   start: async (nama) => {
@@ -750,12 +965,35 @@ const pesan = (e: unknown): string =>
 const kirimBreakpoints = async (path: string) => {
   const st = useDebug.getState();
   if (st.state === 'inactive') return;
-  const lines = st.breakpoints
-    .filter((b) => kunciPath(b.path) === kunciPath(path) && b.enabled)
-    .map((b) => b.line);
+  const milik = st.breakpoints.filter(
+    (b) => kunciPath(b.path) === kunciPath(path) && b.enabled,
+  );
+  if (milik.length === 0) {
+    /* Tanpa breakpoint sama sekali, server tetap harus diberi tahu bahwa
+       daftarnya kosong — kalau tidak, titik lama tetap aktif di sesi berjalan. */
+    try {
+      await dapSetBreakpoints(path, []);
+    } catch {
+      /* sesi mungkin sudah berhenti */
+    }
+    return;
+  }
+
+  /* Opsi hanya dikirim untuk breakpoint yang memilikinya: `condition: ""`
+     dibaca DAP sebagai "selalu benar", dan itu bukan arti dari field kosong. */
+  const denganOpsi = milik.some((b) => b.condition || b.hitCondition || b.logMessage);
   try {
-    
-    const body = await dapSetBreakpoints(path, lines);
+    const body = denganOpsi
+      ? await dapSetBreakpointsEx(
+          path,
+          milik.map((b) => ({
+            line: b.line,
+            ...(b.condition ? { condition: b.condition } : {}),
+            ...(b.hitCondition ? { hitCondition: b.hitCondition } : {}),
+            ...(b.logMessage ? { logMessage: b.logMessage } : {}),
+          })),
+        )
+      : await dapSetBreakpoints(path, milik.map((b) => b.line));
     const bps = (body.breakpoints ?? []) as { verified?: boolean; line?: number }[];
     useDebug.setState((s) => ({
       breakpoints: s.breakpoints.map((b) => {

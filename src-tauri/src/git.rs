@@ -59,6 +59,17 @@ pub struct GitCommitInfo {
     pub parents: Vec<String>,
 }
 
+/// One file inside a commit: path + status letter + numstat counts.
+/// Status follows `git diff-tree --name-status`: A/M/D/R/C/T.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitFile {
+    pub path: String,
+    pub status: String,
+    pub add: u64,
+    pub del: u64,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitUser {
@@ -174,10 +185,34 @@ fn with_progress<T>(app: &AppHandle, op: &str, f: impl FnOnce() -> ZResult<T>) -
     out
 }
 
+/// Direktori kerja git yang sedang dipakai.
+///
+/// Repo pilihan Source Control bila ada, kalau tidak workspace itu sendiri.
+/// Dipakai juga oleh command yang menyentuh berkas berdasarkan path relatif
+/// dari git (`git diff`, discard, conflict): path itu relatif terhadap REPO,
+/// jadi menyambungnya ke workspace saat repo lain sedang dipilih akan menunjuk
+/// berkas yang salah.
+fn repo_aktif(state: &AppState) -> Option<PathBuf> {
+    state.scm_repo_aktif().or_else(|| state.workspace_path())
+}
+
 fn ws(state: &AppState) -> ZResult<PathBuf> {
-    let dir = state
-        .workspace_path()
-        .ok_or_else(|| ZephyrError::Git("no workspace is open".into()))?;
+    /*
+     * Satu titik masuk untuk menentukan direktori kerja git.
+     *
+     * Kalau pengguna memilih repo lain di Source Control (multi-repo), pilihan
+     * itu berlaku di sini dan OTOMATIS berlaku untuk seluruh command git -
+     * status, stage, commit, diff, branch, log - tanpa satu pun dari mereka
+     * perlu tahu soal multi-repo. `scm_repo_aktif` sudah memvalidasi bahwa
+     * pilihannya masih di dalam workspace, jadi tidak ada jalur yang bisa
+     * menjalankan git di folder di luar folder yang dibuka.
+     */
+    let dir = match state.scm_repo_aktif() {
+        Some(p) => p,
+        None => state
+            .workspace_path()
+            .ok_or_else(|| ZephyrError::Git("no workspace is open".into()))?,
+    };
 
     /*
      * The workspace may no longer exist on disk — the folder was moved/deleted
@@ -384,9 +419,201 @@ pub fn git_init(state: State<AppState>, path: Option<String>) -> ZResult<()> {
     Ok(())
 }
 
+/*
+ * ============================ Multi-repo Source Control ====================
+ *
+ * Satu workspace bisa memuat lebih dari satu repo: monorepo dengan paket yang
+ * di-`git init` sendiri, atau folder biasa yang berisi beberapa proyek. Dulu
+ * Source Control hanya melihat workspace itu sendiri, jadi repo di dalamnya
+ * tidak bisa di-stage/commit sama sekali.
+ *
+ * Pencariannya sengaja DIBATASI: kedalaman 4 dan maksimal 32 repo. Pohon yang
+ * sangat besar (node_modules, target, dist) dilewati, dan `target` di repo Rust
+ * ini saja berisi puluhan ribu folder - tanpa batas itu pemindaian akan menjadi
+ * pekerjaan disk yang jauh lebih mahal daripada manfaatnya.
+ */
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScmRepo {
+    pub path: String,
+    pub name: String,
+
+    /// Path relatif terhadap workspace, dengan garis miring depan ("" = akar).
+    pub relative: String,
+    pub branch: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScmRepoList {
+    pub repos: Vec<ScmRepo>,
+
+    /// Repo yang sedang dipilih; `null` berarti workspace itu sendiri.
+    pub active: Option<String>,
+}
+
+const REPO_LEWATI: &[&str] = &[
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "out",
+    ".next",
+    ".turbo",
+    ".cache",
+    ".venv",
+    "venv",
+    "vendor",
+    "coverage",
+    ".git",
+];
+
+fn punya_git(dir: &Path) -> bool {
+    let g = dir.join(".git");
+
+    g.is_dir() || g.is_file()
+}
+
+fn cari_repo(dir: &Path, kedalaman: usize, keluar: &mut Vec<PathBuf>, batas: usize) {
+    if keluar.len() >= batas {
+        return;
+    }
+    if punya_git(dir) {
+        keluar.push(dir.to_path_buf());
+    }
+    if kedalaman == 0 {
+        return;
+    }
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let mut anak: Vec<PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| !REPO_LEWATI.contains(&n))
+                .unwrap_or(false)
+        })
+        .collect();
+    anak.sort();
+    for p in anak {
+        cari_repo(&p, kedalaman - 1, keluar, batas);
+    }
+}
+
+fn cabang_repo(dir: &Path) -> Option<String> {
+    let out = run_git_in(dir, &["rev-parse", "--abbrev-ref", "HEAD"], &[]).ok()?;
+    if out.ok {
+        let b = out.stdout.trim();
+        if !b.is_empty() && b != "HEAD" {
+            return Some(b.to_string());
+        }
+    }
+    /* Repo yang baru di-`git init` belum punya commit, jadi `rev-parse HEAD`
+       gagal - padahal namanya sudah ada di HEAD yang simbolik. Tanpa fallback
+       ini setiap repo baru tampil tanpa nama branch. */
+    let sim = run_git_in(dir, &["symbolic-ref", "--short", "HEAD"], &[]).ok()?;
+    if !sim.ok {
+        return None;
+    }
+    let b = sim.stdout.trim();
+    if b.is_empty() {
+        None
+    } else {
+        Some(b.to_string())
+    }
+}
+
+#[tauri::command(async)]
+pub fn scm_repos(state: State<AppState>) -> ZResult<ScmRepoList> {
+    let akar = match state.workspace_path() {
+        Some(w) => crate::paths::canonical_or_parent(&w),
+        None => {
+            return Ok(ScmRepoList {
+                repos: vec![],
+                active: None,
+            })
+        }
+    };
+
+    let mut ketemu: Vec<PathBuf> = Vec::new();
+    cari_repo(&akar, 4, &mut ketemu, 32);
+
+    let _guard = state.git_permit()?;
+    let nama_akar = akar
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| akar.to_string_lossy().to_string());
+
+    let repos: Vec<ScmRepo> = ketemu
+        .into_iter()
+        .map(|p| {
+            let relative = p
+                .strip_prefix(&akar)
+                .map(|r| r.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            ScmRepo {
+                name: if relative.is_empty() {
+                    nama_akar.clone()
+                } else {
+                    p.file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| relative.clone())
+                },
+                branch: cabang_repo(&p),
+                path: p.to_string_lossy().to_string(),
+                relative,
+            }
+        })
+        .collect();
+
+    let active = state
+        .scm_repo_aktif()
+        .map(|p| p.to_string_lossy().to_string());
+
+    Ok(ScmRepoList { repos, active })
+}
+
+#[tauri::command(async)]
+pub fn scm_set_repo(state: State<AppState>, path: Option<String>) -> ZResult<Option<String>> {
+    let Some(pilih) = path else {
+        state.set_scm_repo(None)?;
+        return Ok(None);
+    };
+
+    let ws = state
+        .workspace_path()
+        .ok_or_else(|| ZephyrError::Git("no workspace is open".into()))?;
+    let ws = crate::paths::canonical_or_parent(&ws);
+    let dir = crate::paths::canonical_or_parent(Path::new(pilih.trim()));
+
+    if pilih.trim().is_empty() {
+        state.set_scm_repo(None)?;
+        return Ok(None);
+    }
+    if !crate::paths::is_inside(&ws, &dir) {
+        return Err(ZephyrError::InvalidInput(
+            "the repository must be inside the folder that is open".into(),
+        ));
+    }
+    if !dir.is_dir() || !punya_git(&dir) {
+        return Err(ZephyrError::InvalidInput(
+            "that folder is not a git repository".into(),
+        ));
+    }
+
+    state.set_scm_repo(Some(dir.clone()))?;
+    Ok(Some(dir.to_string_lossy().to_string()))
+}
+
 #[tauri::command(async)]
 pub fn git_status(state: State<AppState>) -> ZResult<GitStatus> {
-    let dir = match state.workspace_path() {
+    let dir = match repo_aktif(&state) {
         Some(d) => d,
         None => {
             return Ok(GitStatus {
@@ -493,7 +720,7 @@ pub fn git_numstat(
     state: State<AppState>,
     staged: Option<bool>,
 ) -> ZResult<std::collections::HashMap<String, (u64, u64)>> {
-    let dir = match state.workspace_path() {
+    let dir = match repo_aktif(&state) {
         Some(d) => d,
         None => return Ok(std::collections::HashMap::new()),
     };
@@ -647,7 +874,7 @@ fn credential_args(state: &AppState) -> Vec<String> {
 }
 
 fn remote_url(state: &AppState) -> Option<String> {
-    let dir = state.workspace_path()?;
+    let dir = repo_aktif(state)?;
     let out = run_git_in(&dir, &["remote", "get-url", "origin"], &[]).ok()?;
     if !out.ok {
         return None;
@@ -890,7 +1117,7 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
     }
 
     if !staged {
-        if let Some(root) = state.workspace_path() {
+        if let Some(root) = repo_aktif(&state) {
             let full = root.join(p.replace('/', std::path::MAIN_SEPARATOR_STR));
             if full.is_file() {
                 let is_untracked = git(&state, &["ls-files", "--error-unmatch", "--", p]).is_err();
@@ -920,12 +1147,24 @@ pub fn git_diff(state: State<AppState>, path: String, staged: Option<bool>) -> Z
  * unchanged.
  */
 #[tauri::command(async)]
-pub fn git_diff_head(state: State<AppState>, path: String) -> ZResult<String> {
+pub fn git_diff_head(
+    state: State<AppState>,
+    path: String,
+    ignore_ws: Option<bool>,
+) -> ZResult<String> {
     let p = path.trim();
     if p.is_empty() || p.starts_with('-') {
         return Err(ZephyrError::InvalidInput("invalid path".into()));
     }
-    let out = git(&state, &["diff", "HEAD", "--no-color", "--", p])?;
+    /* `-w` tells git that whitespace-only edits are not changes — the flag
+       behind the "Ignore Whitespace" toggle in the Diff View settings. */
+    let mut args: Vec<&str> = vec!["diff", "HEAD", "--no-color"];
+    if ignore_ws.unwrap_or(false) {
+        args.push("-w");
+    }
+    args.push("--");
+    args.push(&p);
+    let out = git(&state, &args)?;
 
     if out.contains("Binary files ") || out.contains("GIT binary patch") {
         return Ok(binary_diff_note(&state, p, &out));
@@ -934,7 +1173,7 @@ pub fn git_diff_head(state: State<AppState>, path: String) -> ZResult<String> {
         return Ok(out);
     }
 
-    if let Some(root) = state.workspace_path() {
+    if let Some(root) = repo_aktif(&state) {
         let full = root.join(p.replace('/', std::path::MAIN_SEPARATOR_STR));
         if full.is_file() {
             let is_untracked = git(&state, &["ls-files", "--error-unmatch", "--", p]).is_err();
@@ -947,8 +1186,7 @@ pub fn git_diff_head(state: State<AppState>, path: String) -> ZResult<String> {
 }
 
 fn binary_diff_note(state: &AppState, rel: &str, raw: &str) -> String {
-    let size = state
-        .workspace_path()
+    let size = repo_aktif(state)
         .map(|root| root.join(rel.replace('/', std::path::MAIN_SEPARATOR_STR)))
         .and_then(|full| std::fs::metadata(full).ok())
         .map(|m| m.len());
@@ -1012,7 +1250,7 @@ pub fn git_discard(state: State<AppState>, paths: Vec<String>) -> ZResult<()> {
         if !is_untracked {
             continue;
         }
-        if let Some(root) = state.workspace_path() {
+        if let Some(root) = repo_aktif(&state) {
             let full = root.join(rel.replace('/', std::path::MAIN_SEPARATOR_STR));
             state.ensure_writable(&full)?;
             let r = if full.is_dir() {
@@ -1038,7 +1276,10 @@ pub fn git_log(state: State<AppState>, n: Option<u32>) -> ZResult<Vec<GitCommitI
     let count = n.unwrap_or(30).clamp(1, 200).to_string();
 
     let fmt = "--pretty=format:%h%x1f%s%x1f%an%x1f%ad%x1f%D%x1f%p%x1e";
-    let raw = match git(&state, &["log", &format!("-n{count}"), "--date=short", fmt]) {
+    let raw = match git(
+        &state,
+        &["log", &format!("-n{count}"), "--date=format-local:%Y-%m-%dT%H:%M:%S", fmt],
+    ) {
         Ok(r) => r,
 
         Err(_) => return Ok(vec![]),
@@ -1066,6 +1307,131 @@ pub fn git_log(state: State<AppState>, n: Option<u32>) -> ZResult<Vec<GitCommitI
             refs: f[4].to_string(),
             parents,
         });
+    }
+    Ok(out)
+}
+
+/// Files changed by one commit, with per-file numstat counts.
+///
+/// `git show` would also print the patch; `diff-tree` answers only the file
+/// list, which is what the Committed Changes list needs. `-m --first-parent`
+/// keeps merge commits pointing at their first parent instead of exploding
+/// into every merged branch.
+#[tauri::command(async)]
+pub fn git_commit_files(
+    state: State<AppState>,
+    hash: String,
+) -> ZResult<Vec<GitCommitFile>> {
+    let h = hash.trim();
+    if h.is_empty() || h.starts_with('-') {
+        return Err(ZephyrError::InvalidInput("invalid hash".into()));
+    }
+    /* DUA panggilan terpisah: `--name-status` dan `--numstat` adalah format
+       keluaran yang saling menggantikan — kalau diminta bersamaan, git hanya
+       mengeluarkan name-status, sehingga semua baris tampil +0/-0.
+       `-r` wajib: tanpa itu diff-tree tidak masuk ke folder dan hanya
+       melaporkan entri level atas (`src`, `scripts`, ...). */
+    let status_raw = git(
+        &state,
+        &[
+            "diff-tree",
+            "-r",
+            "--no-renames",
+            "--no-color",
+            "--name-status",
+            "-m",
+            "--first-parent",
+            "--no-commit-id",
+            h,
+        ],
+    )?;
+    let stat_raw = git(
+        &state,
+        &[
+            "diff-tree",
+            "-r",
+            "--no-renames",
+            "--no-color",
+            "--numstat",
+            "-m",
+            "--first-parent",
+            "--no-commit-id",
+            h,
+        ],
+    )?;
+
+    /* Status lines are "<letter>\t<path>"; numstat lines are
+       "<add>\t<del>\t<path>". */
+    let mut status_map: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    let mut stat_map: std::collections::HashMap<String, (u64, u64)> =
+        std::collections::HashMap::new();
+    for line in status_raw.lines() {
+        let line = line.trim_end();
+        let mut it = line.split('\t');
+        let a = it.next().unwrap_or("");
+        let b = it.next().unwrap_or("");
+        if a.len() == 1
+            && !b.is_empty()
+            && a.chars().next().is_some_and(|ch| ch.is_ascii_uppercase())
+        {
+            status_map.insert(b.to_string(), a.to_string());
+        }
+    }
+    for line in stat_raw.lines() {
+        let line = line.trim_end();
+        let mut it = line.split('\t');
+        let a = it.next().unwrap_or("");
+        let b = it.next().unwrap_or("");
+        let c = it.next().unwrap_or("");
+        if !a.is_empty() && !b.is_empty() && !c.is_empty() {
+            let add = a.parse::<u64>().unwrap_or(0);
+            let del = b.parse::<u64>().unwrap_or(0);
+            stat_map.insert(c.to_string(), (add, del));
+        }
+    }
+
+    /* Order: diff-tree already lists alphabetically; keep its order but merge stats. */
+    let mut out_vec: Vec<GitCommitFile> = Vec::new();
+    for (p, st) in &status_map {
+        let (add, del) = stat_map.get(p).copied().unwrap_or((0, 0));
+        out_vec.push(GitCommitFile {
+            path: p.clone(),
+            status: st.clone(),
+            add,
+            del,
+        });
+    }
+    out_vec.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(out_vec)
+}
+
+/// The diff of one file as of a commit — comparing that commit against its
+/// first parent, so the reader sees exactly what the commit changed.
+#[tauri::command(async)]
+pub fn git_diff_commit(
+    state: State<AppState>,
+    hash: String,
+    path: String,
+    ignore_ws: Option<bool>,
+) -> ZResult<String> {
+    let h = hash.trim();
+    let p = path.trim();
+    if h.is_empty() || h.starts_with('-') || p.is_empty() || p.starts_with('-') {
+        return Err(ZephyrError::InvalidInput("invalid hash or path".into()));
+    }
+    /* `-w` = "Ignore Whitespace" di Diff View, sama seperti git_diff_head. */
+    let rentang = format!("{h}^!");
+    let mut args: Vec<&str> = vec!["diff", "--no-color", "--no-ext-diff"];
+    if ignore_ws.unwrap_or(false) {
+        args.push("-w");
+    }
+    args.push(&rentang);
+    args.push("--");
+    args.push(p);
+    let out = git(&state, &args)?;
+    if out.contains("Binary files ") || out.contains("GIT binary patch") {
+        return Ok(binary_diff_note(&state, p, &out));
     }
     Ok(out)
 }
@@ -1224,8 +1590,7 @@ pub struct ConflictHunk {
 pub fn git_conflict_read(state: State<AppState>, path: String) -> ZResult<Vec<ConflictHunk>> {
     let rel = path.replace('\\', "/");
     let isi = {
-        let ws = state
-            .workspace_path()
+        let ws = repo_aktif(&state)
             .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
         let full = ws.join(&rel);
         std::fs::read_to_string(crate::paths::long_path(&full))
@@ -1292,8 +1657,7 @@ pub fn git_rebase_abort(state: State<AppState>) -> ZResult<String> {
 
 #[tauri::command(async)]
 pub fn git_rebase_status(state: State<AppState>) -> ZResult<bool> {
-    let ws = state
-        .workspace_path()
+    let ws = repo_aktif(&state)
         .ok_or_else(|| ZephyrError::InvalidInput("no workspace".into()))?;
     let git_dir = ws.join(".git");
     Ok(git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists())
@@ -1599,5 +1963,81 @@ mod tests_batas_status {
             "keluaran berpathspec harus lebih kecil daripada tanpa"
         );
         let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod tests_multi_repo {
+    use super::*;
+    use std::fs;
+
+    fn akar_uji(nama: &str) -> PathBuf {
+        let d = std::env::temp_dir()
+            .join("zephyr-multi-repo")
+            .join(nama);
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn buat_repo(p: &Path) {
+        fs::create_dir_all(p).unwrap();
+        /* `.git` sebagai folder sudah cukup untuk deteksi; submodule memakai
+           berkas `.git`, dan keduanya diterima oleh `punya_git`. */
+        fs::create_dir_all(p.join(".git")).unwrap();
+    }
+
+    #[test]
+    fn menemukan_repo_di_dalam_workspace() {
+        let d = akar_uji("dasar");
+        buat_repo(&d);
+        buat_repo(&d.join("packages").join("a"));
+        buat_repo(&d.join("packages").join("b"));
+        fs::create_dir_all(d.join("packages").join("c")).unwrap();
+
+        let mut ketemu = Vec::new();
+        cari_repo(&d, 4, &mut ketemu, 32);
+
+        /* Akar dulu (urutan pemindaian), lalu anak-anaknya yang terurut. */
+        assert!(ketemu.contains(&d));
+        assert!(ketemu.contains(&d.join("packages").join("a")));
+        assert!(ketemu.contains(&d.join("packages").join("b")));
+        assert!(!ketemu.contains(&d.join("packages").join("c")));
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn melewati_folder_berat_dan_menghormati_batas() {
+        let d = akar_uji("lewati");
+        buat_repo(&d.join("node_modules").join("pustaka"));
+        buat_repo(&d.join("target").join("debug"));
+        for i in 0..5 {
+            buat_repo(&d.join(format!("r{i}")));
+        }
+
+        let mut ketemu = Vec::new();
+        cari_repo(&d, 4, &mut ketemu, 2);
+
+        assert_eq!(ketemu.len(), 2, "batas jumlah repo harus dihormati");
+        assert!(
+            !ketemu.iter().any(|p| p.to_string_lossy().contains("node_modules")),
+            "node_modules tidak boleh dipindai"
+        );
+        assert!(
+            !ketemu.iter().any(|p| p.to_string_lossy().contains("target")),
+            "target tidak boleh dipindai"
+        );
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn kedalaman_dibatasi() {
+        let d = akar_uji("dalam");
+        buat_repo(&d.join("a").join("b").join("c").join("d").join("dalam-sekali"));
+
+        let mut ketemu = Vec::new();
+        cari_repo(&d, 2, &mut ketemu, 32);
+        assert!(ketemu.is_empty(), "repo di kedalaman 3+ tidak ikut dipindai");
+        let _ = fs::remove_dir_all(&d);
     }
 }

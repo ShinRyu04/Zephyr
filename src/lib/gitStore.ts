@@ -10,6 +10,7 @@ import type {
   GitChange,
   GitCommitInfo,
   GitStatusResult,
+  ScmRepo,
 } from './types';
 
 export type ScmConfirm =
@@ -52,6 +53,18 @@ interface GitState {
   rebaseOpen: boolean;
   rebaseAktif: boolean;
 
+  /**
+   * Repo yang ditemukan di dalam workspace, untuk pemilih multi-repo.
+   *
+   * Kosong berarti pemindaian belum jalan; SATU entri berarti tidak ada
+   * pilihan yang perlu ditampilkan (hanya workspace itu sendiri), jadi panel
+   * tidak menambah baris yang tidak berguna.
+   */
+  repos: ScmRepo[];
+
+  /** Repo yang sedang dipilih; `null` = workspace itu sendiri. */
+  activeRepo: string | null;
+
   gh: GhStatus | null;
   ghTest: GhTestResult | null;
   
@@ -64,6 +77,10 @@ interface GitState {
 interface GitActions {
   refresh: () => Promise<void>;
   refreshAll: () => Promise<void>;
+  /** Pindai ulang repo di dalam workspace dan baca pilihan yang aktif. */
+  loadRepos: () => Promise<void>;
+  /** Pilih repo untuk Source Control; `null` kembali ke workspace sendiri. */
+  setRepo: (path: string | null) => Promise<void>;
   setMessage: (m: string) => void;
   
   setProgress: (p: GitProgress | null) => void;
@@ -171,6 +188,8 @@ export const useGit = create<GitStore>((set, get) => ({
   newBranchOpen: false,
   rebaseOpen: false,
   rebaseAktif: false,
+  repos: [],
+  activeRepo: null,
 
   gh: null,
   ghTest: null,
@@ -206,6 +225,13 @@ export const useGit = create<GitStore>((set, get) => ({
 
   refreshAll: async () => {
     await get().refresh();
+    /*
+     * Daftar repo dimuat bersama status, bukan di effect terpisah di panel:
+     * setiap jalur yang menyegarkan Source Control (mount, workspace dibuka,
+     * tombol refresh, setelah checkout) akan menyegarkannya juga, dan hanya
+     * ada satu tempat yang bisa lupa.
+     */
+    void get().loadRepos();
     if (!get().status?.isRepo) {
       set({ branches: null, log: [] });
       return;
@@ -214,6 +240,33 @@ export const useGit = create<GitStore>((set, get) => ({
       const [branches, log] = await Promise.all([cmd.gitBranches(), cmd.gitLog(20)]);
       set({ branches, log });
     } catch (e) {
+      set({ scmError: cmd.asZephyrError(e).message });
+    }
+  },
+
+  loadRepos: async () => {
+    try {
+      const c = await cmd.scmRepos();
+      set({ repos: c.repos, activeRepo: c.active });
+    } catch {
+      /* Pemindaian gagal (folder dihapus, izin ditolak) tidak boleh menjatuhkan
+         panel: status git tetap bisa ditampilkan, hanya pemilihnya hilang. */
+      set({ repos: [], activeRepo: null });
+    }
+  },
+
+  setRepo: async (path) => {
+    if (!mulaiSibuk('switching repository')) return;
+    try {
+      const dipilih = await cmd.scmSetRepo(path);
+      set({ activeRepo: dipilih, diff: null });
+      selesaiSibuk();
+      /* Status, branch, dan log HARUS dibaca ulang: semuanya milik repo yang
+         baru, dan menampilkan yang lama di bawah nama repo baru adalah salah
+         keterangan yang sangat mudah lolos tanpa disadari. */
+      await get().refreshAll();
+    } catch (e) {
+      selesaiSibuk();
       set({ scmError: cmd.asZephyrError(e).message });
     }
   },

@@ -8,6 +8,8 @@ class BpMarker extends GutterMarker {
     private verified: boolean,
     private enabled: boolean,
     private pesan?: string,
+    /** Punya condition / hit count / log message. */
+    private opsi = false,
   ) {
     super();
   }
@@ -26,6 +28,10 @@ class BpMarker extends GutterMarker {
         ? tx('Breakpoint active')
         : tx('Breakpoint (not yet verified by the adapter)');
     el.setAttribute('data-bp', this.verified ? 'verified' : 'pending');
+    /* Penanda "punya opsi": logpoint tidak pernah berhenti, dan breakpoint
+       bersyarat hanya berhenti bila syaratnya benar — keduanya perlu terlihat
+       berbeda dari titik biasa. */
+    if (this.opsi) el.setAttribute('data-bp-opts', '1');
     return el;
   }
 }
@@ -33,7 +39,11 @@ class BpMarker extends GutterMarker {
 export const bpCompartment = new Compartment();
 export const barisAktifCompartment = new Compartment();
 
-export function breakpointGutter(list: Breakpoint[], onToggle: (line: number) => void): Extension {
+export function breakpointGutter(
+  list: Breakpoint[],
+  onToggle: (line: number) => void,
+  onEdit?: (line: number) => void,
+): Extension {
   const perLine = new Map<number, Breakpoint>();
   for (const b of list) perLine.set(b.line, b);
 
@@ -47,7 +57,12 @@ export function breakpointGutter(list: Breakpoint[], onToggle: (line: number) =>
         .sort((a, b) => a[0] - b[0])
         .map(([line, b]) => {
           const from = view.state.doc.line(line).from;
-          return new BpMarker(b.verified, b.enabled, b.message).range(from);
+          return new BpMarker(
+            b.verified,
+            b.enabled,
+            b.message,
+            !!(b.condition || b.hitCondition || b.logMessage),
+          ).range(from);
         });
       return RangeSet.of(ranges, true);
     },
@@ -56,6 +71,17 @@ export function breakpointGutter(list: Breakpoint[], onToggle: (line: number) =>
       mousedown: (view, blok) => {
         const line = view.state.doc.lineAt(blok.from).number;
         onToggle(line);
+        return true;
+      },
+      /*
+       * Klik kanan membuka opsi (condition / hit count / log message), klik
+       * kiri tetap toggle biasa. Tanpa jalur ini, satu-satunya cara menyentuh
+       * opsi adalah lewat palet perintah, dan opsi breakpoint praktis tidak
+       * pernah ditemukan orang yang membutuhkannya.
+       */
+      contextmenu: (view, blok) => {
+        if (!onEdit) return false;
+        onEdit(view.state.doc.lineAt(blok.from).number);
         return true;
       },
     },

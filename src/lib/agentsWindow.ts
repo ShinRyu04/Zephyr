@@ -4,6 +4,16 @@ import { EV } from './events';
 
 /** Label of the "Open in Agents" window. One at a time. */
 export const AGENTS_WINDOW_LABEL = 'agents';
+
+/**
+ * Halaman yang bisa dibuka di canvas jendela Agents.
+ *
+ * Satu tipe untuk sidebar dan canvas: keduanya harus setuju soal halaman apa
+ * yang ada, dan dua daftar union yang terpisah pernah menghasilkan tombol yang
+ * mengubah state ke nilai yang tidak dikenali canvas (canvas tetap di chat,
+ * tombolnya terlihat aktif).
+ */
+export type TampilanAgents = 'chat' | 'marketplace' | 'automation' | 'artifacts';
 const EDITOR_WINDOW_LABEL = 'main';
 
 /**
@@ -21,11 +31,51 @@ export async function mintaBukaDiEditor(path: string): Promise<void> {
   await fokusEditorWindow().catch(() => {});
 }
 
-/** Focus the main editor window from the Agents window. */
+/**
+ * Bring the main editor window back, creating it if it was closed.
+ *
+ * `fokusEditorWindow` used to only call `setFocus()` on the existing window.
+ * Closing the main window does NOT quit the app (the Agents window keeps the
+ * process alive), so `getByLabel('main')` returned null and the promise threw
+ * - swallowed by `.catch(() => {})` in the caller. The IDE button then looked
+ * dead: nothing appeared, no error, nothing to retry. It must be able to
+ * rebuild the window, not merely raise it.
+ *
+ * The label and URL mirror `tauri.conf.json` exactly (no decorations, custom
+ * title bar drawn by the app). Creating the window from this side is enough:
+ * the Rust side has no state keyed to `main` that must be re-registered, and
+ * the new window boots the normal renderer.
+ */
+export async function bukaJendelaUtama(): Promise<void> {
+  const ada = await WebviewWindow.getByLabel(EDITOR_WINDOW_LABEL);
+  if (ada) {
+    await ada.unminimize().catch(() => {});
+    await ada.show().catch(() => {});
+    await ada.setFocus();
+    return;
+  }
+  const w = new WebviewWindow(EDITOR_WINDOW_LABEL, {
+    url: 'index.html',
+    title: 'Zephyr',
+    width: 1440,
+    height: 900,
+    minWidth: 800,
+    minHeight: 520,
+    resizable: true,
+    decorations: false,
+    center: true,
+    focus: true,
+    dragDropEnabled: true,
+  });
+  await new Promise<void>((resolve) => {
+    void w.once('tauri://created', () => resolve());
+    void w.once('tauri://error', () => resolve());
+  });
+}
+
+/** Focus the main editor window, creating it first when it is gone. */
 export async function fokusEditorWindow(): Promise<void> {
-  const editor = await WebviewWindow.getByLabel(EDITOR_WINDOW_LABEL);
-  if (!editor) throw new Error(`Editor window "${EDITOR_WINDOW_LABEL}" is not available`);
-  await editor.setFocus();
+  await bukaJendelaUtama();
 }
 
 /**

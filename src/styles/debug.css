@@ -530,6 +530,50 @@
   background: color-mix(in srgb, var(--warning, var(--accent)) 22%, transparent);
 }
 
+/* Breakpoint dengan opsi (condition / hit count / logpoint) ditandai sedikit
+   lebih tebal di gutter: titik yang berhenti hanya pada syarat tertentu tidak
+   boleh terlihat sama dengan titik biasa, kalau tidak orang mengira debugger
+   "tidak berhenti" padahal syaratnya memang tidak pernah terpenuhi. */
+.cm-bp-marker[data-bp-opts] {
+  text-shadow: 0 0 4px currentColor;
+}
+
+/* ── Dialog opsi breakpoint ── */
+
+.bp-opsi {
+  width: min(520px, 94vw);
+}
+
+.bp-opsi-baris {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 10px 0;
+}
+
+.bp-opsi-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bp-opsi-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.bp-opsi-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ── Debug Console (REPL) ── */
 
 .dc-line.is-input {

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Jendela Agents — seluruh chrome-nya digambar sendiri karena jendelanya
  * frameless (`decorations: false`).
  *
@@ -176,7 +176,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
 }
@@ -979,6 +979,12 @@ body.agx-dragging-kolom {
   gap: 8px;
 }
 
+/* Garis penghalang tepat di bawah baris tab, hanya saat tab Diff View aktif
+   (bar tab dipakai bersama semua view — jadi ikut `data-tampilan`). */
+.agx-kanan[data-tampilan='diff-view'] .agx-tabs-bar {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
 /* Wadah `+` + deretan tab. Deretan tab (`.agx-tabs-lajur`) hanya selebar
    isinya, jadi `+` menempel tepat di belakang tab terakhir. */
 .agx-tabs {
@@ -1028,8 +1034,13 @@ body.agx-dragging-kolom {
   position: relative;
 }
 
+/* Tab yang sedang dibuka = ABU-ABU, bukan hitam. Sebelumnya ia memakai
+   `--surface` 55% di atas `--agx-panel` (yang sama dengan `--bg`), jadi
+   bedanya dengan latar nyaris tak terlihat dan tab aktif terbaca hitam.
+   `--surface-3` satu langkah lebih terang dari `--surface-2` (hover), jadi
+   urutannya tetap: latar < hover < aktif. */
 .agx-tab.is-aktif {
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-3, var(--surface-2)) 92%, transparent);
   color: var(--text);
 }
 
@@ -1170,7 +1181,16 @@ body.agx-dragging-kolom {
   position: absolute;
   top: 6px;
   right: 8px;
-  z-index: 30;
+  /*
+   * 400, bukan 30.
+   *
+   * Panel AI yang mengisi canvas punya header sendiri dengan `z-index: 320`
+   * (`.ai-head`), dan setelah pesan pertama panel itulah yang tampil di bawah
+   * kedua tombol ini. Dengan 30, bar header itu menutupi `IDE ↗` dan tombol
+   * panel — tombolnya terlihat, hover-nya jalan, tapi kliknya jatuh ke header
+   * dan tidak terjadi apa-apa (dibuktikan `elementFromPoint`).
+   */
+  z-index: 400;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1557,6 +1577,1183 @@ body.agx-dragging-kolom {
   display: none;
 }
 
+/* ---------- Diff View (Agent window): baris atas meniru TRAE ---------- */
+
+.agx-dv-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  padding: 6px 10px;
+  /* Latar bar = latar panel asli; garis bawah memisahkan toolbar dari
+     baris judul commit/branch di bawahnya. */
+  background: var(--bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.agx-dv-dd-wadah {
+  position: relative;
+  display: inline-flex;
+}
+
+.agx-dv-dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  /* Pembungkus mode: latar panel asli (bukan abu surface), hanya dipisah
+     dari bar dengan border samar. */
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.agx-dv-dd:hover {
+  border-color: var(--text-muted);
+}
+
+/* Committed Changes (TRAE): kiri = dropdown mode + pemilih commit,
+   kanan = ikon commit/collapse/refresh + pemisah + tombol pohon. */
+.agx-dv-bar-kiri {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.agx-dv-commit-wadah {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Pil commit menggantikan baris judul branch: ikon node, subjek, +N/-N. */
+.agx-dv-commit-pil {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.agx-dv-commit-pil:hover,
+.agx-dv-commit-pil[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.agx-dv-commit-pil svg {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.agx-dv-commit-subjek {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-dv-commit-stat {
+  display: inline-flex;
+  flex: none;
+  gap: 7px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Daftar commit di bawah pil: lebar tetap, isinya menggulir. Selector
+   digabung karena `.agx-dv-menu` (di bawah) menyetel `min-width: fit-content`
+   yang kalau menang membuat menu melebar mengikuti subjek panjang. */
+.agx-dv-menu.agx-dv-menu-pilih {
+  width: 420px;
+  min-width: 0;
+  max-width: min(460px, 78vw);
+  max-height: 360px;
+  overflow: auto;
+}
+
+/* Kotak pencarian di atas daftar commit (TRAE: Search by commit message). */
+.agx-dv-menu-cari {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px -2px 4px;
+  padding: 7px 8px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  color: var(--text-muted);
+}
+
+.agx-dv-menu-cari svg {
+  flex: none;
+}
+
+.agx-dv-menu-cari-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.agx-dv-menu-cari-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Input pencarian ikut aturan fokus global (outline + halo box-shadow) yang
+   membuat "kotak" besar di sekitar baris. Cukup barisnya diberi aksen. */
+.agx-dv-menu-cari-input:focus,
+.agx-dv-menu-cari-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.agx-dv-menu-cari:focus-within {
+  border-bottom-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.agx-dv-commit-item {
+  height: auto;
+  align-items: flex-start;
+  padding: 7px 8px;
+}
+
+.agx-dv-commit-item > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text);
+}
+
+/* Garis samar antar commit, seperti daftar di TRAE. */
+.agx-dv-commit-item + .agx-dv-commit-item {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.agx-dv-commit-item-teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.agx-dv-commit-item-subjek {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-dv-commit-item-meta {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.agx-dv-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  /* Lebar mengikuti isi — menu mode cuma 1 item, jangan dipaksa 190px. */
+  min-width: fit-content;
+  white-space: nowrap;
+  padding: 4px;
+  /* Menu: latar panel asli, dipisah dengan border + bayangan. */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+/* Menu Diff Settings turun dari ikon di kanan: rata kanan, bukan kiri. */
+.agx-dv-menu-atur {
+  left: auto;
+  right: 0;
+  min-width: 200px;
+}
+
+.agx-dv-atur-judul {
+  display: none;
+}
+
+.agx-dv-menu-garis {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.agx-dv-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Teks + ikon preview (Split/Unified) sejajar di kiri. */
+.agx-dv-menu-teks {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agx-dv-menu-teks svg {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.agx-dv-menu-item:hover {
+  background: var(--surface-3);
+}
+
+/* Item aktif ditandai centang saja (TRAE), bukan latar penuh. */
+.agx-dv-menu-item[aria-checked='true'] {
+  color: var(--text);
+}
+
+/* Toggle switch untuk Ignore Whitespace / Word Wrap (ukuran TRAE). */
+.agx-dv-toggle {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.agx-dv-toggle-pin {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.agx-dv-menu-item[aria-checked='true'] .agx-dv-toggle {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agx-dv-menu-item[aria-checked='true'] .agx-dv-toggle-pin {
+  background: var(--bg);
+  transform: translateX(14px);
+}
+
+.agx-dv-aksi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agx-dv-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.agx-dv-ikon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.agx-dv-ikon:hover:not(:disabled),
+.agx-dv-ikon[data-aktif] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* Tombol Discard: abu gelap tanpa border tegas (TRAE). */
+.agx-dv-btn[data-testid='agx-dv-discard'] {
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.agx-dv-btn[data-testid='agx-dv-discard']:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.agx-dv-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.agx-dv-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+/* Nonaktif harus TERLIHAT nonaktif, bukan sekadar tak bisa diklik: TRAE
+   memudarkan Discard saat tidak ada perubahan. */
+.agx-dv-btn:disabled,
+.agx-dv-ikon:disabled,
+.agx-dv-split-ujung:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.agx-dv-split {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 1px;
+}
+
+/* Commit: latar terang, menyatu dengan ujung dropdown (TRAE). */
+.agx-dv-split .agx-dv-btn {
+  border-radius: 6px 0 0 6px;
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.agx-dv-split .agx-dv-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 88%, var(--bg));
+}
+
+/* Tombol Commit menyatu dengan ujung dropdown seperti TRAE. */
+.agx-dv-split-ujung {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  background: var(--text);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.agx-dv-split-ujung:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 88%, var(--bg));
+}
+
+/* Menu Commit turun ke KIRI dari ujung dropdown (rata kanan dengan tombol ⌄):
+   kalau melebar ke kanan, menunya lewat tepi panel kanan dan terpotong. */
+.agx-dv-menu-commit {
+  left: auto;
+  right: 0;
+  min-width: 180px;
+}
+
+/* Garis pemisah vertikal: biar ikon pohon tidak terlalu dekat dengan Commit. */
+.agx-dv-garis-vert {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.agx-dv-dialog-lapis {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+/* Pop-up Discard/Commit ala TRAE: lebih lebar, header ikon + judul + X. */
+.agx-dv-dialog {
+  width: min(660px, 90%);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.agx-dv-dialog-kepala {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+
+.agx-dv-dialog-kepala h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.agx-dv-dialog-tutup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agx-dv-dialog-tutup:hover {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text);
+}
+
+.agx-dv-dialog-isi {
+  padding: 0 16px;
+}
+
+.agx-dv-dialog-teks {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* Kotak daftar file di dalam dialog. */
+.agx-dv-dialog-daftar {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  padding: 4px;
+}
+
+.agx-dv-dialog-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.agx-dv-dialog-file:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.agx-dv-dialog-file-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  color: var(--text-secondary);
+}
+
+.agx-dv-dialog-file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-dv-dialog-file-dir {
+  color: var(--text-muted);
+}
+
+/* Baris ringkas di dialog commit: branch, jumlah file, +/- */
+.agx-dv-dialog-ringkas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+
+.agx-dv-dialog-branch {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+  color: var(--text);
+}
+
+.agx-dv-dialog-jml {
+  color: var(--text-secondary);
+}
+
+/* Label + kotak pesan commit */
+.agx-dv-dialog-label {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agx-dv-dialog-pesan {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  height: 104px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.agx-dv-dialog-pesan::placeholder {
+  color: var(--text-muted);
+}
+
+.agx-dv-dialog-pesan:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.agx-dv-menu-kosong {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.agx-dv-dialog-file-stat {
+  display: inline-flex;
+  gap: 7px;
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-dv-dialog-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 16px 16px;
+}
+
+.agx-dv-danger {
+  color: var(--deleted);
+}
+
+/* Baris judul: nama branch di baris 1, jumlah file/baris di baris 2 —
+   dua baris terpisah (TRAE), teks besar. */
+.agx-dv-judul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.agx-dv-judul-branch {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.agx-dv-judul-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.agx-dv-judul-jml {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.agx-dv-judul-plus {
+  color: var(--added);
+  font-weight: 600;
+}
+
+.agx-dv-judul-min {
+  color: var(--deleted);
+  font-weight: 600;
+}
+
+/* ---- Body Diff View: dua kolom (kartu diff kiri, pohon kanan) ---- */
+.agx-dv-isi {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Kolom kiri: daftar kartu file yang berubah. */
+.agx-dv-kiri {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agx-dv-kiri-kosong {
+  margin: auto;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ---- Kartu satu file: header (chevron | badge | nama | path | +/-) ---- */
+.agx-dv-kartu {
+  flex: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  overflow: hidden;
+}
+
+.agx-dv-kartu-kepala {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.agx-dv-kartu-kepala:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.agx-dv-kartu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  color: var(--text-muted);
+}
+
+.agx-dv-kartu-lencana {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  /* Warna BADGE mengikuti jenis perubahan, bukan satu kuning untuk semua:
+     berkas baru hijau, dihapus merah, diubah kuning. Di Committed Changes
+     hampir semua baris adalah berkas baru, dan badge kuning seragam membuat
+     daftar itu terbaca seperti "semua dimodifikasi". */
+  background: color-mix(in srgb, var(--warning) 26%, var(--bg));
+  color: var(--warning);
+}
+
+.agx-dv-kartu-lencana.is-add {
+  background: color-mix(in srgb, var(--added) 24%, var(--bg));
+  color: var(--added);
+}
+
+.agx-dv-kartu-lencana.is-del {
+  background: color-mix(in srgb, var(--deleted) 24%, var(--bg));
+  color: var(--deleted);
+}
+
+.agx-dv-kartu-lencana.is-mod {
+  background: color-mix(in srgb, var(--warning) 26%, var(--bg));
+  color: var(--warning);
+}
+
+.agx-dv-kartu-nama {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.agx-dv-kartu-jalur {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.agx-dv-kartu-jalur::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+}
+
+.agx-dv-kartu-stat {
+  display: inline-flex;
+  gap: 7px;
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Warna stat baris diff: + hijau / - merah (dipakai kartu & dialog). */
+.agx-dv-plus {
+  color: var(--added);
+}
+
+.agx-dv-min {
+  color: var(--deleted);
+}
+
+/* Tombol Discard di dialog: tombol kedua = aksen seperti TRAE. */
+.agx-dv-dialog-aksi .agx-dv-btn.agx-dv-commit {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.agx-dv-dialog-aksi .agx-dv-btn.agx-dv-commit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--bg));
+}
+
+/* ---- Badan kartu terbuka: isi diff ---- */
+.agx-dv-kartu-badan {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: var(--bg);
+}
+
+.agx-dv-kartu-pesan {
+  padding: 14px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ---- AI Changes: aksi per berkas (Keep / Revert) ---- */
+.agx-dv-ai-aksi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 35%, transparent);
+}
+
+.agx-dv-ai-aksi-ket {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Mode AI tanpa perubahan: satu empty-state di tengah area, seperti TRAE. */
+.agx-dv-isi.is-ai-kosong {
+  display: none;
+}
+
+.agx-dv-ai-kosong {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.agx-dv-ai-kosong-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 10px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
+}
+
+.agx-dv-ai-kosong-judul {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.agx-dv-ai-kosong-ket {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* Kedua mode: monospace, nomor kolom tetap. */
+.agx-dv-diff {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.agx-dv-diff.is-bungkus .agx-dv-diff-teks {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Unified: satu kolom, nomor lama+baru berdampingan. */
+.agx-dv-diff-unified {
+  display: block;
+  min-width: 0;
+}
+
+/* Split: dua kolom berdampingan, tiap sisi scroll sendiri tidak — satu scroll. */
+.agx-dv-diff-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.agx-dv-diff-sisi {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.agx-dv-diff-sisi + .agx-dv-diff-sisi {
+  border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* Satu baris diff. */
+.agx-dv-diff-baris {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.agx-dv-diff-baris.is-add {
+  background: color-mix(in srgb, var(--added) 14%, transparent);
+}
+
+.agx-dv-diff-baris.is-del {
+  background: color-mix(in srgb, var(--deleted) 14%, transparent);
+}
+
+.agx-dv-diff-no {
+  flex: none;
+  width: 34px;
+  padding: 0 6px 0 4px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 11px;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-dv-diff-teks {
+  flex: 1;
+  min-width: 0;
+  white-space: pre;
+  overflow: visible;
+  padding-right: 10px;
+}
+
+/* Token syntax — keluarga --syn-* dari tema, fallback aman. */
+.agx-dv-tok-komentar {
+  color: var(--syn-comment, var(--text-muted));
+  font-style: italic;
+}
+
+.agx-dv-tok-teks {
+  color: var(--syn-string, var(--success));
+}
+
+.agx-dv-tok-angka {
+  color: var(--syn-number, var(--warning));
+}
+
+.agx-dv-tok-kata-kunci {
+  color: var(--syn-keyword, var(--accent));
+}
+
+.agx-dv-tok-tipe {
+  color: var(--syn-type, var(--syn-keyword, var(--accent)));
+}
+
+.agx-dv-tok-fungsi {
+  color: var(--syn-function, var(--accent));
+}
+
+/* ---- Pohon file (kolom kanan Diff View) — filter + daftar berubah ---- */
+/* Dua kolom: kiri = kartu diff, kanan = pohon, lebar bisa di-resize. */
+.agx-dv-sisi {
+  display: flex;
+  flex-direction: column;
+  /* Lebar pohon di TRAE ±300px; bisa di-resize lewat .agx-dv-resize. */
+  flex: 0 0 300px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Garis pembatas antara area diff dan pohon — bisa ditarik (resize). */
+.agx-dv-resize {
+  flex: none;
+  width: 4px;
+  margin: 0 -2px;
+  cursor: col-resize;
+  z-index: 2;
+  position: relative;
+}
+
+.agx-dv-resize::before {
+  content: '';
+  position: absolute;
+  inset: 0 1.5px;
+  background: color-mix(in srgb, var(--border) 65%, transparent);
+  transition: background 0.12s ease;
+}
+
+.agx-dv-resize:hover::before,
+.agx-dv-resize:active::before {
+  background: var(--accent);
+}
+
+/* Kotak filter "Filter change files": latar menyatu dengan panel, hanya
+   garis bawah tipis seperti input TRAE. */
+.agx-dv-saring {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin: 10px 8px 6px 6px;
+  padding: 0 10px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.agx-dv-saring-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.agx-dv-saring-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Baris "N Files Changed" dengan checkbox select-all. */
+.agx-dv-tree-kepala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.agx-dv-tree-cek {
+  appearance: none;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+.agx-dv-tree-cek:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agx-dv-tree-cek:checked::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--bg);
+  clip-path: polygon(14% 44%, 0 60%, 40% 100%, 100% 16%, 84% 4%, 38% 68%);
+}
+
+/* Ceklis per file sedikit lebih kecil dan redup bila tak terpilih. */
+.agx-dv-tree-cek-file {
+  width: 13px;
+  height: 13px;
+  opacity: 0.85;
+}
+
+.agx-dv-tree-cek-file:hover {
+  opacity: 1;
+}
+
+.agx-dv-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 6px 10px 2px;
+}
+
+.agx-dv-tree-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding-right: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  /* Tanpa ini, klik pada nama folder bisa berubah jadi seleksi teks dan
+     klik-nya hilang (folder terlihat "tidak bisa diklik"). */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.agx-dv-tree-baris:hover {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+/* Garis indent vertikal per level folder (seperti TRAE). */
+.agx-dv-tree-group {
+  position: relative;
+}
+
+.agx-dv-tree-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Posisi per level — diwarisi dari folder induknya lewat CSS var. */
+  left: var(--agx-dv-indent, 20px);
+  width: 1px;
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.agx-dv-tree-baris.is-folder .agx-dv-tree-nama {
+  color: var(--text-secondary);
+}
+
+.agx-dv-tree-panah {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 12px;
+  color: var(--text-muted);
+}
+
+.agx-dv-tree-panah.is-buka svg {
+  transform: rotate(90deg);
+}
+
+.agx-dv-tree-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.agx-dv-tree-glyph svg {
+  width: 16px;
+  height: 16px;
+}
+
+.agx-dv-tree-nama {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Titik status di ujung kanan baris file (warna dari --added/--deleted/
+   --warning/accent lewat inline style di komponen). */
+.agx-dv-tree-titik {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+}
+
+.agx-dv-tree-kosong {
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
 .agx-view-isi {
   display: flex;
   flex-direction: column;
@@ -1812,10 +3009,21 @@ body.agx-dragging-kolom {
   box-shadow: 0 -12px 28px rgb(0 0 0 / 45%);
 }
 
+/*
+ * Menu folder: DIBUKA DARI TEPI KIRI TOMBOLNYA, lalu tumbuh ke kanan.
+ *
+ * `right: 0` dulu menumpukan menu pada tepi KANAN tombol. Karena isinya path
+ * panjang (lebarnya ikut melebar sampai ~390px), menu menjulur keluar kotak
+ * composer ke arah KIRI — terlihat "nyasar" jauh dari tombol yang
+ * membukanya, padahal tombolnya duduk di kiri strip. Dengan `left: 0` menu
+ * mulai tepat di bawah tombol folder, seperti dropdown biasa. `max-width`
+ * menjaganya tetap di dalam jendela kalau composer sempit.
+ */
 .agx-comp-menu.is-folder {
-  left: auto;
-  right: 0;
+  left: 0;
+  right: auto;
   min-width: 260px;
+  max-width: min(420px, calc(100vw - 32px));
 }
 
 /* Menu izin: dua tingkat per baris (label tebal + keterangan), seperti
@@ -2022,4 +3230,2173 @@ body.agx-dragging-kolom {
 .agx-comp .ai-mp-daftar {
   overflow-y: auto;
 }
+/* ==========================================================================
+   Automation (halaman di jendela Agents) — bentuknya mengikuti TRAE:
+   judul besar + subjudul, dua tombol di kanan, tiga tab bergaris bawah,
+   lalu grid kartu template / daftar tugas. Semua warna dari token tema.
+   ========================================================================== */
 
+.agx-auto {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 34px 40px 40px;
+  color: var(--text);
+}
+
+.agx-auto-kepala {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.agx-auto-kepala-teks h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.agx-auto-kepala-teks p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.agx-auto-kepala-aksi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.agx-auto-tombol {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-auto-tombol:hover {
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+.agx-auto-tombol:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Tombol utama seperti TRAE: putih, teks gelap — bukan aksen biru. */
+.agx-auto-tombol.is-terang {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.agx-auto-tombol.is-terang:hover {
+  background: color-mix(in srgb, var(--text) 88%, var(--bg));
+}
+
+.agx-auto-tabs {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  margin-bottom: 22px;
+}
+
+.agx-auto-tab {
+  position: relative;
+  height: 34px;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-auto-tab:hover {
+  color: var(--text);
+}
+
+.agx-auto-tab.is-aktif {
+  color: var(--text);
+}
+
+.agx-auto-tab.is-aktif::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+/* ---- Grid kartu template (3 kolom seperti TRAE) ---- */
+.agx-auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.agx-auto-kartu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 148px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 30%, transparent);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-auto-kartu:hover {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-2) 48%, transparent);
+}
+
+.agx-auto-kartu-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 9px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+}
+
+.agx-auto-kartu-nama {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.agx-auto-kartu-ket {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ---- Daftar tugas ---- */
+.agx-auto-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agx-auto-tugas {
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 26%, transparent);
+}
+
+.agx-auto-tugas-kepala {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agx-auto-tugas-nama {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.agx-auto-tugas-jadwal {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.agx-auto-tugas-prompt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.agx-auto-tugas-aksi {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agx-auto-mini {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agx-auto-mini:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.agx-auto-mini.is-bahaya {
+  color: var(--deleted);
+}
+
+/* Toggle aktif/nonaktif — bentuknya sama dengan toggle di Diff settings. */
+.agx-auto-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 18px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agx-auto-toggle[aria-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agx-auto-toggle-pin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.agx-auto-toggle[aria-checked='true'] .agx-auto-toggle-pin {
+  transform: translateX(12px);
+  background: var(--bg);
+}
+
+/* ---- Run History ---- */
+.agx-auto-run {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 22%, transparent);
+  font-size: 12.5px;
+}
+
+.agx-auto-run-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-muted);
+}
+
+.agx-auto-run-status.is-jalan {
+  background: var(--accent);
+}
+
+.agx-auto-run-status.is-selesai {
+  background: var(--added);
+}
+
+.agx-auto-run-status.is-gagal {
+  background: var(--deleted);
+}
+
+.agx-auto-run-nama {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.agx-auto-run-waktu {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-auto-run-keadaan {
+  color: var(--text-secondary);
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Empty state ---- */
+.agx-auto-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 90px 20px;
+  text-align: center;
+}
+
+.agx-auto-kosong-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 11px;
+  color: var(--text-muted);
+}
+
+.agx-auto-kosong-judul {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+/* ---- Dialog create ---- */
+.agx-auto-lapis {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.agx-auto-dialog {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 18px 20px 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 14px;
+  background: var(--agx-panel);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 45%);
+}
+
+.agx-auto-dialog-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.agx-auto-dialog-kepala h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agx-auto-dialog-tutup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-auto-dialog-tutup:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: var(--text);
+}
+
+.agx-auto-lapangan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.agx-auto-lapangan.is-sempit {
+  flex: 1;
+  min-width: 0;
+}
+
+.agx-auto-lapangan input,
+.agx-auto-lapangan textarea,
+.agx-auto-lapangan select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.agx-auto-lapangan input:focus-visible,
+.agx-auto-lapangan textarea:focus-visible,
+.agx-auto-lapangan select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.agx-auto-baris {
+  display: flex;
+  gap: 12px;
+}
+
+.agx-auto-dialog-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+/* ==========================================================================
+   My Artifacts (halaman di jendela Agents) — mengikuti TRAE: judul +
+   subjudul, tab Local/Cloud dengan pencarian di kanan, chip kategori, lalu
+   grid kartu atau daftar baris. Semua warna dari token tema.
+   ========================================================================== */
+
+.agx-art {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 34px 40px 40px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.agx-art-kepala h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.agx-art-kepala p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.agx-art-baris-atas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.agx-art-tabs {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.agx-art-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-art-tab:hover,
+.agx-art-tab.is-aktif {
+  color: var(--text);
+}
+
+.agx-art-tab.is-aktif::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.agx-art-cari {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(620px, 48vw);
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 9px;
+  color: var(--text-muted);
+}
+
+.agx-art-cari:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.agx-art-cari input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.agx-art-cari input::placeholder {
+  color: var(--text-muted);
+}
+
+.agx-art-saring {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 20px;
+}
+
+.agx-art-chip-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agx-art-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-art-chip:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.agx-art-chip.is-aktif {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  border-color: color-mix(in srgb, var(--border) 95%, transparent);
+}
+
+.agx-art-alat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.agx-art-urut {
+  position: relative;
+}
+
+.agx-art-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-art-filter:hover,
+.agx-art-filter.is-aktif {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.agx-art-pisah {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.agx-art-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-art-mode:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.agx-art-mode.is-aktif {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+.agx-art-isi {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agx-art-galat {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.agx-art-memuat {
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ---- Empty state di tengah, sama seperti TRAE ---- */
+.agx-art-kosong {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 5px;
+  padding-bottom: 48px;
+}
+
+.agx-art-kosong-ikon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+  color: var(--text-muted);
+}
+
+.agx-art-kosong-judul {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.agx-art-kosong-ket {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.agx-art-kosong .agx-art-tombol {
+  margin-top: 12px;
+}
+
+.agx-art-tombol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agx-art-tombol:hover {
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+.agx-art-tombol.is-terang {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.agx-art-tombol.is-terang:hover {
+  background: color-mix(in srgb, var(--text) 88%, var(--bg));
+}
+
+.agx-art-tombol:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Grid kartu ---- */
+.agx-art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+.agx-art-kartu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 30%, transparent);
+}
+
+.agx-art-kartu:hover {
+  border-color: var(--border);
+}
+
+.agx-art-pratinjau {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  height: 168px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  background: radial-gradient(
+    120% 120% at 30% 20%,
+    color-mix(in srgb, var(--surface-2) 90%, transparent),
+    color-mix(in srgb, var(--bg) 92%, var(--surface-2))
+  );
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-art-pratinjau:hover {
+  color: var(--text);
+}
+
+.agx-art-pratinjau-ikon.is-html {
+  color: var(--accent);
+}
+
+.agx-art-pratinjau-ext {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.agx-art-kartu-kaki {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.agx-art-kartu-ikon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-2) 95%, transparent);
+  color: var(--text-muted);
+}
+
+.agx-art-kartu-ikon.is-html {
+  color: var(--accent);
+}
+
+.agx-art-kartu-teks {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.agx-art-kartu-nama {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-art-kartu-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.agx-art-titik {
+  flex: none;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.agx-art-titik:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+/* ---- Menu aksi + menu urutan ---- */
+.agx-art-menu {
+  position: absolute;
+  right: 8px;
+  bottom: 44px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 172px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 9px;
+  background: var(--agx-panel);
+  box-shadow: 0 14px 32px rgb(0 0 0 / 45%);
+}
+
+.agx-art-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-art-menu button:hover {
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.agx-art-menu button.is-aktif {
+  color: var(--accent);
+}
+
+.agx-art-menu button.is-bahaya {
+  color: var(--danger);
+}
+
+.agx-art-menu.is-urut {
+  top: 38px;
+  right: 0;
+  bottom: auto;
+}
+
+.agx-art-menu.is-baris {
+  top: 36px;
+  right: 12px;
+  bottom: auto;
+}
+
+/* ---- Tampilan daftar ---- */
+.agx-art-daftar {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.agx-art-baris {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+.agx-art-baris:first-child {
+  border-top: 0;
+}
+
+.agx-art-baris:hover {
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+}
+
+.agx-art-baris-nama {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-art-baris-ext {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.agx-art-baris-jenis,
+.agx-art-baris-ukuran,
+.agx-art-baris-waktu {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.agx-art-baris-jenis {
+  width: 74px;
+}
+
+.agx-art-baris-ukuran {
+  width: 70px;
+  text-align: right;
+}
+
+.agx-art-baris-waktu {
+  width: 108px;
+  text-align: right;
+}
+
+/* ---- Dialog Create ---- */
+.agx-art-lapis {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.agx-art-dialog {
+  width: min(480px, 100%);
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 14px;
+  background: var(--agx-panel);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 45%);
+}
+
+.agx-art-dialog-kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agx-art-dialog-kepala h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.agx-art-dialog-tutup {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agx-art-dialog-tutup:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.agx-art-lapangan {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.agx-art-lapangan > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agx-art-lapangan input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.agx-art-lapangan input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.agx-art-jenis {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agx-art-catatan {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.agx-art-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.agx-art-dialog-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Marketplace (halaman di canvas, bukan pop-up) ────────────────────────
+   Bingkai ini SENGAJA tipis: isinya adalah komponen `ExtMarketplace` yang sama
+   dengan jendela utama, jadi yang diatur di sini hanya hal-hal yang berbeda
+   karena tempatnya - padding canvas dan latar panel. Semua aturan di bawah
+   di-scope ke `.agx-mkt` agar Marketplace jendela utama tidak ikut berubah. */
+
+.agx-mkt {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--text);
+}
+
+/* Marketplace DAN halaman Manage-nya: keduanya akar bergulir sendiri di dalam
+   canvas, dan keduanya butuh padding yang sama supaya judul tidak melompat
+   saat berpindah dari Marketplace ke Manage dan kembali. */
+.agx-mkt .xmkt,
+.agx-mkt .xmg {
+  height: 100%;
+  padding: 30px 34px 36px;
+  background: transparent;
+}
+
+.agx-mkt .xmkt-sub {
+  max-width: 720px;
+}
+
+.agx-mkt .xmkt-grid,
+.agx-mkt .xmg-daftar {
+  max-width: 1180px;
+}
+
+/* ── Chat berjalan di canvas ──────────────────────────────────────────────
+ * Canvas menampung `AiPanel` setelah pesan pertama, dan `AiPanel` mengisi
+ * 100% tinggi induknya. Tanpa pembungkus yang benar-benar setinggi canvas,
+ * transkrip memakai tinggi intrinsik isinya: kotak input ikut naik ke tengah
+ * dan daftar pesan tidak pernah menggulir di dalam panel.
+ */
+.agx-chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.agx-chat > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── Kolom chat di tengah, ala TRAE ──────────────────────────────────────
+ * `AiPanel` dipakai bersama jendela utama, tempat ia hidup di kolom kanan atau
+ * tab editor yang sempit: transkrip selebar panelnya adalah bentuk yang benar
+ * di sana. Di jendela ini panel tersebut selebar canvas (~1260 px), dan tanpa
+ * batas satu kalimat pun membentang dari tepi ke tepi — baris sulit diikuti,
+ * dan kotak input terbaca sebagai bilah alat, bukan sebagai kotak ngobrol.
+ *
+ * Acuannya TRAE: satu kolom di tengah dengan lebar baca yang tetap, kotak
+ * input selebar kolom itu dan mengambang dengan jarak dari tepi bawah. Semua
+ * aturan di bawah di-scope ke `.agx-chat`, jadi panel AI jendela utama tidak
+ * ikut berubah. Penggulirannya sudah milik `AiPanel` (transkrip menempel di
+ * bawah selama pembaca tidak menggulir ke atas) — yang diatur di sini hanya
+ * lebarnya.
+ */
+/*
+ * Jarak dari tepi atas. `ai-streaming.css` menetapkan 6px untuk panel yang
+ * sempit (di sana 6px sudah terasa lapang); di canvas selebar ini pesan pertama
+ * menempel ke bar header sehingga terbaca seperti ada pesan yang gagal dimuat.
+ * 18px memberi napas yang sama dengan acuan TRAE tanpa meninggalkan lubang.
+ */
+.agx-chat .ai-chat {
+  padding-top: 18px;
+  padding-bottom: 16px;
+}
+
+.agx-chat .ai-row {
+  /* Sama dengan kotak input (880px): satu kolom baca yang lurus dari atas ke
+     bawah, seperti TRAE. */
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.agx-chat .ai-input-row {
+  /*
+   * `width: 100%` + `align-self: center`, BUKAN `margin-inline: auto`.
+   *
+   * `.ai-panel` itu flex kolom, jadi margin otomatis di sumbu silang mematikan
+   * peregangan (stretch) dan kotak ini menyusut selebar isinya — pernah
+   * terukur 2 px. `align-self` tetap membuatnya di tengah tanpa kehilangan
+   * lebar kolom.
+   *
+   * 800px = ±63% dari canvas 1264px, angka yang sama dengan kotak ketik TRAE
+   * (967 dari 1536). Sebelumnya 920px (73%) dan terbaca sebagai kotak besar
+   * yang memenuhi layar.
+   */
+  width: 100%;
+  /*
+   * 880px. 800 terbukti terlalu sempit (dibandingkan acuan TRAE: kotak ketik
+   * ±960px di jendela 1907 — sekitar 70% dari canvas), 920 terlalu lebar.
+   * 880 = 70% dari canvas 1264.
+   */
+  max-width: 880px;
+  align-self: center;
+  padding: 6px 10px;
+  gap: 4px;
+  /*
+   * Jarak dari transkrip di atas dan dari tepi bawah, mengikuti acuan TRAE:
+   * kotak ketik TIDAK menempel ke daftar pesan, dan di bawahnya ada ruang
+   * bernapas (±30px) sebelum tepi jendela. Margin ini aman dipakai karena
+   * lebar diatur `width` + `align-self`, bukan margin otomatis.
+   */
+  margin: 10px 0 30px;
+}
+
+/*
+ * Chip nama branch tidak ada di acuan TRAE, dan ia satu baris penuh di atas
+ * textarea: dihitung bersama gap-nya, ±31px tinggi yang membuat kotak ini
+ * terlihat besar tanpa menambah kemampuan apa pun di jendela ini (branch aktif
+ * sudah terbaca di status bar jendela utama). Disembunyikan di sini saja.
+ */
+.agx-chat .ai-branch-chip {
+  display: none;
+}
+
+/*
+ * Kartu "Berpikir" di atas kotak ketik — lihat aturannya di `ai-work-stack.css`.
+ *
+ * Permintaannya berlaku di DUA jendela (user: "ini juga diatas composer klo
+ * bisa di hpusin ya, gapapa kok di hpus aja", lalu menegaskan screenshot yang
+ * ia kirim berasal dari "main window"), jadi aturannya dipindah ke berkas yang
+ * memang memiliki komponen ini supaya tidak ada dua salinan yang bisa berbeda.
+ * Yang hilang hanya section loop; antrean pesan dan daftar todo tetap tampil
+ * karena keduanya membawa tombol, bukan cuma kabar.
+ */
+
+/*
+ * Tinggi kotak: mengikuti acuan TRAE.
+ *
+ * Angka acuannya BUKAN tinggi kotak secara keseluruhan, melainkan tinggi AREA
+ * MENULIS di dalamnya. Di TRAE (jendela 1907px) kotak ketik ±967x145 dengan
+ * bidang tulis ±80px — dua sampai tiga baris kosong sebelum kursor. Versi
+ * sebelumnya memberi textarea 40px saja; kotaknya memang 110px, tapi yang
+ * terlihat hanyalah satu baris tipis lalu langsung baris tombol, jadi terbaca
+ * sebagai bilah alat, bukan kotak ngobrol (keluhan: "kecil bnget").
+ *
+ * 76px = tinggi bidang tulis acuan (`ai-composer-trae.css` memakai angka yang
+ * sama untuk panel jendela utama). Dengan padding + toolbar yang sudah ada,
+ * kotaknya jadi ±146px pada lebar 880 — perbandingan tinggi:lebar ±0,17,
+ * sebanding dengan 145:967 (0,15) di acuan.
+ */
+.agx-chat .ai-input {
+  flex: 0 0 auto;
+  min-height: 76px;
+  max-height: 180px;
+  padding: 10px 10px 0;
+}
+
+.agx-chat .ai-input-toolbar {
+  min-height: 34px;
+}
+
+/*
+ * Kontrol header milik jendela utama dibuang di sini: dropdown nama chat dan
+ * tombol "Show Agent Sessions Sidebar" mengatur panel AI jendela utama, dan di
+ * jendela ini sidebar sesi sudah berdiri sendiri di kiri canvas. Barisnya
+ * tetap disisakan setinggi kontrol sudut (`IDE ↗` + tombol panel) supaya kedua
+ * tombol itu tidak menimpa pesan pertama.
+ */
+.agx-chat .ai-head {
+  min-height: 44px;
+  /*
+   * Bar ini kosong (isinya disembunyikan di bawah) dan hanya bertugas memberi
+   * ruang setinggi kontrol sudut. Ia tidak boleh menjadi lapisan yang bisa
+   * diklik: `z-index: 320` bawaannya membuatnya menelan klik tombol `IDE ↗`
+   * yang duduk di area yang sama.
+   */
+  z-index: auto;
+  pointer-events: none;
+}
+
+.agx-chat .ai-head > * {
+  display: none;
+}
+
+/* ── Peringatan provider tanpa API key ────────────────────────────────────
+ * Muncul di bawah kotak composer (layar awal jendela) saat provider yang
+ * dipilih belum punya key. Warna peringatan, bukan merah error: ini keadaan
+ * yang bisa dibereskan, bukan kegagalan yang sudah terjadi.
+ */
+.agx-nokey {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.agx-nokey-teks {
+  min-width: 0;
+}
+
+.agx-nokey-teks strong {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.agx-nokey-btn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--warning);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agx-nokey-btn:hover {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+/* ── Daftar sidebar: baris tugas, menu hover, kartu info (acuan TRAE) ─────
+   Barisnya `div` berisi dua tombol (judul + ⋮) karena tombol tidak boleh
+   bersarang. Aksi baris baru muncul saat kursor/fokus ada di baris itu, sama
+   seperti acuan — dengan begitu daftar tetap tenang saat tidak disentuh. */
+
+.agx-daftar-kepala {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 4px 2px 8px;
+}
+
+.agx-daftar-judul {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.agx-ikon-btn.is-on {
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  color: var(--text);
+}
+
+.agx-baris {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  padding: 0 4px 0 8px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.agx-baris:hover {
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--text);
+}
+
+.agx-baris.is-aktif {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--text);
+}
+
+.agx-baris.is-redup {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.agx-baris-utama,
+.agx-proyek-utama {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-baris-utama .agx-ikon,
+.agx-proyek-utama .agx-ikon {
+  flex: none;
+  opacity: 0.85;
+}
+
+.agx-baris-aksi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 90ms ease, background 90ms ease, color 90ms ease;
+}
+
+.agx-baris:hover .agx-baris-aksi,
+.agx-baris:focus-within .agx-baris-aksi {
+  opacity: 1;
+}
+
+.agx-baris-aksi:hover {
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  color: var(--text);
+}
+
+.agx-proyek-aksi {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.agx-rename {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--bg0);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* Menu kontekstual diposisikan `fixed` supaya keluar dari sidebar yang sempit
+   tanpa terpotong `overflow` daftar di atasnya. */
+.agx-ctx {
+  position: fixed;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 178px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 48%);
+}
+
+.agx-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agx-ctx-item .agx-ikon {
+  flex: none;
+  opacity: 0.85;
+}
+
+.agx-ctx-item:hover {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text);
+}
+
+.agx-ctx-item.is-bahaya {
+  color: var(--danger);
+}
+
+.agx-ctx-item.is-bahaya:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.agx-ctx-item.is-mati {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.agx-ctx-cek {
+  margin-left: auto;
+  color: var(--text);
+}
+
+.agx-ctx-pisah {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.agx-ctx-judul {
+  padding: 5px 9px 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Kartu info saat kursor berhenti di satu baris tugas. */
+.agx-kartu {
+  position: fixed;
+  z-index: 460;
+  width: 236px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 45%);
+  color: var(--text-secondary);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.agx-kartu-judul {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agx-kartu-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.agx-kartu-baris .agx-ikon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0.8;
+}
+
+.agx-kartu-baris span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+ * Palet TRAE untuk SIDEBAR + COMPOSER jendela Agents.
+ *
+ * Keputusan user (23 Okt 2026), setelah warna kedua app diukur piksel demi
+ * piksel: "Hanya sidebar + composer jendela Agents", aksen "Ikut TRAE: mint
+ * #32F08C". Jadi blok ini SENGAJA tidak menyentuh tema global, dan tidak
+ * menyentuh jendela utama: semua selektornya berawalan `.agx`, kelas yang hanya
+ * ada di jendela Agents.
+ *
+ * Angka di bawah bukan perkiraan. Semuanya hasil sampling screenshot TRAE pada
+ * titik yang sama (dibulatkan ke hex terdekat), lalu kontrasnya dihitung:
+ *   kanvas TRAE      #171717   (terang 9%, saturasi 0% -> netral, tanpa hue)
+ *   sidebar TRAE     #262626   (terang 15%, kontras 1,18 dari kanvas)
+ *   baris terpilih   #303030   (lebih TERANG dari sidebar, bukan lebih gelap)
+ *   border composer  #404040   (kontras 1,73 dari kanvas)
+ *   teks utama       #e5e5e5   (kontras 14,2)
+ *   teks redup       #737373   (kontras 3,2 - jauh lebih redup dari #8b949e)
+ *   aksen kirim      #32f08c   (mint pekat, hue 148, satu-satunya blok warna)
+ *   oranye izin      #d25f1b
+ *
+ * Tema bawaan Zephyr memakai abu KEBIRUAN (hue ±215, saturasi 21-28%), jadi
+ * selisih terbesarnya bukan gelap/terang melainkan hue: itulah yang membuat
+ * layar Zephyr terasa "slate" dan TRAE terasa "abu bersih".
+ * ========================================================================== */
+
+.agx {
+  --agx-trae-sidebar: #262626;
+  --agx-trae-hover: #2e2e2e;
+  --agx-trae-pilih: #303030;
+  --agx-trae-garis: #404040;
+  --agx-trae-garis-fokus: #5c5c5c;
+  --agx-trae-teks: #e5e5e5;
+  --agx-trae-redup: #737373;
+  --agx-trae-placeholder: #525252;
+  --agx-trae-aksen: #32f08c;
+  --agx-trae-di-aksen: #141414;
+  --agx-trae-izin: #d25f1b;
+}
+
+/*
+ * ---- chrome abu (title bar + strip sekeliling kanvas) ----
+ *
+ * Lanjutan permintaan user: "klo bisa dimiripin jga kek TRAE itu abu' nya, soalny
+ * klo kotak besar dibiarin aja". Jadi yang ikut jadi abu netral adalah CHROME
+ * jendela — title bar dan latar `.agx` yang tampak sebagai strip di sekeliling
+ * kanvas. Kotak besar (`.agx-canvas`, yang memakai `--agx-panel` = `--bg`) TIDAK
+ * disentuh: tetap navy.
+ *
+ * Sebelum ini title bar masih memakai `--surface` (`#161b22`, kebiruan), jadi
+ * terlihat satu keluarga dengan kanvas dan beda keluarga dengan sidebar yang
+ * sudah diubah — campuran dua palet dalam satu jendela.
+ */
+.agx,
+.agx-titlebar {
+  background: var(--agx-trae-sidebar);
+}
+
+/* ---- sidebar ---- */
+
+.agx-sidebar {
+  background: var(--agx-trae-sidebar);
+}
+
+/* Garis pemisah di dalam sidebar ikut netral; `--border` tema itu kebiruan. */
+.agx-side-daftar {
+  border-top-color: #383838;
+}
+
+/*
+ * Semua label sidebar memakai netral `#e5e5e5`, bukan `--text-secondary`
+ * (`#8b949e`) yang kebiruan: di TRAE baik menu atas maupun judul sesi sama-sama
+ * putih, dan yang dibuat redup hanya baris proyek/folder (`is-redup`) serta
+ * judul grup.
+ */
+.agx-nav,
+.agx-baris,
+.agx-sesi {
+  color: var(--agx-trae-teks);
+}
+
+.agx-nav:hover:not(:disabled),
+.agx-baris:hover,
+.agx-sesi:hover {
+  background: var(--agx-trae-hover);
+  color: var(--agx-trae-teks);
+}
+
+/*
+ * Baris terpilih LEBIH TERANG dari sidebar — ini kebalikan dari Zephyr yang
+ * memakai campuran `--bg` (jadi lebih gelap). Arah seleksi yang terbalik inilah
+ * salah satu penyebab daftar Zephyr terbaca "beda bahasa visual" dengan TRAE.
+ */
+.agx-nav.is-aktif,
+.agx-baris.is-aktif,
+.agx-sesi.is-aktif {
+  background: var(--agx-trae-pilih);
+  color: var(--agx-trae-teks);
+}
+
+.agx-baris.is-redup,
+.agx-sesi.is-redup,
+.agx-daftar-judul,
+.agx-grup-head {
+  color: var(--agx-trae-redup);
+}
+
+.agx-ikon-btn,
+.agx-baris-aksi {
+  color: var(--agx-trae-redup);
+}
+
+.agx-ikon-btn:hover,
+.agx-ikon-btn.is-on,
+.agx-baris-aksi:hover {
+  background: var(--agx-trae-hover);
+  color: var(--agx-trae-teks);
+}
+
+/* ---- composer ---- */
+
+/* Border kotak TRAE 1,73:1 dari kanvas, sedangkan `--border` hanya 1,55:1. */
+.agx-comp-gabung {
+  border-color: var(--agx-trae-garis);
+}
+
+/* Fokus: menguat netral, tanpa biru (sebelumnya campuran `--text` kebiruan). */
+.agx-comp-gabung:focus-within {
+  border-color: var(--agx-trae-garis-fokus);
+}
+
+.agx-comp-input {
+  color: var(--agx-trae-teks);
+}
+
+/* Placeholder TRAE `#525252` — nyaris tak terbaca, dan itu memang maksudnya. */
+.agx-comp-input::placeholder {
+  color: var(--agx-trae-placeholder);
+}
+
+/*
+ * Tombol kirim: SATU blok mint pekat seperti TRAE.
+ *
+ * Catatan keputusan lama: di berkas ini tombol kirim dulu sengaja dibuat POLOS
+ * ("bukan tombol bulat berwarna seperti acuan"). Keputusan itu DIBALIK oleh user
+ * pada sesi ini: aksen diminta mengikuti TRAE. Karena itu bloknya kini terisi
+ * penuh saat siap dikirim, dan tetap redup saat kosong — supaya "bisa dikirim"
+ * dan "belum bisa" tetap terbaca dari warna, bukan hanya dari opacity.
+ */
+.agx-comp-kirim:not(:disabled) {
+  border-color: transparent;
+  background: var(--agx-trae-aksen);
+  color: var(--agx-trae-di-aksen);
+}
+
+.agx-comp-kirim:not(:disabled):hover {
+  border-color: transparent;
+  background: #55f5a1;
+  color: var(--agx-trae-di-aksen);
+}
+
+.agx-comp-kirim:disabled {
+  background: transparent;
+  color: var(--agx-trae-placeholder);
+}
+
+/* Izin "Full Access": oranye TRAE, bukan merah `--danger`. */
+.agx-comp-izin.is-auto .agx-comp-dot {
+  background: var(--agx-trae-izin);
+}
+
+.agx-comp-izin.is-auto .agx-comp-izin-btn {
+  color: var(--agx-trae-izin);
+}
+
+.agx-comp-izin.is-auto .agx-comp-izin-btn:hover {
+  color: #e9732c;
+}
+
+/* ==========================================================================
+ * Task Summary (panel kanan jendela Agents).
+ *
+ * Dulu bagian ini hanya punya markup tanpa satu pun aturan CSS: `agx-summary-*`
+ * tidak ada di berkas mana pun, jadi daftar todo tampil sebagai teks telanjang.
+ * Susunannya sekarang mengikuti Task Summary TRAE: dua section yang bisa
+ * dilipat (Todo, Context), satu meter pemakaian konteks, dan tab Files/Other.
+ *
+ * Semua warna dari token tema; tidak ada hex yang dipatok di sini.
+ * ========================================================================== */
+
+.agx-ts-gulir {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  flex: 1;
+  min-height: 0;
+  padding: 10px 16px 20px;
+  overflow-y: auto;
+}
+
+.agx-ts-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agx-ts-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.agx-ts-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.agx-ts-toggle:hover {
+  color: var(--text);
+}
+
+.agx-ts-toggle .ai-ikon,
+.agx-ts-toggle svg {
+  opacity: 0.75;
+}
+
+.agx-ts-jumlah {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ikon info: lingkaran kecil, sengaja tidak mencolok. */
+.agx-ts-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1;
+  cursor: help;
+}
+
+/* Chip `compact`: memadatkan baris daftar, bukan meringkas percakapan. */
+.agx-ts-compact {
+  margin-left: auto;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.agx-ts-compact:hover {
+  color: var(--text);
+}
+
+.agx-ts-compact.is-on {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* ---- Todo kosong: ikon dalam kotak, judul, lalu satu kalimat ---- */
+
+.agx-ts-kosong {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 46px 14px 40px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.agx-ts-kosong-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text-muted);
+}
+
+.agx-ts-kosong b {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.agx-ts-kosong-kecil {
+  padding: 12px 2px 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ---- Todo berisi ---- */
+
+.agx-ts-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agx-ts-todo {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 5px 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.agx-ts-status {
+  flex: none;
+  min-width: 58px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.agx-ts-todo.is-in_progress .agx-ts-status {
+  color: var(--accent);
+}
+
+.agx-ts-todo.is-done .agx-ts-todo-teks {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* ---- meter konteks ---- */
+
+.agx-ts-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px 2px;
+}
+
+.agx-ts-bar {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.agx-ts-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--text-secondary);
+}
+
+.agx-ts-persen {
+  flex: none;
+  min-width: 34px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.agx-ts-catatan {
+  padding: 6px 2px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---- tab Files / Other ---- */
+
+.agx-ts-tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agx-ts-tab {
+  position: relative;
+  padding: 7px 1px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.agx-ts-tab:hover {
+  color: var(--text-secondary);
+}
+
+.agx-ts-tab.is-aktif {
+  color: var(--text);
+}
+
+.agx-ts-tab.is-aktif::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1.5px;
+  background: var(--text);
+}
+
+/* ---- daftar berkas ---- */
+
+.agx-ts-files {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agx-ts-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  padding: 0 4px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.agx-ts-file:hover {
+  background: var(--surface-2);
+}
+
+.agx-ts-file-ikon {
+  display: inline-flex;
+  flex: none;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.agx-ts-file-nama {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agx-ts-file-dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+/* Mode padat: folder induk disembunyikan, baris lebih rapat. */
+.agx-ts-files.is-compact .agx-ts-file {
+  min-height: 24px;
+  font-size: 12.5px;
+}
+
+.agx-ts-files.is-compact .agx-ts-file-dir {
+  display: none;
+}
+
+/* ==========================================================================
+ * Hierarki daftar sesi (sidebar kiri).
+ *
+ * Masalah yang diperbaiki: baris proyek dan baris percakapan dulu memakai
+ * padding kiri yang sama, tinggi yang sama, dan warna yang sama. Hasilnya
+ * daftar terbaca sebagai satu kolom rata — proyek tidak terlihat sebagai
+ * INDUK percakapan di bawahnya. Di acuan TRAE percakapan menjorok masuk dan
+ * baris proyek justru lebih redup, jadi tiga tingkat (judul daftar, proyek,
+ * percakapan) terbaca tanpa garis bantu apa pun.
+ */
+
+/* Percakapan milik sebuah proyek menjorok ke dalam. Hanya baris SESI yang
+   menjorok; baris proyek tetap rata kiri. Margin, bukan padding, supaya
+   sorotan hover/aktif ikut menyempit dan tidak menabrak teks proyek. */
+.agx-grup .agx-baris:not(.agx-baris-proyek) {
+  margin-left: 18px;
+  min-height: 28px;
+  color: color-mix(in srgb, var(--agx-trae-teks) 86%, transparent);
+}
+
+/* Tinggi tombol di dalamnya harus ikut, kalau tidak baris 28px berisi tombol
+   30px dan menjoroknya jadi tidak rata dengan teks proyek di atasnya. */
+.agx-grup .agx-baris:not(.agx-baris-proyek) .agx-baris-utama {
+  height: 28px;
+  font-size: 12.5px;
+}
+
+/* Yang disentuh atau sedang dibuka kembali ke putih penuh. Aturannya harus
+   sespesifik dengan aturan redup di atas; tanpa itu `.agx-baris.is-aktif`
+   kalah bobot dan percakapan aktif tetap terbaca setengah redup. */
+.agx-grup .agx-baris:not(.agx-baris-proyek):hover,
+.agx-grup .agx-baris:not(.agx-baris-proyek).is-aktif {
+  color: var(--agx-trae-teks);
+}
+
+/* Baris proyek = kepala kelompok: redup (TRAE), tebal sedikit. Hanya HOVER
+   yang menaikkannya ke warna teks penuh; baris proyek yang berisi percakapan
+   aktif tetap redup (acuan TRAE), karena yang bertanda "sedang dibuka" adalah
+   baris percakapannya, bukan judul proyeknya. */
+.agx-baris-proyek,
+.agx-baris-proyek.is-aktif {
+  color: var(--agx-trae-redup);
+}
+
+.agx-baris-proyek .agx-sesi-judul,
+.agx-baris-proyek .agx-grup-nama {
+  font-weight: 500;
+}
+
+.agx-baris-proyek:hover {
+  color: var(--agx-trae-teks);
+}
+
+/* Proyek yang berisi percakapan aktif TIDAK diberi latar: penandanya sudah
+   titik di kanan, dan dua baris berlatar (proyek + chat aktif) membuat daftar
+   terlihat punya dua baris terpilih sekaligus. Hover tetap menyala. */
+.agx-baris-proyek.is-aktif {
+  background: transparent;
+}
+
+.agx-baris-proyek.is-aktif:hover {
+  background: var(--agx-trae-hover);
+}
+
+/* Jarak antar-kelompok lebih besar dari jarak antar-baris di dalamnya: itu
+   yang memisahkan proyek satu dari yang lain tanpa garis. */
+.agx-grup + .agx-grup {
+  margin-top: 4px;
+}
+
+/*
+ * Cincin "agen sedang bekerja".
+ *
+ * Dibaca dari `msg.streaming` tiap sesi, jadi cincinnya menyala untuk tugas
+ * yang berjalan di latar belakang juga — bukan hanya yang sedang dibuka.
+ * Bentuknya cincin tipis yang berputar pelan dengan satu sisi beraksen: cukup
+ * untuk mengatakan "masih jalan" tanpa ikon tambahan atau teks status.
+ */
+.agx-sesi-ring {
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  border: 1.7px solid color-mix(in srgb, var(--agx-trae-teks) 22%, transparent);
+  border-top-color: var(--agx-trae-aksen);
+  border-radius: 50%;
+  animation: agx-ring 0.9s linear infinite;
+}
+
+@keyframes agx-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hormati permintaan "kurangi gerakan": cincinnya tetap ada, putarannya hilang. */
+@media (prefers-reduced-motion: reduce) {
+  .agx-sesi-ring {
+    animation: none;
+  }
+}

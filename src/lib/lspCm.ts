@@ -651,6 +651,49 @@ export async function lspFixAll(
   return { diterapkan, ditawarkan: daftar.length, lain };
 }
 
+/*
+ * Rapikan import lewat server bahasa.
+ *
+ * `source.organizeImports` adalah nama protokol untuk "buang yang tidak dipakai,
+ * urutkan yang tersisa" — tsserver, gopls, rust-analyzer, dan Pyright semuanya
+ * mengenalnya. Dijalankan atas permintaan pengguna, bukan saat menyimpan, karena
+ * aksi ini MENGHAPUS baris: menyimpannya sebagai efek samping Ctrl+S berarti
+ * kode bisa berubah tanpa ada yang memintanya.
+ *
+ * `only` dipakai supaya server tidak mengembalikan refactor lain yang kebetulan
+ * beririsan dengan seluruh dokumen.
+ */
+export async function lspOrganizeImports(
+  path: string,
+  view: EditorView,
+): Promise<{ diterapkan: number; ditawarkan: number }> {
+  let res: unknown;
+  try {
+    res = await useLsp.getState().req(path, 'textDocument/codeAction', {
+      textDocument: { uri: pathToUri(path) },
+      range: {
+        start: { line: 0, character: 0 },
+        end: offsetToLsp(view, view.state.doc.length),
+      },
+      context: { only: ['source.organizeImports'], diagnostics: [] },
+    });
+  } catch {
+    return { diterapkan: 0, ditawarkan: 0 };
+  }
+
+  const daftar = Array.isArray(res) ? (res as Record<string, unknown>[]) : [];
+  const aksi = daftar.find((a) => {
+    const kind = String(a.kind ?? '');
+    return kind === 'source.organizeImports' || kind.startsWith('source.organizeImports.');
+  });
+
+  /* Tanpa aksi yang tepat, tidak ada yang diterapkan. Aksi lain (fixAll,
+     refactor) bukan pengganti: menjalankannya di sini akan mengubah kode lebih
+     banyak daripada yang diminta. */
+  const diterapkan = applyWorkspaceEdit(view, path, aksi?.edit as Record<string, unknown> | undefined);
+  return { diterapkan, ditawarkan: daftar.length };
+}
+
 export async function lspRename(path: string, view: EditorView, pos: number, baru: string) {
   const res = (await useLsp.getState().req(path, 'textDocument/rename', {
     textDocument: { uri: pathToUri(path) },

@@ -316,6 +316,16 @@ struct Endpoint {
     /// never has to re-derive them from the provider string.
     anthropic: bool,
     gemini_style: bool,
+    /// The reader typed a FULL URL for this provider rather than a base URL.
+    ///
+    /// A gateway that hands out `https://host/v1/chat/completions` as its
+    /// address is common enough (`modelrouter.id` does it), and the old code
+    /// blindly appended `/models` to whatever it was given, producing
+    /// `.../chat/completions/models` — a 404 that reads as a broken key. When
+    /// this flag is set, `url` is already the endpoint to call, so `list_models`
+    /// must NOT append `/models` and chat sends must NOT append
+    /// `/chat/completions`.
+    full_url: bool,
 }
 
 /// Resolve the provider's endpoint, or refuse.
@@ -325,9 +335,67 @@ struct Endpoint {
 /// OpenAI while the user read a verdict about their own gateway. A key that is
 /// perfectly good for `https://modelrouter.id/v1` came back "401 - API key
 /// rejected", which reads as a broken key and is not.
-fn endpoint_for(provider: &str, base_url: Option<&str>, key: &str) -> ZResult<Endpoint> {
+fn endpoint_for(
+    state: &AppState,
+    provider: &str,
+    base_url: Option<&str>,
+    full_url: Option<bool>,
+    key: &str,
+) -> ZResult<Endpoint> {
     let p = provider.trim();
     let given = base_url.map(str::trim).filter(|s| !s.is_empty());
+
+    /*
+     * Fall back to the URL the reader SAVED in settings.
+     *
+     * `list_models` / `test_model_connection` receive the base URL as an
+     * argument, and every frontend caller has to remember to pass it. One
+     * caller that forgets turns a fully configured gateway into "unknown
+     * provider has no base URL" or a request to the wrong host. The saved
+     * value in `settings.models.providers[id].baseUrl` is the user's own
+     * answer to "where does this provider live", so it is the correct
+     * fallback whenever the argument is absent.
+     */
+    let saved = match given {
+        Some(_) => None,
+        None => crate::settings::read_settings_value(state)
+            .get("models")
+            .and_then(|m| m.get("providers"))
+            .and_then(|pr| pr.get(p))
+            .and_then(|cfg| cfg.get("baseUrl"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string),
+    };
+    let given = given.map(str::to_string).or(saved);
+
+    /*
+     * Same fallback for the `fullUrl` flag, and it must live here beside the
+     * URL fallback: the flag describes the URL, so reading one from the argument
+     * and the other from settings would let a stale `true` claim that a plain
+     * base URL is already a full endpoint (chat would then POST to
+     * `https://host/v1` itself and get a 404 naming nothing useful).
+     */
+    let full = match full_url {
+        Some(v) => v,
+        None => crate::settings::read_settings_value(state)
+            .get("models")
+            .and_then(|m| m.get("providers"))
+            .and_then(|pr| pr.get(p))
+            .and_then(|cfg| cfg.get("fullUrl"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+    };
+
+    endpoint_for_core(p, given.as_deref(), key, full)
+}
+
+fn endpoint_for_core(p: &str, given: Option<&str>, key: &str, full_url: bool) -> ZResult<Endpoint> {
+    // Whitespace-only counts as absent: the `custom` refusal below and the
+    // unknown-provider refusal further down must both fire for `Some("   ")`
+    // too, or a blank field quietly requests the literal URL "/models".
+    let given = given.map(str::trim).filter(|s| !s.is_empty());
 
     // `custom` is the only provider that canNOT work without an address: there
     // is no defensive default for "an OpenAI-compatible endpoint I do not know".
@@ -405,12 +473,62 @@ fn endpoint_for(provider: &str, base_url: Option<&str>, key: &str) -> ZResult<En
         },
     };
 
+    /*
+     * Normalise the base before appending `/models`.
+     *
+     * Two typos people actually type, both of which used to produce a request
+     * that can only fail confusingly:
+     *
+     *  - `.../v1/models` as the BASE. This function appends `/models`, so the
+     *    request went to `.../v1/models/models`. Gateways that mirror the path
+     *    answer fine, gateways that do not answer 404 and the reader is told
+     *    "check the key and the base URL" while both look right.
+     *  - `https//host/v1` — the colon after the scheme is missing. Without it
+     *    there is no scheme at all and the HTTP client refuses the URL with a
+     *    message that says nothing about a typo.
+     *
+     * Fixing both here means the saved value keeps working everywhere the
+     * base is reused (chat sends read the same settings value).
+     */
+    let mut base = base.trim().trim_end_matches('/').to_string();
+    if base.ends_with("/models") {
+        base.truncate(base.len() - "/models".len());
+    }
+    if !base.contains("://") {
+        if let Some(rest) = base.strip_prefix("https//") {
+            base = format!("https://{rest}");
+        } else if let Some(rest) = base.strip_prefix("http//") {
+            base = format!("http://{rest}");
+        }
+    }
+
+    /*
+     * `full_url`: the reader typed the chat endpoint itself, so `url` IS the
+     * endpoint and `list_models` must not append `/models` to it.
+     *
+     * Nothing is appended here either way — the distinction only decides whether
+     * `/models` is glued on below. Chat sends read `Endpoint::full_url` via
+     * `endpoint_for`'s callers and skip their own `/chat/completions`, so the
+     * two paths agree on one interpretation of the same saved value.
+     */
+    if full_url {
+        return Ok(Endpoint {
+            url: base,
+            header,
+            value,
+            anthropic,
+            gemini_style,
+            full_url: true,
+        });
+    }
+
     Ok(Endpoint {
-        url: format!("{}/models", base.trim_end_matches('/')),
+        url: format!("{}/models", base),
         header,
         value,
         anthropic,
         gemini_style,
+        full_url: false,
     })
 }
 
@@ -428,6 +546,7 @@ pub fn test_model_connection(
     state: State<AppState>,
     provider: String,
     base_url: Option<String>,
+    full_url: Option<bool>,
 ) -> ZResult<TestResult> {
     let key = key_for(&state, &provider);
 
@@ -440,7 +559,7 @@ pub fn test_model_connection(
      */
     if key.is_empty() {
         let given = base_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
-        let lokal = endpoint_for(&provider, given, "")
+        let lokal = endpoint_for(&state, &provider, given, full_url, "")
             .map(|ep| endpoint_is_loopback(&ep.url))
             .unwrap_or(false);
         if !lokal {
@@ -453,7 +572,7 @@ pub fn test_model_connection(
         }
     }
 
-    let ep = endpoint_for(&provider, base_url.as_deref(), &key)?;
+    let ep = endpoint_for(&state, &provider, base_url.as_deref(), full_url, &key)?;
     let started = std::time::Instant::now();
 
     let mut req = ureq::get(&ep.url)
@@ -586,6 +705,7 @@ pub fn list_models(
     state: State<AppState>,
     provider: String,
     base_url: Option<String>,
+    full_url: Option<bool>,
 ) -> ZResult<Vec<ModelInfo>> {
     /*
      * Resolve the endpoint BEFORE insisting on a key.
@@ -603,7 +723,7 @@ pub fn list_models(
         // into a URL. Calling it with an empty key is fine for the local case
         // (the auth header is built, just never sent) and it is what tells us
         // whether this provider is local in the first place.
-        let probe = endpoint_for(&provider, given, "");
+        let probe = endpoint_for(&state, &provider, given, full_url, "");
         let lokal = match &probe {
             Ok(ep) => endpoint_is_loopback(&ep.url),
             // No endpoint to resolve at all (e.g. `custom` with no base URL).
@@ -617,7 +737,7 @@ pub fn list_models(
         }
     }
 
-    let ep = endpoint_for(&provider, given, &key)?;
+    let ep = endpoint_for(&state, &provider, given, full_url, &key)?;
 
     /*
      * Send the Authorization header only when there is something to send.
@@ -678,12 +798,27 @@ pub fn list_models(
             })
             .unwrap_or_default()
     } else {
+        /*
+         * Where the list lives, in order of how common the shape is:
+         * `data` (OpenAI / OpenRouter), `models` (some gateways reuse the
+         * Gemini key name with OpenAI-shaped rows), or a bare top-level
+         * array. A gateway that parks its list anywhere else reads as "no
+         * models" today; these three cover everything seen in the wild.
+         */
         json.get("data")
             .and_then(|v| v.as_array())
+            .or_else(|| json.get("models").and_then(|v| v.as_array()))
+            .or_else(|| json.as_array())
             .map(|arr| {
                 arr.iter()
                     .filter_map(|m| {
-                        let id = m.get("id").and_then(|n| n.as_str())?.to_string();
+                        /* `id` (OpenAI) or `name` (Gemini-style rows that
+                           slipped into the non-Gemini branch). */
+                        let raw = m
+                            .get("id")
+                            .or_else(|| m.get("name"))
+                            .and_then(|n| n.as_str())?;
+                        let id = raw.strip_prefix("models/").unwrap_or(raw).to_string();
 
                         /*
                          * THREE SHAPES, one per family of gateway.
@@ -776,7 +911,16 @@ pub fn preview_for_test(key: &str) -> String {
 /// regression: a `custom` provider must never resolve to OpenAI.
 #[cfg(test)]
 pub fn endpoint_for_test(provider: &str, base_url: Option<&str>) -> Result<String, String> {
-    endpoint_for(provider, base_url, "uji")
+    endpoint_for_core(provider.trim(), base_url, "uji", false)
+        .map(|e| e.url)
+        .map_err(|e| e.to_string())
+}
+
+/// The `fullUrl` variant: the given string IS the endpoint, so `/models` must
+/// not be appended to it.
+#[cfg(test)]
+pub fn endpoint_for_full_test(provider: &str, base_url: Option<&str>) -> Result<String, String> {
+    endpoint_for_core(provider.trim(), base_url, "uji", true)
         .map(|e| e.url)
         .map_err(|e| e.to_string())
 }

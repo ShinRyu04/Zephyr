@@ -81,8 +81,10 @@ console.log('pendek :', JSON.stringify(d.pendek));
 console.log('panjang:', JSON.stringify(d.panjang));
 console.log('fokus  :', JSON.stringify(d.fokus));
 
-/** Sent when the gate passed: long enough AND not focused. */
-const dikirim = (x) => x && x.lama >= 20000 && x.fokus === false;
+/** Sent when the gate passed: long enough AND not focused. The default
+ *  threshold is 5 s (Settings > Conversation > Notify Only for Long Tasks). */
+const AMBANG = 5000;
+const dikirim = (x) => x && x.lama >= AMBANG && x.fokus === false;
 
 console.log('\nBukti Fase 4 — notifikasi AI:');
 cek('modul notifikasi lengkap', Object.values(d.api ?? {}).every(Boolean), JSON.stringify(d.api));

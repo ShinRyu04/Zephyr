@@ -12,6 +12,9 @@ export default function TestsView() {
   const last = useTests((s) => s.last);
   const detect = useTests((s) => s.detect);
   const jalankanSemua = useTests((s) => s.jalankanSemua);
+  const jalankanCoverage = useTests((s) => s.jalankanCoverage);
+  const coverage = useTests((s) => s.coverage);
+  const coverageRunning = useTests((s) => s.coverageRunning);
 
   useEffect(() => {
     if (!detected && !detecting) void detect();
@@ -37,6 +40,21 @@ export default function TestsView() {
             tr('Run all tests')
           )}
         </button>
+
+        {/* Tombol coverage hanya muncul bila framework-nya punya jalur
+            coverage. Tombol yang selalu ada lalu gagal dengan "tidak
+            tersedia" lebih buruk daripada tombol yang memang tidak ada. */}
+        {framework?.coverageCommand && (
+          <button
+            className="btn btn-sm"
+            data-testid="tests-coverage-run"
+            disabled={running || coverageRunning || detecting}
+            title={framework.coverageCommand}
+            onClick={() => void jalankanCoverage()}
+          >
+            {coverageRunning ? tr('Measuring coverage…') : tr('Run with coverage')}
+          </button>
+        )}
 
         {framework && (
           <span className="tests-framework" data-testid="tests-framework" title={framework.command}>
@@ -89,6 +107,40 @@ export default function TestsView() {
               {counts.skipped} {tr('skipped')}
             </span>
           )}
+        </div>
+      )}
+
+      {coverage && (
+        <div className="tests-summary tests-cov" data-testid="tests-coverage">
+          {coverage.lines !== null && (
+            <span className="tests-pill" data-testid="tests-coverage-lines">
+              {coverage.lines}% {tr('lines')}
+            </span>
+          )}
+          {coverage.statements !== null && (
+            <span className="tests-pill" data-testid="tests-coverage-statements">
+              {coverage.statements}% {tr('statements')}
+            </span>
+          )}
+          {coverage.branches !== null && (
+            <span className="tests-pill" data-testid="tests-coverage-branches">
+              {coverage.branches}% {tr('branches')}
+            </span>
+          )}
+          {coverage.functions !== null && (
+            <span className="tests-pill" data-testid="tests-coverage-functions">
+              {coverage.functions}% {tr('functions')}
+            </span>
+          )}
+          {coverage.lines === null &&
+            coverage.statements === null &&
+            coverage.branches === null &&
+            coverage.functions === null && (
+              <span className="tests-pill">{tr('No coverage summary in the output')}</span>
+            )}
+          <span className="tests-time" data-testid="tests-coverage-time">
+            {coverage.ms} ms
+          </span>
         </div>
       )}
 

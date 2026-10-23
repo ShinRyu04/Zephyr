@@ -32,9 +32,9 @@ import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { PROVIDERS, ModelLogo, type ProviderModel } from '../../lib/modelCatalog';
+import { PROVIDERS, ModelLogo, ProviderLogo, type ProviderModel } from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID } from '../../lib/hydraModel';
-import { AddModelDialog, type BarisModel } from './AiModelsDialog';
+import { AddModelDialog, namaProvider, type BarisModel } from './AiModelsDialog';
 
 interface Baris {
   id: string;
@@ -103,6 +103,8 @@ function Grup({
   buka,
   onToggle,
   testid,
+  keci,
+  aksi,
   children,
 }: {
   label: string;
@@ -110,22 +112,34 @@ function Grup({
   buka: boolean;
   onToggle: () => void;
   testid: string;
+  /** Sub-grup di dalam grup Custom: indentasi lebih rapat, bobot lebih kecil. */
+  keci?: boolean;
+  /**
+   * Tombol di ujung kanan header (mis. hapus provider).
+   *
+   * `stopPropagation`-nya ada DI DALAM tombol, bukan di sini: klik tombol tidak
+   * boleh ikut melipat/membuka grupnya.
+   */
+  aksi?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <>
-      <button
-        type="button"
-        className={`aim-grup-head${buka ? ' is-buka' : ''}`}
-        data-testid={testid}
-        aria-expanded={buka}
-        onClick={onToggle}
-      >
-        <AiIkon name={buka ? 'chev-down' : 'chev-right'} size={11} />
-        <span className="aim-grup-nama">{label}</span>
-        <span className="aim-grup-jml">{jumlah}</span>
-      </button>
-      {buka && <div className="aim-grup-isi">{children}</div>}
+      <div className={`aim-grup-bar${keci ? ' is-keci' : ''}`}>
+        <button
+          type="button"
+          className={`aim-grup-head${buka ? ' is-buka' : ''}${keci ? ' is-keci' : ''}`}
+          data-testid={testid}
+          aria-expanded={buka}
+          onClick={onToggle}
+        >
+          <AiIkon name={buka ? 'chev-down' : 'chev-right'} size={11} />
+          <span className="aim-grup-nama">{label}</span>
+          <span className="aim-grup-jml">{jumlah}</span>
+        </button>
+        {aksi && <span className="aim-grup-aksi">{aksi}</span>}
+      </div>
+      {buka && <div className={`aim-grup-isi${keci ? ' is-keci' : ''}`}>{children}</div>}
     </>
   );
 }
@@ -139,6 +153,8 @@ export default function AiModelsPage() {
   const [cari, setCari] = useState('');
   const [bukaBuiltin, setBukaBuiltin] = useState(true);
   const [bukaCustom, setBukaCustom] = useState(true);
+  /* Sub-grup per custom provider; tidak ada entri = terbuka. */
+  const [bukaSub, setBukaSub] = useState<Record<string, boolean>>({});
   const [dialog, setDialog] = useState<{ awal: BarisModel | null } | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
 
@@ -219,6 +235,39 @@ export default function AiModelsPage() {
   const customTampil = useMemo(() => custom.filter(cocok), [custom, cocok]);
 
   /*
+   * Model custom dikelompokkan per provider, bukan dicampur jadi satu daftar.
+   * Urutan grup mengikuti urutan kemunculan model, jadi tidak melompat-lompat
+   * setiap kali satu model disunting.
+   */
+  const grupCustom = useMemo(() => {
+    const peta = new Map<string, Baris[]>();
+    for (const b of customTampil) {
+      const isi = peta.get(b.provider);
+      if (isi) isi.push(b);
+      else peta.set(b.provider, [b]);
+    }
+    return [...peta.entries()];
+  }, [customTampil]);
+
+  /*
+   * Provider custom yang MASIH punya key/URL tersimpan tapi nol model tampil.
+   *
+   * Tanpa ini sebuah gateway yang Refresh-nya gagal (atau memang balas list
+   * kosong) lenyap dari halaman — tidak ada baris, tidak ada grup, jadi tidak
+   * ada pula cara menghapusnya. Daftar ini memastikan setiap provider yang
+   * pernah dibuat tetap terlihat beserta tombol hapusnya, supaya daftar tidak
+   * numpuk oleh provider mati.
+   */
+  const providerKosong = useMemo(() => {
+    const tampil = new Set(grupCustom.map(([pid]) => pid));
+    const prov = models?.providers ?? {};
+    const ids = new Set<string>(Object.keys(prov).filter((k) => k.startsWith('custom')));
+    for (const k of ui.keys) if (k.hasKey && k.provider.startsWith('custom-')) ids.add(k.provider);
+    for (const c of kustom) ids.add(c.provider);
+    return [...ids].filter((pid) => !tampil.has(pid)).sort();
+  }, [grupCustom, models, ui.keys, kustom]);
+
+  /*
    * Saving the dialog's result.
    *
    * Add and Edit share one path: a row with the same `provider/id` is REPLACED
@@ -239,7 +288,34 @@ export default function AiModelsPage() {
         terdeteksi: r.terdeteksi,
       });
     }
-    await apply({ models: { custom: [...peta.values()] } });
+    /*
+     * URL gateway IKUT ditulis ke `providers[pid]`, bukan hanya ke baris model.
+     *
+     * `models.custom[].baseUrl` hanya URL per model. Yang dibaca pemilih model
+     * sebagai bukti "provider ini ada dan bisa dikirim" adalah
+     * `models.providers[pid].baseUrl` - `baseUrlEfektif` tidak pernah melihat
+     * daftar custom. Dulu fungsi ini hanya menulis `custom`, jadi gateway yang
+     * baru ditambahkan punya key dan model tetapi tetap dinilai "belum siap":
+     * provider-nya tidak muncul di pemilih model walau API key-nya sudah masuk.
+     */
+    const provLama = sekarang?.providers ?? {};
+    const provBaru: Record<string, { baseUrl?: string; fullUrl?: boolean }> = {};
+    for (const r of rows) {
+      const url = r.baseUrl?.trim();
+      if (!url) continue;
+      const ada = provLama[r.provider];
+      if (ada?.baseUrl === url) continue;
+      provBaru[r.provider] = { ...(ada ?? {}), baseUrl: url };
+    }
+
+    await apply({
+      models: {
+        custom: [...peta.values()],
+        ...(Object.keys(provBaru).length > 0
+          ? { providers: { ...provLama, ...provBaru } }
+          : {}),
+      },
+    });
     setDialog(null);
     setBukaCustom(true);
     setPesan(
@@ -258,6 +334,33 @@ export default function AiModelsPage() {
       },
     });
     setPesan(tr('Model removed.'));
+  };
+
+  /*
+   * Hapus SATU PROVIDER custom sekaligus isinya, biar daftar tidak numpuk.
+   *
+   * Yang dibersihkan tiga tempat, bukan cuma `models.custom`:
+   *  - `models.custom`   — semua baris model milik provider itu.
+   *  - `models.providers` — baseUrl tersimpan; tanpa ini provider "mati" tetap
+   *    punya endpoint di settings dan Rust tetap memakainya sebagai fallback.
+   *  - API key di `secrets.json` lewat `saveKey(provider, '')` — tanpa ini key
+   *    yatim tetap terenkripsi di disk selamanya.
+   *
+   * Konfirmasi dulu: satu klik salah tidak boleh menghabiskey sebuah gateway
+   * yang key-nya mungkin tidak disimpan di tempat lain.
+   */
+  const hapusProvider = async (pid: string) => {
+    const nama = namaProvider(pid) || pid;
+    if (!window.confirm(tr('Delete provider ') + nama + tr('? Its models, saved URL and API key will be removed.'))) return;
+    const sekarang = useStore.getState().settings.models;
+    const lama = sekarang?.custom ?? [];
+    /* PENTING: simpan settings itu deep-merge (RFC 7386). Mengirim objek `prov`
+       yang key-nya sudah di-delete TIDAK menghapus apa pun — merge hanya melihat
+       key yang ADA di patch. Hapus wajib lewat penanda `null`, yang dibuang
+       `mergeDalam` (frontend) dan `deep_merge` (Rust). */
+    await apply({ models: { custom: lama.filter((c) => c.provider !== pid), providers: { [pid]: null } } });
+    await useSettingsUi.getState().saveKey(pid, '');
+    setPesan(tr('Provider removed: ') + nama + '.');
   };
 
   const aktif = models?.activeProvider ?? '';
@@ -332,7 +435,23 @@ export default function AiModelsPage() {
               data-testid={`aim-pakai-${b.provider}-${b.id}`}
               disabled={siap}
               onClick={() => {
-                void apply({ models: { activeProvider: b.provider } });
+                /*
+                 * Provider DAN model, bukan provider saja.
+                 *
+                 * Mengirim `activeProvider` tanpa `model` membuat panel
+                 * menyinkronkan provider baru tapi tidak tahu model mana yang
+                 * dimaksud, lalu memilih ulang model dari katalog — pilihan
+                 * yang baru diklik reader tertimpa.
+                 */
+                void apply({
+                  models: {
+                    activeProvider: b.provider,
+                    providers: {
+                      ...(models?.providers ?? {}),
+                      [b.provider]: { ...(models?.providers?.[b.provider] ?? {}), model: b.id },
+                    },
+                  },
+                });
                 setPesan(tr('Active model set to ') + b.label + '.');
               }}
             >
@@ -399,7 +518,13 @@ export default function AiModelsPage() {
           )}
         </Grup>
 
-        {/* ── Custom ─────────────────────────────────────────────────── */}
+        {/* ── Custom: one sub-group per custom provider ────────────────── */}
+        {/*
+          * Dulu semua model custom digabung di satu grup "Custom", jadi dua
+          * gateway berbeda ("geraikita" dan "modelrouter") tampak sebagai satu
+          * daftar tanpa pemisah — jumlah per provider tidak terlihat dan model
+          * dengan id sama dari dua gateway tidak bisa dibedakan.
+          */}
         <Grup
           label={tr('Custom')}
           jumlah={customTampil.length}
@@ -407,12 +532,66 @@ export default function AiModelsPage() {
           onToggle={() => setBukaCustom((v) => !v)}
           testid="aim-grup-custom"
         >
-          {customTampil.length === 0 ? (
+          {customTampil.length === 0 && providerKosong.length === 0 ? (
             <p className="aim-kosong-kecil" data-testid="aim-custom-kosong">
               {tr('No custom models yet. Press Add Model, paste a key, then Refresh.')}
             </p>
           ) : (
-            customTampil.map(barisJSX)
+            <>
+              {grupCustom.map(([pid, baris]) => (
+                <Grup
+                  key={pid}
+                  keci
+                  label={pid === 'custom' ? tr('Custom') : namaProvider(pid) || pid}
+                  jumlah={baris.length}
+                  buka={bukaSub[pid] ?? true}
+                  onToggle={() => setBukaSub((s) => ({ ...s, [pid]: !(s[pid] ?? true) }))}
+                  testid={`aim-grup-custom-${pid}`}
+                  aksi={
+                    <button
+                      type="button"
+                      className="aim-aksi-btn is-hapus is-keci"
+                      data-testid={`aim-hapus-provider-${pid}`}
+                      title={tr('Delete provider')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void hapusProvider(pid);
+                      }}
+                    >
+                      <AiIkon name="trash" size={11} />
+                      {tr('Delete')}
+                    </button>
+                  }
+                >
+                  {baris.map(barisJSX)}
+                </Grup>
+              ))}
+              {providerKosong.map((pid) => (
+                <div
+                  key={pid}
+                  className="aim-grup-bar is-keci is-kosong"
+                  data-testid={`aim-provider-kosong-${pid}`}
+                >
+                  <span className="aim-grup-head is-keci is-mati">
+                    <ProviderLogo id={pid} size={12} />
+                    <span className="aim-grup-nama">{namaProvider(pid) || pid}</span>
+                    <span className="aim-grup-jml">0</span>
+                  </span>
+                  <span className="aim-grup-aksi">
+                    <button
+                      type="button"
+                      className="aim-aksi-btn is-hapus is-keci"
+                      data-testid={`aim-hapus-provider-${pid}`}
+                      title={tr('Delete provider')}
+                      onClick={() => void hapusProvider(pid)}
+                    >
+                      <AiIkon name="trash" size={11} />
+                      {tr('Delete')}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </>
           )}
         </Grup>
 

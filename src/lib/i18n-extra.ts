@@ -1608,6 +1608,7 @@ const ID: Dict = {
   'This command is potentially destructive - allow the agent?': 'Perintah ini berpotensi merusak - izinkan agent?',
   'This command is potentially destructive:': 'Perintah ini berpotensi merusak:',
   'This provider does not have an API key yet': 'Provider ini belum punya API key',
+  'Sending will fail until a key is added.': 'Pengiriman akan gagal sampai key ditambahkan.',
   'Type a model name… (Enter)': 'Ketik nama model… (Enter)',
   'Type a task for the agent (Enter to send)…': 'Ketik tugas untuk agent (Enter untuk kirim)…',
   'Use': 'Pakai',
