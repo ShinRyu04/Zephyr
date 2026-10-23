@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -458,16 +458,21 @@ function GrupKerja({
       ? `${Math.floor(totalMs / 60000)}m ${Math.round((totalMs % 60000) / 1000)}s`
       : `${Math.max(1, Math.round(totalMs / 1000))}s`;
   /*
-   * The headline is the DURATION, as in the reference product: "Worked for 12s".
+   * The headline is the WORK, not the clock.
    *
-   * It was briefly the work summary ("Read 1 file"), and that read as a caption
-   * rather than a fold title - the compactness the reader asked for comes from
-   * the thin bar, not from putting the counts in its label. The counts live one
-   * level down, as the fold's subtitle.
+   * Riwayat keputusan ini bolak-balik, jadi ditulis apa adanya: dulu judulnya
+   * jumlah kerja ("Read 1 file"), lalu diganti durasi ("Worked for 12s") supaya
+   * bar terasa seperti satu baris judul. Setelah dibandingkan langsung dengan
+   * Freebuff dan TRAE (permintaan user 23 Okt: "biar mirip Freebuff dan TRAE"),
+   * keduanya menulis APA YANG DIKERJAKAN di bar tertutup - TRAE: "Read 35 files,
+   * Searched files 22 times"; Freebuff: "Ran commands", "Read a file, ran a
+   * command". Bar tertutup yang hanya berbunyi "Selesai dalam 1s" memberi tahu
+   * lamanya, bukan isinya, sehingga pembaca harus membukanya untuk tahu apa pun.
+   *
+   * Durasi tetap ada, dipindah ke kanan bar sebagai angka redup: ia konteks,
+   * bukan judul. Isi lipatan tidak lagi mengulang ringkasan yang sama.
    */
-  const judul = live
-    ? tf('Sedang bekerja… {t}', { t: durasi })
-    : tf('Selesai dalam {t}', { t: durasi });
+  const judul = kerja || (live ? tr('Working…') : tr('Done'));
 
   return (
     <div
@@ -504,6 +509,9 @@ function GrupKerja({
             {tf('{n} failed', { n: gagal })}
           </span>
         )}
+        <span className="ai-kerja-durasi" data-testid="ai-kerja-durasi">
+          {durasi}
+        </span>
         <span className="ai-kerja-caret" aria-hidden="true">
           {terbuka ? '▾' : '›'}
         </span>
@@ -511,15 +519,6 @@ function GrupKerja({
 
       {terbuka && (
         <div className="ai-kerja-isi" data-testid="ai-kerja-isi">
-          {ringkas ? (
-            <div className="ai-kerja-sub" data-testid="ai-kerja-sub">
-              {live ? ringkas : `${tf('Selesai dalam {t}', { t: durasi })} · ${ringkas}`}
-            </div>
-          ) : (
-            <div className="ai-kerja-sub" data-testid="ai-kerja-sub">
-              {tf('Selesai dalam {t}', { t: durasi })}
-            </div>
-          )}
           {narasi ? (
             <div className="ai-kerja-narasi" data-testid="ai-kerja-narasi">
               <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
@@ -642,24 +641,103 @@ function ringkasKerja(
   };
   for (const t of tools) {
     const nama = namaPolos(t.name);
-    /* The verb comes from the tool's own family, not from a guess about the
-       args: `write_file` on a new path still counts as "Edited", because the
-       model used a write tool either way. */
+    /*
+     * The verb comes from the tool's own family, not from a guess about the
+     * args: `write_file` on a new path still counts as "Edited", because the
+     * model used a write tool either way.
+     *
+     * `grep`/`glob` count as SEARCHES, not reads. They used to be folded into
+     * "Read N files", which made a run that searched twenty times look like it
+     * opened twenty files - and TRAE, the reference, states them separately
+     * ("Read 35 files, Searched files 22 times").
+     */
     if (nama === 'bash_run' || nama === 'sh' || nama === 'run_command') naik('cmd');
-    else if (nama.startsWith('read') || nama === 'grep' || nama === 'glob') naik('read');
+    else if (nama === 'grep' || nama === 'glob' || nama.startsWith('search') || nama.startsWith('find')) naik('search');
+    else if (nama.startsWith('read') || nama.startsWith('list_')) naik('read');
     else if (nama.startsWith('write') || nama.startsWith('edit') || nama.startsWith('apply')) naik('edit');
     else if (nama.startsWith('create')) naik('create');
-    else if (nama.startsWith('search') || nama.startsWith('find')) naik('search');
     else naik('step');
   }
+
+  /*
+   * Singular vs plural, per count.
+   *
+   * The strings have no dictionary entries (they are English at every language),
+   * so nothing is lost by splitting them: "Read 12 file" and "Ran 1 commands"
+   * were shipping, and a bar whose grammar is broken reads as machine output
+   * rather than as a summary.
+   */
+  const jamak = (n: number, satu: string, banyak: string) => tf(n === 1 ? satu : banyak, { n });
   const bit: string[] = [];
-  if (n.create) bit.push(tf('Created {n} file', { n: n.create }));
-  if (n.edit) bit.push(tf('Edited {n} file', { n: n.edit }));
-  if (n.read) bit.push(tf('Read {n} file', { n: n.read }));
-  if (n.search) bit.push(tf('Searched files {n} times', { n: n.search }));
-  if (n.cmd) bit.push(tf('Ran {n} commands', { n: n.cmd }));
-  if (n.step) bit.push(tf('{n} steps', { n: n.step }));
+  if (n.create) bit.push(jamak(n.create, 'Created {n} file', 'Created {n} files'));
+  if (n.edit) bit.push(jamak(n.edit, 'Edited {n} file', 'Edited {n} files'));
+  if (n.read) bit.push(jamak(n.read, 'Read {n} file', 'Read {n} files'));
+  if (n.search) bit.push(jamak(n.search, 'Searched files {n} time', 'Searched files {n} times'));
+  if (n.cmd) bit.push(jamak(n.cmd, 'Ran {n} command', 'Ran {n} commands'));
+  if (n.step) bit.push(jamak(n.step, '{n} step', '{n} steps'));
   return bit.join(', ');
+}
+
+/*
+ * A pasted prompt is not an answer: it can be hundreds of lines.
+ *
+ * The user's own bubble used to render `msg.content` at full height, so a long
+ * pasted message (a log, a diff, a whole file) filled the transcript and pushed
+ * the answer off-screen - the reader had to scroll past their own text to see
+ * the reply. Above this height the bubble is clipped and a Show more / Show
+ * less toggle appears under it. Marked by LINE COUNT as well as height: a
+ * single long line never triggers the height cap on its own because of
+ * wrapping, but it is just as unreadable at full length.
+ */
+const TINGGI_RINGKAS_PX = 168;
+const BARIS_RINGKAS = 8;
+
+function PesanUser({ teks }: { teks: string }) {
+  const tr = useT();
+  const isi = useRef<HTMLParagraphElement | null>(null);
+  const [buka, setBuka] = useState(false);
+  const [tinggi, setTinggi] = useState(0);
+
+  /*
+   * Measured, not guessed from character count: the panel's width decides how
+   * many wrapped lines a fixed number of characters becomes, and the same text
+   * in the right column and in the popped-out window wraps differently.
+   */
+  useEffect(() => {
+    const el = isi.current;
+    if (!el) return;
+    const ukur = () => setTinggi(el.scrollHeight);
+    ukur();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(ukur);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [teks]);
+
+  const panjang = tinggi > TINGGI_RINGKAS_PX || teks.split('\n').length > BARIS_RINGKAS;
+
+  return (
+    <div className="ai-pesan-user" data-testid="ai-user-msg" data-ringkas={panjang && !buka ? '1' : '0'}>
+      <p
+        className="ai-plain"
+        ref={isi}
+        style={panjang && !buka ? { maxHeight: TINGGI_RINGKAS_PX, overflow: 'hidden' } : undefined}
+      >
+        {teks}
+      </p>
+      {panjang && (
+        <button
+          type="button"
+          className="ai-pesan-user-toggle"
+          data-testid="ai-user-msg-toggle"
+          aria-expanded={buka}
+          onClick={() => setBuka(!buka)}
+        >
+          {buka ? tr('Show less') : tr('Show more')}
+        </button>
+      )}
+    </div>
+  );
 }
 
 function ChatMessageInner({ msg }: { msg: ChatMsg }) {
@@ -1150,7 +1228,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
             * the tool rows above still list every call in order.
             */}
           {isUser ? (
-            <p className="ai-plain">{msg.content}</p>
+            <PesanUser teks={msg.content} />
           ) : (
             <>
               {/*

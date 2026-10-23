@@ -22,6 +22,7 @@ mod tests {
             "gpt-5.2",
             &[msg("user", "hai")],
             None,
+            None,
             "KEY123",
             1024,
             None,
@@ -53,7 +54,7 @@ mod tests {
     fn model_lama_tetap_pakai_max_tokens() {
         /* The other half of the rule: an open-weight or older model only knows
            `max_tokens`, so it must NOT be switched to the new spelling. */
-        let p = adapters::prepare("custom", "llama-3.1-70b", &[msg("user", "hai")], None, "K", 512, None)
+        let p = adapters::prepare("custom", "llama-3.1-70b", &[msg("user", "hai")], None, None, "K", 512, None)
             .unwrap();
         assert_eq!(p.body["max_tokens"], json!(512));
         assert!(p.body.get("max_completion_tokens").is_none());
@@ -77,6 +78,7 @@ mod tests {
             }],
             &[],
             None,
+            None,
             "K",
             256,
             None,
@@ -92,6 +94,7 @@ mod tests {
             "m",
             &[msg("user", "x")],
             Some("http://127.0.0.1:8098/v1/"),
+            None,
             "K",
             10,
             None,
@@ -107,6 +110,7 @@ mod tests {
             "deepseek-chat",
             &[msg("user", "x")],
             None,
+            None,
             "K",
             8,
             None,
@@ -121,6 +125,7 @@ mod tests {
             "anthropic",
             "claude-sonnet-4.5",
             &[msg("system", "jadilah singkat"), msg("user", "hai")],
+            None,
             None,
             "SECRET",
             2048,
@@ -156,6 +161,7 @@ mod tests {
                 msg("user", "hai"),
                 msg("assistant", "halo"),
             ],
+            None,
             None,
             "GKEY",
             512,
@@ -273,6 +279,7 @@ mod tests {
             &[asst, tool],
             &[spec("terminal_exec")],
             None,
+            None,
             "K",
             512,
             None,
@@ -333,6 +340,7 @@ mod tests {
             &messages,
             &[spec("browser_open")],
             Some("https://modelrouter.id/v1"),
+            None,
             "K",
             2048,
             None,
@@ -417,6 +425,7 @@ mod tests {
             &[sys, asst, tool],
             &[spec("terminal_exec")],
             None,
+            None,
             "K",
             512,
             None,
@@ -454,6 +463,7 @@ mod tests {
             &[asst],
             &[spec("read_file")],
             Some("https://modelrouter.id/v1"),
+            None,
             "K",
             512,
             None,
@@ -479,6 +489,7 @@ mod tests {
             &[asst],
             &[spec("read_file")],
             Some("https://modelrouter.id/v1"),
+            None,
             "K",
             512,
             None,
@@ -506,6 +517,7 @@ mod tests {
             &[asst],
             &[spec("read_file")],
             Some("https://modelrouter.id/v1"),
+            None,
             "K",
             512,
             None,
@@ -543,6 +555,7 @@ mod tests {
             "gemini-2.5-pro",
             &[sys, tool],
             &[spec("terminal_exec")],
+            None,
             None,
             "K",
             512,
@@ -662,6 +675,7 @@ mod tests {
                 reasoning_signature: sig,
             }],
             None,
+            None,
             "K",
             512,
             None,
@@ -706,6 +720,7 @@ mod tests {
                 reasoning_signature: None,
             }],
             None,
+            None,
             "K",
             512,
             None,
@@ -743,6 +758,7 @@ mod tests {
                 reasoning_signature: None,
             }],
             None,
+            None,
             "K",
             512,
             None,
@@ -774,7 +790,7 @@ mod tests {
         };
 
         for prov in ["anthropic", "gemini", "openai"] {
-            let p = adapters::prepare(prov, "m", &[pesan.clone()], None, "K", 512, None).unwrap();
+            let p = adapters::prepare(prov, "m", &[pesan.clone()], None, None, "K", 512, None).unwrap();
             let teks = p.body.to_string();
             assert!(
                 !teks.contains("this should not go out"),

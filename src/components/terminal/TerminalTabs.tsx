@@ -6,6 +6,7 @@ import PaneIcon, { AgentLogo } from './PaneIcons';
 import type { PaneKind, TerminalTab } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
 import { HOME as URL_HOME_BROWSER } from './BrowserPane';
+import { useStore } from '../../lib/store';
 
 export function ActionIcon({
   name,
@@ -158,6 +159,12 @@ export function TerminalOps() {
   const newTab = useTerminal((s) => s.newTab);
   const closeTab = useTerminal((s) => s.closeTab);
   const addPane = useTerminal((s) => s.addPane);
+  const addPaneProfil = useTerminal((s) => s.addPaneProfil);
+  /* Profil bernama dari Settings: ditawarkan di atas shell mentah, karena
+     itulah yang dipakai sehari-hari kalau sudah ada. `?? []` TIDAK boleh ada
+     di selector: array baru setiap render = loop render tak berujung. */
+  const profilTersimpan = useStore((s) => s.settings?.terminalProfiles);
+  const profilTerminal = profilTersimpan ?? [];
   const closePane = useTerminal((s) => s.closePane);
   const killPane = useTerminal((s) => s.killPane);
   const setLayout = useTerminal((s) => s.setLayout);
@@ -219,6 +226,28 @@ export function TerminalOps() {
             className="tt-dropdown"
             onClose={() => setPickerOpen(false)}
           >
+            {profilTerminal.length > 0 && (
+              <>
+                <div className="tt-drop-label">Profiles</div>
+                {profilTerminal.map((p) => (
+                  <button
+                    key={p.id}
+                    className="tt-drop-item"
+                    role="menuitem"
+                    data-testid={`term-profile-${p.id}`}
+                    title={[p.shell, p.cwd, p.command].filter(Boolean).join(' · ')}
+                    onClick={() => {
+                      void addPaneProfil(p.id);
+                      setPickerOpen(false);
+                    }}
+                  >
+                    <PaneIcon kind={p.private ? 'private' : 'shell'} />
+                    {p.name}
+                  </button>
+                ))}
+                <div className="tt-drop-sep" />
+              </>
+            )}
             <div className="tt-drop-label">Shell</div>
             {shells.map((sh) => (
               <button

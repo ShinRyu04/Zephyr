@@ -30,7 +30,7 @@
  */
 
 import { capabilityScore, classifySubagentTask, type SubagentModelCandidate, type SubagentTaskCategory } from './subagentRouter';
-import { PROVIDERS, providerSiap, isPlaceholderModel } from './modelCatalog';
+import { daftarProvider, providerSiap, isPlaceholderModel } from './modelCatalog';
 import type { AiMessage, AiChunk } from './types';
 
 export type HydraTier = 'cheap' | 'mid' | 'strong';
@@ -131,7 +131,7 @@ export function kandidatHydra(
   adaKey: (id: string) => boolean,
 ): HydraKandidat[] {
   const out: HydraKandidat[] = [];
-  for (const p of PROVIDERS) {
+  for (const p of daftarProvider(providers)) {
     if (!providerSiap(p, adaKey(p.id), providers)) continue;
     const konfigurasi = providers[p.id];
     const ids: string[] = [];

@@ -3253,3 +3253,106 @@
   gap: 8px;
   margin-bottom: 12px;
 }
+
+/* ── Profil terminal (General → Terminal profiles) ──────────────────────── */
+/*
+ * Satu profil = satu baris kartu kecil: nama, shell, folder, perintah awal,
+ * private, hapus. Grid dua kolom supaya empat field tidak menumpuk jadi satu
+ * kolom panjang di panel Settings yang sempit.
+ */
+.tp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.tp-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+}
+
+.tp-aksi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tp-list > .btn-sm {
+  align-self: flex-start;
+}
+
+@media (max-width: 720px) {
+  .tp-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Override editor per bahasa ─────────────────────────────────────────── */
+.pl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.pl-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 92px auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
+}
+
+.pl-nama {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .pl-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* Settings profile + portable state in About. One card, two rows: a status
+   line that cannot be edited (portable is decided by the install, not a
+   switch) and the two actions that actually do something. */
+.about-profil-baris {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.about-flag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.about-flag.is-on {
+  color: var(--accent, #6ea8fe);
+  border-color: currentColor;
+}
+.about-inline-note {
+  margin: 0;
+}
+.about-profil-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

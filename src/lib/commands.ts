@@ -18,8 +18,10 @@ import type {
   GhTestResult,
   GhUser,
   GitBranches,
+  GitCommitFile,
   GitCommitInfo,
   GitStatusResult,
+  ScmRepoList,
   GitUser,
   LineEnding,
   McpServer,
@@ -665,8 +667,8 @@ export const getPublicModels = () => invoke<PublicModel[]>('get_public_models');
 
 export const setModelKey = (provider: string, key: string) =>
   invoke<void>('set_model_key', { provider, key });
-export const testModelConnection = (provider: string, baseUrl?: string) =>
-  invoke<ModelTestResult>('test_model_connection', { provider, baseUrl });
+export const testModelConnection = (provider: string, baseUrl?: string, fullUrl?: boolean) =>
+  invoke<ModelTestResult>('test_model_connection', { provider, baseUrl, fullUrl });
 
 /**
  * One row of a provider's `/models` answer.
@@ -708,8 +710,8 @@ export function normalisasiModelInfo(rows: Array<string | ModelInfo> | null | un
   return out;
 }
 
-export const listModels = async (provider: string, baseUrl?: string): Promise<ModelInfo[]> => {
-  const rows = await invoke<Array<string | ModelInfo>>('list_models', { provider, baseUrl });
+export const listModels = async (provider: string, baseUrl?: string, fullUrl?: boolean): Promise<ModelInfo[]> => {
+  const rows = await invoke<Array<string | ModelInfo>>('list_models', { provider, baseUrl, fullUrl });
   return normalisasiModelInfo(rows);
 };
 
@@ -721,10 +723,22 @@ export const listModels = async (provider: string, baseUrl?: string): Promise<Mo
  * modalities and pricing just to build a `<select>`, so the reduction happens
  * here instead of being copied into each of them.
  */
-export const listModelIds = async (provider: string, baseUrl?: string): Promise<string[]> =>
-  (await listModels(provider, baseUrl)).map((m) => m.id);
+export const listModelIds = async (provider: string, baseUrl?: string, fullUrl?: boolean): Promise<string[]> =>
+  (await listModels(provider, baseUrl, fullUrl)).map((m) => m.id);
 
 export const resetSettings = () => invoke<void>('reset_settings');
+
+/*
+ * Profil setelan: settings.json yang dibawa ke mesin lain atau disimpan
+ * sebagai cadangan. Kedua perintah memakai path yang SUDAH dipilih lewat
+ * `fileDialogSave` / `fileDialogOpen`, jadi tidak ada path yang dikarang di
+ * sisi frontend. Yang tidak ikut diekspor (state pembaruan, path avatar, path
+ * gambar latar) dibuang di Rust — lihat `profil_bersih` di settings.rs.
+ */
+export const settingsExport = (path: string) =>
+  invoke<string>('settings_export', { path });
+export const settingsImport = (path: string) =>
+  invoke<Settings>('settings_import', { path });
 
 export const aiChat = (opts: {
   id: string;
@@ -732,6 +746,7 @@ export const aiChat = (opts: {
   model: string;
   messages: AiMessage[];
   baseUrl?: string;
+  fullUrl?: boolean;
   maxTokens?: number;
 
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
@@ -758,6 +773,7 @@ export const aiToolChat = (opts: {
   messages: AgentMsg[];
   tools: AgentToolSpec[];
   baseUrl?: string;
+  fullUrl?: boolean;
   maxTokens?: number;
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
   sessionId?: string;
@@ -770,6 +786,7 @@ export const aiToolChatStream = (opts: {
   messages: AgentMsg[];
   tools: AgentToolSpec[];
   baseUrl?: string;
+  fullUrl?: boolean;
   maxTokens?: number;
   effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
   /* Stable per-chat id for provider prompt-cache affinity. */
@@ -1020,6 +1037,17 @@ export const gitPush = (setUpstream = false) =>
   invoke<string>('git_push', { setUpstream });
 export const gitPull = (rebase = false) => invoke<string>('git_pull', { rebase });
 export const gitFetch = () => invoke<string>('git_fetch');
+/*
+ * Multi-repo Source Control.
+ *
+ * `scmRepos` memindai workspace (kedalaman terbatas) untuk repo git; `scmSetRepo`
+ * memilih salah satunya dan SELURUH command git di aplikasi mengikuti pilihan
+ * itu sampai workspace diganti atau pilihan dikembalikan ke `null`.
+ */
+export const scmRepos = () => invoke<ScmRepoList>('scm_repos');
+export const scmSetRepo = (path: string | null) =>
+  invoke<string | null>('scm_set_repo', { path });
+
 export const gitBranches = () => invoke<GitBranches>('git_branches');
 export const gitCheckout = (branch: string) => invoke<void>('git_checkout', { branch });
 export const gitCreateBranch = (name: string, from?: string) =>
@@ -1034,7 +1062,8 @@ export const gitDiff = (path: string, staged = false) =>
  * index diff, so the gutter built on that would clear its bars the moment the
  * reader staged the file, before anything was committed.
  */
-export const gitDiffHead = (path: string) => invoke<string>('git_diff_head', { path });
+export const gitDiffHead = (path: string, ignoreWs = false) =>
+  invoke<string>('git_diff_head', { path, ignoreWs });
 /**
  * Added/removed line counts per changed file, keyed by path.
  *
@@ -1045,6 +1074,12 @@ export const gitNumstat = (staged = false) =>
   invoke<Record<string, [number, number]>>('git_numstat', { staged });
 export const gitDiscard = (paths: string[]) => invoke<void>('git_discard', { paths });
 export const gitLog = (n = 20) => invoke<GitCommitInfo[]>('git_log', { n });
+/** Files changed by one commit (Committed Changes list), with numstat counts. */
+export const gitCommitFiles = (hash: string) =>
+  invoke<GitCommitFile[]>('git_commit_files', { hash });
+/** One file's diff as of a commit — the commit against its first parent. */
+export const gitDiffCommit = (hash: string, path: string, ignoreWs = false) =>
+  invoke<string>('git_diff_commit', { hash, path, ignoreWs });
 export const gitConfigGetUser = () => invoke<GitUser>('git_config_get_user');
 
 export interface GitBlameLine {
@@ -1413,6 +1448,17 @@ export const dapSetVariable = (variablesReference: number, name: string, value: 
   invoke<Record<string, unknown>>('dap_set_variable', { variablesReference, name, value });
 export const dapSetBreakpoints = (path: string, lines: number[]) =>
   invoke<Record<string, unknown>>('dap_set_breakpoints', { path, lines });
+
+/** Breakpoint dengan opsi DAP: condition, hitCondition, logMessage. */
+export interface DapBreakpointOpsi {
+  line: number;
+  condition?: string;
+  hitCondition?: string;
+  logMessage?: string;
+}
+
+export const dapSetBreakpointsEx = (path: string, breakpoints: DapBreakpointOpsi[]) =>
+  invoke<Record<string, unknown>>('dap_set_breakpoints_ex', { path, breakpoints });
 export const dapLoadedSources = () => invoke<Record<string, unknown>>('dap_loaded_sources');
 
 export const cliArgsAwal = () => invoke<CliArgs>('cli_args_awal');

@@ -10,6 +10,7 @@ import UpdatePanel from './UpdatePanel';
 import { useUpdater } from '../../lib/updaterStore';
 import { useFocusTrap } from '../../lib/useFocusTrap';
 import { GitHubLogo } from './BrandLogos';
+import { notifyError, notifyInfo } from '../../lib/notificationStore';
 
 import { useTerminal } from '../../lib/terminalStore';
 export function ScmSection() {
@@ -429,6 +430,67 @@ export function AboutSection() {
 
   const [salin, setSalin] = useState(false);
 
+  /*
+   * Profil setelan: ekspor ke satu berkas JSON, lalu impor di mesin lain.
+   *
+   * Impor MENGGABUNG (deep merge) ke settings.json yang ada, bukan menimpanya:
+   * kunci yang tidak ada di profil tetap seperti sekarang. Tetap ada langkah
+   * konfirmasi, karena mengganti tema, bahasa, dan perilaku editor sekaligus
+   * bukan hal yang bisa ditebak dari satu klik.
+   */
+  const [profilSibuk, setProfilSibuk] = useState<'export' | 'import' | null>(null);
+  const [imporPath, setImporPath] = useState<string | null>(null);
+
+  const eksporProfil = async () => {
+    setProfilSibuk('export');
+    try {
+      const tujuan = await cmd.fileDialogSave('zephyr-settings.json');
+      if (!tujuan) return;
+      await cmd.settingsExport(tujuan);
+      notifyInfo('Settings exported', { detail: tujuan, source: 'Settings profile' });
+    } catch (e) {
+      notifyError('Could not export settings', {
+        detail: cmd.asZephyrError(e).message,
+        source: 'Settings profile',
+      });
+    } finally {
+      setProfilSibuk(null);
+    }
+  };
+
+  const pilihImpor = async () => {
+    setProfilSibuk('import');
+    try {
+      const berkas = await cmd.fileDialogOpen(false);
+      const pilih = berkas?.[0];
+      if (pilih) setImporPath(pilih);
+    } catch (e) {
+      notifyError('Could not open the settings profile', {
+        detail: cmd.asZephyrError(e).message,
+        source: 'Settings profile',
+      });
+    } finally {
+      setProfilSibuk(null);
+    }
+  };
+
+  const jalankanImpor = async () => {
+    if (!imporPath) return;
+    setProfilSibuk('import');
+    try {
+      await cmd.settingsImport(imporPath);
+      notifyInfo('Settings imported', { detail: imporPath, source: 'Settings profile' });
+      setImporPath(null);
+    } catch (e) {
+      notifyError('Could not import settings', {
+        detail: cmd.asZephyrError(e).message,
+        source: 'Settings profile',
+      });
+    } finally {
+      setProfilSibuk(null);
+    }
+  };
+
   const baris: Array<[string, string]> = [
     ['Version', `${info?.version ?? '-'} · ${info?.profile ?? '-'}`],
     ['Architecture', info?.arch ?? '-'],
@@ -575,6 +637,112 @@ export function AboutSection() {
           {tr('Releases page')}
         </button>
       </div>
+
+      {/*
+        Settings profile + portable mode. Both answer "where does my setup
+        live": the profile is the file you can carry, portable mode is the
+        install that keeps everything beside the executable instead of in
+        %APPDATA%. Showing the portable state here is the only place the user
+        can see WHY the data folder in the row above is where it is.
+      */}
+      <div className="about-kartu about-kartu-detail" data-testid="about-profil">
+        <div className="about-judul">{tr('Settings profile')}</div>
+        <div className="about-sub">
+          {tr(
+            'Carry your settings to another machine, or keep a backup. Update state, the avatar path and the background image path stay on this machine.',
+          )}
+        </div>
+
+        <div className="about-profil-baris">
+          <span className="about-k">{tr('Portable mode')}</span>
+          <span
+            className={`about-flag${info?.portable ? ' is-on' : ''}`}
+            data-testid="profile-portable"
+          >
+            {info?.portable ? tr('on') : tr('off')}
+          </span>
+          <span className="about-sub about-inline-note">
+            {info?.portable
+              ? tr('Settings and data live next to zephyr.exe.')
+              : tr('Settings and data live in the data folder above.')}
+          </span>
+          {(info?.exeDir ?? '') !== '' && (
+            <button
+              className="about-util-btn"
+              data-testid="about-exe"
+              onClick={() => void cmd.revealPath(info?.exeDir ?? '').catch(() => {})}
+            >
+              {tr('Open app folder')}
+            </button>
+          )}
+        </div>
+
+        <div className="about-profil-actions">
+          <button
+            className="btn btn-sm"
+            data-testid="profile-export"
+            disabled={profilSibuk !== null}
+            onClick={() => void eksporProfil()}
+          >
+            {tr('Export settings…')}
+          </button>
+          <button
+            className="btn btn-sm"
+            data-testid="profile-import"
+            disabled={profilSibuk !== null}
+            onClick={() => void pilihImpor()}
+          >
+            {tr('Import settings…')}
+          </button>
+        </div>
+      </div>
+
+      {imporPath && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          data-testid="profile-import-confirm"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setImporPath(null);
+          }}
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-import-title"
+          >
+            <h2 className="modal-title" id="profile-import-title">
+              {tr('Import these settings?')}
+            </h2>
+            <p className="modal-body" data-testid="profile-import-path">
+              {imporPath}
+            </p>
+            <p className="modal-body">
+              {tr(
+                'Settings in the profile replace the matching ones here. Everything else stays as it is, and no file on disk is touched.',
+              )}
+            </p>
+            <div className="modal-actions">
+              <button
+                className="btn btn-primary"
+                data-testid="profile-import-ok"
+                disabled={profilSibuk !== null}
+                onClick={() => void jalankanImpor()}
+              >
+                {tr('Import')}
+              </button>
+              <button
+                className="btn"
+                data-testid="profile-import-cancel"
+                onClick={() => setImporPath(null)}
+              >
+                {tr('Cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <UpdatePanel versiSekarang={info?.version ?? '0.0.0'} />
       <DiagnosticsPanel />

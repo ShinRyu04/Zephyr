@@ -3,8 +3,11 @@ import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useAgxDraft } from '../../lib/agentsDraft';
+import { folderDialogOpen } from '../../lib/commands';
 import type { ApprovalMode } from '../../lib/types';
 import ModelSelector from '../ai/ModelSelector';
+import { PROVIDER_BY_ID } from '../../lib/modelCatalog';
+import { useT } from '../../lib/i18n';
 
 /*
  * Composer jendela Agents.
@@ -23,7 +26,18 @@ import ModelSelector from '../ai/ModelSelector';
  * - Model duduk di KANAN, tepat sebelum tombol kirim — sama seperti composer
  *   panel kanan di jendela utama.
  * - Izin memakai `PermissionMenu` yang sama dengan jendela utama.
- * - Belum menyambung ke `ai_chat`; pesan hanya ditampung di state komposer.
+ *
+ * KOTAK INI MENGIRIM. Dulu ia hanya menampung teks sebagai bentuk "sudah pernah
+ * menulis", dan itu sebabnya AI di jendela ini terasa mati: tidak ada
+ * `ai_chat` yang dipanggil, tidak ada jawaban, tidak ada jejak di store. Sekarang
+ * Enter/ tombol kirim memanggil `useAi.send(..., 'agents')` - permukaan yang
+ * sama dengan yang dipakai sidebar untuk memilih percakapan - jadi percakapan,
+ * tool, dan persetujuan berjalan seperti di panel jendela utama.
+ *
+ * Setelah pesan pertama, canvas menampilkan `AiPanel` untuk permukaan
+ * `agents` (lihat `AgentsApp`): transkrip, kartu tool, pertanyaan agen, dan
+ * kotak input berikutnya ada di sana. Layar awal ini tetap milik desain TRAE -
+ * judul, kotak, strip `Local`, empat chip - dan kembali setiap "New task".
  */
 
 /* Subjudul acuan, dipakai dua kali: sebagai kalimat di bawah judul pada
@@ -214,8 +228,6 @@ export default function AgentsComposer() {
    */
   const draft = useAgxDraft((s) => s.draft);
   const setDraft = useAgxDraft((s) => s.setDraft);
-  const [adaPesan, setAdaPesan] = useState(false);
-  const [idDraft, setIdDraft] = useState('');
   const [lokal, setLokal] = useState('Local');
   const [bukaLokal, setBukaLokal] = useState(false);
   const [bukaFolder, setBukaFolder] = useState(false);
@@ -230,10 +242,28 @@ export default function AgentsComposer() {
      sebagai state sendiri: kalau disimpan, "New task" tetap menampilkan kotak
      mode chat padahal percakapannya baru dan kosong. Selector mengembalikan
      angka/string saja — zustand v5 membandingkan hasilnya dengan `===`. */
-  const idAktif = useAi((s) => s.activeIds[COMPOSER] ?? '');
   const jumlahPesan = useAi(
     (s) => s.sessions.find((x) => x.id === s.activeIds[COMPOSER])?.messages.length ?? 0,
   );
+  /*
+   * Provider yang dipilih belum punya API key.
+   *
+   * Gerbang yang sama dengan panel AI (`keys` dari `get_public_models`), tapi
+   * ditaruh DI SINI karena layar awal jendela ini adalah tempat model dipilih:
+   * tanpa peringatan, satu-satunya umpan balik adalah bubble error provider
+   * setelah menunggu request gagal, dan orang menyimpulkan aplikasinya rusak.
+   * `keys.length > 0` penting — sebelum `init()` selesai, daftar kosong berarti
+   * "belum tahu", bukan "tidak punya key", dan menganggapnya peringatan akan
+   * menyalakan strip itu di setiap pembukaan jendela.
+   *
+   * Dua selector primitif (bukan satu objek) supaya zustand v5 tetap
+   * membandingkan hasilnya dengan `===` (pelajaran fase 09).
+   */
+  const tr = useT();
+  const tanpaKey = useAi(
+    (s) => s.keys.length > 0 && !s.keys.some((k) => k.provider === s.provider && k.hasKey),
+  );
+  const providerAktif = useAi((s) => s.provider);
 
   /* Daftar folder = workspace yang pernah dipakai, diambil dari sesi. Path
      dinormalkan supaya satu folder tidak muncul dua kali dengan garis miring
@@ -271,22 +301,56 @@ export default function AgentsComposer() {
   }, [bukaLokal, bukaFolder]);
 
   const folderAktif = folder ?? workspace ?? null;
-  /* Penanda "sudah pernah menulis" DITURUNKAN, bukan state: percakapan aktif
-     yang sudah punya pesan berarti kotak tampil di bawah tanpa judul. State
-     lokal hanya dipakai untuk perubahan yang belum tersimpan ke store (tahap
-     ini `kirim` belum memanggil `ai_chat`), dan dibuang begitu percakapan
-     berganti — itulah yang membuat "New task" selalu kembali ke tampilan awal.
-     `idDraft` disimpan bersama draftnya supaya keduanya tidak pernah berbeda
-     percakapan. */
-  const modeChat = (idDraft === idAktif && adaPesan) || jumlahPesan > 0;
+
+  /*
+   * Membuka folder kerja dari baris `Local` + folder.
+   *
+   * Dulu "Select a folder" hanya menutup menunya sendiri (`setBukaFolder(false)`),
+   * jadi tombolnya terlihat mati: dialog tidak pernah terbuka dan folder yang
+   * ditampilkan tidak berubah. Sekarang dialog OS dibuka lewat `folderDialogOpen`,
+   * lalu folder itu benar-benar DIBUKA (`openWorkspace`) — bukan sekadar
+   * mengganti label. Tanpa itu tugas tetap berjalan di folder lama, dan label
+   * yang berbeda dari tempat kerja sebenarnya adalah kebohongan yang mahal:
+   * agen menulis berkas di proyek yang tidak dilihat pembaca.
+   *
+   * Dialog yang dibatalkan tidak mengubah apa pun (null), dan kegagalan dialog
+   * ditelan seperti pemanggil lain di aplikasi ini.
+   */
+  const pilihFolder = async () => {
+    setBukaFolder(false);
+    try {
+      const dir = await folderDialogOpen();
+      if (!dir) return;
+      setFolder(dir);
+      await useStore.getState().openWorkspace(dir);
+    } catch {
+      /* dialog ditutup atau gagal dibuka: tidak ada yang berubah */
+    }
+  };
+  /* Penanda "sudah pernah menulis" DITURUNKAN dari percakapan yang benar-benar
+     tersimpan di store - bukan state lokal. Begitu `send` membuat sesi dan
+     menaruh pesan pertama di dalamnya, layar awal ini berganti sendiri ke
+     transkrip, dan "New task" (sesi kosong baru) mengembalikannya. */
+  const modeChat = jumlahPesan > 0;
 
   const kirim = () => {
-    if (!draft.trim()) return;
-    /* Belum ada `ai_chat` di tahap ini. Yang dibutuhkan sekarang hanya bentuk
-       "sudah pernah menulis": judul dan chip hilang, kotak turun ke bawah. */
-    setIdDraft(idAktif);
-    setAdaPesan(true);
+    const teks = draft.trim();
+    if (!teks) return;
+    /* Dropdown `Local`/folder dan menu izin sudah menulis ke store masing-masing;
+       yang perlu dikirim hanyalah teks dan PERMUKAAN-nya. `'agents'` adalah
+       kunci `activeIds` yang sama dengan yang dipakai sidebar: percakapan baru
+       muncul di sana sebagai satu baris, bukan menumpang percakapan jendela
+       utama. */
     setDraft('');
+    void useAi
+      .getState()
+      .send(teks, undefined, COMPOSER)
+      .then((terkirim) => {
+        /* Kalau pengiriman ditolak (belum ada model/key, atau antrean penuh),
+           teksnya dikembalikan ke kotak. Menghapus ketikan tanpa mengirim
+           apa pun adalah cara tercepat membuat orang mengetik ulang. */
+        if (!terkirim) setDraft(teks);
+      });
   };
 
   return (
@@ -353,6 +417,28 @@ export default function AgentsComposer() {
             </span>
           </div>
         </div>
+
+        {/* Peringatan key: di BAWAH kotak, di atas strip `Local`, dan HANYA saat
+            provider terpilih memang belum punya key. Pintu keluarnya jendela
+            AI Models (`bukaPanel('models')`) — bukan Settings, karena kartu
+            provider beserta API key tinggal di sana. */}
+        {tanpaKey && (
+          <div className="agx-nokey" data-testid="agx-nokey" role="status">
+            <span className="agx-nokey-teks">
+              {tr('This provider does not have an API key yet')} —{' '}
+              <strong>{PROVIDER_BY_ID.get(providerAktif)?.label ?? providerAktif}</strong>.{' '}
+              {tr('Sending will fail until a key is added.')}
+            </span>
+            <button
+              type="button"
+              className="agx-nokey-btn"
+              data-testid="agx-nokey-buka"
+              onClick={() => bukaPanel('models')}
+            >
+              {tr('AI Models')}
+            </button>
+          </div>
+        )}
 
         {/* Strip `Local` + folder: kotak TERPISAH di bawah kotak input (persis
             TRAE), hanya berbagi bingkai luar dengan kotak di atasnya.
@@ -463,6 +549,9 @@ export default function AgentsComposer() {
                   onClick={() => {
                     setFolder(f);
                     setBukaFolder(false);
+                    /* Folder terakhir ikut DIBUKA, bukan cuma dipajang di baris:
+                       satu klik pada riwayat berarti "lanjutkan di proyek ini". */
+                    void useStore.getState().openWorkspace(f);
                   }}
                 >
                   <span className="agx-comp-folder-nama">{namaFolder(f)}</span>
@@ -475,7 +564,7 @@ export default function AgentsComposer() {
               <button
                 className="agx-comp-menu-item is-pisah"
                 data-testid="agx-comp-folder-pilih"
-                onClick={() => setBukaFolder(false)}
+                onClick={() => void pilihFolder()}
               >
                 <span className="agx-comp-menu-teks-ikon">
                   <Ikon>

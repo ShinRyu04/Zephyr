@@ -121,6 +121,19 @@ pub struct AppState {
      * workspaces replaces the index rather than accumulating stale trees.
      */
     pub file_index: RwLock<Option<FileIndex>>,
+
+    /*
+     * Repo yang sedang dipilih di Source Control, kalau workspace memuat lebih
+     * dari satu repo (monorepo, atau folder biasa yang berisi beberapa proyek).
+     *
+     * Disimpan di sini, bukan diteruskan sebagai argumen ke 36 command git:
+     * semuanya sudah memakai satu titik masuk (`git::ws`) untuk menentukan
+     * direktori kerja, jadi satu nilai di sini cukup dan tidak ada command yang
+     * bisa lupa meneruskannya. Nilainya SELALU divalidasi terhadap workspace
+     * saat dibaca (lihat `scm_repo_aktif`), sehingga workspace yang berganti
+     * tidak bisa membuat git berjalan di folder lama.
+     */
+    scm_repo: RwLock<Option<PathBuf>>,
 }
 
 /// A cached workspace file listing.
@@ -218,7 +231,30 @@ impl AppState {
             file_index: RwLock::new(None),
             ai_capture: RwLock::new(Vec::new()),
             ai_capture_on: std::sync::atomic::AtomicBool::new(false),
+            scm_repo: RwLock::new(None),
         }
+    }
+
+    /// Repo pilihan Source Control, hanya bila masih berada di dalam workspace.
+    ///
+    /// Pemeriksaan `is_inside` di sini yang membuat pemilihan repo tidak bisa
+    /// "bocor": workspace lama ditutup, workspace baru dibuka, dan nilai lama
+    /// yang menunjuk folder lain otomatis diabaikan alih-alih membuat command
+    /// git berikutnya berjalan di proyek yang salah.
+    pub fn scm_repo_aktif(&self) -> Option<PathBuf> {
+        let dipilih = read_lock(&self.scm_repo, "scm_repo").ok()?.clone()?;
+        let ws = self.workspace_path()?;
+        if crate::paths::is_inside(&ws, &dipilih) {
+            Some(dipilih)
+        } else {
+            None
+        }
+    }
+
+    pub fn set_scm_repo(&self, p: Option<PathBuf>) -> ZResult<()> {
+        let mut slot = write_lock(&self.scm_repo, "scm_repo")?;
+        *slot = p;
+        Ok(())
     }
 
     pub fn uptime_ms(&self) -> u64 {

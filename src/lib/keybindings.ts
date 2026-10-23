@@ -53,6 +53,7 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+Shift+P', 'view.palette', 'app'),
   D('F1', 'view.palette', 'app'),
   D('Ctrl+P', 'view.quickOpen', 'app'),
+  D('Ctrl+T', 'view.workspaceSymbol', 'app', 'global', 'Go to Symbol in Workspace'),
   D('Ctrl+,', 'view.settings', 'app'),
   D('Ctrl+K Ctrl+S', 'workbench.openGlobalKeybindings', 'app', 'global', 'Keyboard Shortcuts'),
 
@@ -129,6 +130,11 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
      toggle that used to own this chord is reachable from Customize Layout, and
      the Agents window is the more prominent action of the two. */
   D('Ctrl+Shift+A', 'agents.openWindow', 'app', 'global', 'Open in Agents'),
+  /* The AI column toggle used to advertise Ctrl+Shift+A in the Settings table
+     while this router gave that chord to agents.openWindow - so the row was a
+     lie and pressing it never opened the panel. Ctrl+Alt+A is free (Ctrl+Alt+O
+     is the AI pop-out window) and keeps the "A = AI" mnemonic. */
+  D('Ctrl+Alt+A', 'ai.panel', 'app', 'global', 'Toggle AI Panel'),
   D('Ctrl+Alt+O', 'ai.openWindow', 'app', 'global', 'Open AI Chat Window'),
   D('Ctrl+Alt+B', 'view.secondarySideBar', 'app', 'global', 'Toggle Secondary Side Bar (AI)'),
   D('Ctrl+Shift+X', 'extensions.focus', 'app'),
@@ -153,6 +159,7 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Shift+F8', 'editor.prevError', 'stub', 'global', 'Previous Problem'),
 
   D('F5', 'debug.start', 'app', 'global', 'Start Debugging'),
+  D('Ctrl+F5', 'debug.runWithoutDebugging', 'app', 'global', 'Run Without Debugging'),
   D('Shift+F5', 'debug.stop', 'app', 'debugActive', 'Stop Debugging'),
   D('Ctrl+Shift+F5', 'debug.restart', 'app', 'debugActive', 'Restart Debugging'),
   D('F6', 'debug.pause', 'app', 'debugActive', 'Pause'),
@@ -160,6 +167,7 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('F11', 'debug.stepInto', 'app', 'debugActive', 'Step Into'),
   D('Shift+F11', 'debug.stepOut', 'app', 'debugActive', 'Step Out'),
   D('F9', 'debug.toggleBreakpoint', 'app', 'global', 'Toggle Breakpoint'),
+  D('Shift+F9', 'debug.editBreakpoint', 'app', 'global', 'Edit Breakpoint'),
   D('Ctrl+Shift+D', 'debug.focus', 'app', 'global', 'Run & Debug'),
 
   D('Ctrl+Shift+C', 'terminal.copy', 'terminal', 'terminalFocus'),

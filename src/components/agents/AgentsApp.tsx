@@ -3,7 +3,14 @@ import AgentsTitleBar from './AgentsTitleBar';
 import AgentsSidebar from './AgentsSidebar';
 import AgentsKontrolSudut from './AgentsKontrolSudut';
 import AgentsComposer from './AgentsComposer';
+import AgentsAutomation from './AgentsAutomation';
+import AgentsArtifacts from './AgentsArtifacts';
+import AgentsMarketplace from './AgentsMarketplace';
+import type { TampilanAgents } from '../../lib/agentsWindow';
 import AgentsPanelKanan from './AgentsPanelKanan';
+import AiPanel from '../ai/AiPanel';
+import { useAi } from '../../lib/aiStore';
+import { useAutomationScheduler } from '../../lib/automationStore';
 /* Gaya jendela ini (`.agx-*`). Ia halaman sendiri (`#agents`), bukan bagian
    panel editor, jadi berkasnya dimuat di sini — `App.tsx` tidak mengimpornya. */
 import '../../styles/agents2.css';
@@ -28,7 +35,31 @@ const SIDEBAR_MAX = 360;
 
 export default function AgentsApp() {
   const [sidebarTerbuka, setSidebarTerbuka] = useState(true);
+  /* Halaman di canvas: percakapan biasa, Marketplace, Automation, atau
+     My Artifacts. */
+  const [tampilan, setTampilan] = useState<TampilanAgents>('chat');
+  /* Penjadwal hidup bersama jendela: tugas tetap jalan walau halaman
+     Automation sedang tidak dibuka. */
+  useAutomationScheduler();
   const [panelKanan, setPanelKanan] = useState(false);
+  /*
+   * Apakah permukaan chat jendela ini sudah punya percakapan.
+   *
+   * Canvas chat punya DUA wajah, dan yang menentukan bukan state lokal:
+   *
+   *   kosong  -> layar awal `AgentsComposer` (judul "Build With Zephyr", kotak,
+   *              strip Local, empat chip) — bentuk TRAE yang diminta user;
+   *   berisi  -> `AiPanel` untuk permukaan `agents`: transkrip lengkap, kartu
+   *              tool, pertanyaan agen, persetujuan, dan kotak input berikutnya.
+   *
+   * Ambangnya JUMLAH PESAN, bukan "pernah mengirim": sesi kosong ("New task",
+   * atau percakapan yang baru dibuka dari sidebar) harus menampilkan layar awal
+   * lagi. Selector mengembalikan angka, jadi zustand v5 tetap membandingkan
+   * dengan `===` (pelajaran fase 09: jangan mengembalikan array/objek baru).
+   */
+  const jumlahPesan = useAi(
+    (s) => s.sessions.find((x) => x.id === s.activeIds['agents'])?.messages.length ?? 0,
+  );
   const [lebarKanan, setLebarKanan] = useState(45);
   const [lebarSidebar, setLebarSidebar] = useState(248);
   const dragRef = useRef(false);
@@ -67,7 +98,11 @@ export default function AgentsApp() {
       <div className="agx-body">
         {sidebarTerbuka && (
           <>
-            <AgentsSidebar lebar={lebarSidebar} />
+            <AgentsSidebar
+              lebar={lebarSidebar}
+              tampilan={tampilan}
+              onTampilan={setTampilan}
+            />
             {/* Splitter sidebar: tarik untuk mengubah lebar, sama seperti
                 splitter panel kanan. */}
             <div
@@ -98,11 +133,34 @@ export default function AgentsApp() {
           </>
         )}
         <main className="agx-canvas" data-testid="agx-canvas">
-          <AgentsKontrolSudut
-            panelTerbuka={panelKanan}
-            onTogglePanel={() => setPanelKanan((v) => !v)}
-          />
-          <AgentsComposer />
+          {/* Kontrol sudut (`IDE ↗` + toggle panel) hanya milik halaman chat.
+              Halaman Automation dan My Artifacts selebar isinya sendiri di
+              TRAE — tanpa kedua tombol itu — jadi di sini pun disembunyikan,
+              bukan sekadar diredupkan; panel kanan yang sudah terbuka tetap
+              bisa ditutup dari tombol di bar panelnya. */}
+          {tampilan === 'chat' && (
+            <AgentsKontrolSudut
+              panelTerbuka={panelKanan}
+              onTogglePanel={() => setPanelKanan((v) => !v)}
+            />
+          )}
+          {tampilan === 'automation' ? (
+            <AgentsAutomation onKeChat={() => setTampilan('chat')} />
+          ) : tampilan === 'artifacts' ? (
+            <AgentsArtifacts />
+          ) : tampilan === 'marketplace' ? (
+            <AgentsMarketplace />
+          ) : jumlahPesan > 0 ? (
+            /* Percakapan berjalan: panel AI penuh untuk permukaan `agents`.
+               Komponen yang sama dengan panel jendela utama, jadi streaming,
+               tool, dan gerbang persetujuan tidak punya jalur kedua yang bisa
+               berbeda perilakunya. */
+            <div className="agx-chat" data-testid="agx-chat">
+              <AiPanel composerId="agents" />
+            </div>
+          ) : (
+            <AgentsComposer />
+          )}
         </main>
 
         {panelKanan && (

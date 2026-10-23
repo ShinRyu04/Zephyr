@@ -26,7 +26,15 @@ async function muatRegistry() {
   return m;
 }
 
-export type PaletteMode = 'command' | 'file';
+export type PaletteMode = 'command' | 'file' | 'symbol';
+
+/** Satu simbol dari `workspace/symbol` (LSP). */
+interface SimbolHasil {
+  nama: string;
+  jenis: string;
+  file: string;
+  baris: number;
+}
 
 export interface PaletteItem {
   
@@ -40,6 +48,56 @@ export interface PaletteItem {
   
   hits: number[];
   group?: string;
+}
+
+/* Nama jenis simbol LSP (bilangan 1..26). Dipakai di kolom detail, jadi
+   `useState` bisa dibedakan dari `useEffect` sekilas pandang. */
+const JENIS_SIMBOL: Record<number, string> = {
+  1: 'file',
+  2: 'module',
+  3: 'namespace',
+  4: 'package',
+  5: 'class',
+  6: 'method',
+  7: 'property',
+  8: 'field',
+  9: 'constructor',
+  10: 'enum',
+  11: 'interface',
+  12: 'function',
+  13: 'variable',
+  14: 'constant',
+  15: 'string',
+  16: 'number',
+  17: 'boolean',
+  18: 'array',
+  19: 'object',
+  20: 'key',
+  21: 'null',
+  22: 'enum member',
+  23: 'struct',
+  24: 'event',
+  25: 'operator',
+  26: 'type parameter',
+};
+
+/*
+ * Pencarian simbol ditunda 180 ms.
+ *
+ * Satu ketukan = satu permintaan LSP ke server yang juga sedang memindeks
+ * ruang kerja; mengetik "useState" tanpa jeda menjadi delapan permintaan yang
+ * saling menyalip. `versiSimbol` di bawah membuang jawaban yang sudah basi,
+ * karena urutan kedatangan tidak dijamin sama dengan urutan pengiriman.
+ */
+let timerSimbol: ReturnType<typeof setTimeout> | null = null;
+let versiSimbol = 0;
+
+function jadwalkanSimbol(q: string) {
+  if (timerSimbol) clearTimeout(timerSimbol);
+  timerSimbol = setTimeout(() => {
+    timerSimbol = null;
+    void usePalette.getState().muatSimbol(q);
+  }, 180);
 }
 
 const RECENT_KEY = 'zephyr.palette.recent.v1';
@@ -125,6 +183,10 @@ interface PaletteState {
   files: QuickFile[];
   loadingFiles: boolean;
   filesError: string | null;
+  /** Hasil pencarian simbol workspace terakhir (mode 'symbol'). */
+  simbol: SimbolHasil[];
+  loadingSymbols: boolean;
+  symbolsError: string | null;
   recent: string[];
   
   lastRun: { id: string; at: number } | null;
@@ -169,6 +231,8 @@ interface PaletteActions {
 
   items: () => PaletteItem[];
   runCommandById: (id: string, sekali?: boolean) => Promise<void>;
+  /** Tanya `workspace/symbol` ke language server untuk kata kunci ini. */
+  muatSimbol: (q: string) => Promise<void>;
 }
 
 export type PaletteStore = PaletteState & PaletteActions;
@@ -181,13 +245,25 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   files: [],
   loadingFiles: false,
   filesError: null,
+  simbol: [],
+  loadingSymbols: false,
+  symbolsError: null,
   recent: loadRecent(),
   lastRun: null,
   rev: 0,
   anchored: false,
 
   openPalette: async (mode, anchored = false) => {
-    set({ open: true, mode, query: '', index: 0, filesError: null, anchored });
+    set({
+      open: true,
+      mode,
+      query: '',
+      index: 0,
+      filesError: null,
+      symbolsError: null,
+      simbol: [],
+      anchored,
+    });
     if (mode === 'command') {
       await muatRegistry();
       // The command list is loaded lazily, so on the very first open the store
@@ -197,6 +273,12 @@ export const usePalette = create<PaletteStore>((set, get) => ({
       // only appears once the user types. Bump a counter the palette subscribes
       // to, so the list is painted the moment the registry arrives.
       set((s) => ({ rev: s.rev + 1 }));
+    }
+    if (mode === 'symbol') {
+      /* Simbol baru diminta setelah ada kata kunci: `workspace/symbol` dengan
+         query kosong mengembalikan ribuan entri dari sebagian server, dan
+         daftar itu bukan sesuatu yang bisa dibaca. */
+      return;
     }
     if (mode !== 'file') return;
     
@@ -213,7 +295,10 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   },
 
   close: () => set({ open: false, query: '', index: 0 }),
-  setQuery: (q) => set({ query: q, index: 0 }),
+  setQuery: (q) => {
+    set({ query: q, index: 0 });
+    if (get().mode === 'symbol') jadwalkanSimbol(q);
+  },
   setIndex: (i) => set({ index: i }),
 
   move: (delta) => {
@@ -223,8 +308,36 @@ export const usePalette = create<PaletteStore>((set, get) => ({
   },
 
   items: () => {
-    const { mode, query, files, recent } = get();
+    const { mode, query, files, recent, simbol } = get();
     const q = query.trim();
+
+    /*
+     * Mode simbol: hasil server sudah tersaring per kata kunci, jadi di sini
+     * hanya diurutkan dan disaring ulang secara lokal. Skor turun bila namanya
+     * tidak dimulai dengan query, supaya `useState` tidak kalah oleh
+     * `useStatefulThing` yang kebetulan urutannya lebih dulu di server.
+     */
+    if (mode === 'symbol') {
+      const cari = q.toLowerCase();
+      const list: PaletteItem[] = [];
+      for (const s of simbol) {
+        const nama = s.nama.split(/[.#:]/).pop() ?? s.nama;
+        const m = fuzzyMatch(s.nama, cari);
+        if (!m) continue;
+        const awal = cari && nama.toLowerCase().startsWith(cari) ? 240 : 0;
+        list.push({
+          /* `file` + `baris` ikut di id supaya Enter tahu ke mana harus pergi. */
+          id: `${s.file}\u0000${s.baris}\u0000${s.nama}`,
+          label: s.nama,
+          detail: `${s.file.replace(/[\\/]+$/, '').split(/[\\/]/).slice(-2).join('/')}:${s.baris}`,
+          group: s.jenis,
+          score: m.score + awal - (s.file.length / 20),
+          hits: m.hits,
+        });
+      }
+      list.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
+      return list.slice(0, 200);
+    }
 
     if (mode === 'file') {
       const list: PaletteItem[] = [];
@@ -298,6 +411,19 @@ export const usePalette = create<PaletteStore>((set, get) => ({
    * Ctrl/Cmd+Enter is the one-shot, plain Enter is the ordinary run.
    */
   acceptItem: async (item, sekali) => {
+    if (get().mode === 'symbol') {
+      set({ open: false, query: '' });
+      const [file, baris] = item.id.split('\u0000');
+      if (!file) return;
+      const s = useStore.getState();
+      s.setSettingsOpen(false);
+      await s.openPath(file, { preview: !sekali });
+      const { revealPosition } = await import('./editorRegistry');
+      /* Editor baru terpasang setelah satu frame; memanggil langsung membuat
+         lompatan baris jatuh ke editor yang sedang diganti. */
+      window.setTimeout(() => revealPosition(Number(baris) || 1, 1), 90);
+      return;
+    }
     if (get().mode === 'file') {
       set({ open: false, query: '' });
       const s = useStore.getState();
@@ -313,6 +439,60 @@ export const usePalette = create<PaletteStore>((set, get) => ({
     }
     set({ open: false, query: '' });
     await get().runCommandById(item.id, sekali);
+  },
+
+  muatSimbol: async (q) => {
+    const query = q.trim();
+    const versi = ++versiSimbol;
+    if (!query) {
+      set({ simbol: [], loadingSymbols: false, symbolsError: null });
+      return;
+    }
+
+    const s = useStore.getState();
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    const acuan = tab?.path ?? s.tabs.find((t) => t.path)?.path ?? null;
+    if (!acuan) {
+      set({
+        simbol: [],
+        loadingSymbols: false,
+        symbolsError: 'Open a file first: the language server for it answers the symbol search.',
+      });
+      return;
+    }
+
+    set({ loadingSymbols: true, symbolsError: null });
+    try {
+      const [{ useLsp }, { uriToPath }] = await Promise.all([
+        import('./lspStore'),
+        import('./lsp'),
+      ]);
+      const res = await useLsp.getState().req(acuan, 'workspace/symbol', { query });
+      /* Jawaban permintaan lama boleh datang setelah query berubah; hanya yang
+         terbaru yang boleh menulis daftar. */
+      if (versi !== versiSimbol) return;
+
+      const hasil: SimbolHasil[] = [];
+      if (Array.isArray(res)) {
+        for (const n of res) {
+          if (hasil.length >= 300) break;
+          const o = n as Record<string, unknown>;
+          const nama = String(o.name ?? '');
+          if (!nama) continue;
+          const loc = (o.location ?? {}) as { uri?: string; range?: { start?: { line?: number } } };
+          hasil.push({
+            nama,
+            jenis: JENIS_SIMBOL[Number(o.kind)] ?? 'symbol',
+            file: loc.uri ? uriToPath(loc.uri) : '',
+            baris: (loc.range?.start?.line ?? 0) + 1,
+          });
+        }
+      }
+      set({ simbol: hasil.filter((h) => h.file), loadingSymbols: false });
+    } catch (e) {
+      if (versi !== versiSimbol) return;
+      set({ simbol: [], loadingSymbols: false, symbolsError: cmd.asZephyrError(e).message });
+    }
   },
 
   runCommandById: async (id, sekali) => {

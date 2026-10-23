@@ -50,6 +50,33 @@ export interface BarisModel {
   custom: boolean;
 }
 
+/**
+ * Nama yang diketik user -> id provider.
+ *
+ * "GeraiKita" -> `custom-geraikita`, "Model Router" -> `custom-model-router`.
+ * Nama kosong (atau hanya tanda baca) jatuh ke `custom` — slot lama tanpa
+ * suffix, yang tetap didukung backend dan model-model lama.
+ *
+ * Slug dipakai sebagai id karena backend menyimpan key di map string->string
+ * dan endpoint di `settings.models.providers[id]`, jadi id seperti ini langsung
+ * bekerja tanpa perubahan Rust.
+ */
+export function slugProvider(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug ? `custom-${slug}` : 'custom';
+}
+
+/** `custom-geraikita` -> "Geraikita"; `custom` -> "" (slot lama tanpa nama). */
+export function namaProvider(id: string): string {
+  if (id === 'custom' || !id.startsWith('custom-')) return '';
+  const sisa = id.slice('custom-'.length);
+  return sisa ? sisa.charAt(0).toUpperCase() + sisa.slice(1) : '';
+}
+
 export function AddModelDialog({
   awal,
   onSimpan,
@@ -73,6 +100,11 @@ export function AddModelDialog({
   const [provider, setProvider] = useState<ProviderInfo | null>(
     awal ? PROVIDERS.find((p) => p.id === awal.provider) ?? null : null,
   );
+  /*
+   * Nama provider untuk slot Custom: satu kotak teks yang menghasilkan id
+   * `custom-{slug}`. Kosong = `custom` (slot lama, backward compat).
+   */
+  const [providerName, setProviderName] = useState(namaProvider(awal?.provider ?? ''));
   const [id, setId] = useState(awal?.id ?? '');
   const [label, setLabel] = useState(awal?.label ?? '');
   const [baseUrl, setBaseUrl] = useState(
@@ -80,6 +112,12 @@ export function AddModelDialog({
   );
   const [ctx, setCtx] = useState(awal?.ctx ? String(awal.ctx) : '');
   const [galat, setGalat] = useState<string | null>(null);
+  const [fullUrl, setFullUrl] = useState<boolean>(
+    !!(
+      awal &&
+      models?.providers?.[awal.provider]?.fullUrl === true
+    ),
+  );
 
   /* The key is written straight to the Rust store; this form only ever holds
      what the reader just typed, never the stored secret. */
@@ -96,6 +134,16 @@ export function AddModelDialog({
      different messages to receive. */
   const [terdeteksi, setTerdeteksi] = useState<string[] | null>(null);
   const [dipilih, setDipilih] = useState<Set<string>>(new Set());
+  /*
+   * Durasi Refresh terakhir, dalam milidetik.
+   *
+   * Tanpa angka ini "Detecting…" hanya berubah jadi daftar tanpa jejak apa pun:
+   * gateway yang lambat (3-8 detik) dan gateway yang menggantung terlihat sama
+   * saja. Yang diukur adalah waktu sampai daftar model diterima, bukan waktu
+   * sampai key selesai disimpan, karena yang ingin diketahui user adalah
+   * "endpoint ini menjawab atau tidak".
+   */
+  const [durasiMs, setDurasiMs] = useState<number | null>(null);
 
   const ref = useRef<HTMLDivElement | null>(null);
   const tutupRef = useRef(onTutup);
@@ -112,11 +160,30 @@ export function AddModelDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const tersimpan = provider ? ui.keys.find((k) => k.provider === provider.id) : undefined;
+  /*
+   * Id provider yang benar-benar dipakai untuk menyimpan key/URL/model.
+   *
+   * Hanya relevan untuk slot Custom; provider katalog memakai id-nya sendiri.
+   *
+   * Saat MENGEDIT baris yang sudah ada, id tersimpan itulah yang dipakai - bukan
+   * hasil slug dari nama di kotak teks. Nama provider hanyalah label; menghitung
+   * ulang id dari situ berarti key/URL ditulis ke provider BARU setiap kali
+   * namanya dirapikan, sementara barisnya sendiri tetap menunjuk provider lama.
+   * Provider lama lalu tampil tanpa key setelah Refresh.
+   */
+  const providerId =
+    awal?.provider && awal.provider.startsWith('custom')
+      ? awal.provider
+      : provider && (provider.id === 'custom' || provider.id.startsWith('custom-'))
+        ? slugProvider(providerName)
+        : (provider?.id ?? '');
+
+  const tersimpan = provider ? ui.keys.find((k) => k.provider === providerId) : undefined;
 
   const pilih = (p: ProviderInfo) => {
     setProvider(p);
     setBaseUrl(models?.providers?.[p.id]?.baseUrl ?? p.baseUrl);
+    setFullUrl(models?.providers?.[p.id]?.fullUrl === true);
     setKey('');
     setTerdeteksi(null);
     setDipilih(new Set());
@@ -130,7 +197,9 @@ export function AddModelDialog({
      * `custom`, which is the provider id the backend already understands.
      */
     setProvider({ ...PROVIDERS[0], id: 'custom', label: tr('Custom Model'), baseUrl: '' });
+    setProviderName('');
     setBaseUrl('');
+    setFullUrl(false);
     setKey('');
     setTerdeteksi(null);
     setDipilih(new Set());
@@ -149,30 +218,44 @@ export function AddModelDialog({
     setSibuk('deteksi');
     setGalat(null);
     setTerdeteksi(null);
+    setDurasiMs(null);
+    const mulai = performance.now();
     try {
       if (key.trim()) {
-        await ui.saveKey(provider.id, key.trim());
+        await ui.saveKey(providerId, key.trim());
         setKey('');
       }
-      if (baseUrl.trim() && baseUrl.trim() !== (models?.providers?.[provider.id]?.baseUrl ?? '')) {
+      if (baseUrl.trim() && baseUrl.trim() !== (models?.providers?.[providerId]?.baseUrl ?? '')) {
         await apply({
           models: {
             providers: {
               ...(models?.providers ?? {}),
-              [provider.id]: {
-                ...(models?.providers?.[provider.id] ?? {}),
+              [providerId]: {
+                ...(models?.providers?.[providerId] ?? {}),
                 baseUrl: baseUrl.trim(),
+                fullUrl,
               },
             },
           },
         });
       }
-      const ids = await listModelIds(provider.id, baseUrl.trim() || undefined);
+      const ids = await listModelIds(providerId, baseUrl.trim() || undefined, fullUrl);
+      /* Dihitung SETELAH jawaban tiba — itu yang dirasakan user sebagai lama. */
+      setDurasiMs(Math.round(performance.now() - mulai));
       if (ids.length === 0) {
+        /*
+         * List kosong BUKAN galat, dan tidak boleh ditampilkan seperti galat.
+         *
+         * Gateway yang benar key+URL-nya bisa sah-sah saja balas
+         * `{"object":"list","data":[]}` — ia memang tidak mendaftar modelnya di
+         * /models (kasus nyata: bansos.wahyu-hidayat.my.id). Pesan merah
+         * "check the API key and the base URL" menuduh konfigurasi yang benar,
+         * dan menutup satu-satunya jalur yang tersisa: ketik Model ID manual
+         * (persis yang dilakukan produk referensi). Jadi: tandai "sudah ditanya,
+         * jawabannya kosong", biarkan chip netral di bar Refresh yang bicara,
+         * dan biarkan field Model ID di bawah yang menyelesaikan pekerjaan.
+         */
         setTerdeteksi([]);
-        setGalat(
-          tr('The provider returned no models. Check the API key and the base URL.'),
-        );
         return;
       }
       setTerdeteksi(ids);
@@ -195,6 +278,45 @@ export function AddModelDialog({
     setSibuk('simpan');
     setGalat(null);
     try {
+      /*
+       * URL dan key disimpan di sini, bukan hanya saat Refresh: user boleh
+       * mengetik provider baru lalu langsung Add Model tanpa menekan Refresh.
+       * Key hanya ditulis kalau memang ada isinya, supaya key lama tidak
+       * tertimpa string kosong.
+       */
+      if (key.trim()) await ui.saveKey(providerId, key.trim());
+      const urlBaru = baseUrl.trim();
+      if (urlBaru && urlBaru !== (models?.providers?.[providerId]?.baseUrl ?? '')) {
+        await apply({
+          models: {
+            providers: {
+              ...(models?.providers ?? {}),
+              [providerId]: {
+                ...(models?.providers?.[providerId] ?? {}),
+                baseUrl: urlBaru,
+                fullUrl,
+              },
+            },
+          },
+        });
+      } else if (urlBaru === (models?.providers?.[providerId]?.baseUrl ?? '')) {
+        /*
+         * URL tidak berubah tapi toggle Full URL bisa berubah: simpan saja
+         * fullUrl-nya tanpa menimpa baseUrl.
+         */
+        await apply({
+          models: {
+            providers: {
+              ...(models?.providers ?? {}),
+              [providerId]: {
+                ...(models?.providers?.[providerId] ?? {}),
+                fullUrl,
+              },
+            },
+          },
+        });
+      }
+
       const nomorCtx = ctx.trim() ? Number(ctx.replace(/[^0-9]/g, '')) : undefined;
       const ctxAngka = Number.isFinite(nomorCtx) && nomorCtx ? nomorCtx : undefined;
 
@@ -210,8 +332,8 @@ export function AddModelDialog({
         const rows: BarisModel[] = [...dipilih].map((mid) => ({
           id: mid,
           label: mid,
-          provider: provider.id,
-          baseUrl: baseUrl.trim() || undefined,
+          provider: providerId,
+          baseUrl: urlBaru || undefined,
           terdeteksi: true,
           custom: true,
         }));
@@ -228,8 +350,8 @@ export function AddModelDialog({
         {
           id: namaModel,
           label: label.trim() || namaModel,
-          provider: provider.id,
-          baseUrl: baseUrl.trim() || undefined,
+          provider: providerId,
+          baseUrl: urlBaru || undefined,
           ctx: ctxAngka,
           custom: true,
         },
@@ -377,11 +499,36 @@ export function AddModelDialog({
               </button>
             </div>
 
+            {/* ── Provider Name (custom only) ───────────────────────────── */}
+            {/*
+              * Hanya untuk slot Custom: memberi satu nama per gateway membuat
+              * setiap provider punya key dan URL sendiri, alih-alih menumpuk
+              * semua model di satu slot `custom`.
+              */}
+            {(provider.id === 'custom' || provider.id.startsWith('custom-')) && (
+              <label className="aim-field">
+                <span className="aim-field-label">
+                  {tr('Provider Name')}
+                  <em>{tr('use an existing name to reuse its key and URL')}</em>
+                </span>
+                <input
+                  data-testid="aim-add-provider-name"
+                  value={providerName}
+                  placeholder={tr('e.g. gemini')}
+                  spellCheck={false}
+                  onChange={(e) => setProviderName(e.target.value)}
+                />
+                <span className="aim-field-hint">
+                  {tr('Saved as')} <code>{providerId}</code>
+                </span>
+              </label>
+            )}
+
             {/* ── API Format ─────────────────────────────────────────────── */}
             {/*
               * The reference leads with the wire format, because "which shape of
               * request does this endpoint speak" decides how every other field
-              * is read. Zephyr only speaks the OpenAI-compatible shape today, so
+              * is read. Zephyr only speaks the [OI]-compatible shape today, so
               * the select has one real option and one that is honestly disabled
               * — a select that silently offers formats the backend cannot send
               * would fail at the first request instead of here.
@@ -405,19 +552,36 @@ export function AddModelDialog({
             <label className="aim-field">
               <span className="aim-field-label">
                 {tr('Custom Request URL')} <b>*</b>
-                <em>{tr('Full URL')}</em>
               </span>
               <input
                 data-testid="aim-add-url"
                 value={baseUrl}
                 placeholder="https://api.openai.com/v1"
                 spellCheck={false}
-                onChange={(e) => setBaseUrl(e.target.value)}
+                onChange={(e) => {
+                  setBaseUrl(e.target.value);
+                  if (/chat\/completions\s*$/.test(e.target.value)) setFullUrl(true);
+                }}
               />
+              <button
+                type="button"
+                role="switch"
+                aria-checked={fullUrl}
+                className={`aim-switch ${fullUrl ? 'is-on' : ''}`}
+                data-testid="aim-add-full-url"
+                onClick={() => setFullUrl((v) => !v)}
+              >
+                <span className="aim-switch-thumb" aria-hidden="true" />
+                {tr('Full URL')}
+              </button>
               <span className="aim-field-hint">
-                {tr(
-                  'Enter the OpenAI-compatible API endpoint. Do not end with a slash. /chat/completions will be appended to the URL you provide.',
-                )}
+                {fullUrl
+                  ? tr(
+                      'The URL is used exactly as typed; nothing is appended.',
+                    )
+                  : tr(
+                      'Enter the OpenAI-compatible API endpoint. Do not end with a slash. /chat/completions will be appended to the URL you provide.',
+                    )}
               </span>
             </label>
 
@@ -452,7 +616,7 @@ export function AddModelDialog({
                     className="aim-aksi-btn is-hapus"
                     data-testid="aim-add-hapus-key"
                     onClick={() => {
-                      void ui.saveKey(provider.id, '');
+                      void ui.saveKey(providerId, '');
                       setTerdeteksi(null);
                       setDipilih(new Set());
                     }}
@@ -482,8 +646,17 @@ export function AddModelDialog({
                 </span>
               )}
               {terdeteksi && terdeteksi.length === 0 && !galat && (
-                <span className="aim-deteksi-info is-kosong" role="status">
-                  {tr('no models returned')}
+                <span
+                  className="aim-deteksi-info is-kosong"
+                  data-testid="aim-add-kosong"
+                  role="status"
+                >
+                  {tr('no models returned — type the Model ID below to add one anyway')}
+                </span>
+              )}
+              {durasiMs !== null && (
+                <span className="aim-deteksi-waktu" data-testid="aim-add-durasi" role="status">
+                  {durasiMs} ms
                 </span>
               )}
             </div>
@@ -536,6 +709,13 @@ export function AddModelDialog({
                 spellCheck={false}
                 onChange={(e) => setId(e.target.value)}
               />
+              {terdeteksi !== null && terdeteksi.length === 0 && (
+                <span className="aim-field-hint">
+                  {tr(
+                    'This gateway lists no models, so the ID you type here is saved as-is and sent verbatim in every request.',
+                  )}
+                </span>
+              )}
             </label>
 
             <label className="aim-field">

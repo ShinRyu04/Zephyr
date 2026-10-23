@@ -408,6 +408,23 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const agentTanya = kosong.tanya;
   const jawabTanya = useAi((s) => s.jawabTanya);
   const [jawabanTanya, setJawabanTanya] = useState('');
+
+  /*
+   * Kartu ask_user muncul DI DALAM area gulir (bukan lagi menempel di atas
+   * kotak ketik), jadi ia harus ditarik masuk ke pandangan saat muncul - kalau
+   * tidak, user yang sedang membaca bagian atas tidak sadar ada pertanyaan
+   * yang menunggu di dasar transkrip.
+   */
+  useEffect(() => {
+    if (!agentTanya) return;
+    const t = window.setTimeout(() => {
+      document
+        .querySelector('[data-testid="ai-agent-tanya"]')
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [agentTanya]);
+
   const sibuk = pending || agentBusy;
   const [bukaSendMenu, setBukaSendMenu] = useState(false);
   const [progressNow, setProgressNow] = useState(() => Date.now());
@@ -516,6 +533,12 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const provider = useAi((s) => s.provider);
   const keys = useAi((s) => s.keys);
   /*
+   * `disk` = slot yang isinya ada di `secrets.json` (dibaca saat picker/panel
+   * dibuka). Dibaca di sini supaya banner "Add an API key" IKUT berubah begitu
+   * key ditemukan di disk, tanpa menunggu komponen lain memuat ulang.
+   */
+  const keyDiDisk = useAi((s) => s.disk);
+  /*
  * "Add a key" opens the AI MODELS POP-UP, where the provider cards keep the
  * key.
  *
@@ -526,8 +549,52 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
  * that no longer owned the row.
  */
 const bukaModels = () => bukaPanel('models');
-  const providerTanpaKey =
-    keys.length > 0 && !keys.some((k) => k.provider === provider && k.hasKey);
+  /*
+   * A missing key must be proven by the key list, not assumed from the snapshot.
+   *
+   * `keys` is refreshed on open/Refresh; between those moments it can be a stale
+   * snapshot that says "no key" for a provider the reader has configured (a
+   * decrypt failure is enough). `hasKey` also accepts a stored endpoint for
+   * `custom*` gateways, so it is the honest answer here - otherwise the banner
+   * reappears after every Refresh for a provider that works.
+   */
+  const providerTanpaKey = keys.length > 0 && !useAi.getState().hasKey(provider) && !keyDiDisk.has(provider);
+
+  /*
+   * Whether the reader has put the "no key" banner away, for THIS provider.
+   *
+   * The banner is a reminder, not a wall: it covers the top of the transcript
+   * and stays there until a key appears, so a reader who has read it once and
+   * means to add the key later had no way back to the conversation. Dismissing
+   * hides it; switching provider clears the flag, because the next provider's
+   * missing key is new information and deserves the reminder again.
+   */
+  const [nokeyDismissed, setNokeyDismissed] = useState(false);
+  useEffect(() => {
+    setNokeyDismissed(false);
+  }, [provider]);
+
+  /*
+   * Baca ulang `secrets.json` setiap provider berganti.
+   *
+   * Banner ini satu-satunya tempat yang menyatakan "belum ada key", dan salinan
+   * `keys` milik jendela ini bisa ketinggalan (key diketik di jendela lain).
+   * Membaca disk di titik ini membuat pertanyaannya dijawab berkas yang
+   * sebenarnya, bukan salinan lama.
+   */
+  useEffect(() => {
+    void useAi.getState().segarkanDisk();
+  }, [provider]);
+
+  /*
+   * What actually reaches the screen.
+   *
+   * `custom` is the "bring your own endpoint" slot: a local server or an
+   * auth-free proxy answers without a key, so a missing key there is not an
+   * error worth a warning over the transcript. The original `providerTanpaKey`
+   * keeps its meaning ("no key on file"); this only narrows what is drawn.
+   */
+  const nokeyTampil = providerTanpaKey && provider !== 'custom' && !nokeyDismissed;
 
   /* The bottom-dock AI home is retired: every remaining home (the right column,
      the editor-area tab, the pop-out window) is a vertical panel, so the header
@@ -1453,8 +1520,18 @@ const bukaModels = () => bukaPanel('models');
           chat surface. */}
 
       <div className="ai-chat" ref={scroller} data-testid="ai-chat" onScroll={cekPosisi}>
-        {providerTanpaKey && (
+        {nokeyTampil && (
           <div className="ai-nokey" data-testid="ai-nokey" role="alert">
+            <button
+              type="button"
+              className="ai-nokey-dismiss"
+              data-testid="ai-nokey-dismiss"
+              title={tr('Close')}
+              aria-label={tr('Close')}
+              onClick={() => setNokeyDismissed(true)}
+            >
+              <AiIkon name="close" size={12} />
+            </button>
             <p className="ai-nokey-title">{tr('This provider does not have an API key yet')}</p>
             <p className="ai-nokey-body">
               {tr('Add an API key for')} <strong>{provider}</strong>{' '}
@@ -1542,6 +1619,83 @@ const bukaModels = () => bukaPanel('models');
                 <path d="M4.2 8.4 8 12.2l3.8-3.8" />
               </svg>
             </button>
+          </div>
+        )}
+
+        {/*
+          * Pertanyaan dari agen (tool ask_user) — DI DALAM alur chat.
+          *
+          * Agen BERHENTI dan menunggu: langkahnya benar-benar tertahan sampai
+          * user menjawab atau membatalkan. Karena itu tombolnya harus selalu
+          * ada - kalau kartunya gagal dirender, langkah agen menggantung
+          * selamanya tanpa apa pun yang bisa user lakukan.
+          *
+          * Kartu ini adalah PESAN dari agen, jadi ia hidup di dalam area
+          * gulir bersama riwayat: ikut naik-turun dengan pesan-pesan, dan
+          * terbaca tepat di bawah konteks yang menimbulkan pertanyaannya.
+          * Pilihan cepat HANYA muncul kalau model mengirim daftarnya;
+          * pertanyaan bebas tetap bisa dijawab lewat kotak ketik di kartu.
+          */}
+        {agentTanya && (
+          <div className="ai-tanya" role="alertdialog" data-testid="ai-agent-tanya">
+            <p className="ai-tanya-label">
+              <span className="ai-tanya-dot" aria-hidden="true" />
+              {tr('The agent needs your answer')}
+            </p>
+            <p className="ai-tanya-isi">{agentTanya.pertanyaan}</p>
+            {agentTanya.pilihan.length > 0 && (
+              <>
+                <div className="ai-tanya-pilihan">
+                  {agentTanya.pilihan.map((p, i) => (
+                    <button
+                      key={i}
+                      className="ai-tanya-op"
+                      data-testid={`ai-tanya-pilih-${i}`}
+                      onClick={() => jawabTanya(p)}
+                    >
+                      <span className="ai-tanya-op-teks">{p}</span>
+                      <span className="ai-tanya-op-panah" aria-hidden="true">
+                        →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <p className="ai-tanya-pemisah">{tr('or write your own')}</p>
+              </>
+            )}
+            <div className="ai-tanya-isi-jawab">
+              <input
+                className="input input-sm"
+                data-testid="ai-tanya-jawab"
+                value={jawabanTanya}
+                placeholder={tr('Type your answer...')}
+                onChange={(e) => setJawabanTanya(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && jawabanTanya.trim()) {
+                    e.preventDefault();
+                    jawabTanya(jawabanTanya.trim());
+                  }
+                }}
+              />
+              <button
+                className="btn btn-sm btn-primary"
+                data-testid="ai-tanya-kirim"
+                disabled={!jawabanTanya.trim()}
+                onClick={() => jawabTanya(jawabanTanya.trim())}
+              >
+                {tr('Send')}
+              </button>
+              {/* Batal mengirim null, dan tool-nya membedakan itu dari jawaban
+                  kosong: agen tidak boleh menganggap "dibatalkan" sama dengan
+                  "terserah kamu". */}
+              <button
+                className="btn btn-sm"
+                data-testid="ai-tanya-batal"
+                onClick={() => jawabTanya(null)}
+              >
+                {tr('Cancel')}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -2982,78 +3136,14 @@ const bukaModels = () => bukaPanel('models');
         */}
 
       {/*
-        * Pertanyaan dari agen (tool ask_user).
-
-        * Agen BERHENTI dan menunggu di sini: langkahnya benar-benar tertahan
-        * sampai user menjawab atau membatalkan. Karena itu tombolnya harus
-        * selalu ada - kalau kartunya gagal dirender, langkah agen menggantung
-        * selamanya tanpa apa pun yang bisa user lakukan.
-        *
-        * Pilihan cepat HANYA muncul kalau model mengirim daftarnya. Pertanyaan
-        * bebas tetap bisa dijawab lewat kotak ketik di bawah.
+        * Pertanyaan dari agen (tool ask_user) pindah ke dalam .ai-chat —
+        * dirender sebagai bagian dari alur percakapan, bukan kapsul yang
+        * menempel di kotak ketik. Alasannya: pertanyaan adalah PESAN dari
+        * agen, jadi ia harus ikut menggulung bersama riwayat dan terbaca
+        * di posisi bacaan user, bukan muncul dari bawah layar jauh dari
+        * konteks pesan yang sedang dibaca. Kartu approval (agentConfirm)
+        * tetap di sini karena itu keputusan keamanan, bukan percakapan.
         */}
-      {agentTanya && (
-        <div className="ai-tanya" role="alertdialog" data-testid="ai-agent-tanya">
-          <p className="ai-tanya-label">
-            <span className="ai-tanya-dot" aria-hidden="true" />
-            {tr('The agent needs your answer')}
-          </p>
-          <p className="ai-tanya-isi">{agentTanya.pertanyaan}</p>
-          {agentTanya.pilihan.length > 0 && (
-            <>
-              <div className="ai-tanya-pilihan">
-                {agentTanya.pilihan.map((p, i) => (
-                  <button
-                    key={i}
-                    className="ai-tanya-op"
-                    data-testid={`ai-tanya-pilih-${i}`}
-                    onClick={() => jawabTanya(p)}
-                  >
-                    <span className="ai-tanya-op-teks">{p}</span>
-                    <span className="ai-tanya-op-panah" aria-hidden="true">
-                      →
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <p className="ai-tanya-pemisah">{tr('or write your own')}</p>
-            </>
-          )}
-          <div className="ai-tanya-isi-jawab">
-            <input
-              className="input input-sm"
-              data-testid="ai-tanya-jawab"
-              value={jawabanTanya}
-              placeholder={tr('Type your answer...')}
-              onChange={(e) => setJawabanTanya(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && jawabanTanya.trim()) {
-                  e.preventDefault();
-                  jawabTanya(jawabanTanya.trim());
-                }
-              }}
-            />
-            <button
-              className="btn btn-sm btn-primary"
-              data-testid="ai-tanya-kirim"
-              disabled={!jawabanTanya.trim()}
-              onClick={() => jawabTanya(jawabanTanya.trim())}
-            >
-              {tr('Send')}
-            </button>
-            {/* Batal mengirim null, dan tool-nya membedakan itu dari jawaban
-                kosong: agen tidak boleh menganggap "dibatalkan" sama dengan
-                "terserah kamu". */}
-            <button
-              className="btn btn-sm"
-              data-testid="ai-tanya-batal"
-              onClick={() => jawabTanya(null)}
-            >
-              {tr('Cancel')}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Agent tool approval: ask mode / dangerous command. */}
       {agentConfirm && (

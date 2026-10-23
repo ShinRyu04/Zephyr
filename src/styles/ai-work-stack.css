@@ -611,3 +611,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * Baris "Berpikir" di atas kotak ketik — DISEMBUNYIKAN atas permintaan user
+ * ("ini jga diatas composer klo bisa di hpusin ya, gapapa kok di hpus aja"),
+ * di jendela utama maupun jendela Agents.
+ *
+ * Yang disembunyikan HANYA section loop-nya: kartu itu menjawab "apa yang
+ * sedang dilakukan agen", dan jawaban yang sama sudah ada di dalam transkrip
+ * (`JejakKerja`), jadi ia cuma memakan garis baca di atas kotak ketik dan
+ * mendorong composer turun. Section lain di tumpukan yang sama TIDAK ikut,
+ * karena isinya bukan sekadar kabar: antrean pesan punya tombol kirim/hapus/
+ * urutkan, dan daftar todo agen adalah rencana kerjanya. Menyembunyikan
+ * seluruh tumpukan akan mencabut tombol-tombol itu.
+ *
+ * Wadahnya ikut disembunyikan HANYA kalau section loop itu satu-satunya isi
+ * (`:not(:has(> :not(...)))`), kalau tidak akan tersisa kotak kosong bergaris
+ * setinggi 8px di atas composer.
+ */
+.ai-work-stack > [data-testid='ai-work-stack-loop'] {
+  display: none;
+}
+
+.ai-work-stack:not(:has(> :not([data-testid='ai-work-stack-loop']))) {
+  display: none;
+}

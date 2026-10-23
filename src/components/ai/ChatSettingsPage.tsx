@@ -9,7 +9,7 @@ import { useT, tf } from '../../lib/i18n';
 import { Row, Section, Select, TextInput, Toggle } from '../settings/SettingsControls';
 import type { ApprovalMode } from '../../lib/types';
 import { RULES_BAWAAN } from '../../lib/rulesCatalog';
-import { PROVIDERS, providerSiap, modelTersedia, PROVIDER_BY_ID } from '../../lib/modelCatalog';
+import { daftarProvider, providerSiap, modelTersedia, PROVIDER_BY_ID } from '../../lib/modelCatalog';
 import {
   HYDRA_MAX_REQUESTS_BAWAAN,
   HYDRA_MAX_REQUESTS_LIMIT,
@@ -285,7 +285,7 @@ export default function ChatSettingsPage({
        provider that is the only real model there is, and it used to be missing
        from this list entirely (the catalogue row is a placeholder), so the tier
        could not be mapped to the model the reader actually runs. */
-    ...PROVIDERS.map((p) => pilihanTersimpan(p.id, models.providers))
+    ...daftarProvider(models.providers).map((p) => pilihanTersimpan(p.id, models.providers))
       .filter((v) => v.length > 0)
       .map((v) => {
         const [prov, model] = v.split('/');
@@ -295,7 +295,7 @@ export default function ChatSettingsPage({
        ids the reader typed, and the catalogue's real entries. Deriving only from
        `p.models` is what made a custom gateway offer exactly one model here
        while the picker listed the whole gateway. */
-    ...PROVIDERS.flatMap((p) => {
+    ...daftarProvider(models.providers).flatMap((p) => {
       if (!providerSiap(p, useAi.getState().hasKey(p.id), models.providers)) return [];
       const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
       return modelTersedia(p.id, [], uiRemote, []).map((m) => ({

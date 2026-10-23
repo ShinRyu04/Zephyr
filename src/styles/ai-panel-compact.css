@@ -932,7 +932,8 @@
   width: max-content;
   min-width: 300px;
   max-width: min(420px, calc(100cqw - 24px));
-  max-height: min(60vh, 420px);
+  /* A popover, not a second screen: bounded, then the list scrolls inside. */
+  max-height: min(56vh, 380px);
   padding: 4px;
   /*
    * BLACK, not a surface token.
@@ -947,8 +948,15 @@
    */
   background: var(--popup-bg, #17181c);
   border: 1px solid var(--popup-border, var(--border-strong, var(--border)));
-  border-radius: 10px;
-  box-shadow: var(--popup-shadow, 0 14px 38px rgb(0 0 0 / 62%));
+  border-radius: 12px;
+  /*
+   * Two shadows, not one: a tight dark contact shadow under the edge plus a
+   * wide soft cast. The single large shadow floated the card but left its edge
+   * looking pasted on; the close ring gives it a seam with the panel behind.
+   */
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 45%),
+    var(--popup-shadow, 0 16px 40px rgb(0 0 0 / 62%));
   overflow: hidden;
 }
 
@@ -1024,6 +1032,49 @@
 }
 
 /* ── Model picker items ───────────────────────────────────────────────── */
+
+/*
+ * Section heading: "Built-in Models", then "Custom Models".
+ *
+ * Quiet on purpose — small, muted, no rule under it. It is a label for the rows
+ * below, not a control: the reference picker draws it exactly this way, and a
+ * heavier treatment would compete with the model names it groups.
+ */
+.ai-mp-seksi {
+  padding: 7px 8px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.ai-mp-seksi + .ai-model-item {
+  margin-top: 0;
+}
+
+/*
+ * A gateway's own header inside the Custom Models section: logo + name, then
+ * its models beneath. Quieter than a section label but stronger than a row —
+ * it groups, it does not announce.
+ */
+.ai-mp-prov {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.ai-mp-prov > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /*
  * One row per model: mark, name, then the status at the right edge.
@@ -1250,26 +1301,35 @@
   color: var(--text-secondary);
 }
 
-/* The header row: search, then the clear "×" while there is text. */
+/*
+ * The search row: field only, no underline.
+ *
+ * It used to carry `border-bottom` + `margin-bottom`, which drew a hard rule
+ * across the card and split it into a "toolbar" band and a "list" band. The
+ * reference product has ONE surface from the title down to the last row; the
+ * only dividers left in this menu are the hairlines above the footer. The field
+ * itself is transparent until focused, so the search never becomes the
+ * brightest thing in the box.
+ */
 .ai-mp-cari {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 0 2px 6px;
-  border-bottom: 1px solid var(--popup-border, var(--border));
-  margin-bottom: 4px;
+  padding: 0 2px 5px;
 }
 
 /*
- * The footer: one full-width "Add Model", under a divider.
+ * The footer: one quiet row under a hairline.
  *
- * It was an icon-only "+" in the header, which made the one action that grows
- * the list the smallest target in the menu. Down here it is the obvious way out
- * of "my model is not in this list", which is why the reader is scrolling.
+ * It used to be a full-width RAISED button, which made the footer the
+ * heaviest, brightest block in a menu whose content is the list above it — it
+ * read as the submit row of a form. The reference product keeps it as a plain
+ * row: mark + label, left aligned, no fill, no border. The action is still
+ * there and still obvious; it just stops competing with the models.
  */
 .ai-mp-foot {
   flex: 0 0 auto;
-  padding-top: 5px;
+  padding-top: 4px;
   margin-top: 2px;
   border-top: 1px solid var(--popup-border, var(--border));
 }
@@ -1277,33 +1337,24 @@
 .ai-mp-add {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 7px;
   width: 100%;
-  padding: 7px 8px;
+  padding: 6px 8px;
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 500;
   color: var(--text-secondary);
-  /*
-   * The raised layer: one neutral step UP from the card.
-   *
-   * It was black for a round and read as a slot cut into the card rather than as
-   * a control. `--popup-raised` is the reference product's own value - lighter
-   * than the card, no blue in it, so it reads as pressable without becoming the
-   * brightest thing in the menu.
-   */
-  background: var(--popup-raised, #2b2b30);
-  border: 1px solid var(--popup-border, var(--border));
-  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
+  transition: background 110ms ease, color 110ms ease;
 }
 
 .ai-mp-add:hover {
-  background: var(--popup-raised-hover, #35353b);
+  background: color-mix(in srgb, var(--popup-bg, #17181c) 74%, var(--text) 26%);
   color: var(--text);
-  border-color: var(--border-strong, var(--border));
 }
 
 /* The magnifier sits INSIDE the field's visual bounds without stealing a row. */
@@ -1327,18 +1378,27 @@
   font-size: 11.5px;
   color: var(--text);
   /*
-   * Slightly LIGHTER than the pop-up, not darker. The field sits inside a
-   * near-black card, so a `--bg` fill (#0d1117) would be lighter AND bluer than
-   * its own container and read as a foreign patch. Mixing against the pop-up
-   * keeps the card one object.
+   * Transparent until focused.
+   *
+   * The field used to hold a permanent 20%-lighter fill, which made the search
+   * the brightest object in a near-black card — the eye landed on the input
+   * before the model names, even though search is the secondary job here. Now
+   * the row reads as part of the surface; the fill only appears on focus, which
+   * is exactly when it needs to announce "you can type here".
    */
-  background: color-mix(in srgb, var(--popup-bg, #17181c) 80%, var(--text) 20%);
-  border: 1px solid var(--popup-border, var(--border));
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
   outline: none;
+  transition: background 110ms ease, border-color 110ms ease;
+}
+
+.ai-model-menu .ai-model-input:hover {
+  border-color: var(--popup-border, var(--border));
 }
 
 .ai-model-menu .ai-model-input:focus {
+  background: color-mix(in srgb, var(--popup-bg, #17181c) 80%, var(--text) 20%);
   border-color: var(--accent);
 }
 

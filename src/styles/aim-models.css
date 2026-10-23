@@ -139,6 +139,88 @@
   flex-direction: column;
 }
 
+/*
+ * Sub-grup per custom provider, di dalam grup "Custom".
+ *
+ * Dibuat lebih ringan daripada grup atasnya (tanpa border bawah penuh, huruf
+ * sedikit lebih kecil, indentasi kiri) supaya hierarkinya terbaca: satu gateway
+ * adalah isi dari "Custom", bukan saudaranya.
+ */
+.aim-grup-head.is-keci {
+  margin-top: 2px;
+  padding: 5px 4px 5px 14px;
+  border-bottom: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.aim-grup-head.is-keci:hover,
+.aim-grup-head.is-keci.is-buka {
+  color: var(--text-secondary);
+}
+
+.aim-grup-isi.is-keci {
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+  margin-left: 8px;
+}
+
+/*
+ * Baris header grup + aksi di kanan (tombol hapus provider).
+ *
+ * Header grup adalah <button> (toggle buka/tutup), jadi tombol aksi TIDAK boleh
+ * hidup di dalamnya (button-in-button = HTML invalid). Baris ini membungkus
+ * keduanya: head flex:1 di kiri, aksi menempel di kanan.
+ */
+.aim-grup-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aim-grup-bar > .aim-grup-head {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+.aim-grup-bar.is-keci > .aim-grup-head {
+  flex: 1 1 auto;
+}
+.aim-grup-aksi {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+  opacity: 0;
+  transition: opacity 110ms;
+}
+.aim-grup-bar:hover .aim-grup-aksi,
+.aim-grup-bar:focus-within .aim-grup-aksi {
+  opacity: 1;
+}
+/* Baris provider mati (punya key/URL tapi nol model): selalu terlihat aksinya. */
+.aim-grup-bar.is-kosong .aim-grup-aksi {
+  opacity: 1;
+}
+.aim-grup-bar.is-kosong {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Head sebagai <span> (bukan tombol): tidak bisa di-toggle, jadi tanpa pointer. */
+.aim-grup-head.is-mati {
+  cursor: default;
+  color: var(--text-muted);
+}
+.aim-grup-head.is-mati:hover {
+  color: var(--text-muted);
+}
+
+.aim-aksi-btn.is-keci {
+  padding: 1px 6px;
+  font-size: 10.5px;
+}
+
 .aim-kosong-kecil {
   margin: 0;
   padding: 14px 6px;
@@ -422,10 +504,62 @@
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+  /*
+   * Isi boleh lebih tinggi dari kartu, dan yang bergulir adalah ISINYA.
+   *
+   * `overflow: hidden` saja (tanpa ini) memotong apa pun yang melewati
+   * max-height — termasuk isi yang dibuka lewat "Advanced Settings" — karena
+   * tidak ada area yang bisa digulir. `auto` membuat sisa ruang bisa dicapai
+   * dengan gulir, sementara tepi membulat tetap rapi.
+   */
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px 18px 14px;
 }
 .modal.aim-add:focus {
   outline: none;
+}
+
+/*
+ * Children never shrink — the DIALOG scrolls.
+ *
+ * This was the real cause of "Advanced Settings ketimpa": `.modal.aim-add` is
+ * a flex column with `max-height: 88vh`, and every flex child defaults to
+ * `flex-shrink: 1`. When the form grew taller than the card, the children were
+ * SQUEEZED instead of overflowing, so the disclosure's content was compressed
+ * to nothing and looked cut off, while the card itself never scrolled.
+ * Pinning shrink to 0 makes the content taller than the card, which is exactly
+ * the condition `overflow-y: auto` above then handles.
+ */
+.modal.aim-add > *:not(.aim-preset) {
+  flex-shrink: 0;
+}
+
+/*
+ * Footer Add Model / Cancel: selalu terlihat, tidak pernah terdorong keluar.
+ *
+ * Dua hal yang membuatnya dulu keluar kotak:
+ *   1. `flex-shrink: 0` tidak diset, jadi saat isi memanjang footer ikut
+ *      diperas sampai tombolnya terpotong.
+ *   2. Tidak ada latar, jadi isi yang bergulir di belakangnya tampak menabrak
+ *      tombol dan terbaca sebagai tombol yang melayang di luar dialog.
+ * Garis atas + latar membuatnya bar yang berdiri sendiri di dasar kartu.
+ */
+.modal.aim-add .modal-actions {
+  flex: 0 0 auto;
+  align-items: center;
+  margin: 4px -18px -14px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  /*
+   * Latar HARUS tidak transparan: begitu dialog bisa digulir, bar ini menempel
+   * di dasar dan isi yang lewat di belakangnya akan tembus pandang kalau
+   * memakai warna transparan.
+   */
+  background: var(--surface);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 
 .aim-add-judul {
@@ -656,6 +790,55 @@
   font-family: inherit;
 }
 
+/* Toggle "Full URL" — switch kecil di bawah input URL.
+   Dibuat sebagai <button role="switch">, bukan <input type=checkbox>, supaya
+   bisa memakai label teks tanpa id/label tambahan. */
+.aim-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.aim-switch:hover {
+  color: var(--text);
+}
+.aim-switch-thumb {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 120ms ease;
+}
+.aim-switch-thumb::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg0, var(--surface));
+  transition: transform 120ms ease;
+}
+.aim-switch.is-on {
+  color: var(--accent);
+}
+.aim-switch.is-on .aim-switch-thumb {
+  background: var(--accent);
+}
+.aim-switch.is-on .aim-switch-thumb::after {
+  transform: translateX(12px);
+}
+
 /* ── Advanced Settings disclosure ───────────────────────────────────────── */
 .aim-adv-toggle {
   display: flex;
@@ -758,17 +941,39 @@
   color: var(--text-muted);
 }
 
+/*
+ * Durasi Refresh, mis. "412 ms".
+ *
+ * Angka ini menjawab pertanyaan yang tidak bisa dijawab indikator lain: apakah
+ * endpoint ini lambat, atau memang tidak menjawab sama sekali. Nilai yang wajar
+ * untuk /models adalah puluhan sampai beberapa ratus milidetik; di atas ~3000 ms
+ * artinya gateway-nya lambat, bukan aplikasinya yang macet.
+ */
+.aim-deteksi-waktu {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── The detected model list, each row tickable ─────────────────────────── */
 /*
- * Capped height with its own scroll: a gateway can return hundreds of ids, and
- * letting them grow the dialog would push the Add Model button off-screen — the
- * one control the reader needs after ticking.
+ * Its own scroll, at a FIXED height between the two bounds.
+ *
+ * `flex: 1 1 260px` + `min-height` is what makes the box keep its size whether
+ * the gateway returns 3 ids or 300: sebelumnya tinggi mengikuti isi, jadi kotak
+ * terlihat melompat antara "kurus" dan "raksasa" setiap kali Refresh, dan saat
+ * dialog kehabisan ruang justru kotak ini yang mengecil sampai tinggal beberapa
+ * baris. Dengan flex-grow ia mengisi sisa ruang dialog dan menyusut TERAKHIR.
  */
 .aim-deteksi-list {
+  flex: 1 1 260px;
   margin-bottom: 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  max-height: 220px;
+  min-height: 220px;
+  max-height: 420px;
   overflow: auto;
   background: var(--bg0, var(--surface));
 }

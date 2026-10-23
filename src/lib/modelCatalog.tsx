@@ -561,16 +561,66 @@ export function providerEfektif(
   const aktif = (activeProvider ?? '').trim();
   const auto = !aktif || aktif === PROVIDER_AUTO;
 
+  /*
+   * Provider kustom (slot `custom` dan `custom-<slug>`).
+   *
+   * Slot lama `custom` sengaja TIDAK ikut di sini: ia tempat penampung lama
+   * yang selalu ada di katalog, dan tanpa key ia memang belum bisa dipakai.
+   * Gateway bernama (`custom-geraikita`) hanya ada karena reader membuatnya,
+   * dan keberadaannya sendiri sudah bukti konfigurasi.
+   */
+  const kustom = aktif.startsWith('custom-');
+
   /* A real, deliberate choice that can actually send: honour it. */
-  if (!auto && PROVIDER_BY_ID.has(aktif) && punyaKunci(aktif)) return aktif;
+  if (!auto && (PROVIDER_BY_ID.has(aktif) || kustom)) {
+    if (kustom || punyaKunci(aktif)) return aktif;
+  }
 
   /* Auto (or a choice with no key): the first provider in catalogue order. */
   const siap = PROVIDERS.find((p) => punyaKunci(p.id));
   if (siap) return siap.id;
 
   /* Nothing has a key. Keep a real choice so the UI can name what is missing. */
-  if (!auto && PROVIDER_BY_ID.has(aktif)) return aktif;
+  if (!auto && (PROVIDER_BY_ID.has(aktif) || kustom)) return aktif;
   return 'custom';
+}
+
+/**
+ * A stored `activeProvider` that does not name a real, configured provider.
+ *
+ * `'custom'` is the legacy catch-all slot: it appears in the catalogue but has
+ * no endpoint of its own, so it can never send. A reader whose only gateway is
+ * `custom-ryuga` could still end up with this stored - the Active dropdown in
+ * Settings used to list catalogue providers only, and choosing "Custom" wrote
+ * the bare slot. Everything downstream then reads "no key, no URL", which is
+ * exactly the "add an API key" notice for a key that IS on disk.
+ *
+ * Resolution order, all from real configuration:
+ *  1. the `custom-<slug>` whose gateway has a `baseUrl`;
+ *  2. any `baseUrl`-backed provider that is not the bare slot;
+ *  3. a leftover `"custom"` when nothing else is configured (unchanged).
+ */
+export function providerTersimpanValid(
+  aktif: string | null | undefined,
+  providers?: Record<string, { baseUrl?: string } | undefined> | null,
+): string {
+  const id = (aktif ?? '').trim();
+  const peta = providers ?? {};
+  const berUrl = (k: string) => !!peta[k]?.baseUrl?.trim();
+  if (id && id !== 'custom' && berUrl(id)) return id;
+
+  /* The bare slot (or nothing usable): pick the configured gateway. */
+  const kustom = Object.keys(peta)
+    .filter((k) => k.startsWith('custom-') && berUrl(k))
+    .sort();
+  if (kustom.length > 0) return kustom[0];
+
+  const lain = Object.keys(peta)
+    .filter((k) => k !== 'custom' && berUrl(k))
+    .sort();
+  if (lain.length > 0) return lain[0];
+
+  return id || 'custom';
 }
 
 /** Ids the catalogue ships as "type a name" slots, not real models. Derived
@@ -846,10 +896,17 @@ export function biayaModel(laporan?: LaporanModel): string {
  */
 export function baseUrlEfektif(
   providerId: string,
-  overrides?: Record<string, { baseUrl?: string } | undefined>,
+  overrides?: Record<string, { baseUrl?: string; fullUrl?: boolean } | undefined>,
 ): string {
-  const configured = (overrides ?? {})[providerId]?.baseUrl;
+  const simpan = (overrides ?? {})[providerId];
+  const configured = simpan?.baseUrl;
   if (typeof configured === 'string' && configured.trim()) return configured.trim();
+  /*
+   * `custom-*` gateways may be configured with a FULL endpoint instead of a base
+   * URL ("https://host/v1/chat/completions"), flagged by `fullUrl`. The URL is
+   * still stored in `baseUrl`; the flag only says it must not be appended to.
+   * Anything else keeps the catalogue default.
+   */
   return PROVIDER_BY_ID.get(providerId)?.baseUrl ?? '';
 }
 
@@ -865,7 +922,7 @@ export function baseUrlEfektif(
 export function providerSiap(
   p: ProviderInfo,
   hasKey: boolean,
-  overrides?: Record<string, { baseUrl?: string } | undefined>,
+  overrides?: Record<string, { baseUrl?: string; fullUrl?: boolean } | undefined>,
 ): boolean {
   // BOTH are required. This returned true on the key alone, so a `custom`
   // provider with a saved key and no endpoint was reported as ready and every
@@ -873,6 +930,42 @@ export function providerSiap(
   // describes as fixed. A provider with a built-in base URL still passes, since
   // baseUrlEfektif falls back to the catalogue default.
   return hasKey && baseUrlEfektif(p.id, overrides).length > 0;
+}
+
+/**
+ * Every provider the reader can actually use: the catalogue PLUS configured
+ * `custom-*` gateways.
+ *
+ * `PROVIDERS` is the built-in catalogue only. Anything that iterates it to build
+ * a model list therefore never sees a gateway the reader added - the Chat
+ * Settings tier dropdown and the HydraFusion candidate ladder both did exactly
+ * that, so a workspace running `custom-ryuga` still offered nothing but the six
+ * catalogue providers. The custom rows are synthesised as free-text providers:
+ * their models come from `modelTersedia` (typed ids + the live API list), not
+ * from the catalogue.
+ *
+ * Sorted so the list is deterministic; catalogue order is preserved first.
+ */
+export function daftarProvider(
+  overrides?: Record<string, { baseUrl?: string } | undefined> | null,
+): ProviderInfo[] {
+  const out: ProviderInfo[] = [...PROVIDERS];
+  const sudah = new Set(PROVIDERS.map((p) => p.id));
+  for (const id of Object.keys(overrides ?? {}).sort()) {
+    if (sudah.has(id)) continue;
+    sudah.add(id);
+    out.push({
+      id,
+      label: id.replace(/^custom-/, ''),
+      baseUrl: '',
+      envKey: '',
+      /* Custom gateways have no brand mark; `logo` is only used for the badge. */
+      logo: 'custom' as LogoId,
+      freeText: true,
+      models: [],
+    });
+  }
+  return out;
 }
 
 export interface ModelDef extends ProviderModel {
@@ -980,7 +1073,16 @@ export function maxOutBawaan(modelId: string): number {
 }
 
 export function findModel(modelId: string, providerId?: string): ModelDef {
-  const p = PROVIDER_BY_ID.get(providerId ?? 'custom') ?? PROVIDERS[PROVIDERS.length - 1];
+  /*
+   * `custom-*` adalah provider buatan user (lihat `slugProvider`). Ia tidak ada
+   * di katalog, jadi ia memakai bentuk slot Custom: URL dan label miliknya
+   * sendiri, bukan milik provider katalog pertama.
+   */
+  const diminta = providerId ?? 'custom';
+  const kustom = diminta === 'custom' || diminta.startsWith('custom-');
+  const p = kustom
+    ? { ...(PROVIDER_BY_ID.get('custom') ?? PROVIDERS[PROVIDERS.length - 1]), id: diminta }
+    : (PROVIDER_BY_ID.get(diminta) ?? PROVIDERS[PROVIDERS.length - 1]);
 
   const hit = MODEL_BY_ID.get(modelId);
 
@@ -1065,28 +1167,41 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
    * This map is the single place that says which family a provider wears.
    */
   const keluarga: Record<string, string> = {
-    gemini: 'gemini',
+    /*
+     * Provider memakai mark PERUSAHAANNYA, bukan mark produk/model di bawahnya.
+     *
+     * Itu perbedaan yang membuat daftar "Add Model" dulu terasa salah: baris
+     * Google memakai sparkle Gemini, Anthropic memakai bintang Claude, AWS
+     * memakai logo Bedrock, BytePlus dan Volcano memakai logo Doubao, Alibaba
+     * memakai diamond Qwen, Z.ai/Bigmodel memakai titik-titik GLM. Semuanya
+     * merek yang berbeda dari nama yang tertulis di barisnya, dan semuanya
+     * sudah dibetulkan di sini — mark produk tetap dipakai oleh `ModelLogo`
+     * untuk modelnya sendiri.
+     */
+    gemini: 'google',
     openai: 'gpt',
-    anthropic: 'claude',
+    anthropic: 'anthropic',
     deepseek: 'deepseek',
     xai: 'grok',
     mistral: 'mistral',
     groq: 'groq',
     openrouter: 'openrouter',
     ollama: 'ollama',
-    zai: 'glm',
-    bigmodel: 'glm',
+    zai: 'zai',
+    bigmodel: 'zai',
     minimax: 'minimax',
     'minimax-cn': 'minimax',
     kimi: 'kimi',
     'kimi-cn': 'kimi',
-    byteplus: 'bytedance',
-    aws: 'bedrock',
+    byteplus: 'byteplus',
+    aws: 'aws',
     azure: 'azure',
-    volcano: 'bytedance',
-    alibaba: 'qwen',
-    tencent: 'tencent',
+    volcano: 'volcengine',
+    alibaba: 'alibabacloud',
+    tencent: 'tencentcloud',
     mimo: 'mimo',
+    gmi: 'gmicloud',
+    gitee: 'gitee',
     /*
      * These three HAVE official marks in the brand table and were falling
      * through to the two-letter monogram anyway (SF / NO / PP), because the map
@@ -1098,20 +1213,6 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
     novita: 'novita',
     ppio: 'ppio',
     vercel: 'vercel',
-    /*
-     * STILL ABSENT: gmi, gitee.
-     *
-     * These two used to map to `together`, `antgroup` and `vertexai` — companies
-     * they have nothing to do with. The result was GMI Cloud wearing Together's
-     * mark and Gitee wearing Ant Group's: a logo that names the WRONG company is
-     * worse than no logo, because the reader trusts it.
-     *
-     * Neither has an official mark in `BRAND_MARKS` (LobeHub publishes no
-     * `gmi`, and `gitee` 404s), so they fall through to the monogram below:
-     * their own initials in their own brand colour. That is honest — it does not
-     * claim to be a published logo, and it is still distinguishable at a glance,
-     * which is the job.
-     */
   };
 
   const kunci = keluarga[logo as string] ?? (logo as string);
@@ -1165,7 +1266,14 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
    * painted is the component that paints it.
    */
   const warnaCadangan: Record<string, string> = {
-    gpt: '#10A37F',
+    /*
+     * `gpt` TIDAK ada di sini dengan sengaja.
+     *
+     * Entri lamanya `#10A37F` (hijau ChatGPT), dan di daftar provider baris
+     * OpenAI jadi simpul hijau — warna yang bukan milik merek OpenAI, yang
+     * memang monokrom. Tanpa entri ini mark-nya ikut warna teks (putih di tema
+     * gelap), sama seperti di acuan TRAE.
+     */
     grok: '#E8E8E8',
     kimi: '#4B6BFB',
     ollama: '#D8D8D8',
@@ -1190,6 +1298,22 @@ export const ProviderLogo = memo(function ProviderLogo({ id, size = 16 }: { id: 
      * either does it follow the surrounding text colour.
      */
     const warna = mark.warna ?? warnaCadangan[kunci] ?? 'currentColor';
+    /*
+     * Mark berlapis: logo penuh warna (huruf G Google, tanda AWS, Alibaba
+     * Cloud, Kimi) disusun dari beberapa path, masing-masing membawa warnanya
+     * sendiri. Mark satu path tetap satu `<path>` — jalur lama tidak berubah.
+     * Lapis tanpa warna sendiri memakai warna merek, jadi tidak ada bagian
+     * yang hilang hanya karena LobeHub menulisnya tanpa `fill`.
+     */
+    if (mark.lapis?.length) {
+      return (
+        <svg {...p} viewBox="0 0 24 24" aria-label={id}>
+          {mark.lapis.map((l, i) => (
+            <path key={i} d={l.d} fill={l.warna ?? warna} />
+          ))}
+        </svg>
+      );
+    }
     return (
       <svg {...p} viewBox="0 0 24 24" aria-label={id}>
         <path d={mark.d} fill={warna} />

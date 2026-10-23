@@ -193,6 +193,8 @@ interface StoreActions {
    * anything needs to tell them apart.
    */
   fixAllTab: (id: string) => Promise<{ diterapkan: number; ditawarkan: number; lain: string[] }>;
+  /** Rapikan/urutkan import lewat code action LSP `source.organizeImports`. */
+  organizeImportsTab: (id: string) => Promise<number>;
 
   requestCloseTab: (id: string) => void;
   forceCloseTab: (id: string) => void;
@@ -323,6 +325,15 @@ let gabungTertunda: Record<string, unknown> = {};
 /* Tail of the serialisation chain: the next write waits for this. */
 let antrianTulis: Promise<void> = Promise.resolve();
 
+/*
+ * `activeProvider` terakhir yang sudah diteruskan ke aiStore.
+ *
+ * Dipakai supaya penulisan settings yang tidak menyentuh provider aktif (mis.
+ * baseUrl/API key/fullUrl dari dialog Add Model) tidak memicu sinkronisasi
+ * ulang pilihan model di panel.
+ */
+let activeProviderTerakhir: string | undefined;
+
 async function flushSetelan(): Promise<void> {
   if (timerSetelan) {
     clearTimeout(timerSetelan);
@@ -352,12 +363,21 @@ async function flushSetelan(): Promise<void> {
      * model" must be forwarded - otherwise the new choice only applies after a
      * restart. Dynamic import: aiStore imports the store at module level, so
      * calling it directly here would create a cycle.
+     *
+     * Hanya diteruskan kalau `activeProvider` MEMANG berbeda dari yang terakhir
+     * diterapkan. Sebelumnya fungsi ini dipanggil setelah SETIAP tulis settings
+     * - termasuk saat Refresh dialog Add Model menulis baseUrl/fullUrl - dan
+     * itu menarik pilihan model di panel kembali ke nilai tersimpan (bug
+     * "model ngulang lagi" setelah Refresh).
      */
-    void import('./aiStore')
-      .then((m) => m.useAi.getState().sinkronProvider())
-      .catch(() => {
-        /* non-fatal: the selection is still saved in settings */
-      });
+    if (s.models?.activeProvider !== activeProviderTerakhir) {
+      activeProviderTerakhir = s.models?.activeProvider;
+      void import('./aiStore')
+        .then((m) => m.useAi.getState().sinkronProvider())
+        .catch(() => {
+          /* non-fatal: the selection is still saved in settings */
+        });
+    }
   });
   return antrianTulis;
 }
@@ -1398,6 +1418,25 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
+  organizeImportsTab: async (id) => {
+    const tab = get().tabs.find((t) => t.id === id);
+    if (!tab?.path) return 0;
+    if (get().activeTabId !== id) return 0;
+
+    const { getActiveView } = await import('./editorRegistry');
+    const view = getActiveView();
+    if (!view) return 0;
+
+    try {
+      const { lspOrganizeImports } = await import('./lspCm');
+      const hasil = await lspOrganizeImports(tab.path, view);
+      if (hasil.diterapkan > 0) get().updateTabContent(id, view.state.doc.toString());
+      return hasil.diterapkan;
+    } catch {
+      return 0;
+    }
+  },
+
   formatTab: async (id) => {
     const tab = get().tabs.find((t) => t.id === id);
     if (!tab?.path) return 0;
@@ -1910,6 +1949,21 @@ export const useStore = create<Store>((set, get) => ({
       retheme();
       terapkanA11y(s.accessibility);
       reSrMode();
+      /*
+       * `keys` IKUT dimuat ulang.
+       *
+       * Settings dan daftar key adalah dua berkas (`settings.json` vs
+       * `secrets.json`), tetapi keduanya berubah dalam satu tindakan user:
+       * menambah gateway di dialog Add Model menulis baseUrl ke settings DAN
+       * key ke secrets. Dulu hanya settings yang disegarkan, jadi pemilih model
+       * - yang membangun daftarnya dari `keys` + baseUrl - bisa melihat salah
+       * satunya saja sampai menu ditutup-dibuka atau window di-reload.
+       * Memuat ulang keduanya di sini membuat satu event `settings-changed`
+       * cukup untuk menyelaraskan seluruh jendela.
+       */
+      void import('./aiStore')
+        .then((m) => m.useAi.getState().loadKeys())
+        .catch(() => {});
     } catch (e) {
       set({ statusMessage: cmd.asZephyrError(e).message });
     }

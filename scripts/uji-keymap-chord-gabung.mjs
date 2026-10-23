@@ -498,9 +498,9 @@ kasus(14, 'chord kembar paket: satu entri, pemenang paket menang, bawaan tetap a
   info(`Ctrl+Shift+A: ${e.alias.map((a) => `${a.command}@${a.when}(${a.source ?? 'default'})`).join(' | ')}`);
   samakan(masalah, 'jumlah alias', e.alias.length, 2);
   samakan(masalah, 'pemenang', e.utama, 'view.palette');
-  samakan(masalah, 'yang tertutup', e.konflik.map((k) => k.command), ['ai.panel']);
+  samakan(masalah, 'yang tertutup', e.konflik.map((k) => k.command), ['agents.openWindow']);
   samakan(masalah, 'yang jalan', resolveChord(e, new Set(['global'])), 'view.palette');
-  if (!e.alias.some((a) => a.command === 'ai.panel')) masalah.push('ai.panel hilang dari alias');
+  if (!e.alias.some((a) => a.command === 'agents.openWindow')) masalah.push('agents.openWindow hilang dari alias');
 });
 
 /* ── #15 chordConflicts konsisten dengan tabel gabungan ── */

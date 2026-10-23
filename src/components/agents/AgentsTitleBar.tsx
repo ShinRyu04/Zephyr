@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /*
@@ -167,6 +167,27 @@ export default function AgentsTitleBar({
 }) {
   const [maks, setMaks] = useState(false);
   const [menuBuka, setMenuBuka] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  /*
+   * Geser dropdown ke kiri kalau ia akan keluar tepi kanan jendela.
+   *
+   * `.agx-dropdown` menempel di `left: 0` milik tombolnya, jadi menu paling
+   * kanan (Help) menjulur keluar jendela saat jendela disempitkan: terukur di
+   * lebar 420px, Help berakhir di 446px — 26px item terakhir dan pintasan
+   * `Ctrl+…`-nya terpotong, tidak bisa dibaca. Perhitungannya dilakukan SETELAH
+   * render (useLayoutEffect) karena lebar dropdown baru diketahui saat ia sudah
+   * ada di DOM.
+   */
+  useLayoutEffect(() => {
+    const d = dropdownRef.current;
+    if (!d) return;
+    d.style.left = '0px';
+    const r = d.getBoundingClientRect();
+    const lebih = r.right - window.innerWidth + 8;
+    /* Jangan digeser melewati tepi kiri jendela juga. */
+    if (lebih > 0) d.style.left = `${-Math.min(lebih, Math.max(0, r.left - 8))}px`;
+  }, [menuBuka]);
 
   /* Menu ditutup oleh klik di mana pun, Escape, atau kehilangan fokus jendela.
      Tanpa ini dropdown tetap menggantung saat user mengklik kanvas. */
@@ -271,6 +292,7 @@ export default function AgentsTitleBar({
 
                   {terbuka && (
                     <div
+                      ref={dropdownRef}
                       className="agx-dropdown"
                       role="menu"
                       data-testid={`agx-dropdown-${m.toLowerCase()}`}

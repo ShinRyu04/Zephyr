@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as cmd from '../../lib/commands';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -20,6 +20,7 @@ import {
   ModelLogo,
 } from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID, pilihHydra } from '../../lib/hydraModel';
+import { namaProvider } from '../settings/AiModelsDialog';
 import ZephyrLogo from '../shell/ZephyrLogo';
 import AiIkon from './AiIkon';
 import ModelDetailPanel from './ModelDetailPanel';
@@ -50,6 +51,9 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const aiProvider = useAi((s) => s.provider);
   const openAi = useAi((s) => s.modelMenuOpen);
   const keys = useAi((s) => s.keys);
+  /* Slot yang isinya ada di `secrets.json` — bukti langsung, tidak bisa basi
+     selama `disk` baru dibaca. Lihat `apiKeyDisk.ts`. */
+  const disk = useAi((s) => s.disk);
   const setOpenAi = useAi((s) => s.setModelMenuOpen);
   const setAiModel = useAi((s) => s.setModel);
   const applySettings = useStore((s) => s.applySettings);
@@ -76,9 +80,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
   const ikutChat = sub && !model.trim();
 
   const [cari, setCari] = useState('');
-
-  const [typed, setTyped] = useState('');
-  const [saved, setSaved] = useState<Record<string, string[]>>(loadSaved);
+  const [saved] = useState<Record<string, string[]>>(loadSaved);
 
   const [remote, setRemote] = useState<Record<string, string[]>>({});
   /*
@@ -90,7 +92,18 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    * place and seeing nothing in the other.
    */
   const laporan = useSettingsUi((s) => s.remoteInfo);
-  const [fetching, setFetching] = useState(false);
+  /*
+   * Fetching is tracked PER PROVIDER, not as one boolean.
+   *
+   * A single `fetching` flag guarded the entry of `loadRemote` (`if (fetching)
+   * return`), while Refresh walked the providers in a loop. The first call set
+   * the flag, every later provider in the same loop returned immediately, and a
+   * second press of the button did nothing at all because the flag was still
+   * the one the loop had set. That is the reported "tombol refresh ga
+   * berfungsi" — both automatic (menu open) and manual.
+   */
+  const [fetching, setFetching] = useState<Record<string, true>>({});
+  const sedangAmbil = Object.keys(fetching).length > 0;
 
   /*
    * Which model the detail card is describing — and WHERE that row is.
@@ -127,14 +140,111 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
 
   // Same rule for the picker: a provider is offered only when it can actually
   // send - key present AND an endpoint to send to.
-  const providerSiap = useMemo(
-    () =>
-      PROVIDERS.filter(
-        (p) => adaKey(p.id) && baseUrlEfektif(p.id, baseUrlOv).length > 0,
-      ),
-    [keys, baseUrlOv],
-  );
-  const providerTersembunyi = PROVIDERS.length - providerSiap.length;
+  //
+  // `custom-*` providers (multi-gateway, fase multi-provider) are NOT in the
+  // PROVIDERS catalogue, so they are appended here from the stored key list.
+  // Without this, a model added under "geraikita" never appears in the picker
+  // at all - the key exists, the endpoint exists, but no group is built.
+  const providerSiap = useMemo(() => {
+    /*
+     * BUG: provider "hilang" lalu muncul pesan "belum ada API key" padahal
+     * key-nya tersimpan.
+     *
+     * `katalog` dulu menuntut `adaKey(p.id)`, dan `adaKey` membaca array `keys`
+     * milik aiStore. Array itu diisi `getPublicModels`, yang MENGURUTKAN ulang
+     * dan menambahkan entri tanpa key. Kalau satu entri gagal didekripsi,
+     * `has_key` menjadi false dan provider itu lenyap dari picker - persis
+     * keluhan "disuruh masukin API key" setelah Refresh.
+     *
+     * Sekarang provider dianggap siap bila SALAH SATU dari dua bukti ada:
+     *  - `keys` bilang hasKey, ATAU
+     *  - settings menyimpan baseUrl untuk provider itu (artinya reader sudah
+     *    mengonfigurasinya; key-nya bisa saja sedang tidak terbaca sementara).
+     * Provider yang benar-benar belum dikonfigurasi tetap tersembunyi, jadi
+     * pesan "belum ada API key" masih jujur untuk kasus itu.
+     */
+    const punyaUrl = (id: string) => baseUrlEfektif(id, baseUrlOv).length > 0;
+    const siapPakai = (id: string) => adaKey(id) || punyaUrl(id) || disk.has(id);
+
+    const katalog = PROVIDERS.filter((p) => siapPakai(p.id) && punyaUrl(p.id));
+    /*
+     * `custom-*` dikumpulkan dari DUA sumber, bukan hanya `keys`.
+     *
+     * Dulu hanya dari `keys`. Kalau `getPublicModels` tidak memuat sebuah
+     * gateway (key gagal didekripsi, atau entri belum terbaca), gateway itu
+     * lenyap dari picker walaupun URL dan modelnya masih tersimpan di
+     * settings - lalu reader melihat "belum ada API key" untuk provider yang
+     * jelas-jelas sudah dikonfigurasi. Sekarang settings.models.providers dan
+     * settings.models.custom ikut menjadi bukti keberadaannya.
+     */
+    const idKustom = new Set<string>();
+    for (const k of keys) if (k.provider.startsWith('custom-')) idKustom.add(k.provider);
+    for (const id of Object.keys(baseUrlOv ?? {})) if (id.startsWith('custom-')) idKustom.add(id);
+    for (const c of useStore.getState().settings.models.custom ?? []) {
+      if (c.provider.startsWith('custom-')) idKustom.add(c.provider);
+    }
+    const kustom = [...idKustom]
+      .filter((id) => siapPakai(id) && punyaUrl(id))
+      .sort()
+      .map((id) => ({
+        id,
+        label: namaProvider(id) || id,
+        freeText: true,
+        models: [] as never[],
+      }));
+    return [...katalog, ...kustom];
+  }, [keys, baseUrlOv, disk]);
+  /*
+   * The list follows the ACTIVE provider, not every provider that has a key.
+   *
+   * `providerSiap` answers "which providers could send" - it was also used as
+   * the list of groups, so choosing a custom active provider still showed the
+   * whole built-in catalogue above it, and clicking one of those rows silently
+   * moved `activeProvider` away from the reader's choice. The picker should show
+   * the models of the provider that is actually selected.
+   *
+   * Two deliberate exceptions:
+   *  - the catalogue provider that owns the CURRENT selection is always kept, so
+   *    the chip can still name what is selected even if it is not "ready";
+   *  - sub-agent rows (`ikutChat`) keep the old behaviour: a per-row override is
+   *    a one-off choice and needs to reach every provider, not just the chat's.
+   */
+  const penyediaTampil = useMemo(() => {
+    if (ikutChat) return providerSiap;
+    /*
+     * `provider` is the surface's selection (chat or sub-agent); `efektif` is
+     * what will really send after `auto` is resolved, so it wins when set.
+     */
+    const fokus = (efektif.provider || provider || '').trim();
+    if (!fokus || fokus === 'custom') {
+      /* The bare `custom` slot: it is in the catalogue, so it is here already. */
+      return providerSiap.filter((p) => p.id === fokus || p.id === efektif.provider);
+    }
+    const ada = providerSiap.find((p) => p.id === fokus);
+    if (ada) return [ada];
+    /*
+     * Not "ready" (no key readable, no endpoint stored) but still selected: keep
+     * it so the reader can see and change the model instead of an empty menu.
+     */
+    const katalog = PROVIDER_BY_ID.get(fokus);
+    return katalog
+      ? [katalog]
+      : [
+          {
+            id: fokus,
+            label: namaProvider(fokus) || fokus,
+            freeText: true,
+            models: [] as never[],
+          },
+        ];
+  }, [ikutChat, providerSiap, efektif.provider, provider]);
+
+  /*
+   * Only catalogue providers can be "hidden": a custom-* provider exists
+   * solely because the reader created it, so it is never counted as hidden.
+   */
+  const providerTersembunyi =
+    PROVIDERS.filter((p) => !providerSiap.some((s) => s.id === p.id)).length;
 
   /*
    * `p` = the provider group the row (or the typed name) came from.
@@ -219,24 +329,38 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    * a list already in memory.
    */
   useEffect(() => {
-    if (!open || providerSiap.length === 0) return;
-    const belum = providerSiap.filter((p) => (remote[p.id]?.length ?? 0) === 0);
+    if (!open || penyediaTampil.length === 0) return;
+    const belum = penyediaTampil.filter((p) => (remote[p.id]?.length ?? 0) === 0);
     if (belum.length === 0) return;
-    void (async () => {
-      for (const p of belum) await loadRemote(p.id);
-    })();
+    void Promise.all(belum.map((p) => loadRemote(p.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, providerSiap]);
+  }, [open, penyediaTampil]);
 
   const loadRemote = async (p: string) => {
-    if (fetching) return;
-    setFetching(true);
+    /*
+     * Only the SAME provider is skipped, and only while its own request is in
+     * flight. Pressing Refresh again after a failure must work: before this,
+     * one provider already spinning made every later call return at the door.
+     */
+    if (fetching[p]) return;
+    /*
+     * `custom-*` has no catalogue default, so an empty base URL means the
+     * request would go nowhere. Read it through `baseUrlEfektif`, which is the
+     * same rule the picker uses to decide the provider is ready - two copies of
+     * that logic is how a provider was listed and then failed to refresh.
+     * The check happens BEFORE the spinner so a skip cannot leave it spinning.
+     */
+    const b = baseUrlEfektif(p, useStore.getState().settings.models.providers) || undefined;
+    if (!b) return;
+    setFetching((f) => ({ ...f, [p]: true }));
     try {
-      const b =
-        (useStore.getState().settings.models.providers ?? {})[p]?.baseUrl ||
-        PROVIDER_BY_ID.get(p)?.baseUrl ||
-        undefined;
-      const info = await cmd.listModels(p, b);
+      /* `fullUrl` ikut dikirim: tanpa ini daftar model diambil dari
+         `{base}/models` padahal endpoint-nya dikonfigurasi sebagai URL penuh. */
+      const fu =
+        (useStore.getState().settings.models.providers ?? {})[p]?.fullUrl === true
+          ? true
+          : undefined;
+      const info = await cmd.listModels(p, b, fu);
       /*
        * Both halves are kept: the ids feed the list, and the rest of each row
        * feeds the detail panel. Storing only ids is what made every model look
@@ -252,14 +376,28 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     } catch {
       /* no key / offline - the stored list is still shown */
     } finally {
-      setFetching(false);
+      setFetching((f) => {
+        const n = { ...f };
+        delete n[p];
+        return n;
+      });
     }
   };
 
   /* One refresh pulls the live list for every provider that can send, so the
-     footer action does not depend on which group the user is looking at. */
+     footer action does not depend on which group the user is looking at.
+     `Promise.all`, not a serial loop: a gateway that hangs for 30s must not
+     delay the next one, and an empty list must be re-fetched even when a stale
+     one is already in memory (a Refresh that returns the old list is a Refresh
+     that did nothing). */
   const refreshSemua = async () => {
-    for (const p of providerSiap) await loadRemote(p.id);
+    /*
+     * Disk dibaca ulang lebih dulu: tombol ini yang ditekan orang setelah
+     * memasukkan key, dan `keys`/`siapPakai` yang basi membuat provider baru
+     * tetap dianggap "belum siap" walau key-nya sudah ditulis.
+     */
+    await useAi.getState().loadKeys();
+    await Promise.all(penyediaTampil.map((p) => loadRemote(p.id)));
   };
 
   /*
@@ -293,7 +431,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       el.style.left = 'auto';
       el.style.right = '0';
     }
-  }, [open, cari, typed]);
+  }, [open, cari]);
 
   /*
    * Which way the menu opens — and the answer is DOWN.
@@ -367,27 +505,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
          measured to the window and overflowed the panel. */
       el.style.maxHeight = `${Math.min(ruangAtas, Math.round((dasar - atap) * 0.8))}px`;
     }
-  }, [open, cari, typed]);
-
-  const commitTyped = (p: string) => {
-    const v = typed.trim();
-    if (!v) return;
-    pakai(v, p);
-
-    setSaved((s) => {
-      const list = s[p] ?? [];
-      const next = list.includes(v) ? list : [...list, v];
-      const out = { ...s, [p]: next };
-      try {
-        localStorage.setItem(LS_SAVED, JSON.stringify(out));
-      } catch {
-        /* quota full - the list stays in memory */
-      }
-      return out;
-    });
-    setTyped('');
-    setOpen(false);
-  };
+  }, [open, cari]);
 
   /*
    * "Edit models" opens CHAT SETTINGS on Models.
@@ -425,7 +543,22 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           .filter((id) => !MODEL_BY_ID.has(id) && id.toLowerCase().includes(q))
           .map((id) => ({ id, label: id, provider: p, note: tr('from provider'), ctx: '' })),
       );
-    return [...katalog, ...live].slice(0, 40);
+    /* Saved custom models, so search finds a gateway model that is not live. */
+    const kustom = (useStore.getState().settings.models.custom ?? [])
+      .filter(
+        (c) =>
+          boleh.has(c.provider) &&
+          !isPlaceholderModel(c.id) &&
+          (c.label.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)),
+      )
+      .map((c) => ({
+        id: c.id,
+        label: c.label || c.id,
+        provider: c.provider,
+        note: '',
+        ctx: c.ctx ? fmtCtx(c.ctx) : '',
+      }));
+    return [...katalog, ...live, ...kustom].slice(0, 40);
   }, [cari, providerSiap, remote, tr]);
 
   const modeCari = cari.trim().length > 0;
@@ -467,7 +600,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       top,
       width: LEBAR,
     };
-  }, [open, intip, cari, typed]);
+  }, [open, intip, cari]);
 
   /*
    * Flat list: every usable model in one scrollable list, grouped under a
@@ -480,7 +613,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
    */
   const daftarModel = useMemo(
     () =>
-      providerSiap.map((p) => {
+      penyediaTampil.map((p) => {
         const uiRemote = useSettingsUi.getState().remoteModels[p.id] ?? [];
         /*
          * What the provider's own list said, both copies merged.
@@ -495,27 +628,42 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
          */
         const hidup = [...(remote[p.id] ?? []), ...uiRemote];
         const adaLaporan = hidup.length > 0;
-        const items = modelTersedia(
-          p.id,
-          remote[p.id] ?? [],
-          uiRemote,
-          saved[p.id] ?? [],
-          laporan[p.id] ?? {},
-        ).map((m) => ({
-          ...m,
-          note: m.note ? tr(m.note) : '',
-          ctx: m.ctx ? fmtCtx(m.ctx) : '',
-          dikunci: adaLaporan && !hidup.includes(m.id),
-        }));
+        /*
+         * Models the reader ADDED under this provider (settings.models.custom).
+         *
+         * `modelTersedia` cannot see them for a `custom-*` provider: it resolves
+         * the catalogue by id and returns [] for an id it does not know. Without
+         * this merge the picker would show an empty group for a gateway that
+         * has three saved models — exactly the "modelnya ga kebaca" report.
+         */
+        const customRows = (useStore.getState().settings.models.custom ?? [])
+          .filter((c) => c.provider === p.id && !isPlaceholderModel(c.id))
+          .map((c) => ({ id: c.id, label: c.label || c.id, note: '', ctx: c.ctx }));
+        const items = [
+          ...customRows,
+          ...modelTersedia(
+            p.id,
+            remote[p.id] ?? [],
+            uiRemote,
+            saved[p.id] ?? [],
+            laporan[p.id] ?? {},
+          ),
+        ]
+          .filter((m, i, a) => a.findIndex((x) => x.id === m.id) === i)
+          .map((m) => ({
+            ...m,
+            note: m.note ? tr(m.note) : '',
+            ctx: m.ctx ? fmtCtx(m.ctx) : '',
+            dikunci: adaLaporan && !hidup.includes(m.id),
+          }));
         return {
           provider: p.id,
           label: p.label,
           freeText: !!p.freeText,
-          perluPilih: !!p.freeText && items.length === 0,
           items,
         };
       }),
-    [providerSiap, remote, saved, laporan, tr],
+    [penyediaTampil, remote, saved, laporan, tr],
   );
 
   /*
@@ -538,6 +686,41 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       ),
     [daftarModel],
   );
+
+  /*
+   * Two sections, the way the reference picker draws them: built-in providers
+   * first, then the reader's own gateways under "Custom Models".
+   *
+   * A single flat list could not tell "gemini-3-flash from Google" apart from
+   * "glm-5.3-flash from geraikita" without a tag on every row; the section
+   * header says it once, and the row suffix repeats it only where it matters.
+   */
+  const barisBawaan = useMemo(
+    () => barisDatar.filter((m) => !m.provider.startsWith('custom')),
+    [barisDatar],
+  );
+  const barisKustom = useMemo(
+    () => barisDatar.filter((m) => m.provider.startsWith('custom')),
+    [barisDatar],
+  );
+
+  /*
+   * Custom rows grouped under their gateway's own name, the way the reference
+   * picker draws third-party sections: a quiet header ("Geraikita"), then that
+   * gateway's models beneath it. One header per provider, in first-seen order.
+   */
+  const grupKustom = useMemo(() => {
+    const out: { provider: string; label: string; rows: typeof barisKustom }[] = [];
+    for (const m of barisKustom) {
+      let g = out.find((x) => x.provider === m.provider);
+      if (!g) {
+        g = { provider: m.provider, label: m.providerLabel, rows: [] };
+        out.push(g);
+      }
+      g.rows.push(m);
+    }
+    return out;
+  }, [barisKustom]);
 
   /* With one provider the tag would repeat the same word on every row. */
   const perluTagProvider = daftarModel.length > 1;
@@ -582,6 +765,53 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
       biaya: 'Billed by token',
     };
   }, [intip, modelById, efektif, laporan]);
+
+  /*
+   * One row, shared by both sections.
+   *
+   * The gateway name is NOT in the row: it sits in the group header above
+   * ("Geraikita"), the way the reference picker labels third-party sections.
+   * Repeating it on every row would make the list a wall of parentheses.
+   */
+  const baris = (m: (typeof barisDatar)[number], kustom: boolean) => {
+    const nama = tr(m.label);
+    return (
+      <button
+        key={`m:${m.provider}:${m.id}`}
+        role="option"
+        aria-selected={m.id === efektif.id}
+        className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip?.id === m.id ? ' is-intip' : ''}`}
+        data-model-item={m.id}
+        data-provider={m.provider}
+        data-terkunci={m.dikunci ? '1' : '0'}
+        data-baseurl={PROVIDER_BY_ID.get(m.provider)?.baseUrl}
+        title={
+          m.dikunci
+            ? tr(
+                'This provider does not list this model for the current key. It is still selectable, but it may be refused.',
+              )
+            : m.note || undefined
+        }
+        onMouseEnter={tunjuk(m.id)}
+        onFocus={tunjuk(m.id)}
+        onClick={() => {
+          pakai(m.id, m.provider);
+          setOpen(false);
+        }}
+      >
+        <ModelLogo id={m.id} size={15} />
+        <span className="ai-mi-name">{nama}</span>
+        {!kustom && perluTagProvider && <span className="ai-mi-tag">{m.providerLabel}</span>}
+        {m.dikunci ? (
+          <span className="ai-mi-lock" aria-label={tr('Not listed by this provider')}>
+            <AiIkon name="lock" size={12} />
+          </span>
+        ) : m.id === efektif.id ? (
+          <span className="pick-check">✓</span>
+        ) : null}
+      </button>
+    );
+  };
 
   return (
     <div className="ai-model-wrap" ref={wrap}>
@@ -628,11 +858,11 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
             <span className="ai-mp-head-judul">{tr('Built-in Models')}</span>
             <button
               type="button"
-              className={`ai-model-refresh${fetching ? ' is-putar' : ''}`}
+              className={`ai-model-refresh${sedangAmbil ? ' is-putar' : ''}`}
               data-testid={`${pfx}-model-refresh`}
-              title={fetching ? tr('Refreshing…') : tr('Refresh models')}
+              title={sedangAmbil ? tr('Refreshing…') : tr('Refresh models')}
               aria-label={tr('Refresh models')}
-              disabled={fetching || providerSiap.length === 0}
+              disabled={sedangAmbil || penyediaTampil.length === 0}
               onClick={() => void refreshSemua()}
             >
               <AiIkon name="refresh" size={13} />
@@ -730,7 +960,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
                 </button>
               ))
             )
-          ) : providerSiap.length === 0 ? (
+          ) : penyediaTampil.length === 0 ? (
             <div className="ai-model-empty" data-testid={`${pfx}-model-kosong`}>
               {tr('No API key installed yet. Add a key first to pick a model.')}
               <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={bukaModels}>
@@ -807,85 +1037,40 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               )}
 
               {/*
-                * One flat list. No provider headings, no folding.
+                * Two sections, the reference picker's shape: built-in models
+                * first, the reader's own gateways under a quiet "Custom Models"
+                * heading.
                 *
                 * The row is the reference product's row: mark, name, then the
                 * status at the right edge — a padlock when the provider's own
                 * list did not include this model, a tick when it is the one
-                * selected.
-                *
-                * The provider tag appears only when there is more than one
-                * provider configured. With a single provider it would be the
-                * same word on every row, which is noise, not information.
+                * selected. A custom row carries its gateway name in the label,
+                * "GLM 5.3 Flash (geraikita)", because two gateways can serve the
+                * same model id and the name is the only way to tell them apart.
                 */}
-              {barisDatar.map((m) => (
-                <button
-                  key={`m:${m.provider}:${m.id}`}
-                  role="option"
-                  aria-selected={m.id === efektif.id}
-                  className={`ai-model-item${m.id === efektif.id ? ' is-active' : ''}${intip?.id === m.id ? ' is-intip' : ''}`}
-                  data-model-item={m.id}
-                  data-provider={m.provider}
-                  data-terkunci={m.dikunci ? '1' : '0'}
-                  data-baseurl={PROVIDER_BY_ID.get(m.provider)?.baseUrl}
-                  title={
-                    m.dikunci
-                      ? tr(
-                          'This provider does not list this model for the current key. It is still selectable, but it may be refused.',
-                        )
-                      : m.note || undefined
-                  }
-                  onMouseEnter={tunjuk(m.id)}
-                  onFocus={tunjuk(m.id)}
-                  onClick={() => {
-                    pakai(m.id, m.provider);
-                    setOpen(false);
-                  }}
-                >
-                  <ModelLogo id={m.id} size={15} />
-                  <span className="ai-mi-name">{tr(m.label)}</span>
-                  {perluTagProvider && <span className="ai-mi-tag">{m.providerLabel}</span>}
-                  {m.dikunci ? (
-                    <span className="ai-mi-lock" aria-label={tr('Not listed by this provider')}>
-                      <AiIkon name="lock" size={12} />
-                    </span>
-                  ) : m.id === efektif.id ? (
-                    <span className="pick-check">✓</span>
-                  ) : null}
-                </button>
-              ))}
+              {barisBawaan.map((m) => baris(m, false))}
 
               {/*
-                * A free-text provider with no usable model in the catalogue gets
-                * its input inline, where its rows would have been.
+                * The reader's own gateways: one "Custom Models" label, then a
+                * header per gateway (logo + name) with its models beneath —
+                * the shape the reference picker uses for third-party sections.
+                * The gateway name lives in the HEADER now, so the row itself
+                * carries the bare model name again.
                 */}
-              {daftarModel
-                .filter((g) => g.freeText)
-                .map((g) => (
-                  <div className="ai-model-typed" key={`t:${g.provider}`}>
-                    <input
-                      type="text"
-                      className="ai-model-input"
-                      data-testid={`${pfx}-model-input`}
-                      placeholder={tr('Type a model name… (Enter)')}
-                      value={typed}
-                      spellCheck={false}
-                      onChange={(e) => setTyped(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitTyped(g.provider);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      data-testid={`${pfx}-model-pakai`}
-                      disabled={!typed.trim()}
-                      onClick={() => commitTyped(g.provider)}
-                    >
-                      {tr('Use')}
-                    </button>
+              {grupKustom.length > 0 && (
+                <div className="ai-mp-seksi" aria-hidden="true">
+                  {tr('Custom Models')}
+                </div>
+              )}
+              {grupKustom.map((g) => (
+                <Fragment key={`s:${g.provider}`}>
+                  <div className="ai-mp-prov" aria-hidden="true">
+                    <ProviderLogo id={g.provider} size={13} />
+                    <span>{namaProvider(g.provider) || g.label}</span>
                   </div>
-                ))}
+                  {g.rows.map((m) => baris(m, true))}
+                </Fragment>
+              ))}
 
               {providerTersembunyi > 0 && (
                 <div className="ai-mp-note" data-testid={`${pfx}-mp-note`}>
@@ -897,14 +1082,15 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
           </div>
 
           {/*
-            * The footer, in the reference product's shape: one full-width
-            * "Add Model" button below a divider.
+            * The footer, in the reference product's shape: one quiet row -
+            * mark, then label - separated by a hairline, not a full-width
+            * raised button.
             *
-            * It was an icon-only "+" beside the search field, which made the
-            * single action that GROWS the list the smallest target in the menu
-            * and hid it inside a header row. At the bottom, full width, it is
-            * the obvious way out of "my model is not in this list" — which is
-            * the reason the reader is scrolling in the first place.
+            * The raised button made the footer the brightest, heaviest block in
+            * a menu whose real content is the list above it; it read as the
+            * submit row of a form. As a plain row it is still the obvious way
+            * out of "my model is not in this list", without competing with the
+            * models.
             */}
           <div className="ai-mp-foot">
             <button
@@ -914,7 +1100,7 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
               title={tr('Add Model')}
               onClick={bukaModels}
             >
-              <AiIkon name="plus" size={12} />
+              <AiIkon name="gear" size={13} />
               <span>{tr('Add Model')}</span>
             </button>
           </div>

@@ -48,7 +48,13 @@ export default function AgentsKontrolSudut({
         className="agx-ide"
         data-testid="agx-ide"
         title="Back to the editor"
-        onClick={() => void fokusEditorWindow().catch(() => {})}
+        onClick={() =>
+          void fokusEditorWindow().catch((error: unknown) => {
+            /* Silence would repeat the original bug: a button that does
+               nothing and says nothing. */
+            console.error('gagal membuka jendela editor', error);
+          })
+        }
       >
         IDE
         <span className="agx-ide-panah" aria-hidden="true">

@@ -138,6 +138,8 @@ export default function CommandPalette() {
   const index = usePalette((s) => s.index);
   const loading = usePalette((s) => s.loadingFiles);
   const filesError = usePalette((s) => s.filesError);
+  const loadingSymbols = usePalette((s) => s.loadingSymbols);
+  const symbolsError = usePalette((s) => s.symbolsError);
   // Subscribed so the list repaints when the lazy command registry lands.
   const rev = usePalette((s) => s.rev);
 
@@ -242,7 +244,9 @@ export default function CommandPalette() {
         className="cp-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'file' ? 'Quick Open' : 'Command Palette'}
+        aria-label={
+          mode === 'file' ? 'Quick Open' : mode === 'symbol' ? 'Workspace Symbols' : 'Command Palette'
+        }
         data-testid="cp-modal"
         data-mode={mode}
         data-anchored={pakaiAnchor ? '1' : '0'}
@@ -279,9 +283,17 @@ export default function CommandPalette() {
             placeholder={
               mode === 'file'
                 ? tr('Search files by name')
-                : tr('Search commands, or type > for a command')
+                : mode === 'symbol'
+                  ? tr('Search symbols across the workspace')
+                  : tr('Search commands, or type > for a command')
             }
-            aria-label={mode === 'file' ? tr('Search files') : tr('Search commands')}
+            aria-label={
+              mode === 'file'
+                ? tr('Search files')
+                : mode === 'symbol'
+                  ? tr('Search symbols')
+                  : tr('Search commands')
+            }
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
@@ -339,10 +351,17 @@ export default function CommandPalette() {
             <p className="cp-empty" data-testid="cp-empty">
               {loading
                 ? tr('Loading file list…')
-                : (filesError ??
-                  (mode === 'file'
-                    ? tr('No matching files.')
-                    : tr('No matching commands.')))}
+                : mode === 'symbol'
+                  ? (symbolsError ??
+                    (loadingSymbols
+                      ? tr('Asking the language server…')
+                      : query.trim()
+                        ? tr('No matching symbols.')
+                        : tr('Type part of a name to search the whole workspace.')))
+                  : (filesError ??
+                    (mode === 'file'
+                      ? tr('No matching files.')
+                      : tr('No matching commands.')))}
             </p>
           )}
         </div>
@@ -368,7 +387,9 @@ export default function CommandPalette() {
           <span className="cp-foot-mode">
             {mode === 'file'
               ? tr('Ctrl+Shift+P for commands')
-              : tr('Ctrl+P to search files')}
+              : mode === 'symbol'
+                ? tr('Ctrl+P to search files · Ctrl+Shift+P for commands')
+                : tr('Ctrl+P to search files')}
           </span>
         </div>
       </div>
