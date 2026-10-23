@@ -14,6 +14,14 @@ export const EV = {
   mcpScreenshot: 'mcp-screenshot',
   mcpConnect: 'mcp-connect',
   settingsChanged: 'settings-changed',
+  /*
+   * Dikirim Rust setelah `set_model_key` menulis `secrets.json`.
+   *
+   * Tanpa ini hanya jendela yang MENYIMPAN key yang memperbarui daftarnya,
+   * sehingga jendela lain (Agents) terus menampilkan "belum punya API key"
+   * untuk key yang sudah ada di disk.
+   */
+  secretsChanged: 'secrets-changed',
   windowResized: 'window-resized',
   fileDropped: 'file-dropped',
   ramUsage: 'ram-usage',

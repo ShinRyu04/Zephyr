@@ -426,7 +426,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   }, [agentTanya]);
 
   const sibuk = pending || agentBusy;
-  const [bukaSendMenu, setBukaSendMenu] = useState(false);
   const [progressNow, setProgressNow] = useState(() => Date.now());
   const [loopBuka, setLoopBuka] = useState(false);
   const [backgroundBuka, setBackgroundBuka] = useState(false);
@@ -520,15 +519,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const fmtDur = (detik: number) => detik >= 3600
     ? `${Math.floor(detik / 3600)}:${String(Math.floor(detik % 3600 / 60)).padStart(2, '0')}:${String(detik % 60).padStart(2, '0')}`
     : `${Math.floor(detik / 60)}:${String(detik % 60).padStart(2, '0')}`;
-
-  /*
-   * Close the send menu the moment the run ends. It only exists while a run
-   * is in flight, so leaving it open over an idle composer would show a menu
-   * whose rows no longer describe anything.
-   */
-  useEffect(() => {
-    if (!sibuk) setBukaSendMenu(false);
-  }, [sibuk]);
 
   const provider = useAi((s) => s.provider);
   const keys = useAi((s) => s.keys);
@@ -3020,83 +3010,13 @@ const bukaModels = () => bukaPanel('models');
             )}
 
             {/*
-              * The caret only exists while a run is in flight.
-              *
-              * With nothing running, Enter and the button do the same thing
-              * and a menu with one meaningful row would be noise. While a run
-              * is in flight the real question is "do I want this to replace
-              * that answer, or follow it?" — and that is a choice worth a
-              * second click.
+              * Menu caret di dropdown Stop DIHAPUS atas permintaan user
+              * ("tombol queue dll di dropdown tombol stop itu dihapus aja, dia
+              * ga berguna"). Ketiga barisnya melakukan hal yang sudah bisa
+              * dilakukan tombol Stop dan tombol Send sendiri, jadi bukan hanya
+              * mubazir — "Add to queue" bahkan menjalankan jalur yang sama
+              * dengan "Send now", yang membuat pilihannya menipu.
               */}
-            {sibuk && (
-              <button
-                className="ai-send-caret"
-                data-testid="ai-send-menu"
-                aria-haspopup="menu"
-                aria-expanded={bukaSendMenu}
-                title={tr('Send options')}
-                aria-label={tr('Send options')}
-                onClick={() => setBukaSendMenu((v) => !v)}
-              >
-                <AiIkon name="chev-down" size={11} />
-              </button>
-            )}
-
-            {sibuk && bukaSendMenu && (
-              <>
-                <div className="ai-plus-backdrop" onClick={() => setBukaSendMenu(false)} />
-                <div className="ai-send-menu" data-testid="ai-send-menu-list" role="menu">
-                  <button
-                    className="ai-send-item"
-                    data-testid="ai-send-now"
-                    role="menuitem"
-                    onClick={() => {
-                      setBukaSendMenu(false);
-                      void kirimSekarang(draft, draftImages, composerId);
-                    }}
-                  >
-                    <AiIkon name="stop" size={13} />
-                    <span className="ai-send-item-text">
-                      <span className="ai-send-item-label">{tr('Send now (interrupt)')}</span>
-                      <span className="ai-send-item-hint">{tr('Stop the current run, then send this')}</span>
-                    </span>
-                  </button>
-
-                  <button
-                    className="ai-send-item"
-                    data-testid="ai-send-queue"
-                    role="menuitem"
-                    onClick={() => {
-                      setBukaSendMenu(false);
-                      void kirimSekarang(draft, draftImages, composerId);
-                    }}
-                  >
-                    <AiIkon name="queue" size={13} />
-                    <span className="ai-send-item-text">
-                      <span className="ai-send-item-label">{tr('Add to queue')}</span>
-                      <span className="ai-send-item-hint">{tr('Run after the current run finishes')}</span>
-                    </span>
-                    <kbd className="ai-send-item-kbd">Ctrl+Enter</kbd>
-                  </button>
-
-                  <button
-                    className="ai-send-item"
-                    data-testid="ai-send-plain"
-                    role="menuitem"
-                    onClick={() => {
-                      setBukaSendMenu(false);
-                      void cancel();
-                    }}
-                  >
-                    <AiIkon name="x" size={13} />
-                    <span className="ai-send-item-text">
-                      <span className="ai-send-item-label">{tr('Just stop')}</span>
-                      <span className="ai-send-item-hint">{tr('Stop the current run and keep this typed')}</span>
-                    </span>
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
 

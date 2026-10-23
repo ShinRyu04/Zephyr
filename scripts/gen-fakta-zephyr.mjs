@@ -113,6 +113,18 @@ const POLA_PINTU_MODELS = /(?:bukaPanel\(\s*['"]models['"]\s*\)|useAiModels\.get
 
 const PINTU_POPUP = [
   {
+    /*
+     * Jendela Agents punya pintunya sendiri: peringatan "provider belum punya
+     * API key" di layar awal composer menawarkan tombol AI Models. Itu pintu
+     * yang benar (bukan Settings), dan karena komponennya memanggil
+     * `bukaPanel('models')`, penjaga generator menuntutnya terdaftar di sini.
+     */
+    berkas: 'src/components/agents/AgentsComposer.tsx',
+    kunci: 'AI Models',
+    testid: 'agx-nokey-buka',
+    tempat: 'the "AI Models" button on the missing-key warning under the Agents composer',
+  },
+  {
     berkas: 'src/components/ai/AiPanel.tsx',
     kunci: 'Open AI Models',
     testid: 'ai-nokey-open',
@@ -760,6 +772,122 @@ function panelTampilan() {
   return { tab, cli, tampilan };
 }
 
+/* ---- 14b. Jendela Agents: inventaris lengkap, satu entri per layar -------
+   Jendela `#agents` adalah permukaan KEDUA aplikasi ini: WebView sendiri, chat
+   sendiri, dan halaman-halaman yang tidak ada di jendela utama. Tanpa entri
+   khusus, yang bisa dijawab model tentangnya hanya potongan label per komponen
+   (`permukaanUI`) - cukup untuk "tombol ini namanya apa", tidak cukup untuk
+   "apa saja yang ada di jendela Agents".
+
+   Karena itu di sini disusun satu entri per layar (sidebar, canvas, panel
+   kanan, composer, Marketplace, Automation, My Artifacts), dan ISI daftarnya
+   dipanen dari berkas jendela itu sendiri: nav sidebar, daftar view panel
+   kanan, menu composer, dan ukuran/judul jendela. Menambah satu halaman atau
+   satu opsi composer otomatis ikut - tidak ada daftar tangan yang bisa basi. */
+function jendelaAgents() {
+  const w = baca('src/lib/agentsWindow.ts');
+  const url = /url:\s*'([^']*#agents)'/.exec(w)?.[1];
+  if (!url) throw new Error('agentsWindow.ts: url #agents tidak ditemukan');
+  const label = /AGENTS_WINDOW_LABEL\s*=\s*'([^']+)'/.exec(w)?.[1] ?? 'agents';
+  const ukuran = /width:\s*(\d+),\s*\n?\s*height:\s*(\d+)/.exec(w);
+  const minimum = /minWidth:\s*(\d+),\s*\n?\s*minHeight:\s*(\d+)/.exec(w);
+
+  const side = baca('src/components/agents/AgentsSidebar.tsx');
+  const nav = [
+    ...side.matchAll(
+      /data-testid="agx-(new-task|marketplace|automation|artifacts)"[\s\S]{0,260}?<span>([^<]+)<\/span>/g,
+    ),
+  ].map((m) => ({ id: m[1], label: m[2].trim() }));
+  if (nav.length < 4) throw new Error(`AgentsSidebar.tsx: cuma ${nav.length} item nav terbaca`);
+
+  const dd = baca('src/components/agents/AgentsViewDropdown.tsx');
+  const butir = [
+    ...dd.matchAll(/id:\s*'([a-z-]+)',\s*\n?\s*label:\s*'([^']+)',\s*\n?\s*ket:\s*'((?:[^'\\]|\\.)*)'/g),
+  ].map((m) => ({ id: m[1], label: m[2], ket: untaikan(m[3]) }));
+  if (butir.length < 5) throw new Error(`AgentsViewDropdown.tsx: cuma ${butir.length} view terbaca`);
+
+  const komp = baca('src/components/agents/AgentsComposer.tsx');
+  const blokLokal = /const LOKAL\s*=\s*\[([^\]]+)\]/.exec(komp);
+  const lokal = blokLokal ? [...blokLokal[1].matchAll(/'([^']+)'/g)].map((m) => m[1]) : [];
+  if (!lokal.length) throw new Error('AgentsComposer.tsx: daftar LOKAL tidak terbaca');
+  const izin = [...komp.matchAll(/label:\s*'([^']+)',\s*\n?\s*hint:\s*'/g)].map((m) => m[1]);
+  const blokChip = /const CHIP[^=]*=\s*\[([\s\S]*?)\n\];/.exec(komp);
+  const chip = blokChip ? [...blokChip[1].matchAll(/judul:\s*'([^']+)'/g)].map((m) => m[1]) : [];
+
+  const ukuranTeks = ukuran
+    ? `${ukuran[1]}x${ukuran[2]} px` +
+      (minimum ? ` (minimum ${minimum[1]}x${minimum[2]})` : '')
+    : 'ukuran mengikuti layar';
+  const daftar = (arr) => arr.join(' \u00b7 ');
+
+  const entri = [];
+  const tambah = (kunci, teks) => entri.push({ kunci, teks });
+
+  tambah(
+    'Agents window',
+    `jendela KEDUA Zephyr (label ${label}, ${url}, ${ukuranTeks}, tanpa title bar bawaan) - bukan kolom AI di jendela utama ` +
+      'dan bukan jendela chat melayang. Tiga kolom: sidebar sesi di kiri, canvas di tengah, panel kanan yang bisa dibuka-tutup ' +
+      'dan lebarnya di-drag. Chat-nya PERCAKAPAN SENDIRI: daftar chat jendela ini terpisah dari chat jendela utama (kunci ' +
+      'penyimpanan sendiri), dan mulai percakapan baru di sini tidak menimpa percakapan di editor. Pilihan provider/model juga milik ' +
+      'jendela ini (disimpan sendiri): memilih model di sini tidak mengubah model jendela utama, dan sebaliknya. Tool tetap sama - shell, baca/tulis ' +
+      'berkas, LSP, browser - karena kedua jendela memakai backend Rust yang sama. Permukaan chat-nya berkunci `agents` ' +
+      '(sidebar memilih sesi lewat kunci itu).',
+  );
+  tambah(
+    'Agents window sidebar',
+    `sidebar kiri jendela Agents: ${daftar(nav.map((n) => n.label))} (id ${daftar(nav.map((n) => n.id))}), ` +
+      'lalu daftar percakapan yang DIKELOMPOKKAN MENURUT FOLDER PROYEK: tiap proyek punya chevron yang membuka chat-chat ' +
+      'miliknya (yang di-pin lebih dulu, lalu yang terbaru), ditambah satu kelompok Default untuk percakapan tanpa folder. ' +
+      'Di kepala daftar ada Collapse All/Expand All dan View Options (Grouped View / List View, Filter All/Cloud/Local; ' +
+      'Cloud belum tersedia). Baris tugas punya tombol ⋮ (Pin task, Open in Explorer, File Management, Rename, Delete Task) ' +
+      'dan kartu info (Local Task, path folder, Updated at) saat di-hover; baris proyek punya ⋯ (Create a new task, File ' +
+      'Management, Open in Explorer, Add Folder to Zephyr, Delete) plus tombol + untuk task baru di folder itu. Lebar sidebar ' +
+      'bisa di-drag (batas 200-360 px). "New task" membuat percakapan kosong baru di permukaan `agents` dan mengembalikan ' +
+      'canvas ke layar awal.',
+  );
+  tambah(
+    'Agents window canvas',
+    `canvas tengah jendela Agents punya empat halaman: chat (layar awal "Build With Zephyr" + transkrip), Marketplace, ` +
+      'Automation, dan My Artifacts. Selama halaman chat, kontrol sudut kanan-atas berisi tombol IDE \u2197 (membuka berkas di ' +
+      'jendela editor) dan tombol buka/tutup panel kanan. Setelah pesan pertama, canvas menampilkan panel chat penuh untuk ' +
+      'permukaan `agents`: transkrip, kartu tool, pertanyaan agen, persetujuan, dan kotak input berikutnya.',
+  );
+  tambah(
+    'Agents window right panel',
+    `panel kanan jendela Agents adalah panel bertab (bukan satu halaman): ${daftar(
+      butir.map((b) => `${b.label} (${b.ket})`),
+    )}. Tanpa tab terbuka ia menampilkan layar "Start here"; tombol + di bar panel membuka daftar view yang sama. ` +
+      'Tab Terminal tidak singleton (tiap klik shell baru), view lain singleton (sudah terbuka = difokuskan). ' +
+      'Side Chat di sini percakapan KETIGA yang terpisah, untuk bertanya tanpa mengganggu chat utama jendela ini.',
+  );
+  tambah(
+    'Agents window composer',
+    `kotak input layar awal jendela Agents: dropdown lokasi ${daftar(lokal)}, tombol folder (pilih folder kerja dari folder ` +
+      `yang pernah dipakai; bawaannya workspace yang sedang terbuka), menu izin ${daftar(izin)} + Custom (membuka Chat Settings), ` +
+      `pemilih model, dan tombol kirim. Empat chip saran di bawahnya: ${daftar(chip)}. ` +
+      'Enter mengirim, Shift+Enter baris baru; setelah percakapan dimulai, judul, strip lokasi, dan chip hilang.',
+  );
+  tambah(
+    'Agents window Marketplace',
+    'halaman Marketplace di jendela Agents memakai komponen Marketplace yang sama dengan jendela utama, tetapi hanya tiga tab ' +
+      'yang berlaku untuk agen: Plugins, Skills, MCP. Tombol Manage membuka HALAMAN Manage (bukan modal): tab Plugins/Skills/MCP ' +
+      'dengan penghitung, pencarian, dan baris terpasang - plugin punya sakelar aktif/nonaktif, skill dan server MCP punya tombol ' +
+      'Buang. Tab tema/ikon/keymap/bahasa/snippet tidak ada di sini karena semuanya mengubah tampilan editor di jendela utama.',
+  );
+  tambah(
+    'Agents window Automation',
+    'halaman Automation di jendela Agents menjadwalkan tugas ala TRAE: daftar tugas, interval, perintah yang dijalankan, dan ' +
+      'riwayat jalan terakhir. Penjadwalnya hidup selama jendela Agents terbuka (`useAutomationScheduler`), jadi tugas tetap ' +
+      'jalan walau halaman Automation sedang tidak dibuka.',
+  );
+  tambah(
+    'Agents window My Artifacts',
+    'halaman My Artifacts di jendela Agents mendaftar berkas hasil karya (folder artifacts di workspace) dan membukanya di ' +
+      'JENDELA EDITOR: jendela Agents tidak punya tab editor.',
+  );
+  return entri;
+}
+
 /* ---- 15. Permukaan antarmuka: tombol, tooltip, teks yang DI-RENDER komponen -
    Celah terbesar yang tersisa setelah blok inti dipotong: kamus i18n cuma
    memuat teks yang DITERJEMAHKAN. Teks yang ditulis langsung di komponen
@@ -1169,6 +1297,22 @@ function daftarSemuaKunciSetelan(setelan) {
    * satu-satunya id yang terlihat seperti pintu. Kalimat di bawah menyebut
    * pintu yang benar beserta id-nya, supaya tidak ada alasan menebak.
    */
+  /*
+   * Jendela Agents: satu paragraf penunjuk, bukan inventarisnya.
+   *
+   * Blok inti punya anggaran char yang dijaga `cek-batas-inti.mjs`, sedangkan
+   * inventaris jendela ini (sidebar, empat halaman canvas, tab panel kanan,
+   * menu composer, Marketplace + halaman Manage, Automation, My Artifacts)
+   * terlalu panjang untuk dibayar setiap giliran. Jadi yang ditulis di sini
+   * adalah HAL YANG PALING SERING SALAH DIJAWAB - bahwa jendela itu punya chat
+   * sendiri dan tool yang sama - beserta pintu ke rinciannya di indeks.
+   */
+  baris.push(
+    '- The Agents window (`index.html#agents`) is a SECOND window with its own chat: a separate conversation from the editor tab ' +
+      'and from the right-hand column, sharing the same tools and backend. Its full inventory (sidebar, canvas pages, right-panel ' +
+      'tabs, composer options, Marketplace + Manage) is in the index under "Agents window" - search it with `zephyr_self` before ' +
+      'describing that window, and never describe it from the main window\'s layout.',
+  );
   baris.push(
     '- Chat Settings and Agent Customizations are NOT Settings pages and are NOT opened by the Settings command ' +
       '(`view.settings`) or by `run_command` with `settings: ...`. Sending the reader there lands them in the Settings ' +
@@ -1425,6 +1569,11 @@ const SUMBER_HASH = [
   'src/lib/i18n-extra.ts',
   'src/lib/menu.ts',
   'src/lib/panelStore.ts',
+  /* Jendela Agents ikut: label jendela, url `#agents`, dan daftar view panel
+     kanannya menentukan entri `Agents window ...` yang dibaca model. */
+  'src/lib/agentsWindow.ts',
+  'src/lib/agentsTabs.ts',
+  'src/components/agents/AgentsViewDropdown.tsx',
   'src/lib/aiTabsStore.ts',
   'src/components/shell/ActivityBar.tsx',
   'src/components/settings/SettingsNav.tsx',
@@ -1591,6 +1740,11 @@ function susunIndeks() {
   tambah('port', 'MCP server', `default mcp.port=${garis((setelan.mcp ?? {}).port)}`);
   tambah('port', 'log Zephyr', '%APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotasi zephyr-1.log dst');
   tambah('bridge', 'window.__ZEPHYR_*__', `bridge dev untuk membaca store yang sama dengan UI: ${namaBridge().join(', ')}`);
+
+  /* Jendela Agents: entri per layar, lebih dulu daripada panen permukaan supaya
+     teks yang sudah dijelaskan di sini tidak dibuatkan entri kedua yang lebih
+     sempit ("tombol ini di berkas mana") tanpa konteks halamannya. */
+  for (const e of jendelaAgents()) tambah('layar', e.kunci, potong(e.teks, BATAS_TEKS_LAYAR));
 
   for (const d of dokumenBundel())
     tambah('dokumen', `${d.nama}#${d.judul}`, potong(d.teks, BATAS_POTONGAN_DOKUMEN));

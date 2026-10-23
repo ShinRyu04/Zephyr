@@ -124,7 +124,15 @@ export function kirim(
   now: number = Date.now(),
 ): HasilKirim {
   const bersih = (teks ?? '').trim();
-  if (bersih.length === 0) {
+  /*
+   * Baris bergambar tanpa teks TETAP sah.
+   *
+   * Panel menerima "tempel gambar lalu Enter" sebagai pesan; menolaknya di sini
+   * akan menghilangkan gambar yang sudah ditempel (keluhan nyata di jendela
+   * Agents: gambar/foto tidak bisa masuk). Jadi "kosong" berarti tanpa teks DAN
+   * tanpa gambar.
+   */
+  if (bersih.length === 0 && images.length === 0) {
     return {
       keadaan,
       ok: false,

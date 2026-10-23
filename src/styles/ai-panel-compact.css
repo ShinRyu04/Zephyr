@@ -1334,6 +1334,26 @@
   border-top: 1px solid var(--popup-border, var(--border));
 }
 
+/*
+ * Why the last Refresh produced nothing.
+ *
+ * Two lines maximum, ellipsised: provider errors can run long (a full JSON
+ * body, a URL, an HTTP status), and letting them wrap would push the Add Model
+ * row out of the menu. The full text stays in the `title` attribute.
+ */
+.ai-mp-galat {
+  margin: 0 8px 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--danger, #e5534b);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  cursor: help;
+}
+
 .ai-mp-add {
   display: flex;
   align-items: center;
