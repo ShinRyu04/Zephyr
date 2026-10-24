@@ -1,0 +1,1 @@
+public class Uji { public static void main(String[] a){ System.out.println("java-ok " + (6*7)); } }
