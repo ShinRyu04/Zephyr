@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7243 entri
- * (bridge=1, dokumen=124, ekstensi=21, kode=518, label=3147, layar=2818, menu=128, panel=23, perintah=188, pintasan=66, port=4, seksi=32, setelan=129, tool=44).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7245 entri
+ * (bridge=1, dokumen=124, ekstensi=21, kode=519, label=3147, layar=2819, menu=128, panel=23, perintah=188, pintasan=66, port=4, seksi=32, setelan=129, tool=44).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.14 · hash sumber: 3de81594eb829a97
+ * Versi app: 1.1.14 · hash sumber: da6f0daf7ab196c8
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: '3de81594eb829a97' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.14', hashSumber: 'da6f0daf7ab196c8' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -488,10 +488,10 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/rag.rs","100 baris · ekspor: RagHit, rag_search"],
   ["kode","src-tauri/src/run.rs","832 baris · ekspor: RunOutput, RunDone, ToolStatus, RunRuntime, run_tool_status, run_start, run_stop, run_selesai, run_input, run_input_eof, run_active"],
   ["kode","src-tauri/src/search.rs","1132 baris · ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, MAKS_BERKAS_GANTI, search_replace, ganti_lintas_berkas"],
-  ["kode","src-tauri/src/secrets.rs","1026 baris · ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, ModelInfo, list_models, reset_settings, roundtrip_for_test, seed_for_test, encrypt_with_seed_for_test, preview_for_test, endpoint_for_test, endpoint_for_full_test"],
+  ["kode","src-tauri/src/secrets.rs","1043 baris · ekspor: encrypt_string, decrypt_string, PublicModel, get_public_models, secrets_snapshot, key_for, set_secret, set_model_key, TestResult, test_model_connection, endpoint_is_loopback_for_test, ModelInfo, list_models, reset_settings, roundtrip_for_test, seed_for_test, encrypt_with_seed_for_test, preview_for_test, endpoint_for_test, endpoint_for_full_test"],
   ["kode","src-tauri/src/settings.rs","1023 baris · ekspor: AppInfo, RecentEntry, default_settings, deep_merge_um, read_json_um, take_broken_config, get_keybindings, set_keybindings, get_app_info, get_settings, set_settings, settings_export, settings_import, set_window_size, list_recents, push_recent, workspace_open, workspace_close, read_settings_value, patch_settings, patch_settings_no_emit, git_default_branch, git_identity, ram_peak, ram_last, ram_total_last, ram_total_peak, host_ram_total, host_cpu_count, host_os, spawn_ram_sampler, merge_for_test"],
   ["kode","src-tauri/src/sftp.rs","418 baris · //! SFTP and port forwarding, driven by the OpenSSH client Windows already · ekspor: SftpEntry, SftpHostInfo, ssh_path, sftp_list, sftp_upload, sftp_download, sftp_tunnel_start, sftp_tunnel_stop, sftp_tunnel_list, sftp_available"],
-  ["kode","src-tauri/src/skill_bundled.rs","4150 baris · BERKAS HASIL GENERATE - jangan disunting tangan. · ekspor: SKILL_BAWAAN, SKILL_BAWAAN_HASH"],
+  ["kode","src-tauri/src/skill_bundled.rs","9491 baris · BERKAS HASIL GENERATE - jangan disunting tangan. · ekspor: SKILL_BAWAAN, SKILL_BAWAAN_HASH"],
   ["kode","src-tauri/src/skills.rs","663 baris · ekspor: SKILL_MAX_BYTES, SkillInfo, SkillKatalog, nama_valid, parse_frontmatter, tanam_skill_bawaan, daftar_skills, baca_skill, tulis_skill, hapus_skill, skills_list, skill_read, skill_write, skill_delete, skills_katalog, skill_pasang, ringkasan_untuk_prompt, agent_context"],
   ["kode","src-tauri/src/snippets.rs","640 baris · ekspor: Snippet, SnippetSet, FileRusak, path_user, snippets_load, snippets_user_file, snippets_user_list, snippets_builtin_langs"],
   ["kode","src-tauri/src/ssh.rs","311 baris · ekspor: SshConfig, SshHostView, ssh_list, ssh_add, ssh_update, ssh_delete, ssh_save_password, ssh_clear_password, ssh_connect, ssh_disconnect"],
@@ -508,9 +508,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/web.rs","1103 baris · // web.rs — internet access for the agent: search the web and fetch page contents. · ekspor: BATAS_BYTE_BAWAAN, BATAS_BYTE_MAKS, BATAS_HOP_REDIRECT, HOP_REDIRECT_MAKS, PORT_SAH, IP_METADATA_V4, IP_METADATA_V6, batas_byte_dipakai, KebijakanJaringan, hop_dipakai, dari_setelan, port_dipakai, port_diizinkan, is_metadata, ip_terlarang_dengan, ip_terlarang, validate_outbound_url, validate_outbound_url_dengan, periksa_url_pane, periksa_url_pane_dengan, langkah_redirect, langkah_redirect_dengan, HasilCari, web_fetch, web_search"],
   ["kode","src-tauri/src/workspace.rs","770 baris · ekspor: Trust, boleh_eksekusi, Root, WorkspaceFile, FolderEntry, WorkspaceInfo, trust_untuk, ensure_trusted, ensure_trusted_path, baca_workspace_file, gabung_scope, workspace_info, workspace_set_trust, workspace_forget_trust, workspace_trust_list, workspace_add_root, workspace_remove_root, workspace_set_active_root, workspace_open_file, workspace_save_file, workspace_settings_efektif, workspace_settings_asal, workspace_set_settings, workspace_boleh_eksekusi"],
   ["kode","src-tauri/src/worktree.rs","946 baris · worktree.rs - `git worktree` dari dalam Zephyr, versi yang TIDAK melempar. · ekspor: Hasil, worktree_list, worktree_add, worktree_remove"],
-  ["kode","src/AgentsWindow.tsx","302 baris · tanpa ekspor"],
+  ["kode","src/AgentsWindow.tsx","315 baris · tanpa ekspor"],
   ["kode","src/AiWindow.tsx","65 baris · tanpa ekspor"],
-  ["kode","src/App.tsx","1905 baris · tanpa ekspor"],
+  ["kode","src/App.tsx","1915 baris · tanpa ekspor"],
   ["kode","src/PanelWindow.tsx","238 baris · tanpa ekspor"],
   ["kode","src/components/a11y/LiveRegion.tsx","38 baris · tanpa ekspor"],
   ["kode","src/components/agents/AgentsApp.tsx","208 baris · tanpa ekspor"],
@@ -565,7 +565,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/ModeMenu.tsx","424 baris · ekspor: ModeMenu, PermissionMenu, ReasoningMenu"],
   ["kode","src/components/ai/ModelDetailPanel.tsx","169 baris · The model detail panel, shared by both pickers. · ekspor: ModelUntukPanel"],
   ["kode","src/components/ai/ModelMenu.tsx","350 baris · ekspor: ModelChoice"],
-  ["kode","src/components/ai/ModelSelector.tsx","1183 baris · ekspor: TargetModel"],
+  ["kode","src/components/ai/ModelSelector.tsx","1197 baris · ekspor: TargetModel"],
   ["kode","src/components/ai/PanelTrail.tsx","23 baris · tanpa ekspor"],
   ["kode","src/components/ai/PanelWins.tsx","67 baris · tanpa ekspor"],
   ["kode","src/components/ai/PerubahanBerkas.tsx","295 baris · tanpa ekspor"],
@@ -637,7 +637,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/settings/AgcToolList.tsx","190 baris · tanpa ekspor"],
   ["kode","src/components/settings/AgentCustomPage.tsx","309 baris · tanpa ekspor"],
   ["kode","src/components/settings/AiModelsDialog.tsx","801 baris · \"Add Model\" — the TRAE-shaped dialog, and the ONLY place a provider is · ekspor: BarisModel, slugProvider, namaProvider, AddModelDialog"],
-  ["kode","src/components/settings/AiModelsPage.tsx","704 baris · AI Models, in the shape of the reference product. · tanpa ekspor"],
+  ["kode","src/components/settings/AiModelsPage.tsx","738 baris · AI Models, in the shape of the reference product. · tanpa ekspor"],
   ["kode","src/components/settings/AlatIkon.tsx","110 baris · One icon set for the tool chips in the custom sub-agent dialog. · tanpa ekspor"],
   ["kode","src/components/settings/BrandLogos.tsx","162 baris · Brand logos for the About buttons and the donate dialog. · ekspor: GitHubLogo, DiscordLogo, TrakteerLogo, SaweriaLogo, SupportLogo"],
   ["kode","src/components/settings/CapturePanel.tsx","159 baris · tanpa ekspor"],
@@ -651,7 +651,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/settings/MemoriPanel.tsx","197 baris · MemoriPanel — the Settings page that lets the reader SEE and DELETE what · tanpa ekspor"],
   ["kode","src/components/settings/PersonaCard.tsx","348 baris · tanpa ekspor"],
   ["kode","src/components/settings/RulesSection.tsx","153 baris · Settings > Rules. · tanpa ekspor"],
-  ["kode","src/components/settings/SectionsAdvanced.tsx","1384 baris · ekspor: ShortcutsSection, ModelsSection, AgentsSection, SubagentSection, CustomSubagentsCard"],
+  ["kode","src/components/settings/SectionsAdvanced.tsx","1404 baris · ekspor: ShortcutsSection, ModelsSection, AgentsSection, SubagentSection, CustomSubagentsCard"],
   ["kode","src/components/settings/SectionsBasic.tsx","1443 baris · ekspor: GeneralSection, EditorSection, ThemeSection"],
   ["kode","src/components/settings/SectionsDiag.tsx","134 baris · ekspor: SelfTestPanel, ExportPanel, laporanUntukUji"],
   ["kode","src/components/settings/SectionsExtensions.tsx","318 baris · ekspor: ExtensionsSection"],
@@ -691,7 +691,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/shell/SaveIssueDialog.tsx","84 baris · tanpa ekspor"],
   ["kode","src/components/shell/Sidebar.tsx","69 baris · tanpa ekspor"],
   ["kode","src/components/shell/SplitEditor.tsx","395 baris · tanpa ekspor"],
-  ["kode","src/components/shell/StatusBar.tsx","287 baris · tanpa ekspor"],
+  ["kode","src/components/shell/StatusBar.tsx","300 baris · tanpa ekspor"],
   ["kode","src/components/shell/SubAgentView.tsx","183 baris · tanpa ekspor"],
   ["kode","src/components/shell/TerminalArea.tsx","106 baris · tanpa ekspor"],
   ["kode","src/components/shell/TerminalPanel.tsx","235 baris · tanpa ekspor"],
@@ -731,7 +731,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","41 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","11632 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, …(+41)"],
+  ["kode","src/lib/aiStore.ts","11589 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, jalurKonteksKerja, siapkanKonteksKerja, catatHasilKonteks, MAX_AGENT_STEPS, …(+41)"],
   ["kode","src/lib/aiTabsStore.ts","157 baris · ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -778,7 +778,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/editorPerLanguage.ts","59 baris · ekspor: editorUntukBerkas, BAHASA_OVERRIDE"],
   ["kode","src/lib/editorRegistry.ts","60 baris · ekspor: setActiveView, getActiveView, activeLine, activeSelection, registerFlush, unregisterFlush, flushTab, flushAll, revealPosition"],
   ["kode","src/lib/emmet.ts","331 baris · Emmet (HTML/CSS) — ekspansi singkatan, tanpa paket eksternal. · ekspor: HasilEmmet, expandHtml, expandCss, expandEmmet"],
-  ["kode","src/lib/events.ts","321 baris · ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onOpenFileInEditor, onSettingsChanged, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
+  ["kode","src/lib/events.ts","329 baris · ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onOpenFileInEditor, onSettingsChanged, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
   ["kode","src/lib/explorerStore.ts","386 baris · ekspor: CtxMenu, InlineEdit, ExplorerStore, useExplorer"],
   ["kode","src/lib/extApprovalStore.ts","58 baris · ekspor: ExtApproval, useExtApproval"],
   ["kode","src/lib/extCatalog.ts","276 baris · ekspor: KatalogItem, KATALOG_BUNDLED, katalogById"],
@@ -833,7 +833,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/mdPreviewStore.ts","42 baris · ekspor: useMdPreview"],
   ["kode","src/lib/menu.ts","245 baris · ekspor: MenuItem, MenuDef, MENUS"],
   ["kode","src/lib/modelBrandIcons.ts","294 baris · // GENERATED by scripts/gen-brand-lengkap.mjs - jangan diedit manual. · ekspor: BrandMark, BRAND_MARKS"],
-  ["kode","src/lib/modelCatalog.tsx","1676 baris · ekspor: LogoId, Kemampuan, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, idProviderNyata, PROVIDER_AUTO, providerEfektif, providerTersimpanValid, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, LaporanModel, deteksiKemampuan, biayaModel, baseUrlEfektif, providerSiap, daftarProvider, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, WARNA_MEREK, ModelLogo"],
+  ["kode","src/lib/modelCatalog.tsx","1690 baris · ekspor: LogoId, Kemampuan, ProviderModel, ProviderInfo, PROVIDERS, PROVIDER_BY_ID, idProviderNyata, PROVIDER_AUTO, providerEfektif, providerTersimpanValid, PLACEHOLDER_MODEL_IDS, modelTersedia, isPlaceholderModel, LaporanModel, deteksiKemampuan, biayaModel, baseUrlEfektif, providerSiap, daftarProvider, ModelDef, ALL_MODELS, MODEL_BY_ID, MODEL_FALLBACK, maxOutBawaan, findModel, fmtCtx, ProviderLogo, ModelFamily, modelFamily, WARNA_MEREK, ModelLogo"],
   ["kode","src/lib/multilineKey.ts","44 baris · ekspor: PILIHAN_MULTILINE, MultilineKeyId, multilineSequence, isAgentPane"],
   ["kode","src/lib/nativeOverlay.ts","91 baris · Does the app currently draw something ON TOP of a native webview pane? · ekspor: overlayMenutupi, paneHarusTampil"],
   ["kode","src/lib/notesTodosStore.ts","159 baris · ekspor: Kind, Item, urutkan, useNotesTodos"],
@@ -865,6 +865,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/schedStore.ts","125 baris · ekspor: useSched, INTERVAL, useSchedBuka"],
   ["kode","src/lib/searchEditor.ts","128 baris · Search Editor — search results as an editable document. · ekspor: HasilSearch, KONTEKS, Petikan, petikanUntuk, keMarkdown"],
   ["kode","src/lib/searchStore.ts","341 baris · ekspor: GrupFile, useSearch, bindSearchListeners"],
+  ["kode","src/lib/secretsSync.ts","54 baris · ekspor: pasangSinkronKunci"],
   ["kode","src/lib/semanticTokens.ts","259 baris · Semantic tokens — language-server highlighting layered over the parser's. · ekspor: legendFor, capsUntukPath, TokenSet, semField, setTokensEffect, clearTokensEffect, mintaSemanticTokens, mintaSemanticTokensPenuh"],
   ["kode","src/lib/sessionsSideStore.ts","28 baris · ekspor: useSessionsSide"],
   ["kode","src/lib/settingsStore.ts","281 baris · ekspor: SectionId, SECTION_ORDER, useSettingsUi"],
@@ -876,7 +877,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/sorotBaris.ts","128 baris · Syntax colouring for ONE line of code, for surfaces that are not CodeMirror. · ekspor: JenisToken, Token, barisKomentar, sorotBaris"],
   ["kode","src/lib/sshArgv.ts","597 baris · sshArgv — penyusun argumen MURNI untuk ssh / scp / sftp. · ekspor: ModeSsh, KebijakanHostKey, TargetSsh, OpsiSsh, JalurSsh, KodeGalatSsh, GalatSsh, PORT_MIN, PORT_MAX, TIMEOUT_MS_BAWAAN, TIMEOUT_MS_MIN, TIMEOUT_MS_MAX, SERVER_ALIVE_DETIK, SERVER_ALIVE_MAKS, OPSI_DILARANG, OPSI_DIIZINKAN, hostSah, userSah, portSah, kunciSah, fingerprintSah, berkasOpsiSah, validasiTarget, kutipNilaiOpsi, kutipTokenRujukan, teksPerintah, jagaArgv, susunArgv, susunJalur, susunArgvJalankan, susunArgvSkripMentah, susunArgvSalin, teksArgv, FIELD_TERLARANG_DI_TARGET, targetMembawaRahasia"],
   ["kode","src/lib/sshRedaksi.ts","211 baris · sshRedaksi — penyaring rahasia untuk keluaran SSH dan catatan log. · ekspor: PENANDA, PENANDA_KUNCI_PRIVAT, AturanRedaksi, ATURAN_REDAKSI, DILARANG_LOG, BOLEH_LOG, sensorRahasia, namaAturanCocok, adaRahasia, sensorArgv, sensorUntukLog"],
-  ["kode","src/lib/store.ts","1978 baris · ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, pasangSinkronSetelan, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
+  ["kode","src/lib/store.ts","1993 baris · ekspor: ConfirmState, SaveIssue, NavLoc, Store, flushSetelanTerakhir, pasangSinkronSetelan, MAX_LOADED_TABS, maxLoadedTabs, pasangAutoSaveFokus, useStore, useActiveTab"],
   ["kode","src/lib/subagentCustom.ts","405 baris · ekspor: AlatId, AlatInfo, ALAT, SubagentCustom, kosongkanSubagent, bacaDaftar, customAktif, cariCustom, pisahCustom, PERAN_BAWAAN, arahanCustom, useSubagentCustom, customDariPrefix, daftarPekerja"],
   ["kode","src/lib/subagentIcons.ts","236 baris · The icon set for custom sub-agents. · ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
   ["kode","src/lib/subagentRoles.ts","330 baris · ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
@@ -4093,6 +4094,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","(Active)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","(local CLI login)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","(no pattern set)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
+  ["layar","(not set)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsPage.tsx"],
   ["layar","(saved — type to replace)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsDialog.tsx"],
   ["layar","(uses git config)","placeholder di layar · dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
   ["layar","**/*.{ts,tsx}","placeholder di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
@@ -4195,7 +4197,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AgentsWindow","src/AgentsWindow.tsx · 1 data-testid: agents-window-root"],
   ["layar","AiHost","src/components/ai/AiHost.tsx · 1 label: Agent · 4 data-testid: ai-host, ai-host-pane-chat, ai-host-tab-chat, ai-host-tabs"],
   ["layar","AiModelsDialog","src/components/settings/AiModelsDialog.tsx · 49 label: (saved — type to replace), A model id is required., API Format, API key, Add Model, Advanced Settings, All, Anthropic Messages, Cancel, Change, Close, Context size, Custom Model, Custom Request URL, Defaults to Model ID if not set, Delete, Detecting…, Display Name, Edit Model, Enter the OpenAI-compatible API endpoint. Do not end with a slash. /chat/completions will be appended to the URL you provide., Full URL, Google, Hide, Input Display Name, Input Model ID, Model ID, None, OpenAI Chat Completions, OpenAI Responses API, Pick a provider first., Pick a provider. The endpoint is filled in for you., Provider Name, Refresh, Saved as, Saving…, Show, Stored by Rust in %APPDATA%\\zephyr\\secrets.json, encrypted. This window only sees a mask., The URL is used exactly as typed; nothing is appended., This gateway lists no models, so the ID you type here is saved as-is and sent verbatim in every request., Tick the models to add · placeholder: 128000, https://api.openai.com/v1 · 24 data-testid: aim-add-advanced, aim-add-advanced-isi, aim-add-batal, aim-add-ctx, aim-add-durasi, aim-add-format, aim-add-full-url, aim-add-galat, aim-add-ganti-prov, aim-add-hapus-key, aim-add-hasil, aim-add-id, aim-add-jumlah, aim-add-key, aim-add-kosong, aim-add-label, aim-add-modal, aim-add-provider-name, aim-add-refresh, aim-add-simpan, aim-add-url, aim-…"],
-  ["layar","AiModelsPage","src/components/settings/AiModelsPage.tsx · 25 label: ? Its models, saved URL and API key will be removed., Active model set to, Active provider, Add Model, Add or manage available models. Built-in models use the default stable version. Configure an API to access other models., Added, Built-in, Context size, Custom, Delete, Delete provider, In use, Model added., Model removed., Models, No built-in model matches that search., No custom models yet. Press Add Model, paste a key, then Refresh., Provider removed:, Research preview, Search models…, Use, active, detected, model(s)., the app picks the model and the workflow per task · 8 data-testid: aim-aktif-pil, aim-cari, aim-custom-kosong, aim-page, aim-page-content, aim-pesan, aim-table-row, aim-tambah"],
+  ["layar","AiModelsPage","src/components/settings/AiModelsPage.tsx · 26 label: (not set), ? Its models, saved URL and API key will be removed., Active model set to, Active provider, Add Model, Add or manage available models. Built-in models use the default stable version. Configure an API to access other models., Added, Built-in, Context size, Custom, Delete, Delete provider, In use, Model added., Model removed., Models, No built-in model matches that search., No custom models yet. Press Add Model, paste a key, then Refresh., Provider removed:, Research preview, Search models…, Use, active, detected, model(s)., the app picks the model and the workflow per task · 8 data-testid: aim-aktif-pil, aim-cari, aim-custom-kosong, aim-page, aim-page-content, aim-pesan, aim-table-row, aim-tambah"],
   ["layar","AiPanel","src/components/ai/AiPanel.tsx · 91 label: \"{name}\" is larger than 3.5 MB - skipped, 1 step done, @ for context, / for commands, Add a file, an image or dictate, Add an API key for, Agent, Agent is working…, Allow, Attach, Attached {name}, Cadence, Cancel, Cari rujukan konteks, Checking the result, Clear the queue, Close, Context for this message, Continue from where it stopped, Could not read that folder, Could not read {name}, Deep understanding of complex tasks, Delete, Deny, Edit the queued message, Files…, Filter by kind, Folder…, Go to the newest, Image attachment {n}, Images…, Keeps every change reviewable before it lands, Ketik untuk mencari…, Masukkan nama untuk mencari, Message for the AI, Move down in the queue, Move up in the queue, No chats match., No image on the clipboard, No matching commands., On branch {name} · 64 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-intro, ai-jump-bottom, ai-nokey, ai-nokey-dismiss, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus, ai-plus-file"],
   ["layar","AiWindow","src/AiWindow.tsx · 1 data-testid: ai-window-root"],
   ["layar","All conversations cleared.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],

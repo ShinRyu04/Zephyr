@@ -3,6 +3,7 @@ import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { folderDialogOpen, revealPath } from '../../lib/commands';
 import { useT } from '../../lib/i18n';
+import { useTanya } from '../../lib/tanyaStore';
 import type { TampilanAgents } from '../../lib/agentsWindow';
 
 /*
@@ -202,6 +203,7 @@ export default function AgentsSidebar({
   const sesiBaru = useAi((s) => s.newChat);
   const ikutiWorkspace = useAi((s) => s.ikutiWorkspace);
   const hapusSesi = useAi((s) => s.deleteChat);
+  const tanya = useTanya((s) => s.tanya);
   const gantiJudul = useAi((s) => s.renameChat);
   const pinSesi = useAi((s) => s.setChatPinned);
   const workspace = useStore((s) => s.workspace);
@@ -729,12 +731,20 @@ export default function AgentsSidebar({
             <button
               className="agx-ctx-item is-bahaya"
               data-testid="agx-menu-proyek-hapus"
-              onClick={() => {
+              onClick={async () => {
                 const { kunci } = menuProyek;
                 setMenuProyek(null);
                 const isi = sessions.filter((s) => s.workspace && kunciPath(s.workspace) === kunci);
                 if (!isi.length) return;
-                if (!window.confirm(`Delete ${isi.length} task in this project?`)) return;
+                /* In-app dialog instead of `window.confirm`: deleting a task
+                   would be irreversible, and the WebView2 dialog is neither
+                   themable nor translated by the app. */
+                const lanjut = await tanya({
+                  judul: `Delete ${isi.length} task in this project?`,
+                  ok: 'Delete',
+                  bahaya: true,
+                });
+                if (!lanjut) return;
                 for (const s of isi) hapusSesi(s.id);
               }}
             >

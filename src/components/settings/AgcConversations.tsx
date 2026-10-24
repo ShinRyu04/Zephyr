@@ -40,6 +40,7 @@ import AiIkon from '../ai/AiIkon';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { riwayatNotifikasi } from '../../lib/notifikasiAi';
+import { useTanya } from '../../lib/tanyaStore';
 
 type Tab = 'setelan' | 'riwayat' | 'notifikasi';
 
@@ -185,6 +186,8 @@ export default function AgcConversations() {
   const selectChat = useAi((s) => s.selectChat);
   const deleteChat = useAi((s) => s.deleteChat);
   const renameChat = useAi((s) => s.renameChat);
+  const tanya = useTanya((s) => s.tanya);
+  const mintaTeks = useTanya((s) => s.mintaTeks);
 
   const [riwayat, setRiwayat] = useState(() => riwayatNotifikasi());
   useEffect(() => {
@@ -272,8 +275,17 @@ export default function AgcConversations() {
               className="agset-btn-batal conv-clear"
               data-testid="agx-conv-clear-all"
               title={tr('Clear all conversations')}
-              onClick={() => {
-                if (!window.confirm(tr('Delete all conversations? This cannot be undone.'))) return;
+              onClick={async () => {
+                /* In-app dialog, not `window.confirm`: this deletes every
+                   conversation the reader has, and a WebView2 confirm blocks
+                   the renderer and ignores the app's theme and language. */
+                const lanjut = await tanya({
+                  judul: 'Delete all conversations?',
+                  isi: 'This cannot be undone.',
+                  ok: 'Clear All',
+                  bahaya: true,
+                });
+                if (!lanjut) return;
                 for (const s of sessions ?? []) deleteChat(s.id);
                 setPilih(null);
                 setPesan(tr('All conversations cleared.'));
@@ -656,8 +668,12 @@ export default function AgcConversations() {
                           className="conv-ikon-btn"
                           data-testid={`agx-conv-ganti-nama-${s.id}`}
                           title={tr('Rename')}
-                          onClick={() => {
-                            const baru = window.prompt(tr('New title'), s.title || '');
+                          onClick={async () => {
+                            const baru = await mintaTeks({
+                              judul: 'New title',
+                              ok: 'Rename',
+                              prompt: { nilaiAwal: s.title || '' },
+                            });
                             if (baru === null) return;
                             renameChat(s.id, baru.trim());
                             setPesan(tr('Title updated.'));

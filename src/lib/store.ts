@@ -429,7 +429,22 @@ export function pasangSinkronSetelan(): void {
         if (timerSinkronSetelan) clearTimeout(timerSinkronSetelan);
         timerSinkronSetelan = setTimeout(() => {
           timerSinkronSetelan = null;
-          void useStore.getState().reloadSettings();
+          void useStore.getState().reloadSettings().then(() => {
+            /*
+             * Model ikut jendela lain.
+             *
+             * `reloadSettings` hanya memperbarui `settings` di store ini;
+             * panel AI punya salinan provider/model sendiri, jadi tanpa baris
+             * ini memilih model di jendela utama tidak mengubah model di
+             * jendela Agents sampai halaman itu di-reload. `sinkronProvider`
+             * adalah jalur yang sama dengan init, jadi hasilnya identik.
+             */
+            void import('./aiStore')
+              .then((m) => m.useAi.getState().sinkronProvider())
+              .catch(() => {
+                /* non-fatal: settings sudah benar di disk */
+              });
+          });
         }, 120);
       }),
     )

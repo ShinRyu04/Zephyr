@@ -19,6 +19,7 @@ import LiveRegion from './components/a11y/LiveRegion';
 
 const ClearChatsDialog = lazy(() => import('./components/ai/ClearChatsDialog'));
 const ConfirmDialog = lazy(() => import('./components/shell/ConfirmDialog'));
+const TanyaDialog = lazy(() => import('./components/shell/TanyaDialog'));
 const SaveIssueDialog = lazy(() => import('./components/shell/SaveIssueDialog'));
 const NotificationCenter = lazy(() => import('./components/notifications/NotificationCenter'));
 const DeleteConfirmDialog = lazy(() => import('./components/explorer/DeleteConfirmDialog'));
@@ -44,7 +45,8 @@ const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const WelcomeSetup = lazy(() => import('./components/shell/WelcomeSetup'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
-import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir, pasangSinkronSetelan } from './lib/store';import { useTampilan } from './lib/tampilanStore';
+import { useStore, pasangAutoSaveFokus, flushSetelanTerakhir, pasangSinkronSetelan } from './lib/store';import { pasangJembatanStore } from './lib/panelWindow';
+import { useTampilan } from './lib/tampilanStore';
 import { useLayoutCustom } from './lib/layoutStore';
 import { useExplorer } from './lib/explorerStore';
 import { useTerminal } from './lib/terminalStore';
@@ -495,6 +497,11 @@ export default function App() {
     /* Settings changed in another window (a panel window) must repaint this one:
        theme, language, zoom. Bound once per window; see store.ts. */
     pasangSinkronSetelan();
+    /* Panel windows have no tabs and no rail (`#panel=extensions` renders only
+       the extensions page), so the actions that close a page or restore the rail
+       run HERE, on this window's store, when a panel asks for them over the
+       shared Tauri event bus. See panelWindow.ts. */
+    pasangJembatanStore();
   }, [bootstrap]);
 
   useEffect(() => {
@@ -1885,6 +1892,7 @@ export default function App() {
         <DeleteConfirmDialog />
         <BreakpointOptionsDialog />
         <ClearChatsDialog />
+        <TanyaDialog />
         <TrustDialog />
         {/* Extension external-runtime permissions - global, they can appear at any
             time because execution can be requested from any worker. */}

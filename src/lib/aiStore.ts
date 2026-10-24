@@ -203,50 +203,22 @@ const LS_KEY = JENDELA_AGENTS
   : 'zephyr.ai.sessions.v1';
 
 /*
- * PROVIDER + MODEL juga milik jendela ini, bukan milik aplikasi.
+ * PROVIDER + MODEL = SATU pilihan untuk SEMUA jendela.
  *
- * Percakapan yang terpisah tapi modelnya tetap satu sumber masih menghasilkan
- * bug yang sama dalam bentuk lain: pilih model di jendela utama, dan jendela
- * Agents tiba-tiba mengirim nama model gateway lain — persis 400 "model or the
- * message body is invalid" yang dilaporkan. Penyebabnya dua arah:
+ * Dulu jendela Agents menyimpan modelnya sendiri (`zephyr.ai.pilihan.v1.agents`)
+ * dan sengaja tidak menulis settings, dengan alasan mencegah request memakai
+ * nama model gateway lain. Hasilnya justru dua permukaan yang menyebut model
+ * berbeda: pilih model di jendela utama, jendela Agents tetap di model lamanya —
+ * dan pembaca melihat dua "model aktif" yang tidak pernah sama.
  *
- *   `setModel` menulis `settings.models.activeProvider` + `providers[].model`
- *   (settings.json, dipakai bersama), lalu `sinkronProvider` menarik SETIAP
- *   jendela ke nilai itu setiap settings ditulis.
+ * Sekarang settings.json adalah satu-satunya sumber: `setModel` di jendela mana
+ * pun menulis `models.activeProvider` + `providers[].model`, `init` membaca nilai
+ * itu, dan `sinkronProvider` menarik SETIAP jendela ke sana (termasuk saat
+ * jendela lain menulis, lewat `settings-changed`).
  *
- * Jendela utama tetap memakai settings sebagai sumbernya (itu yang dibaca
- * toolbar, dialog Models, dan `run_command`). Jendela Agents menyimpan
- * pilihannya sendiri di sini: `setModel` tidak menyentuh settings, dan
- * `sinkronProvider` tidak menariknya. Konfigurasi provider (baseUrl, daftar
- * model, key) tetap bersama — yang dipisah hanya PILIHAN, karena itu yang
- * menentukan request dikirim ke mana.
+ * Yang tetap terpisah hanya DAFTAR PERCAKAPAN (`LS_KEY` di atas): dua jendela
+ * boleh punya riwayat chat sendiri, tetapi model yang mengirim harus sama.
  */
-const LS_PILIHAN = JENDELA_AGENTS ? 'zephyr.ai.pilihan.v1.agents' : null;
-
-/** Pilihan provider/model yang tersimpan untuk jendela ini (jendela Agents). */
-function bootPilihan(): { provider?: string; model?: string } {
-  if (!LS_PILIHAN) return {};
-  try {
-    const mentah = localStorage.getItem(LS_PILIHAN);
-    if (!mentah) return {};
-    const o = JSON.parse(mentah) as { provider?: unknown; model?: unknown };
-    return {
-      provider: typeof o.provider === 'string' && o.provider ? o.provider : undefined,
-      model: typeof o.model === 'string' && o.model ? o.model : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
-function simpanPilihan(provider: string, model: string): void {
-  if (!LS_PILIHAN) return;
-  try {
-    localStorage.setItem(LS_PILIHAN, JSON.stringify({ provider, model }));
-  } catch {
-    /* penuh/diblokir: pilihan tetap hidup di memori */
-  }
-}
 
 /*
  * Satu pesan di antrian kirim.
@@ -3881,27 +3853,10 @@ export const useAi = create<AiStore>((set0, get) => {
     let model = isPlaceholderModel(tersimpan) ? kandidat : tersimpan || kandidat;
 
     /*
-     * Jendela Agents memakai pilihan yang TERAKHIR DIPILIH DI JENDELA ITU.
-     *
-     * Tanpa ini, setiap kali jendela dibuka dua permukaan itu kembali
-     * bertemu: pilihan lokal ditimpa `settings.models.activeProvider`, lalu
-     * satu window mengirim nama model milik gateway window lain. Provider yang
-     * tidak dikenal (mis. sisa konfigurasi yang sudah dihapus) diabaikan, jadi
-     * pilihan rusak jatuh kembali ke default settings alih-alih mengirim
-     * request yang pasti gagal.
+     * Jendela Agents TIDAK lagi memakai pilihan tersendiri: `prov` + `model` di
+     * atas sudah datang dari settings, sumber yang sama dengan jendela utama.
+     * Dua jendela dengan model berbeda adalah bug yang dilaporkan, bukan fitur.
      */
-    if (JENDELA_AGENTS) {
-      const sendiri = bootPilihan();
-      if (sendiri.provider && dikenal(sendiri.provider)) {
-        prov = sendiri.provider;
-        const modelSendiri =
-          sendiri.model && !isPlaceholderModel(sendiri.model) ? sendiri.model : '';
-        model =
-          modelSendiri ||
-          PROVIDER_BY_ID.get(prov)?.models?.find((m) => !isPlaceholderModel(m.id))?.id ||
-          model;
-      }
-    }
     set({
       provider: prov,
       model,
@@ -3963,16 +3918,14 @@ export const useAi = create<AiStore>((set0, get) => {
 
   sinkronProvider: () => {
     /*
-     * Jendela Agents TIDAK ikut settings.
+     * SETIAP jendela ikut settings, termasuk jendela Agents.
      *
-     * `sinkronProvider` menarik panel ke `settings.models.activeProvider`, dan
-     * settings dipakai bersama dua jendela. Selama Agents ikut ditarik, memilih
-     * model di jendela utama mengganti model di jendela Agents — request lalu
-     * pergi ke gateway dengan nama model yang bukan miliknya (400). Pilihannya
-     * sendiri disimpan di `LS_PILIHAN` dan hanya berubah lewat pemilih model di
-     * jendela itu.
+     * Satu pilihan model untuk seluruh aplikasi: memilih model di jendela mana
+     * pun harus terlihat di jendela lain. Penjagaan terhadap "request memakai
+     * model gateway lain" sekarang ada di tempat yang benar — provider dan model
+     * selalu diambil dari pasangan yang sama di settings (`activeProvider` +
+     * `providers[activeProvider].model`), bukan dari dua sumber terpisah.
      */
-    if (JENDELA_AGENTS) return;
     /*
      * HydraFusion is a selection, not a provider default.
      *
@@ -4049,7 +4002,18 @@ export const useAi = create<AiStore>((set0, get) => {
      * terakhir sinkronisasi. Menulis URL/key/fullUrl di dialog lain tidak
      * lagi menyentuh pilihan model/user.
      */
-    if (get().lastActiveProvider === target) return;
+    /*
+     * "Sudah pernah disinkronkan" HANYA berarti selesai kalau panel memang
+     * sedang memakai provider itu dan sudah punya model.
+     *
+     * Dulu cukup `lastActiveProvider === target`. Nilai itu bisa terisi oleh
+     * satu lintasan yang berhenti lebih awal (model belum ada), dan semua
+     * pemanggilan berikutnya lalu percaya bahwa pekerjaannya sudah beres:
+     * panel tertinggal di `custom` dengan model kosong, dan pembaca melihat
+     * "masukkan API key" padahal key dan gateway-nya jelas tersimpan. Terjadi
+     * tepat setelah app dibuka, sebelum panel AI pernah diinisialisasi.
+     */
+    if (get().lastActiveProvider === target && get().provider === target && get().model) return;
 
     const dariSettings = models.providers?.[target]?.model;
     /*
@@ -4172,21 +4136,14 @@ export const useAi = create<AiStore>((set0, get) => {
     persist(get());
 
     /*
-     * Jendela Agents: simpan di JENDELA INI dan jangan menulis settings.
+     * Jendela Agents ikut MENULIS settings.
      *
-     * `applySettings` di bawah menulis `models.activeProvider` +
-     * `providers[].model` ke settings.json, dan settings itu dibaca kedua
-     * jendela. Menulisnya dari sini membuat pilihan di jendela Agents menarik
-     * jendela utama (dan sebaliknya) — yang justru mau dihindari. Provider,
-     * baseUrl, dan daftar model tetap dibaca bersama; hanya PILIHAN yang
-     * dipisah. HydraFusion tidak disimpan, sama seperti di jendela utama: ia
-     * sentinel routing, bukan nama model yang bisa dipulihkan.
+     * Model yang dipilih di jendela mana pun menjadi model aplikasi: jendela
+     * lain menerimanya lewat `settings-changed` → `reloadSettings()` →
+     * `sinkronProvider()`. Menyimpannya hanya di localStorage jendela itu
+     * (perilaku lama) membuat dua jendela terus berbeda. HydraFusion tetap tidak
+     * disimpan, sama seperti sebelumnya: ia sentinel routing, bukan nama model.
      */
-    if (JENDELA_AGENTS) {
-      if (!hydra) simpanPilihan(def.provider, def.id);
-      return;
-    }
-
     const models = useStore.getState().settings.models;
     const providers = models?.providers ?? {};
     await useStore.getState().applySettings({

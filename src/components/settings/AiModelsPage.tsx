@@ -32,7 +32,15 @@ import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useStore } from '../../lib/store';
 import { useSettingsUi } from '../../lib/settingsStore';
-import { PROVIDERS, ModelLogo, ProviderLogo, idProviderNyata, type ProviderModel } from '../../lib/modelCatalog';
+import { useTanya } from '../../lib/tanyaStore';
+import {
+  PROVIDERS,
+  ModelLogo,
+  ProviderLogo,
+  idProviderNyata,
+  providerTersimpanValid,
+  type ProviderModel,
+} from '../../lib/modelCatalog';
 import { HYDRA_MODEL_ID } from '../../lib/hydraModel';
 import { AddModelDialog, namaProvider, type BarisModel } from './AiModelsDialog';
 
@@ -149,6 +157,7 @@ export default function AiModelsPage() {
   const models = useStore((s) => s.settings.models);
   const apply = useStore((s) => s.applySettings);
   const ui = useSettingsUi();
+  const tanya = useTanya((s) => s.tanya);
 
   const [cari, setCari] = useState('');
   const [bukaBuiltin, setBukaBuiltin] = useState(true);
@@ -351,7 +360,16 @@ export default function AiModelsPage() {
    */
   const hapusProvider = async (pid: string) => {
     const nama = namaProvider(pid) || pid;
-    if (!window.confirm(tr('Delete provider ') + nama + tr('? Its models, saved URL and API key will be removed.'))) return;
+    /* In-app dialog instead of `window.confirm`: this wipes the provider's
+       models, its saved base URL AND its API key from disk. A WebView2 confirm
+       blocks the renderer and renders outside the app's theme. */
+    const lanjut = await tanya({
+      judul: 'Delete provider ' + nama + '?',
+      isi: 'Its models, saved URL and API key will be removed.',
+      ok: 'Delete',
+      bahaya: true,
+    });
+    if (!lanjut) return;
     const sekarang = useStore.getState().settings.models;
     const lama = sekarang?.custom ?? [];
     /* PENTING: simpan settings itu deep-merge (RFC 7386). Mengirim objek `prov`
@@ -385,7 +403,20 @@ export default function AiModelsPage() {
    */
   const idProviderTampil = useCallback(
     (id: string): string => {
-      if (!id || id === 'custom') return '';
+      if (!id) return '';
+      /*
+       * Slot `custom` tanpa nama: tampilkan gateway yang BENAR-BENAR punya URL.
+       *
+       * Mengembalikan '' di sini tidak membuat dropdown kosong — `<select>`
+       * dengan nilai yang tidak punya `<option>` menampilkan opsi PERTAMA, jadi
+       * pembaca melihat "Gemini" padahal `activeProvider` berisi 'custom'. Itu
+       * juga yang membuat tombol "Custom" terasa tidak bisa ditekan: nilainya
+       * ditolak tanpa pesan, dan kotaknya tetap menunjuk provider lain.
+       */
+      if (id === 'custom') {
+        const nyata = providerTersimpanValid('custom', models?.providers);
+        return nyata === 'custom' ? 'custom' : nyata;
+      }
       if (id !== 'auto') return id;
       const punyaKey = (p: string) => ui.keys.some((k) => k.provider === p && k.hasKey);
       const katalog = PROVIDERS.find((p) => punyaKey(p.id));
@@ -397,7 +428,18 @@ export default function AiModelsPage() {
   );
 
   const pilihanAktif = useMemo(() => {
-    const hasil: { id: string; label: string }[] = PROVIDERS.map((p) => ({
+    /*
+     * Slot `custom` hanya ikut bila ia benar-benar dikonfigurasi (punya URL).
+     *
+     * Ia ada di katalog bawaan, jadi dulu SELALU muncul sebagai opsi — padahal
+     * memilihnya ditolak `onChange` (slot itu tidak punya endpoint). Opsi yang
+     * tidak bisa dipilih adalah bug tampilan: pembaca menekan "Custom", tidak
+     * terjadi apa-apa, dan dropdown kembali ke provider lain.
+     */
+    const customSiap = !!models?.providers?.custom?.baseUrl?.trim();
+    const hasil: { id: string; label: string }[] = PROVIDERS.filter(
+      (p) => p.id !== 'custom' || customSiap,
+    ).map((p) => ({
       id: p.id,
       label: namaProvider(p.id) || p.id,
     }));
@@ -676,11 +718,14 @@ export default function AiModelsPage() {
                * "provider aktif" tidak menunjuk apa pun dan pembaca melihat
                * provider pertama di daftar (Gemini). Pilihan kosong ditolak.
                */
+              /* Nilai kosong tetap ditolak; 'custom' hanya ada di daftar bila
+                 sudah punya URL, jadi ia boleh dipilih seperti provider lain. */
               const v = e.target.value;
-              if (!v || v === 'custom') return;
+              if (!v) return;
               void apply({ models: { activeProvider: v } });
             }}
           >
+            {aktifTampil === '' && <option value="">{tr('(not set)')}</option>}
             {pilihanAktif.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label}
