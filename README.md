@@ -13,11 +13,12 @@
 
   <p>
     <img src="https://img.shields.io/github/v/release/ShinRyu04/Zephyr?label=version&color=blue" alt="version" />
-    <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="platform" />
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey" alt="platform" />
+    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="license" />
   </p>
 </div>
 
-Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. There is no bundled browser runtime: it renders with WebView2, which already ships with Windows. The editor is CodeMirror 6, the terminal is xterm.js over ConPTY, and an MCP server on port 9222 lets Claude Code, Codex, Gemini CLI, or opencode read and drive the window. Around 9.5 MB on disk. No telemetry. No account.
+Zephyr is a desktop code editor built on Tauri 2 + Rust and React 18. On Windows there is no bundled browser runtime: it renders with WebView2, which already ships with the OS; on Linux it uses the system WebKitGTK. The editor is CodeMirror 6, the terminal is xterm.js over ConPTY on Windows and a PTY on Linux, and an MCP server on port 9222 lets Claude Code, Codex, Gemini CLI, or opencode read and drive the window. The installer is 7.9 MB and the executable is 21 MB. No telemetry. No account.
 
 ## Screenshots
 
@@ -49,7 +50,7 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 
 ### Terminal
 
-- Up to 6 panes per tab through ConPTY: PowerShell, cmd, pwsh, bash, WSL
+- Up to 6 panes per tab: PowerShell, cmd, pwsh, bash, and WSL on Windows, or any shell on Linux, all over a native PTY
 - Private Terminal whose scrollback is wiped on close
 - A dedicated pane for an AI agent CLI (opencode, Claude Code, Codex, Gemini, Copilot)
 - Browser pane through "Split With Browser", reading the real page rather than an iframe
@@ -80,7 +81,7 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 ### MCP server (port 9222)
 
 - HTTP JSON-RPC with a Bearer token, loopback only, and can be turned off
-- More than 20 methods to read panes, write the terminal, and edit buffers
+- 20 tools to read panes, write the terminal, and edit buffers
 - `editor_write` changes the buffer only and never writes to disk
 - Requests wait for the UI to be ready and retry, so a call made during startup is not lost
 - `/health` needs no token and does no UI work, so it cannot stall agent calls
@@ -88,17 +89,29 @@ Zephyr is a Windows desktop code editor built on Tauri 2 + Rust and React 18. Th
 
 ### Customization
 
-- 19 themes, including a High Contrast theme that passes WCAG AAA
+- 18 themes, including a High Contrast theme that passes WCAG AAA
 - Background image for the editor, stored separately from the theme
 - Customize Layout panel for the menu bar, activity bar, sidebar, panel, and status bar
-- 16-section settings page with remappable shortcuts and conflict detection
+- A 15-section settings page with remappable shortcuts and conflict detection
 - UI available in 10 languages, defaulting to English
 
 ## Install
 
-Download the latest installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate. Zephyr auto-updates from Releases. Releases older than 1.1.13 need one manual install because the release signing key was rotated.
+**Windows:** download the `.exe` (NSIS) or `.msi` installer from the [Releases](https://github.com/ShinRyu04/Zephyr/releases/latest) page and run it. The NSIS installer can install per-user or for all users. If SmartScreen appears, choose **More info** then **Run anyway**; the build is not signed with a paid certificate, and the source is open to inspect.
 
-Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. Settings, keys, extensions, and logs live in `%APPDATA%\zephyr\`; delete that folder for a full reset.
+**Linux:** three formats are published for every release.
+
+| Format | Use it on | Install |
+| --- | --- | --- |
+| `.AppImage` | any distribution | make it executable and run it |
+| `.deb` | Debian, Ubuntu, Mint | `sudo apt install ./Zephyr_<version>_amd64.deb` |
+| `.rpm` | Fedora, RHEL, openSUSE | `sudo rpm -i Zephyr-<version>-1.x86_64.rpm` |
+
+**Portable:** the portable archive is a single executable. Keep it in its own folder and put an empty file named `portable` beside it; that marker is what tells Zephyr to store its data in `data/` next to the executable instead of in your user profile. A portable copy cannot update itself through the in-app installer, because the installer replaces the installed product rather than the folder the portable build runs from. Download the new portable build and replace the executable.
+
+Every installer and the portable archive ship with a signature. Zephyr auto-updates from Releases through the in-app updater.
+
+Requirements: **Windows 10 or 11** with WebView2 (already present on Windows 11), or a Linux desktop with WebKitGTK 4.1 and GTK 3. On Windows, settings, keys, extensions, and logs live in `%APPDATA%\zephyr\`; delete that folder for a full reset. On Linux they live in `.zephyr`; set `ZEPHYR_DATA_DIR` to choose the location yourself. A portable copy keeps the same files in `data\` beside the executable.
 
 ## Configure AI
 
@@ -106,6 +119,34 @@ Requirements: **Windows 10 or 11**. WebView2 is already present on Windows 11. S
 2. Pick a provider and paste your API key, or choose **Local** / **Custom** and set the base URL (for Ollama, `http://127.0.0.1:11434/v1`).
 3. Keys are stored on the Rust side and are never sent to the frontend.
 
+## Build from source
+
+**Prerequisites:** Rust stable, Node 20 or newer, and the WebView2 Runtime on Windows or the WebKitGTK 4.1 and GTK 3 development packages on Linux.
+
+```bash
+npm install
+npm run tauri dev        # development
+npm run tauri build      # installers in src-tauri/target/release/bundle/
+```
+
+The bundle targets are `msi` and `nsis` on Windows. Linux bundles are built on a Linux host, where `npm run tauri build` also produces the AppImage, `.deb`, and `.rpm`.
+
+**Checks**
+
+```bash
+npx tsc --noEmit
+cd src-tauri && cargo test --lib
+npm run verify           # CDP verification harnesses in scripts/verify*.mjs
+```
+
 ## Tech stack
 
 Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.js, Zustand, axum.
+
+## Contributing
+
+Issues and pull requests are welcome. Bug reports are most useful with the diagnostics report from **Settings → About** (no secrets are included).
+
+## License
+
+Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
