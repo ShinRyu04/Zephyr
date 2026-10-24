@@ -1,8 +1,8 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
  * Dihasilkan oleh scripts/gen-skill-bundled.mjs dari .zephyr/skills/
  *
- * 21 skill, 27 berkas, 188.5 KB
- * hash sumber: 45de4f2f94ff0e17
+ * 22 skill, 47 berkas, 501.0 KB
+ * hash sumber: 27a932bfeaad3eaa
  *
  * Kenapa disematkan: aplikasi yang dipasang user tidak membawa folder sumber,
  * jadi skill yang cuma ada di disk pengembang tidak pernah sampai ke mereka.
@@ -2563,7 +2563,5323 @@ description: Run the Zephyr test suite for whatever changed.
 3. Do not say the tests pass if you have not run them.
 "#;
 
-const SKILL_19: &str = r#"---
+const SKILL_19: &str = r#"# AI, LLM, and Agent Hunting
+
+#### When to use this file
+
+Reach for this file when a language model participates in a trust-sensitive decision: chatbots and assistants, RAG pipelines, persistent agent memory, agent/tool-calling loops, MCP servers and clients, code that builds prompts from untrusted input, or code that consumes model output and acts on it. The important data flow is *untrusted content → model or memory → capability, authority, or sink*.
+
+Use this alongside `ATTACK-CLASSES.md`, not instead of it. Transport, access control, query construction, filesystem use, and output rendering remain ordinary trust boundaries. This file covers the model-specific delegation layer. Split large targets by retrieval, memory, tool dispatch, MCP, and output handling.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Prompt injection alone is not a finding. Require a code-level boundary failure: content reaches another principal's context, invokes authority the requester lacks, discloses data they cannot read, or drives a sink they cannot reach directly.
+- Model output, memory, tool descriptions, and MCP responses are untrusted inputs. Point to the code that grants authority, trusts output, writes durable state, or feeds a sink.
+- A guardrail prompt is not a security boundary. Count only deterministic checks, resource-scoped authorization, isolation, binding, and constrained credentials.
+- State the attacker, affected principal, effective execution identity, resource, exact action, authority used, and observable impact. An intentional direct request to use the requester's existing authority is not a delegation defect merely because a model executes it.
+- Authorization and action binding are separate controls. Attacker-controlled content that causes an action under an affected principal's valid authority is an action-binding failure when that principal did not intentionally request or approve the exact action.
+- Classify every candidate as `confirmed` only after source evidence and bounded local validation establish the boundary and result. Use `needs_validation` when a required provider, deployment, model, renderer, or identity behavior is not observable locally.
+```
+
+## Context, retrieval, and memory attack classes (subagent_type: `general`)
+
+**Indirect injection through retrieved or ingested content**
+An attacker can write a RAG document, indexed page, file, email, issue body, tool response, or metadata that enters a different principal's model context. Trace who can write each source, how retrieval scopes it, whose session consumes it, and what capability is enabled there. Check isolation, resource authorization, and binding to the consuming principal's intent separately. The defect is a missing deterministic control, not persuasive text by itself.
+
+**Cross-session or cross-tenant context bleed**
+Conversation history, embeddings, retrieval results, or prompt caches are keyed too broadly. Verify tenant and ACL filters in the query itself and every cache key. A tenant field stored on an object is not enforcement if an alternate query, shared cache, or batch path omits it.
+
+**Persistent memory poisoning**
+Attacker-controlled content or model summaries are written into memory that later shapes another task, user, or privileged session. Review who may create, update, merge, and delete memory; its provenance and tenant scope; whether low-trust observations become durable instructions or facts; and whether retrieval distinguishes user preferences from tool policy. Memory intentionally saved by a user and used only for that user's intentional, allowed requests is not a cross-boundary finding.
+
+**Prompt role and provenance confusion**
+Prompt assembly lets untrusted text impersonate a system message, prior turn, tool result, policy, or memory record. Look for string concatenation, untyped history, caller-controlled role fields, and serialization round trips that lose source labels. Confirm that the forged provenance changes a deterministic trust decision or reaches a meaningful capability.
+
+## Tool and action attack classes (subagent_type: `general`)
+
+**Tool-argument injection into a downstream sink**
+Model-produced arguments reach SQL, shell, file, URL-fetch, or privileged APIs without handler-side validation. Treat the tool schema as input parsing, then follow each field from decoded call to sink. Structured output narrows shape; it does not establish authorization, safe paths, safe URLs, or query semantics.
+
+**Excessive agency and confused-deputy authority**
+The agent uses a service identity or broad credential, while the tool handler does not re-check the requesting principal's permission on the named resource. Verify both the effective identity and whether the caller could perform that exact operation through the normal product interface. A shared credential with enforced per-user query scope is not a defect.
+
+**Action-confirmation and approval binding**
+A user approves one described action but execution can use changed arguments, a different resource, a different principal, or a later model turn. An action-binding defect also exists when attacker-controlled content causes a side effect under a victim's valid authority without the victim's intentional request or approval, even if generic authorization permits the victim to perform it. Review whether intent or confirmation binds the normalized tool name, complete argument object, requester, target, amount, expiry, and batch membership. Check retries and resumed sessions: an approval must not authorize a mutated or duplicate side effect.
+
+**Tool-schema and dispatcher disagreement**
+The schema accepts aliases, extra fields, duplicate keys, coercions, nested free-form objects, or out-of-range values that the dispatcher or handler interprets differently. Compare schema validation, canonicalization, generated bindings, and handler defaults. Validate again where values become resource selectors or security-relevant options.
+
+**Unbounded delegated action loops**
+A bounded request can enqueue repeated spend, send, mutation, or external API work without a per-request budget, per-action authorization, cancellation, or idempotency control. Confirm impact on shared cost, quotas, other users, or durable state. Do not test by exhausting a service; use code-level accounting and a locally bounded loop.
+
+## MCP and sub-agent trust classes (subagent_type: `general`)
+
+**Sub-agent and MCP trust inheritance**
+A delegated task receives the full session, credentials, memory, or capabilities rather than the least authority required. Check the principal and tenant carried into each call, capability narrowing, credential audience, and whether delegated results are treated as untrusted on return.
+
+**MCP server and tool identity confusion**
+Calls or results are routed by attacker-influenceable server names, tool names, request IDs, resource URIs, or model-selected aliases rather than the authenticated connection and outstanding request. Check whether two servers can claim the same tool or resource identity, whether reconnect changes the binding, and whether a response from one server can satisfy another server's pending call.
+
+**MCP metadata and schema as policy**
+Tool descriptions, resource metadata, prompts, completion hints, or schemas supplied by an MCP peer are trusted as policy or authorization. These fields can guide the model but cannot grant capability. Find the deterministic allowlist, server identity check, and handler authorization that remain authoritative when metadata conflicts.
+
+## Output and disclosure attack classes (subagent_type: `general`)
+
+**Insecure output rendering**
+Model output reaches an executing HTML, Markdown, template, URL, or command sink without the sink's required encoding and policy. For browser rendering, verify auto-loaded resources and CSP or sanitization in `CLIENT-SIDE.md`; renderer behavior outside the repository makes the candidate `needs_validation`.
+
+**Sensitive context extraction**
+The assembled context contains credentials, another user's data, private source, or policy values that themselves grant access, and user-influenced output exposes them. Read prompt assembly and data-fetch code. Disclosure of generic instructions or behavior that does not cross a data boundary is not a finding.
+
+## Universal moves (apply across the above)
+
+- Draw four maps first: each execution identity, each capability, every writable context or memory source, and each output destination. Then connect the principal at the start to the authority at the end.
+- Start at side-effecting tools and work backward through dispatcher, schema, confirmation, model context, retrieval, and ingestion. Start at durable memory reads and trace every writer.
+- Compare direct, queued, retry, resume, batch, and delegated paths for the same action. The strongest gate must apply after arguments are final and before every side effect.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name the crossed boundary and observable result: attacker, affected principal or shared resource, execution identity, target, and unauthorized or unrequested action or disclosure.
+2. For confused-deputy authority claims, prove the tool lacks requester-and-resource authorization and that the attacker cannot perform the same action normally. For action-binding claims, instead prove attacker-controlled content caused an action under the affected principal's authority that the principal did not intentionally request or approve. Valid generic authorization does not establish that intent.
+3. For memory or retrieval claims, cite both the attacker-controlled write and the later cross-principal read or privileged decision. A shared record without a reachable consumer is not enough.
+4. For action binding, establish the intentional request or normalized approved object, if any, and compare it with the object the handler uses. Confirm a locally observable unrequested action, mutation, duplicate, or authority change without extending the test into harmful execution. For schema disagreement, compare the normalized validated object with the handler's object.
+5. For MCP identity claims, verify the authenticated connection, request correlation, tool namespace, and effective credential. Mark `needs_validation` if external server identity or deployment routing is required.
+6. Return `confirmed` findings only with a complete source trace and meaningful result. Return `needs_validation` for a specific unresolved boundary fact and state the bounded local or owner-observed check needed to resolve it.
+"#;
+
+const SKILL_20: &str = r#"# Attack Classes
+
+#### Attack classes — choose and split based on Phase 1
+
+Select attack classes relevant to the application type. Not every class applies to every codebase. The list below is a starting point; add application-specific classes from Phase 1 and split large codebases per subsystem. Frame work as finding, validating, fixing, and prioritizing vulnerabilities. Keep validation to source review and bounded local fixtures; do not develop payload chains, test availability on live services, or take action in shared environments.
+
+Use `confirmed` only when source evidence and bounded validation establish the full boundary and meaningful result. Use `needs_validation` when a specific deployment, provider, platform, identity, or runtime fact is unavailable; state the missing fact and the safe owner-observed or local check that resolves it.
+
+> **Native / binary / kernel targets** (C/C++/Rust-unsafe, kernel modules, parsers and decoders, FFI, concurrent runtimes, binary loaders, JITs, firmware): use the memory-safety, integer/ABI, concurrency, binary-loader, and privileged-interface classes in [MEMORY-SAFETY-AND-BINARY.md](MEMORY-SAFETY-AND-BINARY.md).
+>
+> **AI / LLM / agent targets** (chatbots, RAG, persistent memory, tool-calling agents, MCP servers/clients, prompt assembly, or model-controlled actions): use the context, memory-poisoning, action-binding, tool-schema, MCP-identity, and output classes in [AI-AND-LLM.md](AI-AND-LLM.md).
+>
+> **HTTP, web, and identity targets** (ordinary web apps, APIs, reverse proxies, CDNs, gateways, custom HTTP parsers, sessions, CSRF, JWT, OAuth/OIDC, SAML, MFA, passkeys, account recovery/linking, API keys, or mTLS): use [WEB-PROTOCOL-AND-AUTH.md](WEB-PROTOCOL-AND-AUTH.md).
+>
+> **Client-side and browser targets** (SPAs, browser extensions, embedded webviews, service workers, browser storage, cross-window messaging, CORS, WebSockets, or DOM rendering): use [CLIENT-SIDE.md](CLIENT-SIDE.md).
+>
+> **Supply-chain and release targets** (dependency resolution, generated inputs, CI, release/signing/promotion, updates, plugins, or extensions): use [SUPPLY-CHAIN-AND-RELEASE.md](SUPPLY-CHAIN-AND-RELEASE.md).
+>
+> **Cloud and deployment targets** (IAM, infrastructure as code, containers/Kubernetes, service mesh, serverless/edge, ingress, provider events, or runtime configuration): use [CLOUD-AND-DEPLOYMENT.md](CLOUD-AND-DEPLOYMENT.md).
+>
+> **Protocol, RPC, and messaging targets** (gRPC, GraphQL transports, Protobuf/Cap'n Proto/Thrift, custom protocols, queues, brokers, pub/sub, webhooks, or streaming RPC): use [PROTOCOLS-RPC-AND-MESSAGING.md](PROTOCOLS-RPC-AND-MESSAGING.md).
+>
+> **Resource-exhaustion and availability targets** (untrusted work can consume shared CPU, memory, disk, connections, workers, queues, quotas, or operator-owned spend): use [RESOURCE-EXHAUSTION-AND-AVAILABILITY.md](RESOURCE-EXHAUSTION-AND-AVAILABILITY.md).
+>
+> **Data-isolation and lifecycle targets** (multi-tenant stores, caches/search, object links, analytics, export/backup, migration, deletion, retention, or restore): use [DATA-ISOLATION-AND-LIFECYCLE.md](DATA-ISOLATION-AND-LIFECYCLE.md).
+>
+> **Desktop, mobile, and local-IPC targets** (native apps, deep links, webview bridges, exported components, privileged helpers, local daemons, Unix sockets/XPC/Binder/D-Bus): use [DESKTOP-MOBILE-AND-LOCAL-IPC.md](DESKTOP-MOBILE-AND-LOCAL-IPC.md).
+
+**Injection** (subagent_type: `general`)
+Trace untrusted input from entry point to dangerous sink. What counts as a "dangerous sink" depends on the application:
+- Web apps: SQL queries, HTML output, shell commands, template engines, file paths, HTTP redirects, deserialization
+- Libraries: any function that processes caller-supplied data without validation — buffer operations, parsers, format strings
+- CLI tools: shell command construction, file path handling, environment variable interpolation
+- Services: query construction, message serialization, log injection, LDAP/XPATH queries
+- Client-side (browser/JS): DOM XSS, prototype pollution, `postMessage`/origin trust, and other browser-side classes — covered by the [CLIENT-SIDE.md](CLIENT-SIDE.md) companion blocks when selected
+
+Do not stop at the obvious direct paths. Look for indirect injection: data stored safely, then retrieved and used in a dangerous context by different code. Look for injection through field names, keys, headers, and metadata — not just values. Look for injection into secondary systems (logs, caches, search indexes, analytics).
+
+**Access control** (subagent_type: `general`)
+Verify that a caller cannot do something outside its authority. Go beyond checking whether permission checks exist — verify they check the *right* permission for the *right* resource via the *right* mechanism:
+- Is there a path to the same state change that checks a different (weaker) permission?
+- Can a field in the request body override what the permission system intended to restrict?
+- Are there endpoints that gate on authentication but forget authorization?
+- Does the same resource have multiple access paths with inconsistent checks?
+- What about bulk/batch/export/import operations — do they enforce per-item permissions?
+
+For complex access models, split into separate agents for auth bypass vs authorization logic.
+
+**Resource and file handling** (subagent_type: `general`)
+- Path traversal (reading/writing outside intended directories) — including through symlinks, encoded sequences, and null bytes
+- SSRF (making the application fetch attacker-controlled URLs) — including through redirects, DNS rebinding, and URL parser differentials
+- Unsafe deserialization, archive extraction (zip slip), temp file handling
+- Memory safety (if applicable): buffer overflows, use-after-free, integer overflow
+- Race conditions on file operations (TOCTOU between check and use)
+
+**Cryptography and secrets** (subagent_type: `general`)
+- Weak randomness for security-critical values (tokens, keys, nonces)
+- Hardcoded secrets, secrets in logs, error messages, URLs, or client-visible responses
+- Broken key derivation, missing HMAC verification, nonce reuse
+- Timing side-channels on secret comparison
+- Misuse of crypto primitives (ECB mode, unauthenticated encryption, static IVs, etc.)
+- What happens when crypto operations fail? Does the error path fall back to no-crypto?
+
+**Business logic** (subagent_type: `general`)
+Hunt logic errors by hand: standard scanners cannot find them, and they yield high-impact findings. For each major workflow:
+- **State machine violations**: Can you skip steps? Go backwards? Reach an invalid state? What happens if you replay a completed flow? What about partial failure — if step 2 of 3 fails, is step 1 rolled back?
+- **Race conditions with business impact**: Concurrent operations that produce invalid states (double-spend, double-approve, lost updates). Focus on operations that check-then-act non-atomically.
+- **Numeric/quantity manipulation**: Negative values, zero values, overflow, precision loss, type coercion between string and number.
+- **Access boundary violations**: Not "does the permission check exist" but "is it the right check for the business rule?" Can input to one operation bypass a restriction enforced on a different operation for the same effect?
+- **Implicit trust assumptions**: Data from storage, config, other components, or plugins assumed safe because "we validated it on the way in." What if a different code path wrote it?
+- **Time-based logic**: Expiry checks, scheduling, rate windows, clock skew. What happens at exact boundary moments? What about timezone differences between components?
+- **Default and fallback behavior**: What is the security posture when config is missing? When a feature flag is off? When a dependency is unavailable? When the system is mid-migration?
+
+**Feature abuse and data leakage** (subagent_type: `general`)
+Legitimate features used for unintended purposes. Look for bugs in the design, not only in the code:
+- **Export/backup as exfiltration**: Can a low-privilege user trigger an export, snapshot, or backup that includes data above their access level? Can they export other users' data? Does the export include deleted/draft/private content? Revision history that was supposed to be pruned?
+- **Import/restore as injection**: Can import overwrite existing data? Can it create records that bypass normal validation? Can it inject content into collections the user has no write access to? Does it respect the same permission model as the UI?
+- **Search/filter/sort as oracle**: Can search queries reveal whether content exists that the user cannot directly access? Do filter parameters let users probe statuses, roles, or fields they should not know about? Does sorting by a hidden field reveal its values through result ordering?
+- **Enumeration through side effects**: Do error messages differ between "does not exist" and "no access"? Do response times differ? Response sizes? HTTP status codes? Can you enumerate users through password reset, invite, or registration flows?
+- **Preview/draft/staging leakage**: Are preview tokens scoped to one item or do they unlock broader access? Can draft content be discovered through search, RSS feeds, sitemaps, or API listing endpoints? Can cache headers cause a CDN to serve private content publicly?
+- **Notification/webhook as SSRF**: Can a user set a notification URL, webhook URL, or callback URL that the server fetches? Is it validated against internal networks? What about after a redirect?
+
+**Chained vulnerabilities and trust boundaries** (subagent_type: `general`)
+Individually allowed or contained behavior can become a vulnerability when another component or lifecycle step relies on a stronger guarantee:
+- **Multi-step boundary failures**: Map what a low-privilege principal may read, write, invoke, and retain, then connect only concrete outputs to later trust decisions. Confirm each prerequisite and do not assume a downstream effect.
+- **Cross-component trust gaps**: Component A validates input and passes it to component B. Compare the exact guarantee A produces with what B assumes, including truncation, type coercion, normalization, tenant scope, and plugin/extension access.
+- **Second-order use**: Data safe when stored may become dangerous in a later context. A field name becomes a JSON path, a slug becomes a file path, escaped text enters raw rendering, or a stored string becomes a URL, regex, template, or policy expression.
+- **Scope and capability growth**: Token, API-key, plugin, OAuth, MCP, or AI capabilities become broader after delegation, refresh, caching, role change, or composition. Name the concrete operation the resulting principal should not have.
+- **Timing and ordering**: Review setup, migration, soft-delete, revoke/cache expiry, check/use, and validate/consume windows. Confirm stale state is accepted before reporting.
+- **Rollback and recovery**: Undelete, restore, revision rollback, and cancellation must apply current ownership, validation, and authorization. Confirm which invalid state is restored.
+
+**Wildcard** (subagent_type: `general`)
+You are not given a category. Find vulnerabilities outside the standard classes already assigned.
+
+Read code that looks boring or disconnected from security. Follow incomplete, experimental, compatibility, and fallback features, but retain the same concrete boundary and validation requirements as every other class.
+
+Use these starting points, but do not limit yourself to them:
+- What is the strangest code in the codebase? Why does it exist? What happens if it is abused?
+- Are there any features that feel half-finished, experimental, or bolted on? Those have the weakest security because they got the least review.
+- What happens if you use the API in a way the frontend never would? The UI constrains users, but the API does not. What API calls are possible but never made by the client?
+- Are there any hidden or undocumented endpoints, parameters, headers, or features? Look at route registrations, middleware, and config for things that are not in the docs.
+- What happens when you mix features that were not designed to work together? Localization + preview + caching. Import + plugins + webhooks. OAuth + impersonation + API keys.
+- Is there anything interesting in the git history? Reverted security fixes, commented-out auth checks, secrets that were committed then removed (still in history).
+- Which valid-account actions affect other users, shared integrity, availability, or operator-owned cost? Verify containment, quotas, authorization, and recovery around those actions.
+- Which operations are irreversible or require elevated confirmation? Bind authorization and approval to the final principal, action, and resource.
+- What assumptions does the code make about the environment? That the database is local, that the clock is accurate, that DNS is trustworthy, that the filesystem is case-sensitive?
+- Look at the test files — what are they **not** testing? Compare the edge cases the developer thought about (tests exist) with the ones they did not (no tests).
+
+Pursue anomalies inside your assigned scope until the invariant is settled. If something looks strange, read it until you can state whether it is safe. If a function has a comment explaining why it is safe, verify the explanation. If a variable is named `temp` or `hack` or `legacy`, read it closely.
+
+**Obvious things** (subagent_type: `general`)
+Other agents hunt subtle bugs. This agent checks the basic exposures that are easy to overlook because everyone assumes someone else already checked them:
+- Are there any hardcoded passwords, API keys, tokens, or secrets in the source? (grep for `password`, `secret`, `apikey`, `token`, `Bearer`, `-----BEGIN`, common default passwords)
+- Are there any TODO/FIXME/HACK/XXX comments that reference security? (`TODO: add auth`, `FIXME: validate input`, `HACK: skip permission check`)
+- Is debug mode / dev mode properly gated? Can it be enabled in production via environment variable, query parameter, or header?
+- Are there test/example/seed credentials that work in production?
+- Is there a `/debug`, `/admin`, `/test`, `/status`, `/health`, `/metrics`, `/env`, `/.env`, `/config` endpoint that is unprotected?
+- Are there any `.env`, `.env.local`, `credentials.json`, `*.pem`, `*.key` files checked into the repo?
+- Does the `.gitignore` actually cover secrets, uploads, and local config?
+- Are dependencies pinned? Are there known CVEs in the dependency tree? (check lockfiles)
+- Are there any `eval()`, `exec()`, `child_process`, `Function()`, `vm.runInContext`, `import()` with dynamic input?
+- Are CORS headers set to `*` or overly permissive? Is `Access-Control-Allow-Credentials` combined with a wildcard origin?
+- Are cookies missing `HttpOnly`, `Secure`, or `SameSite` attributes?
+- Are there any open redirects? (parameters named `redirect`, `return`, `next`, `url`, `goto`, `continue` that feed into redirects without validation)
+- Is TLS enforced? Are there any HTTP-only endpoints?
+- Are error responses in production returning stack traces, internal paths, or SQL errors?
+
+This agent does not need to be creative. It needs to be thorough and literal. Check every item. Report each result.
+
+**Important**: For any finding this agent reports, it must verify the full code path, not just surface appearance. If a cookie is missing `HttpOnly`, check whether the cookie contains security-sensitive data and whether JS needs to read it by design. If an error message contains a field name, check whether the field is ever actually populated with sensitive data. A flag is not a finding — trace the impact before reporting.
+"#;
+
+const SKILL_21: &str = r#"# Client-Side and Browser Hunting
+
+#### When to use this file
+
+Reach for this file when meaningful trust decisions or untrusted rendering happen in a browser: single-page apps, browser extensions, embedded webviews, service workers, offline applications, and code that renders attacker-influenceable content into the DOM, receives cross-window messages, or uses browser storage. These paths include sources the server never sees, such as URL fragments, `window.name`, `postMessage`, and previously cached content.
+
+Use alongside `ATTACK-CLASSES.md`. This file covers browser sources and sinks, origin boundaries, browser persistence, and cross-site state oracles. Use `DESKTOP-MOBILE-AND-LOCAL-IPC.md` for the native side of a webview bridge, and `WEB-PROTOCOL-AND-AUTH.md` for server-side CSRF, sessions, and auth callbacks.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- A client-side candidate needs a controllable source and an executing or disclosing sink. Name both and show attacker-influenced data reaching the sink.
+- The impact must reach a victim's session, another origin, or shared persistence. Self-injection and disclosure of the attacker's own data are not findings.
+- Framework escaping, browser same-origin policy, CSP, COOP/CORP, service-worker scope, and modern noopener defaults are real controls. Verify them before assigning impact.
+- Browser storage and caches are shared by origin and may outlive login state. Identify who writes, who reads, and which account, tenant, or worker lifecycle clears each record.
+- Use `confirmed` only for complete source evidence plus bounded local browser tests. Use `needs_validation` when renderer, extension permission, deployed header, or browser-policy behavior is required but unavailable.
+```
+
+## DOM and object-state attack classes (subagent_type: `general`)
+
+**DOM-based XSS**
+Trace `location` fields, `document.referrer`, `window.name`, message data, storage, and browser-controlled document state into `innerHTML`, `outerHTML`, `document.write`, string-evaluating APIs, executable URLs, jQuery HTML APIs, or framework escape hatches. Interpolation escaped by the framework is not a finding.
+
+**DOM clobbering**
+Attacker-injected `id` or `name` attributes shadow a global, form property, configuration object, or initialization flag later trusted by code. Require both a markup path that preserves the attribute and a security-relevant use of the clobbered value.
+
+**Prototype pollution and gadget chain**
+An attacker-controlled key reaches a recursive write such as deep merge or path assignment and modifies prototype state. Then a reachable gadget consumes the polluted property to change authorization, execution, navigation, or rendering. `JSON.parse`, a shallow copy, or pollution without a gadget is not enough.
+
+## Cross-origin messaging and network attack classes (subagent_type: `general`)
+
+**`postMessage` origin and source trust**
+A handler performs a sensitive action with `event.data` without an exact origin allowlist and, where multiple frames share an origin, the expected `event.source`. On the send side, sensitive data sent to `*` reaches an unintended embedder. Weak substring, prefix, suffix, or unanchored-regex origin matching is not an origin check.
+
+**Cross-site WebSocket request use**
+A WebSocket upgrade accepts ambient cookies from an untrusted origin without an `Origin` check or channel-specific token, allowing the victim's session to read or mutate data. Confirm both the upgrade behavior and a security-relevant message handler.
+
+**Credentialed CORS trust**
+The server reflects or weakly matches `Origin` while allowing credentials and returns sensitive responses. A bare wildcard with credentials is rejected by browsers; report only the actual reflected/allowed origin path and cross-origin data or mutation.
+
+## Service-worker and browser-storage attack classes (subagent_type: `general`)
+
+**Service-worker registration and scope takeover**
+Attacker-influenceable content can become the registered worker script, control a path that receives an over-broad `Service-Worker-Allowed` scope, or alter update imports without integrity control. Verify the final script URL, response MIME type, origin, scope, and who controls every imported script. A normal same-origin worker with intended scope is not a defect.
+
+**Service-worker cache and identity confusion**
+The worker caches personalized responses without including account, tenant, authorization state, or request mode in its policy, then serves them after account switch or logout. Review fetch-event routing, cache names and keys, navigation fallbacks, cache cleanup, and whether error/offline paths return another user's prior response.
+
+**Browser-storage disclosure and stale authorization**
+Tokens, private responses, draft data, or authorization decisions remain in `localStorage`, `sessionStorage`, IndexedDB, Cache Storage, extension storage, or client state and become readable by another account or less-trusted same-origin component. Storage of a token alone is not a finding; require a realistic reader with less authority, or continued use after revocation/logout.
+
+**Cross-context storage and broadcast confusion**
+`storage` events, `BroadcastChannel`, shared workers, or origin-wide caches carry identity or commands between tabs without binding them to the current session. Check account switching, private/public windows, tenant changes, and stale tabs that can overwrite newer auth state.
+
+## Cross-site information leak classes (subagent_type: `general`)
+
+**XS-Leaks and cross-origin state oracles**
+An attacker page can distinguish protected cross-origin state through resource load/error events, frame or window state, redirect behavior, timing, cache state, or response size while the browser attaches victim credentials. Require one concrete secret-bearing predicate such as whether a private object, role, or account exists. Generic timing variance or public-resource availability is not a finding.
+
+**Window and opener state disclosure**
+A cross-origin window's permitted metadata or navigation result reveals protected state, or a retained opener/named-window relationship lets an attacker-controlled page influence a privileged navigation. Check COOP, frame protections, `noopener`, exact origin, and whether the observable state is confidential.
+
+## UI-redress and navigation attack classes (subagent_type: `general`)
+
+**Clickjacking**
+A framed, state-changing action lacks effective `frame-ancestors`, `X-Frame-Options`, or equivalent UI isolation. Require the sensitive action and confirm it can complete in the framed state; missing headers on read-only content are hardening notes.
+
+**Client-side navigation confusion**
+A client source controls redirect or navigation without scheme and destination policy, including executable `javascript:` or `data:` destinations. Reverse tabnabbing applies only where code explicitly keeps `window.opener`, uses `window.open` without isolation, or supports a browser without implicit `noopener`.
+
+## Universal moves (apply across the above)
+
+- Start from DOM, navigation, worker, message, and storage sinks, then trace backward to browser-only and server-controlled sources. Record the browser policy that should stop the path.
+- Test account switch, logout, worker update, offline fallback, and stale-tab state with a local test origin and dummy accounts. Do not use production users, origins, or shared services.
+- For XS-Leaks, list only predicates proved by source and local browser behavior. Then identify the response headers or rendering choice that would remove the oracle.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Cite the source, sink, browser policy, affected origin/session, and observable mutation or disclosure.
+2. For prototype pollution, prove the recursive write and a security-relevant gadget. For DOM clobbering, prove the markup survives and the shadowed value is used.
+3. For service workers and storage, prove lifecycle reachability: an attacker-controlled write or cache entry must reach a different account, tenant, or later authorization state.
+4. For messaging, CORS, WebSocket, and XS-Leaks, show exact origin/source validation and the protected state or action exposed. Confirm that CSP, COOP/CORP, cookies, and SameSite policy do not already block it.
+5. Return `confirmed` findings only with a complete client path and bounded local evidence. Return `needs_validation` with the precise deployed header, extension permission, browser version, or renderer behavior an owner must verify.
+"#;
+
+const SKILL_22: &str = r#"# Cloud and Deployment Hunting
+
+#### When to use this file
+
+Reach for this file when the repository defines cloud identity, infrastructure, containers, Kubernetes, service mesh, serverless functions, edge workers, ingress, object storage, managed services, or environment-specific configuration. This domain asks whether deployed components receive the intended identity, isolation, network reachability, secrets, and policy. Source often expresses intent rather than live fact, so separate source-confirmed defects from deployment validation needs.
+
+Use `SUPPLY-CHAIN-AND-RELEASE.md` for build and promotion trust, `WEB-PROTOCOL-AND-AUTH.md` for HTTP proxy semantics, and `DATA-ISOLATION-AND-LIFECYCLE.md` for data-store tenant scope.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Do not infer a live exposure from a manifest alone. Establish which environment consumes it, what defaults or overlays modify it, and whether the source path is active.
+- Map each workload's identity to specific operations and resources. Broad policy is a finding only when lower-trust input can reach an unauthorized action.
+- Ingress, proxies, service mesh, metadata services, and admission policy are real boundaries, but only count a control when its configuration and attachment are visible.
+- Secret references are not secret disclosure. Require a lower-trust reader, output, artifact, log path, or unsafe fallback.
+- Use `confirmed` for active in-repo configurations and local rendering/policy validation. Use `needs_validation` for account policy, network attachment, runtime admission, hosted metadata, or drift that needs owner observation.
+```
+
+## Workload identity and IAM attack classes (subagent_type: `general`)
+
+**Workload identity overreach**
+A workload, pod, function, edge worker, or node identity can act on tenants, accounts, resources, or APIs beyond its role, and untrusted request or job input selects that target. Review cloud policy conditions, resource patterns, service-account attachment, namespace mapping, and fallback credentials.
+
+**Cross-account or cross-tenant role confusion**
+Role assumption, external IDs, token exchange, workload federation, or resource policies accept identity claims not bound to the intended source account, audience, repository, namespace, or workload. Establish both trust policy and caller-controlled claim.
+
+**Application authorization delegated to cloud metadata**
+An app trusts caller-supplied identity headers, tags, labels, account IDs, or resource metadata without verifying they came from the cloud control plane or a trusted proxy. Cloud IAM and application authorization are separate checks.
+
+## Ingress, network, and control-plane attack classes (subagent_type: `general`)
+
+**Unexpected service or management-plane reachability**
+An ingress, service, listener, security group, load-balancer annotation, port mapping, or server bind exposes an admin, debug, metrics, node, control-plane, or internal API to a lower-trust network. Missing network controls alone are `needs_validation`; a repository-controlled public route to a sensitive handler can be `confirmed`.
+
+**Trusted-proxy and mesh identity bypass**
+A backend accepts forwarded identity, mTLS subject, or authorization metadata from peers outside the intended ingress/sidecar, or an alternate port and health/legacy path bypasses the mesh. Verify header stripping, peer reachability, and fail-open behavior when the proxy is absent.
+
+**Metadata and internal-service reachability**
+An untrusted URL, destination, or protocol selection reaches instance/container metadata, control-plane sockets, or internal APIs with workload credentials. Trace URL parsing and redirect handling under `ATTACK-CLASSES.md`; here establish deployed network, metadata-version, and identity boundaries.
+
+## Container and orchestration attack classes (subagent_type: `general`)
+
+**Host or control-plane capability exposure**
+A lower-trust workload can select privileged mode, capabilities, host namespaces, host paths, device mounts, container runtime sockets, or service-account tokens that cross into node/control-plane authority. Bare absence of seccomp or read-only filesystem is hardening unless a reachable operation crosses that boundary.
+
+**Admission and policy path inconsistency**
+One deployment route enforces image identity, namespace, resource, secret, or privilege policy while another controller, job, upgrade, restore, or compatibility path does not. Confirm the alternate route and resulting deployed object.
+
+**Namespace and label trust confusion**
+Network, admission, secret, or workload-identity policy relies on labels, annotations, names, or namespaces that a less-trusted principal can set. Compare who controls selectors with what authority matching grants.
+
+## Configuration and secret lifecycle attack classes (subagent_type: `general`)
+
+**Security-control precedence drift**
+Development values, chart defaults, environment variables, command-line flags, feature gates, sidecar injection, or per-region overlays disable authentication, transport security, tenant scoping, or audit policy in a deployed environment. Render the final configuration for each maintained deployment, not just the base file.
+
+**Secret exposure across workload boundaries**
+Secrets enter logs, crash reports, process arguments, shared environment, broad volumes, build outputs, service discovery, or read APIs accessible to another workload or tenant. Check secret type and authority; a public endpoint or key ID is not a credential.
+
+**Credential renewal and outage fallback**
+Failure to mount, refresh, rotate, or revoke a workload credential causes stale credentials to remain active or an app to accept a less trusted identity mode. Review startup, readiness, reconnect, and cached-client behavior.
+
+## Managed storage, events, and edge attack classes (subagent_type: `general`)
+
+**Object and signed-URL policy confusion**
+Bucket/container policy, object keys, CDN origins, or signed URLs fail to bind principal, operation, object namespace, audience, or expiry. Review list/version operations and write paths as well as reads.
+
+**Event-source identity confusion**
+A function or worker trusts event body fields as source identity without validating provider-signed envelope, subscription/topic, account, region, and replay state. Compare push, pull, retry, and dead-letter paths.
+
+**Edge/runtime boundary mismatch**
+An edge or serverless runtime assumes a secret, API, filesystem, isolation, or tenant policy that differs from the origin runtime, and fallback to origin changes authority or cache behavior. Confirm which configuration selects each path.
+
+## Universal moves (apply across the above)
+
+- Render every maintained environment and make a matrix of external port, workload identity, network peers, mounted secrets, and cloud resources. Differences require an owner or policy explanation.
+- Follow a lower-trust request, object, label, or event into cloud policy. Show which workload credential performs the final operation and what condition should scope it.
+- Diff normal deploy, migration, restore, node maintenance, failover, and local/emulator paths. Review behavior when mesh, admission, identity, secret, or policy service is unavailable.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Establish the active source path and effective deployment object; otherwise use `needs_validation` and state which rendered manifest or owner-observed attachment is missing.
+2. Name the lower-trust caller/workload, cloud or application identity, controllable selector, affected resource, and unauthorized operation or disclosure.
+3. Verify provider and orchestrator defaults at the pinned version. Do not assume a public IP, reachable metadata service, permissive firewall, or absent admission attachment.
+4. Local validation may render templates, evaluate policy, inspect container/user namespaces in an isolated fixture, or run an emulator with dummy identities. Do not probe live endpoints or alter shared cloud resources.
+5. Return `confirmed` only with a complete active source trace and concrete boundary result. Return `needs_validation` with the exact deployed policy, identity attachment, overlay, network, or drift observation needed.
+"#;
+
+const SKILL_23: &str = r#"# Data Isolation and Lifecycle Hunting
+
+#### When to use this file
+
+Reach for this file when the target stores multi-tenant or access-controlled data, derives search/index/cache/analytics copies, issues object links, exports or restores records, migrates schemas, or promises deletion, revocation, and retention behavior. This domain follows one data item through every copy and state transition. Use `ATTACK-CLASSES.md` for endpoint-level access control and `CLOUD-AND-DEPLOYMENT.md` for provider-level storage policy.
+
+Split large targets by primary storage, cache/search, object/blob storage, analytics/logging, export/backup, deletion/revocation, and migration.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- A tenant or owner field on a record is not isolation. Find the query, key, path, policy, or row-level control that enforces it for each read and write path.
+- Trace derived copies. Sanitized primary data can become unsafe in search, cache, analytics, export, previews, logs, replicas, and backups with different ACL and retention rules.
+- Deletion and revocation are lifecycle contracts. Check current, historical, cached, indexed, exported, restored, and queued copies within the product's stated boundary.
+- Privacy or retention preference is not automatically a security vulnerability. Require an explicit data-access boundary or deletion/revocation guarantee and an unauthorized reader or later operation.
+- Use `confirmed` for complete source-visible lineage and bounded dummy-tenant tests. Use `needs_validation` when external storage policy, retention, CDN behavior, replica lag, or backup access is unavailable.
+```
+
+## Tenant and object-isolation attack classes (subagent_type: `general`)
+
+**Missing tenant or owner enforcement**
+A read, update, delete, list, count, or bulk query identifies an object without binding it to the authenticated tenant/owner, or trusts body fields to supply that identity. Compare direct lookup, nested relationship, background, admin, import, and legacy paths.
+
+**Composite-key and namespace collision**
+Cache keys, object paths, database uniqueness, search document IDs, temporary files, or deduplication keys omit tenant or environment. Two principals can overwrite or retrieve the same logical key even though application records carry separate owners.
+
+**Policy and query disagreement**
+Row-level policy, ORM default scopes, authorization filters, and raw/bypass clients apply different predicates. Check joins, aggregates, aliases, views, transactions, `unscoped` or service clients, and error paths where context is missing.
+
+**Blob and signed-reference overreach**
+Object keys, attachment IDs, version IDs, shared links, or signed URLs permit operations or namespaces beyond the issuing principal's access, or remain valid after the underlying ACL changes. Bind operation, exact object/version, audience, expiry, and tenant.
+
+## Derived-data and disclosure attack classes (subagent_type: `general`)
+
+**Search, cache, and index ACL drift**
+A primary record's ACL or lifecycle changes without invalidating a searchable, cached, embedded, thumbnail, RSS, preview, or index copy. Validate filtering at retrieval time as well as document ingestion and invalidation.
+
+**Analytics, logs, traces, and diagnostics as alternate readers**
+Private content or credentials are emitted into systems with broader access, longer retention, or tenant mixing. Confirm the data class and realistic reader; field names, public identifiers, and operator-only content under intended policy are not enough.
+
+**Enumeration and aggregate oracles**
+Counts, filters, ordering, errors, unique constraints, timings, notification behavior, or existence checks disclose protected object or account state. Require a concrete confidential predicate and observable distinction, not general response variance.
+
+## Export, backup, restore, and migration attack classes (subagent_type: `general`)
+
+**Export and backup scope expansion**
+An export, snapshot, portability package, report, or backup includes other tenants, inaccessible object fields, soft-deleted data, secret values, or history above the requester's access. Check per-item authorization after selection and authorization to download the final artifact.
+
+**Import and restore authority expansion**
+Restore/import bypasses owner, schema, ACL, uniqueness, or validation rules, overwrites existing resources, or recreates records in a tenant the requester cannot write. Validate archive contents as untrusted and authorize the resulting operation rather than trusting prior provenance.
+
+**Migration default and ownership confusion**
+Old records lack tenant/ACL/lifecycle fields, incompatible IDs collide, or partial rollout makes new and old readers apply different defaults. Review backfill, dual-read/write, compatibility, rollback, and resumed-migration paths.
+
+**Backup and replication boundary drift**
+Encryption keys, storage accounts, cross-region replicas, restoration environments, or support snapshots have broader identity or tenant scope than primary data. Source can confirm only in-repo policy; hosted access and retention require `needs_validation`.
+
+## Deletion, revocation, and lifecycle attack classes (subagent_type: `general`)
+
+**Soft-delete and tombstone bypass**
+Direct lookup, search, relation traversal, object link, background processor, or restore ignores the lifecycle predicate and returns or acts on a deleted/revoked record. Check whether soft-deleted identifiers can be re-registered before all references are gone.
+
+**Stale authorization and derived copy use**
+Membership removal, ACL update, consent withdrawal, secret revocation, or role downgrade does not invalidate sessions, caches, subscriptions, jobs, or materialized data that continue to authorize future operations.
+
+**Retention and queued-work overrun**
+Deletion completes in primary storage while queued processors, retries, exports, analytics, or generated artifacts recreate or retain the data beyond the promised boundary. Find idempotent deletion and tombstone propagation.
+
+**Restore reintroduces invalid state**
+Backup, undo, undelete, or replica recovery restores data, credentials, memberships, or permissions that current policy no longer allows. Re-authorize restored state and reapply lifecycle changes made after the snapshot.
+
+## Universal moves (apply across the above)
+
+- Pick one protected record and draw primary write, query, cache, index, event, export, backup, deletion, and restore paths. Mark principal and tenant at every edge.
+- Compare two dummy tenants through the same local service methods, then repeat after ACL change, deletion, account switch, and restore. Do not use real user data.
+- Start at bypass clients, background jobs, migrations, global uniqueness, and cache keys. These paths commonly omit request-scoped identity that interactive endpoints carry.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name attacker or lower-trust principal, protected data/state, affected owner/tenant, alternate copy or operation, and unauthorized disclosure or mutation.
+2. Cite both intended source-of-truth policy and the path that omits or disagrees with it. Confirm another layer does not enforce the same tenant/lifecycle condition.
+3. Use local dummy tenants and non-sensitive fixtures to prove cross-scope access or stale lifecycle behavior. Stop at the minimum observable record or operation.
+4. If external cache, object storage, replicas, analytics, backup, or retention policy is required, classify `needs_validation` and state the owner-observed check.
+5. Return `confirmed` only with complete lineage and concrete boundary impact. Return `needs_validation` with the exact unresolved storage, ACL, invalidation, retention, or restore fact.
+"#;
+
+const SKILL_24: &str = r#"# Desktop, Mobile, and Local IPC Hunting
+
+#### When to use this file
+
+Reach for this file when the target is a desktop or mobile app, privileged helper, updater, local daemon, webview host, deep-link handler, browser native-messaging host, or local IPC client/server. Relevant untrusted actors may be a downloaded document, remote web content, another local app, another OS user, a sandboxed process, or a lower-privilege account. State that starting capability instead of treating all local users as equivalent.
+
+Use `CLIENT-SIDE.md` for browser-side webview behavior, `MEMORY-SAFETY-AND-BINARY.md` for native memory and loader safety, and `SUPPLY-CHAIN-AND-RELEASE.md` for update authenticity.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Establish the realistic local or remote-content attacker: another app, another OS user, a sandboxed child, an untrusted document, or a remote origin. Self-harm within the same account and authority is not a boundary violation.
+- Paths, process names, bundle/package IDs, and claimed sender fields are not peer authentication. Use OS peer credentials, code identity, capability handles, or protected channel state.
+- The native bridge or helper must authorize each operation and final resource after parsing. A trusted UI or broker does not make attacker-influenceable arguments trusted.
+- OS sandbox, signing, entitlements, permissions, keychain ACLs, exported-component policy, and prompt behavior are real controls when pinned and visible.
+- Use `confirmed` for source evidence plus bounded local/emulator tests. Use `needs_validation` when signing, manifest merge, OS version, device policy, installer ACL, or packaging is required but not observable.
+```
+
+## Deep-link, callback, and navigation attack classes (subagent_type: `general`)
+
+**Custom-scheme and deep-link ambiguity**
+Another app or page can invoke a route that mutates state, imports data, completes authentication, or selects an account without a current-session and one-time callback binding. Review URI normalization, duplicate query fields, scheme/host/path matching, exported activity/handler policy, and stale/replayed links.
+
+**App and account handoff confusion**
+OAuth, SSO, magic-link, invite, device pairing, passwordless, or payment callbacks return to the wrong installed app, profile, tenant, or pending transaction. Bind state to the initiating app identity, current session, account, provider, operation, and expiry.
+
+**File-open and intent authority confusion**
+An associated file, share intent, drag/drop item, pasteboard/clipboard record, notification action, or open-file event triggers a privileged operation without confirming content type, sender trust where applicable, current user intent, and final target.
+
+## Webview and native-bridge attack classes (subagent_type: `general`)
+
+**Navigation-origin to bridge confusion**
+Remote or attacker-controlled frames can reach a JavaScript/native bridge intended only for packaged content. Validate origin at call time and after every navigation, redirect, subframe creation, popup, and error/fallback page. URL-prefix checks and initial-load checks are insufficient.
+
+**Over-broad native bridge capabilities**
+Web content can select arbitrary files, commands, IPC methods, credentials, or system actions through a generic bridge. Check method allowlists, normalized arguments, user/tenant authority, gesture/confirmation requirements, and return-value disclosure.
+
+**Webview file and universal access**
+Remote content can read app-local files, privileged custom schemes, or internal origins because file access, universal access, mixed content, debug interfaces, or custom protocol handlers join origins unexpectedly. Missing a restrictive setting without reachable protected content is hardening.
+
+## Local IPC and exported-component attack classes (subagent_type: `general`)
+
+**IPC peer-authentication gaps**
+Unix sockets, named pipes, XPC, Binder, D-Bus, native messaging, RPC, shared memory, or loopback listeners accept a lower-trust peer without checking OS credentials, code identity, sandbox token, or channel ownership. Require a meaningful method or disclosure behind the channel.
+
+**Claimed principal versus channel identity**
+The authenticated process/channel belongs to one app or user, but request fields select another user, tenant, profile, or capability. Bind each method and resource to the peer credential rather than a caller-declared identifier.
+
+**Exported service, activity, receiver, or provider overreach**
+A mobile component or local automation endpoint is externally invokable and performs an operation intended for the app itself. Review final merged manifests, intent filters, permission/signature level, path grants, and alternate aliases. Manifest status unknown after packaging requires `needs_validation`.
+
+**IPC lifecycle and correlation confusion**
+Predictable request IDs, reused handles, stale channels, inherited descriptors, world-writable socket paths, or restart behavior lets one peer answer, cancel, or reuse another peer's operation. Review creation permissions and cleanup of socket files, locks, ports, and shared mappings.
+
+## Privileged-helper and local-file attack classes (subagent_type: `general`)
+
+**Privileged helper as confused deputy**
+A low-privilege caller can select a privileged command, file, service, user, or system setting without per-operation authorization. Review sudo/polkit/UAC/XPC helper rules and ensure the helper independently validates normalized arguments.
+
+**Install, update, and repair path trust**
+A privileged installer/helper reads manifests, scripts, packages, symlinks, working directories, or repair state writable by a lower-trust actor after authorization. Bind authorization to immutable content and safe destination paths.
+
+**Local file ownership and TOCTOU**
+The app checks a file/path then follows replacement, symlink, mount, or case/normalization changes during a privileged read/write. Use descriptor-relative operations and verify final ownership. Focus `MEMORY-SAFETY-AND-BINARY.md` on parsing after the file is opened.
+
+**Credential-store and local-secret boundary mismatch**
+A keychain/keystore item, token file, backup, log, clipboard, notification preview, or local config is readable by another app/profile/user with less authority. Plaintext readable only by the same intended OS account is not automatically a vulnerability; state the lower-trust reader and credential power.
+
+## Application-state and device-lifecycle attack classes (subagent_type: `general`)
+
+**Account switch, logout, and device restore leakage**
+Cached data, background tasks, widgets, notifications, local databases, webview storage, or biometric approvals survive logout/account change and appear under a later account. Review backup/restore and multi-profile behavior.
+
+**Pending-action and user-presence confusion**
+Notification, widget, shortcut, share sheet, biometric prompt, or deferred operation authorizes a different action than displayed, executes after expiry, or uses another profile's pending state. Bind confirmation to normalized action, resource, account, and current foreground state.
+
+## Universal moves (apply across the above)
+
+- Enumerate every process, app component, local endpoint, URI scheme, file association, webview origin, and helper. Record OS identity, runtime privilege, caller, and callable operation.
+- Read final packaging inputs: merged manifest, entitlements, installer rules, native-messaging registration, protocol handlers, and ACL creation. Source declarations can be overwritten downstream.
+- Validate with dummy profiles and non-sensitive local fixtures on an isolated machine/emulator. Do not interact with other users' apps, credentials, or production services.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name the attacker starting capability, OS/app principal crossed, entry channel, accepted argument or state, and unauthorized operation or disclosure.
+2. Confirm OS sandbox, peer credential, signing, entitlement, permission, user-consent, and installer controls that apply. Unknown packaging/runtime facts require `needs_validation`.
+3. For webview bridges, cite both navigation/origin control and privileged native sink. For IPC, cite peer authentication and per-resource authorization. For helpers, verify final normalized destination.
+4. Keep local tests bounded and use dummy content/accounts. Stop after proving the boundary result; do not extend proof into persistence or broader system modification.
+5. Return `confirmed` only with a complete source and local evidence chain. Return `needs_validation` with the exact OS, manifest, signing, ACL, or device-lifecycle fact required.
+"#;
+
+const SKILL_25: &str = r#"# Vulnerability Hunting
+
+### Phase 2: Run coverage-led hunting waves
+
+The parent assigns `planned` ledger units to `general` agents. Use enough focused hunters to cover the units without combining unrelated boundaries. One hunter may own closely related units in one subsystem; no unit may be silently unassigned because of an agent-count limit — a unit the budget cannot reach is explicitly `deferred` with reason `budget_cannot_reserve_critics_and_validation`.
+
+When a budget or profile caps hunter count, assign units in priority order and record the ordering rationale in the ledger. Rank by: (1) unauthenticated or lowest-trust entry surfaces before authenticated ones; (2) boundaries protecting the most valuable resources (credentials, cross-tenant data, code execution, release authority); (3) prior-run gaps, revalidation targets, and changed source before same-source re-passes; (4) units whose class historically yields confirmed findings for this target type over speculative ones. Ties break lexicographically by `coverage_id` so runs stay deterministic.
+
+Before launch, the parent changes assigned units to `in_progress`, sets a canonical lowercase `agent_id`, and creates that agent's `scratch/` and parent-owned `artifacts/`. Hunters read source and parent-provided context, write only to their unique `scratch/`, and return one structured result through the Task tool. They never write retained artifacts or edit target source, `architecture.md`, `coverage-ledger.json`, `findings.json`, or another agent's files.
+
+## Required hunter prompt
+
+Every hunter prompt contains these parts in this order:
+
+1. A two-sentence role preamble: the hunter's goal is to find source-grounded security invariant failures in its assigned units, and it must return exactly one JSON object matching the structured-result contract at the end of this prompt.
+2. `architecture.md` verbatim.
+3. Assigned coverage IDs, subsystem, boundary, repository-relative starting paths, and each unit's assignment block map from `coverage-ledger.json`.
+4. The exact selected blocks, copied verbatim: each selected ordinary attack-class block from `ATTACK-CLASSES.md`, and from each selected companion its `Core discipline`, each chosen attack-class subsection, `Universal moves`, and `Validation rules`. Ordinary blocks are self-contained and carry no companion-style `Core discipline`, `Universal moves`, or `Validation rules` sections. Do not send block or companion names alone.
+5. Explicit excluded ordinary and companion blocks with a reason for each exclusion.
+6. The core hunting method below, followed by the promotion procedure block.
+7. The core validation rules below.
+8. Carried same-source prior confirmed exclusions, each limited to fingerprint, title, and root cause, plus peer-owned current coverage IDs that this hunter must not duplicate.
+9. The unique scratch/artifact paths, safe agent ID, predeclared promotion allowlist and byte limits, and the structured-result contract, including the Structured hunter result block below and the `confirmed` and `needs_validation` branches of `report-schema.json` copied verbatim.
+
+A prompt may select several companion blocks when the same path crosses several domains. Keep their constraints together. Scope is the hunter's coverage obligation, not permission to duplicate excluded work. If an unexpected different boundary appears, return it under `uncovered` so the parent creates a stable ledger unit and assigns it in the next wave.
+
+#### Core hunting method — include in every hunter prompt
+
+```text
+## Defensive vulnerability-finding method
+
+Your goal is to find source-grounded security invariant failures and the smallest fix,
+not to expand harm beyond the boundary result. Stay within source review and bounded local execution.
+Do not contact deployed endpoints, provider APIs, registries, identity systems,
+message brokers, shared services, or other users. Use local dummy data only.
+
+READ THE CODE AT DEPTH. Follow each assigned input through parsing, identity,
+authorization, normalization, state, derived copies, and the final sink. Read sibling,
+legacy, batch, retry, cancellation, migration, and error paths that produce the same
+effect. Compare sibling controls for equivalence, not only presence, and compare what
+one component guarantees with what the next component assumes.
+
+WORK FROM A CONCRETE INVARIANT:
+1. Name the lower-trust principal and starting capability.
+2. Name the accepted value, action, state transition, or resource selector.
+3. Locate the control that should reject, bind, isolate, limit, or revoke it.
+4. Trace the exact source path after that decision.
+5. Stop at the smallest affected dummy record, wrong return value, process-integrity
+   effect, or locally observable shared-resource effect.
+6. State a source-level change and regression case that enforce the invariant.
+
+DEPTH BOUND: trace only paths that can reach your assigned boundary or whose
+guarantees that boundary relies on. Stop a line of investigation as soon as the
+invariant is settled either way, and record the result in your structured output —
+a covered, candidate, or blocked disposition, or an `uncovered` entry — instead of
+continuing to search.
+
+TEST SAD PATHS AND DISAGREEMENTS. Check absent, empty, zero, negative, maximum,
+over-limit, duplicate, mixed encoding, stale, revoked, reordered, concurrent,
+partially migrated, failed dependency, and rollback state only where the interface
+accepts them. Compare canonicalization and units at every parser or policy handoff.
+For multi-step issues, treat each output as a prerequisite and do not assume a later
+boundary. If any prerequisite is not established, record a blocker.
+
+When a proposed high or critical candidate reveals a reusable root cause, search paths
+owned by the assigned coverage IDs for lexical, structural, and logical variants.
+Consolidate the same root cause, but establish each variant's conditions and impact
+independently. Do not investigate peer-owned units. Return a variant with no current
+coverage unit as `uncovered`.
+
+USE THE NARROWEST LOCAL CHECK THAT SETTLES THE CLAIM. Target-controlled builds,
+tests, processes, browsers, emulators, fuzzers, and fixture processing may run only
+inside the parent-approved OS-enforced sandbox. It must disable external networking,
+start from an empty allowlisted environment, expose target and tools read-only, permit
+writes only to your scratch directory, and apply low CPU, memory, process, file-size,
+disk, and wall-clock limits. Isolated loopback is allowed only for a local fixture.
+If any control is unavailable, do not execute: return needs_validation with that exact
+blocker. Prefer an existing unit test, minimal function harness, dummy-tenant service
+call, small malformed fixture, deterministic race schedule, or locally rendered policy.
+Do not install or fetch tools.
+
+Record the exact input, command, limits, and minimum result. For the environment,
+record only allowlisted variable names and safe non-secret values needed to reproduce
+the check. Never capture the ambient environment, inherited variables, credentials,
+authentication state, or unrelated host paths. The target-controlled process writes
+only in scratch. After the sandbox and all its processes terminate, only trusted
+parent-side code may promote predeclared scratch-relative files, following the
+promotion procedure block included verbatim in this prompt. You and target code never
+write retained artifacts. If promotion is unavailable or fails for decisive evidence,
+return needs_validation with the exact promotion blocker.
+Never stress availability, invoke a live target, use a real credential, publish an
+artifact, or continue past the minimum observed effect.
+
+A deployment, browser, provider, broker, OS, proxy, package, secret, or identity fact
+outside source is not proof either way. If one such fact is decisive, return a
+needs_validation record with the exact missing observation and safe owner-observed check.
+```
+
+#### Promotion procedure — copy this promotion procedure verbatim into every hunter prompt
+
+```text
+Artifact promotion procedure (trusted parent-side code only):
+Reference only for you: the parent performs these steps; you never perform them.
+
+Before execution, the parent opens and retains trusted, non-inheritable directory
+descriptors for the agent's scratch/ and artifacts/ roots, and records an allowlist
+of expected scratch-relative artifact files plus explicit per-file and cumulative
+byte limits. Never pass those descriptors to the agent or sandbox. After the sandbox
+and all its processes terminate, trusted parent-side code promotes each allowlisted
+file separately:
+
+1. Validate the declared relative path: reject absolute, empty, `.`, `..`, or
+   symlinked components.
+2. Walk each parent component from the retained scratch-root descriptor with
+   no-follow directory-relative operations; never reopen by path.
+3. Open the leaf no-follow and nonblocking.
+4. Verify with `fstat` that it is a regular file with link count exactly one and
+   within the recorded per-file and cumulative byte limits.
+5. Enforce those limits again while reading from that descriptor.
+6. Copy exactly the verified size, repeat `fstat`, and reject a changed identity,
+   type, link count, or size.
+7. For the destination, walk every parent component from the retained
+   artifacts-root descriptor with no-follow directory-relative operations; require
+   each existing component to be a real directory, and create any missing directory
+   exclusively before reopening and verifying it no-follow.
+8. Create the leaf exclusively without following links, verify that the opened
+   destination is a regular file with link count exactly one, and copy from the
+   verified source descriptor without reopening either path.
+9. Use equivalent race-safe APIs on non-POSIX systems.
+10. Never recursively copy or glob scratch, extract an archive into artifacts, or
+    open or promote a symlink, FIFO, socket, device, directory, hard-linked file,
+    changing file, or file that exceeds its bound.
+11. If any check is unavailable, cannot be enforced, or fails, discard the scratch
+    entry; if it is decisive evidence, retain `needs_validation` with the exact
+    promotion blocker.
+```
+
+#### Core validation rules — include in every hunter prompt
+
+```text
+## Candidate gate
+
+1. A candidate needs a complete repository-relative source trace and evidence for the
+   claimed root cause, including the strongest source-visible control.
+2. A proposed confirmed record needs a bounded local observed result, meaningful impact
+   across a stated boundary, complete conditions, and no visible preventing layer.
+3. Do not strengthen a crash into code execution, ordinary work into shared availability,
+   or a same-principal action into privilege gain.
+4. If a required fact is not source-visible or locally observable, use
+   needs_validation. Name exact blockers; do not give it severity or speculative completion.
+5. A missing best practice with no affected principal/resource is excluded or hardening,
+   not a finding. A candidate disproved by source is not needs_validation.
+6. Use the same source-derived fingerprint for the same root cause in every state.
+   It must match `^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$` and must not include a line,
+   wave, agent, severity, or verdict.
+7. Return an empty candidate array when nothing survives these gates.
+```
+
+## Local validation boundaries
+
+Local execution is for confirmation, not impact expansion:
+
+- **Allowed only in the required OS sandbox:** offline builds with present dependencies; isolated-loopback processes using dummy state; unit and integration tests; small fixture processing; sanitizers; bounded fuzz/regression tests; deterministic concurrency checks; local browser/emulator tests with dummy accounts; rendered manifests and policy evaluation with dummy identities; mocked external or paid calls.
+- **Disallowed:** live or deployed traffic; requests to services not started for this isolated check; network dependency installation; real accounts or credentials; production data; shared queues, cloud resources, runners, registries, signing or release services; publishing; stress, saturation, or cost generation; any work after the minimum dummy-data boundary result.
+
+The sandbox starts with an empty environment, gives target code no external network or host writable path, and enforces explicit low resource and time limits for every check, not only checks expected to be expensive. Scratch output remains target-controlled after exit. Promote it only with the no-follow, path-confined, regular-file, bounded-size host procedure in `SKILL.md`. Missing any sandbox or promotion capability does not erase a source-grounded candidate; represent the exact blocker in `needs_validation`.
+
+## Structured hunter result
+
+Return exactly one JSON object, with no surrounding prose:
+
+```json
+{
+  "units": [
+    {
+      "coverage_id": "one assigned ID",
+      "disposition": "covered|candidate|blocked",
+      "reviewed_paths": ["repo/relative/path"],
+      "checks": [
+        {
+          "agent_id": "canonical owner of this check",
+          "reviewed_paths": ["repo/relative/path owned by this check"],
+          "invariant": "specific control checked for this unit",
+          "method": "source|local",
+          "result": "what source or the bounded check established",
+          "artifact": "agents/<agent-id>/artifacts/file for local, null for source"
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [],
+  "hardening": ["concrete non-finding note"],
+  "uncovered": [
+    {
+      "surface": "...",
+      "boundary": "...",
+      "subsystem": "...",
+      "attack_class": "...",
+      "starting_paths": ["repo/relative/path"],
+      "reason": "why this needs its own deterministic coverage unit"
+    }
+  ]
+}
+```
+
+Each `candidates` entry is schema-shaped except that it uses `proposed_verdict` in place of `verdict`:
+
+- `proposed_verdict: "confirmed"`: include every field required by the `confirmed` branch of `report-schema.json` other than `verdict`: `fingerprint`, title, description, `root_cause`, `intended_behavior`, ordered `trace`, `evidence`, `conditions`, target-neutral `execution`, `remediation`, `severity`, and `confidence`. The execution instructions describe only the bounded local check already performed. `payloads` holds the minimum test input, fixture, or native invocation. `observed_result` records actual local output. Overall severity must not exceed observed impact.
+- `proposed_verdict: "needs_validation"`: include every field required by that schema branch other than `verdict`: `fingerprint`, title, description, `claimed_root_cause`, ordered `trace`, `evidence`, nonempty `blockers`, and `validation_plan` with at least one applicable `local` or `deployment` step. Do not invent an inapplicable context. Do not include severity, execution, remediation, reason, or a confirmed `root_cause`. `deployment` is an owner-observed check, not a request to probe a live target.
+
+Every assigned coverage ID appears exactly once in `units`. A `covered` unit needs an owner, nonempty `reviewed_paths` and `checks`, no unresolved fact, and no candidate. A `candidate` unit has the same owned evidence and is the only state that carries linked fingerprints. A `blocked` unit is an owned partial review with nonempty paths, checks, and unresolved facts but no fingerprint. All source paths are repository-relative, never absolute or traversal paths. A trace with several entries begins at `entrypoint`, ends at `sink`, and labels intermediate steps `propagation`. Every check has its own canonical lowercase `agent_id` and nonempty `reviewed_paths`; the unit-level list is exactly the union of those owned paths. A `source` check uses `artifact: null`. A `local` check uses one successfully parent-promoted regular file beneath `agents/<check.agent_id>/artifacts/`; this permits a verifier to add independently owned evidence without taking ownership from the hunter. Never link scratch, an output-root file, or another check owner's artifact.
+
+## Parent consolidation and ledger update
+
+The parent validates each unit result, maps it to exactly one assigned `coverage_id`, and updates only that ledger unit. Reject duplicate or absent IDs, unsafe unit or check agent IDs, source checks with artifacts, and local artifacts that trusted parent-side code did not promote into the check owner's artifacts subtree. Copy the unit's `reviewed_paths`, its `checks` into the unit's `local_checks`, linked artifact paths, candidate fingerprints, and unresolved facts into the ledger. Retain each hunter's `hardening` list in a parent bookkeeping field on the relevant units (outside the semantic fields) so Phase 6 can report it. A failed, malformed, or unsupported conclusion leaves that unit `planned` for reassignment. Untouched budget/profile units become unassigned `deferred` units with empty evidence and a reason; do not hide partial evidence in `deferred`. Run `validate-coverage-ledger.cjs` after the update; an invalid ledger cannot drive another assignment. This per-unit contract allows one hunter to close one unit while returning a candidate or blocker for another.
+
+Consolidate candidate entries by fingerprint and then by root cause. One root cause that exposes several entry paths or effects is one candidate with the strongest complete trace. Related but independent missing controls use separate fingerprints. Record duplicate fingerprints in the relevant ledger unit and do not send duplicate candidates to validation.
+
+## Coverage-critic waves
+
+Immediately after each hunter wave, spend the reserved invocation on one fresh `research` post-wave coverage critic. It receives `architecture.md`, the full coverage ledger including each assignment block map, current candidate fingerprints and states, and the prior-ledger gap summary. It reads source but does not write or run targets. Require exactly this JSON:
+
+```json
+{
+  "missing_units": [
+    {
+      "surface": "...",
+      "boundary": "...",
+      "subsystem": "...",
+      "attack_class": "...",
+      "starting_paths": ["repo/relative/path"],
+      "selected_companion_blocks": ["FILE.md#section"],
+      "excluded_blocks": [{"block": "FILE.md#section", "reason": "..."}],
+      "reason": "source-backed coverage gap"
+    }
+  ],
+  "reassign_ids": ["existing-id-that-did-not-close"],
+  "resolved_prior_leads": ["fingerprint"],
+  "stop": false
+}
+```
+
+The critic checks for unmapped entry points, unchecked parallel paths, missing lifecycle modes, selected companion classes without a unit, unjustified exclusions, units closed without paths/checks, and prior `needs_validation` or changed-source gaps that no unit addresses. It proposes coverage, not findings. `stop` is the critic's own assessment: `true` only when it accepts no `missing_units` and no `reassign_ids`; the parent's loop condition below, not `stop` alone, decides whether another wave runs. For each fingerprint in `resolved_prior_leads`, the parent marks the linked unit or prior-lead entry resolved and records the critic's source-backed reason.
+
+The parent rejects proposed units outside the review scope or source/local boundary, derives canonical IDs for accepted units, and deduplicates them against current units. A prior same-source completed unit may supply evidence; prior `deferred`, `blocked`, `out_of_scope`, or changed-source units become current work and never suppress an accepted unit. Fail rather than merge a canonical ID collision. For each legitimate `reassign_id` with live `blocked`, `covered`, or `candidate` evidence, append that exact terminal record to the unit's `attempts` with the critic's source-backed `reassignment_reason`. Preserve its owner, checks, artifacts, fingerprints, and unresolved facts in that archive. Increment the live `wave`; the next hunter must be a fresh owner and receives an `in_progress` unit with empty live evidence. The hunter's terminal result writes only its new evidence into the live fields. Never copy an archived owner's checks or artifacts into the new live attempt. Sort IDs and validate the ledger before another assignment. In `standard` and `deep`, when the post-wave critic reports no accepted `missing_units` or legitimate `reassign_ids` and no `planned` units remain, spend the separately reserved invocation on a distinct final-clean critic. Complete coverage only when that critic also returns no accepted work. If it finds work, queue it and repeat the wave, post-wave critic, and final-clean process. If time or resources force an early stop, mark every untouched unit `deferred`, preserve the critic's reason, and disclose the gap in the report. Never use a silent wave or agent cap as evidence of complete coverage.
+
+The run profile bounds this loop. A `quick` run has exactly one hunter wave followed by exactly one final critic pass. Add each accepted `missing_unit` to the current ledger and mark it `deferred` with reason `quick_profile_final_critic`. For each legitimate evidence-bearing `reassign_id`, archive the live terminal state in `attempts`, increment `wave`, and set the live state to unassigned `deferred` with empty evidence and reason `quick_profile_final_critic`. Do not launch a second hunter wave or another critic. In a scoped run, the critic still reports out-of-scope gaps it notices, but the parent records them as `out_of_scope` with the critic's reason instead of assigning them. The early-stop rule above is the same mechanism: `quick` is a pre-declared early stop, not evidence of complete coverage.
+
+A budget bounds it the same way. Before assigning each wave, compare remaining budget against its hunter count, the validation reserve, the immediate post-wave critic, and the retained final-clean critic (`quick` reserves only its single final post-wave critic). Shrink the hunter wave to fit, taking units in priority order. If those mandatory reserves do not fit, launch no hunter from that wave and mark its planned units `deferred` with reason `budget_cannot_reserve_critics_and_validation`. Critic-proposed units enter the same ranked queue rather than extending the budget. If surviving candidates exceed the validation reserve, follow the incomplete-run rule in `SKILL.md`: stop hunting, validate in fingerprint order, retain unvalidated units as unresolved candidates, and never present them as findings.
+"#;
+
+const SKILL_26: &str = r#"# Memory Safety, Binary, and Kernel Hunting
+
+#### When to use this file
+
+Reach for this file when the target processes untrusted bytes in a memory-unsafe or privileged context: C/C++/Objective-C, Rust `unsafe`, FFI, kernel modules and drivers, parsers and decoders, network daemons, firmware, binary loaders, language runtimes, and JITs. Use `PROTOCOLS-RPC-AND-MESSAGING.md` for protocol authorization and state-machine logic, and this file for process integrity, memory safety, ABI boundaries, and loader behavior.
+
+Pick relevant classes from Phase 1 and split large targets by parser, allocator/lifetime, FFI, concurrency, loader, runtime, or privileged interface.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Re-derive every bound and lifetime from attacker-controlled inputs and all callers. Validate against the worst accepted case, not a typical test vector.
+- A panic, sanitizer finding, or crash proves a defect only when a realistic untrusted input reaches it. Do not infer memory corruption, code execution, or shared availability impact from a label alone.
+- Validate in a local harness with sanitizers, deterministic concurrency tests, existing fuzz targets, and debugger-assisted fault classification. Stop after proving the violated invariant and observable impact; do not develop post-corruption techniques.
+- Assembly, JIT code, custom allocators, intra-object accesses, and foreign libraries can escape sanitizer coverage. Identify which relevant instructions are instrumented.
+- Classify as `confirmed` only after source evidence and bounded local validation establish the defect and effect. Use `needs_validation` when ABI, allocator, architecture, feature, deployment, or reachability facts remain unknown.
+```
+
+## Bounds, integer, and representation attack classes (subagent_type: `general`)
+
+**Out-of-bounds read or write**
+A length, offset, index, or terminator reaches a fixed or allocated buffer without a correct bound. Recalculate available headroom after prefixes, alignment, padding, and terminators. Check both source and destination capacity, and whether a short input is read before its declared length is trusted.
+
+**Integer overflow, underflow, truncation, and signedness**
+Review attacker-controlled arithmetic before allocation, copy, loop, indexing, and pointer operations. High-hit patterns include `a - b` with `b > a`, `count * element_size`, additions near the type maximum, negative values converted to unsigned, 64-bit lengths narrowed to 32-bit fields, and sentinel values such as `-1` becoming a large size. Confirm which checked representation is later used.
+
+**Unit and pointer-depth confusion**
+Code mixes bytes, elements, code units, pages, words, wire units, or nested pointer element sizes. Compare the unit at parse, validation, allocation, API boundary, and copy. A bounds check using the same wrong unit as the allocation is still wrong.
+
+**Uninitialized or partially initialized data**
+A buffer, padding, struct field, or vector capacity is returned, compared, hashed, serialized, or passed across a trust boundary before initialization. Require an observable consumer and realistic output length; stack allocation by itself is not disclosure.
+
+## Lifetime, type, and concurrency attack classes (subagent_type: `general`)
+
+**Use-after-free, stale view, and double free**
+Owners are released while callbacks, wait queues, timers, iterators, borrowed slices, or cached raw pointers can still use them. Review every error, cancellation, close, and realloc path. For embedded notification anchors, each free path must drain or detach all observers.
+
+**Type confusion and invalid downcast**
+A tag, vtable, union discriminator, object kind, or foreign handle is checked differently from the representation later read. Look for unchecked dynamic casts, stale tags after reuse, and serialized types whose validated element differs from the element consumed. Confirm a wrong-type read or write locally without extending the test beyond the violated invariant.
+
+**Reference-count and ownership races**
+Non-atomic retain/release, a check followed by an unlocked use, or inconsistent ownership across threads can free or mutate an object during access. Compare fast, error, shutdown, and compatibility paths for the same lock and ownership rules.
+
+**Shared-state races and TOCTOU**
+Concurrent parser streams, global caches, lazy initialization, signal handlers, and resource teardown can invalidate bounds, policy, or pointers established earlier. Verify the race with a repeatable local schedule, barrier, or thread sanitizer; a hypothetical interleaving without a security-relevant state transition remains `needs_validation`.
+
+**Lock-order, deadlock, and starvation**
+Externally reachable operations acquire locks in inconsistent order or hold them across callbacks and blocking I/O. Report under availability only when bounded input can stop shared progress; otherwise record it for fixing as a concurrency defect.
+
+## FFI and ABI attack classes (subagent_type: `general`)
+
+**Pointer-length and ownership contract mismatch**
+Caller and callee disagree on who allocates, frees, pins, or mutates a buffer, how long a pointer remains valid, or whether a length is bytes or elements. Trace both sides of every `extern`, CGo/JNI/Python/native binding, and generated wrapper. Check null, zero length, aliasing, and callback retention.
+
+**Layout, alignment, and enum disagreement**
+Foreign code receives a struct, bitfield, packed record, callback signature, integer width, enum, or calling convention that differs by architecture or build flag. Verify `repr`, packing, alignment, endianness, and ABI-specific types. An in-repo declaration mismatch can be confirmed locally; an opaque foreign implementation requires `needs_validation`.
+
+**Unwind, exception, and thread-affinity violations**
+Exceptions or panics cross an ABI that forbids unwinding, callbacks run after teardown, or APIs requiring one runtime thread are invoked elsewhere. Review error conversion and cancellation. Confirm whether the process aborts or state is corrupted before assigning impact.
+
+## Binary loading and runtime attack classes (subagent_type: `general`)
+
+**Library, plugin, and executable search-order trust**
+A privileged process loads a library, plugin, runtime image, or helper from a path writable by a less-trusted principal, or resolves a bare name through an attacker-influenceable working directory or environment. Compare intended installation ownership with each fallback and compatibility search path. A user loading their own plugin into their own process is not a boundary violation.
+
+**Missing artifact identity or signature binding**
+A loader verifies one file or metadata record but maps a different image because path resolution, file replacement, architecture slices, or embedded resources are not bound to the check. Supply-channel authenticity belongs in `SUPPLY-CHAIN-AND-RELEASE.md`; this class covers the local verification-to-map gap.
+
+**Malformed binary metadata and relocation handling**
+Offsets, counts, sections, relocations, symbols, bytecode, or debug metadata are trusted before range, overlap, and representation checks. Test parsers with bounded local fixtures and sanitizers. Separate memory corruption from a safely rejected malformed file.
+
+**JIT and generated-code consistency**
+Validator, interpreter, optimizer, and generated code disagree about types, bounds, side effects, or lifetime. Diff optimized and unoptimized paths using the same local input. Confirm a process-integrity effect; output variance that stays within language semantics is not a finding.
+
+**Unload, reload, and teardown safety**
+Live function pointers, callbacks, worker threads, or data views survive module unload or runtime reset. Review shutdown and failed-load cleanup as closely as startup.
+
+## Kernel and privileged-interface attack classes (subagent_type: `general`)
+
+**User-copy bounds and repeated reads**
+A syscall, ioctl, driver, or kernel parser derives a trusted fact from user memory then reads the same mutable address again. Copy the full request once or revalidate the later copy. Also audit size, direction, and access checks at each user-copy primitive.
+
+**Privileged object lifecycle and dispatch consistency**
+Externally reachable objects have unbalanced retain/release, teardown without observer drain, unchecked selector/table indices, or duplicated compatibility paths that omit a guard. Diff each dispatch and free path side by side.
+
+**Under-authorized powerful interfaces**
+A device node, admin socket, helper, or management API validates shape but not the caller's authority over the resource. Establish actual interface ownership and reachability; permissions or sandbox policy outside the repository make this `needs_validation`.
+
+## Universal moves (apply across the above)
+
+- Audit fixes and duplicated paths for the same source-to-sink shape. A check in one caller, architecture, protocol role, feature flag, or compatibility path does not protect its siblings.
+- Build a table for every parser or FFI boundary: accepted length/type, checked representation, allocation owner, consumer, thread, and teardown. Most native findings are one disagreement in that table.
+- Use existing corpora and small locally generated boundary fixtures. Save exact sanitizer/runtime output and the input property that triggers it; avoid large resource consumption and any live target.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Establish a realistic untrusted entry and exact operation that violates a bounds, type, lifetime, ABI, concurrency, loader, or authority invariant.
+2. Classify the observable effect: invalid read, invalid write, stale alias, wrong object, uninitialized output, unauthorized image load, deadlock, or safe process termination. Do not claim a stronger effect than observed.
+3. Run the narrowest local harness, existing test, sanitizer, or fuzzer needed to reproduce the effect. Verify sanitizer coverage of the faulting operation and record architecture/build conditions.
+4. For concurrency, use a deterministic schedule or sanitizer trace. For binary loading, prove the checked identity differs from the mapped identity and name the lower-trust writer.
+5. Return `confirmed` findings only with exact input, source trace, and observed result. Return `needs_validation` for a specific unresolved reachability, ABI, build, deployment, or runtime fact and state the bounded check needed.
+"#;
+
+const SKILL_27: &str = r#"# Protocols, RPC, and Messaging Hunting
+
+#### When to use this file
+
+Reach for this file when the target uses gRPC, GraphQL transports, Cap'n Proto, Thrift, Protobuf, custom binary protocols, streaming RPC, webhooks, brokers, queues, pub/sub, or event buses. It covers peer identity, logical message interpretation, routing, replay, ordering, and delivery semantics. Use `MEMORY-SAFETY-AND-BINARY.md` for parser memory safety, `WEB-PROTOCOL-AND-AUTH.md` for HTTP framing, and `RESOURCE-EXHAUSTION-AND-AVAILABILITY.md` for availability impact.
+
+Split large systems by producer/consumer pair, external/internal peer role, synchronous RPC, streaming, and asynchronous message path.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- "Internal" is not authentication. Name the peer identity at every hop and show how it becomes the application principal used for authorization.
+- Schema validation proves message shape, not provenance, resource authority, ordering, or safe values. Follow decoded fields to policy and side effects.
+- Broker guarantees and application guarantees differ. Write down retry, ordering, acknowledgement, deduplication, and transaction behavior before evaluating state changes.
+- Parser disagreement requires two concrete consumers, schema versions, or wire representations and one security-relevant divergent value.
+- Use `confirmed` for source-complete paths plus bounded local producer/consumer tests. Use `needs_validation` for broker ACL, service-mesh identity, topic attachment, or compatibility behavior outside the repository.
+```
+
+## Framing, schema, and interpretation attack classes (subagent_type: `general`)
+
+**Message boundary and canonicalization disagreement**
+Components disagree on length, compression, duplicate fields, unknown fields, encoding, numeric width, normalization, or envelope/body precedence. Compare generated and custom parsers, gateways, language bindings, and version converters. Confirm which principal, resource, or operation differs after decoding.
+
+**Union, enum, and default confusion**
+Unknown variants, missing discriminators, zero values, default privileges, or compatibility mappings reach code that assumes a validated case. Review exhaustive dispatch, default branches, and how old consumers interpret newly added fields.
+
+**Envelope and payload identity mismatch**
+Authorization uses trusted-looking routing or envelope metadata while the handler acts on a conflicting tenant, account, subject, object, or sender in the body. Identify which source is authoritative and ensure clients cannot override it.
+
+## RPC identity and authorization attack classes (subagent_type: `general`)
+
+**Interceptor and method-path inconsistency**
+An authn/authz interceptor applies to unary methods but not streams, reflection, health, gateway-transcoded paths, compatibility services, or individual stream messages. Compare every registration and route to the same operation.
+
+**Peer identity to application-principal confusion**
+mTLS, workload identity, bearer metadata, forwarded identity, or broker credentials authenticate a channel, but a caller-controlled field selects the user or tenant. The channel identity and claimed principal must be bound by deterministic policy.
+
+**Per-item and streaming authorization gaps**
+A stream, subscription, batch, or bulk message is authorized once, then later items name different resources or continue after role, membership, or token revocation. Re-check where scope can change and bind subscriptions to their original principal.
+
+**Callback and reply-correlation confusion**
+Predictable, reused, or cross-tenant correlation IDs let a response, webhook, cancellation, or acknowledgment satisfy another caller's pending operation. Bind each outstanding request to authenticated peer, tenant, operation, and lifecycle.
+
+## Broker and queue isolation attack classes (subagent_type: `general`)
+
+**Topic, routing-key, and subscription scope gaps**
+A publisher or subscriber can select another tenant's topic, wildcard, consumer group, partition, reply queue, or dead-letter route. Check broker-enforced ACLs where visible and application-side namespace construction. Tenant text inside a payload is not isolation.
+
+**Dead-letter, retry, and diagnostic disclosure**
+Messages routed to dead-letter queues, error topics, tracing, or operator views contain secrets or cross-tenant payloads accessible to a lower-trust consumer. Review policy and redaction at the failure path, not just normal delivery.
+
+**Untrusted producer treated as control plane**
+A message body can declare itself an admin event, provider callback, replication record, or migration instruction without an independently authenticated producer and event type. Verify signatures and source/account/audience binding before privileged handling.
+
+## Replay, ordering, and transaction attack classes (subagent_type: `general`)
+
+**Duplicate delivery and idempotency gaps**
+Retries or redelivery repeat a side effect because deduplication is absent, occurs after mutation, or uses a key that collides across tenants or operations. Confirm the broker's delivery model and the side effect that is not naturally idempotent.
+
+**Out-of-order and stale message acceptance**
+Older state, revoked membership, canceled work, or pre-step-up authorization arrives after newer state and overwrites it. Review sequence/version checks, tombstones, partition changes, and restore/replay workflows.
+
+**Acknowledgment/commit ordering defects**
+Acknowledgment occurs before durable commit and loses security-relevant work, or commit happens before an unreliable acknowledgment and duplicates a mutation. Evaluate transactional outbox/inbox behavior and failure recovery.
+
+**Partial multi-consumer transitions**
+Several consumers jointly implement one authorization or business transition, but retries and partial failure leave only a subset committed. Identify invariants that must become durable atomically or compensate with current authorization.
+
+## Universal moves (apply across the above)
+
+- Draw producer → broker/transport → gateway → consumer → storage for each message family. At each hop record authenticated peer, authoritative tenant/resource fields, validation, and side effect.
+- Feed the same small fixture to every in-repo schema version or language binding. Test duplicate, missing, unknown, boundary, replayed, and reordered messages without producing load.
+- Compare normal, retry, dead-letter, replay, migration, reflection, stream, and gateway-transcoded routes. Security policy must survive transport changes.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name the realistic producer or peer, accepted message, authenticated channel identity, affected principal/resource, and unauthorized mutation or disclosure.
+2. For disagreement claims, cite both parsers/consumers and the divergent decoded value. Safe rejection by either side prevents confirmation.
+3. For replay/order claims, establish actual delivery guarantees and reproduce the invariant failure with a bounded local/in-memory transport.
+4. For authorization and isolation, verify all interceptor, broker ACL, gateway, and consumer layers visible in source. External attachments make the candidate `needs_validation`.
+5. Return `confirmed` only with the complete message lifecycle and observed meaningful result. Return `needs_validation` with the exact broker, service identity, route, or delivery fact required.
+"#;
+
+const SKILL_28: &str = r#"# Reconnaissance
+
+### Phase 1: Map the source and plan coverage
+
+The parent initializes `run-metadata.json`, applies the strict pre-reconnaissance budget gate in `SKILL.md`, then creates agent scratch roots and the shared ledger before hunting. If the gate fails, record the incomplete status in metadata and launch no reconnaissance agent. Reconnaissance reads the target and locally available build/configuration state only. It does not contact deployed endpoints, external identity providers, registries, brokers, cloud APIs, or other shared services.
+
+Launch several `research` agents in parallel. They return structured facts to the parent and do not write files.
+
+**Agent 1a: Product, stack, and local operation**
+
+```text
+Read the target at <target>. Do not use network access. Return:
+1. Product type, users, operators, and ordinary trust-sensitive actions.
+2. Languages, frameworks, build system, runtimes, and locally visible deployment models.
+3. Repository-relative entry points and subsystem boundaries.
+4. Exact build and test commands that could run offline with local dependencies, their expected write locations, and the target-controlled inputs they process. Do not run them during reconnaissance.
+5. Comparable software or protocol visible from local documentation and dependencies. If no useful comparison is source-grounded, say so.
+6. Missing local toolchains or runtime facts that limit bounded execution.
+Return only source facts with repository-relative file:line references.
+```
+
+**Agent 1b: Principals, authority, and controls**
+
+```text
+Read all source that establishes identity, authorization, isolation, and privilege. Map:
+1. Each lower-trust principal and the actions it has by design.
+2. Authentication or peer identity at each entry surface.
+3. Per-resource authorization and tenant/owner scope.
+4. Process, browser, workload, CI, plugin, model/tool, device, or local-IPC authority.
+5. Privilege changes, confirmation, revocation, recovery, and fallback paths.
+6. Which controls are source-visible and which depend on an unobserved deployment fact.
+Return trust boundaries and control locations with repository-relative file:line references. Do not infer live reachability.
+```
+
+**Agent 1c: Entry surfaces, copies, and sinks**
+
+```text
+Inventory every source-visible place external or lower-trust input enters:
+- HTTP/browser, RPC/message/protocol, files/archive/document, CLI/env/config, plugins/dependencies/CI, cloud events/IAM selectors, model context/tool arguments, mobile/deep-link/webview, and local IPC.
+For each surface, follow major transformations, stored or derived copies, and security-relevant sinks. Record source-visible limits and parallel paths to the same effect.
+Return repository-relative paths and line numbers. Be complete, but do not execute or send inputs.
+```
+
+**Agent 1d: Local execution and deployment visibility**
+
+```text
+Read tests, build definitions, manifests, packaging, and maintained environment overlays. Return:
+1. Small offline tests or existing fixtures that could validate trust boundaries with dummy data inside the required OS-enforced sandbox.
+2. Processes that could use an isolated loopback network namespace without external or shared dependencies.
+3. Commands that would fetch dependencies, publish artifacts, contact paid/provider APIs, or affect shared state; mark them prohibited for this run.
+4. Deployed controls and attachments that source cannot establish and therefore require needs_validation if decisive.
+5. The final active source path for each deployment mode only where the repository selects it deterministically.
+6. Whether the local platform can enforce an empty allowlisted environment, no external network, read-only target/toolchain mounts, scratch-only writes, and explicit CPU, memory, process, file-size, disk, and wall-clock limits. Missing controls block target-controlled execution.
+7. Whether trusted parent-side code can promote predeclared scratch files with path-confined no-follow descriptor traversal, nonblocking regular-file checks, no-follow traversal of every destination parent, exclusive regular-file destination creation, and explicit per-file and cumulative size bounds. Missing promotion controls block use of scratch files as evidence.
+```
+
+Add focused reconnaissance agents for materially distinct deployment modes or subsystems that these four do not map. Do not silently omit them: if the budget gate in `SKILL.md` blocks a focused agent, launch nothing for it, seed the unmapped area as a `deferred` ledger unit with reason `budget_cannot_reserve_critics_and_validation`, and disclose the gap in the report.
+
+## Prior-run input
+
+Before selecting work, the parent reads every available prior `coverage-ledger.json` and `findings.json` for the same repo:
+
+- Compare the source locations, controls, conditions, and source-derived identity for every prior record and unit against the current source.
+- Carry an unchanged prior `confirmed` record into the current candidate set, with the same fingerprint, only when its relevant source, conditions, and qualifying evidence still apply. Link it to a current `planned` unit with `prior_status: "prior_confirmed_same_source"` and put only that root cause on the hunter exclusion list. The Phase 3 verifier that re-verifies the carried record becomes that unit's assignment owner; its source re-check is the unit's first check and moves the unit to `candidate` with the carried fingerprint.
+- Build a current planned `prior_confirmed_changed_source` revalidation unit when any relevant source or condition changed. Do not exclude that root cause from hunting or assume the prior verdict still applies.
+- Build current work units for every prior `needs_validation`, `deferred`, `blocked`, `out_of_scope`, and changed-source unit. These states are priority input, never deduplication or suppression keys.
+- Carry a still-blocked prior `needs_validation` record with the same fingerprint only after current source supports its trace. Link it to a current `planned` unit with `prior_status: "prior_needs_validation"`; the record keeps the unresolved blocker. The Phase 3 verifier that re-checks the carried record becomes that unit's assignment owner; its re-check is the unit's first check and moves the unit to `candidate` with the carried fingerprint. Include the record in final verification.
+- Treat prior rejected records as stale claims unless current evidence changes the failed trace or missing condition. An unchanged rejection suppresses only that exact claim, not review of the coverage unit.
+- Record missing or incompatible ledgers instead of treating them as empty coverage.
+
+State paths and source refs used in `run-metadata.json`. Summarize only the coverage consequences in `architecture.md`.
+
+## Architecture summary and companion selection
+
+The parent synthesizes `<output-dir>/architecture.md`, with a hard cap of about 1,000 words. Include:
+
+1. Product, principals, normal authority, and protected resources.
+2. The comparable-software baseline from Agent 1a, when one is source-grounded: what security trade-offs the comparable accepts. Use it to calibrate effort and severity, never to dismiss a demonstrated finding; if the comparable shares a defect pattern that has mattered in practice, that strengthens the finding. Omit this line when no meaningful comparable exists.
+3. Tech stack, source-visible deployment paths, and offline build/test limits.
+4. Entry surfaces and the important source-to-sink or lifecycle paths.
+5. Trust boundaries and the strongest source-visible control on each.
+6. Repository-relative starting paths.
+7. Prior coverage gaps, changed-source and blocked revalidation targets, and same-source confirmed exclusions.
+8. A short companion-selection summary derived from [ATTACK-CLASSES.md](ATTACK-CLASSES.md): selected files and the source-visible boundaries that require them.
+
+Keep the assignment-level ordinary block, selected companion blocks, and excluded blocks with reasons in each ledger unit, not in `architecture.md`. This keeps the architecture cap valid for large runs and makes the exact hunter prompt map machine-checkable.
+
+Do not select a companion file merely because the language or dependency name appears. Select it because reconnaissance found the trust-sensitive boundary described by its `When to use this file` section. Do not exclude a visible boundary just because another agent will review a related class.
+
+## Deterministic coverage ledger
+
+The parent writes `<output-dir>/coverage-ledger.json` as a top-level JSON array. Derive one unit for every material combination of entry surface, trust boundary, subsystem, and applicable ordinary or companion attack class at the granularity the run profile sets (`quick` uses one all-in-scope subsystem identity; `deep` adds lifecycle modes). For a scoped run, seed in-scope surfaces for assignment and retain discovered excluded surfaces as `out_of_scope` units so later full runs can turn them into current work.
+
+Each dimension has a human label and a stable source-derived value in `canonical_refs`. Use the same canonical reference for the same source object across runs even if its display label changes. Suitable references include a repository-relative entry path plus exported scope, a route or message identity defined in source, the source control that defines a boundary, a repository package path, and the exact attack-class block reference. A block reference is `FILE.md#` plus the exact class name as written in bold or as a heading in that file — a stable identifier matched against the file text, not a rendered HTML anchor. For companion section blocks, use the heading text before any parenthetical qualifier (for example `Core discipline`). Do not derive references by lowercasing or slugging display labels.
+
+Derive `coverage_id` without lossy slugs:
+
+1. Require every reference to be Unicode NFC with valid scalar values, visible content, no control, format, line/paragraph separator, or default-ignorable code point, and no surrounding whitespace.
+2. Encode its UTF-8 bytes with RFC 3986 percent encoding: leave only `A-Z a-z 0-9 - . _ ~` unescaped and use uppercase `%HH` for every other byte.
+3. Join encoded `surface`, `boundary`, `subsystem`, and `attack_class` references with `::`; append encoded `lifecycle` when present.
+
+Use the fixed canonical value `profile/quick/all-in-scope-subsystems` for the quick profile's coarsened subsystem dimension. Do not include wave number, agent, verdict, severity, or line number in a reference or ID. Sort units lexicographically by `coverage_id` before each assignment. Fail on every duplicate ID. If duplicate IDs have different semantic fields, treat that as a canonical identity collision; never merge or silently overwrite them. The validator also rejects one semantic tuple represented by different canonical references.
+
+Each unit records:
+
+```json
+{
+  "coverage_id": "...",
+  "canonical_refs": {
+    "surface": "src/router.ts#POST /users/:id",
+    "boundary": "src/authz.ts#requireOwner",
+    "subsystem": "packages/api",
+    "attack_class": "ATTACK-CLASSES.md#Access control"
+  },
+  "surface": "...",
+  "boundary": "...",
+  "subsystem": "...",
+  "attack_class": "...",
+  "starting_paths": ["repo/relative/path"],
+  "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+  "selected_companion_blocks": ["FILE.md#section"],
+  "excluded_blocks": [{"block": "FILE.md#section", "reason": "..."}],
+  "prior_status": "new|prior_confirmed_same_source|prior_confirmed_changed_source|prior_needs_validation|prior_deferred|prior_blocked|prior_out_of_scope|prior_covered_same_source|prior_covered_changed_source|prior_rejected_claim_changed|none",
+  "attempts": [],
+  "wave": 1,
+  "status": "planned",
+  "agent_id": null,
+  "reviewed_paths": [],
+  "local_checks": [],
+  "result_fingerprints": [],
+  "unresolved": []
+}
+```
+
+When `lifecycle` is material, add both `canonical_refs.lifecycle` and a human `lifecycle` field. `ordinary_attack_class_block` is null only when no ordinary block applies. The selected companion list includes each applicable class plus its companion `Core discipline`, `Universal moves`, and `Validation rules`; `excluded_blocks` records every considered but unselected block and the source fact that excludes it.
+
+The parent may add bookkeeping fields but keeps the semantic fields above stable. In `prior_status`, `new` marks a surface first seen in this run when compatible prior ledgers exist; `none` marks a unit seeded when no compatible prior ledger is available. Prior `deferred`, `blocked`, `out_of_scope`, and changed-source units initialize as current `planned` work when now in scope. A prior same-source covered unit remains visible in the current ledger; assign changed source, important lifecycle paths, and exact conflicts first, then use the coverage critic to decide whether it needs another pass.
+
+`attempts` is an append-only archive for evidence-bearing assignments that a coverage critic reopens. Before reassignment, append the prior unit's exact `wave`, `status`, `agent_id`, `reviewed_paths`, `local_checks`, `result_fingerprints`, and `unresolved`, plus the critic's source-backed `reassignment_reason`. Only `blocked`, `covered`, and `candidate` states can be archived. Archived attempts retain the same state and evidence invariants as live units, use strictly increasing waves below the current wave, and retain their producing owners and artifacts. The next assignment increments `wave`, uses a fresh owner, and starts with empty live evidence. If the profile or budget prevents another assignment, increment `wave` and use live `deferred` state with null owner, empty evidence, and the stop reason. Never copy an archived owner's checks or artifacts into the live state. A later live terminal state contains only the new attempt's evidence; the archive remains unchanged.
+
+Enforce this state table exactly:
+
+| Status | Unit `agent_id` | `reviewed_paths` / `local_checks` | `result_fingerprints` | `unresolved` |
+|---|---|---|---|---|
+| `planned` | null | empty | empty | empty |
+| `not_applicable`, `out_of_scope`, `deferred` | null | empty | empty | nonempty reason |
+| `in_progress` | canonical owner | empty | empty | empty |
+| `blocked` | canonical owner | both nonempty owned partial evidence | empty | nonempty blocker |
+| `covered` | canonical owner | both nonempty | empty | empty |
+| `candidate` | canonical owner | both nonempty | nonempty | optional |
+
+Canonical agent IDs match `^[a-z0-9][a-z0-9_-]{0,63}$` and are not Windows device names. Lowercase is mandatory, so one ledger cannot contain case-fold aliases. The unit `agent_id` records the assignment owner. Every check records its own `agent_id` and nonempty `reviewed_paths`; the unit-level `reviewed_paths` is exactly their union. A source-only check uses `artifact: null`. A local check requires a regular file promoted only by trusted parent-side code under exactly `agents/<check.agent_id>/artifacts/`. This lets hunter and verifier checks coexist in one unit. Scratch paths, output-root files, symlinks, special files, and another check owner's artifacts are not evidence.
+
+The ledger is the coverage claim. An architecture summary, agent count, or generic "auth reviewed" sentence is not coverage evidence. Phase 2 closes units only from the paths and checks in a hunter's structured result.
+
+Run `node <skill-dir>/validate-coverage-ledger.cjs <output-dir>/coverage-ledger.json` after seeding, after every parent update, and before Phase 6. The validator rejects input beyond 5 MiB, 64 nesting levels, 10,000 units, 1,000 entries in a nested collection, or 500,000 traversed values, and caps reported validation errors at 100. In practice the 5 MiB byte limit holds roughly 2,000-5,000 realistic units, so it binds before the 10,000-unit cap. Fix every error before assigning work or making a coverage claim.
+"#;
+
+const SKILL_29: &str = r#"{
+  "$comment": "Top-level contract for findings.json. validate-findings.cjs interprets and checks this schema directly.",
+  "type": "array",
+  "items": {
+    "oneOf": [
+      {
+        "type": "object",
+        "description": "A source-grounded vulnerability that was independently demonstrated.",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "const": "confirmed"
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$",
+            "description": "A stable source-derived identifier that does not change between validation states."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "root_cause": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "intended_behavior": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "trace": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["entrypoint", "propagation", "sink"]
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["kind", "file", "line", "scope", "description"],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["file", "line", "description"],
+              "additionalProperties": false
+            }
+          },
+          "conditions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["authentication_level", "authorization_role", "user_interaction", "system_configuration", "network_routing", "environmental_dependency", "data_state", "timing_dependency", "third_party_dependency"]
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["kind", "description"],
+              "additionalProperties": false
+            }
+          },
+          "execution": {
+            "type": "object",
+            "description": "Target-neutral reproduction in the target's native interface.",
+            "properties": {
+              "attacker_perspective": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              },
+              "payloads": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "instructions": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "observed_result": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              }
+            },
+            "required": ["attacker_perspective", "payloads", "instructions", "observed_result"],
+            "additionalProperties": false
+          },
+          "remediation": {
+            "type": "object",
+            "properties": {
+              "strategy": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              },
+              "code_changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file_name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "fixed_code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["file_name", "fixed_code"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["strategy"],
+            "additionalProperties": false
+          },
+          "severity": {
+            "type": "object",
+            "properties": {
+              "likelihood": {
+                "type": "object",
+                "properties": {
+                  "score": {
+                    "type": "string",
+                    "enum": ["informational", "low", "medium", "high", "critical"]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "visibleContent": true
+                  }
+                },
+                "required": ["score", "reason"],
+                "additionalProperties": false
+              },
+              "impact": {
+                "type": "object",
+                "properties": {
+                  "score": {
+                    "type": "string",
+                    "enum": ["informational", "low", "medium", "high", "critical"]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "visibleContent": true
+                  }
+                },
+                "required": ["score", "reason"],
+                "additionalProperties": false
+              },
+              "overall_severity": {
+                "type": "string",
+                "enum": ["informational", "low", "medium", "high", "critical"]
+              }
+            },
+            "required": ["likelihood", "impact", "overall_severity"],
+            "additionalProperties": false
+          },
+          "confidence": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              }
+            },
+            "required": ["score", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["verdict", "fingerprint", "title", "description", "root_cause", "intended_behavior", "trace", "evidence", "conditions", "execution", "remediation", "severity", "confidence"],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "description": "A source-grounded candidate whose decisive validation is blocked.",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "const": "needs_validation"
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "claimed_root_cause": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "trace": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["entrypoint", "propagation", "sink"]
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["kind", "file", "line", "scope", "description"],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["file", "line", "description"],
+              "additionalProperties": false
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "visibleContent": true
+            }
+          },
+          "validation_plan": {
+            "type": "object",
+            "properties": {
+              "local": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              },
+              "deployment": {
+                "type": "string",
+                "minLength": 1,
+                "visibleContent": true
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["verdict", "fingerprint", "title", "description", "claimed_root_cause", "trace", "evidence", "blockers", "validation_plan"],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "description": "A source-grounded candidate refuted during validation.",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "const": "rejected"
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "claimed_root_cause": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          },
+          "trace": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["entrypoint", "propagation", "sink"]
+                },
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["kind", "file", "line", "scope", "description"],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "visibleContent": true
+                }
+              },
+              "required": ["file", "line", "description"],
+              "additionalProperties": false
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "visibleContent": true
+          }
+        },
+        "required": ["verdict", "fingerprint", "title", "description", "claimed_root_cause", "trace", "evidence", "reason"],
+        "additionalProperties": false
+      }
+    ]
+  }
+}
+"#;
+
+const SKILL_30: &str = r#"# Resource Exhaustion and Availability Hunting
+
+#### When to use this file
+
+Reach for this file when untrusted requests, messages, files, tenant state, or agent work can consume CPU, memory, disk, connections, worker slots, paid APIs, or queue capacity, or can deadlock/crash a shared service. This domain distinguishes a source-reviewable availability vulnerability from a general performance issue. Never validate by stressing a shared or live service.
+
+Use `MEMORY-SAFETY-AND-BINARY.md` for memory-integrity defects and `PROTOCOLS-RPC-AND-MESSAGING.md` for broker delivery logic. A reachable fatal error belongs here for shared impact even when the underlying parser is covered elsewhere.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Require an input-to-cost path, a missing effective bound, and impact on another user, shared service, safety function, or operator-owned spend. Self-limiting work in the requester's own process is not a service vulnerability.
+- A missing rate limit is not enough. Check body/message/file caps, concurrency, queues, deadlines, database constraints, upstream gateways, and per-tenant quotas before calling a path unbounded.
+- Do not run stress, saturation, or production tests. Use asymptotic analysis, small boundary fixtures, mocked paid calls, strict local resource limits, and deterministic cancellation tests.
+- State attacker cost, service work, persistence, scope, and recovery. One bounded input with superlinear or persistent shared effect is materially different from sustained volume.
+- Use `confirmed` for source-visible bounds failures demonstrated safely. Use `needs_validation` when upstream caps, deployed topology, autoscaling, paid quota, or recovery behavior is outside the repository.
+```
+
+## Computational amplification attack classes (subagent_type: `general`)
+
+**Superlinear parsing, matching, or evaluation**
+Small accepted input drives catastrophic regex backtracking, nested parsing, recursive validation, symbolic evaluation, graph traversal, template expansion, or adversarial sort/hash behavior. Derive accepted depth/cardinality and complexity, then demonstrate a bounded growth curve locally.
+
+**Decompression and representation amplification**
+Compressed, sparse, nested, aliased, or encoded input expands far beyond the checked transfer or file size. Verify limits after every expansion and across parser stages, including archives, images, fonts, structured documents, and protocol compression tables.
+
+**Database and downstream query amplification**
+A small request creates broad scans, pathological joins, fan-out, unbounded sort/aggregation, or many downstream calls because query depth, filter cardinality, pagination, or expansion fields are not bounded. Confirm authorization does not intentionally permit the same resource scope.
+
+## Resource accumulation attack classes (subagent_type: `general`)
+
+**Unbounded buffering and cardinality**
+Bodies, out-of-order streams, uploads, sessions, unique cache keys, metrics labels, log fields, subscriptions, or pending jobs accumulate without per-item and aggregate limits. Find cleanup and expiration on disconnect, timeout, cancellation, and partial parse.
+
+**File descriptor, handle, and temporary-resource leaks**
+Malformed or canceled work misses cleanup and retains sockets, files, database cursors, timers, subprocesses, temporary files, or object references. Confirm the leak repeats through bounded local iterations and affects a shared pool.
+
+**Detached work after cancellation**
+Client timeout, disconnect, canceled job, or failed authorization returns control but leaves database, model, network, or worker work running. Trace cancellation and deadline propagation through every layer.
+
+## Quota and scheduling attack classes (subagent_type: `general`)
+
+**Pre-authentication work imbalance**
+Expensive parsing, key lookup, cryptography, decompression, or external requests happen before authentication and the earliest size/rate gate. Compare minimal requester effort to shared service cost and check upstream limits.
+
+**Quota-accounting scope and reset gaps**
+Accounting uses attacker-influenceable IP, route, tenant, key prefix, task ID, or other dimension, allowing one principal's work to escape its intended budget or consume another principal's allocation. Review integer overflow, distributed races, retries, reconnects, and account switching.
+
+**Worker, pool, and priority starvation**
+Low-priority or attacker-controlled jobs hold shared locks, workers, database pools, event-loop turns, or scheduler priority needed by unrelated users. Require a path that bypasses queue/concurrency fairness or retains a slot beyond its deadline.
+
+## Failure and recovery attack classes (subagent_type: `general`)
+
+**Reachable fatal error or deadlock**
+An untrusted input reaches `panic`, abort, fatal assertion, unhandled exception, process exit, lock cycle, or infinite loop in a shared process. Confirm supervisor scope and whether one worker or the whole service becomes unavailable. A restarted isolated worker may reduce impact but does not erase the defect.
+
+**Retry storm and fail-open amplification**
+Timeouts, dependency errors, partially processed messages, or health-check failures trigger synchronized or unbounded retries without jitter, ceilings, circuit breaking, or deduplication. Verify one bounded failure source can create persistent aggregate work.
+
+**Poison-record and head-of-line blocking**
+One malformed record or message repeatedly fails at the front of a shared queue, partition, startup scan, migration, or recovery loop. Review skip/quarantine policy, offsets, and whether other tenants share the blocked unit.
+
+**Unsafe recovery and capacity rollback**
+A restart, restore, fallback, or cleanup path rebuilds unbounded state, ignores current quotas, or restores the input that immediately repeats failure. Recovery correctness is part of availability.
+
+## Universal moves (apply across the above)
+
+- Build an input-to-resource table: earliest accepted size/cardinality, work before auth, downstream fan-out, persistence, shared pool, limit and cleanup owner, recovery.
+- Compare aggregate limits with per-object limits. Ten thousand valid one-byte items may evade a per-message cap while exhausting tenant-wide or process-wide state.
+- Validate only in an isolated fixture with strict CPU/memory/time limits and small growth points. Mock external and paid calls and stop once the missing bound or cancellation is observable.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name untrusted input, requester work, service amplification or retained resource, shared blast radius, and recovery. Missing limits without concrete shared impact are hardening.
+2. Confirm no source-visible upstream, parser, queue, tenant, or framework bound prevents the path. Unknown deployed controls require `needs_validation`.
+3. For superlinear behavior, establish the accepted complexity and bounded local growth. For leaks, show repeatable retention after cleanup should occur. For fatal paths, identify process/supervisor isolation.
+4. Prioritize by low requester work, unauthenticated reachability, cross-tenant scope, persistence, and poor recovery; do not validate with availability impact.
+5. Return `confirmed` only with safe local proof and meaningful shared effect. Return `needs_validation` with the exact upstream limit, topology, quota, or recovery observation an owner must check.
+"#;
+
+const SKILL_31: &str = r#"---
+name: security-audit
+description: Security guidance and vulnerability review for codebases, APIs, services, CLI tools, libraries, and daemons. Use for security questions, focused reviews, vulnerability research, security audits, or pen tests. Run the complete workflow only for explicit codebase audit or pen-test requests, full/comprehensive/end-to-end reviews, or requested report artifacts.
+---
+
+# Security Audit
+
+Find vulnerabilities that violate a real trust boundary, then give owners the source evidence, safe reproduction, priority, and smallest effective fix. This is a defensive, source-first workflow. A candidate without a concrete affected principal, resource, or security outcome is not a confirmed finding.
+
+## Operating modes
+
+This skill is guidance by default. Loading it does not authorize the complete audit workflow or file creation.
+
+- **Guidance mode**: For security questions, focused reviews, methodology, triage, or investigation of specific findings, use only the relevant parts of this skill. Do not automatically run all six phases, create an output directory, or write audit artifacts. You may launch focused agents when useful; they return results to the current task.
+- **Full audit mode**: Use the complete workflow when the user explicitly asks to audit or pen-test a codebase, asks for a full, comprehensive, or end-to-end security review, or requests report artifacts. Run all six phases and write the files defined below.
+
+If the request could mean either mode, ask one focused question before creating files or starting the complete workflow.
+
+## Platform terminology
+
+This skill is agent-neutral:
+
+- **Parent** is the agent that coordinates the run and owns shared state.
+- **Task tool** is the platform's delegation or sub-agent mechanism.
+- **`research` agent** is a delegated agent for focused source exploration and factual verification.
+- **`general` agent** is a delegated agent for broad investigation and bounded local execution.
+- **`subagent_type:`** in a heading names which of these two delegated agent roles runs that work.
+
+Use equivalent platform capabilities while preserving role, write-isolation, prompt, and independence boundaries.
+
+## Universal execution safety
+
+These rules apply in both operating modes. Source inspection is read-only. Run target-controlled builds, tests, processes, browsers, emulators, fuzzers, and fixture processing only inside an OS-enforced sandbox that provides all of these controls:
+
+- no external network; use only an isolated loopback namespace when the check needs local client/server traffic;
+- an empty environment populated from an explicit allowlist with safe values, with scratch-local `HOME`, temporary directories, and caches;
+- a read-only target and toolchain, with the target-controlled process able to write only inside its assigned `scratch/` directory; and
+- explicit low CPU, memory, process, file-size, disk, and wall-clock limits.
+
+The agent, outside the target-controlled process, may make a disposable source copy in an assigned `scratch/` directory when a build must write beside source. In guidance mode, do not retain target-controlled files. In full audit mode, only trusted parent-side code may promote the minimum non-secret result to retained `artifacts/` using the procedure under Write isolation. Never expose a retained output directory (other than the agent's own assigned `scratch/`), another agent's directory, the host home directory, credentials, sockets, or shared services to target code. Do not install dependencies or let builds fetch them. Use only tools and dependencies already available locally. If every control cannot be enforced, do not execute target code: report the missing sandbox capability as a needs-validation blocker and give a safe validation plan.
+
+Use dummy principals, fixtures, and secrets. Do not probe deployed endpoints, external services, shared infrastructure, production identities, other users' data, or live control planes. Do not test availability against a live or shared process, publish artifacts, alter releases, spend paid API quota, or continue beyond the minimum local effect needed to establish a defect. If the decisive fact is outside source or the sandboxed fixture, report it as needing validation.
+
+## Full audit setup
+
+In full audit mode, resolve these values before reconnaissance:
+
+- **Skill directory**: the absolute directory containing this `SKILL.md`.
+- **Target**: the absolute repository root under review.
+- **Repo name**: a stable repository identifier from the directory or local Git remote.
+- **Output directory**: a new writable directory outside the target, defaulting to `~/security-audit-skill/<repo-name>/run-<N>`, where `<N>` is the next unused integer. Use a directory inside the target only when the user explicitly selects it and the parent verifies that version control ignores the whole directory. Otherwise stop and request an external path.
+- **Source ref**: the reviewed commit and whether the worktree is dirty. Do not treat unreviewed generated or modified files as another revision.
+
+### Write isolation
+
+The parent creates and is the only writer of shared run files:
+
+- `run-metadata.json`
+- `architecture.md`
+- `coverage-ledger.json`
+- `findings.json`
+- `REPORT.md`
+- `FINDINGS-DETAIL.md`
+- `NEEDS-VALIDATION.md`
+
+Each hunter or verifier receives a unique root under `<output-dir>/agents/<agent-id>/`, with separate `scratch/` and `artifacts/` directories. Canonical agent IDs match `^[a-z0-9][a-z0-9_-]{0,63}$` and must not equal a Windows device name such as `con`, `prn`, `aux`, `nul`, `com1` through `com9`, or `lpt1` through `lpt9`. Lowercase IDs prevent case-fold collisions. The agent and every target-controlled process may write only to `scratch/`; retained `artifacts/` is parent-owned, is never exposed to the sandbox, and is writable only by trusted parent-side promotion code. Agents may not change shared files, target source, retained artifacts, or another agent's directory. Do not use `/tmp` or the host home directory as a writable fallback.
+
+Before execution, the parent opens and retains trusted, non-inheritable directory descriptors for the agent's `scratch/` and `artifacts/` roots, and records an allowlist of expected scratch-relative artifact files plus explicit per-file and cumulative byte limits. Never pass those descriptors to the agent or sandbox. After the sandbox and all its processes terminate, trusted parent-side code promotes each allowlisted file separately:
+
+1. Validate the declared relative path: reject absolute, empty, `.`, `..`, or symlinked components.
+2. Walk each parent component from the retained scratch-root descriptor with no-follow directory-relative operations; never reopen by path.
+3. Open the leaf no-follow and nonblocking.
+4. Verify with `fstat` that it is a regular file with link count exactly one and within the recorded per-file and cumulative byte limits.
+5. Enforce those limits again while reading from that descriptor.
+6. Copy exactly the verified size, repeat `fstat`, and reject a changed identity, type, link count, or size.
+7. For the destination, walk every parent component from the retained artifacts-root descriptor with no-follow directory-relative operations; require each existing component to be a real directory, and create any missing directory exclusively before reopening and verifying it no-follow.
+8. Create the leaf exclusively without following links, verify that the opened destination is a regular file with link count exactly one, and copy from the verified source descriptor without reopening either path.
+9. Use equivalent race-safe APIs on non-POSIX systems.
+10. Never recursively copy or glob scratch, extract an archive into artifacts, or open or promote a symlink, FIFO, socket, device, directory, hard-linked file, changing file, or file that exceeds its bound.
+11. If any check is unavailable, cannot be enforced, or fails, discard the scratch entry; if it is decisive evidence, retain `needs_validation` with the exact promotion blocker.
+
+[HUNTING.md](HUNTING.md) and [VALIDATION-AND-REPORTING.md](VALIDATION-AND-REPORTING.md) carry this procedure as one identical fenced block for hunter and verifier prompts; it states the same rules in the same order as this list.
+
+For a reproduced check, record the command, exact test input, sandbox limits, and only the allowlisted environment variable names plus safe non-secret values needed to reproduce it. Never capture or copy the ambient environment, inherited variables, credential values, authentication state, or unrelated host paths. Launch from an empty environment rather than trying to redact one after execution.
+
+Before delegation, the parent writes `run-metadata.json` with at least `run_id`, `repo`, `target`, `source_ref`, `profile`, `scope_paths`, `budget` (null if unset), `execution_policy: "sandboxed-source-and-local-only"`, selected companion files, prior-run paths, shared-file owners, and `run_status: "in_progress"`. Update metadata only when those facts change; candidate state belongs in the coverage ledger and `findings.json`.
+
+## Full audit planning
+
+The coverage, prior-run, profile, and budget requirements in this section apply only in full audit mode.
+
+### Coverage and prior runs
+
+No one pass is complete. Build a deterministic coverage plan before hunting and update it after every agent result. [RECONNAISSANCE.md](RECONNAISSANCE.md) defines the stable coverage units and [HUNTING.md](HUNTING.md) defines coverage-critic waves. The parent alone updates the ledger.
+
+If prior runs exist, read every compatible `coverage-ledger.json` and `findings.json` before planning the current run:
+
+1. Compare the relevant current source with each prior record and unit. A prior source ref alone is not evidence that a path is unchanged.
+2. Carry a prior `confirmed` record into the current candidate set only when its relevant source and conditions are unchanged and its evidence still meets the current contract. Link it to a current ledger unit seeded `planned`, preserve its fingerprint, exclude only that carried root cause from hunters, and send the carried record through the current final verification path; the Phase 3 verifier that re-checks it becomes that unit's assignment owner and moves it to `candidate`.
+3. When relevant source for a prior `confirmed` record changed, create a current planned revalidation unit. Do not put that record on the hunter exclusion list. It remains confirmed only if current independent validation establishes the current path and result.
+4. Make prior `needs_validation`, `deferred`, `blocked`, `out_of_scope`, and any changed-source unit current work. A still-external `needs_validation` record may be carried only after the current source trace is checked and linked by fingerprint to a current `planned` unit whose verifier re-check supplies its owner and evidence; the record keeps the unresolved blocker. These prior states never suppress a current unit.
+5. A prior same-source covered unit may inform priority, but it remains visible in the current ledger. A prior `rejected` record suppresses only the unchanged failed claim, not coverage of its unit; changed evidence creates current work.
+6. Read the prior profile and scope. A prior `quick` or scoped ledger contributes only its recorded evidence and gaps, never an implied "rest is fine."
+
+If no prior ledger exists, say so in the final coverage statement. Never imply that one run exhausts the target.
+
+### Run profiles and scope
+
+During full audit setup, pick a profile from the user's request or propose one from the target's size and stakes. Record it in `run-metadata.json` (`profile`, `scope_paths`) and state it in the report. The default is `standard`.
+
+- **`quick`** — a bounded pass for small targets, re-runs, or a fast first look. Coarsen ledger units to surface × boundary × attack class (subsystem uses the fixed canonical `profile/quick/all-in-scope-subsystems` identifier), run exactly one hunter wave followed by exactly one final coverage-critic pass, and use one fresh verifier per candidate for both candidate validation and final record verification. Do not launch a follow-up hunter wave: record the critic's accepted discoveries and reassignments as `deferred`.
+- **`standard`** — the workflow as written.
+- **`deep`** — for high-stakes or large targets. Split ledger units per subsystem and lifecycle mode, run critic waves to a clean pass, keep candidate validation and final record verification as separate fresh agents, and give `prior_covered_same_source` units an independent second pass.
+
+A **scoped run** audits a subset: named paths, one subsystem, one companion domain, or the diff between two source refs. Seed ledger units only for in-scope surfaces and record everything else as `out_of_scope` — never as `covered`. A scoped or `quick` run must present itself as partial coverage.
+
+Profiles change breadth and redundancy, never the evidence bar. Do not scale away the candidate gate, the source/local execution boundary, `needs_validation` discipline, schema validation, or independent verification of `confirmed` records.
+
+#### Cost budget
+
+The ledger makes spend countable: one unit is roughly one hunter assignment, and one surviving candidate is one or two verifier assignments depending on profile. When the user sets a budget — or the parent proposes one for a large target — record `budget` in `run-metadata.json` as a maximum number of agent invocations across all phases.
+
+Apply the strict budget gate before launching any reconnaissance agent. Reserve the four baseline reconnaissance calls, one final post-wave critic for `quick` or one post-wave plus one distinct final-clean critic for `standard`/`deep`, and at least one verifier call. Add focused reconnaissance only after repeating this gate for each extra call. If the requested budget cannot fund that minimum, launch no agent: ask for a larger budget, narrower scope, or different profile. If the request remains unchanged, set `run_status: "incomplete"` with `incomplete_reason: "budget_cannot_fund_reconnaissance_and_reserves"` and report that no audit pass ran.
+
+Spend it in this order:
+
+1. Count reconnaissance, every post-wave critic, and the separate final-clean critic as agent invocations.
+2. **Reserve critics and validation before hunting.** For `quick`, reserve its one post-wave final critic. Before every `standard` or `deep` hunter wave, reserve one immediate post-wave critic plus one distinct final-clean critic. Also reserve verifier cost from the profile (about 1 or 2 agents per expected candidate; when in doubt reserve 30% of the balance after critic reservation). Never assign hunters into either reserve.
+3. Assign hunters to units in priority order until the hunting allowance is spent. Spend the reserved post-wave critic immediately after that wave; keep the final-clean and validation reserves intact.
+4. Before a later wave, reserve its new post-wave critic again. If the remaining budget cannot cover the required critic calls and validation reserve, launch no hunters from that wave, mark its planned units `deferred` with reason `budget_cannot_reserve_critics_and_validation`, and use the retained final-clean critic to record the resulting gap.
+
+Before wave 1, update the pre-recon estimate with seeded units, implied hunter count, mandatory critic calls, validation reserve, and whether the remaining budget covers the plan. If it clearly cannot, say so and propose either a tighter scope or a coarser profile instead of silently thinning evidence. If later facts consume the required final-critic reserve, launch no hunters, mark all planned work deferred, set the run incomplete with reason `critic_budget_exhausted`, and make no complete-coverage claim.
+
+A strict total-agent budget can still be exceeded by an unexpectedly large candidate set or by a material Phase 5 replacement that needs another independent verifier. If the remaining budget cannot validate every candidate, stop hunting, validate candidates in fingerprint order while the budget permits, and set `run_status: "incomplete"` plus `incomplete_reason: "validation_budget_exhausted"`. Keep each unvalidated fingerprint linked to a `candidate` ledger unit with that unresolved reason. Do not put an unvalidated candidate in `findings.json`, relabel it `needs_validation`, or report the run as complete. Phase 6 may produce a partial report only if its first section states that candidate validation is incomplete and lists the affected fingerprints and units. Never exceed a user-set strict budget silently.
+
+## Core principles
+
+### Require a boundary and result
+
+For every candidate, name the lower-trust principal, accepted input or action, intended control, crossed boundary, affected principal or resource, and concrete observed or owner-observable result. Do not elevate a missing best practice, guessed deployment behavior, generic parser crash, or self-impact into a security finding.
+
+### Use bounded local evidence
+
+Static analysis establishes the source path. Sandboxed local tests resolve behavior when all execution controls are available: a minimal function harness, existing unit test, small parser fixture, dummy-tenant integration test, locally rendered configuration, or bounded isolated-loopback client. Stop at a wrong return value, unauthorized dummy record, sanitizer finding, policy difference, or other minimum effect. Do not extend the local check beyond the minimum boundary result or produce persistence, post-fault, or concealment material.
+
+### Respect source visibility
+
+Deployment controls, proxy behavior, provider settings, browser headers, identity policy, broker ACLs, packaging, and topology are real controls. If they are required and absent from the repository, do not assume either presence or absence. Use `needs_validation` with the exact missing fact and a safe owner-observed or local plan.
+
+### Separate priority from certainty
+
+Only `confirmed` records receive severity. Likelihood and impact must reflect the demonstrated conditions and result; overall severity cannot exceed demonstrated impact. `needs_validation` means a specific source-grounded boundary hypothesis is blocked, not a low-confidence confirmed vulnerability, and it has no severity.
+
+Calibrate overall severity with these anchors:
+
+- **critical** — an unauthenticated actor gains code execution, full data-store access, or takeover of arbitrary accounts.
+- **high** — an actor fully defeats an explicit security control with real consequences: authentication bypass, cross-tenant read or write, stored script execution affecting other users, authenticated code execution, or an unauthenticated remote stop of a shared service.
+- **medium** — a real boundary violation with limited blast radius, uncommon preconditions, or consequences confined to a narrow resource set.
+- **low** — disclosure of non-secret internals, or an effect requiring sustained effort for minimal gain.
+- **informational** — a confirmed but minimal-impact observation, useful mainly as a prerequisite inside a larger finding.
+
+The high/medium discriminator: does the demonstrated result fully defeat an explicit control for an action with real consequences, or only weaken it? If you cannot state the concrete damage, the severity is lower than it feels.
+
+### Recommend the smallest effective source fix
+
+For each confirmed finding, identify the invariant the code must enforce and the narrowest source change that enforces it at the last trusted decision point. Prefer specific repository-relative changes and regression tests over generic hardening advice. The audit describes fixes; it does not modify target source.
+
+## Full audit workflow
+
+In full audit mode, follow all six phases in order:
+
+1. **Reconnaissance** — map the source, trust boundaries, local build paths, companion selections, prior evidence, and initial deterministic coverage ledger with [RECONNAISSANCE.md](RECONNAISSANCE.md).
+2. **Coverage-led hunting waves** — assign isolated hunters from the ledger and collect structured candidate results with [HUNTING.md](HUNTING.md), [ATTACK-CLASSES.md](ATTACK-CLASSES.md), and the selected domain companions.
+3. **Candidate validation** — consolidate fingerprints and give every candidate to a fresh source verifier as defined in [VALIDATION-AND-REPORTING.md](VALIDATION-AND-REPORTING.md).
+4. **Structured output** — write all final `confirmed`, `needs_validation`, and `rejected` records to `findings.json`; validate it with `report-schema.json` and `validate-findings.cjs`, and validate the coverage claim with `validate-coverage-ledger.cjs`.
+5. **Independent record verification** — use fresh agents to verify final source claims and reconcile corrections or state changes.
+6. **Target-neutral report** — derive `REPORT.md`, `FINDINGS-DETAIL.md`, and `NEEDS-VALIDATION.md` from the final records, with no live-probe instructions.
+
+Do not end the run before one of exactly two terminal states: (a) all Phase 6 artifacts are written and both validators pass, or (b) `run_status: "incomplete"` is recorded with its exact reason and the gap is disclosed in the report. Never stop mid-phase.
+
+## Anti-patterns
+
+1. Checklist deviations presented as vulnerabilities.
+2. Defense-in-depth advice with no reachable boundary violation.
+3. Live or shared-environment testing where bounded local evidence is insufficient.
+4. Guessing provider, proxy, browser, identity, or deployment behavior not present in source.
+5. Treating intended same-principal authority or self-impact as a cross-boundary result.
+6. Reporting a parser or runtime effect stronger than the observed effect.
+7. Emitting prose-only hunter results that cannot be deduplicated or verified.
+8. Re-reporting carried same-source prior confirmed records or using them as exemplars that anchor the hunt.
+9. Assigning severity to `needs_validation` records.
+10. Writing the report before independent verification or letting prose and JSON disagree.
+"#;
+
+const SKILL_32: &str = r#"# Supply Chain and Release Hunting
+
+#### When to use this file
+
+Reach for this file when the target resolves dependencies, builds from untrusted contributions, runs CI, creates release artifacts, signs or promotes builds, loads plugins, or updates deployed software. This domain covers trust handoffs from source and dependency to the artifact a user runs. Use `MEMORY-SAFETY-AND-BINARY.md` for flaws inside a local binary loader and `CLOUD-AND-DEPLOYMENT.md` for runtime workload authority.
+
+Split large targets into dependency resolution, CI isolation, artifact provenance, release authorization, and updater/plugin trust.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- A mutable or known-vulnerable dependency is not a finding by itself. Show who can influence resolution, which build consumes it, and what execution or release boundary follows.
+- Follow integrity across every handoff: source identity, resolved inputs, build worker, artifact identity, test result, signature/attestation, promotion, and update consumer.
+- CI configuration is authorization code. Establish which event triggered a workflow, whose code runs, which secrets and tokens exist, and what it may publish or mutate.
+- A checksum fetched from the same untrusted location as the artifact does not establish independent integrity. Identify the trusted root and failure behavior.
+- Use `confirmed` for in-repo control-flow failures with bounded local validation. Use `needs_validation` for branch protection, hosted-runner, registry, signing-service, or production promotion facts that are not observable.
+```
+
+## Dependency and build-input attack classes (subagent_type: `general`)
+
+**Dependency source and namespace confusion**
+Resolver configuration can select an unintended public/private namespace, fallback registry, mirror, repository, or source URL. Review package names, source priority, lockfile and checksum use, alternate build files, platform-specific resolution, and first-install versus update behavior.
+
+**Mutable and unbound build inputs**
+Builds consume branches, tags, unverified submodules, downloaded tools, generated assets, remote includes, floating CI actions, or container tags whose content can change without source review. Require a lower-trust writer and a path into trusted build output; reproducibility by itself does not prove authenticity.
+
+**Generated-source and codegen provenance gaps**
+Schemas, vendored archives, generated clients, localization, documentation examples, or binary blobs produce executable or shipped content without the same review and integrity gate as source. Compare local regeneration with committed output and verify who controls input and generator.
+
+**Build-context inclusion**
+Secrets, local configuration, repository metadata, test fixtures, or developer artifacts enter a package or image because the build context and ignore rules exceed intended release inputs. Confirm that the resulting artifact exposes a real credential, private data, or privileged configuration.
+
+## CI and automation attack classes (subagent_type: `general`)
+
+**Untrusted code in a privileged workflow**
+A pull request, issue comment, fork, dependency update, or external event runs contributor-controlled code with protected secrets, write tokens, deployment authority, or a trusted runner. Compare trigger type, checkout ref, approval gate, environment protection, and permission narrowing. Do not assume repository-host defaults that are not in source.
+
+**Workflow command and expression confusion**
+Attacker-controlled branch names, commit messages, issue fields, artifact names, matrix values, or generated output enter shell commands, template expressions, paths, or privileged workflow inputs without canonical validation.
+
+**Cache, artifact, and workspace trust mixing**
+A lower-trust job can populate a cache, artifact, shared workspace, or output that a higher-trust job later restores and executes or releases. Review cache keys and namespaces, artifact producer identity, digest binding, retention, and whether promotion re-resolves by mutable name.
+
+**Automation identity overreach**
+CI jobs receive permissions beyond the operation, repository, environment, or duration needed, and untrusted job inputs can select the affected resource. Missing least privilege alone is hardening; require a reachable privileged action.
+
+## Release and update attack classes (subagent_type: `general`)
+
+**Build-to-promotion substitution**
+Tests, review, signature, and publication refer to mutable tags, filenames, channels, or artifact IDs rather than the same immutable digest. Check every copy, repack, architecture merge, and provenance step between build and release.
+
+**Release authorization and signing-policy gaps**
+A release or signature is accepted from the wrong workflow, repository, branch, environment, key role, or threshold. Review identity claims inside attestations and verify the consumer validates them, not just a valid signature. Rotation, expiry, and revocation must fail closed where policy requires.
+
+**Update metadata and rollback confusion**
+An updater authenticates payload bytes but not version, product, platform, channel, target path, expiry, or rollback state, or it accepts metadata and payload from different authorized transactions. Verify atomic installation and recovery behavior. A signature API call without policy binding is incomplete.
+
+**Plugin and extension trust expansion**
+An extension package gains host authority beyond its declared scope, a lower-trust publisher can replace another publisher's identity, or install/update hooks run before authenticity and capability checks. Intended installation of arbitrary same-user plugins is not a privilege boundary.
+
+## Universal moves (apply across the above)
+
+- Walk backward from a released digest or installed update to every source, generated input, credential, worker, cache, test result, and authorization decision.
+- Compare untrusted and protected workflow events side by side. Mark each persisted channel crossing between them and require an immutable identity plus producer trust.
+- Review revoked key, failed download, missing attestation, partial platform release, rollback, and registry outage paths. The failure policy is part of release integrity.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Name the lower-trust actor, controllable source/cache/artifact/metadata, consuming trusted job or updater, and resulting unauthorized publication, code inclusion, secret disclosure, or privileged execution.
+2. Prove artifact identity across the broken handoff. A different mutable name or unbound digest must reach a real consumer.
+3. Verify built-in package-manager, repository-host, registry, and signing defaults for the pinned version. Unknown hosted controls require `needs_validation`.
+4. Keep local validation bounded: use a harmless fixture repository, dummy credential marker, local registry/config, and non-production artifact namespace. Do not publish or alter a real release.
+5. Return `confirmed` only with a complete source-visible handoff and meaningful result. Return `needs_validation` with the precise branch, runner, registry, signing, or deployment fact an owner must observe.
+"#;
+
+const SKILL_33: &str = r#"#!/usr/bin/env node
+
+/**
+ * Validates coverage-ledger.json and its canonical coverage IDs.
+ * Usage: node validate-coverage-ledger.cjs <path-to-coverage-ledger.json>
+ */
+
+const fs = require("node:fs");
+const path = require("node:path");
+const { TextDecoder } = require("node:util");
+
+// Conservative bounds apply before JSON.parse and again to the parsed document.
+const LIMITS = Object.freeze({
+  inputBytes: 5 * 1024 * 1024,
+  units: 10000,
+  collectionItems: 1000,
+  objectFields: 1000,
+  nestingDepth: 64,
+  preflightValues: 500000,
+  validationErrors: 100,
+});
+const MAX_INPUT_BYTES = LIMITS.inputBytes;
+const MAX_UNITS = LIMITS.units;
+const MAX_LIST_ITEMS = LIMITS.collectionItems;
+const MAX_TEXT_LENGTH = 4096;
+const REQUIRED_FIELDS = [
+  "coverage_id",
+  "canonical_refs",
+  "surface",
+  "boundary",
+  "subsystem",
+  "attack_class",
+  "starting_paths",
+  "ordinary_attack_class_block",
+  "selected_companion_blocks",
+  "excluded_blocks",
+  "prior_status",
+  "attempts",
+  "wave",
+  "status",
+  "agent_id",
+  "reviewed_paths",
+  "local_checks",
+  "result_fingerprints",
+  "unresolved",
+];
+const REF_FIELDS = ["surface", "boundary", "subsystem", "attack_class"];
+const STATUSES = new Set([
+  "planned",
+  "not_applicable",
+  "out_of_scope",
+  "in_progress",
+  "covered",
+  "candidate",
+  "blocked",
+  "deferred",
+]);
+const ATTEMPT_STATUSES = new Set(["covered", "candidate", "blocked"]);
+const ATTEMPT_FIELDS = [
+  "wave",
+  "status",
+  "agent_id",
+  "reviewed_paths",
+  "local_checks",
+  "result_fingerprints",
+  "unresolved",
+  "reassignment_reason",
+];
+const PRIOR_STATUSES = new Set([
+  "new",
+  "prior_confirmed_same_source",
+  "prior_confirmed_changed_source",
+  "prior_needs_validation",
+  "prior_deferred",
+  "prior_blocked",
+  "prior_out_of_scope",
+  "prior_covered_same_source",
+  "prior_covered_changed_source",
+  "prior_rejected_claim_changed",
+  "none",
+]);
+const FINGERPRINT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$/;
+const AGENT_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const WINDOWS_RESERVED_AGENT_ID = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
+const VISIBLE_CONTENT = /[^\p{White_Space}\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]/u;
+const PATH_FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/u;
+const WINDOWS_RESERVED_COMPONENT = /^(?:con|prn|aux|nul|clock\$|conin\$|conout\$|com[1-9\u00b9\u00b2\u00b3]|lpt[1-9\u00b9\u00b2\u00b3])(?:\.|$)/iu;
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const UNSAFE_DIAGNOSTIC_CHARACTER = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/gu;
+const MAX_DIAGNOSTIC_STRING_LENGTH = 256;
+
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+
+class JsonStructureError extends Error {}
+class SafeInputError extends Error {}
+
+function escapeUnsafeDiagnosticCharacters(value) {
+  return String(value).replace(UNSAFE_DIAGNOSTIC_CHARACTER, (character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint <= 0xffff
+      ? `\\u${codePoint.toString(16).padStart(4, "0")}`
+      : `\\u{${codePoint.toString(16)}}`;
+  });
+}
+
+function safeQuote(value) {
+  let serialized;
+  if (typeof value === "string") {
+    const clipped = value.length > MAX_DIAGNOSTIC_STRING_LENGTH
+      ? `${value.slice(0, MAX_DIAGNOSTIC_STRING_LENGTH)}...`
+      : value;
+    serialized = JSON.stringify(clipped);
+  } else if (value === null || typeof value === "boolean") {
+    serialized = String(value);
+  } else if (typeof value === "number" && Number.isFinite(value)) {
+    serialized = String(value);
+  } else {
+    serialized = `"<${Array.isArray(value) ? "array" : typeof value}>"`;
+  }
+  return escapeUnsafeDiagnosticCharacters(serialized);
+}
+
+function createErrorList() {
+  const errors = [];
+  Object.defineProperty(errors, "push", {
+    value(...messages) {
+      const remaining = LIMITS.validationErrors - this.length;
+      if (remaining > 0) {
+        Array.prototype.push.apply(this, messages.slice(0, remaining).map(escapeUnsafeDiagnosticCharacters));
+      }
+      return this.length;
+    },
+  });
+  return errors;
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function preflightJsonText(contents) {
+  const containers = [];
+  let rootState = "value";
+  let inString = false;
+  let escaped = false;
+  let totalValues = 0;
+
+  function fail(message) {
+    throw new JsonStructureError(`input ${message}`);
+  }
+
+  function currentContainer() {
+    return containers[containers.length - 1];
+  }
+
+  function countValue() {
+    totalValues++;
+    if (totalValues > LIMITS.preflightValues) {
+      fail(`exceeds ${LIMITS.preflightValues} total value limit`);
+    }
+  }
+
+  function beginValue() {
+    const container = currentContainer();
+    if (!container) {
+      if (rootState !== "value") fail("has malformed JSON structure");
+      rootState = "end";
+    } else if (container.type === "array") {
+      if (container.state !== "firstValueOrEnd" && container.state !== "value") {
+        fail("has malformed JSON array structure");
+      }
+      container.items++;
+      const limit = container.topLevel ? MAX_UNITS : LIMITS.collectionItems;
+      if (container.items > limit) {
+        fail(container.topLevel
+          ? `exceeds ${limit} top-level unit limit`
+          : `exceeds ${limit} item array limit`);
+      }
+      container.state = "commaOrEnd";
+    } else {
+      if (container.state !== "value") fail("has malformed JSON object structure");
+      container.state = "commaOrEnd";
+    }
+    countValue();
+  }
+
+  function beginString() {
+    const container = currentContainer();
+    if (container && container.type === "object" &&
+        (container.state === "firstKeyOrEnd" || container.state === "key")) {
+      container.fields++;
+      if (container.fields > LIMITS.objectFields) {
+        fail(`exceeds ${LIMITS.objectFields} field object limit`);
+      }
+      container.state = "colon";
+    } else {
+      beginValue();
+    }
+    inString = true;
+  }
+
+  function beginContainer(type) {
+    beginValue();
+    if (containers.length >= LIMITS.nestingDepth) {
+      fail(`exceeds nesting depth limit ${LIMITS.nestingDepth}`);
+    }
+    containers.push(type === "array"
+      ? { type, state: "firstValueOrEnd", items: 0, topLevel: containers.length === 0 }
+      : { type, state: "firstKeyOrEnd", fields: 0 });
+  }
+
+  function closeContainer(type) {
+    const container = currentContainer();
+    if (!container || container.type !== type) fail("has mismatched JSON containers");
+    const canClose = type === "array"
+      ? container.state === "firstValueOrEnd" || container.state === "commaOrEnd"
+      : container.state === "firstKeyOrEnd" || container.state === "commaOrEnd";
+    if (!canClose) fail(`has malformed JSON ${type} structure`);
+    containers.pop();
+  }
+
+  function isWhitespace(character) {
+    return character === " " || character === "\t" || character === "\r" || character === "\n";
+  }
+
+  function isTokenDelimiter(character) {
+    return isWhitespace(character) || character === "," || character === ":" ||
+      character === "[" || character === "]" || character === "{" ||
+      character === "}" || character === "\"";
+  }
+
+  for (let index = 0; index < contents.length; index++) {
+    const character = contents[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (isWhitespace(character)) continue;
+
+    if (character === "\"") {
+      beginString();
+    } else if (character === "[") {
+      beginContainer("array");
+    } else if (character === "{") {
+      beginContainer("object");
+    } else if (character === "]") {
+      closeContainer("array");
+    } else if (character === "}") {
+      closeContainer("object");
+    } else if (character === ":") {
+      const container = currentContainer();
+      if (!container || container.type !== "object" || container.state !== "colon") {
+        fail("has malformed JSON object structure");
+      }
+      container.state = "value";
+    } else if (character === ",") {
+      const container = currentContainer();
+      if (!container || container.state !== "commaOrEnd") fail("has malformed JSON collection structure");
+      container.state = container.type === "array" ? "value" : "key";
+    } else {
+      beginValue();
+      while (index + 1 < contents.length && !isTokenDelimiter(contents[index + 1])) index++;
+    }
+  }
+
+  if (inString) fail("has an unterminated JSON string");
+  if (containers.length > 0) fail("has truncated JSON structure");
+  if (rootState !== "end") fail("has no JSON value");
+}
+
+function preflightDocument(root) {
+  const errors = createErrorList();
+  const stack = [{ value: root, depth: 0, location: "$" }];
+  let visited = 0;
+
+  while (stack.length > 0) {
+    const { value, depth, location } = stack.pop();
+    visited++;
+    if (visited > LIMITS.preflightValues) {
+      errors.push(`$: exceeds ${LIMITS.preflightValues} total values`);
+      return errors;
+    }
+    if (value === null || typeof value !== "object") continue;
+    if (depth >= LIMITS.nestingDepth) {
+      errors.push(`${location}: exceeds nesting depth limit ${LIMITS.nestingDepth}`);
+      return errors;
+    }
+
+    if (Array.isArray(value)) {
+      const limit = location === "$" ? MAX_UNITS : MAX_LIST_ITEMS;
+      if (value.length > limit) {
+        errors.push(`${location}: exceeds ${limit} entries`);
+        return errors;
+      }
+      for (let index = value.length - 1; index >= 0; index--) {
+        stack.push({ value: value[index], depth: depth + 1, location: `${location}[${index}]` });
+      }
+      continue;
+    }
+
+    const keys = Object.keys(value);
+    if (keys.length > LIMITS.objectFields) {
+      errors.push(`${location}: exceeds ${LIMITS.objectFields} object fields`);
+      return errors;
+    }
+    for (let index = keys.length - 1; index >= 0; index--) {
+      const key = keys[index];
+      stack.push({ value: value[key], depth: depth + 1, location: `${location}{${index}}` });
+    }
+  }
+
+  return errors;
+}
+
+function hasValidUnicodeScalarValues(value) {
+  let index = 0;
+  while (index < value.length) {
+    const first = value.charCodeAt(index++);
+    if (first >= 0xd800 && first <= 0xdbff) {
+      if (index >= value.length) return false;
+      const second = value.charCodeAt(index++);
+      if (second < 0xdc00 || second > 0xdfff) return false;
+    } else if (first >= 0xdc00 && first <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasVisibleProse(value) {
+  return hasValidUnicodeScalarValues(value) && VISIBLE_CONTENT.test(value);
+}
+
+function isVisibleText(value, maxLength = MAX_TEXT_LENGTH) {
+  return typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= maxLength &&
+    value.trim() === value &&
+    hasVisibleProse(value);
+}
+
+function isCanonicalRef(value) {
+  return isVisibleText(value, 1024) &&
+    !PATH_FORBIDDEN_CHARACTER.test(value) &&
+    value.normalize("NFC") === value;
+}
+
+function encodeCanonicalRef(value) {
+  if (!isCanonicalRef(value)) throw new TypeError("invalid canonical reference");
+  let encoded = "";
+  for (const byte of Buffer.from(value, "utf8")) {
+    const unreserved =
+      (byte >= 0x41 && byte <= 0x5a) ||
+      (byte >= 0x61 && byte <= 0x7a) ||
+      (byte >= 0x30 && byte <= 0x39) ||
+      byte === 0x2d || byte === 0x2e || byte === 0x5f || byte === 0x7e;
+    encoded += unreserved ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
+  }
+  return encoded;
+}
+
+function canonicalCoverageId(refs) {
+  if (!isObject(refs)) throw new TypeError("canonical_refs must be an object");
+  const fields = hasOwn(refs, "lifecycle") ? [...REF_FIELDS, "lifecycle"] : REF_FIELDS;
+  if (Object.keys(refs).length !== fields.length || fields.some((field) => !hasOwn(refs, field))) {
+    throw new TypeError("canonical_refs has missing or unexpected fields");
+  }
+  return fields.map((field) => encodeCanonicalRef(refs[field])).join("::");
+}
+
+function isSafeRelativePath(value) {
+  if (typeof value !== "string" || value.length === 0 || !hasValidUnicodeScalarValues(value) || value.trim() !== value || PATH_FORBIDDEN_CHARACTER.test(value) || value.includes("\\") || value.includes(":")) return false;
+  if (path.posix.isAbsolute(value) || path.win32.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.startsWith("~")) return false;
+  return value.split("/").every((segment) =>
+    segment !== "" &&
+    segment !== "." &&
+    segment !== ".." &&
+    !/[ .]$/u.test(segment) &&
+    !WINDOWS_RESERVED_COMPONENT.test(segment));
+}
+
+function isSafeAgentId(value) {
+  return typeof value === "string" &&
+    AGENT_ID_PATTERN.test(value) &&
+    !WINDOWS_RESERVED_AGENT_ID.test(value);
+}
+
+function isOwnedArtifactPath(value, agentId) {
+  if (!isSafeAgentId(agentId) || !isSafeRelativePath(value)) return false;
+  const prefix = `agents/${agentId}/artifacts/`;
+  return value.startsWith(prefix) && value.length > prefix.length;
+}
+
+function validateStringArray(value, location, errors, options = {}) {
+  const { allowEmpty = true, fingerprint = false, pathValue = false } = options;
+  if (!Array.isArray(value)) {
+    errors.push(`${location}: expected array`);
+    return;
+  }
+  if (!allowEmpty && value.length === 0) errors.push(`${location}: must not be empty`);
+  if (value.length > MAX_LIST_ITEMS) errors.push(`${location}: exceeds ${MAX_LIST_ITEMS} entries`);
+  const seen = new Set();
+  value.slice(0, MAX_LIST_ITEMS).forEach((entry, index) => {
+    const entryLocation = `${location}[${index}]`;
+    const valid = pathValue ? isSafeRelativePath(entry) : isVisibleText(entry);
+    if (!valid) errors.push(`${entryLocation}: invalid ${pathValue ? "repository-relative path" : "text"}`);
+    if (fingerprint && typeof entry === "string" && !FINGERPRINT_PATTERN.test(entry)) {
+      errors.push(`${entryLocation}: invalid fingerprint`);
+    }
+    if (typeof entry === "string" && seen.has(entry)) errors.push(`${entryLocation}: duplicate entry`);
+    if (typeof entry === "string") seen.add(entry);
+  });
+}
+
+function validateChecks(value, location, errors) {
+  if (!Array.isArray(value)) {
+    errors.push(`${location}: expected array`);
+    return;
+  }
+  if (value.length > MAX_LIST_ITEMS) errors.push(`${location}: exceeds ${MAX_LIST_ITEMS} entries`);
+  value.slice(0, MAX_LIST_ITEMS).forEach((check, index) => {
+    const base = `${location}[${index}]`;
+    if (!isObject(check)) {
+      errors.push(`${base}: expected object`);
+      return;
+    }
+    for (const field of ["agent_id", "reviewed_paths", "invariant", "method", "result", "artifact"]) {
+      if (!hasOwn(check, field)) errors.push(`${base}: missing required field ${safeQuote(field)}`);
+    }
+    if (!isSafeAgentId(check.agent_id)) errors.push(`${base}.agent_id: expected a canonical lowercase agent ID`);
+    validateStringArray(check.reviewed_paths, `${base}.reviewed_paths`, errors, { allowEmpty: false, pathValue: true });
+    if (!isVisibleText(check.invariant)) errors.push(`${base}.invariant: invalid text`);
+    if (check.method !== "source" && check.method !== "local") errors.push(`${base}.method: expected "source" or "local"`);
+    if (!isVisibleText(check.result)) errors.push(`${base}.result: invalid text`);
+    if (check.method === "source" && check.artifact !== null) {
+      errors.push(`${base}.artifact: source-only check must use null`);
+    } else if (check.method === "local") {
+      if (!isOwnedArtifactPath(check.artifact, check.agent_id)) {
+        errors.push(`${base}.artifact: local check requires an artifact owned by agent ${safeQuote(isSafeAgentId(check.agent_id) ? check.agent_id : "<agent-id>")}`);
+      }
+    } else if (check.method !== "source" && check.method !== "local" && check.artifact !== null && !isSafeRelativePath(check.artifact)) {
+      errors.push(`${base}.artifact: expected null or a safe output-relative path`);
+    }
+  });
+}
+
+function validateReviewedPathOwnership(unit, base, errors) {
+  if (!Array.isArray(unit.reviewed_paths) || !Array.isArray(unit.local_checks)) return;
+  const aggregatePaths = new Set(unit.reviewed_paths.filter((value) => typeof value === "string"));
+  const ownedPaths = new Set();
+  for (const check of unit.local_checks) {
+    if (!isObject(check) || !Array.isArray(check.reviewed_paths)) continue;
+    for (const reviewedPath of check.reviewed_paths) {
+      if (typeof reviewedPath === "string") ownedPaths.add(reviewedPath);
+    }
+  }
+  for (const reviewedPath of aggregatePaths) {
+    if (!ownedPaths.has(reviewedPath)) errors.push(`${base}.reviewed_paths: ${safeQuote(reviewedPath)} has no check owner`);
+  }
+  for (const reviewedPath of ownedPaths) {
+    if (!aggregatePaths.has(reviewedPath)) errors.push(`${base}.local_checks: owned path ${safeQuote(reviewedPath)} is absent from aggregate reviewed_paths`);
+  }
+}
+
+function validateExcludedBlocks(value, location, errors) {
+  if (!Array.isArray(value)) {
+    errors.push(`${location}: expected array`);
+    return;
+  }
+  if (value.length > MAX_LIST_ITEMS) errors.push(`${location}: exceeds ${MAX_LIST_ITEMS} entries`);
+  const seen = new Set();
+  value.slice(0, MAX_LIST_ITEMS).forEach((entry, index) => {
+    const base = `${location}[${index}]`;
+    if (!isObject(entry)) {
+      errors.push(`${base}: expected object`);
+      return;
+    }
+    if (!isVisibleText(entry.block)) errors.push(`${base}.block: invalid text`);
+    if (!isVisibleText(entry.reason)) errors.push(`${base}.reason: invalid text`);
+    if (typeof entry.block === "string" && seen.has(entry.block)) errors.push(`${base}.block: duplicate entry`);
+    if (typeof entry.block === "string") seen.add(entry.block);
+  });
+}
+
+function semanticKey(unit) {
+  return JSON.stringify([
+    unit.surface,
+    unit.boundary,
+    unit.subsystem,
+    unit.attack_class,
+    hasOwn(unit, "lifecycle") ? unit.lifecycle : null,
+  ]);
+}
+
+function hasValidSemanticFields(unit) {
+  return ["surface", "boundary", "subsystem", "attack_class"].every((field) => isVisibleText(unit[field])) &&
+    (!hasOwn(unit, "lifecycle") || isVisibleText(unit.lifecycle));
+}
+
+function requireEmptyArray(unit, field, base, errors) {
+  if (Array.isArray(unit[field]) && unit[field].length > 0) {
+    errors.push(`${base}.${field}: unit with status ${safeQuote(unit.status)} must keep this array empty`);
+  }
+}
+
+function requireNonemptyArray(unit, field, base, errors) {
+  if (!Array.isArray(unit[field]) || unit[field].length === 0) {
+    errors.push(`${base}.${field}: unit with status ${safeQuote(unit.status)} requires entries`);
+  }
+}
+
+function validateStateInvariants(unit, base, errors) {
+  const emptyEvidence = () => {
+    requireEmptyArray(unit, "reviewed_paths", base, errors);
+    requireEmptyArray(unit, "local_checks", base, errors);
+  };
+  const requireOwner = () => {
+    if (!isSafeAgentId(unit.agent_id)) errors.push(`${base}.agent_id: unit with status ${safeQuote(unit.status)} requires a canonical lowercase agent ID`);
+  };
+
+  if (unit.status !== "candidate") requireEmptyArray(unit, "result_fingerprints", base, errors);
+
+  switch (unit.status) {
+    case "planned":
+      if (unit.agent_id !== null) errors.push(`${base}.agent_id: planned unit must be unassigned`);
+      emptyEvidence();
+      requireEmptyArray(unit, "unresolved", base, errors);
+      break;
+    case "not_applicable":
+    case "out_of_scope":
+    case "deferred":
+      if (unit.agent_id !== null) errors.push(`${base}.agent_id: unit with status ${safeQuote(unit.status)} must be unassigned`);
+      emptyEvidence();
+      requireNonemptyArray(unit, "unresolved", base, errors);
+      break;
+    case "in_progress":
+      requireOwner();
+      emptyEvidence();
+      requireEmptyArray(unit, "unresolved", base, errors);
+      break;
+    case "blocked":
+      requireOwner();
+      requireNonemptyArray(unit, "reviewed_paths", base, errors);
+      requireNonemptyArray(unit, "local_checks", base, errors);
+      requireNonemptyArray(unit, "unresolved", base, errors);
+      break;
+    case "covered":
+      requireOwner();
+      requireNonemptyArray(unit, "reviewed_paths", base, errors);
+      requireNonemptyArray(unit, "local_checks", base, errors);
+      requireEmptyArray(unit, "unresolved", base, errors);
+      break;
+    case "candidate":
+      requireOwner();
+      requireNonemptyArray(unit, "reviewed_paths", base, errors);
+      requireNonemptyArray(unit, "local_checks", base, errors);
+      requireNonemptyArray(unit, "result_fingerprints", base, errors);
+      break;
+  }
+}
+
+function validateAttempts(value, unit, base, errors) {
+  if (!Array.isArray(value)) {
+    errors.push(`${base}.attempts: expected array`);
+    return;
+  }
+  if (value.length > MAX_LIST_ITEMS) errors.push(`${base}.attempts: exceeds ${MAX_LIST_ITEMS} entries`);
+
+  const priorOwners = new Set();
+  const priorArtifacts = new Set();
+  let previousWave = 0;
+  value.slice(0, MAX_LIST_ITEMS).forEach((attempt, index) => {
+    const attemptBase = `${base}.attempts[${index}]`;
+    if (!isObject(attempt)) {
+      errors.push(`${attemptBase}: expected object`);
+      return;
+    }
+    for (const field of ATTEMPT_FIELDS) {
+      if (!hasOwn(attempt, field)) errors.push(`${attemptBase}: missing required field ${safeQuote(field)}`);
+    }
+    if (!Number.isInteger(attempt.wave) || attempt.wave < 1) {
+      errors.push(`${attemptBase}.wave: expected a positive integer`);
+    } else {
+      if (attempt.wave <= previousWave) errors.push(`${attemptBase}.wave: archived attempt waves must be strictly increasing`);
+      if (Number.isInteger(unit.wave) && attempt.wave >= unit.wave) {
+        errors.push(`${attemptBase}.wave: archived attempt wave must precede current wave ${safeQuote(unit.wave)}`);
+      }
+      previousWave = attempt.wave;
+    }
+    if (!ATTEMPT_STATUSES.has(attempt.status)) {
+      errors.push(`${attemptBase}.status: expected "covered", "candidate", or "blocked"`);
+    }
+    let hasFreshOwner = false;
+    if (!isSafeAgentId(attempt.agent_id)) {
+      errors.push(`${attemptBase}.agent_id: archived attempt requires a canonical lowercase agent ID`);
+    } else if (priorOwners.has(attempt.agent_id)) {
+      errors.push(`${attemptBase}.agent_id: assignment owner must be fresh for each attempt`);
+    } else {
+      hasFreshOwner = true;
+    }
+    validateStringArray(attempt.reviewed_paths, `${attemptBase}.reviewed_paths`, errors, { pathValue: true });
+    validateChecks(attempt.local_checks, `${attemptBase}.local_checks`, errors);
+    validateReviewedPathOwnership(attempt, attemptBase, errors);
+    validateStringArray(attempt.result_fingerprints, `${attemptBase}.result_fingerprints`, errors, { fingerprint: true });
+    validateStringArray(attempt.unresolved, `${attemptBase}.unresolved`, errors);
+    if (!isVisibleText(attempt.reassignment_reason)) errors.push(`${attemptBase}.reassignment_reason: invalid text`);
+    validateStateInvariants(attempt, attemptBase, errors);
+
+    if (Array.isArray(attempt.local_checks)) {
+      attempt.local_checks.forEach((check, checkIndex) => {
+        if (!isObject(check)) return;
+        if (priorOwners.has(check.agent_id)) {
+          errors.push(`${attemptBase}.local_checks[${checkIndex}].agent_id: prior assignment owner evidence must remain in its earlier attempt`);
+        }
+        if (typeof check.artifact === "string" && priorArtifacts.has(check.artifact)) {
+          errors.push(`${attemptBase}.local_checks[${checkIndex}].artifact: artifact from an earlier attempt cannot be reused`);
+        }
+        if (check.method === "local" && typeof check.artifact === "string") priorArtifacts.add(check.artifact);
+      });
+    }
+    if (hasFreshOwner) priorOwners.add(attempt.agent_id);
+  });
+
+  if (isSafeAgentId(unit.agent_id) && priorOwners.has(unit.agent_id)) {
+    errors.push(`${base}.agent_id: current assignment owner must be fresh after reassignment`);
+  }
+  if (Array.isArray(unit.local_checks)) {
+    unit.local_checks.forEach((check, index) => {
+      if (!isObject(check)) return;
+      if (priorOwners.has(check.agent_id)) {
+        errors.push(`${base}.local_checks[${index}].agent_id: prior assignment owner evidence must remain in its archived attempt`);
+      }
+      if (typeof check.artifact === "string" && priorArtifacts.has(check.artifact)) {
+        errors.push(`${base}.local_checks[${index}].artifact: artifact from an archived attempt cannot be reused`);
+      }
+    });
+  }
+}
+
+function collectUnitErrors(unit, index) {
+  const errors = createErrorList();
+  const base = `$[${index}]`;
+  if (!isObject(unit)) return [`${base}: expected object`];
+
+  for (const field of REQUIRED_FIELDS) {
+    if (!hasOwn(unit, field)) errors.push(`${base}: missing required field ${safeQuote(field)}`);
+  }
+  for (const field of ["surface", "boundary", "subsystem", "attack_class"]) {
+    if (!isVisibleText(unit[field])) errors.push(`${base}.${field}: invalid text`);
+  }
+  if (hasOwn(unit, "lifecycle") && !isVisibleText(unit.lifecycle)) errors.push(`${base}.lifecycle: invalid text`);
+
+  let expectedId = null;
+  if (!isObject(unit.canonical_refs)) {
+    errors.push(`${base}.canonical_refs: expected object`);
+  } else {
+    const expectedFields = hasOwn(unit.canonical_refs, "lifecycle") ? [...REF_FIELDS, "lifecycle"] : REF_FIELDS;
+    for (const field of expectedFields) {
+      if (!hasOwn(unit.canonical_refs, field)) {
+        errors.push(`${base}.canonical_refs: missing required field ${safeQuote(field)}`);
+      } else if (!isCanonicalRef(unit.canonical_refs[field])) {
+        errors.push(`${base}.canonical_refs.${field}: invalid canonical reference`);
+      }
+    }
+    if (Object.keys(unit.canonical_refs).some((field) => !expectedFields.includes(field))) {
+      errors.push(`${base}.canonical_refs: contains unexpected fields`);
+    }
+    if (hasOwn(unit, "lifecycle") !== hasOwn(unit.canonical_refs, "lifecycle")) {
+      errors.push(`${base}: lifecycle and canonical_refs.lifecycle must appear together`);
+    }
+    try {
+      expectedId = canonicalCoverageId(unit.canonical_refs);
+    } catch {
+      // The specific reference errors above are more useful.
+    }
+  }
+  if (!isVisibleText(unit.coverage_id, 65536)) {
+    errors.push(`${base}.coverage_id: invalid text`);
+  } else if (expectedId !== null && unit.coverage_id !== expectedId) {
+    errors.push(`${base}.coverage_id: expected canonical ID ${safeQuote(expectedId)}`);
+  }
+
+  validateStringArray(unit.starting_paths, `${base}.starting_paths`, errors, { allowEmpty: false, pathValue: true });
+  if (unit.ordinary_attack_class_block !== null && !isVisibleText(unit.ordinary_attack_class_block)) {
+    errors.push(`${base}.ordinary_attack_class_block: expected null or non-empty text`);
+  }
+  validateStringArray(unit.selected_companion_blocks, `${base}.selected_companion_blocks`, errors);
+  validateExcludedBlocks(unit.excluded_blocks, `${base}.excluded_blocks`, errors);
+  if (Array.isArray(unit.selected_companion_blocks) && Array.isArray(unit.excluded_blocks)) {
+    const selected = new Set(unit.selected_companion_blocks);
+    unit.excluded_blocks.forEach((entry, blockIndex) => {
+      if (isObject(entry) && selected.has(entry.block)) {
+        errors.push(`${base}.excluded_blocks[${blockIndex}].block: block is also selected`);
+      }
+    });
+  }
+
+  if (!PRIOR_STATUSES.has(unit.prior_status)) errors.push(`${base}.prior_status: invalid value ${safeQuote(unit.prior_status)}`);
+  if (!STATUSES.has(unit.status)) errors.push(`${base}.status: invalid value ${safeQuote(unit.status)}`);
+  if (!Number.isInteger(unit.wave) || unit.wave < 1) errors.push(`${base}.wave: expected a positive integer`);
+  if (unit.agent_id !== null && !isSafeAgentId(unit.agent_id)) errors.push(`${base}.agent_id: expected null or a safe agent ID`);
+
+  validateAttempts(unit.attempts, unit, base, errors);
+  validateStringArray(unit.reviewed_paths, `${base}.reviewed_paths`, errors, { pathValue: true });
+  validateChecks(unit.local_checks, `${base}.local_checks`, errors);
+  validateReviewedPathOwnership(unit, base, errors);
+  validateStringArray(unit.result_fingerprints, `${base}.result_fingerprints`, errors, { fingerprint: true });
+  validateStringArray(unit.unresolved, `${base}.unresolved`, errors);
+
+  validateStateInvariants(unit, base, errors);
+
+  return errors;
+}
+
+function readFileWithinLimit(file) {
+  const noFollow = fs.constants.O_NOFOLLOW;
+  const nonBlock = fs.constants.O_NONBLOCK;
+  if (!Number.isInteger(noFollow) || noFollow === 0 || !Number.isInteger(nonBlock) || nonBlock === 0) {
+    // Node exposes no race-safe fallback on these platforms, so reject all inputs.
+    throw new SafeInputError("OS no-follow and nonblocking input protection is unavailable");
+  }
+
+  let descriptor;
+  try {
+    descriptor = fs.openSync(file, fs.constants.O_RDONLY | noFollow | nonBlock);
+  } catch (error) {
+    if (error && (error.code === "ELOOP" || error.code === "EMLINK")) throw new SafeInputError("input must not be a symlink");
+    throw error;
+  }
+  try {
+    const stat = fs.fstatSync(descriptor);
+    if (!stat.isFile()) throw new SafeInputError("input must be a regular file");
+    if (stat.size > MAX_INPUT_BYTES) throw new SafeInputError(`input exceeds ${MAX_INPUT_BYTES} byte limit`);
+
+    const chunks = [];
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+    let bytesRead = 0;
+    while (true) {
+      const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+      if (count === 0) break;
+      bytesRead += count;
+      if (bytesRead > MAX_INPUT_BYTES) throw new SafeInputError(`input exceeds ${MAX_INPUT_BYTES} byte limit`);
+      chunks.push(Buffer.from(buffer.subarray(0, count)));
+    }
+    try {
+      return UTF8_DECODER.decode(Buffer.concat(chunks, bytesRead));
+    } catch {
+      throw new SafeInputError("input is not valid UTF-8");
+    }
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function validateDocument(ledger) {
+  const errors = createErrorList();
+  if (!Array.isArray(ledger)) {
+    errors.push("$: expected a top-level array");
+    return errors;
+  }
+  if (ledger.length > MAX_UNITS) {
+    errors.push(`$: exceeds ${MAX_UNITS} coverage units`);
+    return errors;
+  }
+
+  errors.push(...preflightDocument(ledger));
+  if (errors.length > 0) return errors;
+
+  const ids = new Map();
+  const semantics = new Map();
+  let previousId = null;
+  for (let index = 0; index < ledger.length && errors.length < LIMITS.validationErrors; index++) {
+    const unit = ledger[index];
+    errors.push(...collectUnitErrors(unit, index));
+    if (errors.length >= LIMITS.validationErrors) break;
+    if (!isObject(unit) || typeof unit.coverage_id !== "string") continue;
+
+    const key = hasValidSemanticFields(unit) ? semanticKey(unit) : null;
+    if (ids.has(unit.coverage_id)) {
+      const previous = ids.get(unit.coverage_id);
+      const qualifier = key !== null && previous.key !== null && previous.key !== key
+        ? "canonical identity collision with different semantic fields"
+        : "duplicate coverage ID";
+      errors.push(`$[${index}].coverage_id: ${qualifier} at $[${previous.index}]`);
+    } else {
+      ids.set(unit.coverage_id, { index, key });
+    }
+    if (key !== null && semantics.has(key) && semantics.get(key).id !== unit.coverage_id) {
+      const previous = semantics.get(key);
+      errors.push(`$[${index}].canonical_refs: semantic tuple already uses coverage ID ${safeQuote(previous.id)} at $[${previous.index}]`);
+    } else if (key !== null) {
+      semantics.set(key, { id: unit.coverage_id, index });
+    }
+    if (previousId !== null && previousId > unit.coverage_id) {
+      errors.push(`$[${index}].coverage_id: units must be sorted lexicographically`);
+    }
+    previousId = unit.coverage_id;
+  }
+  return errors;
+}
+
+function run(file) {
+  if (!file) {
+    console.error("Usage: node validate-coverage-ledger.cjs <path-to-coverage-ledger.json>");
+    return 1;
+  }
+
+  let contents;
+  try {
+    contents = readFileWithinLimit(file);
+  } catch (error) {
+    const reason = error instanceof SafeInputError ? error.message : "input could not be opened or read safely";
+    console.error(`Failed to read coverage ledger: ${reason}`);
+    return 1;
+  }
+
+  let ledger;
+  try {
+    preflightJsonText(contents);
+  } catch (error) {
+    const reason = error instanceof JsonStructureError ? error.message : "invalid JSON structure";
+    console.error(`Failed to parse coverage ledger: ${reason}`);
+    return 1;
+  }
+  try {
+    ledger = JSON.parse(contents);
+  } catch {
+    console.error("Failed to parse coverage ledger: invalid JSON syntax");
+    return 1;
+  }
+
+  let errors;
+  try {
+    errors = validateDocument(ledger);
+  } catch {
+    console.error("Failed to validate coverage ledger: unexpected validation error");
+    return 1;
+  }
+  for (const message of errors) console.error("ERROR:", message);
+  if (errors.length > 0) {
+    const cap = errors.length === LIMITS.validationErrors ? `; output capped at ${LIMITS.validationErrors}` : "";
+    console.error(`FAIL: ${errors.length} validation error(s)${cap}`);
+    return 1;
+  }
+  console.log(`PASS: ${ledger.length} coverage units valid`);
+  return 0;
+}
+
+module.exports = {
+  LIMITS,
+  PATH_FORBIDDEN_CHARACTER,
+  UNSAFE_DIAGNOSTIC_CHARACTER,
+  VISIBLE_CONTENT,
+  WINDOWS_RESERVED_COMPONENT,
+  canonicalCoverageId,
+  encodeCanonicalRef,
+  hasVisibleProse,
+  isSafeAgentId,
+  isSafeRelativePath,
+  preflightJsonText,
+  readFileWithinLimit,
+  safeQuote,
+  validateDocument,
+};
+
+if (require.main === module) process.exit(run(process.argv[2]));
+"#;
+
+const SKILL_34: &str = r#"const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+const test = require("node:test");
+const {
+  LIMITS,
+  canonicalCoverageId,
+  encodeCanonicalRef,
+  isSafeAgentId,
+  isSafeRelativePath,
+  preflightJsonText,
+  validateDocument,
+} = require("./validate-coverage-ledger.cjs");
+
+const validatorPath = path.join(__dirname, "validate-coverage-ledger.cjs");
+const CLI_TIMEOUT_MS = 5000;
+const HOSTILE_CLI_TIMEOUT_MS = 15000;
+const HAS_SAFE_INPUT_OPEN = Number.isInteger(fs.constants.O_NOFOLLOW) &&
+  fs.constants.O_NOFOLLOW !== 0 &&
+  Number.isInteger(fs.constants.O_NONBLOCK) &&
+  fs.constants.O_NONBLOCK !== 0;
+
+function unit(overrides = {}) {
+  const canonicalRefs = overrides.canonical_refs || {
+    surface: "src/router.ts#POST /users/:id",
+    boundary: "src/authz.ts#requireOwner",
+    subsystem: "packages/api",
+    attack_class: "ATTACK-CLASSES.md#Access control",
+  };
+  const value = {
+    coverage_id: canonicalCoverageId(canonicalRefs),
+    canonical_refs: canonicalRefs,
+    surface: "Update-user route",
+    boundary: "Object ownership",
+    subsystem: "API",
+    attack_class: "Access control",
+    starting_paths: ["src/router.ts", "src/authz.ts"],
+    ordinary_attack_class_block: "ATTACK-CLASSES.md#Access control",
+    selected_companion_blocks: [],
+    excluded_blocks: [{ block: "WEB-PROTOCOL-AND-AUTH.md#Cache behavior", reason: "The route is not cached." }],
+    prior_status: "new",
+    attempts: [],
+    wave: 1,
+    status: "planned",
+    agent_id: null,
+    reviewed_paths: [],
+    local_checks: [],
+    result_fingerprints: [],
+    unresolved: [],
+  };
+  return Object.assign(value, overrides, { canonical_refs: canonicalRefs });
+}
+
+function errorsFor(value) {
+  return validateDocument(value);
+}
+
+function runCli(contents, options = {}) {
+  const { nodeArgs = [], timeout = CLI_TIMEOUT_MS } = options;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-coverage-ledger-"));
+  const ledgerPath = path.join(directory, "coverage-ledger.json");
+  try {
+    fs.writeFileSync(ledgerPath, contents);
+    return spawnSync(process.execPath, [...nodeArgs, validatorPath, ledgerPath], {
+      encoding: "utf8",
+      timeout,
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function cliOutput(result) {
+  return `${result.stdout}${result.stderr}`;
+}
+
+const TERMINAL_CONTROL_PAYLOAD = "\u001b\u0007\u0085\u202e";
+const TERMINAL_CONTROL_BYTES = [
+  Buffer.from([0x1b]),
+  Buffer.from([0x07]),
+  Buffer.from("\u0085"),
+  Buffer.from("\u202e"),
+];
+
+function assertNoInjectedControlBytes(output) {
+  const bytes = Buffer.isBuffer(output) ? output : Buffer.from(output, "utf8");
+  for (const marker of TERMINAL_CONTROL_BYTES) {
+    assert.equal(bytes.indexOf(marker), -1, `found raw control bytes ${marker.toString("hex")}`);
+  }
+}
+
+function sourceCheck(agentId = "hunter-1", overrides = {}) {
+  return {
+    agent_id: agentId,
+    reviewed_paths: ["src/router.ts"],
+    invariant: "The route checks object ownership.",
+    method: "source",
+    result: "The owner check applies before the update.",
+    artifact: null,
+    ...overrides,
+  };
+}
+
+function localCheck(agentId = "hunter-1", overrides = {}) {
+  return sourceCheck(agentId, {
+    method: "local",
+    result: "The bounded fixture accepted the other owner's object.",
+    artifact: `agents/${agentId}/artifacts/result.txt`,
+    ...overrides,
+  });
+}
+
+function archivedAttempt(overrides = {}) {
+  const value = {
+    wave: 1,
+    status: "blocked",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+    result_fingerprints: [],
+    unresolved: ["The deployed policy is unavailable."],
+    reassignment_reason: "The critic found an unchecked parallel path.",
+  };
+  return Object.assign(value, overrides);
+}
+
+test("accepts an empty ledger and complete units", () => {
+  assert.deepEqual(errorsFor([]), []);
+  assert.deepEqual(errorsFor([unit()]), []);
+
+  const missingAttempts = unit();
+  delete missingAttempts.attempts;
+  assert(errorsFor([missingAttempts]).some((error) => error.includes('missing required field "attempts"')));
+
+  const covered = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+  });
+  assert.deepEqual(errorsFor([covered]), []);
+});
+
+test("accepts a complete ledger through the CLI", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const result = runCli(JSON.stringify([unit()]));
+  assert.equal(result.status, 0, cliOutput(result));
+  assert.match(result.stdout, /PASS: 1 coverage units valid/);
+});
+
+test("text preflight ignores structural characters and escapes inside strings", () => {
+  const value = unit({
+    surface: "Route \\ slash [list] {object}, colon: quoted \"value\"",
+    excluded_blocks: [{
+      block: "COMPANION.md#Literal [brackets] {braces}",
+      reason: "The text contains a backslash \\ before an escaped \"quote\".",
+    }],
+  });
+  const contents = JSON.stringify([value]);
+  assert.doesNotThrow(() => preflightJsonText(contents));
+  assert.deepEqual(JSON.parse(contents), [value]);
+  if (HAS_SAFE_INPUT_OPEN) {
+    const result = runCli(contents);
+    assert.equal(result.status, 0, cliOutput(result));
+  }
+});
+
+test("text preflight enforces structural cardinality limits", () => {
+  const depthLimit = LIMITS.nestingDepth;
+  assert.doesNotThrow(() => preflightJsonText(`${"[".repeat(depthLimit)}0${"]".repeat(depthLimit)}`));
+  assert.throws(
+    () => preflightJsonText(`${"[".repeat(depthLimit + 1)}0${"]".repeat(depthLimit + 1)}`),
+    /exceeds nesting depth limit 64/,
+  );
+
+  const tooManyUnits = `[${"null,".repeat(LIMITS.units)}null]`;
+  assert.throws(() => preflightJsonText(tooManyUnits), /exceeds 10000 top-level unit limit/);
+
+  const tooManyItems = `[[${"null,".repeat(LIMITS.collectionItems)}null]]`;
+  assert.throws(() => preflightJsonText(tooManyItems), /exceeds 1000 item array limit/);
+
+  const objectFields = Array.from(
+    { length: LIMITS.objectFields + 1 },
+    (_, index) => `"field${index}":null`,
+  ).join(",");
+  assert.throws(() => preflightJsonText(`[{${objectFields}}]`), /exceeds 1000 field object limit/);
+
+  const fullArray = `[${"null,".repeat(LIMITS.collectionItems - 1)}null]`;
+  const arraysNeeded = Math.floor(LIMITS.preflightValues / (LIMITS.collectionItems + 1)) + 1;
+  const tooManyValues = `[${Array.from({ length: arraysNeeded }, () => fullArray).join(",")}]`;
+  assert.throws(() => preflightJsonText(tooManyValues), /exceeds 500000 total value limit/);
+});
+
+test("text preflight rejects malformed structural truncation cleanly", () => {
+  assert.throws(() => preflightJsonText("["), /truncated JSON structure/);
+  assert.throws(() => preflightJsonText("[\"unterminated"), /unterminated JSON string/);
+  assert.throws(() => preflightJsonText("[{\"field\":1]"), /mismatched JSON containers/);
+});
+
+test("derives collision-free canonical IDs from exact UTF-8 references", () => {
+  assert.equal(encodeCanonicalRef("route:POST /users"), "route%3APOST%20%2Fusers");
+  assert.notEqual(encodeCanonicalRef("route name"), encodeCanonicalRef("route-name"));
+  assert.equal(
+    canonicalCoverageId({ surface: "a", boundary: "b", subsystem: "c", attack_class: "d", lifecycle: "retry" }),
+    "a::b::c::d::retry",
+  );
+  assert.throws(() => encodeCanonicalRef("e\u0301"), /invalid canonical reference/);
+  assert.throws(() => encodeCanonicalRef("bad\u0000ref"), /invalid canonical reference/);
+  assert.throws(() => encodeCanonicalRef("hidden\u200bref"), /invalid canonical reference/);
+});
+
+test("rejects noncanonical, duplicate, and colliding IDs", () => {
+  const wrong = unit({ coverage_id: "display-label-slug" });
+  assert(errorsFor([wrong]).some((error) => error.includes("expected canonical ID")));
+
+  const duplicate = unit();
+  assert(errorsFor([duplicate, unit()]).some((error) => error.includes("duplicate coverage ID")));
+
+  const collision = unit();
+  const differentMeaning = unit({ surface: "Delete-user route" });
+  assert(errorsFor([collision, differentMeaning]).some((error) => error.includes("canonical identity collision")));
+});
+
+test("requires canonical references to be own properties", () => {
+  const inherited = Object.create(unit().canonical_refs);
+  const value = unit();
+  value.canonical_refs = inherited;
+  assert(errorsFor([value]).some((error) => error.includes("missing required field")));
+});
+
+test("rejects aliases for one semantic tuple", () => {
+  const first = unit();
+  const refs = { ...first.canonical_refs, surface: "src/alias.ts#updateUser" };
+  const alias = unit({ canonical_refs: refs });
+  const ledger = [first, alias].sort((left, right) => left.coverage_id.localeCompare(right.coverage_id));
+  assert(errorsFor(ledger).some((error) => error.includes("semantic tuple already uses coverage ID")));
+});
+
+test("requires lexicographic order", () => {
+  const secondRefs = {
+    surface: "zzz",
+    boundary: "src/authz.ts#requireOwner",
+    subsystem: "packages/api",
+    attack_class: "ATTACK-CLASSES.md#Access control",
+  };
+  assert(errorsFor([unit({ canonical_refs: secondRefs }), unit()])
+    .some((error) => error.includes("sorted lexicographically")));
+});
+
+test("validates assignment block maps", () => {
+  const overlap = unit({
+    selected_companion_blocks: ["AI-AND-LLM.md#Tool calls"],
+    excluded_blocks: [{ block: "AI-AND-LLM.md#Tool calls", reason: "Claimed irrelevant." }],
+  });
+  assert(errorsFor([overlap]).some((error) => error.includes("also selected")));
+
+  const noReason = unit({ excluded_blocks: [{ block: "AI-AND-LLM.md#Tool calls", reason: "" }] });
+  assert(errorsFor([noReason]).some((error) => error.includes("reason")));
+});
+
+test("requires owned artifacts for local checks and null artifacts for source checks", () => {
+  const local = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [localCheck()],
+  });
+  assert.deepEqual(errorsFor([local]), []);
+
+  const independentlyVerified = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts", "src/authz.ts"],
+    local_checks: [sourceCheck(), localCheck("verifier-1", { reviewed_paths: ["src/authz.ts"] })],
+  });
+  assert.deepEqual(errorsFor([independentlyVerified]), []);
+
+  const unownedPath = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts", "src/authz.ts"],
+    local_checks: [sourceCheck()],
+  });
+  assert(errorsFor([unownedPath]).some((error) => error.includes("has no check owner")));
+
+  for (const [checkAgentId, artifact] of [
+    [null, "agents/hunter-1/artifacts/result.txt"],
+    ["hunter-1", null],
+    ["hunter-1", "result.txt"],
+    ["hunter-1", "agents/hunter-2/artifacts/result.txt"],
+    ["../hunter", "agents/../hunter/artifacts/result.txt"],
+  ]) {
+    const value = unit({
+      status: "covered",
+      agent_id: "hunter-1",
+      reviewed_paths: ["src/router.ts"],
+      local_checks: [localCheck(checkAgentId, { artifact })],
+    });
+    assert.notEqual(errorsFor([value]).length, 0, `${checkAgentId}: ${artifact}`);
+  }
+
+  const unownedSource = unit({
+    status: "blocked",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+    unresolved: ["The boundary behavior is not source-visible."],
+  });
+  assert(errorsFor([unownedSource]).some((error) => error.includes("unit with status \"blocked\" requires a canonical lowercase agent ID")));
+
+  const sourceWithArtifact = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck("hunter-1", { artifact: "agents/hunter-1/artifacts/source.txt" })],
+  });
+  assert(errorsFor([sourceWithArtifact]).some((error) => error.includes("source-only check must use null")));
+});
+
+test("requires canonical lowercase filesystem-safe agent IDs", () => {
+  for (const value of ["hunter-1", "verifier_2", "a0"]) assert.equal(isSafeAgentId(value), true, value);
+  for (const value of ["Hunter-1", "hunter.1", "hunter-1.", "hunter ", "con", "prn", "aux", "nul", "com1", "lpt9", "../hunter"]) {
+    assert.equal(isSafeAgentId(value), false, value);
+  }
+
+  const caseAlias = unit({ status: "in_progress", agent_id: "Hunter-1" });
+  assert(errorsFor([caseAlias]).some((error) => error.includes("canonical lowercase agent ID")));
+});
+
+test("enforces state evidence", () => {
+  assert(errorsFor([unit({ status: "in_progress" })]).some((error) => error.includes("unit with status \"in_progress\" requires")));
+  assert(errorsFor([unit({ status: "blocked" })]).some((error) => error.includes("unresolved")));
+  assert(errorsFor([unit({ status: "candidate" })]).some((error) => error.includes("reviewed_paths")));
+
+  assert.deepEqual(errorsFor([unit({ status: "in_progress", agent_id: "hunter-1" })]), []);
+  const inProgressEvidence = unit({
+    status: "in_progress",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+  });
+  assert(errorsFor([inProgressEvidence]).some((error) => error.includes("must keep this array empty")));
+
+  const assignedPlanned = unit({
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+  });
+  assert(errorsFor([assignedPlanned]).some((error) => error.includes("planned unit must be unassigned")));
+
+  const candidate = unit({
+    status: "candidate",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck("hunter-1", { invariant: "Ownership is required.", result: "No check exists." })],
+    result_fingerprints: ["src-router-missing-owner-check"],
+    unresolved: ["validation_budget_exhausted"],
+  });
+  assert.deepEqual(errorsFor([candidate]), []);
+
+  const blocked = unit({
+    status: "blocked",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+    unresolved: ["The deployed policy is unavailable."],
+  });
+  assert.deepEqual(errorsFor([blocked]), []);
+  const blockedFingerprint = { ...blocked, result_fingerprints: ["forbidden-fingerprint"] };
+  assert(errorsFor([blockedFingerprint]).some((error) => error.includes("result_fingerprints")));
+
+  for (const status of ["not_applicable", "out_of_scope", "deferred"]) {
+    assert.deepEqual(errorsFor([unit({ status, unresolved: ["Reason recorded."] })]), []);
+    const invalid = unit({
+      status,
+      agent_id: "hunter-1",
+      reviewed_paths: ["src/router.ts"],
+      local_checks: [sourceCheck()],
+      result_fingerprints: ["forbidden-fingerprint"],
+      unresolved: ["Reason recorded."],
+    });
+    const errors = errorsFor([invalid]);
+    assert(errors.some((error) => error.includes("must be unassigned")), status);
+    assert(errors.some((error) => error.includes("reviewed_paths")), status);
+    assert(errors.some((error) => error.includes("result_fingerprints")), status);
+  }
+
+  const coveredFingerprint = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+    result_fingerprints: ["forbidden-fingerprint"],
+  });
+  assert(errorsFor([coveredFingerprint]).some((error) => error.includes("result_fingerprints")));
+
+  const coveredUnresolved = unit({
+    status: "covered",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck()],
+    unresolved: ["Unexpected unresolved claim."],
+  });
+  assert(errorsFor([coveredUnresolved]).some((error) => error.includes("unresolved")));
+});
+
+test("archives prior evidence when a critic assigns a fresh owner", () => {
+  const reassigned = unit({
+    attempts: [archivedAttempt()],
+    wave: 2,
+    status: "in_progress",
+    agent_id: "hunter-2",
+  });
+  assert.deepEqual(errorsFor([reassigned]), []);
+
+  const finalClosure = unit({
+    attempts: [archivedAttempt()],
+    wave: 2,
+    status: "covered",
+    agent_id: "hunter-2",
+    reviewed_paths: ["src/authz.ts"],
+    local_checks: [sourceCheck("hunter-2", { reviewed_paths: ["src/authz.ts"] })],
+  });
+  assert.deepEqual(errorsFor([finalClosure]), []);
+});
+
+test("preserves candidate provenance when reassignment must be deferred", () => {
+  const candidateAttempt = archivedAttempt({
+    status: "candidate",
+    result_fingerprints: ["src-router-missing-owner-check"],
+    unresolved: ["validation_budget_exhausted"],
+  });
+  const deferred = unit({
+    attempts: [candidateAttempt],
+    wave: 2,
+    status: "deferred",
+    unresolved: ["quick_profile_final_critic"],
+  });
+  assert.deepEqual(errorsFor([deferred]), []);
+});
+
+test("rejects reassignment owner reuse and evidence mixing", () => {
+  const reusedOwner = unit({
+    attempts: [archivedAttempt()],
+    wave: 2,
+    status: "in_progress",
+    agent_id: "hunter-1",
+  });
+  assert(errorsFor([reusedOwner]).some((error) => error.includes("current assignment owner must be fresh")));
+
+  const mixedEvidence = unit({
+    attempts: [archivedAttempt({ local_checks: [localCheck()] })],
+    wave: 2,
+    status: "covered",
+    agent_id: "hunter-2",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [localCheck()],
+  });
+  const errors = errorsFor([mixedEvidence]);
+  assert(errors.some((error) => error.includes("prior assignment owner evidence must remain")));
+  assert(errors.some((error) => error.includes("artifact from an archived attempt cannot be reused")));
+
+  const mixedHistory = unit({
+    attempts: [
+      archivedAttempt({ local_checks: [localCheck()] }),
+      archivedAttempt({
+        wave: 2,
+        agent_id: "hunter-2",
+        local_checks: [localCheck()],
+      }),
+    ],
+    wave: 3,
+    status: "in_progress",
+    agent_id: "hunter-3",
+  });
+  const historyErrors = errorsFor([mixedHistory]);
+  assert(historyErrors.some((error) => error.includes("prior assignment owner evidence must remain in its earlier attempt")));
+  assert(historyErrors.some((error) => error.includes("artifact from an earlier attempt cannot be reused")));
+
+  const unordered = unit({
+    attempts: [archivedAttempt(), archivedAttempt({
+      wave: 1,
+      agent_id: "hunter-2",
+      local_checks: [sourceCheck("hunter-2")],
+    })],
+    wave: 3,
+    status: "in_progress",
+    agent_id: "hunter-3",
+  });
+  assert(errorsFor([unordered]).some((error) => error.includes("strictly increasing")));
+});
+
+test("rejects unsafe paths and malformed fingerprints", () => {
+  for (const value of [
+    "/etc/passwd",
+    "../src/file.js",
+    "src/../file.js",
+    "src/con.txt",
+    "src/PRN",
+    "src/AUX.c",
+    "src/NUL",
+    "src/CLOCK$.txt",
+    "src/conin$.txt",
+    "src/conout$",
+    "src/COM1.log",
+    "src/lpt9",
+    "src/COM\u00b9.log",
+    "src/COM\u00b2.log",
+    "src/COM\u00b3.log",
+    "src/lpt\u00b9",
+    "src/lpt\u00b2",
+    "src/lpt\u00b3",
+    "src/file.js.",
+    "C:/src/file.js",
+    "src/file\n.js",
+    "src/file\u0085.js",
+    "src/file\u2028.js",
+    "src/file\u200b.js",
+    "src/file\u034f.js",
+    "src/file\ufe0f.js",
+  ]) {
+    assert.equal(isSafeRelativePath(value), false, value);
+  }
+  assert.equal(isSafeRelativePath("src/handler.js"), true);
+  assert.equal(isSafeRelativePath("src/caf\u00e9/handler.js"), true);
+  assert(errorsFor([unit({ starting_paths: ["../src/router.ts"] })]).some((error) => error.includes("repository-relative path")));
+  assert(errorsFor([unit({
+    status: "candidate",
+    agent_id: "hunter-1",
+    reviewed_paths: ["src/router.ts"],
+    local_checks: [sourceCheck("hunter-1", { invariant: "Ownership is required.", result: "No check exists." })],
+    result_fingerprints: ["not stable"],
+  })]).some((error) => error.includes("invalid fingerprint")));
+});
+
+test("rejects format, default-ignorable, and invalid-scalar prose", () => {
+  for (const invisible of ["\u200b", "\u034f", "\ufe0f", "\ud800"]) {
+    assert(errorsFor([unit({ surface: invisible })]).some((error) => error.includes("surface")), JSON.stringify(invisible));
+    assert(errorsFor([unit({
+      excluded_blocks: [{ block: "ATTACK-CLASSES.md#Access control", reason: invisible }],
+    })]).some((error) => error.includes("reason")), JSON.stringify(invisible));
+  }
+});
+
+test("quotes input-derived controls in direct validation errors", () => {
+  const invalidStatus = `invalid-${TERMINAL_CONTROL_PAYLOAD}`;
+  const invalidPath = `src/${TERMINAL_CONTROL_PAYLOAD}.js`;
+  const value = unit({
+    status: invalidStatus,
+    agent_id: "hunter-1",
+    reviewed_paths: [invalidPath],
+    local_checks: [sourceCheck()],
+    result_fingerprints: ["force-state-error"],
+  });
+  const output = errorsFor([value]).join("\n");
+
+  assert.match(output, /\$\[0\]\.status/);
+  assert.match(output, /\$\[0\]\.reviewed_paths/);
+  assert.match(output, /\\u001b/);
+  assert.match(output, /\\u0007/);
+  assert.match(output, /\\u0085/);
+  assert.match(output, /\\u202e/);
+  assertNoInjectedControlBytes(output);
+});
+
+test("quotes input-derived controls in CLI validation errors", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const value = unit({
+    status: `invalid-${TERMINAL_CONTROL_PAYLOAD}`,
+    result_fingerprints: ["force-state-error"],
+  });
+  const result = runCli(JSON.stringify([value]));
+
+  assert.equal(result.status, 1, cliOutput(result));
+  assert.match(result.stderr, /\$\[0\]\.status/);
+  assert.match(result.stderr, /\\u001b/);
+  assertNoInjectedControlBytes(result.stderr);
+});
+
+test("returns a generic syntax error without parser-supplied controls", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const malformed = Buffer.concat([
+    Buffer.from("["),
+    Buffer.from(TERMINAL_CONTROL_PAYLOAD),
+    Buffer.from("]"),
+  ]);
+  const result = runCli(malformed);
+
+  assert.equal(result.status, 1, cliOutput(result));
+  assert.equal(result.stderr, "Failed to parse coverage ledger: invalid JSON syntax\n");
+  assertNoInjectedControlBytes(result.stderr);
+});
+
+test("does not reflect controls from a failed CLI input path", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-coverage-ledger-path-"));
+  const missingPath = path.join(directory, `missing-${TERMINAL_CONTROL_PAYLOAD}.json`);
+  try {
+    const result = spawnSync(process.execPath, [validatorPath, missingPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    assert.equal(result.status, 1, cliOutput(result));
+    assert.match(result.stderr, /Failed to read coverage ledger:/);
+    assertNoInjectedControlBytes(result.stderr);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects invalid UTF-8 through the CLI", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const encoded = Buffer.from(JSON.stringify([unit()]));
+  const marker = Buffer.from("Update-user route");
+  const markerOffset = encoded.indexOf(marker);
+  assert.notEqual(markerOffset, -1);
+  const malformed = Buffer.concat([
+    encoded.subarray(0, markerOffset),
+    Buffer.from([0x80]),
+    encoded.subarray(markerOffset + marker.length),
+  ]);
+
+  const result = runCli(malformed);
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /input is not valid UTF-8/);
+  assert.doesNotMatch(output, /TypeError|stack|at validate-coverage-ledger/i);
+});
+
+test("rejects a FIFO through the CLI without blocking", { skip: process.platform === "win32" || !HAS_SAFE_INPUT_OPEN }, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-coverage-ledger-fifo-"));
+  const fifoPath = path.join(directory, "coverage-ledger.json");
+  try {
+    const created = spawnSync("mkfifo", [fifoPath], { encoding: "utf8", timeout: CLI_TIMEOUT_MS });
+    assert.equal(created.status, 0, cliOutput(created));
+
+    const result = spawnSync(process.execPath, [validatorPath, fifoPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    const output = cliOutput(result);
+    assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+    assert.equal(result.status, 1, output);
+    assert.match(output, /input must be a regular file/);
+    assert.doesNotMatch(output, /stack|at validate-coverage-ledger/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a symlink through the CLI", { skip: process.platform === "win32" || !HAS_SAFE_INPUT_OPEN }, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-coverage-ledger-symlink-"));
+  const targetPath = path.join(directory, "target.json");
+  const symlinkPath = path.join(directory, "coverage-ledger.json");
+  try {
+    fs.writeFileSync(targetPath, JSON.stringify([unit()]));
+    fs.symlinkSync(targetPath, symlinkPath);
+    const result = spawnSync(process.execPath, [validatorPath, symlinkPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    const output = cliOutput(result);
+    assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+    assert.equal(result.status, 1, output);
+    assert.match(output, /input must not be a symlink/);
+    assert.doesNotMatch(output, /stack|at validate-coverage-ledger/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects deeply nested input without recursion failure", () => {
+  let nested = 0;
+  for (let depth = 0; depth < 20000; depth++) nested = [nested];
+  assert(errorsFor(nested).some((error) => error.includes("exceeds nesting depth limit 64")));
+  if (!HAS_SAFE_INPUT_OPEN) return;
+
+  const result = runCli(`${"[".repeat(20000)}0${"]".repeat(20000)}`);
+  const output = cliOutput(result);
+  assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /exceeds nesting depth limit 64/);
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|stack|at validate-coverage-ledger/i);
+});
+
+test("rejects multi-megabyte nesting under a constrained Node heap", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const openContainers = "[".repeat(2000000);
+  const cases = [
+    openContainers,
+    `${openContainers}0${"]".repeat(2000000)}`,
+  ];
+  for (const contents of cases) {
+    const result = runCli(contents, {
+      nodeArgs: ["--max-old-space-size=64"],
+      timeout: HOSTILE_CLI_TIMEOUT_MS,
+    });
+    const output = cliOutput(result);
+    assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+    assert.equal(result.status, 1, output);
+    assert.match(output, /exceeds nesting depth limit 64/);
+    assert.doesNotMatch(output, /heap out of memory|allocation failed|RangeError|Maximum call stack|stack|at validate-coverage-ledger/i);
+  }
+});
+
+test("caps malformed 10000-unit validation output", () => {
+  assert.equal(errorsFor(Array.from({ length: LIMITS.units }, () => null)).length, LIMITS.validationErrors);
+  if (!HAS_SAFE_INPUT_OPEN) return;
+
+  const result = runCli(JSON.stringify(Array.from({ length: LIMITS.units }, () => null)));
+  const output = cliOutput(result);
+  assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /output capped at 100/);
+  assert(output.length < 20000, `unexpected output length ${output.length}`);
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|stack|at validate-coverage-ledger/i);
+});
+
+test("rejects malformed top-level data and excessive unit counts", () => {
+  assert.deepEqual(errorsFor({ units: [] }), ["$: expected a top-level array"]);
+  const tooMany = Array.from({ length: 10001 }, () => null);
+  const errors = errorsFor(tooMany);
+  assert.deepEqual(errors, ["$: exceeds 10000 coverage units"]);
+
+  const oversizedCollection = unit({ extra: Array.from({ length: LIMITS.collectionItems + 1 }, () => null) });
+  assert(errorsFor([oversizedCollection]).some((error) => error.includes("exceeds 1000 entries")));
+});
+
+test("accepts a canonical ID derived from near-maximum multibyte references", () => {
+  const canonicalRefs = {
+    surface: "\u6f22".repeat(1024),
+    boundary: "\u00e9".repeat(1024),
+    subsystem: "packages/api",
+    attack_class: "\u6f22".repeat(1023) + "\u00e9",
+  };
+  const value = unit({ canonical_refs: canonicalRefs });
+  assert(value.coverage_id.length > 16384, `coverage_id length ${value.coverage_id.length}`);
+  assert(value.coverage_id.length <= 65536, `coverage_id length ${value.coverage_id.length}`);
+  assert.deepEqual(errorsFor([value]), []);
+
+  if (HAS_SAFE_INPUT_OPEN) {
+    const result = runCli(JSON.stringify([value]));
+    assert.equal(result.status, 0, cliOutput(result));
+  }
+});
+"#;
+
+const SKILL_35: &str = r#"#!/usr/bin/env node
+
+/**
+ * Validates findings.json against report-schema.json.
+ * Usage: node validate-findings.cjs <path-to-findings.json>
+ *
+ * This is a dependency-free interpreter for the JSON Schema keywords used by
+ * report-schema.json, plus finding-specific checks that are clearer in code.
+ */
+
+const fs = require("fs");
+const path = require("path");
+const { TextDecoder } = require("util");
+
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+const SUPPORTED_TYPES = new Set(["object", "array", "string", "integer", "number", "boolean", "null"]);
+const SUPPORTED_KEYWORDS = new Set([
+  "$comment",
+  "additionalProperties",
+  "const",
+  "description",
+  "enum",
+  "items",
+  "minimum",
+  "minItems",
+  "minLength",
+  "oneOf",
+  "pattern",
+  "properties",
+  "required",
+  "type",
+  "uniqueItems",
+  "visibleContent",
+]);
+const SEVERITY_RANK = new Map([
+  ["informational", 0],
+  ["low", 1],
+  ["medium", 2],
+  ["high", 3],
+  ["critical", 4],
+]);
+const LIMITS = Object.freeze({
+  inputBytes: 5 * 1024 * 1024,
+  nestingDepth: 64,
+  arrayItems: 1000,
+  canonicalKeyBytes: 1024 * 1024,
+  uniqueSetBytes: 5 * 1024 * 1024,
+  validationErrors: 100,
+});
+const VISIBLE_CONTENT = /[^\p{White_Space}\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]/u;
+const PATH_FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/u;
+const WINDOWS_RESERVED_COMPONENT = /^(?:con|prn|aux|nul|clock\$|conin\$|conout\$|com[1-9\u00b9\u00b2\u00b3]|lpt[1-9\u00b9\u00b2\u00b3])(?:\.|$)/iu;
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const UNSAFE_DIAGNOSTIC_CHARACTER = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/gu;
+const MAX_DIAGNOSTIC_STRING_LENGTH = 256;
+
+class JsonStructureError extends Error {}
+class SafeInputError extends Error {}
+
+function escapeUnsafeDiagnosticCharacters(value) {
+  return String(value).replace(UNSAFE_DIAGNOSTIC_CHARACTER, (character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint <= 0xffff
+      ? `\\u${codePoint.toString(16).padStart(4, "0")}`
+      : `\\u{${codePoint.toString(16)}}`;
+  });
+}
+
+function safeQuote(value) {
+  let serialized;
+  if (typeof value === "string") {
+    const clipped = value.length > MAX_DIAGNOSTIC_STRING_LENGTH
+      ? `${value.slice(0, MAX_DIAGNOSTIC_STRING_LENGTH)}...`
+      : value;
+    serialized = JSON.stringify(clipped);
+  } else if (value === null || typeof value === "boolean") {
+    serialized = String(value);
+  } else if (typeof value === "number" && Number.isFinite(value)) {
+    serialized = String(value);
+  } else {
+    serialized = `"<${Array.isArray(value) ? "array" : typeof value}>"`;
+  }
+  return escapeUnsafeDiagnosticCharacters(serialized);
+}
+
+function propertyPath(base, key) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)
+    ? `${base}.${key}`
+    : `${base}[${safeQuote(key)}]`;
+}
+
+function createErrorList() {
+  const errors = [];
+  Object.defineProperty(errors, "push", {
+    value(...messages) {
+      const remaining = LIMITS.validationErrors - this.length;
+      if (remaining > 0) {
+        Array.prototype.push.apply(this, messages.slice(0, remaining).map(escapeUnsafeDiagnosticCharacters));
+      }
+      return this.length;
+    },
+  });
+  return errors;
+}
+
+function typeOf(value) {
+  if (Array.isArray(value)) return "array";
+  if (value === null) return "null";
+  return typeof value;
+}
+
+function deepEqual(left, right) {
+  if (left === right) return true;
+  if (typeOf(left) !== typeOf(right)) return false;
+  if (Array.isArray(left)) {
+    return left.length === right.length && left.every((value, index) => deepEqual(value, right[index]));
+  }
+  if (left !== null && typeof left === "object") {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    return leftKeys.length === rightKeys.length &&
+      leftKeys.every((key) => hasOwn(right, key) && deepEqual(left[key], right[key]));
+  }
+  return false;
+}
+
+function codePointLength(value) {
+  let length = 0;
+  let index = 0;
+  while (index < value.length) {
+    const first = value.charCodeAt(index++);
+    if (first >= 0xd800 && first <= 0xdbff && index < value.length) {
+      const second = value.charCodeAt(index);
+      if (second >= 0xdc00 && second <= 0xdfff) index++;
+    }
+    length++;
+  }
+  return length;
+}
+
+function hasValidUnicodeScalarValues(value) {
+  let index = 0;
+  while (index < value.length) {
+    const first = value.charCodeAt(index++);
+    if (first >= 0xd800 && first <= 0xdbff) {
+      if (index >= value.length) return false;
+      const second = value.charCodeAt(index++);
+      if (second < 0xdc00 || second > 0xdfff) return false;
+    } else if (first >= 0xdc00 && first <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hasVisibleProse(value) {
+  return hasValidUnicodeScalarValues(value) && VISIBLE_CONTENT.test(value);
+}
+
+function canonicalKey(value) {
+  const chunks = [];
+  let bytes = 0;
+
+  function append(chunk) {
+    bytes += Buffer.byteLength(chunk);
+    if (bytes > LIMITS.canonicalKeyBytes) {
+      throw new Error(`canonical key exceeds ${LIMITS.canonicalKeyBytes} byte limit`);
+    }
+    chunks.push(chunk);
+  }
+
+  function encode(item) {
+    const type = typeOf(item);
+    if (type === "null") {
+      append("null");
+    } else if (type === "string") {
+      append(`string:${JSON.stringify(item)}`);
+    } else if (type === "number") {
+      append(`number:${Object.is(item, -0) ? "0" : String(item)}`);
+    } else if (type === "boolean") {
+      append(`boolean:${item ? "true" : "false"}`);
+    } else if (type === "array") {
+      append("array:[");
+      item.forEach((entry, index) => {
+        if (index > 0) append(",");
+        encode(entry);
+      });
+      append("]");
+    } else if (type === "object") {
+      append("object:{");
+      Object.keys(item).sort().forEach((key, index) => {
+        if (index > 0) append(",");
+        append(JSON.stringify(key));
+        append(":");
+        encode(item[key]);
+      });
+      append("}");
+    } else {
+      append(`${type}:${String(item)}`);
+    }
+  }
+
+  encode(value);
+  return { key: chunks.join(""), bytes };
+}
+
+function collectDataLimitErrors(value, location = "$data") {
+  const stack = [{ value, location, depth: value !== null && typeof value === "object" ? 1 : 0 }];
+  const seen = new WeakSet();
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (current.value === null || typeof current.value !== "object") continue;
+    if (current.depth > LIMITS.nestingDepth) {
+      return [escapeUnsafeDiagnosticCharacters(`${current.location}: exceeds ${LIMITS.nestingDepth} level nesting depth limit`)];
+    }
+    if (seen.has(current.value)) {
+      return [escapeUnsafeDiagnosticCharacters(`${current.location}: input must not contain repeated or cyclic object references`)];
+    }
+    seen.add(current.value);
+
+    if (Array.isArray(current.value)) {
+      if (current.value.length > LIMITS.arrayItems) {
+        return [escapeUnsafeDiagnosticCharacters(`${current.location}: exceeds ${LIMITS.arrayItems} item array limit`)];
+      }
+      for (let index = current.value.length - 1; index >= 0; index--) {
+        const child = current.value[index];
+        if (child !== null && typeof child === "object") {
+          stack.push({ value: child, location: `${current.location}[${index}]`, depth: current.depth + 1 });
+        }
+      }
+    } else {
+      const keys = Object.keys(current.value);
+      for (let index = keys.length - 1; index >= 0; index--) {
+        const key = keys[index];
+        const child = current.value[key];
+        if (child !== null && typeof child === "object") {
+          stack.push({ value: child, location: propertyPath(current.location, key), depth: current.depth + 1 });
+        }
+      }
+    }
+  }
+
+  return [];
+}
+
+function collectSchemaErrors(schema, location = "schema") {
+  const errors = createErrorList();
+
+  function check(node, p) {
+    if (node === null || typeof node !== "object" || Array.isArray(node)) {
+      errors.push(`${p}: schema must be an object`);
+      return;
+    }
+
+    for (const key of Object.keys(node)) {
+      if (!SUPPORTED_KEYWORDS.has(key)) errors.push(`${p}: unsupported schema keyword ${safeQuote(key)}`);
+    }
+
+    if (hasOwn(node, "$comment") && typeof node.$comment !== "string") {
+      errors.push(`${p}.$comment: expected string`);
+    }
+    if (hasOwn(node, "description") && typeof node.description !== "string") {
+      errors.push(`${p}.description: expected string`);
+    }
+    if (hasOwn(node, "type") && (!SUPPORTED_TYPES.has(node.type))) {
+      errors.push(`${p}.type: unsupported type ${safeQuote(node.type)}`);
+    }
+    if (hasOwn(node, "properties")) {
+      if (node.properties === null || typeof node.properties !== "object" || Array.isArray(node.properties)) {
+        errors.push(`${p}.properties: expected object`);
+      } else {
+        for (const key of Object.keys(node.properties)) check(node.properties[key], propertyPath(`${p}.properties`, key));
+      }
+    }
+    if (hasOwn(node, "required")) {
+      if (!Array.isArray(node.required) || node.required.some((key) => typeof key !== "string")) {
+        errors.push(`${p}.required: expected an array of strings`);
+      } else if (new Set(node.required).size !== node.required.length) {
+        errors.push(`${p}.required: entries must be unique`);
+      }
+    }
+    if (hasOwn(node, "additionalProperties") && typeof node.additionalProperties !== "boolean") {
+      errors.push(`${p}.additionalProperties: only boolean values are supported`);
+    }
+    if (hasOwn(node, "enum")) {
+      if (!Array.isArray(node.enum) || node.enum.length === 0) {
+        errors.push(`${p}.enum: expected a non-empty array`);
+      } else {
+        const seen = new Set();
+        for (const value of node.enum) {
+          let key;
+          try {
+            key = canonicalKey(value).key;
+          } catch (error) {
+            errors.push(`${p}.enum: ${error.message}`);
+            break;
+          }
+          if (seen.has(key)) {
+            errors.push(`${p}.enum: entries must be unique`);
+            break;
+          }
+          seen.add(key);
+        }
+      }
+    }
+    if (hasOwn(node, "items")) check(node.items, `${p}.items`);
+    for (const keyword of ["minItems", "minLength"]) {
+      if (hasOwn(node, keyword) && (!Number.isInteger(node[keyword]) || node[keyword] < 0)) {
+        errors.push(`${p}.${keyword}: expected a non-negative integer`);
+      }
+    }
+    if (hasOwn(node, "minimum") && (typeof node.minimum !== "number" || !Number.isFinite(node.minimum))) {
+      errors.push(`${p}.minimum: expected a finite number`);
+    }
+    if (hasOwn(node, "pattern")) {
+      if (typeof node.pattern !== "string") {
+        errors.push(`${p}.pattern: expected string`);
+      } else {
+        try {
+          new RegExp(node.pattern);
+        } catch (error) {
+          errors.push(`${p}.pattern: invalid regular expression`);
+        }
+      }
+    }
+    if (hasOwn(node, "uniqueItems") && typeof node.uniqueItems !== "boolean") {
+      errors.push(`${p}.uniqueItems: expected boolean`);
+    }
+    if (hasOwn(node, "visibleContent")) {
+      if (typeof node.visibleContent !== "boolean") {
+        errors.push(`${p}.visibleContent: expected boolean`);
+      } else if (node.visibleContent === true && node.type !== "string") {
+        errors.push(`${p}.visibleContent: requires type "string"`);
+      }
+    }
+    if (hasOwn(node, "oneOf")) {
+      if (!Array.isArray(node.oneOf) || node.oneOf.length === 0) {
+        errors.push(`${p}.oneOf: expected a non-empty array`);
+      } else {
+        node.oneOf.forEach((branch, index) => check(branch, `${p}.oneOf[${index}]`));
+      }
+    }
+  }
+
+  check(schema, location);
+  return errors;
+}
+
+function findDiscriminator(schema) {
+  if (!hasOwn(schema, "properties") || typeof schema.properties !== "object") return null;
+  for (const key of Object.keys(schema.properties)) {
+    const subSchema = schema.properties[key];
+    if (subSchema && typeof subSchema === "object" && hasOwn(subSchema, "const")) {
+      return { key, value: subSchema.const };
+    }
+  }
+  return null;
+}
+
+function validate(value, schema, p, errors) {
+  if (errors.length >= LIMITS.validationErrors) return;
+  if (hasOwn(schema, "oneOf")) {
+    const results = schema.oneOf.map((branch) => collectUnchecked(value, branch, p));
+    const passingIndexes = results
+      .map((branchErrors, index) => branchErrors.length === 0 ? index : -1)
+      .filter((index) => index !== -1);
+
+    if (passingIndexes.length !== 1) {
+      errors.push(`${p}: must match exactly one schema in oneOf; matched ${passingIndexes.length}`);
+      if (passingIndexes.length === 0 && value !== null && typeof value === "object" && !Array.isArray(value)) {
+        const matchingDiscriminators = schema.oneOf
+          .map((branch, index) => ({ discriminator: findDiscriminator(branch), index }))
+          .filter(({ discriminator }) => discriminator && hasOwn(value, discriminator.key) && deepEqual(value[discriminator.key], discriminator.value));
+        if (matchingDiscriminators.length === 1) {
+          errors.push(...results[matchingDiscriminators[0].index]);
+        }
+      }
+    }
+  }
+
+  if (hasOwn(schema, "const") && !deepEqual(value, schema.const)) {
+    errors.push(`${p}: must equal ${safeQuote(schema.const)}, got ${safeQuote(value)}`);
+  }
+  if (hasOwn(schema, "enum") && !schema.enum.some((allowed) => deepEqual(value, allowed))) {
+    const allowed = schema.enum.map(safeQuote).join(", ");
+    errors.push(`${p}: invalid value ${safeQuote(value)} (expected one of ${allowed})`);
+  }
+
+  if (hasOwn(schema, "type") && typeOf(value) !== schema.type && !(schema.type === "integer" && typeOf(value) === "number" && Number.isInteger(value))) {
+    errors.push(`${p}: expected ${schema.type}, got ${typeOf(value)}`);
+    return;
+  }
+
+  if (typeOf(value) === "object") {
+    for (const req of hasOwn(schema, "required") ? schema.required : []) {
+      if (!hasOwn(value, req)) errors.push(`${p}: missing required field ${safeQuote(req)}`);
+    }
+    for (const key of Object.keys(value)) {
+      if (hasOwn(schema, "properties") && hasOwn(schema.properties, key)) {
+        validate(value[key], schema.properties[key], propertyPath(p, key), errors);
+      } else if (hasOwn(schema, "additionalProperties") && schema.additionalProperties === false) {
+        errors.push(`${p}: unexpected field ${safeQuote(key)}`);
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    if (hasOwn(schema, "minItems") && value.length < schema.minItems) {
+      errors.push(`${p}: must have at least ${schema.minItems} item(s), got ${value.length}`);
+    }
+    if (hasOwn(schema, "uniqueItems") && schema.uniqueItems === true) {
+      const seen = new Set();
+      let setBytes = 0;
+      for (let i = 0; i < value.length; i++) {
+        let canonical;
+        try {
+          canonical = canonicalKey(value[i]);
+        } catch (error) {
+          errors.push(`${p}[${i}]: ${error.message}`);
+          break;
+        }
+        if (seen.has(canonical.key)) {
+          errors.push(`${p}: items must be unique; duplicate at index ${i}`);
+          continue;
+        }
+        setBytes += canonical.bytes;
+        if (setBytes > LIMITS.uniqueSetBytes) {
+          errors.push(`${p}: canonical uniqueness set exceeds ${LIMITS.uniqueSetBytes} byte limit`);
+          break;
+        }
+        seen.add(canonical.key);
+      }
+    }
+    if (hasOwn(schema, "items")) {
+      value.forEach((item, index) => validate(item, schema.items, `${p}[${index}]`, errors));
+    }
+  }
+
+  if (typeof value === "string") {
+    if (hasOwn(schema, "minLength") && codePointLength(value) < schema.minLength) {
+      errors.push(`${p}: must have at least ${schema.minLength} character(s)`);
+    }
+    if (schema.visibleContent === true) {
+      if (!hasValidUnicodeScalarValues(value)) {
+        errors.push(`${p}: must contain only valid Unicode scalar values`);
+      } else if (!VISIBLE_CONTENT.test(value)) {
+        errors.push(`${p}: must contain a visible character`);
+      }
+    }
+    if (hasOwn(schema, "pattern") && !(new RegExp(schema.pattern).test(value))) {
+      errors.push(`${p}: must match pattern ${JSON.stringify(schema.pattern)}`);
+    }
+  }
+
+  if (typeof value === "number" && hasOwn(schema, "minimum") && value < schema.minimum) {
+    errors.push(`${p}: must be at least ${schema.minimum}, got ${value}`);
+  }
+}
+
+function collectUnchecked(value, schema, p) {
+  const errors = createErrorList();
+  validate(value, schema, p, errors);
+  return errors;
+}
+
+function collect(value, schema, p = "$data") {
+  const limitErrors = collectDataLimitErrors(value, p);
+  if (limitErrors.length > 0) return limitErrors;
+  return collectUnchecked(value, schema, p);
+}
+
+function isSafeRelativeSourcePath(value) {
+  if (typeof value !== "string" || value.length === 0 || !hasValidUnicodeScalarValues(value) || value.trim() !== value || PATH_FORBIDDEN_CHARACTER.test(value) || value.includes("\\") || value.includes(":")) return false;
+  if (path.posix.isAbsolute(value) || path.win32.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.startsWith("~")) return false;
+  const segments = value.split("/");
+  return segments.every((segment) =>
+    segment !== "" &&
+    segment !== "." &&
+    segment !== ".." &&
+    !/[ .]$/u.test(segment) &&
+    !WINDOWS_RESERVED_COMPONENT.test(segment));
+}
+
+function collectFindingSemanticErrors(findings) {
+  const errors = createErrorList();
+  if (!Array.isArray(findings)) return errors;
+
+  const fingerprints = new Map();
+  let previousFingerprint = null;
+  findings.forEach((finding, index) => {
+    if (errors.length >= LIMITS.validationErrors) return;
+    if (!finding || typeof finding !== "object" || Array.isArray(finding)) return;
+    const base = `$[${index}]`;
+
+    if (hasOwn(finding, "fingerprint") && typeof finding.fingerprint === "string") {
+      if (fingerprints.has(finding.fingerprint)) {
+        errors.push(`${base}.fingerprint: duplicate of $[${fingerprints.get(finding.fingerprint)}].fingerprint`);
+      } else {
+        fingerprints.set(finding.fingerprint, index);
+      }
+      if (previousFingerprint !== null && previousFingerprint > finding.fingerprint) {
+        errors.push(`${base}.fingerprint: findings must be sorted lexicographically`);
+      }
+      previousFingerprint = finding.fingerprint;
+    }
+
+    for (const field of ["trace", "evidence"]) {
+      if (!hasOwn(finding, field) || !Array.isArray(finding[field])) continue;
+      finding[field].forEach((entry, entryIndex) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+        if (hasOwn(entry, "line") && (!Number.isInteger(entry.line) || entry.line < 1)) {
+          errors.push(`${base}.${field}[${entryIndex}].line: must be a positive integer`);
+        }
+        if (hasOwn(entry, "file") && !isSafeRelativeSourcePath(entry.file)) {
+          errors.push(`${base}.${field}[${entryIndex}].file: must be a safe repository-relative source path`);
+        }
+      });
+    }
+    if (finding.remediation && Array.isArray(finding.remediation.code_changes)) {
+      finding.remediation.code_changes.forEach((change, changeIndex) => {
+        if (change && hasOwn(change, "file_name") && !isSafeRelativeSourcePath(change.file_name)) {
+          errors.push(`${base}.remediation.code_changes[${changeIndex}].file_name: must be a safe repository-relative source path`);
+        }
+      });
+    }
+
+    if (Array.isArray(finding.trace) && finding.trace.length === 1) {
+      const kind = finding.trace[0] && finding.trace[0].kind;
+      if (kind !== "entrypoint" && kind !== "sink") {
+        errors.push(`${base}.trace[0].kind: a one-line trace must be "entrypoint" or "sink"`);
+      }
+    } else if (Array.isArray(finding.trace) && finding.trace.length > 1) {
+      const last = finding.trace.length - 1;
+      if (finding.trace[0] && finding.trace[0].kind !== "entrypoint") {
+        errors.push(`${base}.trace[0].kind: must be "entrypoint", got ${safeQuote(finding.trace[0].kind)}`);
+      }
+      if (finding.trace[last] && finding.trace[last].kind !== "sink") {
+        errors.push(`${base}.trace[${last}].kind: must be "sink", got ${safeQuote(finding.trace[last].kind)}`);
+      }
+      for (let traceIndex = 1; traceIndex < last; traceIndex++) {
+        if (finding.trace[traceIndex] && finding.trace[traceIndex].kind !== "propagation") {
+          errors.push(`${base}.trace[${traceIndex}].kind: must be "propagation", got ${safeQuote(finding.trace[traceIndex].kind)}`);
+        }
+      }
+    }
+
+    const verdict = finding.verdict;
+    if (verdict === "confirmed") {
+      for (const forbidden of ["claimed_root_cause", "blockers", "validation_plan", "reason"]) {
+        if (hasOwn(finding, forbidden)) errors.push(`${base}: confirmed finding must not contain ${safeQuote(forbidden)}`);
+      }
+      if (!finding.execution || typeof finding.execution !== "object" || typeof finding.execution.observed_result !== "string" || !hasVisibleProse(finding.execution.observed_result)) {
+        errors.push(`${base}: confirmed finding requires a visible execution observed_result`);
+      }
+      if (!finding.remediation || typeof finding.remediation !== "object" || typeof finding.remediation.strategy !== "string" || !hasVisibleProse(finding.remediation.strategy)) {
+        errors.push(`${base}: confirmed finding requires visible remediation`);
+      }
+      const overall = finding.severity && finding.severity.overall_severity;
+      const impact = finding.severity && finding.severity.impact && finding.severity.impact.score;
+      if (SEVERITY_RANK.has(overall) && SEVERITY_RANK.has(impact) && SEVERITY_RANK.get(overall) > SEVERITY_RANK.get(impact)) {
+        errors.push(`${base}.severity.overall_severity: cannot exceed demonstrated impact ${safeQuote(impact)}`);
+      }
+    } else if (verdict === "needs_validation") {
+      if (hasOwn(finding, "severity")) errors.push(`${base}: needs_validation finding must not contain "severity"`);
+      for (const forbidden of ["execution", "remediation", "reason", "root_cause"]) {
+        if (hasOwn(finding, forbidden)) errors.push(`${base}: needs_validation finding must not contain ${safeQuote(forbidden)}`);
+      }
+      const plan = finding.validation_plan;
+      const hasLocalPlan = plan && typeof plan.local === "string" && hasVisibleProse(plan.local);
+      const hasDeploymentPlan = plan && typeof plan.deployment === "string" && hasVisibleProse(plan.deployment);
+      if (!hasLocalPlan && !hasDeploymentPlan) {
+        errors.push(`${base}.validation_plan: requires at least one visible local or deployment plan`);
+      }
+    } else if (verdict === "rejected") {
+      for (const forbidden of ["severity", "execution", "remediation", "blockers", "validation_plan", "root_cause"]) {
+        if (hasOwn(finding, forbidden)) errors.push(`${base}: rejected finding must not contain ${safeQuote(forbidden)}`);
+      }
+    }
+  });
+
+  return errors;
+}
+
+function validateDocument(findings, schema) {
+  const schemaErrors = collectSchemaErrors(schema);
+  if (schemaErrors.length > 0) return schemaErrors;
+  const limitErrors = collectDataLimitErrors(findings, "$");
+  if (limitErrors.length > 0) return limitErrors;
+  const errors = collectUnchecked(findings, schema, "$");
+  if (errors.length < LIMITS.validationErrors) {
+    errors.push(...collectFindingSemanticErrors(findings));
+  }
+  return errors;
+}
+
+function loadSchema(schemaPath) {
+  const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+  const errors = collectSchemaErrors(schema);
+  if (errors.length > 0) throw new Error(`unsupported or invalid report schema:\n${errors.join("\n")}`);
+  return schema;
+}
+
+function readFileWithinLimit(file) {
+  const noFollow = fs.constants.O_NOFOLLOW;
+  const nonBlock = fs.constants.O_NONBLOCK;
+  if (!Number.isInteger(noFollow) || noFollow === 0 || !Number.isInteger(nonBlock) || nonBlock === 0) {
+    throw new SafeInputError("OS no-follow and nonblocking input protection is unavailable");
+  }
+
+  let descriptor;
+  try {
+    descriptor = fs.openSync(file, fs.constants.O_RDONLY | noFollow | nonBlock);
+  } catch (error) {
+    if (error && (error.code === "ELOOP" || error.code === "EMLINK")) {
+      throw new SafeInputError("input must not be a symlink");
+    }
+    throw error;
+  }
+  try {
+    const stat = fs.fstatSync(descriptor);
+    if (!stat.isFile()) {
+      throw new SafeInputError("input must be a regular file");
+    }
+    if (stat.size > LIMITS.inputBytes) {
+      throw new SafeInputError(`input exceeds ${LIMITS.inputBytes} byte limit`);
+    }
+
+    const chunks = [];
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+    let bytesRead = 0;
+    while (true) {
+      const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+      if (count === 0) break;
+      bytesRead += count;
+      if (bytesRead > LIMITS.inputBytes) {
+        throw new SafeInputError(`input exceeds ${LIMITS.inputBytes} byte limit`);
+      }
+      chunks.push(Buffer.from(buffer.subarray(0, count)));
+    }
+    try {
+      return UTF8_DECODER.decode(Buffer.concat(chunks, bytesRead));
+    } catch {
+      throw new SafeInputError("input is not valid UTF-8");
+    }
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function enforceJsonTextLimits(contents) {
+  const containers = [];
+  let inString = false;
+  let escaped = false;
+
+  function markArrayItem() {
+    const container = containers[containers.length - 1];
+    if (!container || container.type !== "array" || !container.expectsItem) return;
+    container.expectsItem = false;
+    container.items++;
+    if (container.items > LIMITS.arrayItems) {
+      throw new JsonStructureError(`input exceeds ${LIMITS.arrayItems} item array limit`);
+    }
+  }
+
+  for (let index = 0; index < contents.length; index++) {
+    const character = contents[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === "\"") {
+      markArrayItem();
+      inString = true;
+    } else if (character === "[" || character === "{") {
+      markArrayItem();
+      if (containers.length >= LIMITS.nestingDepth) {
+        throw new JsonStructureError(`input exceeds ${LIMITS.nestingDepth} level nesting depth limit`);
+      }
+      containers.push({
+        type: character === "[" ? "array" : "object",
+        expectsItem: character === "[",
+        items: 0,
+      });
+    } else if (character === "]" || character === "}") {
+      containers.pop();
+    } else if (character === ",") {
+      const container = containers[containers.length - 1];
+      if (container && container.type === "array") container.expectsItem = true;
+    } else if (!/\s/.test(character)) {
+      markArrayItem();
+    }
+  }
+}
+
+function run(file) {
+  if (!file) {
+    console.error("Usage: node validate-findings.cjs <path-to-findings.json>");
+    return 1;
+  }
+
+  let schema;
+  try {
+    schema = loadSchema(path.join(__dirname, "report-schema.json"));
+  } catch (error) {
+    console.error("Failed to load report-schema.json:", error.message);
+    return 1;
+  }
+
+  let contents;
+  try {
+    contents = readFileWithinLimit(file);
+  } catch (error) {
+    const reason = error instanceof SafeInputError ? error.message : "input could not be opened or read safely";
+    console.error(`Failed to read findings JSON: ${reason}`);
+    return 1;
+  }
+
+  try {
+    enforceJsonTextLimits(contents);
+  } catch (error) {
+    const reason = error instanceof JsonStructureError ? error.message : "invalid JSON structure";
+    console.error(`Failed to parse findings JSON: ${reason}`);
+    return 1;
+  }
+
+  let findings;
+  try {
+    findings = JSON.parse(contents);
+  } catch {
+    console.error("Failed to parse findings JSON: invalid JSON syntax");
+    return 1;
+  }
+
+  let errors;
+  try {
+    errors = validateDocument(findings, schema);
+  } catch {
+    console.error("Failed to validate findings JSON: unexpected validation error");
+    return 1;
+  }
+  for (const message of errors) console.error("ERROR:", escapeUnsafeDiagnosticCharacters(message));
+  if (errors.length > 0) {
+    const cap = errors.length === LIMITS.validationErrors ? `; output capped at ${LIMITS.validationErrors}` : "";
+    console.error(`FAIL: ${errors.length} validation error(s)${cap}`);
+    return 1;
+  }
+  console.log(`PASS: ${findings.length} findings valid`);
+  return 0;
+}
+
+module.exports = {
+  LIMITS,
+  PATH_FORBIDDEN_CHARACTER,
+  UNSAFE_DIAGNOSTIC_CHARACTER,
+  VISIBLE_CONTENT,
+  WINDOWS_RESERVED_COMPONENT,
+  collect,
+  collectFindingSemanticErrors,
+  collectSchemaErrors,
+  hasVisibleProse,
+  isSafeRelativeSourcePath,
+  validateDocument,
+};
+
+if (require.main === module) process.exit(run(process.argv[2]));
+"#;
+
+const SKILL_36: &str = r#"const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+const test = require("node:test");
+const schema = require("./report-schema.json");
+const {
+  LIMITS,
+  collect,
+  collectSchemaErrors,
+  validateDocument,
+} = require("./validate-findings.cjs");
+
+const validatorPath = path.join(__dirname, "validate-findings.cjs");
+const CLI_TIMEOUT_MS = 5000;
+const HOSTILE_CLI_TIMEOUT_MS = 15000;
+const HAS_SAFE_INPUT_OPEN = Number.isInteger(fs.constants.O_NOFOLLOW) &&
+  fs.constants.O_NOFOLLOW !== 0 &&
+  Number.isInteger(fs.constants.O_NONBLOCK) &&
+  fs.constants.O_NONBLOCK !== 0;
+const TERMINAL_CONTROL_PAYLOAD = "\u001b\u0007\u0085\u202e\u034f\ufe0f";
+const TERMINAL_CONTROL_BYTES = [
+  Buffer.from([0x1b]),
+  Buffer.from([0x07]),
+  Buffer.from("\u0085"),
+  Buffer.from("\u202e"),
+  Buffer.from("\u034f"),
+  Buffer.from("\ufe0f"),
+];
+
+function source(kind = "entrypoint", file = "src/handler.c", line = 10) {
+  return { kind, file, line, scope: "handle", description: "Attacker data reaches the operation." };
+}
+
+function evidence(file = "src/handler.c", line = 10) {
+  return { file, line, description: "The source performs the operation without the required check." };
+}
+
+function confirmed() {
+  return {
+    verdict: "confirmed",
+    fingerprint: "src-handler-missing-check",
+    title: "Missing ownership check",
+    description: "An attacker can reach an operation without the intended ownership check.",
+    root_cause: "handle omits the ownership check before changing the object.",
+    intended_behavior: "Only the object's owner can change it.",
+    trace: [source("entrypoint"), source("propagation", "src/model.c", 20), source("sink", "src/store.c", 30)],
+    evidence: [evidence()],
+    conditions: [],
+    execution: {
+      attacker_perspective: "An unprivileged remote user with their own account.",
+      payloads: ["An object identifier owned by another user."],
+      instructions: ["Submit the identifier through the public operation."],
+      observed_result: "The other user's object changes.",
+    },
+    remediation: { strategy: "Check ownership before the state change." },
+    severity: {
+      likelihood: { score: "medium", reason: "The operation is directly reachable." },
+      impact: { score: "medium", reason: "The attacker changes one protected object." },
+      overall_severity: "medium",
+    },
+    confidence: { score: "high", reason: "The source path and result were reproduced." },
+  };
+}
+
+function needsValidation() {
+  return {
+    verdict: "needs_validation",
+    fingerprint: "src-parser-size-hypothesis",
+    title: "Unchecked parsed size",
+    description: "A parsed size may reach an allocation without a limit.",
+    claimed_root_cause: "parse_size may pass an unbounded value to allocate.",
+    trace: [source()],
+    evidence: [evidence()],
+    blockers: ["The generated parser source is absent from this checkout."],
+    validation_plan: {
+      local: "Generate the parser and submit the smallest input that exceeds the documented limit.",
+      deployment: "In an approved test deployment, confirm the request reaches the generated parser and record the bounded observable result.",
+    },
+  };
+}
+
+function rejected() {
+  return {
+    verdict: "rejected",
+    fingerprint: "src-router-auth-bypass",
+    title: "Authorization bypass in router",
+    description: "The candidate claimed a route bypassed authorization.",
+    claimed_root_cause: "dispatch was claimed to skip the authorization wrapper.",
+    trace: [source("sink")],
+    evidence: [evidence()],
+    reason: "All routes pass through the authorization wrapper before dispatch.",
+  };
+}
+
+function errorsFor(value) {
+  return validateDocument(value, schema);
+}
+
+function runCli(contents, options = {}) {
+  const { nodeArgs = [], timeout = CLI_TIMEOUT_MS } = options;
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-findings-"));
+  const findingsPath = path.join(directory, "findings.json");
+  try {
+    fs.writeFileSync(findingsPath, contents);
+    return spawnSync(process.execPath, [...nodeArgs, validatorPath, findingsPath], {
+      encoding: "utf8",
+      timeout,
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function cliOutput(result) {
+  return `${result.stdout}${result.stderr}`;
+}
+
+function assertNoInjectedControlBytes(output) {
+  const bytes = Buffer.isBuffer(output) ? output : Buffer.from(output, "utf8");
+  for (const marker of TERMINAL_CONTROL_BYTES) {
+    assert.equal(bytes.indexOf(marker), -1, `found raw control bytes ${marker.toString("hex")}`);
+  }
+}
+
+function producerShapedFindings() {
+  const demonstrated = confirmed();
+  demonstrated.conditions = [{
+    kind: "authentication_level",
+    description: "The attacker needs a normal account.",
+  }];
+  demonstrated.execution.payloads = ["", " \t\r\n", "\u0000\u001f\u007f", "\u034f", "\ufe0f", "\ud800", "\udc00", "[{,}]\\\""];
+  demonstrated.remediation.code_changes = [{
+    file_name: "src/handler.c",
+    fixed_code: "",
+  }];
+
+  const blocked = needsValidation();
+  delete blocked.validation_plan.deployment;
+
+  return [demonstrated, blocked, rejected()];
+}
+
+function rejectMutation(factory, mutate) {
+  const value = factory();
+  mutate(value);
+  assert.notEqual(errorsFor([value]).length, 0);
+}
+
+test("schema is an actual top-level array with exactly three branches", () => {
+  assert.equal(schema.type, "array");
+  assert.equal(schema.items.oneOf.length, 3);
+  assert.deepEqual(schema.items.oneOf.map((branch) => branch.properties.verdict.const), [
+    "confirmed", "needs_validation", "rejected",
+  ]);
+  const confirmedSchema = schema.items.oneOf[0].properties;
+  assert.equal(confirmedSchema.title.visibleContent, true);
+  assert.equal(confirmedSchema.execution.properties.payloads.items.minLength, undefined);
+  assert.equal(confirmedSchema.execution.properties.payloads.items.visibleContent, undefined);
+  assert.equal(confirmedSchema.remediation.properties.code_changes.items.properties.fixed_code.minLength, undefined);
+});
+
+test("accepts a producer-shaped findings document through the CLI", () => {
+  const result = runCli(JSON.stringify(producerShapedFindings()));
+  assert.equal(result.status, 0, cliOutput(result));
+  assert.match(result.stdout, /PASS: 3 findings valid/);
+});
+
+test("accepts empty output and each complete branch", () => {
+  assert.deepEqual(errorsFor([]), []);
+  assert.deepEqual(errorsFor([confirmed(), needsValidation(), rejected()]), []);
+  const localOnly = needsValidation();
+  delete localOnly.validation_plan.deployment;
+  assert.deepEqual(errorsFor([localOnly]), []);
+  const deploymentOnly = needsValidation();
+  delete deploymentOnly.validation_plan.local;
+  assert.deepEqual(errorsFor([deploymentOnly]), []);
+});
+
+test("allows a one-line finding trace", () => {
+  const finding = confirmed();
+  finding.trace = [source("entrypoint")];
+  assert.deepEqual(errorsFor([finding]), []);
+});
+
+test("rejects empty required content", () => {
+  const cases = [
+    [confirmed, (finding) => { finding.title = ""; }],
+    [confirmed, (finding) => { finding.title = "   "; }],
+    [confirmed, (finding) => { finding.evidence = []; }],
+    [confirmed, (finding) => { finding.execution.payloads = []; }],
+    [confirmed, (finding) => { finding.execution.instructions = []; }],
+    [confirmed, (finding) => { finding.execution.observed_result = ""; }],
+    [confirmed, (finding) => { finding.remediation.strategy = ""; }],
+    [needsValidation, (finding) => { finding.blockers = []; }],
+    [needsValidation, (finding) => { finding.validation_plan = {}; }],
+    [needsValidation, (finding) => { finding.validation_plan = { local: " " }; }],
+    [rejected, (finding) => { finding.claimed_root_cause = ""; }],
+  ];
+  for (const [factory, mutate] of cases) rejectMutation(factory, mutate);
+});
+
+test("preserves exact payload and replacement-code strings", () => {
+  const finding = confirmed();
+  const payloads = ["", " \t\r\n", "\u0000\u001f\u007f", "\u034f", "\ufe0f", "\ud800", "\udc00"];
+  const fixedCode = "\u0000 \t\r\n\u001f\u007f\u034f\ufe0f\ud800x\udc00";
+  finding.execution.payloads = payloads.slice();
+  finding.remediation.code_changes = [{ file_name: "src/handler.c", fixed_code: fixedCode }];
+
+  assert.deepEqual(errorsFor([finding]), []);
+  assert.deepEqual(finding.execution.payloads, payloads);
+  assert.equal(finding.remediation.code_changes[0].fixed_code, fixedCode);
+});
+
+test("rejects invalid scalars and whitespace, control, format, or default-ignorable prose", () => {
+  for (const invisible of ["\u0000\t\r\n\u001f\u007f\u200b", "\u034f", "\ufe0f", "\ud800", "\udc00", "visible\ud800"]) {
+    const cases = [
+      [confirmed, (finding) => { finding.title = invisible; }],
+      [confirmed, (finding) => { finding.trace[0].scope = invisible; }],
+      [confirmed, (finding) => { finding.evidence[0].description = invisible; }],
+      [confirmed, (finding) => { finding.execution.instructions = [invisible]; }],
+      [confirmed, (finding) => { finding.remediation.strategy = invisible; }],
+      [confirmed, (finding) => { finding.severity.impact.reason = invisible; }],
+      [confirmed, (finding) => { finding.confidence.reason = invisible; }],
+      [needsValidation, (finding) => { finding.blockers = [invisible]; }],
+      [needsValidation, (finding) => { finding.validation_plan = { local: invisible }; }],
+      [rejected, (finding) => { finding.reason = invisible; }],
+    ];
+    for (const [factory, mutate] of cases) rejectMutation(factory, mutate);
+  }
+});
+
+test("quotes input-derived controls in direct validation values and paths", () => {
+  const finding = confirmed();
+  finding.trace[0].kind = `invalid-${TERMINAL_CONTROL_PAYLOAD}`;
+  finding.execution[`extra-${TERMINAL_CONTROL_PAYLOAD}`] = "value";
+
+  const cyclic = {};
+  cyclic[`path-${TERMINAL_CONTROL_PAYLOAD}`] = cyclic;
+  const output = [
+    ...errorsFor([finding]),
+    ...collect(cyclic, { type: "object" }, "$input"),
+  ].join("\n");
+
+  for (const escaped of ["\\u001b", "\\u0007", "\\u0085", "\\u202e", "\\u034f", "\\ufe0f"]) {
+    assert(output.includes(escaped), `missing escaped diagnostic ${escaped}`);
+  }
+  assertNoInjectedControlBytes(output);
+});
+
+test("rejects line zero", () => {
+  rejectMutation(confirmed, (finding) => { finding.trace[0].line = 0; });
+  rejectMutation(rejected, (finding) => { finding.evidence[0].line = 0; });
+});
+
+test("does not treat inherited or Object-prototype properties as schema properties", () => {
+  rejectMutation(confirmed, (finding) => { finding.constructor = "not allowed"; });
+  const inherited = Object.create({ verdict: "confirmed" });
+  assert(errorsFor([inherited]).some((error) => error.includes("exactly one")));
+  assert(collect(Object.create({ constructor: "inherited" }), {
+    type: "object",
+    properties: { constructor: { type: "string" } },
+    required: ["constructor"],
+    additionalProperties: false,
+  }).some((error) => error.includes("missing required")));
+});
+
+test("oneOf requires exactly one passing branch", () => {
+  assert(collect("value", { oneOf: [{ type: "string" }, { minLength: 1 }] }, "$test")
+    .some((error) => error.includes("matched 2")));
+  assert(collect(7, { oneOf: [{ type: "string" }, { minimum: 10 }] }, "$test")
+    .some((error) => error.includes("matched 0")));
+});
+
+test("rejects duplicate fingerprints and unique array entries", () => {
+  const first = confirmed();
+  const second = rejected();
+  second.fingerprint = first.fingerprint;
+  assert(errorsFor([first, second]).some((error) => error.includes("duplicate of")));
+  rejectMutation(needsValidation, (finding) => { finding.blockers = [finding.blockers[0], finding.blockers[0]]; });
+});
+
+test("uses canonical Set uniqueness for structured entries at the array limit", () => {
+  const entries = Array.from({ length: LIMITS.arrayItems }, (_, id) => ({ id, label: String(id) }));
+  assert.deepEqual(collect(entries, { type: "array", uniqueItems: true }), []);
+
+  const duplicate = entries.slice(0, -1);
+  duplicate.push({ label: "0", id: 0 });
+  assert(collect(duplicate, { type: "array", uniqueItems: true })
+    .some((error) => error.includes(`duplicate at index ${LIMITS.arrayItems - 1}`)));
+});
+
+test("bounds canonical uniqueness keys and Set storage", () => {
+  const oversizedKey = "x".repeat(LIMITS.canonicalKeyBytes + 1);
+  assert(collect([oversizedKey], { type: "array", uniqueItems: true })
+    .some((error) => error.includes("canonical key exceeds")));
+
+  const itemLength = Math.floor(LIMITS.uniqueSetBytes / 6);
+  const largeUniqueItems = Array.from({ length: 6 }, (_, index) => `${index}${"x".repeat(itemLength)}`);
+  assert(collect(largeUniqueItems, { type: "array", uniqueItems: true })
+    .some((error) => error.includes("canonical uniqueness set exceeds")));
+});
+
+test("requires findings to be sorted by fingerprint", () => {
+  const first = confirmed();
+  const second = rejected();
+  assert(errorsFor([second, first]).some((error) => error.includes("sorted lexicographically")));
+});
+
+test("rejects severity above demonstrated impact", () => {
+  rejectMutation(confirmed, (finding) => {
+    finding.severity.overall_severity = "high";
+    finding.severity.impact.score = "medium";
+  });
+});
+
+test("rejects unsafe source paths", () => {
+  const badPaths = [
+    "/etc/passwd",
+    "../src/file.c",
+    "src/../file.c",
+    "src//file.c",
+    "C:\\src\\file.c",
+    "src/file:name.c",
+    "src/file\nname.c",
+    "src/file\u0001name.c",
+    "src/file\u0085name.c",
+    "src/file\u2028name.c",
+    "src/file\u202ename.c",
+    "src/file\u2066name.c",
+    "src/file\u200dname.c",
+    "src/file\u034fname.c",
+    "src/file\ufe0fname.c",
+    "src/file\ud800name.c",
+    "src/file\udc00name.c",
+    "CON",
+    "src/con.txt",
+    "src/PRN",
+    "src/AUX.c",
+    "src/NUL",
+    "src/COM1.log",
+    "src/lpt9",
+    "src/CONIN$",
+    "src/CONOUT$.txt",
+    "src/CLOCK$.txt",
+    "src/COM\u00b9.log",
+    "src/LPT\u00b2.log",
+    "src /file.c",
+    "src./file.c",
+    "src/file.c ",
+    "src/file.c.",
+  ];
+  for (const badPath of badPaths) {
+    rejectMutation(confirmed, (finding) => { finding.trace[0].file = badPath; });
+  }
+  rejectMutation(rejected, (finding) => { finding.evidence[0].file = "NUL.txt"; });
+  rejectMutation(confirmed, (finding) => {
+    finding.remediation.code_changes = [{ file_name: "src/file:name.c", fixed_code: "replacement" }];
+  });
+});
+
+test("accepts legitimate Unicode source paths and prose", () => {
+  const finding = confirmed();
+  finding.title = "Finding \ud83d\ude00 cafe\u0301";
+  finding.trace[0].file = "src/日本語/cafe\u0301-\ud83d\ude00.ts";
+  finding.evidence[0].file = "src/mañana/файл.ts";
+  finding.remediation.code_changes = [{
+    file_name: "src/修正/éxito.ts",
+    fixed_code: "replacement",
+  }];
+  assert.deepEqual(errorsFor([finding]), []);
+});
+
+test("CLI rejects input above the byte limit without an exception trace", () => {
+  const result = runCli(Buffer.alloc(LIMITS.inputBytes + 1, 0x20));
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, new RegExp(`input exceeds ${LIMITS.inputBytes} byte limit`));
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|heap out of memory/i);
+});
+
+test("CLI rejects invalid UTF-8 without replacement or an exception trace", () => {
+  const findings = producerShapedFindings();
+  findings[0].execution.payloads = ["INVALID_UTF8"];
+  const encoded = Buffer.from(JSON.stringify(findings));
+  const marker = Buffer.from("INVALID_UTF8");
+  const markerOffset = encoded.indexOf(marker);
+  assert.notEqual(markerOffset, -1);
+  const malformed = Buffer.concat([
+    encoded.subarray(0, markerOffset),
+    Buffer.from([0x80]),
+    encoded.subarray(markerOffset + marker.length),
+  ]);
+
+  const result = runCli(malformed);
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /input is not valid UTF-8/);
+  assert.doesNotMatch(output, /TypeError|stack|at validate-findings/i);
+});
+
+test("quotes input-derived controls in CLI validation errors", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const finding = confirmed();
+  finding.trace[0].kind = `invalid-${TERMINAL_CONTROL_PAYLOAD}`;
+  finding.execution[`extra-${TERMINAL_CONTROL_PAYLOAD}`] = "value";
+  const result = runCli(JSON.stringify([finding]));
+
+  assert.equal(result.status, 1, cliOutput(result));
+  assert.match(result.stderr, /\$\[0\]\.trace\[0\]\.kind/);
+  assert.match(result.stderr, /\\u001b/);
+  assert.match(result.stderr, /\\u202e/);
+  assertNoInjectedControlBytes(result.stderr);
+});
+
+test("returns a generic syntax error without parser-supplied controls", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const malformed = Buffer.concat([
+    Buffer.from("["),
+    Buffer.from(TERMINAL_CONTROL_PAYLOAD),
+    Buffer.from("]"),
+  ]);
+  const result = runCli(malformed);
+
+  assert.equal(result.status, 1, cliOutput(result));
+  assert.equal(result.stderr, "Failed to parse findings JSON: invalid JSON syntax\n");
+  assertNoInjectedControlBytes(result.stderr);
+});
+
+test("does not reflect controls from a failed CLI input path", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-findings-path-"));
+  const missingPath = path.join(directory, `missing-${TERMINAL_CONTROL_PAYLOAD}.json`);
+  try {
+    const result = spawnSync(process.execPath, [validatorPath, missingPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    assert.equal(result.status, 1, cliOutput(result));
+    assert.match(result.stderr, /Failed to read findings JSON:/);
+    assertNoInjectedControlBytes(result.stderr);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("CLI rejects lone-surrogate prose without changing payload semantics", () => {
+  const findings = producerShapedFindings();
+  findings[0].title = "\ud800";
+  const result = runCli(JSON.stringify(findings));
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /must contain only valid Unicode scalar values/);
+  assert.doesNotMatch(output, /stack|at validate-findings/i);
+});
+
+test("CLI rejects Unicode format controls in source paths", () => {
+  const findings = producerShapedFindings();
+  findings[0].trace[0].file = "src/file\u202ename.c";
+  const result = runCli(JSON.stringify(findings));
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /must be a safe repository-relative source path/);
+  assert.doesNotMatch(output, /stack|at validate-findings/i);
+});
+
+test("CLI rejects a FIFO without blocking", { skip: process.platform === "win32" || !HAS_SAFE_INPUT_OPEN }, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-findings-fifo-"));
+  const fifoPath = path.join(directory, "findings.json");
+  try {
+    const created = spawnSync("mkfifo", [fifoPath], { encoding: "utf8", timeout: CLI_TIMEOUT_MS });
+    assert.equal(created.status, 0, cliOutput(created));
+
+    const result = spawnSync(process.execPath, [validatorPath, fifoPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    const output = cliOutput(result);
+    assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+    assert.equal(result.status, 1, output);
+    assert.match(output, /input must be a regular file/);
+    assert.doesNotMatch(output, /stack|at validate-findings/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("CLI rejects a symlink without following it", { skip: process.platform === "win32" || !HAS_SAFE_INPUT_OPEN }, () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "validate-findings-symlink-"));
+  const targetPath = path.join(directory, "target.json");
+  const symlinkPath = path.join(directory, "findings.json");
+  try {
+    fs.writeFileSync(targetPath, JSON.stringify(producerShapedFindings()));
+    fs.symlinkSync(targetPath, symlinkPath);
+    const result = spawnSync(process.execPath, [validatorPath, symlinkPath], {
+      encoding: "utf8",
+      timeout: CLI_TIMEOUT_MS,
+    });
+    const output = cliOutput(result);
+    assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+    assert.equal(result.status, 1, output);
+    assert.match(output, /input must not be a symlink/);
+    assert.doesNotMatch(output, /stack|at validate-findings/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("CLI rejects input above the nesting-depth limit without an exception trace", () => {
+  const levels = LIMITS.nestingDepth + 1;
+  const result = runCli(`${"[".repeat(levels)}0${"]".repeat(levels)}`);
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, new RegExp(`${LIMITS.nestingDepth} level nesting depth limit`));
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|heap out of memory/i);
+});
+
+test("CLI rejects an oversized array without an exception trace", () => {
+  const result = runCli(JSON.stringify(Array(LIMITS.arrayItems + 1).fill(null)));
+  const output = cliOutput(result);
+  assert.equal(result.status, 1, output);
+  assert.match(output, new RegExp(`${LIMITS.arrayItems} item array limit`));
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|heap out of memory/i);
+});
+
+test("checks pattern and branch invariants", () => {
+  rejectMutation(rejected, (finding) => { finding.fingerprint = "not stable"; });
+  rejectMutation(needsValidation, (finding) => {
+    finding.severity = { impact: { score: "low" }, overall_severity: "low" };
+  });
+});
+
+test("rejects unsupported and malformed schema keywords", () => {
+  assert(collectSchemaErrors({ type: "string", format: "uuid" }).some((error) => error.includes("format")));
+  assert(collectSchemaErrors({ type: "string", pattern: "[" }).some((error) => error.includes("regular expression")));
+  assert(collectSchemaErrors({ type: "string", visibleContent: "yes" }).some((error) => error.includes("expected boolean")));
+  assert(collectSchemaErrors({ type: "array", visibleContent: true }).some((error) => error.includes("requires type")));
+  assert.notEqual(validateDocument([], { type: "array", maxItems: 1 }).length, 0);
+});
+
+test("caps malformed 1000-finding validation output", () => {
+  assert.equal(errorsFor(Array.from({ length: LIMITS.arrayItems }, () => null)).length, LIMITS.validationErrors);
+  if (!HAS_SAFE_INPUT_OPEN) return;
+
+  const result = runCli(JSON.stringify(Array.from({ length: LIMITS.arrayItems }, () => null)));
+  const output = cliOutput(result);
+  assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /output capped at 100/);
+  assert(output.length < 20000, `unexpected output length ${output.length}`);
+  assert.doesNotMatch(output, /RangeError|Maximum call stack|stack|at validate-findings/i);
+});
+
+test("caps amplified in-limit findings output under a constrained Node heap", { skip: !HAS_SAFE_INPUT_OPEN }, () => {
+  const findings = Array.from({ length: 750 }, () => ({
+    verdict: "confirmed",
+    trace: Array.from({ length: LIMITS.arrayItems }, () => 0),
+    evidence: Array.from({ length: LIMITS.arrayItems }, () => 0),
+  }));
+  const contents = JSON.stringify(findings);
+  assert(contents.length > 3 * 1000 * 1000, `hostile input too small: ${contents.length}`);
+  assert(contents.length <= LIMITS.inputBytes, `hostile input over limit: ${contents.length}`);
+
+  const result = runCli(contents, {
+    nodeArgs: ["--max-old-space-size=64"],
+    timeout: HOSTILE_CLI_TIMEOUT_MS,
+  });
+  const output = cliOutput(result);
+  assert.notEqual(result.error && result.error.code, "ETIMEDOUT", output);
+  assert.equal(result.status, 1, output);
+  assert.match(output, /output capped at 100/);
+  assert(output.length < 20000, `unexpected output length ${output.length}`);
+  assert.doesNotMatch(output, /heap out of memory|allocation failed|RangeError|Maximum call stack/i);
+});
+
+test("keeps shared helpers aligned with the coverage-ledger validator", () => {
+  const findingsModule = require("./validate-findings.cjs");
+  const ledgerModule = require("./validate-coverage-ledger.cjs");
+
+  for (const name of [
+    "VISIBLE_CONTENT",
+    "PATH_FORBIDDEN_CHARACTER",
+    "WINDOWS_RESERVED_COMPONENT",
+    "UNSAFE_DIAGNOSTIC_CHARACTER",
+  ]) {
+    assert.equal(findingsModule[name].source, ledgerModule[name].source, `${name} source`);
+    assert.equal(findingsModule[name].flags, ledgerModule[name].flags, `${name} flags`);
+  }
+
+  const sharedLimitKeys = Object.keys(findingsModule.LIMITS)
+    .filter((key) => Object.prototype.hasOwnProperty.call(ledgerModule.LIMITS, key))
+    .sort();
+  assert.deepEqual(sharedLimitKeys, ["inputBytes", "nestingDepth", "validationErrors"]);
+  for (const key of sharedLimitKeys) {
+    assert.equal(findingsModule.LIMITS[key], ledgerModule.LIMITS[key], `LIMITS.${key}`);
+  }
+
+  const pathCorpus = [
+    "src/handler.js",
+    "src/caf\u00e9/handler.js",
+    "src/\u65e5\u672c\u8a9e/\u0444\u0430\u0439\u043b.ts",
+    "src/cloc\u212a$.txt",
+    "src/CLOCK$.txt",
+    "src/con.txt",
+    "CON",
+    "src/COM\u00b9.log",
+    "src/lpt\u00b3",
+    "/etc/passwd",
+    "../src/file.c",
+    "src/../file.c",
+    "src//file.c",
+    "src\\file.c",
+    "src/file:name.c",
+    "~home/file.c",
+    "C:/file.c",
+    "src/file.c ",
+    "src/file.c.",
+    "src/file\u202ename.c",
+    "src/file\u200b.js",
+    "src/file\u034f.js",
+    "src/file\ufe0f.js",
+    "src/file\ud800name.c",
+    "src/file\udc00name.c",
+  ];
+  for (const value of pathCorpus) {
+    assert.equal(
+      findingsModule.isSafeRelativeSourcePath(value),
+      ledgerModule.isSafeRelativePath(value),
+      `path verdict diverges for ${JSON.stringify(value)}`,
+    );
+  }
+  assert.equal(findingsModule.isSafeRelativeSourcePath("src/cloc\u212a$.txt"), false);
+  assert.equal(ledgerModule.isSafeRelativePath("src/cloc\u212a$.txt"), false);
+
+  const proseCorpus = [
+    "Valid prose.",
+    "caf\u00e9",
+    "",
+    " \t\r\n",
+    "\u200b",
+    "\u034f",
+    "\ufe0f",
+    "\ud800",
+    "\udc00",
+    "visible\ud800",
+  ];
+  for (const value of proseCorpus) {
+    assert.equal(
+      findingsModule.hasVisibleProse(value),
+      ledgerModule.hasVisibleProse(value),
+      `prose verdict diverges for ${JSON.stringify(value)}`,
+    );
+  }
+});
+"#;
+
+const SKILL_37: &str = r#"# Validation, Structured Output, Verification, and Reporting
+
+### Phase 3: Independently validate every candidate
+
+After the clean coverage-critic pass or an explicitly recorded early stop, consolidate Phase 2 candidates and carried same-source prior confirmations by stable fingerprint and root cause. Give every unique proposed `confirmed` and `needs_validation` candidate to a fresh `general` verifier that did not hunt it. A carried prior confirmation follows the same current verification path even though hunters exclude that unchanged root cause. A verifier may read hunter or prior artifacts but must re-read every cited current source location and independently run any decisive check it can reproduce safely.
+
+Assign each verifier a canonical lowercase unique ID and `<output-dir>/agents/<verifier-id>/scratch/` plus parent-owned `artifacts/`. The verifier writes only to `scratch/` and never writes retained artifacts. It receives only the candidate, its linked coverage-unit checks and artifact paths, architecture facts needed to interpret the path, exact relevant companion validation blocks, the promotion procedure block below, the source/local execution boundary, the `confirmed`, `needs_validation`, and `rejected` branches of `report-schema.json` copied verbatim, and prior records with the same fingerprint. It must not receive another verifier's conclusion.
+
+#### Candidate-verifier prompt
+
+```text
+You did not write this candidate. Try to refute it from repository source and bounded
+local evidence. Do not contact deployed endpoints or external/shared services. Run
+target-controlled code only inside the approved OS-enforced sandbox: no external
+network, empty allowlisted environment, read-only target and tools, scratch-only
+writes, and explicit low resource and wall-clock limits. If any control is unavailable,
+do not execute; retain the exact missing capability as a needs_validation blocker.
+Treat every scratch entry as target-controlled after execution. After the sandbox and
+all its processes terminate, only trusted parent-side code may promote a predeclared
+scratch-relative file, following the promotion procedure block included verbatim in
+this prompt. You and target code never write retained artifacts. If promotion is
+unavailable or fails, do not use that file as evidence.
+
+1. Verify every trace and evidence file, positive line number, scope, and description.
+   Confirm the first entry is a real lower-trust entrypoint and the last is the
+   claimed sink or boundary effect.
+2. Reconstruct the strongest source-visible validation, identity, authorization,
+   normalization, lifecycle, framework, and containment controls on the path.
+   Where the architecture summary names a comparable baseline, note whether it
+   shares the pattern — as calibration, never as grounds to dismiss.
+3. For a proposed confirmed candidate, independently reproduce the minimum observed
+   result when possible. Verify inputs, interface shape, conditions, and affected
+   dummy principal/resource. Do not infer a stronger result or continue after it.
+4. Verify that likelihood, impact, confidence, and the proposed source fix match only
+   what the evidence establishes.
+5. For a proposed needs_validation candidate, decide whether the blocker is genuinely
+   outside source/local observation. If source refutes the trace, reject it. If the
+   missing fact remains decisive, keep needs_validation and make the local and
+   owner-observed plans exact and non-destructive.
+6. Preserve the fingerprint for the same source-derived root cause across every state.
+
+Return exactly one JSON object and no surrounding prose:
+{"decision": "confirmed|needs_validation|rejected", "record": { ... }}
+where record exactly matches the decision's verdict branch of the schema included
+in this prompt. A corrected record replaces the hunter's wording.
+```
+
+Copy this promotion procedure verbatim into every candidate-verifier prompt:
+
+```text
+Artifact promotion procedure (trusted parent-side code only):
+Reference only for you: the parent performs these steps; you never perform them.
+
+Before execution, the parent opens and retains trusted, non-inheritable directory
+descriptors for the agent's scratch/ and artifacts/ roots, and records an allowlist
+of expected scratch-relative artifact files plus explicit per-file and cumulative
+byte limits. Never pass those descriptors to the agent or sandbox. After the sandbox
+and all its processes terminate, trusted parent-side code promotes each allowlisted
+file separately:
+
+1. Validate the declared relative path: reject absolute, empty, `.`, `..`, or
+   symlinked components.
+2. Walk each parent component from the retained scratch-root descriptor with
+   no-follow directory-relative operations; never reopen by path.
+3. Open the leaf no-follow and nonblocking.
+4. Verify with `fstat` that it is a regular file with link count exactly one and
+   within the recorded per-file and cumulative byte limits.
+5. Enforce those limits again while reading from that descriptor.
+6. Copy exactly the verified size, repeat `fstat`, and reject a changed identity,
+   type, link count, or size.
+7. For the destination, walk every parent component from the retained
+   artifacts-root descriptor with no-follow directory-relative operations; require
+   each existing component to be a real directory, and create any missing directory
+   exclusively before reopening and verifying it no-follow.
+8. Create the leaf exclusively without following links, verify that the opened
+   destination is a regular file with link count exactly one, and copy from the
+   verified source descriptor without reopening either path.
+9. Use equivalent race-safe APIs on non-POSIX systems.
+10. Never recursively copy or glob scratch, extract an archive into artifacts, or
+    open or promote a symlink, FIFO, socket, device, directory, hard-linked file,
+    changing file, or file that exceeds its bound.
+11. If any check is unavailable, cannot be enforced, or fails, discard the scratch
+    entry; if it is decisive evidence, retain `needs_validation` with the exact
+    promotion blocker.
+```
+
+A verifier can promote `needs_validation` to `confirmed` only after independently establishing the complete path and bounded observed result. Demote proposed confirmation to `needs_validation` when a specific deployment or runtime fact remains unknown. Use `rejected` when source, local behavior, a visible control, missing meaningful impact, or an impossible prerequisite refutes the claim. `needs_validation` is never a parking place for a speculative idea.
+
+The parent checks that each verifier returned the same fingerprint unless it identified a genuinely different root cause. Merge corrections, record the decision in every linked coverage unit, and ensure there is one final record per fingerprint. Discard a malformed or prose-wrapped verifier result without repairing it; re-run that candidate with a fresh verifier when the budget permits, otherwise it remains an unvalidated ledger candidate under the incomplete-run rule.
+
+When verifier evidence updates a ledger check, set that check's `agent_id` to the verifier's canonical ID and list its nonempty repository-relative `reviewed_paths`. Keep the unit-level `reviewed_paths` equal to the union across checks. Use `method: "source"` with `artifact: null` for source-only review. Use `method: "local"` only with a file successfully promoted by trusted parent-side code below `agents/<check.agent_id>/artifacts/`. The unit retains its original assignment owner, so independently owned hunter and verifier checks can coexist. For a carried prior record's seeded `planned` unit there is no prior owner: the verifier that re-checks it becomes the unit's assignment owner, and its re-check is the unit's first check, moving the unit to `candidate` with the carried fingerprint.
+
+If a strict total-agent budget cannot cover every candidate, set the run status to incomplete and follow the deterministic budget rule in `SKILL.md`. An unvalidated candidate remains only in the ledger. It does not enter `findings.json` under any verdict.
+
+### Phase 4: Write and validate `findings.json`
+
+The parent writes all independently decided records to `<output-dir>/findings.json`, sorted by fingerprint. Include:
+
+- `confirmed`: source-grounded vulnerabilities with complete local execution evidence, conditions, specific remediation, likelihood/impact/overall severity, and confidence.
+- `needs_validation`: source-grounded candidates with an exact unresolved blocker and at least one applicable local or owner-observed deployment plan.
+- `rejected`: source-grounded candidates disproved during validation, retained so future runs do not repeat the unsupported claim without changed evidence.
+
+Read `report-schema.json` immediately before writing. It uses `additionalProperties: false`; do not carry hunter wrapper fields into a record. Keep these verdict contracts distinct:
+
+- A `confirmed` record uses `root_cause`, `intended_behavior`, `conditions`, `execution`, `remediation`, `severity`, and `confidence`. It must not use `claimed_root_cause`, `blockers`, `validation_plan`, or `reason`. `execution` is target-neutral and uses the target's native interface: API/HTTP input, CLI call, library call, message, file fixture, browser action, rendered policy, or local harness as applicable. `observed_result` is nonempty and factual.
+- A `needs_validation` record uses `claimed_root_cause`, `trace`, `evidence`, `blockers`, and at least one nonempty `validation_plan.local` or `validation_plan.deployment` field. Include both only when both contexts can resolve distinct facts. It must not use severity, execution, remediation, reason, or confirmed root cause.
+- A `rejected` record uses `claimed_root_cause`, `trace`, `evidence`, and `reason`. It must not use severity, execution, remediation, blockers, validation plan, or confirmed root cause.
+
+Every record has a stable fingerprint, title, description, and repository-relative source paths. A multi-step trace begins with `entrypoint`, ends with `sink`, and uses `propagation` only between them. One-entry traces use `entrypoint` or `sink`. Overall severity cannot exceed demonstrated impact.
+
+Run:
+
+```sh
+node <skill-dir>/validate-findings.cjs <output-dir>/findings.json
+node <skill-dir>/validate-coverage-ledger.cjs <output-dir>/coverage-ledger.json
+```
+
+Fix every structural and semantic error before continuing. The findings validator rejects input beyond 5 MiB, 1,000 top-level findings, or 64 nesting levels, and caps reported error output at 100 messages. Validator success proves format and ledger consistency only.
+
+### Phase 5: Verify the final records with fresh eyes
+
+Launch one fresh `research` verifier per final `confirmed` and `needs_validation` record, in parallel. This verifier checks the structured record, not the hunter write-up, and remains inside source/local boundaries.
+
+In a `quick` run, Phase 3 and Phase 5 merge: the Phase 3 verifier also performs these record checks and returns the final schema-shaped record, so each candidate gets one fresh independent reviewer instead of two. Every other profile keeps the two passes separate. Never skip independent review of a `confirmed` record in any profile.
+
+For `confirmed`, require it to check:
+
+1. Every repository-relative trace/evidence path, line, scope, and described operation.
+2. Real entry interface and exact local input shape.
+3. Every condition, parser/policy step, source-visible preventing layer, and observed local result.
+4. Affected principal/resource and demonstrated impact.
+5. Severity separation: realistic likelihood, demonstrated impact, overall no greater than impact.
+6. Remediation strategy and any `code_changes`, including whether the fix enforces the invariant without merely moving trust.
+
+For `needs_validation`, require it to check:
+
+1. The source path is real and supports only the `claimed_root_cause` stated.
+2. Every listed blocker is decisive and not already answerable locally.
+3. The candidate names a boundary and a possible concrete result rather than a generic concern.
+4. At least one validation-plan field is present and exact. `local` uses a bounded fixture; `deployment` asks an owner to observe a configuration, identity, route, policy, or runtime fact. Do not invent a plan for an inapplicable context, and never send audit traffic to a deployment.
+5. The fingerprint matches prior/current records for the same root cause.
+
+Each verifier returns exactly one JSON object: `{"decision":"verified","fingerprint":"..."}` or `{"decision":"replace","reason":"...","record":{...}}`, with no surrounding prose. A replacement record must match its `confirmed`, `needs_validation`, or `rejected` schema branch. Treat a malformed or prose-wrapped Phase 5 result the same way as in Phase 3: discard it without repairing it and re-run with a fresh verifier when the budget permits.
+
+Do not apply a Phase 5 replacement as final when it promotes a record to a stronger verdict, including any promotion to `confirmed`, or materially changes the root cause, trace, execution input or observed result, demonstrated impact, or severity. Give that complete replacement to a new independent verifier that did not hunt, perform Phase 3 validation, or propose the Phase 5 replacement. The new verifier rechecks the current source and independently reproduces any decisive local result under the execution boundary, then returns `verified` or another replacement. Apply a material replacement only after this fresh verification. If another material replacement results, repeat with a fresh verifier. If budget or independence is unavailable, remove the disputed record from `findings.json`, keep its ledger unit as an unresolved candidate, and set `run_status: "incomplete"` with an exact `incomplete_reason`. Non-material wording or repository-line corrections may be applied directly when they do not change meaning or evidence.
+
+After every applied replacement, rerun both validators and update linked ledger decisions. If a final verifier identifies a separate root cause, assign a new fingerprint and send it through independent candidate validation before inclusion. Set `run_status: "complete"` only when every ledger candidate has an independent final disposition and every retained record passes Phase 5.
+
+Do not verify only `confirmed` records. A misleading `needs_validation` handoff wastes owner time and can preserve a false premise.
+
+### Phase 6: Produce target-neutral reports from final records
+
+Only after Phase 5 passes for every record retained in `findings.json`, derive prose from the final records, the ledger, and the hunter `hardening` notes retained in ledger bookkeeping. An incomplete run may report independently verified records, but it must identify each unresolved ledger candidate and must not present it as a finding. The prose files never change a verdict, severity, blocker, or demonstrated impact.
+
+#### `REPORT.md`
+
+Write:
+
+1. Run profile, scope, budget (if set) with agents spent versus planned, source ref, sandboxed source-and-local-only execution statement, prior-run use, and explicit deferred and out-of-scope coverage. Name carried same-source confirmations and changed-source revalidations. A `quick`, scoped, budget-limited, or incomplete run states plainly that it is a partial pass. If candidate validation exhausted a strict budget, state that the run is incomplete and list every unvalidated fingerprint and linked unit; do not describe those candidates as findings. If the budget prevented a mandatory critic, state which critic did not run and make no clean-coverage claim.
+2. One short security posture summary.
+3. A confirmed-findings table: severity, title, affected boundary, and one-line observed result.
+4. Each confirmed finding: repository source location, lower-trust principal, target-native bounded reproduction, conditions, actual result, impact, priority rationale, and smallest source fix.
+5. A separate `NEEDS VALIDATION` table. Give each lead's title, repository trace, exact blocker, bounded local next step, and safe owner-observed deployment check. Do not assign severity or call it a confirmed vulnerability.
+6. Separate hardening notes and positive source patterns.
+7. Coverage summary from the ledger: covered, candidate, blocked, and deferred counts, plus important exclusions and the final critic result.
+
+Do not describe rejected records as findings. Mention their fingerprints only when they explain a prior disagreement or coverage decision.
+
+#### `FINDINGS-DETAIL.md`
+
+For each confirmed `medium`, `high`, or `critical` record, copy the complete source path and target-neutral local reproduction:
+
+- ordered repository-relative trace and evidence;
+- dummy attacker/principal and affected dummy resource;
+- native input, invocation, or fixture and exact bounded instructions;
+- observed output and the security invariant it proves;
+- conditions and containment;
+- source-level remediation and regression case.
+
+#### `NEEDS-VALIDATION.md`
+
+For every unresolved record, copy the source trace, verified evidence, exact blocker, affected boundary, and each applicable bounded local or owner-observed resolution plan. Keep these as prioritized leads without severity. Do not turn them into live test guidance or assume the missing deployment fact.
+
+HTTP is one possible native interface, not the default. A library finding may use a function call, a parser a fixture, a CLI a command, a desktop app an IPC or file action, and infrastructure a locally rendered policy. Do not require an endpoint, external account, or live environment that the target does not have.
+
+Keep the report proportional to the evidence. A clean run may have zero confirmed records. State that result and the remaining coverage/validation limits without inventing LOW findings.
+"#;
+
+const SKILL_38: &str = r#"# HTTP-Protocol and Authentication Hunting
+
+#### When to use this file
+
+Reach for this file when the target speaks HTTP at a parsing, caching, browser-authentication, or identity boundary: web applications, APIs, reverse proxies, CDNs, gateways, custom HTTP servers, and services implementing sessions, JWT, OAuth/OIDC, SAML, password recovery, MFA, passkeys, API keys, or mTLS. Use this with `ATTACK-CLASSES.md`: access-control review asks whether a principal may perform an operation; this file asks whether the HTTP or identity layer can confuse which principal, request, assurance level, or token the operation belongs to.
+
+Pick classes from Phase 1. Split a large target into request framing and cache policy, browser authentication, federated identity, strong authentication and recovery, service credentials, and session lifecycle. A single server behind an unobserved managed proxy has little source-confirmable smuggling surface; a proxy or custom parser has much more.
+
+## Core discipline (include in every agent prompt for this domain)
+
+```
+- Framing and cache findings require two interpretations of the same request, response, or key. Name both components and the exact normalized value on each side.
+- For every credential, find the signature or secret verification and every binding required for its role: issuer, audience, origin, RP, client, session, principal, resource, assurance, expiry, and one-time state.
+- Host, Forwarded, X-Forwarded-*, Origin, Referer, redirect targets, callback state, and request-derived URLs are trust decisions. Trace each to the affected identity or response.
+- A missing header, cookie attribute, MFA prompt, or rate limit is not a finding alone. Require an accepted invalid request, cross-principal impact, assurance downgrade, or credential disclosure.
+- Classify `confirmed` only from complete source evidence and bounded local request/token tests. Use `needs_validation` when proxy, IdP, browser, certificate, secret, or deployed configuration is required but not visible.
+```
+
+## HTTP framing and cache attack classes (subagent_type: `general`)
+
+**Request framing and desynchronization**
+Front end and back end disagree on request length or header normalization. Review multiple `Content-Length` values, `Transfer-Encoding`, HTTP/2 or HTTP/3 downgrade, header-name normalization, forbidden connection headers, and CR/LF conversion. Confirm which bytes one component assigns to a request and which bytes its peer assigns to the next request.
+
+**Web cache poisoning through unkeyed input**
+A request value changes cached content or security-relevant headers but is absent from the cache key. Compare cache key construction with every response variant, including forwarded host/scheme, selected cookies, query normalization, language/device headers, and authorization state.
+
+**Cache deception and private-response caching**
+Cache routing treats a private dynamic path as a public static asset, or caches a response whose identity and authorization inputs are missing from policy. Compare edge cacheability with application route parsing, suffix/path-parameter normalization, and response cache directives.
+
+**Host and forwarded-header trust**
+Untrusted host/proxy metadata determines absolute URLs, tenant routing, callbacks, reset links, cache keys, or the client address used by authorization. Confirm who can supply the header and whether trusted ingress removes client-provided copies.
+
+**Response-header injection**
+Untrusted data reaches `Location`, `Set-Cookie`, CSP, or another response header with unsafe control characters or normalization. Verify framework rejection before reporting and require a security-relevant response change.
+
+## Browser-session attack classes (subagent_type: `general`)
+
+**Ordinary CSRF**
+A browser sends ambient credentials to a state-changing endpoint that accepts a cross-site request without an effective anti-CSRF token, same-site request binding, or strict Origin/Referer validation. Inventory every cookie-authenticated mutation, including form, JSON-like, multipart, method-override, and legacy routes. SameSite is effective only for the cookie and browser contexts actually used; login CSRF and cross-site subresource requests can have different requirements.
+
+**Session fixation and invalidation**
+Session identifiers are not rotated on login, account switch, MFA completion, impersonation, or other privilege changes, or remain valid after logout, password change, revocation, and account disable. Check server sessions, refresh tokens, signed cookies, websocket state, cache copies, and fallback endpoints.
+
+**Cookie scope and transport**
+A sensitive cookie has an over-broad `Domain` or `Path`, can cross an insecure transport, or conflicts with a sibling cookie that another component selects differently. Bare missing flags remain hardening notes unless a realistic less-trusted origin, network position, or browser path can gain or replace the credential.
+
+## Federated-identity attack classes (subagent_type: `general`)
+
+First establish role. Authorization-server controls such as redirect allowlisting and code issuance do not belong to a relying-party client. Verification and binding defects belong to the component consuming the artifact.
+
+**JWT verification and claim binding**
+Check signature verification, server-pinned algorithm and key source, then `exp`, `nbf`, `aud`, and `iss`. Review `kid`, `jku`, and `x5u` as untrusted key selectors, duplicate/header normalization, and decode-without-verify paths. A valid token for another service is invalid here even when signed by a trusted issuer.
+
+**OAuth/OIDC request and callback binding**
+Validate exact `redirect_uri` ownership where the target is the authorization server; session-bound `state`; PKCE and authorization-code binding where applicable; ID-token issuer/audience/signature/nonce; and selected-IdP binding in multi-provider flows. Compare initial callback, retry, mobile/deep-link, and account-link routes.
+
+**SAML signed-object and assertion binding**
+Ensure the element whose signature is validated is the element used as identity. Review unsigned/fallback paths, safe XML parser configuration, canonicalization differences, and freshness/binding fields such as validity windows, audience/recipient, request correlation, and replay state.
+
+## MFA, passkey, and account-transition attack classes (subagent_type: `general`)
+
+**MFA enrollment and assurance downgrade**
+Enrollment, replacement, disablement, recovery-code generation, trusted-device creation, and fallback login require the intended prior assurance. Check that a valid first factor cannot enroll or replace the second factor without policy-required fresh authentication, and that disabled or stale factors stop authorizing sessions.
+
+**Step-up binding and bypass**
+A successful challenge upgrades the wrong session, account, tenant, action, or API request, or an alternate route omits the assurance check. Bind the challenge to principal, current session, assurance target, operation or resource when required, expiry, and one-time completion. Compare UI, API, batch, recovery, and resumed-flow paths.
+
+**WebAuthn and passkey verification**
+At registration, bind challenge, RP ID, expected origin, credential, user/userHandle, algorithm, and policy-required user verification to the initiating session. At authentication, verify challenge, RP/origin, credential membership, signature, and intended user presence/verification. Check account-discovery and linking flows for userHandle or credential-to-account confusion. Signature-counter handling is meaningful only when the product treats regressions as a clone signal.
+
+**Account linking and identity collision**
+Adding an IdP, passkey, email, phone, device, or external account to an existing account must require a current authenticated session, verified ownership of the new identity, policy-required step-up, and callback state bound to the account that initiated linking. Review unlink/relink and invite-acceptance paths for verified-identifier or tenant collisions.
+
+**Password reset and broader recovery**
+Recovery tokens, support/admin recovery, backup codes, device migration, and email or phone change often become the weakest authentication path. Verify token randomness, user/action binding, expiry, one-time state, rate/accounting controls, delivery URL trust, and invalidation of prior tokens and sessions. Different responses that only reveal public account existence are not automatically security findings.
+
+## API-key and mTLS attack classes (subagent_type: `general`)
+
+**API-key scope and resource binding**
+A key authenticates to broader tenants, resources, actions, or environments than its server-side record grants, or request parameters override those bindings. Review key lookup, prefix/full-secret verification, type confusion between publishable and secret keys, scope checks, rotation, revocation caches, and bulk endpoints.
+
+**API-key exposure and unsafe transport**
+Keys appear in client bundles, URLs, redirects, logs, error paths, build artifacts, or responses accessible to a lower-trust principal. A public identifier called a key is not a secret. Confirm key type and the authority gained by disclosure.
+
+**mTLS peer and application-identity confusion**
+A process trusts client-certificate identity headers from any network peer, verifies a chain but maps attacker-influenceable subject text to an account incorrectly, or accepts a certificate for the wrong trust domain, extended usage, audience, or validity policy. Where a trusted proxy terminates mTLS, verify only that proxy can connect, it removes incoming identity headers, and the backend binds the sanitized identity to the request.
+
+**Certificate lifecycle fallback**
+Expired, revoked, missing, or renewal-failed certificates cause silent fallback to bearer-only or anonymous operation, or long-lived pooled connections retain authorization after revocation. Missing deployment revocation data makes the result `needs_validation`; an in-repo fail-open branch is source-confirmable.
+
+## Universal moves (apply across the above)
+
+- Walk issue → store → transmit → consume → refresh → revoke for every credential and challenge. Compare normal, error, retry, migration, legacy, and account-switch paths.
+- Enumerate every door to the same identity and every route to the same sensitive operation. The effective policy is the weakest parallel path, not the most polished UI.
+- Diff parser, proxy, router, cache, and application normalization side by side. For local validation, feed identical bounded request fixtures into each component rather than sending traffic to a live deployment.
+- For recovery and linking, draw the account before/after graph. Each edge must name the current principal, proof of the new identity, required assurance, callback/session binding, and revocation effect.
+
+## Validation rules (apply before reporting ANY finding here)
+
+1. Apply a source-visibility gate. Proxy chains, edge cache keys, IdP policy, certificate trust, browser cookie behavior, secrets, and deployed auth modes may be outside the repository. Record a precise `needs_validation` candidate instead of asserting missing infrastructure behavior.
+2. For framing and cache findings, name both components and the divergent parse/key. Confirm cross-request, cross-user, or private-response impact with bounded local fixtures.
+3. For token, MFA, passkey, account-link, recovery, API-key, and mTLS findings, cite the verification line and missing principal/session/resource/origin/audience/action/assurance binding. Prove the server accepts the invalid transition or credential.
+4. For CSRF, name the ambient credential, state-changing route, accepted cross-site request shape, browser cookie policy, and missing effective check. Read-only actions and routes requiring a non-ambient bearer token do not qualify.
+5. Verify framework and library defaults. If version or configuration is unknown, use `needs_validation`; do not turn an unverified critical claim into a lower-severity confirmed finding.
+6. Return `confirmed` only with a complete source trace and observable unauthorized identity, state, or disclosure. For `needs_validation`, name the missing fact and safe local or owner-observed check that resolves it.
+"#;
+
+const SKILL_39: &str = r#"---
 name: subagent-driven-development
 description: Use when executing an implementation plan: work each task through a fresh implementer subagent, review per task, then review everything at the end.
 ---
@@ -2876,7 +8192,7 @@ directories belong to other plans; do not touch them. Continue with
 | "The implementer runs its own reviewer — free extra insurance" | A duplicate seat for the same diff; the review task stays the gate. A worker-built reviewer is a marked defect, not diligence. |
 "#;
 
-const SKILL_20: &str = r#"---
+const SKILL_40: &str = r#"---
 name: systematic-debugging
 description: Use when you hit a bug, a failing test, or unexpected behaviour — find the root cause first before proposing a fix; fixing the symptom is a failure.
 ---
@@ -3043,7 +8359,7 @@ that was not finished.
   unmet condition.
 "#;
 
-const SKILL_21: &str = r#"---
+const SKILL_41: &str = r#"---
 name: test-driven-development
 description: Use when implementing a feature, fixing a bug, refactoring, or changing code behaviour — run the failing test first, before writing any production code.
 ---
@@ -3191,7 +8507,7 @@ Anything else -> not TDD
 No exceptions unless approved through `ask_user`.
 "#;
 
-const SKILL_22: &str = r#"---
+const SKILL_42: &str = r#"---
 name: using-git-worktrees
 description: Use when starting feature work that needs isolation from the active workspace, or before executing an implementation plan, ensuring an isolated worktree is available through a detect-create-verify order and a clean baseline.
 ---
@@ -3358,7 +8674,7 @@ Ready to implement <feature-name>
 | "The workspace is still fresh — baseline test can wait" | A dirty baseline makes every later failure ambiguous. Run it now; continuing over a failure is the user's decision. |
 "#;
 
-const SKILL_23: &str = r#"---
+const SKILL_43: &str = r#"---
 name: using-skills
 description: Use when starting any task — establishes when a skill must be opened, and in what priority order, before answering or acting.
 ---
@@ -3461,7 +8777,7 @@ skill overrides default behaviour. Skip a skill's flow only when the user
 explicitly told you to.
 "#;
 
-const SKILL_24: &str = r#"---
+const SKILL_44: &str = r#"---
 name: verification-before-completion
 description: Use right before claiming work is done, fixed, or passing, and before a commit/PR: run the verification command and read the evidence first, because a claim without fresh evidence is a lie.
 ---
@@ -3606,7 +8922,7 @@ If Step 2 has not been run, write "NOT VERIFIED" and claim nothing. Never write
 same message.
 "#;
 
-const SKILL_25: &str = r#"---
+const SKILL_45: &str = r#"---
 name: writing-plans
 description: Use when there is a spec or a multi-step task request and you need an ordered implementation plan before touching code, with small tested tasks and a handoff of the execution method.
 ---
@@ -3825,7 +9141,7 @@ take?"**
 **If native was chosen:** **REQUIRED SUB-SKILL:** executing-plans.
 "#;
 
-const SKILL_26: &str = r#"---
+const SKILL_46: &str = r#"---
 name: writing-skills
 description: Use when about to write or change a SKILL.md — establishes the frontmatter shape, the body structure, the length limits, and the duty to test the skill on an agent that does not have it before calling it done.
 ---
@@ -4095,55 +9411,80 @@ pub const SKILL_BAWAAN: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     (
+        "security-audit",
+        &[
+        ("AI-AND-LLM.md", SKILL_19),
+        ("ATTACK-CLASSES.md", SKILL_20),
+        ("CLIENT-SIDE.md", SKILL_21),
+        ("CLOUD-AND-DEPLOYMENT.md", SKILL_22),
+        ("DATA-ISOLATION-AND-LIFECYCLE.md", SKILL_23),
+        ("DESKTOP-MOBILE-AND-LOCAL-IPC.md", SKILL_24),
+        ("HUNTING.md", SKILL_25),
+        ("MEMORY-SAFETY-AND-BINARY.md", SKILL_26),
+        ("PROTOCOLS-RPC-AND-MESSAGING.md", SKILL_27),
+        ("RECONNAISSANCE.md", SKILL_28),
+        ("report-schema.json", SKILL_29),
+        ("RESOURCE-EXHAUSTION-AND-AVAILABILITY.md", SKILL_30),
+        ("SKILL.md", SKILL_31),
+        ("SUPPLY-CHAIN-AND-RELEASE.md", SKILL_32),
+        ("validate-coverage-ledger.cjs", SKILL_33),
+        ("validate-coverage-ledger.test.cjs", SKILL_34),
+        ("validate-findings.cjs", SKILL_35),
+        ("validate-findings.test.cjs", SKILL_36),
+        ("VALIDATION-AND-REPORTING.md", SKILL_37),
+        ("WEB-PROTOCOL-AND-AUTH.md", SKILL_38),
+        ],
+    ),
+    (
         "subagent-driven-development",
         &[
-        ("SKILL.md", SKILL_19),
+        ("SKILL.md", SKILL_39),
         ],
     ),
     (
         "systematic-debugging",
         &[
-        ("SKILL.md", SKILL_20),
+        ("SKILL.md", SKILL_40),
         ],
     ),
     (
         "test-driven-development",
         &[
-        ("SKILL.md", SKILL_21),
+        ("SKILL.md", SKILL_41),
         ],
     ),
     (
         "using-git-worktrees",
         &[
-        ("SKILL.md", SKILL_22),
+        ("SKILL.md", SKILL_42),
         ],
     ),
     (
         "using-skills",
         &[
-        ("SKILL.md", SKILL_23),
+        ("SKILL.md", SKILL_43),
         ],
     ),
     (
         "verification-before-completion",
         &[
-        ("SKILL.md", SKILL_24),
+        ("SKILL.md", SKILL_44),
         ],
     ),
     (
         "writing-plans",
         &[
-        ("SKILL.md", SKILL_25),
+        ("SKILL.md", SKILL_45),
         ],
     ),
     (
         "writing-skills",
         &[
-        ("SKILL.md", SKILL_26),
+        ("SKILL.md", SKILL_46),
         ],
     ),
 ];
 
 /// Sidik isi bundel: dipakai untuk menanam ulang saat skill bawaan berubah
 /// antar versi aplikasi, tanpa menimpa skill yang sudah diubah user.
-pub const SKILL_BAWAAN_HASH: &str = "45de4f2f94ff0e17";
+pub const SKILL_BAWAAN_HASH: &str = "27a932bfeaad3eaa";

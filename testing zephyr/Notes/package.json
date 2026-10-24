@@ -1,0 +1,17 @@
+{
+  "name": "testing-zephyr",
+  "version": "1.0.0",
+  "description": "Aplikasi kecil Electron dengan tampilan bergaya macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Muhammad Khalid",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.2.0"
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
+  }
+}

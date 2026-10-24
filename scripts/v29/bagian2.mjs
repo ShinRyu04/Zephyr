@@ -156,7 +156,20 @@ export const bagian2 = async (cdp, check, F, { fs }) => {
     })
   `);
 
-  const diblokir = (s) => typeof s === 'string' && s !== 'LOLOS' && /diblokir|belum dipercaya|Restricted/i.test(s);
+  /*
+   * Penolakan harus dikenali dari PESAN RUST, bukan dari satu kata tertentu.
+   *
+   * Produk memakai dua bentuk yang keduanya sah: `is blocked: ... this folder
+   * is not trusted yet` (task/debug/extension, workspace.rs) dan `the folder is
+   * not trusted yet` (LSP). Versi lama hanya mencari kata Indonesia "diblokir"
+   * sehingga keempat penolakan yang BENAR dianggap gagal. Yang penting bukan
+   * bahasanya, melainkan bahwa panggilan itu DITOLAK - bukan 'LOLOS', dan
+   * alasannya menyebut kepercayaan folder.
+   */
+  const diblokir = (s) =>
+    typeof s === 'string' &&
+    s !== 'LOLOS' &&
+    /blocked|diblokir|not trusted|belum dipercaya|untrusted|permission denied|Restricted/i.test(s);
   const trustDisk = bacaTrustJson(fs, F.trustJson);
 
   const v5ok =

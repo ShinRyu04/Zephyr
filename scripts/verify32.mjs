@@ -73,7 +73,7 @@ cek(
 m = jalankan(skripEkstensi(`const fs = require('fs'); fs.readFileSync('x');`));
 cek(
   'V4 require("fs") dipakai → error jelas (tertahan, bukan ReferenceError)',
-  m.some((x) => x.type === 'notify' && /fs\.readFileSync tidak didukung/.test(x.message)),
+  m.some((x) => x.type === 'notify' && /(fs\.readFileSync is not supported|fs\.readFileSync tidak didukung)/.test(x.message)),
   ringkas(m),
 );
 
@@ -112,7 +112,7 @@ cek(
 m = jalankan(skripEkstensi(`const x = require('pkg-tidak-ada'); x.halo();`));
 cek(
   'V5b modul tak dikenal DIPAKAI → error jelas',
-  m.some((x) => x.type === 'notify' && /tidak didukung di sandbox/.test(x.message)),
+  m.some((x) => x.type === 'notify' && /(is not supported in the Zephyr extension sandbox|tidak didukung di sandbox)/.test(x.message)),
   ringkas(m),
 );
 
@@ -201,7 +201,7 @@ m = jalankan(
 );
 cek(
   'V6c require relatif file hilang → error jelas "tidak ditemukan"',
-  m.some((x) => x.type === 'notify' && /tidak ditemukan di dalam ekstensi/.test(x.message)),
+  m.some((x) => x.type === 'notify' && /(was not found inside the extension|tidak ditemukan di dalam ekstensi)/.test(x.message)),
   ringkas(m),
 );
 

@@ -8,6 +8,7 @@ import { muatSemuaEkstensi } from './lib/extLoader';
 import { useT, tf } from './lib/i18n';
 import LiveRegion from './components/a11y/LiveRegion';
 import Toast from './components/notifications/Toast';
+import TanyaDialog from './components/shell/TanyaDialog';
 
 /*
  * The two overlays a panel window can actually open.
@@ -227,6 +228,9 @@ export default function PanelWindow() {
       </Suspense>
       <Suspense fallback={null}>
         <ClearChatsDialog />
+      </Suspense>
+      <Suspense fallback={null}>
+        <TanyaDialog />
       </Suspense>
       <Suspense fallback={null}>
         <Toast />

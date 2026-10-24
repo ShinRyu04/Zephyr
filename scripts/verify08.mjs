@@ -11,10 +11,79 @@
 // bukan hanya dari store.
 
 import WebSocket from 'ws';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/*
+ * CADANGAN settings.json DI BERKAS, bukan hanya di memori.
+ *
+ * Harness ini memulai dan mengakhiri ujinya dengan `SET.resetAll()` supaya
+ * keadaan awalnya bersih. Itu menghapus settings NYATA milik pembaca: provider,
+ * daftar model, baseUrl, shortcut, tema - semuanya. Selama run selesai normal,
+ * kehilangan itu tidak terlihat karena uji About juga me-reset "ke default";
+ * tetapi begitu run berhenti di tengah (devtools 500, app mati), berkasnya
+ * tertinggal dalam keadaan default dan konfigurasi pembaca hilang permanen -
+ * sudah terjadi pada sesi ini.
+ *
+ * Karena itu berkasnya dicadangkan sebelum reset pertama, lalu dikembalikan
+ * apa adanya di SEMUA jalur keluar, termasuk saat harness gagal.
+ */
+const SETTINGS_JSON = path.join(
+  process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming'),
+  'zephyr',
+  'settings.json',
+);
+const SETTINGS_CADANGAN = path.join(
+  process.env.LOCALAPPDATA ?? os.tmpdir(),
+  'Temp',
+  `settings-verify08-${process.pid}.json`,
+);
+let adaCadangan = false;
+try {
+  if (fs.existsSync(SETTINGS_JSON)) {
+    fs.copyFileSync(SETTINGS_JSON, SETTINGS_CADANGAN);
+    adaCadangan = true;
+  }
+} catch {
+  /* jalur tidak terbaca: uji tetap jalan, hanya tanpa jaring pemulihan */
+}
+
+function pulihkanSetelan() {
+  if (!adaCadangan) return;
+  try {
+    fs.copyFileSync(SETTINGS_CADANGAN, SETTINGS_JSON);
+    fs.unlinkSync(SETTINGS_CADANGAN);
+    console.log('settings.json dipulihkan dari cadangan harness');
+  } catch {
+    /* biarkan berkas cadangan: lebih baik tersisa daripada hilang */
+  }
+  adaCadangan = false;
+}
+
+/*
+ * Pemulihan juga saat proses DIMATIKAN.
+ *
+ * Jalur `main().catch` hanya menangkap galat. Harness yang menggantung (CDP
+ * berhenti menjawab di V13) lalu dibunuh dari luar akan melewati kedua jalur itu
+ * dan meninggalkan settings.json dalam keadaan default - persis yang terjadi.
+ * SIGINT/SIGTERM/SIGBREAK menutup celah tersebut.
+ */
+process.on('exit', pulihkanSetelan);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) {
+  try {
+    process.on(sig, () => {
+      pulihkanSetelan();
+      process.exit(2);
+    });
+  } catch {
+    /* sinyal tidak didukung di platform ini */
+  }
+}
 
 class Cdp {
   #ws;
@@ -1291,6 +1360,7 @@ const main = async () => {
    * semua uji selesai dan ringkasannya lengkap. keluarBersih menjaga kode keluar
    * yang sama sekaligus memastikan output tidak ikut hilang.
    */
+  pulihkanSetelan();
   keluarBersih(lulus === results.length ? 0 : 1);
 };
 
@@ -1306,6 +1376,9 @@ main().catch((e) => {
   } catch {
     /* sudah tertutup atau gagal ditutup: tetap harus keluar */
   }
+  // Settings dikembalikan DULU: tanpa ini, satu kegagalan di tengah run
+  // meninggalkan berkas dalam keadaan default dan konfigurasi pembaca hilang.
+  pulihkanSetelan();
   // keluarBersih, bukan process.exit: output yang belum terkirim tidak boleh
   // hilang bersama prosesnya.
   keluarBersih(2);

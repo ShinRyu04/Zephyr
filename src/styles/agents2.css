@@ -3271,12 +3271,27 @@ body.agx-dragging-kolom {
  * bawah tidak ada ruang.
  */
 .agx-comp .ai-model-menu {
-  max-height: min(320px, 52vh) !important;
+  /* Sama dengan panel AI: pendek dulu, sisanya di-scroll. 320px di jendela ini
+     menutupi hampir seluruh kolom chat, jadi dipangkas lagi. */
+  max-height: min(280px, 40vh) !important;
   max-width: min(420px, calc(100vw - 32px));
 }
 
 .agx-comp .ai-mp-daftar {
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, #3d444d) transparent;
+}
+
+.agx-comp .ai-mp-daftar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.agx-comp .ai-mp-daftar::-webkit-scrollbar-thumb {
+  background: var(--border-strong, #3d444d);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
 }
 /* ==========================================================================
    Automation (halaman di jendela Agents) — bentuknya mengikuti TRAE:

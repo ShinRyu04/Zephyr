@@ -181,6 +181,7 @@ import { useKb } from './keybindingStore';
 import { chordConflicts, chordFor, gabungChordKembar } from './keybindings';
 import { MENUS } from './menu';
 import { usePanel } from './panelStore';
+import { mintaStoreUtama } from './panelWindow';
 import { useProblems } from './problemsStore';
 import { useOutput } from './outputStore';
 import { usePorts } from './portsStore';
@@ -921,6 +922,13 @@ export function installDevBridge(): void {
         when: b.when,
         layer: b.layer,
         label: b.label ?? null,
+        /*
+         * `source` is the extension that contributed the binding (undefined for
+         * built-ins). It is exported because the extension harnesses must prove
+         * that an INSTALLED keymap package actually reached the live table - the
+         * row is otherwise indistinguishable from a built-in one.
+         */
+        source: b.source ?? null,
         isCustom: useKb.getState().user.some((u) => u.command === b.command),
       })),
 
@@ -1296,6 +1304,10 @@ export function installDevBridge(): void {
     cycleTab: (d: 1 | -1) => usePanel.getState().cycleTab(d),
     menuOpen: (v: boolean) => usePanel.getState().setTabMenuOpen(v),
     hydrate: (vt?: string[], at?: string) => usePanel.getState().hydrate(vt, at),
+
+    /* Ask the window that opened this panel to act on ITS store. Used from
+       `#panel=extensions`, which has no tabs and no rail of its own. */
+    storeUtama: mintaStoreUtama,
 
     visible: () => useTerminal.getState().visible,
     height: () => useTerminal.getState().height,

@@ -7,12 +7,30 @@ export const EN: Record<string, string> = {
   'Memikirkan langkah…': 'Thinking about the next step…',
   'Tugas selesai.': 'Task complete.',
   'Sedang bekerja… {t}': 'Working… {t}',
+  'Working…': 'Working…',
   'Selesai dalam {t}': 'Worked for {t}',
   'Created {n} file': 'Created {n} file',
   'Edited {n} file': 'Edited {n} file',
   'Read {n} file': 'Read {n} file',
   'Searched files {n} times': 'Searched files {n} times',
   'Ran {n} commands': 'Ran {n} commands',
+  /*
+   * Tree nodes that are not tool runs: the files the turn opened, and the
+   * one-line outcome printed under a step.
+   *
+   * A run of work reads as a tree in the reference product - "Reference",
+   * "Thought", then the steps - and each step carries its own result line
+   * ("Found 36 files", "No results found"). The first words of those lines are
+   * ours, so they need a translation entry like every other label.
+   */
+  'Reference': 'Reference',
+  'Found {n} files': 'Found {n} files',
+  'Found {n} matches in {m} files': 'Found {n} matches in {m} files',
+  'No results found': 'No results found',
+  'No files matched': 'No files matched',
+  'Read {n} lines': 'Read {n} lines',
+  'Wrote {n} lines': 'Wrote {n} lines',
+  'Exit code {n}': 'Exit code {n}',
 
   'Customize Layout': 'Customize Layout',
   'Customize Layout…': 'Customize Layout…',

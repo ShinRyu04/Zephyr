@@ -314,23 +314,22 @@
   max-width: 60%;
 }
 
-.ai-grup-isi {
+/*
+ * Scoped to `.ai-toolrun`, the only thing this sheet's group rows belong to.
+ *
+ * Unscoped, these two rules landed AFTER ai.css in App.tsx and silently won the
+ * cascade: `.ai-grup-baris` lost its `padding: 1px 8px 1px 20px` (every step row
+ * jumped back to the pane edge, out of line with its fold's rail) and the
+ * outcome elbow no longer had that 20px to hang under.
+ */
+.ai-toolrun .ai-grup-isi {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding-block: 4px;
 }
 
-.ai-grup-baris {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.ai-grup-baris .ai-toolrun-args {
+.ai-toolrun .ai-grup-baris {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

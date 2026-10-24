@@ -164,8 +164,8 @@ const main = async () => {
   );
   await bersihkanTerpasang(cdp);
 
-  await bagian1(cdp, check, { DIR_UJI, EXT_LOKAL, EXT_RUSAK });
-  await bagian2(cdp, check, { DIR_UJI, EXT_LOKAL, EXT_RUSAK, tsc, cargo, cargoOk });
+  await bagian1(cdp, check, { DIR_UJI, EXT_LOKAL, EXT_RUSAK, cdpPort: CDP_PORT });
+  await bagian2(cdp, check, { DIR_UJI, EXT_LOKAL, EXT_RUSAK, tsc, cargo, cargoOk, cdpPort: CDP_PORT });
 
   // Kembalikan keadaan: lepas semua ekstensi uji, tema default.
   await bersihkanTerpasang(cdp);

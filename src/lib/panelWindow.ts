@@ -1,5 +1,5 @@
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { emitTo } from '@tauri-apps/api/event';
+import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { emitTo, listen } from '@tauri-apps/api/event';
 
 /*
  * Open a panel as its OWN window.
@@ -118,10 +118,165 @@ export function seksiDariHash(hash: string): string | null {
   return s || null;
 }
 
+/**
+ * The label of the window that opened this panel (`#panel=tools&from=main`).
+ *
+ * `null` when the panel was loaded directly - then there is no opener to ask,
+ * and callers must treat the store bridge as unavailable rather than guessing.
+ */
+export function pembukaDariHash(hash: string): string | null {
+  const bersih = hash.replace(/^#/, '');
+  const i = bersih.indexOf('&from=');
+  if (i < 0) return null;
+  const s = decodeURIComponent(bersih.slice(i + 6));
+  return s || null;
+}
+
+/*
+ * ONE STORE, REACHABLE FROM EVERY PANEL.
+ *
+ * `#panel=extensions` hosts only the extensions page: it has no tabs, no
+ * activity bar and no sidebar. So "close the page that opened me", "put the
+ * rail back on explorer" and "undo the settings this run touched" are not things
+ * that window can do for itself - those actions belong to the OPENER's store,
+ * and a separate WebView has a separate zustand instance.
+ *
+ * THE DOOR is the Tauri event bus, which both windows already share:
+ *   panel  -> emitTo('zephyr-store', { aksi, arg })   // caller's window is named in `sumber`
+ *   opener -> runs the action on its own useStore, then emitTo(sumber, 'zephyr-store-hasil', ...)
+ *
+ * `emitTo` needs a target label, and a panel does not know which window opened
+ * it - so the caller names itself in the payload and the result comes back to
+ * that label. Handlers are registered ONCE per module (the StrictMode double
+ * mount would otherwise run every action twice, the same trap the `pty-output`
+ * and `ai-chunk` listeners hit).
+ */
+const AKSI_STORE = 'zephyr-store';
+const HASIL_STORE = 'zephyr-store-hasil';
+
+/**
+ * Handle a store request from a panel window.
+ *
+ * `get` returns `{ ok, value }`, `set` accepts a patch object, `reset` closes
+ * every tab and returns the rail to the explorer. Anything else is answered
+ * with `ok:false` rather than silently doing nothing - a panel that asks for an
+ * action that was renamed must be told, not left guessing.
+ */
+export function pasangJembatanStore(): void {
+  if (jembatanStoreTerpasang) return;
+  jembatanStoreTerpasang = true;
+  void listen<{ aksi?: string; patch?: unknown; sumber?: string }>(AKSI_STORE, (ev) => {
+    const p = ev.payload ?? {};
+    const sumber = typeof p.sumber === 'string' ? p.sumber : '';
+    if (!sumber) return;
+    void jawabPermintaanStore(p, sumber);
+  });
+}
+
+/**
+ * Run one store request on THIS window and send the answer back to its asker.
+ *
+ * Split out of the listener so the failure path is visible: an action that
+ * throws still answers `ok:false`, because a panel that gets no reply at all
+ * cannot tell "the opener refused" from "the window is gone".
+ */
+async function jawabPermintaanStore(
+  p: { aksi?: string; patch?: unknown },
+  sumber: string,
+): Promise<void> {
+  let value: unknown = null;
+  let ok = true;
+  try {
+    const { useStore } = await import('./store');
+    if (p.aksi === 'get') value = useStore.getState();
+    else if (p.aksi === 'set') useStore.setState(p.patch as object, false);
+    else if (p.aksi === 'reset') {
+      const st = useStore.getState();
+      st.tabs.slice().forEach((t) => st.forceCloseTab(t.id));
+      st.setSettingsOpen(false);
+      st.setActivity('explorer');
+      st.setFindOpen(false);
+    } else ok = false;
+  } catch (e) {
+    ok = false;
+    value = String(e);
+  }
+  await emitTo(sumber, HASIL_STORE, { ok, value }).catch(() => {});
+}
+
+let jembatanStoreTerpasang = false;
+
+/**
+ * Ask the window that opened this panel to act on ITS store.
+ *
+ * Used from a panel window, where `useStore` is a different instance with no
+ * tabs and no rail. Resolves to `null` when no opener answers - a panel opened
+ * directly (or in a plain browser) must not hang on a door that has nobody
+ * behind it, so the caller gets "no answer" instead of a rejected promise it
+ * would have to catch everywhere.
+ */
+export async function mintaStoreUtama<T = unknown>(
+  aksi: 'get' | 'reset' | 'set',
+  patch?: unknown,
+  timeoutMs = 3000,
+): Promise<T | null> {
+  try {
+    const sumber = getCurrentWebviewWindow().label;
+    const tujuan = pembukaDariHash(window.location.hash);
+    /* Loaded without an opener (a plain browser tab): nobody to ask. */
+    if (!tujuan || tujuan === sumber) return null;
+    /*
+     * THE LISTENER MUST BE LIVE BEFORE THE QUESTION GOES OUT.
+     *
+     * `listen` resolves asynchronously, and the opener answers in a few
+     * milliseconds. Firing the request first and only then awaiting the
+     * registration lost every reply: the panel sat on "no answer" for the whole
+     * timeout while the opener had already answered into an empty bus. Await the
+     * registration, then ask.
+     */
+    let selesai = false;
+    let unlisten: (() => void) | null = null;
+    const jawab = new Promise<T | null>((resolve) => {
+      const jaring = setTimeout(() => resolve(null), timeoutMs);
+      void listen<{ ok: boolean; value: unknown }>(HASIL_STORE, (ev) => {
+        if (selesai) return;
+        selesai = true;
+        clearTimeout(jaring);
+        resolve(ev.payload?.ok ? ((ev.payload.value as T) ?? null) : null);
+      }).then((u) => {
+        /* A reply that arrived while registering was dropped by the bus; ask
+           again now that the door is open instead of timing out. */
+        unlisten = u as () => void;
+        if (selesai) (unlisten as () => void)();
+        else void emitTo(tujuan, AKSI_STORE, { aksi, patch, sumber });
+      });
+    });
+    const hasil = await jawab;
+    selesai = true;
+    if (unlisten) (unlisten as () => void)();
+    return hasil;
+  } catch {
+    return null;
+  }
+}
+
 /** Open (or focus) a panel in its own window. */
 export async function bukaPanelWindow(id: PanelId, seksi?: string): Promise<void> {
   const label = labelPanelWindow(id);
-  const url = `index.html#panel=${id}${seksi ? `&s=${encodeURIComponent(seksi)}` : ''}`;
+  /*
+   * THE OPENER'S LABEL RIDES IN THE URL.
+   *
+   * A panel answers its opener over the shared event bus, and `emitTo` needs a
+   * target label. A fresh WebView has no idea which window asked for it, and
+   * there is no Tauri API that reports "my opener" - so the opener writes its
+   * own name into the hash when it opens the window. Without this the reply was
+   * emitted with the PANEL's own label as the target, which reached nobody and
+   * made every cross-window request time out.
+   */
+  const dari = getCurrentWebviewWindow().label;
+  const url =
+    `index.html#panel=${id}${seksi ? `&s=${encodeURIComponent(seksi)}` : ''}` +
+    `&from=${encodeURIComponent(dari)}`;
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
     /* A window that is minimized or behind the editor must COME FORWARD, not

@@ -53,6 +53,16 @@ async function main() {
   // saat ditambah, todo akan berhenti centang lagi - persis bug aslinya.
   const v2 = await cdp.runAsync(`
     const m = await import('/src/lib/aiStore.ts');
+    /*
+     * Kosongkan daftar DULU lewat setState, bukan setAgentTodos([]).
+     *
+     * setAgentTodos sengaja MEMPERTAHANKAN tugas lama yang tidak disebut model
+     * (itu yang membuat todo tidak menghilang saat agen bekerja), jadi
+     * setAgentTodos([]) tidak mengosongkan apa pun. Tanpa reset langsung,
+     * entri sisa V1 ("tugas dua" yang masih pending) ikut terbaca di sini dan
+     * asersi "semua done" gagal padahal keempat sinonim sudah benar.
+     */
+    m.useAi.setState({ agentTodos: [] });
     const st = m.useAi.getState();
     st.setAgentTodos([
       { content: 'a', status: 'complete' },
@@ -89,12 +99,19 @@ async function main() {
 
   // Urutan lengkapnya yang penting, bukan satu panggilan terakhir:
   //   1  -> jalan biasa
-  //   2  -> PERINGATAN (sekali saja, tepat di panggilan kedua)
-  //   3+ -> HENTIKAN
+  //   2  -> jalan biasa (peringatan belum muncul)
+  //   3  -> PERINGATAN + sudah melewati ambang henti aksi tulis
   //
-  // `ingatkan` memakai `===`, jadi ia hanya true TEPAT di detik kedua. Kalau
-  // seseorang kelak mengubahnya jadi `>=`, peringatan akan diulang setiap kali
-  // dan tes ini menangkapnya - itu perilaku yang berbeda.
+  // `ingatkan` memakai `>`, bukan `===`. Itu keputusan sadar di
+  // `src/lib/aiStore.ts:836`: peringatan yang hanya muncul SEKALI (di detik
+  // kedua) tidak melindungi apa pun - sebuah run nyata memanggil
+  // `list_directory` sebelas kali dengan argumen identik, dan peringatan yang
+  // datang sekali di detik kedua tidak pernah dibaca ulang model. Karena itu
+  // tes ini menuntut peringatan DIULANG pada setiap pengulangan berikutnya.
+  //
+  // `shell_exec` BUKAN tool baca (katalog: `bash_run` berefek 'exec'), jadi
+  // ambang hentinya `BATAS_AKSI_SAMA = 3` - hentikan menyala di aksi ke-3,
+  // bersamaan dengan peringatan pertama.
   const v4 = await cdp.runAsync(`
     const m = await import('/src/lib/aiStore.ts');
     const peta = new Map();
@@ -107,9 +124,10 @@ async function main() {
   `);
   const urut = JSON.parse(v4);
   R.check('V7', urut[0].ingatkan === false && urut[0].hentikan === false, `aksi ke-1 jalan biasa (ingatkan=${urut[0].ingatkan}, hentikan=${urut[0].hentikan})`);
-  R.check('V8', urut[1].ingatkan === true && urut[1].hentikan === false, `aksi ke-2 MEMBERI PERINGATAN, belum hentikan (ingatkan=${urut[1].ingatkan}, hentikan=${urut[1].hentikan})`);
-  R.check('V8b', urut[2].hentikan === true && urut[3].hentikan === true, `aksi ke-3+ MENGHENTIKAN loop (ke-3=${urut[2].hentikan}, ke-4=${urut[3].hentikan})`);
-  R.check('V8c', urut[3].ingatkan === false, `peringatan tidak diulang di ke-4 (dapat: ${urut[3].ingatkan})`);
+  R.check('V8', urut[1].ingatkan === false && urut[1].hentikan === false, `aksi ke-2 masih jalan biasa - ambang\nperingatan belum tercapai (ingatkan=${urut[1].ingatkan}, hentikan=${urut[1].hentikan})`);
+  R.check('V8a', urut[2].ingatkan === true && urut[2].hentikan === true, `aksi ke-3 MEMBERI PERINGATAN dan sudah melewati ambang henti BATAS_AKSI_SAMA=3 (ingatkan=${urut[2].ingatkan}, hentikan=${urut[2].hentikan})`);
+  R.check('V8b', urut[3].ingatkan === true && urut[3].hentikan === true, `aksi ke-4 tetap dihentikan, tidak berubah jadi jalan lagi (ingatkan=${urut[3].ingatkan}, hentikan=${urut[3].hentikan})`);
+  R.check('V8c', urut[1].ingatkan === false && urut[1].hentikan === false, `aksi ke-2 belum diperingatkan - ambang peringatan belum tercapai (ingatkan=${urut[1].ingatkan}, hentikan=${urut[1].hentikan})`);
 
   // Aksi BERBEDA tidak boleh dianggap berulang - kalau tidak, agent normal
   // akan dihentikan di tengah kerja.

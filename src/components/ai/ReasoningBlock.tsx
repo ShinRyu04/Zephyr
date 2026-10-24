@@ -57,10 +57,21 @@ export default function ReasoningBlock({
   teks,
   ms,
   berjalan,
+  judul,
 }: {
   teks: string;
   ms?: number;
   berjalan?: boolean;
+  /*
+   * Node TITLE, when the block is a child of the work tree rather than a
+   * standalone row.
+   *
+   * The reference product labels the node "Thought" and keeps the number
+   * beside it; a standalone block has no parent to say what it is, so it keeps
+   * the old "Thought for 2s" sentence. Everything else about the block is
+   * identical in both places.
+   */
+  judul?: string;
 }) {
   /*
    * The block is only useful while it is being written. Waiting for
@@ -82,9 +93,19 @@ export default function ReasoningBlock({
   const isi = teks.trim();
   if (!isi) return null;
 
+  /* Inside the work tree the node reads "Thought" with the clock beside it;
+     standalone it keeps the sentence that names what the clock measures. */
+  const labelKepala = judul
+    ? berjalan
+      ? tx('Thinking')
+      : judul
+    : berjalan
+      ? tx('Thinking')
+      : durasi(ms);
+
   return (
     <div
-      className="ai-reason"
+      className={`ai-reason${judul ? ' is-anak' : ''}`}
       data-testid="ai-reason"
       data-open={terbuka ? '1' : '0'}
       data-live={berjalan ? '1' : '0'}
@@ -99,7 +120,14 @@ export default function ReasoningBlock({
         {/* While it streams, the header must not claim a duration: the run is
             not over, and "Thought for 0s" is a number that will be wrong in a
             second. Say what is actually happening instead. */}
-        <span className="ai-reason-title">{berjalan ? tx('Thinking') : durasi(ms)}</span>
+        <span className="ai-reason-title">{labelKepala}</span>
+        {judul && !berjalan && typeof ms === 'number' && ms >= 1000 ? (
+          <span className="ai-reason-durasi">
+            {ms >= 60000
+              ? `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`
+              : `${Math.round(ms / 1000)}s`}
+          </span>
+        ) : null}
         <span className="ai-reason-caret" aria-hidden="true">
           {terbuka ? '▾' : '▸'}
         </span>

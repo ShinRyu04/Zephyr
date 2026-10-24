@@ -932,8 +932,16 @@
   width: max-content;
   min-width: 300px;
   max-width: min(420px, calc(100cqw - 24px));
-  /* A popover, not a second screen: bounded, then the list scrolls inside. */
-  max-height: min(56vh, 380px);
+  /*
+   * A popover, not a second screen: bounded, then the list scrolls inside.
+   *
+   * 380px was tall enough to cover the conversation behind it on a laptop,
+   * which is why the list looked like a page rather than a dropdown. The
+   * reference picker is deliberately short: ten-odd rows, then a scroll. 320px
+   * shows the focused provider's models plus the first custom ones and still
+   * leaves the composer and the answer above it visible.
+   */
+  max-height: min(48vh, 320px);
   padding: 4px;
   /*
    * BLACK, not a surface token.
@@ -977,6 +985,35 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  /*
+   * A visible, thin scrollbar is what tells the reader the box is a WINDOW and
+   * not a truncated list. The default WebView2 bar is wide and only fades in
+   * while scrolling, so the menu looked cut off at "Custom Models" — the
+   * report was "model picker-nya kegedean dan nggak bisa di-scroll".
+   */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, #3d444d) transparent;
+  overscroll-behavior: contain;
+}
+
+.ai-mp-daftar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-mp-daftar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-mp-daftar::-webkit-scrollbar-thumb {
+  background: var(--border-strong, #3d444d);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+.ai-mp-daftar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #8b949e);
+  background-clip: content-box;
 }
 
 /* ── Provider groups (collapsible) ────────────────────────────────────── */

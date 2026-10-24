@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { bagiHunk, barisDiff, terapkanHunk, type DiffRow } from '../../lib/simpleDiff';
 import { useT, tf } from '../../lib/i18n';
+import { ikonFile } from '../../lib/fileIcons';
 import AiIkon from './AiIkon';
 
 /*
@@ -75,7 +76,7 @@ const FIND_KEYS = new Set([
   // Claude Code CLI
   'grep', 'glob', 'search', 'webfetch', 'websearch',
   // Zephyr Chat AI
-  'grep', 'glob', 'fetch', 'websearch', 'codesearch', 'notesread',
+  'grep', 'glob', 'fetch', 'websearch', 'codesearch', 'notesread', 'toolsearch',
 ]);
 
 /** Tool keys that read a file or a directory listing. */
@@ -107,6 +108,24 @@ export function toolGlyph(name: string): string {
    */
   if (k === 'task' || k === 'agent' || k === 'runsubagent' || k === 'runsubagents') return 'robot';
   if (k === 'todowrite' || k === 'noteswrite' || k === 'managetodo') return 'check';
+  /*
+   * Zephyr's own tool catalogue, which the table above never covered.
+   *
+   * Everything unknown used to land on `terminal`, so the reading tools, the
+   * app controls and the memory tool all wore a shell prompt — eleven different
+   * jobs, one glyph. These are the families from `zephyrTools/catalog.ts`; a
+   * name not listed here is genuinely unknown and keeps the shell mark.
+   */
+  if (k === 'readfile' || k === 'zephyrself') return 'doc';
+  if (k === 'deletefile') return 'trash';
+  if (k === 'movefile' || k === 'copyfile' || k === 'createdirectory') return 'folder';
+  if (k === 'tunjuk' || k === 'kotak' || k === 'peta') return 'monitor';
+  if (k === 'browseropen' || k === 'browsernavigate') return 'web';
+  if (k === 'askuser' || k === 'ask') return 'comment';
+  if (k === 'ingat' || k === 'memory' || k === 'memoryread') return 'brain';
+  if (k === 'skillview' || k === 'skill') return 'bookmark';
+  if (k === 'schedulecommand' || k === 'schedule') return 'clock';
+  if (k === 'toolcall') return 'wrench';
   return 'terminal';
 }
 
@@ -116,6 +135,45 @@ export function toolKind(name: string): 'baca' | 'tulis' | 'jalan' {
   if (WRITE_KEYS.has(k)) return 'tulis';
   if (RUN_KEYS.has(k)) return 'jalan';
   return 'baca';
+}
+
+/**
+ * The file's OWN icon, from the file-type theme.
+ *
+ * A tool row used to lead with a generic glyph for the ACTION (`doc-edit` for
+ * every edit, `doc` for every read), so a transcript of ten edits in a
+ * TypeScript project showed ten identical pencil-pages and the reader had to
+ * read the path to know what kind of file moved. The reference product leads
+ * with the language mark — the React atom for `.tsx`, the TS square for `.ts`,
+ * the elephant for `.php` — and the action stays available in the row's kind
+ * class (colour) and verb.
+ *
+ * Returns null when the target is not a file (a shell command, a pattern, an
+ * MCP call), so the caller falls back to the action glyph.
+ */
+export function ikonSasaran(target: string | undefined): { id: string; svg: string | null; glyph?: string } | null {
+  if (!target) return null;
+  /* Only things that look like a path: a `.` in the last segment and no
+     spaces, which excludes commands (`npm run dev`) and globs. */
+  const base = target.split(/[\\/]/).pop() ?? '';
+  if (!base || /\s/.test(base) || !base.includes('.')) return null;
+  const ik = ikonFile(base);
+  return { id: ik.id, svg: ik.svg, glyph: ik.glyph };
+}
+
+/** Draw a file-type icon inline. `size` keeps it in step with `AiIkon`. */
+export function IkonBerkas({ ikon, size = 13 }: { ikon: { id: string; svg: string | null; glyph?: string }; size?: number }) {
+  return (
+    <span
+      className="cli-tool-fileikon"
+      data-ikon={ikon.id}
+      aria-hidden="true"
+      style={{ width: size, height: size }}
+      {...(ikon.svg
+        ? { dangerouslySetInnerHTML: { __html: ikon.svg } }
+        : { children: ikon.glyph ?? '' })}
+    />
+  );
 }
 
 /** An image tool output is a data/file URL; show it inline + zoomable. */
@@ -686,6 +744,9 @@ export const ToolRow = memo(function ToolRow({
     [hasDiff, halves],
   );
   const imgOut = imageOutput(output);
+  /* The file's own language mark when the row targets a file; the action
+     glyph otherwise. */
+  const ikonTarget = ikonSasaran(title);
 
   return (
     <div
@@ -711,7 +772,11 @@ export const ToolRow = memo(function ToolRow({
       >
         <span className="cli-tool-caret" aria-hidden="true">{buka ? '▾' : '▸'}</span>
         <span className={`cli-tool-ikon is-${toolKind(name)}`} aria-hidden="true">
-          <AiIkon name={toolGlyph(name) as never} size={13} />
+          {ikonTarget ? (
+            <IkonBerkas ikon={ikonTarget} size={13} />
+          ) : (
+            <AiIkon name={toolGlyph(name) as never} size={13} />
+          )}
         </span>
         <span className="cli-tool-name" title={labelName && labelName !== name ? name : undefined}>
           {labelName || name || tr('Tool')}

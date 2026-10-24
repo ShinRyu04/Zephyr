@@ -645,7 +645,15 @@ export function providerTersimpanValid(
   const id = (aktif ?? '').trim();
   const peta = providers ?? {};
   const berUrl = (k: string) => !!peta[k]?.baseUrl?.trim();
-  if (id && id !== 'custom' && berUrl(id)) return id;
+  /*
+   * `secrets.json` juga menyimpan slot yang BUKAN provider (payload login
+   * `github`, mis.). Slot seperti itu bisa punya `baseUrl` di settings, dan
+   * memilihnya membuat setiap kiriman gagal dengan "unknown provider has no
+   * base URL" — sekaligus memunculkan "masukkan API key" untuk provider yang
+   * tidak pernah ada. Jadi kandidat WAJIB provider nyata.
+   */
+  const nyata = (k: string) => idProviderNyata(k);
+  if (id && id !== 'custom' && nyata(id) && berUrl(id)) return id;
 
   /*
    * Gateway bernama (`custom-*`) yang sudah dipilih TIDAK dipetakan ke provider
@@ -666,8 +674,14 @@ export function providerTersimpanValid(
     .sort();
   if (kustom.length > 0) return kustom[0];
 
+  /*
+   * Urutan abjad dipakai supaya hasilnya deterministik, tetapi slot non-provider
+   * ikut tersortir di depan: `github` < `hydra`, jadi `github` dulu terpilih
+   * sebagai "provider aktif" — itulah "Active provider selalu ke github padahal
+   * github tidak ada". Saring dengan `idProviderNyata`.
+   */
   const lain = Object.keys(peta)
-    .filter((k) => k !== 'custom' && berUrl(k))
+    .filter((k) => k !== 'custom' && nyata(k) && berUrl(k))
     .sort();
   if (lain.length > 0) return lain[0];
 
