@@ -148,7 +148,8 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
 
   resetOne: async (command) => {
     const user = get().user.filter((u) => u.command !== command);
-    set({ user, bindings: mergeBindings(user, keymapEkstensi()) });
+    const kbRaw = get().kbRaw.filter((u) => u.command !== command);
+    set({ kbRaw, user, bindings: mergeBindings(user, keymapEkstensi()) });
     try {
       await cmd.setKeybindings(user);
     } catch (e) {
@@ -157,7 +158,7 @@ export const useKb = create<KbState & KbActions>((set, get) => ({
   },
 
   resetAll: async () => {
-    set({ user: [], bindings: DEFAULT_BINDINGS });
+    set({ kbRaw: [], user: [], bindings: DEFAULT_BINDINGS });
     try {
       await cmd.setKeybindings([]);
     } catch (e) {
