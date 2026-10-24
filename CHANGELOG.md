@@ -3,6 +3,90 @@
 All notable changes per release. Format follows the spirit of
 [Keep a Changelog](https://keepachangelog.com/); versions use SemVer.
 
+## [1.1.14] - 2026-10-24
+
+Two weeks of work, from 14 October to 24 October 2026. This is the release that
+makes Chat mode usable again and rebuilds the composer around a single card.
+
+### Added
+- **Chat / Agent switch** in the composer, one icon per mode. Chat answers
+  questions and touches nothing; Agent reads files, runs commands and edits code.
+  The trigger shows which mode is active.
+- The `@` popup offers four kinds of context - **Files**, **Folders**, **Rules**
+  and **Agents** - with filter chips naming every kind up front. A `rule:` or
+  `agent:` prefix typed after the `@` narrows to that kind directly. Folders are
+  derived from the file list rather than walked separately, so the two cannot
+  disagree.
+- The `/` popup is grouped by what a command does: **Prompts**, **Session** and
+  **Workspace**. The grouping is derived from the `aksi` field that already
+  existed, so a command cannot be filed under the wrong heading without its
+  behaviour changing too.
+- The starting screen shows a centred heading, the composer, and four category
+  cards that fill the field rather than sending immediately.
+- Tool calls collapse into **Worked for Xs** accordions, one per group, opened by
+  the narration above them.
+- A user message longer than eight lines folds at 168 px with **Show more** and
+  **Show less**.
+- A dedicated **Agents** window and an **Agent Customizations** page.
+- **Marketplace and extensions**, plus panels that can be detached as real
+  windows.
+- The ThinkingBar is now a setting and is off by default.
+
+### Changed
+- The composer is one card: the field, the attach button, the model chip and Send
+  sit inside a single rounded box instead of a field with a toolbar underneath.
+  The model name no longer truncates when a long id is selected.
+- Both popups are compact and black. The `/` list went from 310 px to 220 px and
+  the `@` list from 436 px to 236 px; rows dropped to 26 px and the font to 11.5.
+  The pop-up layer has its own tokens - background, border, raised layer, shadow
+  - instead of borrowing `--bg0`, which is an alias of `--bg` and therefore a dark
+  navy rather than black.
+- The tool catalogue is **44**, down from 59. Nine tools were removed outright and
+  ten duplicates merged.
+- The `@` popup's Agents category lists exactly two entries, **Chat** and
+  **Agent**, matching the composer's switch. Picking one switches the mode rather
+  than inserting a word.
+
+### Fixed
+- Chat mode was removed on 13 October and two defects kept it from coming back.
+  `bootAgentMode()` returned a literal `'agent'` regardless of what was saved, so
+  a stored `chat` choice vanished on every reload; `setRunMode()` forced
+  `agentMode` to `'agent'` and is called during boot, so every launch silently
+  moved the reader out of Chat.
+- Keybinding resets now clear the stored raw binding alongside the user list, so
+  a reset key falls back to its default instead of a stale entry.
+
+### Removed
+- **Interactive / Plan / Autopilot** run modes, from the composer and from Chat
+  Settings. A third switch for a third question, one row from the other two. How
+  much the agent decides on its own is answered once, by the Permissions row. A
+  stored `runMode` is no longer read.
+- The ThinkingBar's always-on behaviour, and the Todo and Notes panels in the
+  composer.
+
+### Breaking
+- A stored `runMode` is no longer read.
+- A saved prompt that names one of the removed tools will no longer work.
+- The `@` popup's Agents category no longer lists the six subagent roles. Those
+  roles still exist and still drive delegation; they are simply not context you
+  paste into a message.
+
+### Known issues
+- Chat and Agent both need a configured provider. A `custom` provider with an
+  empty base URL and no API key cannot send anything, and the toast says so rather
+  than failing silently.
+- The `@` popup's Files and Folders categories are empty when no folder is open.
+  Rules and Agents still appear, because they belong to Zephyr rather than to a
+  workspace.
+- Python debugging needs `debugpy` installed into the interpreter you are
+  debugging. Zephyr detects its absence and says which command to run; it does
+  not install it for you.
+
+### Upgrading
+- **On 1.1.13 or newer:** the in-app updater handles it.
+- **On 1.1.12 or older:** download the installer and run it once by hand; the
+  signing key was rotated.
+
 ## [Unreleased]
 
 ### Security
