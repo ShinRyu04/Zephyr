@@ -173,7 +173,20 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
      * pesan "belum ada API key" masih jujur untuk kasus itu.
      */
     const punyaUrl = (id: string) => baseUrlEfektif(id, baseUrlOv).length > 0;
-    const siapPakai = (id: string) => adaKey(id) || punyaUrl(id) || disk.has(id);
+    /*
+     * "Siap" = PUNYA KUNCI, bukan "punya URL".
+     *
+     * `baseUrlEfektif` mengembalikan URL bawaan katalog saat tidak ada override,
+     * jadi `punyaUrl(id)` selalu benar untuk provider bawaan — dan syarat
+     * `siapPakai && punyaUrl` lolos untuk SEMUA provider katalog, termasuk yang
+     * tidak punya key sama sekali. Picker lalu menampilkan Gemini/OpenAI/...
+     * yang belum pernah dikonfigurasi, dan mengkliknya berakhir dengan "masukkan
+     * API key". Yang ditampilkan hanya provider yang benar-benar bisa mengirim:
+     * key terbaca (atau tercatat di disk), atau gateway `custom-*` yang punya
+     * URL sendiri (server lokal tanpa key tetap sah).
+     */
+    const punyaKunci = (id: string) => adaKey(id) || disk.has(id);
+    const siapPakai = (id: string) => punyaKunci(id) || (id.startsWith('custom') && punyaUrl(id));
 
     const katalog = PROVIDERS.filter((p) => siapPakai(p.id) && punyaUrl(p.id));
     /*
@@ -204,49 +217,39 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
     return [...katalog, ...kustom];
   }, [keys, baseUrlOv, disk]);
   /*
-   * The list follows the ACTIVE provider, not every provider that has a key.
+   * SEMUA provider yang siap tampil di picker, bukan hanya yang sedang aktif.
    *
-   * `providerSiap` answers "which providers could send" - it was also used as
-   * the list of groups, so choosing a custom active provider still showed the
-   * whole built-in catalogue above it, and clicking one of those rows silently
-   * moved `activeProvider` away from the reader's choice. The picker should show
-   * the models of the provider that is actually selected.
+   * Versi sebelumnya menyaring daftar ke provider aktif saja ("picker should
+   * show the models of the provider that is actually selected"). Akibatnya
+   * pembaca yang mengisi DUA API key hanya melihat SATU provider di picker —
+   * dilaporkan sebagai "ada 2 key kok provider-nya kebaca 1". Padahal datanya
+   * benar: `providerSiap` sudah berisi dua-duanya.
    *
-   * Two deliberate exceptions:
-   *  - the catalogue provider that owns the CURRENT selection is always kept, so
-   *    the chip can still name what is selected even if it is not "ready";
-   *  - sub-agent rows (`ikutChat`) keep the old behaviour: a per-row override is
-   *    a one-off choice and needs to reach every provider, not just the chat's.
+   * Menampilkan semuanya juga membuat pindah gateway satu klik: klik baris model
+   * milik provider lain = pilih provider itu SEKALIGUS modelnya (`pakai()`
+   * mengirim provider barisnya), jadi tidak ada lagi "provider aktif berubah
+   * diam-diam" tanpa model yang ikut berubah.
+   *
+   * Provider yang sedang dipakai SELALU ikut, walau belum "siap" (key belum
+   * terbaca karena dekripsi gagal, mis.): chip harus tetap bisa menyebut apa
+   * yang sedang terpasang.
    */
   const penyediaTampil = useMemo(() => {
-    if (ikutChat) return providerSiap;
-    /*
-     * `provider` is the surface's selection (chat or sub-agent); `efektif` is
-     * what will really send after `auto` is resolved, so it wins when set.
-     */
+    const hasil = [...providerSiap];
     const fokus = (efektif.provider || provider || '').trim();
-    if (!fokus || fokus === 'custom') {
-      /* The bare `custom` slot: it is in the catalogue, so it is here already. */
-      return providerSiap.filter((p) => p.id === fokus || p.id === efektif.provider);
+    if (fokus && !hasil.some((p) => p.id === fokus)) {
+      const katalog = PROVIDER_BY_ID.get(fokus);
+      hasil.unshift(
+        katalog ?? {
+          id: fokus,
+          label: namaProvider(fokus) || fokus,
+          freeText: true,
+          models: [] as never[],
+        },
+      );
     }
-    const ada = providerSiap.find((p) => p.id === fokus);
-    if (ada) return [ada];
-    /*
-     * Not "ready" (no key readable, no endpoint stored) but still selected: keep
-     * it so the reader can see and change the model instead of an empty menu.
-     */
-    const katalog = PROVIDER_BY_ID.get(fokus);
-    return katalog
-      ? [katalog]
-      : [
-          {
-            id: fokus,
-            label: namaProvider(fokus) || fokus,
-            freeText: true,
-            models: [] as never[],
-          },
-        ];
-  }, [ikutChat, providerSiap, efektif.provider, provider]);
+    return hasil;
+  }, [providerSiap, efektif.provider, provider]);
 
   /*
    * Only catalogue providers can be "hidden": a custom-* provider exists
@@ -527,17 +530,28 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
      */
     const MIN_BAWAH = 220;
     const keBawah = ruangBawah >= Math.min(MIN_BAWAH, ruangAtas);
+    /*
+     * HARD CAP, not just "fit the room".
+     *
+     * The clamp below used to be the only limit, so on a tall window the menu
+     * grew to ~490px and covered the conversation — the box read as a panel, not
+     * as a dropdown. An INLINE max-height also beats the CSS one, so raising the
+     * sheet alone changed nothing. The cap is applied here, where the winner is
+     * written: short menu, list scrolls inside it (TRAE's picker behaves the
+     * same way).
+     */
+    const BATAS_MENU = 320;
 
     if (keBawah) {
       el.style.top = `calc(100% + ${JARAK}px)`;
       el.style.bottom = 'auto';
-      el.style.maxHeight = `${Math.min(ruangBawah, Math.round((dasar - atap) * 0.8))}px`;
+      el.style.maxHeight = `${Math.min(ruangBawah, Math.round((dasar - atap) * 0.8), BATAS_MENU)}px`;
     } else {
       el.style.top = 'auto';
       el.style.bottom = `calc(100% + ${JARAK}px)`;
       /* Never taller than the room ABOVE it inside the panel - the old code
          measured to the window and overflowed the panel. */
-      el.style.maxHeight = `${Math.min(ruangAtas, Math.round((dasar - atap) * 0.8))}px`;
+      el.style.maxHeight = `${Math.min(ruangAtas, Math.round((dasar - atap) * 0.8), BATAS_MENU)}px`;
     }
   }, [open, cari]);
 
@@ -583,7 +597,23 @@ export default function ModelSelector({ target = 'chat' }: { target?: TargetMode
         (c) =>
           boleh.has(c.provider) &&
           !isPlaceholderModel(c.id) &&
-          (c.label.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)),
+          /*
+           * `label` bisa TIDAK ADA, dan dulu baris ini tidak mengira begitu.
+           *
+           * Entri `models.custom` yang ditulis sebelum kolom label ada - atau
+           * yang dibuat lewat jalur deteksi - tersimpan hanya sebagai
+           * `{ id, provider }`. Membaca `c.label.toLowerCase()` di situ melempar
+           * TypeError di tengah render, dan React membuang seluruh panel AI:
+           * pembaca melihat "This section failed to render" begitu mengetik
+           * huruf pertama di kotak cari. Sebelum mengetik tidak terlihat, karena
+           * `q` kosong membuat fungsi ini berhenti di `return []` lebih awal.
+           *
+           * Dua baris di bawah blok ini sudah memakai `c.label || c.id`; baris
+           * pencariannya saja yang ketinggalan. Cadangan yang sama dipakai di
+           * sini supaya yang disaring dan yang ditampilkan selalu model yang
+           * sama.
+           */
+          ((c.label ?? c.id).toLowerCase().includes(q) || c.id.toLowerCase().includes(q)),
       )
       .map((c) => ({
         id: c.id,

@@ -733,6 +733,35 @@
   color: var(--ok, #3fb950);
 }
 
+/*
+ * A file-type mark sits where the action glyph used to be.
+ *
+ * The theme SVGs carry their own Brand colours (React blue, TS blue, the PHP
+ * purple), so the row must not tint them with `currentColor` from the kind
+ * class - that would flatten every language into the same green or accent. The
+ * action is still readable from the verb, and the kind colour stays on the row's
+ * rail, not on the mark.
+ */
+.cli-tool-fileikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.cli-tool-fileikon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The kind tint belongs to the action glyph only. */
+.cli-tool-ikon:has(.cli-tool-fileikon).is-tulis,
+.cli-tool-ikon:has(.cli-tool-fileikon).is-jalan,
+.cli-tool-ikon:has(.cli-tool-fileikon).is-baca {
+  color: inherit;
+}
+
 .cli-tool-name {
   font-weight: 600;
   flex: 0 0 auto;
@@ -4758,14 +4787,127 @@
   opacity: 0.75;
 }
 
+/*
+ * The reasoning body is a BOX, matching the reference transcript.
+ *
+ * It used to be bare text indented 19px under its header - deliberately "no
+ * box, no fill", on the argument that reasoning is not a card. Side by side
+ * with the reference product that reads as loose prose floating between two
+ * tool bars: the reader cannot tell where the thought stops and the next step
+ * begins. A thin border + padding + a slightly recessed fill gives it a body
+ * without promoting it to an answer bubble (it is still muted 12px text).
+ *
+ * The fill is a faint wash of the TEXT colour, not `--surface-3`: surface-3 is
+ * the same grey the group rows and the picker chips sit on, so a box painted
+ * with it read as one more grey block stacked inside the fold - the "abu-abu"
+ * the reader objected to. The wash is ~3% and only there to separate the box
+ * from the transcript.
+ */
+/*
+ * NO FILL, NO BORDER.
+ *
+ * This was a rounded box with `--surface-3` behind it, then a 3% wash - and the
+ * reader still called it "abu-abu". Both were the same mistake: a filled
+ * rectangle inside a tree whose other nodes are bare text turns the thinking
+ * into a card, and on a light theme any fill above the background reads as a
+ * grey block. The reasoning is subordinate text, so it is just text: indented
+ * under its header, muted, same size as the steps.
+ */
 .ai-reason-body {
   margin: 2px 0 6px 19px;
   padding: 0;
+  border: 0;
+  background: none;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* The clock beside the "Thought" label when the node is a child of the tree. */
+.ai-reason-durasi {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.ai-reason-durasi::before {
+  content: '· ';
+}
+/* A node inside the tree has no top margin of its own: the rail already spaces
+   the children apart. */
+.ai-reason.is-anak {
+  margin: 0;
+}
+
+/*
+ * Children of the turn's parent fold.
+ *
+ * Every "Worked for Xs" bar used to sit at the same level as the next one, so
+ * a five-run turn read as five unrelated bars. Inside the parent fold they are
+ * indented one step and a rail runs down their left edge, which is the only cue
+ * that separates "this turn" from "each run in this turn".
+ */
+.ai-anak-pohon {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 0 2px 9px;
+  /* 12px = the tick's length: the last child's elbow reaches its icon, and a
+     nested run's rail starts exactly where the elbow ends, so the two
+     segments meet instead of leaving a gap. */
+  padding-left: 12px;
+}
+
+/*
+ * The rail must START just under the head's mark and END at the last child's
+ * row centre. `bottom: 10px` used to stop it in the middle of the final row,
+ * so the thread hung in the air and the tree read as loose indented bars
+ * rather than a branch. 13px is half a 26px row - the centre of the last step.
+ */
+.ai-anak-pohon::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -2px;
+  bottom: 13px;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* Each child branch: a short horizontal tick into the row, so the vertical line
+   visibly CONNECTS to the step instead of merely running past it. */
+.ai-anak-pohon > .ai-kerja,
+.ai-anak-pohon > .ai-segmen {
+  position: relative;
+}
+.ai-anak-pohon > .ai-kerja::before,
+.ai-anak-pohon > .ai-segmen::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 13px;
+  width: 12px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* A nested bar carries no chrome: the parent rail already groups it, and a box
+   inside a box reads as two separate widgets. */
+.ai-anak-pohon .ai-kerja {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* Inside the tree the run's own rail starts where the run's mark is, so the
+   second level hangs off the first instead of restarting at the pane edge. */
+.ai-anak-pohon .ai-kerja-isi {
+  margin-left: 0;
 }
 
 .ai-effort {
@@ -8149,9 +8291,12 @@
 }
 .ai-grup-baris {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
-  padding: 1px 8px 1px 22px;
+  min-height: 24px;
+  /* 20px = the fold's own rail (9px) + the icon column, so a step lines up
+     under its run's mark instead of starting at the pane edge. */
+  padding: 1px 8px 1px 20px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary, var(--fg1));
@@ -8170,6 +8315,103 @@
   white-space: nowrap;
 }
 .ai-grup-baris .cli-tool-fail { color: var(--danger); font-size: 11px; }
+
+/* One step = its row plus, optionally, the one-line outcome directly under it.
+   A column, because putting the outcome inside the flex row would set it
+   beside the path instead of under the step. */
+.ai-grup-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* The outcome row's elbow is absolutely positioned, so THIS must be its
+     containing block. Without it the elbow resolved against `.ai-kerja-isi`,
+     which put every "Read N lines" at the far left, on top of the next step
+     instead of under the step that produced it. */
+  position: relative;
+}
+
+/*
+ * The outcome line ("Found 36 files", "No results found"), hung off its step.
+ *
+ * The elbow is drawn here rather than as a rail of its own: at this depth a
+ * third vertical line would be noise, and TRAE shows the same single tick.
+ */
+.ai-anak-hasil {
+  position: relative;
+  /* 32px = the step's icon column (20px row padding + 12px glyph) so the
+     outcome's first character starts exactly under the step's NAME, and its
+     elbow (24px) starts under the glyph rather than in the gutter. */
+  padding: 0 8px 2px 32px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted, var(--fg1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-anak-hasil::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 10px;
+  width: 8px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.ai-anak-hasil::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 0;
+  height: 11px;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* ---- Reference node: the files this turn read -------------------------- */
+
+/*
+ * TRAE opens a turn with the files the agent looked at, on their own node, so
+ * "what did it actually see" is answerable without expanding every run.
+ */
+.ai-rujukan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 4px;
+}
+.ai-rujukan-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 1px 8px 1px 20px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--fg1));
+}
+.ai-rujukan-judul {
+  font-weight: 500;
+  color: var(--text);
+}
+.ai-rujukan-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 0 8px 0 35px;
+  font-size: 11.5px;
+  color: var(--text-secondary, var(--fg1));
+}
+.ai-rujukan-path {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted, var(--fg1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---- CLI composer: attached-image thumbnails -------------------------- */
 .cli-img-strip {
@@ -8364,7 +8606,9 @@
   align-items: center;
   gap: 7px;
   min-height: 26px;
-  padding: 2px 4px 2px 25px;
+  /* Same column as `.ai-grup-baris`, so the step in flight sits exactly where
+     its finished siblings will be - no jump when the run ends. */
+  padding: 2px 4px 2px 20px;
   font-size: 12px;
   color: var(--text-secondary, var(--fg1));
   /* No border, no background: the rail already groups it. */
@@ -8457,10 +8701,16 @@
   position: absolute;
   left: 9px;
   top: 0;
-  bottom: 9px;
+  /* Runs to the centre of the last child, not a row short of it: a rule that
+     stops above the row it belongs to reads as a stray line rather than a
+     branch. 21px ≈ the last nested row's centre (step row 24px + outcome). */
+  bottom: 21px;
   width: 1px;
   background: var(--border);
   pointer-events: none;
+}
+.ai-kerja.is-open .ai-kerja-isi:has(> :last-child .ai-anak-hasil)::before {
+  bottom: 34px;
 }
 
 /*
@@ -8485,6 +8735,21 @@
 
 .ai-kerja-narasi p:last-child {
   margin-bottom: 0;
+}
+
+/*
+ * Narration that sits BETWEEN steps of the parent tree.
+ *
+ * `ai-kerja-narasi` is the copy inside a fold bar (indented under the bar's own
+ * mark). This one is a tree node: it must line up with the step rows beside it
+ * and stay quiet, so it borrows their left inset and their muted body colour
+ * instead of the bar's.
+ */
+.ai-kerja-narasi-in {
+  padding: 2px 8px 2px 20px;
+  color: var(--text-secondary, var(--fg1));
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 /* A failed run keeps its colour on the summary so a tidy fold cannot hide it. */
@@ -10766,22 +11031,19 @@
 }
 
 /*
- * 2. Giliran asisten: aturan aksen tipis di kiri saat disorot.
+ * 2. Giliran asisten: tanpa penanda apa pun.
  *
- * Bukan kotak, bukan isian latar. Satu garis 2px yang muncul saat kursor
- * mendekat, dengan padding yang bergeser untuk mengimbanginya - jadi teksnya
- * tidak bergerak sedikit pun saat garisnya muncul. Itu syaratnya: penanda yang
- * menggeser isi membuat transkrip terasa bergetar saat dibaca.
+ * Blok ini dulu menggambar garis aksen 2px di kiri saat kursor mendekat.
+ * Di pohon tool garis itu membentang sepanjang seluruh jawaban dan dibaca
+ * sebagai KOTAK pembungkus - persis yang dikeluhkan ("masih dibungkus kotak
+ * abu"). Padding 8px dan margin -10px ikut dibuang karena keduanya hanya ada
+ * untuk mengimbangi garis tersebut; menyisakannya berarti transkrip menjorok
+ * ke kiri tanpa alasan.
  */
 .ai-msg.is-assistant {
-  border-left: 2px solid transparent;
-  padding-left: 8px;
-  margin-left: -10px;
-  transition: border-color 110ms ease;
-}
-
-.ai-msg.is-assistant:hover {
-  border-left-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  border-left: 0;
+  padding-left: 0;
+  margin-left: 0;
 }
 
 /*

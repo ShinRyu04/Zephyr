@@ -1,0 +1,14 @@
+{
+  "name": "zeph-launcher",
+  "version": "1.0.0",
+  "description": "Launcher pencarian cepat ala Spotlight untuk Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}

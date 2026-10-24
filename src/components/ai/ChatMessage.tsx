@@ -12,7 +12,7 @@ import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { MsgTime } from './ChatStamp';
 import { ThinkingLine } from './CliTimeline';
-import { EditDiff, toolGlyph, toolKind } from './claudeCodeUi';
+import { EditDiff, IkonBerkas, ikonSasaran, toolGlyph, toolKind } from './claudeCodeUi';
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
@@ -411,6 +411,9 @@ function GrupKerja({
   tr,
   tf,
   live,
+  judul,
+  durasiMs,
+  awal,
 }: {
   tools: readonly AgentToolRun[];
   /* The narration the model wrote before/while these calls ran. Shown INSIDE
@@ -421,14 +424,53 @@ function GrupKerja({
   tr: (s: string) => string;
   tf: (s: string, v: Record<string, string | number>) => string;
   live: boolean;
+  /* Bar tertutup menulis APA yang dikerjakan (gaya TRAE). Kalau diisi, ini
+     menimpa ringkasan otomatis - dipakai fold INDUK yang membungkus semua grup. */
+  judul?: string;
+  /* Durasi total dari pemanggil, untuk fold induk. Tanpa ini bar menghitung
+     sendiri dari tool yang dia pegang saja. */
+  durasiMs?: number;
+  /* Konten tambahan di ATAS baris tool (thought, reference): anak-anak pohon
+     yang bukan tool, tapi harus ikut lipatan induk. */
+  awal?: React.ReactNode;
 }) {
-  /* A click is the reader taking control; before that, live-ness decides. */
+  /*
+   * A click is the reader taking control; before that, live-ness decides.
+   *
+   * The parent fold spans the live turn too, so it opens by itself while the
+   * agent works and closes itself ONCE when the turn ends - otherwise a
+   * finished answer would keep every step expanded instead of the one-line
+   * "Selesai dalam 4s" bar the reader asked for.
+   */
   const [pilihan, setPilihan] = useState<boolean | null>(null);
+
+  /*
+   * Close ONCE on its own, but never swallow a click.
+   *
+   * The latch is armed only while the reader has not touched the bar: if they
+   * opened or closed it themselves, `pilihan` already holds their decision and
+   * the auto-close must not overrule it.
+   */
+  const sudahLiveRef = useRef(live);
+  useEffect(() => {
+    if (live) {
+      sudahLiveRef.current = true;
+      return;
+    }
+    if (sudahLiveRef.current) {
+      sudahLiveRef.current = false;
+      setPilihan((p) => (p === null ? false : p));
+    }
+  }, [live]);
+
   const terbuka = pilihan ?? live;
 
   const jumlah = tools.length;
   const gagal = tools.filter((t) => t.ok === false).length;
-  const totalMs = tools.reduce((n, t) => n + (typeof t.ms === 'number' ? t.ms : 0), 0);
+  const totalMs =
+    typeof durasiMs === 'number'
+      ? durasiMs
+      : tools.reduce((n, t) => n + (typeof t.ms === 'number' ? t.ms : 0), 0);
 
   /* The one-line summary, in the words a reader uses: what was touched. */
   const berkas = new Set<string>();
@@ -472,7 +514,7 @@ function GrupKerja({
    * Durasi tetap ada, dipindah ke kanan bar sebagai angka redup: ia konteks,
    * bukan judul. Isi lipatan tidak lagi mengulang ringkasan yang sama.
    */
-  const judul = kerja || (live ? tr('Working…') : tr('Done'));
+  const judulBar = judul || kerja || (live ? tr('Working…') : tr('Done'));
 
   return (
     <div
@@ -487,14 +529,17 @@ function GrupKerja({
         data-testid="ai-kerja-toggle"
         aria-expanded={terbuka}
         onClick={() => setPilihan(!terbuka)}
-        title={kerja || ringkas || judul}
+        title={judul || kerja || ringkas}
       >
         {/*
          * TRAE's bar is a single quiet line: a small mark on the left, the
-         * duration in muted text, and the chevron on the RIGHT. The
-         * "1 files · 3 commands" counts are not shown here — they made the bar
-         * read as a caption and pushed the chevron out of its corner. The
-         * counts still exist inside the fold as its subtitle.
+         * headline, then the duration INLINE ("Searched files 2 times · 1s")
+         * and the chevron on the RIGHT.
+         *
+         * The duration sits inside the sentence rather than pushed to the far
+         * edge: on a wide pane a badge at the right end floats away from the
+         * words it belongs to and reads as a separate column. TRAE writes it
+         * after a middot, and so does this bar now.
          */}
         <span className="ai-kerja-mark" aria-hidden="true">
           {live ? (
@@ -503,14 +548,14 @@ function GrupKerja({
             <AiIkon name={gagal ? 'info' : 'check'} size={12} />
           )}
         </span>
-        <span className="ai-kerja-judul">{judul}</span>
+        <span className="ai-kerja-judul">{judulBar}</span>
         {gagal > 0 && (
           <span className="ai-kerja-gagal">
             {tf('{n} failed', { n: gagal })}
           </span>
         )}
         <span className="ai-kerja-durasi" data-testid="ai-kerja-durasi">
-          {durasi}
+          {totalMs > 0 ? `· ${durasi}` : ''}
         </span>
         <span className="ai-kerja-caret" aria-hidden="true">
           {terbuka ? '▾' : '›'}
@@ -519,6 +564,7 @@ function GrupKerja({
 
       {terbuka && (
         <div className="ai-kerja-isi" data-testid="ai-kerja-isi">
+          {awal}
           {narasi ? (
             <div className="ai-kerja-narasi" data-testid="ai-kerja-narasi">
               <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
@@ -529,22 +575,39 @@ function GrupKerja({
           {tools.map((t, k) => {
             const info = infoAksi(t.name);
             const target = sasaranAksi(t.args);
+            const ikonTarget = ikonSasaran(target);
+            /*
+             * One line of outcome per worked step, as a CHILD of that step -
+             * `Searched files · 1s` then `└ Found 36 files`. Null for a call
+             * whose result says nothing countable, and then nothing is drawn.
+             */
+            const hasil = ringkasHasil(t, tf, tr);
             return (
-              <div
-                className={`ai-grup-baris${t.ok === false ? ' is-gagal' : ''}`}
-                key={k}
-                data-testid="ai-kerja-baris"
-              >
-                <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
-                  <AiIkon name={toolGlyph(t.name) as never} size={12} />
-                </span>
-                <span className="cli-tool-name">{info.label}</span>
-                {target && (
-                  <code className="ai-grup-args" title={target}>
-                    {target}
-                  </code>
-                )}
-                {t.ok === false && <span className="cli-tool-fail">{tr('failed')}</span>}
+              <div className="ai-grup-item" key={k}>
+                <div
+                  className={`ai-grup-baris${t.ok === false ? ' is-gagal' : ''}`}
+                  data-testid="ai-kerja-baris"
+                >
+                  <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
+                    {ikonTarget ? (
+                      <IkonBerkas ikon={ikonTarget} size={12} />
+                    ) : (
+                      <AiIkon name={toolGlyph(t.name) as never} size={12} />
+                    )}
+                  </span>
+                  <span className="cli-tool-name">{info.label}</span>
+                  {target && (
+                    <code className="ai-grup-args" title={target}>
+                      {target}
+                    </code>
+                  )}
+                  {t.ok === false && <span className="cli-tool-fail">{tr('failed')}</span>}
+                </div>
+                {hasil ? (
+                  <div className="ai-anak-hasil" data-testid="ai-anak-hasil">
+                    {hasil}
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -621,12 +684,13 @@ function kelompokPerNarasi(
 }
 
 /**
+ * The verb families `ringkasKerja` counts. Kept next to it so the "no family
+ * matched" branch and the counting loop cannot drift apart.
+ */
+const KELUARGA_KERJA = /^(bash_run|sh|run_command|grep|glob|search|find|read|list_|write|edit|apply|create)/;
+
+/**
  * The bar's headline: what the run TOUCHED, in the model's own verbs.
- *
- * "Created 1 file, Read 1 file, Ran 2 commands" — the reference product's
- * wording. It used to read "Worked for 12s", which told the reader how long
- * they waited and nothing about what happened; the duration still exists, one
- * level down inside the fold.
  *
  * Counts are grouped by verb+noun so the line stays short: five reads are
  * "Read 5 files", not five clauses.
@@ -674,8 +738,87 @@ function ringkasKerja(
   if (n.read) bit.push(jamak(n.read, 'Read {n} file', 'Read {n} files'));
   if (n.search) bit.push(jamak(n.search, 'Searched files {n} time', 'Searched files {n} times'));
   if (n.cmd) bit.push(jamak(n.cmd, 'Ran {n} command', 'Ran {n} commands'));
-  if (n.step) bit.push(jamak(n.step, '{n} step', '{n} steps'));
+  /*
+   * A tool whose family is not one of the five above used to collapse into
+   * `{n} steps` - a bar reading "1 step", which tells the reader nothing and
+   * was the loudest thing on a tree of a dozen nodes. The catalogue already
+   * names every tool (`infoAksi(...).label`), so that name is what the bar
+   * says; `{n} steps` survives only when a tool has no label at all.
+   */
+  if (n.step) {
+    const takDikenal = tools.find((t) => !KELUARGA_KERJA.test(namaPolos(t.name)));
+    const label = takDikenal ? infoAksi(takDikenal.name).label : '';
+    bit.push(label ? label : jamak(n.step, '{n} step', '{n} steps'));
+  }
   return bit.join(', ');
+}
+
+/**
+ * The OUTCOME of one call, in one line, for the step's child row.
+ *
+ * The transcript used to stop at the verb ("Searched files", "Read a file"), so
+ * the only way to learn whether a search found anything was to open the step
+ * and read the tool's raw result - a header of `[36 berkas, 128 kecocokan]`
+ * followed by a hundred paths. The reference product prints the same fact one
+ * level down ("Found 36 files tool|tools", "No results found"), which is where
+ * it belongs: attached to the step that produced it.
+ *
+ * Only facts the tool layer already reported are used. `result` is the raw
+ * text each builtin returns, so these are patterns against KNOWN wording
+ * (`[N berkas, M kecocokan]`, "Tidak ada hasil"), not a guess at arbitrary
+ * output; anything unrecognised returns null and the child row is simply not
+ * drawn, rather than inventing a line.
+ */
+function ringkasHasil(
+  t: AgentToolRun,
+  tf: (s: string, v: Record<string, string | number>) => string,
+  tr: (s: string) => string,
+): string | null {
+  const nama = namaPolos(t.name);
+  const hasil = (t.result ?? '').trim();
+  if (t.ok === false) return null;
+  if (!hasil) return null;
+
+  if (nama === 'grep' || nama === 'search_grep' || nama.startsWith('search')) {
+    /* `[36 berkas, 128 kecocokan]` - the builtin's own header. */
+    const m = hasil.match(/^\[(\d+)\s*berkas,\s*(\d+)\s*kecocokan\]/i);
+    if (m) return tf('Found {n} matches in {m} files', { n: Number(m[2]), m: Number(m[1]) });
+    if (/^Tidak ada hasil/i.test(hasil)) return tr('No results found');
+    return null;
+  }
+  if (nama === 'glob' || nama === 'list_workspace_files') {
+    if (/^Tidak ada berkas yang cocok/i.test(hasil)) return tr('No files matched');
+    /* A capped list opens with `[dibatasi 200 berkas]`, which is a header, not
+       a path - counting it would add one to every capped result. */
+    const baris = hasil.split('\n').filter((b) => b.trim() && !b.trim().startsWith('['));
+    if (baris.length) return tf('Found {n} files', { n: baris.length });
+    return null;
+  }
+  if (nama === 'bash_run' || nama === 'sh' || nama === 'run_command') {
+    if (typeof t.exitCode === 'number' && t.exitCode !== 0) {
+      return tf('Exit code {n}', { n: t.exitCode });
+    }
+    return null;
+  }
+  if (typeof t.lines === 'number' && t.lines > 0) {
+    return tf('Read {n} lines', { n: t.lines });
+  }
+  return null;
+}
+
+/* Every path the turn OPENED - the "Reference" node of the tree. */
+function berkasRujukan(tools: readonly AgentToolRun[]): string[] {
+  const urut: string[] = [];
+  const ada = new Set<string>();
+  for (const t of tools) {
+    const nama = namaPolos(t.name);
+    if (!(nama.startsWith('read') || nama === 'read_file')) continue;
+    const target = sasaranAksi(t.args);
+    if (!target || ada.has(target)) continue;
+    ada.add(target);
+    urut.push(target);
+  }
+  return urut;
 }
 
 /*
@@ -897,6 +1040,161 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    * line — so an idle transcript is not waking up once a second for nothing.
    */
   const [detik, setDetik] = useState(0);
+
+  /*
+   * The turn's single parent fold.
+   *
+   * `anakPohon` is the old top-level list - one fold per run of work - and it
+   * now becomes the BODY of a parent fold that spans the whole turn, so a
+   * finished turn reads as one "Worked for 1m 22s" line instead of a stack of
+   * unrelated bars. While the turn is live the parent is skipped: the bar in
+   * flight must stay in the flow, and the live duration is not final yet.
+   *
+   * The duration is the sum of every tool's own `ms` (what each bar already
+   * shows) plus the reasoning time, which the per-bar sums cannot see.
+   */
+  const foldInduk = grupTools.length > 0;
+  const rujukan = useMemo(() => berkasRujukan(msg.tools ?? []), [msg.tools]);
+  const durasiTurn =
+    (msg.tools ?? []).reduce((n, t) => n + (typeof t.ms === 'number' ? t.ms : 0), 0) +
+    (msg.reasoningMs ?? 0);
+  const detikTurn = Math.max(1, Math.round(durasiTurn / 1000));
+  /* While the turn is live the parent bar says what TRAE says while it works -
+     the verb - and the clock is whatever has been spent so far on the tools
+     that already finished. It is not "Selesai" until the turn really ends. */
+  const judulTurn = msg.streaming
+    ? tr('Working…')
+    : detikTurn >= 60
+      ? tf('Selesai dalam {d}', { d: `${Math.floor(detikTurn / 60)}m ${detikTurn % 60}s` })
+      : tf('Selesai dalam {d}', { d: `${detikTurn}s` });
+
+  /*
+   * Inside the parent fold the turn is ONE list, not one bar per run.
+   *
+   * `kelompokPerNarasi` splits on every sentence the model speaks after a call,
+   * which is right for a transcript without a parent - each run keeps its own
+   * bar. Nested under `Worked for Xs` that same rule stacked a bar per
+   * sentence (`Searched files 1 time`, `Ran 1 command`, `1 step`, `1 step`, …)
+   * and the tree turned into a wall, which is exactly what the reader reported
+   * as "numpuk". The parent already summarises the turn, so the children are
+   * simply every call in order, with `{n} steps` left to the per-run bar only
+   * when there is no parent.
+   */
+  const grupPohon = foldInduk
+    ? [{ narasi: '', items: (msg.tools ?? []).map((_, i) => i) }]
+    : grupTools;
+
+  const anakPohon = grupPohon.map((g, gi) => {
+    const items = g.items.map((i) => msg.tools![i]);
+    const sibukDiSini = g.items.includes(indeksToolSibuk);
+    return (
+      <Fragment key={`g-${gi}`}>
+        {/*
+         * The narration does NOT render as its own paragraph out here. On a
+         * finished group it lives inside the fold (see GrupKerja), so the
+         * closed transcript is exactly the TRAE shape: answer prose, one
+         * "Worked for Xs" bar, answer. Only the LIVE row keeps its narration
+         * outside, because that sentence is the context for the step in flight.
+         */}
+        {sibukDiSini && g.narasi ? (
+          <div className="ai-segmen" data-testid="ai-segmen">
+            <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+              {g.narasi}
+            </Markdown>
+          </div>
+        ) : null}
+        {/*
+         * The call in flight is a THIN ROW, not a bordered card.
+         *
+         * It used to render as a full `ToolRow`: a bordered box with a head, a
+         * body and its own collapse, which is the "kotak tools" the reader
+         * asked to stop seeing. The row still has to exist - it is the only
+         * sign the run is alive - so it keeps the information and drops the
+         * chrome: an icon, the verb, the target, a spinner. Same family as the
+         * fold bar directly above it.
+         */}
+        {sibukDiSini ? (
+          <div className="ai-kerja-live" data-testid="ai-kerja-live">
+            <span
+              className={`cli-tool-ikon is-${toolKind(items[0].name)}`}
+              aria-hidden="true"
+            >
+              {(() => {
+                const ik = ikonSasaran(sasaranAksi(items[0].args));
+                return ik ? (
+                  <IkonBerkas ikon={ik} size={12} />
+                ) : (
+                  <AiIkon name={toolGlyph(items[0].name) as never} size={12} />
+                );
+              })()}
+            </span>
+            <span className="ai-kerja-live-label">{infoAksi(items[0].name).label}</span>
+            {(sasaranAksi(items[0].args) ||
+              perintahAksi(items[0].name, items[0].args)) && (
+              <code
+                className="ai-grup-args"
+                title={
+                  sasaranAksi(items[0].args) ||
+                  perintahAksi(items[0].name, items[0].args)
+                }
+              >
+                {sasaranAksi(items[0].args) ||
+                  perintahAksi(items[0].name, items[0].args)}
+              </code>
+            )}
+            <span className="ai-kerja-spin" aria-hidden="true" />
+          </div>
+        ) : (
+          /*
+           * EVERY finished group folds, even a single call.
+           *
+           * A group of one used to render as a full row on the argument that a
+           * summary of one is noise. The result was the reported "1 1 terus":
+           * the active call is always a full row, so a turn of two tools showed
+           * TWO separate rows and the fold only ever appeared at three or more.
+           * Folding from one keeps the transcript to the shape the reader asked
+           * for and the single call is still one click away inside the bar.
+           */
+          <GrupKerja
+            tools={items}
+            narasi={g.narasi}
+            tr={tr}
+            tf={tf}
+            live={Boolean(msg.streaming) && gi === grupPohon.length - 1}
+            judul={ringkasKerja(items, tf)}
+          />
+        )}
+      </Fragment>
+    );
+  });
+
+  /*
+   * Inside the parent fold the narration rides along as tree nodes.
+   *
+   * Flattening the turn into one list (see `grupPohon`) is what un-stacks the
+   * bars, but the group object that used to carry the sentence is gone, so the
+   * prose the model spoke between calls would vanish. It is re-attached here:
+   * the sentence that preceded call `i` becomes a node directly above it.
+   */
+  const pohonDatar = foldInduk
+    ? (msg.tools ?? []).map((t, i) => (
+        <Fragment key={`p-${i}`}>
+          {(potongNarasi[i] ?? '').trim() ? (
+            <div className="ai-kerja-narasi-in" data-testid="ai-kerja-narasi">
+              {potongNarasi[i]}
+            </div>
+          ) : null}
+          <GrupKerja
+            tools={[t]}
+            tr={tr}
+            tf={tf}
+            live={Boolean(msg.streaming) && i === indeksToolSibuk}
+            judul={ringkasKerja([t], tf)}
+          />
+        </Fragment>
+      ))
+    : null;
+
   useEffect(() => {
     if (!msg.streaming || msg.content || msg.reasoning) {
       setDetik(0);
@@ -1125,97 +1423,83 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
           })()}
           {msg.tools && msg.tools.length > 0 && (
             /*
-             * Groups, each folding into its own "Worked for Xs" bar.
+             * ONE tree for the whole turn, like TRAE.
              *
-             * A sentence of narration STARTS a group and stays on screen; the
-             * calls that follow it are a flat list behind one thin bar. That is
-             * the shape TRAE uses, and it fixes the case the reader sent: three
-             * shell commands after one sentence no longer become three bordered
-             * cards - they become one "Worked for 4s · 3 commands" row.
+             * Before this, every run boundary (a sentence of narration between
+             * two calls) produced its own "Worked for Xs" bar, so a turn with
+             * five sentences read as five unrelated bars stacked on top of each
+             * other - the "masih pisah-pisah" the reader reported. The bars are
+             * still there, but they are now CHILDREN of a single parent bar that
+             * spans the turn: one fold to open, one duration for the whole job,
+             * and the thought block rides inside it as the first child instead
+             * of floating above the tree.
+             *
+             * Only a FINISHED turn is wrapped: while the agent is still working
+             * the parent stays open and the live row has to sit in the normal
+             * flow, not behind a click.
              */
             <div className="ai-toolruns" data-testid="ai-toolruns">
-              {grupTools.map((g, gi) => {
-                const items = g.items.map((i) => msg.tools![i]);
-                const sibukDiSini = g.items.includes(indeksToolSibuk);
-                return (
-                  <Fragment key={`g-${gi}`}>
-                    {/*
-                     * The narration does NOT render as its own paragraph out
-                     * here. On a finished group it lives inside the fold (see
-                     * GrupKerja), so the closed transcript is exactly the TRAE
-                     * shape: answer prose, one "Worked for Xs" bar, answer.
-                     * Only the LIVE row keeps its narration outside, because
-                     * that sentence is the context for the step in flight.
-                     */}
-                    {sibukDiSini && g.narasi ? (
-                      <div className="ai-segmen" data-testid="ai-segmen">
-                        <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-                          {g.narasi}
-                        </Markdown>
-                      </div>
-                    ) : null}
-                    {/*
-                     * The call in flight is a THIN ROW, not a bordered card.
-                     *
-                     * It used to render as a full `ToolRow`: a bordered box
-                     * with a head, a body and its own collapse, which is the
-                     * "kotak tools" the reader asked to stop seeing. The row
-                     * still has to exist - it is the only sign the run is alive
-                     * - so it keeps the information and drops the chrome: an
-                     * icon, the verb, the target, a spinner. Same family as the
-                     * fold bar directly above it.
-                     */}
-                    {sibukDiSini ? (
-                      <div className="ai-kerja-live" data-testid="ai-kerja-live">
-                        <span
-                          className={`cli-tool-ikon is-${toolKind(items[0].name)}`}
-                          aria-hidden="true"
-                        >
-                          <AiIkon name={toolGlyph(items[0].name) as never} size={12} />
-                        </span>
-                        <span className="ai-kerja-live-label">
-                          {infoAksi(items[0].name).label}
-                        </span>
-                        {(sasaranAksi(items[0].args) ||
-                          perintahAksi(items[0].name, items[0].args)) && (
-                          <code
-                            className="ai-grup-args"
-                            title={
-                              sasaranAksi(items[0].args) ||
-                              perintahAksi(items[0].name, items[0].args)
-                            }
-                          >
-                            {sasaranAksi(items[0].args) ||
-                              perintahAksi(items[0].name, items[0].args)}
-                          </code>
-                        )}
-                        <span className="ai-kerja-spin" aria-hidden="true" />
-                      </div>
-                    ) : (
-                      /*
-                       * EVERY finished group folds, even a single call.
+              {foldInduk ? (
+                <GrupKerja
+                  tools={msg.tools}
+                  tr={tr}
+                  tf={tf}
+                  live={Boolean(msg.streaming)}
+                  judul={judulTurn}
+                  durasiMs={durasiTurn}
+                  awal={
+                    <>
+                      {/*
+                       * Reference: the files this turn OPENED.
                        *
-                       * A group of one used to render as a full row on the
-                       * argument that a summary of one is noise. The result was
-                       * the reported "1 1 terus": the active call is always a
-                       * full row, so a turn of two tools showed TWO separate
-                       * rows and the fold only ever appeared at three or more.
-                       * Folding from one keeps the transcript to the shape the
-                       * reader asked for — narration, one "Worked for Xs" bar,
-                       * the call in flight, the answer — and the single call is
-                       * still one click away inside the bar.
-                       */
-                      <GrupKerja
-                        tools={items}
-                        narasi={g.narasi}
-                        tr={tr}
-                        tf={tf}
-                        live={Boolean(msg.streaming) && gi === grupTools.length - 1}
-                      />
-                    )}
-                  </Fragment>
-                );
-              })}
+                       * It is the first child of the tree, above thought and
+                       * above the steps - the reference product's order -
+                       * because "what did it look at" frames everything that
+                       * follows. Derived, not stored: `sasaranAksi` already
+                       * resolves each read's path, so the node costs no new
+                       * field in the transcript format.
+                       */}
+                      {rujukan.length > 0 ? (
+                        <div className="ai-rujukan" data-testid="ai-rujukan">
+                          <div className="ai-rujukan-head">
+                            <span className="ai-rujukan-judul">{tr('Reference')}</span>
+                          </div>
+                          {rujukan.map((p) => {
+                            const ik = ikonSasaran(p);
+                            return (
+                              <div className="ai-rujukan-baris" key={p} title={p}>
+                                <span className="cli-tool-ikon is-baca" aria-hidden="true">
+                                  {ik ? (
+                                    <IkonBerkas ikon={ik} size={12} />
+                                  ) : (
+                                    <AiIkon name="doc" size={12} />
+                                  )}
+                                </span>
+                                <span className="ai-rujukan-path">{p}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      {showThinking && msg.reasoning ? (
+                        <div className="ai-timeline" data-timeline data-testid="ai-timeline-reason">
+                          <ReasoningBlock
+                            teks={msg.reasoning}
+                            ms={msg.reasoningMs}
+                            berjalan={Boolean(msg.streaming)}
+                            judul={tr('Thought')}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="ai-anak-pohon">
+                        {pohonDatar}
+                      </div>
+                    </>
+                  }
+                />
+              ) : (
+                anakPohon
+              )}
             </div>
           )}
           {/*
@@ -1253,7 +1537,7 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                   dashed thinking node reach it here exactly as they do in the
                   hosted Claude Code tab - without it the block was the one row
                   whose text the rail ran straight through. */}
-              {showThinking && msg.reasoning && (
+              {showThinking && msg.reasoning && !foldInduk && (
                 <div className="ai-timeline" data-timeline data-testid="ai-timeline-reason">
                   <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
                 </div>

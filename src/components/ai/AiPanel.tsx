@@ -1331,7 +1331,7 @@ const bukaModels = () => bukaPanel('models');
 
   useEffect(() => {
     if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3200);
+    const t = window.setTimeout(() => setToast(null), 1000);
     return () => window.clearTimeout(t);
   }, [toast, setToast]);
 

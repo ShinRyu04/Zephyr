@@ -240,19 +240,12 @@
 }
 
 /* A group that is fully on is the resting state, so it stays quiet; the count
-   only draws attention when it is short of the total. */
+   only draws attention when it is short of the total.
+   NO pill: a filled `--surface-3` chip here was a second grey box on a panel
+   that already has one per row, and two grey levels stacked read as clutter.
+   Plain tabular numbers, same weight as the section count above them. */
 .tg-angka {
   flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  /*
-   * `--fg1`, not `--text-muted`.
-   *
-   * The badge sits on `--surface-3`, so muted grey on grey was the dimmest text
-   * in the panel — the counts are the reason the panel exists and they have to
-   * survive a low-brightness screen.
-   */
   color: var(--fg1);
   font-family: var(--font-mono);
   font-size: 10.5px;

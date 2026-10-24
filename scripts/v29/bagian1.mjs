@@ -60,17 +60,34 @@ export const bagian1 = async (cdp, check, F) => {
   const treeA = v2.trees.find((t) => norm(t.root) === norm(F.rootA));
   const treeB = v2.trees.find((t) => norm(t.root) === norm(F.rootB));
 
+  /*
+   * URUTAN ROOT: yang BARU DITAMBAHKAN menjadi root PERTAMA.
+   *
+   * `tambahRoot` menjadikan root baru sebagai konteks kerja aktif, dan
+   * `app_state.rs:set_active_root` memindahkan root lama ke `roots_extra[0]`
+   * lalu menaruh yang baru sebagai `workspace`. `roots()` selalu menaruh
+   * `workspace` di depan (app_state.rs:658-671), jadi daftar yang benar untuk
+   * "open root-a, lalu tambah root-b" adalah [root-b, root-a] - bukan urutan
+   * penambahan. Harness versi lama membandingkan posisi tetap dan gagal
+   * padahal produknya benar; yang diuji sekarang: KEDUA root hadir, dan
+   * `isRepo` tetap menempel pada root yang tepat (root-a punya .git).
+   */
+  const idxA = v2.paths.findIndex((p) => norm(p) === norm(F.rootA));
+  const idxB = v2.paths.findIndex((p) => norm(p) === norm(F.rootB));
+
   const v2ok =
     // Root tunggal TIDAK memakai header section (keputusan desain fase 29).
     v2.rootTunggal === 1 &&
     v2.domTunggal === 0 &&
     v2.tambahOk === true &&
     v2.jumlahRoot === 2 &&
-    norm(v2.paths[0]) === norm(F.rootA) &&
-    norm(v2.paths[1]) === norm(F.rootB) &&
-    // root-a punya .git, root-b tidak → deteksi repo PER ROOT.
-    v2.isRepo[0] === true &&
-    v2.isRepo[1] === false &&
+    idxA >= 0 &&
+    idxB >= 0 &&
+    // Root yang baru ditambahkan menjadi aktif.
+    norm(v2.aktif) === norm(F.rootB) &&
+    // root-a punya .git, root-b tidak - deteksi repo PER ROOT, bukan per workspace.
+    v2.isRepo[idxA] === true &&
+    v2.isRepo[idxB] === false &&
     // Dua header + dua tree terpisah benar-benar dirender.
     v2.domRoots === 2 &&
     v2.domPaths.length === 2 &&

@@ -14,6 +14,7 @@ import {
   PROVIDERS,
   PROVIDER_AUTO,
   ProviderLogo,
+  idProviderNyata,
   providerTersimpanValid,
   type ProviderInfo,
 } from '../../lib/modelCatalog';
@@ -256,9 +257,18 @@ export function ModelsSection() {
     /* Custom providers: an entry in `providers` is config; `custom[]` is models. */
     for (const id of Object.keys(providers).sort()) {
       if (sudah.has(id)) continue;
+      /*
+       * Hanya provider NYATA. `providers` bisa memuat slot yang bukan provider
+       * (payload login `github`, dan `hydra` yang hanya sentinel router);
+       * memilih salah satunya menghasilkan "masukkan API key" terus-menerus
+       * untuk provider yang tidak pernah bisa mengirim.
+       */
+      if (!idProviderNyata(id)) continue;
       tambah(id, id.replace(/^custom-/, ''));
     }
-    for (const c of models?.custom ?? []) tambah(c.provider, c.provider.replace(/^custom-/, ''));
+    for (const c of models?.custom ?? []) {
+      if (idProviderNyata(c.provider)) tambah(c.provider, c.provider.replace(/^custom-/, ''));
+    }
     /*
      * Slot `custom` tanpa konfigurasi dibuang dari daftar.
      *
@@ -318,7 +328,17 @@ export function ModelsSection() {
         <Select
           label={tr('models.active')}
           testid="models-active"
-          value={models.activeProvider}
+          /*
+           * Slot `custom` tanpa endpoint tidak ada di daftar opsi, dan
+           * `<select>` dengan nilai tanpa opsi menampilkan opsi PERTAMA (Auto)
+           * — terbaca "provider aktif berubah sendiri". Petakan ke gateway yang
+           * benar-benar tersimpan, sama seperti halaman AI Models.
+           */
+          value={
+            models.activeProvider === 'custom'
+              ? providerTersimpanValid('custom', providers)
+              : models.activeProvider
+          }
           onChange={(v) => void apply({ models: { activeProvider: v } })}
           options={[
             /*

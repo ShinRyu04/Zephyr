@@ -93,10 +93,23 @@ function ProblemsBadge() {
         title={tf('{n} errors, {m} warnings - open Problems', { n: errors, m: warnings })}
         onClick={() => void runCommand('problemsPanel.focus')}
       >
-        <span className="sb-prob-err" data-testid="sb-prob-errors">
+        {/*
+          * "⊗ 0" in full danger red reads as a live problem.
+          *
+          * The colour is the signal here, so a zero count must not carry it:
+          * the badge goes muted when there is nothing to show, exactly like the
+          * reference editor, and only counts above zero are coloured.
+          */}
+        <span
+          className={`sb-prob-err${errors === 0 ? ' is-kosong' : ''}`}
+          data-testid="sb-prob-errors"
+        >
           ⊗ {errors}
         </span>
-        <span className="sb-prob-warn" data-testid="sb-prob-warnings">
+        <span
+          className={`sb-prob-warn${warnings === 0 ? ' is-kosong' : ''}`}
+          data-testid="sb-prob-warnings"
+        >
           ⚠ {warnings}
         </span>
       </button>

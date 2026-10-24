@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import LiveRegion from './components/a11y/LiveRegion';
 import Toast from './components/notifications/Toast';
 import ConfirmDialog from './components/shell/ConfirmDialog';
+import TanyaDialog from './components/shell/TanyaDialog';
 import { useAiChunkListener } from './lib/useAiChunkListener';
 import { useAi } from './lib/aiStore';
 import { pasangSinkronSetelan, useStore } from './lib/store';
@@ -307,6 +308,9 @@ export default function AgentsWindow() {
         */}
       <Suspense fallback={null}>
         <ConfirmDialog />
+      </Suspense>
+      <Suspense fallback={null}>
+        <TanyaDialog />
       </Suspense>
       <LiveRegion />
     </div>

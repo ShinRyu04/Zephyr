@@ -196,6 +196,11 @@ export const useWs = create<WsState & WsActions>((set, get) => ({
       const info = await cmd.workspaceForgetTrust(path);
       terapkan(set, info);
       await get().muatDaftarTrust();
+      /* Forgetting trust is the reverse of granting it, so it has to refresh
+         the same things: tasks, debug, LSP and extensions were switched ON by
+         the grant, and without this pass they stay "active" in the UI while
+         Rust now refuses every one of them. */
+      void muatUlangFiturEksekusi();
     } catch (e) {
       notifyError(`Failed to forget trust: ${cmd.asZephyrError(e).message}`, {
         source: 'Workspace',

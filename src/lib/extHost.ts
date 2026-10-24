@@ -105,9 +105,21 @@ function prosesPesan(extId: string, m: WorkerMsg, rt: ExtRuntime): void {
   
   if (m.type === 'notify') {
     
+    /*
+     * Every wording that means "this extension did not load".
+     *
+     * The sandbox trailer says `cannot be loaded: <reason>` (the message
+     * `extRunner.ts` writes when a module throws during load), while the
+     * activation path says `aktivasi` or `could not load`. Matching only the
+     * last two left a broken extension enabled: it stayed in the list marked
+     * as working, was re-created on every start, and produced the same warn
+     * toast each time. The prefix list is now the one place to extend.
+     */
     const gagalAktivasi =
       m.severity === 'warn' &&
-      (m.message.startsWith('aktivasi') || m.message.startsWith('could not load'));
+      (m.message.startsWith('aktivasi') ||
+        m.message.startsWith('could not load') ||
+        m.message.startsWith('cannot be loaded'));
     if (gagalAktivasi) {
       void cmd.extensionsSetEnabled(extId, false).catch((e) => console.warn('[extensions] extensionsSetEnabled(false) failed for', extId, e));
     }
