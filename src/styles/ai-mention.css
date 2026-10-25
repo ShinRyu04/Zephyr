@@ -1,0 +1,462 @@
+/* ai-mention.css — the `@` reference popup, shaped like the reference editor.
+ *
+ * Loaded after ai.css / ai-icons.css / ai-composer-trae.css, so it is the last
+ * word on these cards. Everything is scoped to `.ai-input-row .ai-slash` so the
+ * rules win on specificity (0,3,0) instead of stacking `!important`.
+ *
+ * WHAT THIS FILE CHANGES, and why each part matters:
+ *
+ *   1. The popup is a MENU first, then a LIST. The shape lives in the markup
+ *      (`data-layar`), and these rules draw the two screens differently: menu
+ *      rows are 34px with a chevron on the right, list rows are 32px with a
+ *      name and a path.
+ *   2. Names are UI text, not code. A file name printed in mono reads as a
+ *      token being typed; the reference prints it semibold in the interface
+ *      font with the path in grey beside it.
+ *   3. The search field has NO box of its own. A segmented field inside a popup
+ *      reads as a second dialog; the reference pins one flat row with an
+ *      `@File:` prefix and a placeholder.
+ *   4. The blue focus ring is replaced, not deleted. `a11y.css` rings every
+ *      focused input, which inside this popup drew a bright rounded rectangle
+ *      around the field alone. Removing it would drop the only focus cue, so
+ *      the label turns accent-coloured while the field has focus instead.
+ */
+
+/* ── The card ─────────────────────────────────────────────────────────── */
+
+.ai-input-row .ai-slash {
+  --row: 32px;
+  border-radius: 12px;
+  padding: 0;
+}
+
+.ai-input-row .ai-slash.is-ref,
+.ai-input-row .ai-slash.is-cmd {
+  max-height: min(436px, calc(10 * var(--row) + 108px));
+  border-radius: 12px;
+}
+
+/* The menu screen is short by construction: three recents, four categories and
+   the field. It must never scroll, or the last category sits below the fold. */
+.ai-input-row .ai-slash.is-ref.is-menu {
+  max-height: none;
+  overflow: hidden;
+}
+
+.ai-input-row .ai-ref-recent {
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--popup-border, var(--border));
+}
+
+/* ── Category menu (first screen) ─────────────────────────────────────── */
+
+.ai-input-row .ai-ref-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+}
+
+.ai-input-row .ai-ref-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-input-row .ai-ref-menu-item:hover,
+.ai-input-row .ai-ref-menu-item.is-on {
+  background: var(--popup-raised, rgb(255 255 255 / 7%));
+}
+
+.ai-input-row .ai-ref-menu-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-input-row .ai-ref-menu-jml {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.ai-input-row .ai-ref-menu-panah {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* ── The kind's name above the drilled-in list ────────────────────────── */
+
+.ai-input-row .ai-ref-judul {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  color: var(--text-secondary, var(--text-muted));
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.ai-input-row .ai-ref-kembali {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ai-input-row .ai-ref-kembali:hover {
+  background: var(--popup-raised, rgb(255 255 255 / 8%));
+  color: var(--text);
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────────── */
+
+.ai-input-row .ai-ref-list,
+.ai-input-row .ai-ref-recent {
+  padding: 4px 6px;
+}
+
+.ai-input-row .ai-slash-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: var(--row);
+  min-height: var(--row);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-input-row .ai-slash-item.is-on {
+  background: var(--popup-raised, rgb(255 255 255 / 8%));
+}
+
+/* A name in a reference row is a NAME, not a command: semibold UI type. */
+.ai-input-row .ai-slash.is-ref .ai-slash-cmd {
+  flex: 0 1 auto;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* A `/` command IS code, so it stays mono - just heavier than before. */
+.ai-input-row .ai-slash.is-cmd .ai-slash-cmd {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ai-input-row .ai-slash-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Paths read left-to-right: the deepest segment is what tells two of them
+     apart, so this one is NOT reversed the way ai-icons.css reverses it. */
+  direction: ltr;
+  text-align: left;
+}
+
+/* Group label inside a cross-kind search result ("Berkas", "Aturan", ...). */
+.ai-input-row .ai-ref-head {
+  padding: 6px 8px 3px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.ai-input-row .ai-ref-head.is-label {
+  padding: 5px 8px 3px;
+}
+
+/* ── The search row, pinned to the bottom ─────────────────────────────── */
+
+.ai-input-row .ai-ref-cari {
+  gap: 6px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--popup-border, var(--border));
+  background: transparent;
+}
+
+.ai-input-row .ai-ref-cari-label {
+  flex: 0 0 auto;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.ai-input-row .ai-ref-cari-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+}
+
+.ai-input-row .ai-ref-cari-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* `a11y.css` rings every focused input. Inside the popup that drew a bright
+   rounded rectangle around the field alone, which is the blue box in the
+   screenshot. The cue moves to the label instead: same information, no second
+   box, and focus is never left invisible. */
+.ai-input-row .ai-ref-cari-input:focus,
+.ai-input-row .ai-ref-cari-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.ai-input-row .ai-ref-cari:focus-within .ai-ref-cari-label {
+  color: var(--accent);
+}
+
+/* ── Reference chips ──────────────────────────────────────────────────── */
+
+/*
+ * One chip, two places: above the composer while the message is being written,
+ * and inside it once sent. Same size, same icon column, same radius - a
+ * reference that changes shape at send time reads as two different features.
+ */
+
+/*
+ * Inline, not a block: a reference sits inside the sentence it was mentioned in.
+ * The row height and radius are the composer popup's own row language, so a chip
+ * in the transcript and a row in the `@` list read as the same object.
+ */
+.ai-ref-chip-pesan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 20px;
+  margin: 0 1px;
+  padding: 0 6px 0 5px;
+  vertical-align: -4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2, rgb(255 255 255 / 7%));
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.ai-ref-chip-pesan-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--text-muted);
+}
+
+.ai-ref-chip-pesan-ikon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ai-ref-chip-pesan-nama {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-ui);
+  font-weight: 500;
+}
+
+/*
+ * A clickable reference.
+ *
+ * `<button>` so it is reachable with Tab and announced as an action, stripped
+ * of the platform's button chrome so it still reads as the same chip as a rule
+ * or an agent (which cannot be opened). Hover is the only affordance: an
+ * underline inside a paragraph would look like a hyperlink to the web.
+ */
+button.ai-ref-chip-pesan {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-color: var(--border);
+}
+
+button.ai-ref-chip-pesan:hover {
+  background: var(--surface-3, rgb(255 255 255 / 12%));
+  border-color: var(--border-strong, var(--border));
+}
+
+button.ai-ref-chip-pesan:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── The draft strip, above the field ─────────────────────────────────── */
+
+.ai-input-row .ai-refstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 12px 0;
+}
+
+/* A chip being edited is interactive: taller hit area on the ✕, and the name
+   may take the full width of a narrow panel. */
+/* The attachment chip in the message head: icon + name, not a bare name. */
+.ai-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-attach-chip-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+}
+
+.ai-attach-chip-ikon svg {
+  width: 11px;
+  height: 11px;
+}
+
+.ai-input-row .ai-ref-chip-pesan.is-draft {
+  gap: 5px;
+  padding-right: 2px;
+}
+
+.ai-input-row .ai-ref-chip-pesan-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ai-input-row .ai-ref-chip-pesan-x:hover {
+  background: var(--hover, rgb(255 255 255 / 10%));
+  color: var(--text);
+}
+
+.ai-input-row .ai-ref-chip-pesan-x:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+
+/*
+ * `scrollbar-width: thin` from ai.css must go, or NONE of the rules below apply.
+ *
+ * Chromium ignores the `::-webkit-scrollbar` family on an element that sets the
+ * standard `scrollbar-width`, so the bar stayed the platform default - complete
+ * with the little arrow buttons at each end, which is exactly what made the
+ * popup look like a browser box instead of the reference's thin strip.
+ * `auto` hands the bar back to the rules below, which draw it without buttons.
+ */
+.ai-input-row .ai-ref-list,
+.ai-input-row .ai-slash-list {
+  scrollbar-width: auto;
+  /* Same reason as `scrollbar-width`: a non-auto `scrollbar-color` also hands
+     the bar back to the platform, arrows and all. */
+  scrollbar-color: auto;
+}
+
+/* Both the `@` list and the `/` list, so the two popups keep one bar. */
+.ai-input-row .ai-ref-list::-webkit-scrollbar,
+.ai-input-row .ai-slash-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.ai-input-row .ai-ref-list::-webkit-scrollbar-track,
+.ai-input-row .ai-slash-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The native arrow buttons are the one thing that made this bar look like a
+   browser scrollbar rather than the reference's thin strip. */
+.ai-input-row .ai-ref-list::-webkit-scrollbar-button,
+.ai-input-row .ai-slash-list::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.ai-input-row .ai-ref-list::-webkit-scrollbar-thumb,
+.ai-input-row .ai-slash-list::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background: var(--border-strong, var(--border));
+  background-clip: padding-box;
+}
+
+.ai-input-row .ai-ref-list::-webkit-scrollbar-thumb:hover,
+.ai-input-row .ai-slash-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+  background-clip: padding-box;
+}

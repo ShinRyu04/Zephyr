@@ -38,13 +38,16 @@ export default function WorkingSet() {
     return langgananKerja(() => setEntri(bacaKerja(kunci)));
   }, [kunci]);
 
-  if (entri.length === 0) {
-    return (
-      <p className="ws-kosong" data-testid="working-set-empty">
-        {tr('explorer.workingSetEmpty')}
-      </p>
-    );
-  }
+  /*
+   * Nothing to show yet means nothing to draw.
+   *
+   * The empty state used to render a line of text inside a section that the
+   * panel always expanded, so a workspace nobody had touched opened with the
+   * heading "RECENTLY OPENED" and a grey placeholder above the tree - chrome
+   * for a list with no entries. The section itself is hidden in that case (see
+   * `ExplorerPanel`), and this returns null so the two cannot disagree.
+   */
+  if (entri.length === 0) return null;
 
   return (
     <ul className="ws-list" data-testid="working-set-list" data-count={entri.length}>

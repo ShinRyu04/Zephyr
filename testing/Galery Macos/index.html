@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>Galery</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="theme-dark">
+  <!-- ===== Titlebar ala macOS ===== -->
+  <header class="titlebar" id="titlebar">
+    <div class="traffic" id="traffic" aria-hidden="true">
+      <button class="light light-close" data-win="close" title="Tutup"></button>
+      <button class="light light-min" data-win="minimize" title="Perkecil"></button>
+      <button class="light light-max" data-win="maximize" title="Perbesar"></button>
+    </div>
+
+    <div class="titlebar-center">
+      <span class="title-main" id="titleMain">Galery</span>
+      <span class="title-sub" id="titleSub"></span>
+    </div>
+
+    <div class="titlebar-right">
+      <button class="icon-btn" id="btnTheme" title="Ganti tema (Ctrl+Shift+D)">
+        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+      </button>
+      <button class="icon-btn" id="btnInfo" title="Panel info (Ctrl+I)">
+        <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v6M12 7.6v.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Layout utama ===== -->
+  <div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="side-group">
+        <div class="side-label">Perpustakaan</div>
+        <button class="side-item active" data-view="all">
+          <span class="side-ico">▦</span><span class="side-text">Semua Foto</span>
+          <span class="side-count" id="cntAll">0</span>
+        </button>
+        <button class="side-item" data-view="favorites">
+          <span class="side-ico">♥</span><span class="side-text">Favorit</span>
+          <span class="side-count" id="cntFav">0</span>
+        </button>
+        <button class="side-item" data-view="recent">
+          <span class="side-ico">🕘</span><span class="side-text">Terbaru</span>
+          <span class="side-count" id="cntRecent">0</span>
+        </button>
+      </nav>
+
+      <nav class="side-group">
+        <div class="side-label">Album</div>
+        <div id="albumList" class="album-list"></div>
+        <button class="side-item side-add" id="btnImport">
+          <span class="side-ico">＋</span><span class="side-text">Impor Folder…</span>
+        </button>
+      </nav>
+
+      <div class="side-foot">
+        <div class="side-label">Media</div>
+        <button class="side-item" data-view="images"><span class="side-ico">🖼</span><span class="side-text">Gambar</span><span class="side-count" id="cntImg">0</span></button>
+        <button class="side-item" data-view="videos"><span class="side-ico">🎬</span><span class="side-text">Video</span><span class="side-count" id="cntVid">0</span></button>
+      </div>
+    </aside>
+
+    <!-- Konten -->
+    <main class="content" id="content">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" width="14" height="14" class="search-ico"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input id="search" type="search" placeholder="Cari nama berkas…" autocomplete="off" spellcheck="false" />
+          <button class="search-clear" id="searchClear" title="Bersihkan">✕</button>
+        </div>
+
+        <div class="seg" id="sizeSeg" role="group" aria-label="Ukuran thumbnail">
+          <button data-size="s" title="Kecil">▪</button>
+          <button data-size="m" class="active" title="Sedang">▫</button>
+          <button data-size="l" title="Besar">◻</button>
+        </div>
+
+        <div class="toolbar-spacer"></div>
+
+        <select id="sortBy" class="select" title="Urutkan">
+          <option value="date-desc">Tanggal ↓</option>
+          <option value="date-asc">Tanggal ↑</option>
+          <option value="name-asc">Nama A→Z</option>
+          <option value="name-desc">Nama Z→A</option>
+          <option value="size-desc">Ukuran ↓</option>
+        </select>
+
+        <div class="seg" id="viewSeg" role="group" aria-label="Mode tampilan">
+          <button data-viewmode="grid" class="active" title="Grid (Ctrl+1)">▦</button>
+          <button data-viewmode="timeline" title="Timeline (Ctrl+2)">☰</button>
+        </div>
+      </div>
+
+      <div class="scroll" id="scroll">
+        <div class="empty" id="empty">
+          <div class="empty-ico">🖼</div>
+          <h2>Belum ada foto</h2>
+          <p>Impor folder berisi gambar untuk mulai membangun galeri.</p>
+          <button class="btn-primary" id="btnImport2">Impor Folder…</button>
+          <p class="empty-hint">atau tarik folder ke jendela ini</p>
+        </div>
+        <div id="grid" class="grid size-m" hidden></div>
+        <div id="timeline" class="timeline" hidden></div>
+      </div>
+
+      <div class="dropzone" id="dropzone"><span>Lepaskan folder di sini untuk mengimpor</span></div>
+    </main>
+
+    <!-- Panel info -->
+    <aside class="inspector" id="inspector" hidden>
+      <div class="insp-head">
+        <span>Info</span>
+        <button class="icon-btn" id="btnCloseInfo" title="Tutup">✕</button>
+      </div>
+      <div class="insp-body" id="inspBody">
+        <p class="insp-empty">Pilih satu foto untuk melihat detail.</p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ===== Lightbox ===== -->
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lb-backdrop"></div>
+    <button class="lb-nav lb-prev" id="lbPrev" title="Sebelumnya (←)">‹</button>
+    <button class="lb-nav lb-next" id="lbNext" title="Berikutnya (→)">›</button>
+    <figure class="lb-stage">
+      <img id="lbImage" alt="" />
+      <video id="lbVideo" controls hidden></video>
+    </figure>
+    <div class="lb-bar">
+      <span class="lb-name" id="lbName"></span>
+      <span class="lb-meta" id="lbMeta"></span>
+      <div class="lb-actions">
+        <button class="icon-btn" id="lbFav" title="Favorit (F)">♥</button>
+        <button class="icon-btn" id="lbRename" title="Ganti nama (R2)">✎</button>
+        <button class="icon-btn" id="lbReveal" title="Tampilkan di Explorer">📂</button>
+        <button class="icon-btn" id="lbTrash" title="Pindahkan ke Recycle Bin (Del)">🗑</button>
+        <button class="icon-btn" id="lbClose" title="Tutup (Esc)">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

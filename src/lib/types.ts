@@ -1478,6 +1478,7 @@ export interface Settings {
 
   sidebar: 'left' | 'right' | 'top' | 'bottom';
   layout: 'default' | 'focus' | 'term' | 'quad';
+
   shortcuts: Record<string, string>;
   models: {
       activeProvider: string;

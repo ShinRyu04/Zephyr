@@ -14,6 +14,7 @@ import {
   matchPrompts,
   expandPrompt,
   matchSnippets,
+  adaPemicuPrompt,
   expandSnippet,
   snippetTrigger,
   jenisPrompt,
@@ -24,6 +25,7 @@ import {
 } from '../../lib/promptLibrary';
 import {
   tokenAt,
+  tulisRef,
   uraiToken,
   saringRef,
   ratakan,
@@ -39,6 +41,7 @@ import CmdIkon from './CmdIkon';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
 import PerubahanBerkas from './PerubahanBerkas';
+import UbahReview from './UbahReview';
 import { DayDivider } from './ChatStamp';
 import type { ChatMsg, AgentToolRun } from '../../lib/types';
 import { namaToolTulis, pathsDari } from '../../lib/zephyrTools/tulisBerkas';
@@ -87,9 +90,13 @@ const PESAN_KOSONG: ChatMsg[] = [];
  * Only when the session actually wrote something - a read-only chat shows no
  * card at all, and `PerubahanBerkas` returns null for an empty map anyway.
  */
-function kartu(baris: React.ReactNode[], peta: Map<string, AgentToolRun[]>): React.ReactNode {
+function kartu(
+  baris: React.ReactNode[],
+  peta: Map<string, AgentToolRun[]>,
+  permukaan: 'main' | 'agents',
+): React.ReactNode {
   if (peta.size === 0) return baris;
-  return [...baris, <PerubahanBerkas key="ubah-sesi" peta={peta} />];
+  return [...baris, <PerubahanBerkas key="ubah-sesi" peta={peta} permukaan={permukaan} />];
 }
 
 /*
@@ -259,7 +266,7 @@ const PesanList = memo(function PesanList({
   /* From Chat Settings. Turning it off must actually remove the dividers. */
   if (!showDividers) {
     for (const m of msgs) baris.push(<ChatMessage key={m.id} msg={m} />);
-    return <>{kartu(baris, berkasSesi)}</>;
+    return <>{kartu(baris, berkasSesi, composerId === 'agents' ? 'agents' : 'main')}</>;
   }
   for (const m of msgs) {
     const t = new Date(m.at);
@@ -279,7 +286,7 @@ const PesanList = memo(function PesanList({
     }
     baris.push(<ChatMessage key={m.id} msg={m} />);
   }
-  return <>{kartu(baris, berkasSesi)}</>;
+  return <>{kartu(baris, berkasSesi, composerId === 'agents' ? 'agents' : 'main')}</>;
 });
 
 function AiPanelInner({ composerId = '' }: { composerId?: string }) {
@@ -370,6 +377,22 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
      conversation is the one that should offer Resume. */
   const adaCheckpoint = useAi((s) => s.agentResumes[composerId] != null);
   const kirimSekarang = useAi((s) => s.kirimSekarang);
+
+  /*
+   * Sends the draft TOGETHER with the chips above it.
+   *
+   * The chips are not part of the text any more, so they are folded back in
+   * here, one `@ref` per token on their own line ahead of what was typed -
+   * which is the same string the composer used to hold before a pick became a
+   * chip. Clearing them before the call means a send always starts a clean
+   * composer, even when the store refuses the message.
+   */
+  const kirimPesan = () => {
+    const daftar = draftRefs.map((r) => tulisRef(r.sisip)).join(' ');
+    const isi = [daftar, draft].filter((s) => s.trim()).join('\n');
+    setDraftRefs([]);
+    return kirimSekarang(isi, draftImages, composerId);
+  };
   const historyUp = useAi((s) => s.historyUp);
   const historyDown = useAi((s) => s.historyDown);
   const exportChat = useAi((s) => s.exportChat);
@@ -840,35 +863,10 @@ const bukaModels = () => bukaPanel('models');
   const { items: saranSnippet } = matchSnippets(draft);
   const modeSnippet = saranSnippet.length > 0;
   const saranMentah = modeSnippet ? saranSnippet : saranSlash;
+
   /* The trigger symbol the user typed (`>` or `#`) so the rows echo it back. */
   const pemicuSnippet = modeSnippet ? snippetTrigger(draft) ?? '>' : '>';
 
-  /*
-   * The slash list, GROUPED.
-   *
-   * It used to be one flat list of nineteen rows, so "new chat" (which acts on
-   * the conversation) sat next to "explain" (which writes a sentence) with
-   * nothing saying they were different kinds of thing. Grouping is what the
-   * reference product's `/` popup does, and it is the difference between a list
-   * you read and a list you scan.
-   *
-   * Snippets are NOT grouped: they are all the same kind (text that gets
-   * inserted), and a heading over one homogeneous list is noise.
-   */
-  const grupPrompt = useMemo(() => {
-    if (modeSnippet) return [] as { jenis: JenisPrompt; items: PromptItem[] }[];
-    const peta = new Map<JenisPrompt, PromptItem[]>();
-    for (const p of saranMentah) {
-      const j = jenisPrompt(p);
-      const ada = peta.get(j);
-      if (ada) ada.push(p);
-      else peta.set(j, [p]);
-    }
-    return URUTAN_PROMPT.filter((j) => peta.has(j)).map((j) => ({
-      jenis: j,
-      items: peta.get(j) as PromptItem[],
-    }));
-  }, [saranMentah, modeSnippet]);
 
   /*
    * Inline `@` references, in CATEGORIES.
@@ -879,6 +877,16 @@ const bukaModels = () => bukaPanel('models');
    * workspace walk is far too slow to run per keystroke.
    */
   const [refs, setRefs] = useState<RefItem[]>([]);
+  /*
+   * References picked from the `@` list, held as CHIPS above the field.
+   *
+   * They used to be spliced into the draft as `@path`, which is where the raw
+   * text came from: a sentence read "tolong lihat @.zephyr/uji/ ya" with the
+   * path sitting in it like something the reader typed. Keeping them apart makes
+   * the composer show what was attached, and `kirimPesan` prepends the tokens
+   * to the outgoing text so the model still receives exactly the same message.
+   */
+  const [draftRefs, setDraftRefs] = useState<RefItem[]>([]);
   const [refTerbuka, setRefTerbuka] = useState(false);
   /*
    * Set by `tutupRef` for the ONE case `refTerbuka` cannot express.
@@ -926,10 +934,53 @@ const bukaModels = () => bukaPanel('models');
    * command name into the draft they may not send. Same rule as the `@` popup:
    * the field wins, the composer's text is the fallback.
    */
+  /*
+   * The popup's own field narrows the list.
+   *
+   * Kept next to the field's state because the grouped list below is built from
+   * it - and building that grouping from the unfiltered list is exactly the bug
+   * that made typing in the field change nothing on screen.
+   */
   const kueriSlash = cariSlash.trim().toLowerCase();
   const saran = kueriSlash
     ? saranMentah.filter((p) => p.cmd.toLowerCase().includes(kueriSlash))
     : saranMentah;
+
+  /*
+   * The slash list, GROUPED.
+   *
+   * It used to be one flat list of nineteen rows, so "new chat" (which acts on
+   * the conversation) sat next to "explain" (which writes a sentence) with
+   * nothing saying they were different kinds of thing. Grouping is what the
+   * reference product's `/` popup does, and it is the difference between a list
+   * you read and a list you scan.
+   *
+   * Snippets are NOT grouped: they are all the same kind (text that gets
+   * inserted), and a heading over one homogeneous list is noise.
+   */
+  const grupPrompt = useMemo(() => {
+    if (modeSnippet) return [] as { jenis: JenisPrompt; items: PromptItem[] }[];
+    const peta = new Map<JenisPrompt, PromptItem[]>();
+    /*
+     * Grouped from the FILTERED list (`saran`), not the raw one.
+     *
+     * `saranMentah` is what the composer's text alone matches, so drawing the
+     * popup from it meant the search field did nothing at all: typing "rev" in
+     * it narrowed `saran` - which the keyboard walked - while nineteen rows
+     * stayed on screen. That is the reported "kotak cari / tidak nyaring", and
+     * it is why the highlighted row and the visible list disagreed.
+     */
+    for (const p of saran) {
+      const j = jenisPrompt(p);
+      const ada = peta.get(j);
+      if (ada) ada.push(p);
+      else peta.set(j, [p]);
+    }
+    return URUTAN_PROMPT.filter((j) => peta.has(j)).map((j) => ({
+      jenis: j,
+      items: peta.get(j) as PromptItem[],
+    }));
+  }, [saran, modeSnippet]);
 
   /*
    * The caret position is tracked in state, not read from the DOM during
@@ -1029,6 +1080,55 @@ const bukaModels = () => bukaPanel('models');
   const saranRefSemua = recentRef.length ? [...recentRef, ...saranRef] : saranRef;
 
   /*
+   * The popup's FIRST screen: a category menu, like the reference.
+   *
+   * Pressing `@` used to drop the reader straight into a list of every kind at
+   * once. Styling those rows differently never changed the impression, because
+   * the SHAPE was the problem: the reference opens a small menu of kinds
+   * (File / Folder / Rule / Agent) with a chevron on each, and only then shows
+   * the searchable list with its kind named at the top. That is what this
+   * renders. A query, or a pick from the menu, collapses it into the list.
+   */
+  const menuKategori =
+    !kueriRef && !jenisAktif
+      ? grupRef.map((g) => ({ jenis: g.jenis, jml: g.items.length }))
+      : [];
+  /* `idxSaran` walks whichever screen is showing, so the two never disagree
+     about which row is highlighted. */
+  const idxMenu = menuKategori.length ? idxSaran % menuKategori.length : 0;
+
+  /*
+   * Singular names for the menu rows and the list header.
+   *
+   * `LABEL_JENIS` is plural ("Files", "Rules") because it used to count rows in
+   * a heading. A menu row and a header name ONE kind, so they read "Berkas",
+   * "Aturan" - the same word the rest of the panel uses for that thing.
+   */
+  const LABEL_TUNGGAL: Record<'file' | 'folder' | 'rule' | 'agent', string> = {
+    file: tr('Berkas'),
+    folder: tr('Folder'),
+    rule: tr('Aturan'),
+    agent: tr('Agent'),
+  };
+
+  /* Opens a category and puts the caret in the search field, which is the only
+     thing the reader wants next. */
+  const pilihKategori = (j: NonNullable<SaringanJenis>) => {
+    setJenisRef(j);
+    setIdxSaran(0);
+    window.requestAnimationFrame(() => cariRefBox.current?.focus());
+  };
+
+  /* Back to the menu: the category and the query go together, so the menu never
+     reopens still holding the last search. */
+  const kembaliMenu = () => {
+    setJenisRef(null);
+    setCariRef('');
+    setIdxSaran(0);
+    window.requestAnimationFrame(() => cariRefBox.current?.focus());
+  };
+
+  /*
    * The token being edited is what decides whether the list is open, so a
    * completed reference — "@package.json" followed by a space — closes it. The
    * previous version only closed on an explicit pick or Escape, so the list
@@ -1083,46 +1183,27 @@ const bukaModels = () => bukaPanel('models');
     if (!t || !el) return;
     if (f.mode) useAi.getState().setAgentMode(f.mode);
     /*
-     * Splice into the DOM value, not into `draft`.
+     * A pick becomes a CHIP, not text.
      *
-     * The popup's search field owns the caret while it is open, so the
-     * textarea's own selection is still where it was when the popup opened.
-     * `draft` may also be one render behind — the field's keystrokes do not
-     * touch it — and reading it produced a splice against stale text. The
-     * element's value is the one thing that is always current.
+     * The reference used to be spliced in as `@src/lib/aiStore.ts`, so the
+     * composer showed a raw path in the middle of the sentence - the reported
+     * "masih mentah", and the one place the reference product never shows it
+     * that way. The token is removed from the draft instead, and the picked
+     * reference is kept in `draftRefs`, which draws the strip above the field
+     * and is prepended to the message when it is sent.
      */
     const nilai = el.value;
     const sesudah = nilai.slice(posisi);
-    const teks = `${nilai.slice(0, t.mulai)}@${f.sisip}${sesudah.startsWith(' ') ? '' : ' '}${sesudah}`;
-    /*
-     * Write the textarea directly BEFORE telling React.
-     *
-     * The caret has to move into the textarea right after the pick, and the
-     * value React is about to render is the one this handler just computed.
-     * Setting it here means `setSelectionRange` below sees the new text, not
-     * the old one — otherwise it clamps the caret and the popup reopens on a
-     * half-token. React's next render sets the same string, so it is a no-op.
-     */
-    el.value = teks;
-    setDraft(teks);
+    const sisa = `${el.value.slice(0, t.mulai)}${sesudah.startsWith(' ') ? sesudah.slice(1) : sesudah}`;
+    el.value = sisa;
+    setDraft(sisa);
+    setKursor(t.mulai);
+    setDraftRefs((lama) => (lama.some((r) => r.sisip === f.sisip) ? lama : [...lama, f]));
     tutupRef();
-    /* A picked ref is by definition a recent one. */
     catatRefTerakhir(f.kunci);
-    /*
-     * Move the caret past the inserted path. Without this the tracked position
-     * still pointed inside the old "@pack" token, so the token was recomputed
-     * from stale text and the list reopened the moment it was dismissed.
-     */
-    const ujung = t.mulai + 1 + f.sisip.length + (sesudah.startsWith(' ') ? 0 : 1);
-    setKursor(ujung);
-    /* The caret position is set in a timer, not here: `setDraft` above has not
-       reached the DOM yet, so the textarea still holds the OLD value and
-       `setSelectionRange` would clamp the caret to its end. That clamp is what
-       reopened the popup immediately after a pick - the tracked caret then
-       pointed at a half-token in the old text. */
     window.setTimeout(() => {
       el.focus();
-      el.setSelectionRange(ujung, ujung);
+      el.setSelectionRange(t.mulai, t.mulai);
     }, 0);
   };
 
@@ -1181,6 +1262,18 @@ const bukaModels = () => bukaPanel('models');
 
   const pakaiPrompt = (p: { cmd: string; body: string; aksi?: string }) => {
     /*
+     * The popup's search text goes with the pick.
+     *
+     * It used to stay behind: type `/`, narrow to "rev" in the field, press the
+     * row - and `cariSlash` still held "rev". Two things followed from that. The
+     * popup could not close, because the render keeps it alive while the field
+     * has text even though the composer no longer holds a slash command. And the
+     * next `/` reopened already filtered by a word the reader could not see in
+     * the composer: the "ketinggalan" leftover. Clearing it here makes the pick
+     * finish the popup instead of leaving half of it running.
+     */
+    setCariSlash('');
+    /*
      * Session commands (/new, /clear, /compact, /export) act immediately and
      * clear the composer. They replaced the header buttons: the header is down
      * to a title, the usage meter and close, and typing the command is quicker
@@ -1195,18 +1288,23 @@ const bukaModels = () => bukaPanel('models');
       switch (p.aksi) {
         case 'baru':
           setDraft('');
+          /* The chips belong to the draft that is being thrown away. */
+          setDraftRefs([]);
           newChat(composerId);
           break;
         case 'hapus-semua':
           setDraft('');
+          setDraftRefs([]);
           setClearAllOpen(true);
           break;
         case 'padatkan':
           setDraft('');
+          setDraftRefs([]);
           void compactContext(undefined, composerId);
           break;
         case 'ekspor':
           setDraft('');
+          setDraftRefs([]);
           void exportChat(composerId);
           break;
 
@@ -2301,6 +2399,14 @@ const bukaModels = () => bukaPanel('models');
       <GoalStrip composerId={composerId} />
       <LoopStrip composerId={composerId} />
 
+      {/*
+        * The keep/undo decision for the turn that just finished, right above the
+        * message box: the reader answers "do I keep this?" without scrolling a
+        * long transcript first. Destination of its rows follows the surface -
+        * editor tab in the main window, right panel in the Agents window.
+        */}
+      <UbahReview permukaan={composerId === 'agents' ? 'agents' : 'main'} />
+
       <div className="ai-input-row">
         {/*
           * The branch chip, inside the composer box and above the field.
@@ -2348,6 +2454,51 @@ const bukaModels = () => bukaPanel('models');
           </div>
         )}
         {/*
+          * The picked references, as chips above the field.
+          *
+          * This is the composer's answer to "why is the path still raw text".
+          * Each chip names what was attached, carries the icon of its kind, and
+          * has its own remove button; the draft itself stays clean prose. Sent
+          * messages draw the same chip from the same `@token`, so a reference
+          * looks identical before and after sending.
+          */}
+        {draftRefs.length > 0 && (
+          <div className="ai-refstrip" data-testid="ai-refstrip">
+            {draftRefs.map((r) => (
+              <span
+                className="ai-ref-chip-pesan is-draft"
+                data-ref={r.sisip}
+                data-testid={`ai-draft-ref-${r.sisip}`}
+                title={r.sisip}
+                key={r.kunci}
+              >
+                <span className="ai-ref-chip-pesan-ikon" aria-hidden="true">
+                  {r.jenis === 'folder' ? (
+                    <AiIkon name="folder" size={11} />
+                  ) : r.jenis === 'rule' ? (
+                    <AiIkon name="shield" size={11} />
+                  ) : r.jenis === 'agent' ? (
+                    <AiIkon name="robot" size={11} />
+                  ) : (
+                    <FileIkon nama={r.label} />
+                  )}
+                </span>
+                <span className="ai-ref-chip-pesan-nama">{r.sisip.replace(/\/$/, '')}</span>
+                <button
+                  type="button"
+                  className="ai-ref-chip-pesan-x"
+                  data-testid={`ai-draft-ref-hapus-${r.sisip}`}
+                  title={tr('Remove reference')}
+                  aria-label={tr('Remove reference')}
+                  onClick={() => setDraftRefs((lama) => lama.filter((x) => x.sisip !== r.sisip))}
+                >
+                  <AiIkon name="close" size={9} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {/*
           * References for an "@" token, ALL KINDS IN ONE LIST.
           *
           * There is no chip row. It used to sit above the list and lock the
@@ -2362,8 +2513,9 @@ const bukaModels = () => bukaPanel('models');
           */}
         {(saranRefSemua.length > 0 || cariRef.length > 0) && !daftarTutup && (
           <div
-            className="ai-slash is-ref"
+            className={`ai-slash is-ref${menuKategori.length ? ' is-menu' : ''}`}
             data-pemicu="ref"
+            data-layar={menuKategori.length ? 'menu' : 'daftar'}
             /*
              * Escape always wins, from anywhere inside the popup.
              *
@@ -2382,129 +2534,174 @@ const bukaModels = () => bukaPanel('models');
               tutupRef(true);
             }}
           >
-            {/* Recent picks, above the divider. Only with an empty query: see
-                `recentRef` for why. */}
-            {recentRef.length > 0 && (
-              <div className="ai-ref-recent" data-testid="ai-ref-recent">
-                {/*
-                 * A plain label, NOT a filter button.
-                 *
-                 * It shares `.ai-ref-head` for the type but must not be a
-                 * `<button>`: the harness (and any reader tabbing through)
-                 * counts filter headings, and counting "Terbaru" as one shifted
-                 * every index by one - the first "filter" click then hit the
-                 * label and did nothing.
-                 */}
-                <div className="ai-ref-head is-label">{tr('Terbaru')}</div>
-                {recentRef.map((f) => {
-                  const i = saranRefSemua.indexOf(f);
-                  return (
-                    <button
-                      key={`recent-${f.kunci}`}
-                      role="option"
-                      aria-selected={i === idxSaran}
-                      className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                      data-testid={`ai-ref-recent-${i}`}
-                      data-ref={f.sisip}
-                      onMouseEnter={() => setIdxSaran(i)}
-                      onClick={() => pakaiRef(f)}
-                    >
-                      {f.jenis === 'file' ? (
-                        <FileIkon nama={f.label} />
-                      ) : (
-                        <span className="ai-ref-ikon" aria-hidden="true">
-                          <AiIkon name="folder" size={13} />
-                        </span>
-                      )}
-                      <span className="ai-slash-cmd">@{f.label}</span>
-                      <span className="ai-slash-label">{f.detail}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div
-              className="ai-ref-list"
-              data-testid="ai-file-list"
-              role="listbox"
-              ref={refBoxRef}
-              aria-label={tr('Context for this message')}
-            >
-              {grupRef.map((g) => (
-                <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
-                  {/*
-                   * The heading is the filter, in place of the old chip row.
-                   *
-                   * Pressing it narrows the list to that kind; pressing it again
-                   * (when it is already the only kind on screen) goes back to
-                   * all of them, so the reader is never stuck inside a filter
-                   * with no visible way out.
-                   */}
-                  <button
-                    type="button"
-                    className={`ai-ref-head${jenisAktif === g.jenis ? ' is-on' : ''}`}
-                    data-testid={`ai-ref-head-${g.jenis}`}
-                    aria-pressed={jenisAktif === g.jenis}
-                    title={tr('Filter by kind')}
-                    onClick={() => setJenisRef(jenisAktif === g.jenis ? null : g.jenis)}
-                  >
-                    {tr(LABEL_JENIS[g.jenis])}
-                    <span className="ai-ref-head-jml">{g.items.length}</span>
-                  </button>
-                  {g.items.map((f) => {
-                    const i = saranRef.indexOf(f);
-                    return (
-                      <button
-                        key={f.kunci}
-                        role="option"
-                        aria-selected={i === idxSaran}
-                        className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
-                        data-testid={`ai-ref-${f.jenis}-${i}`}
-                        data-ref={f.sisip}
-                        onMouseEnter={() => setIdxSaran(i)}
-                        onClick={() => pakaiRef(f)}
-                      >
-                        {/*
-                         * Icon, name, then what tells two of them apart.
-                         *
-                         * The second column used to print the whole relative
-                         * path, so a row read "@package.json  package.json" -
-                         * the name twice. The folder is the part that actually
-                         * distinguishes two files with the same name; for a rule
-                         * or an agent the distinguishing part is what it DOES,
-                         * so the same slot carries its sentence.
-                         */}
-                        {f.jenis === 'file' ? (
-                          <FileIkon nama={f.label} />
-                        ) : (
-                          <span className="ai-ref-ikon" aria-hidden="true">
-                            {f.jenis === 'folder' ? (
+            {menuKategori.length > 0 ? (
+              <>
+                {recentRef.length > 0 && (
+                  <div className="ai-ref-recent" data-testid="ai-ref-recent">
+                    {/* No heading above the recents: the reference's first
+                        screen opens with the last three files and nothing else
+                        - a label there would read as a fifth category, and the
+                        divider already says these rows are a different block. */}
+                    {recentRef.map((f) => {
+                      const i = saranRefSemua.indexOf(f);
+                      return (
+                        <button
+                          key={`recent-${f.kunci}`}
+                          role="option"
+                          aria-selected={i === idxSaran}
+                          className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                          data-testid={`ai-ref-recent-${i}`}
+                          data-ref={f.sisip}
+                          onMouseEnter={() => setIdxSaran(i)}
+                          onClick={() => pakaiRef(f)}
+                        >
+                          {f.jenis === 'file' ? (
+                            <FileIkon nama={f.label} />
+                          ) : (
+                            <span className="ai-ref-ikon" aria-hidden="true">
                               <AiIkon name="folder" size={13} />
-                            ) : f.jenis === 'rule' ? (
-                              <AiIkon name="shield" size={13} />
-                            ) : (
-                              <AiIkon name="robot" size={13} />
-                            )}
-                          </span>
+                            </span>
+                          )}
+                          <span className="ai-slash-cmd">{f.label}</span>
+                          <span className="ai-slash-label">{f.detail}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {/*
+                 * The category menu - the first screen, as in the reference.
+                 *
+                 * It used to open straight into a list of every kind at once,
+                 * with the categories doubling as headings. That is why the
+                 * popup "looked like itself" no matter how the rows were
+                 * styled: the shape was a list, and the reference is a MENU
+                 * that drills into a list. Each row here is one kind, with a
+                 * chevron saying it opens something, and the count saying how
+                 * much is inside it.
+                 */}
+                <div className="ai-ref-menu" data-testid="ai-ref-menu" role="menu">
+                  {menuKategori.map((k, ki) => (
+                    <button
+                      type="button"
+                      key={k.jenis}
+                      role="menuitem"
+                      className={`ai-ref-menu-item${ki === idxMenu ? ' is-on' : ''}`}
+                      data-testid={`ai-ref-menu-${k.jenis}`}
+                      onMouseEnter={() => setIdxSaran(ki)}
+                      onClick={() => pilihKategori(k.jenis)}
+                    >
+                      <span className="ai-ref-ikon" aria-hidden="true">
+                        {k.jenis === 'file' ? (
+                          <AiIkon name="file" size={14} />
+                        ) : k.jenis === 'folder' ? (
+                          <AiIkon name="folder" size={14} />
+                        ) : k.jenis === 'rule' ? (
+                          <AiIkon name="shield" size={14} />
+                        ) : (
+                          <AiIkon name="robot" size={14} />
                         )}
-                        <span className="ai-slash-cmd">@{f.label}</span>
-                        <span className="ai-slash-label">{f.detail}</span>
-                      </button>
-                    );
-                  })}
+                      </span>
+                      <span className="ai-ref-menu-nama">{LABEL_TUNGGAL[k.jenis]}</span>
+                      <span className="ai-ref-menu-jml">{k.jml}</span>
+                      <span className="ai-ref-menu-panah" aria-hidden="true">
+                        <AiIkon name="chev-right" size={12} />
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              ))}
-              {saranRefSemua.length === 0 && (
-                <p className="ai-ref-empty" data-testid="ai-ref-empty">
-                  {tr('Tidak ada file atau folder yang cocok.')}
-                </p>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                {/* The drilled-in screen: ONE kind's name at the top, then the
+                    rows. The back arrow is what makes this a level rather than
+                    a filter, so the reader is never stuck inside it. */}
+                <div className="ai-ref-judul" data-testid="ai-ref-judul">
+                  {jenisAktif && (
+                    <button
+                      type="button"
+                      className="ai-ref-kembali"
+                      data-testid="ai-ref-kembali"
+                      title={tr('Kembali ke kategori')}
+                      aria-label={tr('Kembali ke kategori')}
+                      onClick={kembaliMenu}
+                    >
+                      <AiIkon name="arrow-left" size={12} />
+                    </button>
+                  )}
+                  <span>{jenisAktif ? LABEL_TUNGGAL[jenisAktif] : tr('Semua')}</span>
+                </div>
+                <div
+                  className="ai-ref-list"
+                  data-testid="ai-file-list"
+                  role="listbox"
+                  ref={refBoxRef}
+                  aria-label={tr('Context for this message')}
+                >
+                  {grupRef.map((g) => (
+                    <div className="ai-ref-grup" key={g.jenis} data-jenis={g.jenis}>
+                      {/* A heading only when the search spans kinds. Inside one
+                          category the header above already names it, and a
+                          second heading would repeat it. */}
+                      {!jenisAktif && (
+                        <div className="ai-ref-head" data-testid={`ai-ref-head-${g.jenis}`}>
+                          {tr(LABEL_JENIS[g.jenis])}
+                        </div>
+                      )}
+                      {g.items.map((f) => {
+                        const i = saranRef.indexOf(f);
+                        return (
+                          <button
+                            key={f.kunci}
+                            role="option"
+                            aria-selected={i === idxSaran}
+                            className={`ai-slash-item${i === idxSaran ? ' is-on' : ''}`}
+                            data-testid={`ai-ref-${f.jenis}-${i}`}
+                            data-ref={f.sisip}
+                            onMouseEnter={() => setIdxSaran(i)}
+                            onClick={() => pakaiRef(f)}
+                          >
+                            {/* Icon, name, then the containing folder. The name
+                                is NOT prefixed with "@": inside a popup that was
+                                opened by "@", the symbol on every row is noise
+                                - the reference prints the bare name and path. */}
+                            {f.jenis === 'file' ? (
+                              <FileIkon nama={f.label} />
+                            ) : (
+                              <span className="ai-ref-ikon" aria-hidden="true">
+                                {f.jenis === 'folder' ? (
+                                  <AiIkon name="folder" size={13} />
+                                ) : f.jenis === 'rule' ? (
+                                  <AiIkon name="shield" size={13} />
+                                ) : (
+                                  <AiIkon name="robot" size={13} />
+                                )}
+                              </span>
+                            )}
+                            <span className="ai-slash-cmd">{f.label}</span>
+                            <span className="ai-slash-label">{f.detail}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {saranRefSemua.length === 0 && (
+                    <p className="ai-ref-empty" data-testid="ai-ref-empty">
+                      {tr('Tidak ada file atau folder yang cocok.')}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
             {/* The search field lives at the BOTTOM of the popup, like the
                 reference product: the list is the important part and the field
                 is what you reach for once you know the list is long. */}
             <label className="ai-ref-cari">
-              <span className="ai-ref-cari-label">@{tr(LABEL_JENIS[jenisAktif ?? 'file'])}:</span>
+              {/* The prefix names the open category, and on the menu screen
+                  it is just "@" - the same bare token the composer holds. */}
+              <span className="ai-ref-cari-label">
+                {jenisAktif ? `@${LABEL_TUNGGAL[jenisAktif]}:` : '@'}
+              </span>
               <input
                 ref={cariRefBox}
                 className="ai-ref-cari-input"
@@ -2527,6 +2724,35 @@ const bukaModels = () => bukaPanel('models');
                        query first: a filtered list with an empty field would
                        then need a second Escape to get out of. */
                     tutupRef(true);
+                    return;
+                  }
+                  /*
+                   * The menu takes the same keys as the list beneath it:
+                   * arrows walk the categories, Enter opens the highlighted
+                   * one. Without this the field accepted the keystrokes but the
+                   * menu never moved, so the popup was mouse-only.
+                   */
+                  if (menuKategori.length > 0) {
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const nm = menuKategori.length;
+                      setIdxSaran((i) =>
+                        e.key === 'ArrowDown' ? (i + 1) % nm : (i - 1 + nm) % nm,
+                      );
+                      return;
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                      e.preventDefault();
+                      pilihKategori(menuKategori[idxMenu].jenis);
+                    }
+                    return;
+                  }
+                  /* Backspace in an empty field backs out of the category
+                     instead of doing nothing: it is the one key a reader tries
+                     when they want the previous screen. */
+                  if (e.key === 'Backspace' && !cariRef && jenisAktif) {
+                    e.preventDefault();
+                    kembaliMenu();
                     return;
                   }
                   if (saranRefSemua.length === 0) return;
@@ -2553,7 +2779,11 @@ const bukaModels = () => bukaPanel('models');
             a new question. The trigger is marked on the first line of the list so the
             user knows which one is currently active, and the row prints the
             symbol actually typed. */}
-        {saranRef.length === 0 && (saran.length > 0 || cariSlash.length > 0) && (
+        {/* The popup outlives its query only while the composer still holds the
+            token: `adaPemicuPrompt` is what stops a leftover search from keeping
+            the list open after the `/` is deleted. */}
+        {saranRef.length === 0 &&
+          (saran.length > 0 || (cariSlash.length > 0 && adaPemicuPrompt(draft))) && (
           <div
             className={`ai-slash${modeSnippet ? '' : ' is-cmd'}`}
             data-testid="ai-slash"
@@ -2667,6 +2897,46 @@ const bukaModels = () => bukaPanel('models');
           onSelect={(e) => setKursor(e.currentTarget.selectionStart ?? 0)}
           onClick={(e) => setKursor(e.currentTarget.selectionStart ?? 0)}
           onKeyDown={(e) => {
+            /*
+             * Backspace on an EMPTY draft takes the last chip off.
+             *
+             * The reference is no longer in the text, so no key can reach it
+             * otherwise - and a chip that can only be removed with the mouse is
+             * the same complaint as a raw path nobody asked for.
+             */
+            if (
+              e.key === 'Backspace' &&
+              !draft &&
+              draftRefs.length > 0 &&
+              (e.currentTarget.selectionStart ?? 0) === 0
+            ) {
+              e.preventDefault();
+              setDraftRefs((lama) => lama.slice(0, -1));
+              return;
+            }
+
+            /*
+             * The category menu owns the keys while it is showing.
+             *
+             * It is the first screen of the popup and no file row is on it, so
+             * arrows must move between categories and Enter must open one -
+             * otherwise Enter "inserted" a file that was not even visible.
+             */
+            if (menuKategori.length > 0 && !daftarTutup) {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const nm = menuKategori.length;
+                setIdxSaran((i) =>
+                  e.key === 'ArrowDown' ? (i + 1) % nm : (i - 1 + nm) % nm,
+                );
+                return;
+              }
+              if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+                e.preventDefault();
+                pilihKategori(menuKategori[idxMenu].jenis);
+                return;
+              }
+            }
 
             // The reference list takes the keys while it is open: Enter there
             // means "insert this reference", not "send".
@@ -2761,7 +3031,7 @@ const bukaModels = () => bukaPanel('models');
                * in the same state and that is fine; a key that is swallowed
                * silently is not. No text means no send, and nothing to block.
                */
-              if (!draft.trim() && draftImages.length === 0) return;
+              if (!draft.trim() && draftImages.length === 0 && draftRefs.length === 0) return;
               /*
                * While a run is in flight, Ctrl+Enter cuts it short and sends
                * this now; a plain Enter lines the message up behind it. Idle,
@@ -2769,7 +3039,7 @@ const bukaModels = () => bukaPanel('models');
                * and the queue only exists to wait for a run.
                */
               if (sibuk && (e.ctrlKey || e.metaKey)) {
-                void kirimSekarang(draft, draftImages, composerId);
+                void kirimPesan();
               } else {
                 /*
                  * Enter goes through `kirimSekarang` with this surface's id, the
@@ -2782,7 +3052,7 @@ const bukaModels = () => bukaPanel('models');
                  * like it did nothing here while the reply appeared over there.
                  * One path for both keys, so they cannot disagree.
                  */
-                void kirimSekarang(draft, draftImages, composerId);
+                void kirimPesan();
               }
             }
           }}
@@ -3018,10 +3288,10 @@ const bukaModels = () => bukaPanel('models');
               <button
                 className="ai-round-btn is-send"
                 data-testid="ai-send"
-                disabled={!draft.trim() && draftImages.length === 0}
+                disabled={!draft.trim() && draftImages.length === 0 && draftRefs.length === 0}
                 title={tr('Run')}
                 aria-label={tr('Run')}
-                onClick={() => void kirimSekarang(draft, draftImages, composerId)}
+                onClick={() => void kirimPesan()}
               >
                 <AiIkon name="arrow-up" size={15} />
               </button>

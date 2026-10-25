@@ -1,0 +1,14 @@
+{
+  "name": "galery-macos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Galeri foto desktop bergaya macOS (Electron)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
