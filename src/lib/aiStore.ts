@@ -34,6 +34,7 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { kunciPath } from './pathKey';
 import {
   deteksiKemampuan,
   findModel,
@@ -5229,8 +5230,19 @@ export const useAi = create<AiStore>((set0, get) => {
     const target = (dir ?? '').trim();
     if (!target) return;
     const sesi = get().sessions;
+    /*
+     * Compare by NORMALISED path, not by the raw string.
+     *
+     * The same folder reaches this function spelled in different ways: the
+     * dialog may hand back `D:/Proyek`, the Rust side `D:\Proyek`, and either
+     * may carry a trailing separator. A strict `===` told them apart, so the
+     * new folder looked like it had no session at all and the surfaces stayed
+     * on the PREVIOUS project's chat - the reported "agent window still reads
+     * the first workspace". `kunciPath` is the same key the Agents list groups
+     * by, so selection and grouping finally agree.
+     */
     const milik = sesi
-      .filter((s) => s.workspace === target)
+      .filter((s) => s.workspace && kunciPath(s.workspace) === kunciPath(target))
       .sort(
         (a, b) =>
           (b.messages[b.messages.length - 1]?.at ?? b.createdAt) -
@@ -5243,6 +5255,19 @@ export const useAi = create<AiStore>((set0, get) => {
       (aktif && !aktif.workspace ? aktif : null);
 
     if (kandidat) {
+      /*
+       * Stamp the folder's CURRENT spelling on the session we picked. The
+       * transcript may have been created under `D:/Proyek` while the folder is
+       * now open as `D:\Proyek`; leaving the old spelling in place would keep
+       * the Agents list from grouping it with the project the reader sees.
+       */
+      if (kunciPath(kandidat.workspace) !== kunciPath(target)) {
+        set((s) => ({
+          sessions: s.sessions.map((x) =>
+            x.id === kandidat.id ? { ...x, workspace: target } : x,
+          ),
+        }));
+      }
       set((s) => ({
         activeId: kandidat.id,
         /* Every surface follows: leaving one on another folder's chat is the bug. */
