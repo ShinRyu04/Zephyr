@@ -4,6 +4,7 @@ import { useWs } from '../../lib/workspaceStore';
 import FileTree from './FileTree';
 import TimelineView from './TimelineView';
 import OutlinePanel from './OutlinePanel';
+import WorkingSet from './WorkingSet';
 import SectionLipat from './SectionLipat';
 import ContextMenu from './ContextMenu';
 import RootSection from '../workspace/RootSection';
@@ -72,6 +73,12 @@ export default function ExplorerPanel() {
   const collapseAll = useExplorer((s) => s.collapseAll);
   const refreshAll = useExplorer((s) => s.refreshAll);
   const startInline = useExplorer((s) => s.startInline);
+  const filter = useExplorer((s) => s.filter);
+  const filterHasil = useExplorer((s) => s.filterHasil);
+  const filterJalan = useExplorer((s) => s.filterJalan);
+  const filterTerpotong = useExplorer((s) => s.filterTerpotong);
+  const setFilter = useExplorer((s) => s.setFilter);
+  const clearFilter = useExplorer((s) => s.clearFilter);
 
   const jumlahRoot = useWs((s) => s.roots.length);
   const kunciRoots = useWs((s) => s.roots.map((r) => r.path).join('|'));
@@ -160,6 +167,66 @@ export default function ExplorerPanel() {
       )}
 
       <div className="explorer-body">
+        {/*
+          * Working set ABOVE the tree.
+          *
+          * It answers "where is the file I keep jumping to", so it has to be
+          * visible without expanding anything - below the tree it would be
+          * behind the same scrolling it is meant to save. It starts open for
+          * the same reason: a shortcut nobody sees is not a shortcut.
+          */}
+        <SectionLipat judul={tr('explorer.workingSet')} testid="sec-working-set" bawaanBuka>
+          <WorkingSet />
+        </SectionLipat>
+        {/*
+          * Name filter.
+          *
+          * The tree cannot filter what it has not loaded, so typing here walks
+          * the folders (see lib/explorerFilter.ts) and expands the ones that
+          * hold a match. The result line states how many files matched, so an
+          * empty tree is never ambiguous between "no match" and "still walking".
+          */}
+        <div className="ex-filter">
+          <input
+            className="ex-filter-input"
+            placeholder={tr('explorer.filter')}
+            aria-label={tr('explorer.filter')}
+            data-testid="explorer-filter"
+            value={filter}
+            spellCheck={false}
+            onChange={(e) => void setFilter(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                clearFilter();
+              } else if (e.key === 'Enter' && filterHasil.length > 0) {
+                e.preventDefault();
+                void useStore.getState().openPath(filterHasil[0], { preview: false });
+              }
+            }}
+          />
+          {filter.trim() !== '' && (
+            <button
+              className="ex-filter-clear"
+              title={tr('explorer.filterClear')}
+              aria-label={tr('explorer.filterClear')}
+              data-testid="explorer-filter-clear"
+              onClick={clearFilter}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {filter.trim() !== '' && (
+          <p className="ex-filter-note" data-testid="explorer-filter-note" data-count={filterHasil.length}>
+            {filterJalan
+              ? tr('explorer.filterJalan')
+              : filterHasil.length === 0
+                ? tr('explorer.filterEmpty')
+                : `${filterHasil.length} ${tr('explorer.filterHasil')}${filterTerpotong ? ` (${tr('explorer.filterTerpotong')})` : ''}`}
+          </p>
+        )}
+
         {/* A single root is still rendered without a section header: adding one
             header layer for one folder only wastes vertical space.
             `kunciRoots` is used as the key so the tree is rebuilt when the

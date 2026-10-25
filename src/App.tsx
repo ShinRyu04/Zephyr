@@ -42,6 +42,7 @@ const ToolGatePanel = lazy(() => import('./components/ai/ToolGatePanel'));
 /* Same reason as the tool gate: the request log floats over the editor and must
    outlive the AI panel being hidden or resized. */
 const DebugPanel = lazy(() => import('./components/ai/DebugPanel'));
+const ComparePanel = lazy(() => import('./components/ai/ComparePanel'));
 const CrashDialog = lazy(() => import('./components/shell/CrashDialog'));
 const WelcomeSetup = lazy(() => import('./components/shell/WelcomeSetup'));
 const LayoutMenu = lazy(() => import('./components/shell/LayoutMenu'));
@@ -80,6 +81,7 @@ import { logFrontend, perfMark } from './lib/commands';
 import * as cmd from './lib/commands';
 import { onAiChunk, onFsChanged, onGhLogin, onGitProgress, onLspEvent, onMcpAction, onMcpConnect, onMcpScreenshot, onOpenFileInEditor, onPtyExit, onPtyOutput } from './lib/events';
 import { bacaIntegrasiShell } from './lib/shellIntegration';
+import { sebarkanChunkBanding } from './lib/chunkBus';
 import { mulaiHotExit, pulihkanHotExit } from './lib/hotExit';
 import { writeTo, disposeHandle, retheme } from './lib/xtermRegistry';
 import './styles/theme.css';
@@ -168,6 +170,7 @@ import './styles/subagent-timeline.css';
 import './styles/ai-icons.css';
 import './styles/tool-gate.css';
 import './styles/ai-debug.css';
+import './styles/ai-compare.css';
 import './styles/model-menu.css';
 import './styles/ai-sesi.css';
 import './styles/ai-todo-card.css';
@@ -1270,7 +1273,11 @@ export default function App() {
     void useAi.getState().init();
     aiListenerConsumers++;
     if (!aiListenerBound && !aiListenerBinding) {
-      aiListenerBinding = onAiChunk((c) => (window.__ZEPHYR_AI_STORE__ ?? useAi).getState().onChunk(c))
+      aiListenerBinding = onAiChunk((c) => {
+        (window.__ZEPHYR_AI_STORE__ ?? useAi).getState().onChunk(c);
+        /* Comparison answers belong to no chat session; see `chunkBus`. */
+        sebarkanChunkBanding(c);
+      })
         .then((un) => {
           aiListenerBinding = undefined;
           if (aiListenerConsumers === 0) {
@@ -1887,6 +1894,7 @@ export default function App() {
         <McpToast />
         <ToolGatePanel />
         <DebugPanel />
+        <ComparePanel />
         <CrashDialog />
         <NotificationCenter />
         <DeleteConfirmDialog />

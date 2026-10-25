@@ -176,6 +176,8 @@ export const MENUS: MenuDef[] = [
       { label: 'Go to Symbol…', command: 'editor.gotoSymbol' },
       { label: 'Go to Symbol in Workspace…', command: 'view.workspaceSymbol' },
       { label: 'Go to Definition', command: 'editor.gotoDefinition' },
+      { label: 'Go to Implementation', command: 'editor.gotoImplementation' },
+      { label: 'Go to Type Definition', command: 'editor.gotoTypeDefinition' },
       { label: 'Find All References', command: 'editor.findReferences' },
       SEP,
       { label: 'Next Problem', command: 'editor.nextError' },

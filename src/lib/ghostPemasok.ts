@@ -36,6 +36,13 @@ export const BATAS_PANJANG_SARAN = 120;
 export const BATAS_KONTEKS_KARAKTER = 4000;
 /** Maksimum baris konteks yang dibaca dari teks sebelum kursor. */
 export const BATAS_KONTEKS_BARIS = 40;
+
+/*
+ * Snooze hidup di modul terpisah (tanpa impor) dan HANYA dipakai sebagai gerbang
+ * di `ambilSaran`. Batas "nol jaringan / nol jam di fungsi murni" tetap dijaga:
+ * tidak ada fungsi pure di bawah yang membaca waktu.
+ */
+import { ghostDitunda } from './ghostSnooze';
 /** Baris yang lebih pendek dari ini (setelah trim) tidak diberi saran. */
 export const PANJANG_MINIMUM = 3;
 /** Penanda pengganti rahasia yang ditemukan di dalam saran. */
@@ -358,6 +365,8 @@ export async function ambilSaran(
   kunci: KunciKonteks = {},
 ): Promise<UsulanInline | null> {
   if (!hidup) return null;
+  /* Snooze berlaku juga untuk saran lokal (tanpa jaringan). */
+  if (ghostDitunda()) return null;
   const konteks = potongKonteks(sebelum);
   let mentah: SaranMentah = null;
   try {

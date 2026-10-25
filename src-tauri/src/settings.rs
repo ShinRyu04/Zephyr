@@ -227,6 +227,15 @@ pub fn default_settings() -> Value {
         // `false` dan fiturnya tidak bisa dihidupkan dari UI manapun.
         "mcp": {
             "enabled": false,
+
+            // Nyalakan server MCP sendiri saat aplikasi dibuka.
+            //
+            // `enabled` adalah keadaan saat ini (ditulis oleh mcp_start /
+            // mcp_stop), `autostart` adalah NIAT untuk sesi berikutnya. Dipisah
+            // supaya mematikan server sekali tidak membatalkan autostart.
+            // Harus sama dengan `mcp.autostart` di src/lib/types.ts.
+            "autostart": false,
+
             "port": 9222,
             "token": "",
             "writeToCli": [],

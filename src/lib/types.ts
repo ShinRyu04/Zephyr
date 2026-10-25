@@ -1734,6 +1734,19 @@ export interface Settings {
      * Ini harus sama dengan `settings.rs default_settings()`.
      */
     maxToolsPerServer: number;
+    /**
+     * Nyalakan server MCP 9222 sendiri saat aplikasi dibuka.
+     *
+     * MCP adalah fitur unggulan Zephyr, tapi sebelumnya harus dinyalakan dengan
+     * tangan setiap kali aplikasi dibuka - dan server yang mati tidak bisa
+     * dipakai klien mana pun, jadi fitur andalannya praktis tidak pernah hidup.
+     * `enabled` di atas adalah keadaan SAAT INI (ditulis oleh start/stop);
+     * `autostart` adalah NIAT untuk sesi berikutnya, dan sengaja dipisah supaya
+     * mematikan server sekali tidak ikut mematikan autostart.
+     *
+     * Harus sama dengan `settings.rs default_settings()`.
+     */
+    autostart: boolean;
     writeToCli: string[];
     /**
      * Izinkan agen LUAR (lewat MCP) mengendalikan terminal lewat `terminal_exec`.
@@ -1988,7 +2001,7 @@ export const DEFAULT_SETTINGS: Settings = {
     toastDurasiMin: 3200,
   },
   git: { defaultBranch: 'main', pullBeforePush: true },
-  mcp: { enabled: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false, maxToolsPerServer: 40 },
+  mcp: { enabled: false, autostart: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false, maxToolsPerServer: 40 },
   ssh: { recentHosts: [] },
   panel: {
     // `tests` is deliberately absent: the Test Explorer panel is opt-in and

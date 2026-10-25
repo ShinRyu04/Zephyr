@@ -448,6 +448,7 @@ export function potongHasilRiwayat(isi: string, batas: number = HISTORY_TOOL_CHA
 }
 
 import { systemPromptFor, identityReminder, aturanProyek, konteksMemoriProyek } from './systemPrompt';
+import { catatRencana, ingatanRencana } from './planMemory';
 import { kumpulkanDariApp, setPotretKeadaan } from './aiZephyrState';
 import { muatLengkap as muatMemoriSesi } from './aiMemori';
 
@@ -3349,6 +3350,16 @@ interface AiActions {
      */
     renameChat: (id: string, title: string) => void;
     duplicateChat: (id: string) => string | null;
+    /**
+     * A copy of the conversation that stops at `msgId`.
+     *
+     * The point is comparing two directions from the same starting point: fork,
+     * ask a different question, and both transcripts still hold the identical
+     * earlier turns. The caller decides which surface shows the fork — the
+     * session list continues there, while a per-bubble fork on a background
+     * surface leaves the reader where they were.
+     */
+    forkChat: (id: string, msgId: string, composerId?: string) => string | null;
     setChatPinned: (id: string, pinned: boolean) => void;
     /**
      * Point the chat surfaces at the conversation belonging to this folder.
@@ -5148,6 +5159,45 @@ export const useAi = create<AiStore>((set0, get) => {
     return baru;
   },
 
+  forkChat: (id, msgId, composerId = '') => {
+    const asal = get().sessions.find((x) => x.id === id);
+    if (!asal) return null;
+    const titik = asal.messages.findIndex((m) => m.id === msgId);
+    if (titik < 0) return null;
+    /*
+     * Cut AFTER the chosen message, so forking from a user turn keeps that
+     * question and the answer that followed it — forking from an answer would
+     * otherwise drop the question it answers and leave the fork starting with
+     * an assistant message the provider will refuse to continue from.
+     */
+    const pesan = asal.messages.slice(0, titik + 1).map((m) => ({
+      ...m,
+      /* A copy must never look like it is still streaming, or the fork shows a
+         caret blinking on a turn that ended in the ORIGINAL conversation. */
+      streaming: false,
+      tools: m.tools?.map((t) => ({ ...t })),
+    }));
+    const s: ChatSession = {
+      ...makeSession(asal.model, asal.provider),
+      title: `${asal.title} (fork)`,
+      messages: pesan,
+      workspace: asal.workspace,
+      approval: asal.approval,
+    };
+    /* Deliberately NOT pinned: the fork is a branch to explore, and a pinned
+       copy would sit above the conversation it was branched from. */
+    set((x) => ({ sessions: [...x.sessions, s] }));
+    persist(get());
+    /*
+     * Selecting the fork is what the reader asked for when they came from the
+     * session list or a bubble of the surface they are looking at — you fork in
+     * order to continue IN the fork. `composerId` is the surface that will show
+     * it, so nothing here has to guess.
+     */
+    get().selectChat(s.id, composerId);
+    return s.id;
+  },
+
   setChatPinned: (id, pinned) => {
     set((s) => ({
       sessions: s.sessions.map((x) => (x.id === id ? { ...x, pinned } : x)),
@@ -6549,6 +6599,13 @@ export const useAi = create<AiStore>((set0, get) => {
            sekali pakai. Ditaruh setelah aturan supaya terbaca sebagai "di mana
            kita sekarang", bukan "aturannya apa". */
         const aturanGabung = memori ? `${aturan}\n\n${memori}`.trim() : aturan;
+        /*
+         * Rencana dari run sebelumnya di workspace yang sama. `agentTodos`
+         * dikosongkan setiap run, jadi tanpa ini model merancang ulang langkah
+         * yang sudah selesai. Lihat `planMemory.ts`.
+         */
+        const ingatan = ingatanRencana(useStore.getState().workspace);
+        const konteksGabung = ingatan ? `${aturanGabung}\n\n${ingatan}`.trim() : aturanGabung;
         history.unshift({
           role: 'system',
           /*
@@ -6558,7 +6615,7 @@ export const useAi = create<AiStore>((set0, get) => {
            * dan menyuntik potongan indeks Zephyr yang cocok - jalur otomatis yang
            * tidak bergantung pada model memanggil `zephyr_self`.
            */
-          content: systemPromptFor(bhsJawab, ekstra, aturanGabung, ai.model, ai.provider, gayaJawab, content),
+          content: systemPromptFor(bhsJawab, ekstra, konteksGabung, ai.model, ai.provider, gayaJawab, content),
         });
       } catch {
         history.unshift({
@@ -9783,6 +9840,19 @@ let autoLanjut = 0;
       kategori: agentFailure ? agentFailure.category : null,
       berkas: [...berkasDitulisGiliran],
       todos: get().agentTodos,
+    });
+
+    /*
+     * Ingatan rencana lintas-sesi, terpisah dari `.zephyr-context.md` karena
+     * yang ini tidak bergantung pada workspace berupa folder: rencana terakhir
+     * tetap terbaca walau sesi baru dibuka sebelum folder dimuat. Disimpan di
+     * `localStorage` oleh `planMemory.ts`, bukan di daftar sesi - rencana milik
+     * pekerjaan, bukan milik satu percakapan.
+     */
+    catatRencana(wsRun, {
+      tugas: tugasRun,
+      todos: get().agentTodos,
+      gagal: agentFailure !== null || agentBatal,
     });
 
     // This is the single agent exit cleanup path. It also clears approval state
