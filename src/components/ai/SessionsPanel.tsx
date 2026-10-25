@@ -39,6 +39,7 @@ const SessionsPanel = memo(function SessionsPanel({
   const selectChat = useAi((s) => s.selectChat);
   const newChat = useAi((s) => s.newChat);
   const deleteChat = useAi((s) => s.deleteChat);
+  const forkChat = useAi((s) => s.forkChat);
   const [cari, setCari] = useState('');
 
   const urut = useMemo(() => {
@@ -123,6 +124,20 @@ const SessionsPanel = memo(function SessionsPanel({
                 >
                   <span className="ai-sessions-judul">{tr(s.title)}</span>
                   <span className="ai-sessions-waktu">{relatif(ts)}</span>
+                  <button
+                    className="ai-sessions-hapus"
+                    data-testid={`ai-sessions-fork-${s.id}`}
+                    title={tr('Fork chat')}
+                    /* Branch at the last message: the fork keeps this whole
+                       conversation and continues on its own from here. */
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!last) return;
+                      forkChat(s.id, last.id);
+                    }}
+                  >
+                    <AiIkon name="git-branch" size={12} />
+                  </button>
                   <button
                     className="ai-sessions-hapus"
                     data-testid={`ai-sessions-hapus-${s.id}`}

@@ -9,6 +9,8 @@ import { useProblems } from '../../lib/problemsStore';
 import { runCommand } from '../../lib/commandRegistry';
 import { useT, useTf } from '../../lib/i18n';
 import { useRun } from '../../lib/runStore';
+import { notifyInfo } from '../../lib/notificationStore';
+import { tundaGhost, useSisaTunda } from '../../lib/ghostSnooze';
 /*
  * StrictMode memasang effect DUA kali. onRamUsage masih berjalan saat cleanup
  * dipanggil, jadi unlisten belum ada dan cleanup tidak melepas apa pun; mount
@@ -165,6 +167,35 @@ function RunBadge() {
   );
 }
 
+function SnoozeBadge() {
+  const tr = useT();
+  const tf = useTf();
+  const sisa = useSisaTunda();
+  /*
+   * The remaining time is rounded UP so the badge never reads "0 min" while
+   * suggestions are still off — a zero that still pauses looks broken.
+   */
+  const menit = Math.max(1, Math.ceil(sisa / 60000));
+  if (sisa <= 0) return null;
+
+  return (
+    <>
+      <button
+        className="sb-item sb-snooze"
+        data-testid="sb-snooze"
+        title={tr('Inline suggestions are snoozed - click to turn them back on')}
+        onClick={() => {
+          tundaGhost(null);
+          notifyInfo(tr('Inline suggestions resumed'), { source: 'editor' });
+        }}
+      >
+        <span aria-hidden="true">✎</span> {tf('suggestions off: {n} min', { n: menit })}
+      </button>
+      <span className="sb-sep">|</span>
+    </>
+  );
+}
+
 export default function StatusBar() {
   const [version, setVersion] = useState('0.5.0');
   const ramBytes = useStore((s) => s.ramBytes);
@@ -243,6 +274,7 @@ export default function StatusBar() {
       <span className="sb-sep">|</span>
       <span className="sb-item">{tab ? (tab.lineEnding === 'crlf' ? 'CRLF' : 'LF') : 'CRLF'}</span>
       <span className="sb-sep">|</span>
+      <SnoozeBadge />
       {/*
         * `LANG_LABEL[tab.lang]` only knew the built-in languages, so a file
         * highlighted by a contributed language pack still read "Plain Text"

@@ -114,6 +114,9 @@ export type NamaAiIkon =
     | 'bug'
     | 'clock'
     | 'pin'
+    /* A fork: two branches leaving one line. Used for "fork the chat from
+       here", which is a split in the conversation and reads as one. */
+    | 'git-branch'
     /* A speech bubble with a tail: a queued message, the way Hermes marks one
        in its queue panel. Distinct from 'snippet' (which carries a dash and
        means "prompt fragment") and from 'new-chat' (which carries a plus). */
@@ -753,6 +756,18 @@ export default function AiIkon({ name, size = 15 }: Props) {
         <svg {...box}>
           <path d="M9.4 1.8 14.2 6.6l-2 .6-2.2 3.4.5 2.5-1 .9-4.5-4.5.9-1 2.5.5L11.8 6.8l.6-2z" />
           <path d="M5.4 10.6 2.4 13.6" />
+        </svg>
+      );
+
+    // A fork: one line splitting into two.
+    case 'git-branch':
+      return (
+        <svg {...box}>
+          <path d="M5 3.4v9.2" />
+          <path d="M5 7.4h3.2a2.4 2.4 0 0 0 2.4-2.4V3.4" />
+          <circle cx="5" cy="2.6" r="1.5" />
+          <circle cx="5" cy="13.4" r="1.5" />
+          <circle cx="10.6" cy="2.6" r="1.5" />
         </svg>
       );
 

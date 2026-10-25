@@ -43,7 +43,8 @@ import { clipboardWrite, clipboardRead } from './clipboard';
 import { undo, redo, selectAll, selectLine, toggleComment, toggleBlockComment, selectParentSyntax } from '@codemirror/commands';
 import { selectSelectionMatches, gotoLine } from '@codemirror/search';
 import { EditorSelection, type SelectionRange } from '@codemirror/state';
-import { tx } from './i18n';
+import { tx, tf } from './i18n';
+import { ghostDitunda, tundaGhost, TUNDA_BAWAAN_MS } from './ghostSnooze';
 
 import { useTampilan } from './tampilanStore';
 import { useUpdater } from './updaterStore';
@@ -1040,6 +1041,34 @@ export const COMMANDS: CommandDef[] = [
     keywords: 'wrap lipat baris',
     run: () => S().applySettings({ editor: { wordWrap: !S().settings.editor.wordWrap } }),
   },
+  /*
+   * Snooze inline suggestions.
+   *
+   * Two entries: one to pause (the default length, bindable) and one to resume
+   * at once. Both only touch runtime state — settings on disk are untouched, so
+   * the pause cannot outlive the session by accident.
+   */
+  {
+    id: 'editor.snoozeSuggestions',
+    title: 'View: Snooze Inline Suggestions',
+    group: 'View',
+    keywords: 'ghost text autocomplete tunda jeda matikan sementara snooze suggest',
+    run: () => {
+      tundaGhost(TUNDA_BAWAAN_MS);
+      notifyInfo(tf('Inline suggestions snoozed for {n} min', { n: 15 }), { source: 'editor' });
+    },
+  },
+  {
+    id: 'editor.resumeSuggestions',
+    title: 'View: Resume Inline Suggestions',
+    group: 'View',
+    keywords: 'ghost text autocomplete lanjutkan nyalakan snooze tunda',
+    enabled: () => ghostDitunda(),
+    run: () => {
+      tundaGhost(null);
+      notifyInfo(tx('Inline suggestions resumed'), { source: 'editor' });
+    },
+  },
 
   ...(
     [
@@ -1348,6 +1377,64 @@ export const COMMANDS: CommandDef[] = [
         window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
       } catch (e) {
         notifyError(tx('Go to Definition failed'), { source: 'LSP', detail: asZephyrError(e).message });
+      }
+    },
+  },
+  {
+    id: 'editor.gotoImplementation',
+    title: 'Go: Go to Implementation',
+    group: 'Edit',
+    /*
+     * `Ctrl+F12` is the reference editor's binding for this and it is the one
+     * readers arrive with. The keywords include "implementasi" so the palette
+     * finds it from an Indonesian query too - this is the jump people look for
+     * when `Go to Definition` lands them on the interface instead of the class.
+     */
+    keywords: 'implementasi impl implementation ctrl f12 lsp antarmuka kelas',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { lspImplementation } = await import('./lspCm');
+      try {
+        const loc = await lspImplementation(path, view, view.state.selection.main.head);
+        if (!loc) {
+          notifyWarn(tx('No implementation found'), { source: 'LSP' });
+          return;
+        }
+        await S().openPath(loc.file);
+        window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
+      } catch (e) {
+        notifyError(tx('Go to Implementation failed'), {
+          source: 'LSP',
+          detail: asZephyrError(e).message,
+        });
+      }
+    },
+  },
+  {
+    id: 'editor.gotoTypeDefinition',
+    title: 'Go: Go to Type Definition',
+    group: 'Edit',
+    keywords: 'tipe type definition lsp jenis',
+    enabled: () => lspSiap(),
+    run: async () => {
+      const { path, view } = konteksLsp();
+      if (!path || !view) return;
+      const { lspTypeDefinition } = await import('./lspCm');
+      try {
+        const loc = await lspTypeDefinition(path, view, view.state.selection.main.head);
+        if (!loc) {
+          notifyWarn(tx('No type definition found'), { source: 'LSP' });
+          return;
+        }
+        await S().openPath(loc.file);
+        window.setTimeout(() => revealPosition(loc.line, loc.column), 90);
+      } catch (e) {
+        notifyError(tx('Go to Type Definition failed'), {
+          source: 'LSP',
+          detail: asZephyrError(e).message,
+        });
       }
     },
   },

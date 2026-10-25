@@ -14,6 +14,7 @@ import { getActiveView } from '../../lib/editorRegistry';
 import { useStore } from '../../lib/store';
 import { notifyInfo } from '../../lib/notificationStore';
 import { useT } from '../../lib/i18n';
+import { bacaRiwayat, catatRiwayat, langkahRiwayat } from '../../lib/findHistory';
 
 export default function FindBar() {
   const tr = useT();
@@ -160,7 +161,20 @@ export default function FindBar() {
       getActiveView()?.focus();
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      catatRiwayat(query);
       act(e.shiftKey ? findPrevious : findNext);
+    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.currentTarget === inputRef.current) {
+      /*
+       * ↑/↓ inside the query field walk the history instead of moving the
+       * caret. The caret is a single line here, so the default behaviour is
+       * worth nothing, while re-typing a term you searched a minute ago is a
+       * constant chore. Both keys stop at the ends instead of wrapping, so
+       * holding ArrowUp never silently jumps back to the newest term.
+       */
+      const t = langkahRiwayat(query, e.key === 'ArrowUp' ? -1 : 1);
+      if (t === null) return;
+      e.preventDefault();
+      setQuery(t);
     }
   };
 
@@ -180,10 +194,20 @@ export default function FindBar() {
           className={`find-input${invalid ? ' is-invalid' : ''}`}
           data-testid="find-input"
            placeholder={tr('Search')}
+           list="zephyr-find-riwayat"
            value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onBlur={() => catatRiwayat(query)}
           aria-label={tr('Search in file')}
         />
+        {/* History offered as a <datalist> too, so it is discoverable without
+            knowing about ↑ - the arrow keys are the fast path, not the only
+            path. Rebuilt each render from the module list; it is ≤30 entries. */}
+        <datalist id="zephyr-find-riwayat">
+          {bacaRiwayat().map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
 
         <button
           className={`find-flag${caseSensitive ? ' is-on' : ''}`}

@@ -89,11 +89,26 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   D('Ctrl+L', 'editor.select.line', 'editor', 'editorFocus'),
   D('Ctrl+A', 'editor.selectAll', 'editor', 'editorFocus'),
   D('Alt+Z', 'editor.wordWrap.toggle', 'app'),
+  /*
+   * Alt+Shift+\ pauses inline suggestions; the plain Alt+\ that summons one
+   * stays untouched. The resume command has no chord — it is in the palette and
+   * in the status-bar badge, which is where a reader looks when the grey text
+   * is gone and they want it back.
+   */
+  D('Alt+Shift+\\', 'editor.snoozeSuggestions', 'app'),
   D('Shift+Alt+A', 'editor.blockComment.toggle', 'stub', 'editorFocus', 'Toggle Block Comment'),
   
   D('Shift+Alt+F', 'editor.formatDocument', 'app', 'editorFocus'),
   D('F12', 'editor.gotoDefinition', 'app', 'editorFocus'),
   D('Shift+F12', 'editor.findReferences', 'app', 'editorFocus'),
+  /*
+   * Implementation and type definition had no binding because the commands did
+   * not exist. `Ctrl+F12` is what the reference editor uses for "go to
+   * implementation" and is what hands reach for when F12 lands on an interface;
+   * `Ctrl+Shift+F12` sits next to it for the type-jump.
+   */
+  D('Ctrl+F12', 'editor.gotoImplementation', 'app', 'editorFocus'),
+  D('Ctrl+Shift+F12', 'editor.gotoTypeDefinition', 'app', 'editorFocus'),
   D('F2', 'editor.renameSymbol', 'app', 'editorFocus'),
   D('Ctrl+.', 'editor.quickFix', 'app', 'editorFocus'),
   D('Ctrl+Space', 'editor.triggerSuggest', 'editor', 'editorFocus'),

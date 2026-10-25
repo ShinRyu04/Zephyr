@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { cariNamaDiPohon } from './explorerFilter';
+import { hapusKerja } from './workingSet';
 import { notifyError, notifyInfo } from './notificationStore';
 import type { DirNode, SearchHit } from './types';
 import { tx } from './i18n';
@@ -35,6 +37,16 @@ interface ExplorerState {
   explorerError: string | null;
   
   pendingDelete: string[] | null;
+
+  /*
+   * Name filter for the tree, kept in the store rather than in a component so
+   * it survives switching ActivityBar panels mid-search. `filterHasil` holds
+   * the matched files, `filterTerpotong` says a walk limit was hit.
+   */
+  filter: string;
+  filterHasil: string[];
+  filterJalan: boolean;
+  filterTerpotong: boolean;
 
   query: string;
   glob: string;
@@ -71,6 +83,9 @@ interface ExplorerActions {
   movePath: (from: string, toDir: string) => Promise<void>;
   reveal: (path: string) => Promise<void>;
   copyPath: (path: string) => Promise<void>;
+
+  setFilter: (q: string) => Promise<void>;
+  clearFilter: () => void;
 
   setQuery: (q: string) => void;
   setGlob: (g: string) => void;
@@ -111,6 +126,11 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   explorerError: null,
   
   pendingDelete: null,
+
+  filter: '',
+  filterHasil: [],
+  filterJalan: false,
+  filterTerpotong: false,
 
   query: '',
   glob: '',
@@ -249,6 +269,10 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
       }));
       
       useStore.getState().closeTabsUnder(paths);
+      /* A deleted file must leave the working set too, otherwise the list
+         keeps offering a path that no longer opens. */
+      const akar = useStore.getState().workspace ?? '';
+      for (const p of paths) hapusKerja(akar, p);
       
       notifyInfo(
         paths.length === 1
@@ -325,6 +349,43 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   setReplaceWith: (r) => set({ replaceWith: r }),
   toggleCase: () => set((s) => ({ caseSensitive: !s.caseSensitive })),
   toggleRegex: () => set((s) => ({ regex: !s.regex })),
+
+  /*
+   * The walk is async and can take a moment on a big repo, so a stale result is
+   * possible: the reader keeps typing while folders are being scanned. Each call
+   * carries the text it was started for and drops its own answer if the box has
+   * moved on, otherwise the tree would flash the matches of a prefix.
+   */
+  setFilter: async (q) => {
+    const teks = q.trim();
+    if (!teks) {
+      set({ filter: q, filterHasil: [], filterJalan: false, filterTerpotong: false });
+      return;
+    }
+    set({ filter: q, filterJalan: true, filterTerpotong: false });
+
+    const akar = useStore.getState().workspace;
+    if (!akar) {
+      set({ filterJalan: false, filterHasil: [] });
+      return;
+    }
+
+    const hasil = await cariNamaDiPohon(akar, teks);
+    if (get().filter.trim() !== teks) return;
+
+    for (const d of hasil.buka) {
+      set((s) => ({ expanded: { ...s.expanded, [d]: true } }));
+      await get().loadDir(d);
+    }
+    set({
+      filterJalan: false,
+      filterHasil: hasil.berkas,
+      filterTerpotong: hasil.terpotong,
+    });
+  },
+
+  clearFilter: () =>
+    set({ filter: '', filterHasil: [], filterJalan: false, filterTerpotong: false }),
 
   runSearch: async () => {
     const { query, glob, caseSensitive, regex } = get();

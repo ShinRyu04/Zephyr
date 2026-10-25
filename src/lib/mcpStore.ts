@@ -97,6 +97,25 @@ export const useMcp = create<McpStore>((set, get) => ({
 
     const saved = useStore.getState().settings.mcp.writeToCli ?? [];
     if (saved.length > 0) set({ checked: [...saved] });
+
+    /*
+     * Autostart.
+     *
+     * MCP is the feature other tools build on, and a server that has to be
+     * switched on by hand every launch is a server that is practically never
+     * running. The flag is a stored intention, checked here instead of in Rust
+     * so the same path is used as the manual toggle: same port fallback, same
+     * error reporting, same log line.
+     *
+     * Only when it is NOT already running. `refresh` above already told us the
+     * state, and calling start on a live server would just fail and paint an
+     * error over a working setup (a second window, a dev reload).
+     */
+    const mcp = useStore.getState().settings.mcp;
+    if (mcp.autostart && !get().status?.running) {
+      await get().toggleServer(true);
+      if (!get().mcpError) get().pushLog('autostart: MCP dihidupkan saat aplikasi dibuka', 'server');
+    }
   },
 
   refresh: async () => {

@@ -1414,6 +1414,18 @@ export function installDevBridge(): void {
       if (!view) return [];
       return lspReferences(path, view, view.state.selection.main.head);
     },
+    implementation: async (path: string) => {
+      const { lspImplementation } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return null;
+      return lspImplementation(path, view, view.state.selection.main.head);
+    },
+    typeDefinition: async (path: string) => {
+      const { lspTypeDefinition } = await import('./lspCm');
+      const view = getActiveView();
+      if (!view) return null;
+      return lspTypeDefinition(path, view, view.state.selection.main.head);
+    },
     hover: async (path: string) => {
       const view = getActiveView();
       if (!view) return null;
