@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AgentsTitleBar from './AgentsTitleBar';
 import AgentsSidebar from './AgentsSidebar';
 import AgentsKontrolSudut from './AgentsKontrolSudut';
@@ -10,6 +10,8 @@ import type { TampilanAgents } from '../../lib/agentsWindow';
 import AgentsPanelKanan from './AgentsPanelKanan';
 import AiPanel from '../ai/AiPanel';
 import { useAi } from '../../lib/aiStore';
+import { useAgxTabs } from '../../lib/agentsTabs';
+import { AGX_BUKA_PANEL, type PermintaanPanelAgx } from '../../lib/agxPanel';
 import { useAutomationScheduler } from '../../lib/automationStore';
 /* Gaya jendela ini (`.agx-*`). Ia halaman sendiri (`#agents`), bukan bagian
    panel editor, jadi berkasnya dimuat di sini — `App.tsx` tidak mengimpornya. */
@@ -42,6 +44,26 @@ export default function AgentsApp() {
      Automation sedang tidak dibuka. */
   useAutomationScheduler();
   const [panelKanan, setPanelKanan] = useState(false);
+  /*
+   * The chat can ask for a tab in this panel (a changed file, or the diff of
+   * one). It cannot open the panel itself: `panelKanan` is local state here, and
+   * the tabs live in `useAgxTabs`. So the request arrives as one event and is
+   * carried out in this component, which owns both halves.
+   */
+  useEffect(() => {
+    const onBuka = (e: Event) => {
+      const { tampilan, path } = (e as CustomEvent<PermintaanPanelAgx>).detail ?? {};
+      if (!tampilan) return;
+      setPanelKanan(true);
+      setTampilan('chat');
+      const tabs = useAgxTabs.getState();
+      tabs.buka(tampilan, tampilan === 'diff-view' ? 'Diff View' : 'File');
+      const id = useAgxTabs.getState().aktifId;
+      if (tampilan === 'file' && path && id) useAgxTabs.getState().setFile(id, path);
+    };
+    window.addEventListener(AGX_BUKA_PANEL, onBuka);
+    return () => window.removeEventListener(AGX_BUKA_PANEL, onBuka);
+  }, []);
   /*
    * Apakah permukaan chat jendela ini sudah punya percakapan.
    *

@@ -15,7 +15,7 @@
 //   D3  kartu menyebut berkas yang benar, bukan path lain
 //   D4  angka +N −N ikut tampil (dari `additions`/`deletions` baris tool)
 //   D4b tombol Diff (global) ada di header kartu
-//   D4c kartu berbentuk pohon: berkas dikelompokkan per folder
+//   D4c tiap baris menampilkan path lengkap (kartu datar, tanpa grup folder)
 //   D4d tiap baris berkas punya tombol Diff sendiri
 //   D5  klik tombol Diff membuka view `diff-view`
 //   D5b klik Diff pada baris berkas memilih berkas itu, bukan yang pertama
@@ -136,6 +136,15 @@ const HASIL_INJEK = await runAsync(`
     const stBaru = ai.store.getState();
     const sid = stBaru.activeId;
     const path = 'D:/Zephyr/scratch/uji-diff-dummy.ts';
+    /* Sisa run sebelumnya dibuang dulu: setiap run menyuntik satu pesan, jadi
+       tanpa ini D2b melihat dua kartu dan gagal karena riwayat uji, bukan
+       karena produknya. */
+    window.__ZEPHYR_AI__.store.setState((s0) => ({
+      sessions: s0.sessions.map((sess) => ({
+        ...sess,
+        messages: sess.messages.filter((m) => !String(m.id).startsWith('uji-diff-')),
+      })),
+    }));
     const pesan = {
       id: 'uji-diff-' + Date.now().toString(36),
       role: 'assistant',
@@ -182,8 +191,22 @@ await sleep(1200);
 const DOM = await cdp.eval(`
   JSON.stringify((() => {
     const semua = [...document.querySelectorAll('[data-testid="ai-perubahan"]')];
+    /*
+     * Dihitung PER TRANSKRIP, bukan per dokumen.
+     *
+     * Jendela utama bisa memasang dua transkrip sekaligus (kolom kanan dan tab
+     * editor), dan keduanya menggambar kartu untuk sesi yang sama. Menghitung
+     * seluruh dokumen karena itu melaporkan dua kartu untuk satu sesi, padahal
+     * yang diuji adalah "satu sesi = satu kartu di dalam transkripnya".
+     */
+    const perTranskrip = new Map();
+    for (const k of semua) {
+      const t = k.closest('[data-testid="ai-chat"]') ?? document.body;
+      perTranskrip.set(t, (perTranskrip.get(t) ?? 0) + 1);
+    }
+    const jumlahKartu = perTranskrip.size ? Math.max(...perTranskrip.values()) : semua.length;
     const kartu = semua[semua.length - 1];
-    if (!kartu) return { ada: false, jumlahKartu: semua.length };
+    if (!kartu) return { ada: false, jumlahKartu, jumlahTranskrip: perTranskrip.size };
     const baris = [...kartu.querySelectorAll('[data-testid="ai-ubah-baris"]')].map((b) => ({
       path: b.getAttribute('title') || '',
       teks: (b.textContent || '').replace(/\\s+/g, ' ').trim(),
@@ -192,10 +215,11 @@ const DOM = await cdp.eval(`
       dir: f.getAttribute('data-dir') || '',
       teks: (f.textContent || '').replace(/\\s+/g, ' ').trim(),
     }));
-    const stat = kartu.querySelector('.ai-ubah-head .ai-ubah-stat');
+    const stat = kartu.querySelector('.ai-ubah-kepala .ai-ubah-stat');
     return {
       ada: true,
-      jumlahKartu: semua.length,
+      jumlahKartu,
+      jumlahTranskrip: perTranskrip.size,
       baris,
       folder,
       stat: stat ? (stat.textContent || '').replace(/\\s+/g, ' ').trim() : '',
@@ -210,7 +234,7 @@ cek('D2  kartu files-changed muncul di transcript', dom.ada === true, JSON.strin
 cek(
   'D2b satu sesi = satu kartu (bukan per giliran)',
   dom.jumlahKartu === 1,
-  `jumlahKartu=${dom.jumlahKartu}`,
+  `jumlahKartu=${dom.jumlahKartu} transkrip=${dom.jumlahTranskrip}`,
 );
 
 const pathKartu = (dom.baris ?? []).map((b) => b.path);
@@ -228,11 +252,18 @@ const hapus = Number((dom.stat?.match(/[−-](\d+)/) ?? [])[1] ?? -1);
 cek('D4  angka tambah > 0', tambah > 0, `stat="${dom.stat}" tambah=${tambah} hapus=${hapus}`);
 cek('D4b tombol Diff ada di kartu', dom.adaTombolDiff === true);
 
-/* D4c — the card is a FOLDER TREE, one group row per directory, one row per
-   file, and every file carries its own `Diff`. A flat list of paths passed the
-   old assertions just as well, which is exactly why this check exists. */
-const folderAda = (dom.folder ?? []).some((f) => f.dir.replace(/\\/g, '/').endsWith('Zephyr/scratch'));
-cek('D4c  berkas dikelompokkan per folder', folderAda, JSON.stringify(dom.folder));
+/* D4c — the card is FLAT, one row per file, each row carrying the full
+   relative path. It used to be a folder tree; the reference it now follows
+   (the user's TRAE screenshots) does not group, so a group row would be a
+   second, invented level. Every row must still name its directory, because a
+   flat list without paths cannot tell two `index.ts` apart. */
+cek(
+  'D4c  tiap baris menampilkan path lengkap (tanpa grup folder)',
+  (dom.folder ?? []).length === 0 &&
+    (dom.baris ?? []).length > 0 &&
+    (dom.baris ?? []).every((b) => (b.teks ?? '').includes('scratch/uji-diff-dummy.ts')),
+  JSON.stringify({ folder: dom.folder, baris: dom.baris }),
+);
 cek(
   'D4d  tiap berkas punya tombol Diff sendiri',
   (dom.jumlahTombolBerkas ?? 0) >= (dom.baris ?? []).length && (dom.baris ?? []).length > 0,

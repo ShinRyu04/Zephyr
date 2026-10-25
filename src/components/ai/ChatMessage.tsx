@@ -9,6 +9,7 @@ import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { AgentToolRun, ChatMsg } from '../../lib/types';
 import type { NamaAiIkon } from './AiIkon';
 import AiIkon from './AiIkon';
+import FileIkon from './FileIkon';
 import Lightbox from './Lightbox';
 import ReasoningBlock from './ReasoningBlock';
 import { MsgTime } from './ChatStamp';
@@ -17,6 +18,7 @@ import { EditDiff, IkonBerkas, ikonSasaran, toolGlyph, toolKind } from './claude
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
+import { useExplorer } from '../../lib/explorerStore';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -227,6 +229,9 @@ const MD_PLUGINS = [remarkGfm];
 /* `pre` exists only to be unwrapped: CodeBlock renders its own <pre>. */
 const MdPre: NonNullable<Components['pre']> = ({ children }) => <>{children}</>;
 
+/*
+ * A link the model writes opens in a new tab, as it always did.
+ */
 const MdLink: NonNullable<Components['a']> = ({ href, children }) => (
   <a href={href} target="_blank" rel="noreferrer noopener">
     {children}
@@ -921,62 +926,86 @@ function cabangPohon(tools: readonly AgentToolRun[]): CabangPohon[] {
 }
 
 /**
- * Isi baris anak, dalam kata TRAE.
+ * Isi satu langkah, dalam kata TRAE: satu kalimat hasil, lalu DAFTAR berkas
+ * yang benar-benar ditemukan/dibaca sebagai anak barisnya.
  *
- * TRAE menulis HASIL di baris anak, bukan perintahnya: "Found 2 files
- * ai-kerja|…", "Found 61 lines ^|grep", "Read ChatMessage.tsx". Sebelumnya
- * baris ini berbunyi "Search · satu · ai-cabang" - perintah - sehingga
- * pembaca harus membuka baris itu untuk tahu apa yang ditemukan. Path tetap
- * ditulis LENGKAP (`src/styles/ai.css`, bukan `ai.css`), persis seperti TRAE.
+ * TRAE menulis:
+ *
+ *     Found 2 files  ai-kerja|…
+ *       # d:\Zephyr\src\styles\ai.css
+ *       # d:\Zephyr\src\styles\ai-trace.css
+ *     Found 61 lines  ^|grep
+ *       # d:\Zephyr\src\components\ai\ChatMessage.tsx
+ *     Read  ai.css
+ *     No results found
+ *
+ * Kalimatnya hasil, bukan perintah, dan path ditulis LENGKAP - pembaca tidak
+ * perlu membuka apa pun untuk tahu apa yang ditemukan.
  */
-function isiLangkah(
+interface RingkasLangkah {
+  /* Kalimat hasil ("Found 2 files", "Read", "No results found"). */
+  teks: string;
+  /* Sasaran pendek di kanan kalimat (pola pencarian), bila ada. */
+  sasaran: string;
+  /* Path hasil, satu baris per berkas. */
+  berkas: string[];
+}
+
+function ringkasLangkah(
   t: AgentToolRun,
   tf: (s: string, v: Record<string, string | number>) => string,
   tr: (s: string) => string,
-): string {
+): RingkasLangkah {
   const nama = namaPolos(t.name);
   const hasil = (t.result ?? '').trim();
   const target = sasaranAksi(t.args);
-  if (t.ok === false) return tr('Failed');
+  const kosong = { teks: '', sasaran: '', berkas: [] };
+  if (t.ok === false) return { ...kosong, teks: tr('Failed') };
+
   if (nama === 'grep' || nama === 'search_grep' || nama.startsWith('search')) {
+    const pola = (() => {
+      try {
+        return (JSON.parse(t.args || '{}') as { pattern?: string }).pattern ?? '';
+      } catch {
+        return '';
+      }
+    })();
     const m = hasil.match(/^\[(\d+)\s*berkas,\s*(\d+)\s*kecocokan\]/i);
     if (m) {
-      /* Pola pencarian ikut ditulis: "Found 61 lines ^|grep". */
-      const pola = (() => {
-        try {
-          const a = JSON.parse(t.args || '{}') as { pattern?: string };
-          return a.pattern ?? '';
-        } catch {
-          return '';
-        }
-      })();
-      const jumlah = Number(m[2]);
-      const dasar = tf('Found {n} lines', { n: jumlah });
-      return pola ? `${dasar} ${pola}` : dasar;
+      /* Berkas yang disebut setelah header `[N berkas, M kecocokan]`. */
+      const berkas = hasil
+        .split('\n')
+        .slice(1)
+        .map((b) => b.trim())
+        .filter((b) => /^[A-Za-z]:[\\/]|^[./]|^\w+[\\/]/.test(b));
+      return { teks: tf('Found {n} lines', { n: Number(m[2]) }), sasaran: pola, berkas };
     }
-    if (/^Tidak ada hasil/i.test(hasil)) return tr('No results found');
-    return target ? `${tr('Searched')} ${target}` : tr('Searched');
+    if (/^Tidak ada hasil/i.test(hasil)) return { ...kosong, teks: tr('No results found') };
+    return { ...kosong, teks: tr('Searched'), sasaran: pola };
   }
+
   if (nama === 'glob' || nama === 'list_workspace_files') {
-    if (/^Tidak ada berkas yang cocok/i.test(hasil)) return tr('No files matched');
-    const baris = hasil.split('\n').map((b) => b.trim()).filter((b) => b && !b.startsWith('['));
-    if (baris.length <= 1) {
-      const satu = baris[0] || target;
-      return satu ? `${tr('Found')} ${satu}` : tr('Found files');
+    if (/^Tidak ada berkas yang cocok/i.test(hasil)) return { ...kosong, teks: tr('No results found') };
+    const baris = hasil
+      .split('\n')
+      .map((b) => b.trim())
+      .filter((b) => b && !b.startsWith('['));
+    if (baris.length === 0) {
+      return { ...kosong, teks: tr('No results found') };
     }
-    return tf('Found {n} files', { n: baris.length });
+    return { teks: tf('Found {n} files', { n: baris.length }), sasaran: '', berkas: baris };
   }
+
   if (nama === 'bash_run' || nama === 'sh' || nama === 'run_command') {
     const cmd = perintahAksi(t.name, t.args) || target;
     if (typeof t.exitCode === 'number' && t.exitCode !== 0) {
-      return `${cmd} ${tf('Exit code {n}', { n: t.exitCode })}`.trim();
+      return { ...kosong, teks: cmd, sasaran: tf('Exit code {n}', { n: t.exitCode }) };
     }
-    return cmd ? `${tr('Ran')} ${cmd}` : tr('Ran a command');
+    return { ...kosong, teks: tr('Ran'), sasaran: cmd };
   }
-  if (typeof t.lines === 'number' && t.lines > 0) {
-    return target ? `${tr('Read')} ${target}` : tf('Read {n} lines', { n: t.lines });
-  }
-  return target ? `${infoAksi(t.name).label} ${target}` : infoAksi(t.name).label;
+
+  /* Read: TRAE menulis "Read" + path, tanpa jumlah baris. */
+  return { ...kosong, teks: infoAksi(t.name).label, sasaran: target };
 }
 
 /**
@@ -1082,11 +1111,11 @@ function PohonLangkah({
             if (!t) return null;
             const target = sasaranAksi(t.args);
             const ikonTarget = ikonSasaran(target);
-            const isi = isiLangkah(t, tf, tr);
-            /* Baris sudah MENYEBUT sasarannya ("Read src/styles/ai.css"), jadi
-               chip path di kanan tidak digambar lagi - TRAE menulis path di
-               dalam kalimat, bukan dua kali dalam satu baris. */
-            const chip = target && !isi.includes(target) ? target : '';
+            const isi = ringkasLangkah(t, tf, tr);
+            /* Baris sudah MENYEBUT sasarannya, jadi chip path di kanan tidak
+               digambar lagi - TRAE menulis path di dalam kalimat, bukan dua
+               kali dalam satu baris. */
+            const chip = isi.sasaran;
             return (
               <div className="ai-grup-item" key={i}>
                 <div
@@ -1100,7 +1129,7 @@ function PohonLangkah({
                       <AiIkon name={toolGlyph(t.name) as never} size={12} />
                     )}
                   </span>
-                  <span className="cli-tool-name">{isi}</span>
+                  <span className="cli-tool-name">{isi.teks}</span>
                   {chip && (
                     <code className="ai-grup-args" title={chip}>
                       {chip}
@@ -1108,6 +1137,20 @@ function PohonLangkah({
                   )}
                   {t.ok === false && <span className="cli-tool-fail">{tr('failed')}</span>}
                 </div>
+                {/* Hasil yang menemukan berkas: satu baris per berkas, path
+                    LENGKAP, di bawah barisnya - bentuk TRAE. */}
+                {isi.berkas.length > 0 && (
+                  <div className="ai-anak-berkas" data-testid="ai-anak-berkas">
+                    {isi.berkas.map((b) => (
+                      <div className="ai-anak-berkas-baris" key={b} title={b}>
+                        <span className="ai-anak-berkas-mark" aria-hidden="true">
+                          #
+                        </span>
+                        <span className="ai-anak-berkas-path">{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1130,6 +1173,75 @@ function PohonLangkah({
  */
 const TINGGI_RINGKAS_PX = 168;
 const BARIS_RINGKAS = 8;
+
+/*
+ * `@path` in a SENT message is a reference, so it is drawn as one.
+ *
+ * The composer already says "@ for context" and inserts `@src/lib/aiStore.ts`,
+ * but the transcript printed that raw token: a wall of `@.github/` and paths
+ * read as if the reader had typed them by hand, and nothing showed WHAT had
+ * been attached. The reference product turns them into chips with the icon of
+ * the thing they point at; this splits the text so each token can draw one.
+ *
+ * Two token forms are accepted, because paths here can contain spaces:
+ *
+ *   @src/lib/aiStore.ts                     the plain form
+ *   @"Referensi TRAE Agent Window/1.png"    a quoted path
+ *
+ * Without the quoted form a path with a space ended at the space, so the chip
+ * showed `@Referensi` and the rest of the name stayed loose text - the reported
+ * "masih banyak yang mentah". A lone `@` matches nothing, so an email address
+ * or a decorator stays plain text.
+ */
+const POLA_REF_PESAN = /(^|[\s(])@(?:"([^"]+)"|([^\s@"]+))/g;
+
+type PotongPesan = { jenis: 'teks' | 'ref'; isi: string };
+
+function pecahRefPesan(teks: string): PotongPesan[] {
+  const hasil: PotongPesan[] = [];
+  let akhir = 0;
+  for (const m of teks.matchAll(POLA_REF_PESAN)) {
+    const mulai = (m.index ?? 0) + m[1].length;
+    const rujukan = m[2] ?? m[3];
+    if (mulai > akhir) hasil.push({ jenis: 'teks', isi: teks.slice(akhir, mulai) });
+    hasil.push({ jenis: 'ref', isi: rujukan });
+    /* The whole match is the token, quotes included, so the text that follows
+       starts after it instead of repeating the closing quote. */
+    akhir = mulai + (m[0].length - m[1].length);
+  }
+  if (akhir < teks.length) hasil.push({ jenis: 'teks', isi: teks.slice(akhir) });
+  return hasil;
+}
+
+/**
+ * Opens a reference from the transcript.
+ *
+ * A file opens as a permanent tab (`preview: false`): a reference was mentioned
+ * on purpose, and a tab that is replaced by the next single-click open would
+ * make the chip useless the moment the reader looks at two of them. A folder is
+ * revealed in the Explorer instead - `openPath` on a directory has nothing to
+ * show, while revealing it puts the tree on the folder the message named.
+ *
+ * Rules and agents are not files, so they stay plain chips - a button that does
+ * nothing would be worse than no button.
+ */
+function bukaRef(sisip: string) {
+  if (sisip.startsWith('rule:') || sisip.startsWith('agent:')) return;
+  if (sisip.endsWith('/')) {
+    useStore.getState().setActivity('explorer');
+    void useExplorer.getState().reveal(sisip.replace(/\/$/, ''));
+    return;
+  }
+  void useStore.getState().openPath(sisip, { preview: false });
+}
+
+/** The glyph for a reference: a folder, a rule, an agent, or a file by name. */
+function IkonRefPesan({ sisip }: { sisip: string }) {
+  if (sisip.endsWith('/')) return <AiIkon name="folder" size={11} />;
+  if (sisip.startsWith('rule:')) return <AiIkon name="shield" size={11} />;
+  if (sisip.startsWith('agent:')) return <AiIkon name="robot" size={11} />;
+  return <FileIkon nama={sisip.split('/').pop() ?? sisip} />;
+}
 
 function PesanUser({ teks }: { teks: string }) {
   const tr = useT();
@@ -1154,6 +1266,10 @@ function PesanUser({ teks }: { teks: string }) {
   }, [teks]);
 
   const panjang = tinggi > TINGGI_RINGKAS_PX || teks.split('\n').length > BARIS_RINGKAS;
+  /* Parsed once per message, and only when there is a token to draw: most
+     messages have none, and they keep the single text node they always had. */
+  const bagian = useMemo(() => (teks.includes('@') ? pecahRefPesan(teks) : null), [teks]);
+  const adaRef = bagian?.some((b) => b.jenis === 'ref') ?? false;
 
   return (
     <div className="ai-pesan-user" data-testid="ai-user-msg" data-ringkas={panjang && !buka ? '1' : '0'}>
@@ -1162,7 +1278,40 @@ function PesanUser({ teks }: { teks: string }) {
         ref={isi}
         style={panjang && !buka ? { maxHeight: TINGGI_RINGKAS_PX, overflow: 'hidden' } : undefined}
       >
-        {teks}
+        {adaRef && bagian
+          ? bagian.map((b, i) =>
+              b.jenis === 'teks' ? (
+                <Fragment key={i}>{b.isi}</Fragment>
+              ) : b.isi.startsWith('rule:') || b.isi.startsWith('agent:') ? (
+                /* Not a path, so not a link: the chip names the rule or agent
+                   that was attached and nothing happens on click. */
+                <span key={i} className="ai-ref-chip-pesan" data-ref={b.isi} title={b.isi}>
+                  <span className="ai-ref-chip-pesan-ikon" aria-hidden="true">
+                    <IkonRefPesan sisip={b.isi} />
+                  </span>
+                  <span className="ai-ref-chip-pesan-nama">{b.isi.replace(/\/$/, '')}</span>
+                </span>
+              ) : (
+                <button
+                  key={i}
+                  type="button"
+                  className="ai-ref-chip-pesan is-buka"
+                  data-ref={b.isi}
+                  data-testid={`ai-ref-buka-${b.isi}`}
+                  title={`${b.isi} - ${tr('open')}`}
+                  aria-label={`${b.isi} - ${tr('open')}`}
+                  onClick={() => bukaRef(b.isi)}
+                  /* The chip shows the name; the full path is what is copied
+                     with the message, so it lives in the title and data-ref. */
+                >
+                  <span className="ai-ref-chip-pesan-ikon" aria-hidden="true">
+                    <IkonRefPesan sisip={b.isi} />
+                  </span>
+                  <span className="ai-ref-chip-pesan-nama">{b.isi.replace(/\/$/, '')}</span>
+                </button>
+              ),
+            )
+          : teks}
       </p>
       {panjang && (
         <button
@@ -1664,6 +1813,15 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
         </span>
         {msg.attached && (
           <span className="ai-attach-chip" title={msg.attached.path} data-testid="ai-attach-chip">
+            {/* The icon says WHAT was attached - an image, or another file -
+                so the chip is more than a bare file name. */}
+            <span className="ai-attach-chip-ikon" aria-hidden="true">
+              {/\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(msg.attached.path) ? (
+                <AiIkon name="image" size={11} />
+              ) : (
+                <AiIkon name="file" size={11} />
+              )}
+            </span>
             {msg.attached.path.split(/[\\/]/).pop()}
             {msg.attached.truncated ? ' (12KB)' : ''}
           </span>

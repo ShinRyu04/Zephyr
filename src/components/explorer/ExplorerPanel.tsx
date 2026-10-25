@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
 import { useWs } from '../../lib/workspaceStore';
@@ -5,6 +6,7 @@ import FileTree from './FileTree';
 import TimelineView from './TimelineView';
 import OutlinePanel from './OutlinePanel';
 import WorkingSet from './WorkingSet';
+import { bacaKerja, langgananKerja } from '../../lib/workingSet';
 import SectionLipat from './SectionLipat';
 import ContextMenu from './ContextMenu';
 import RootSection from '../workspace/RootSection';
@@ -79,6 +81,30 @@ export default function ExplorerPanel() {
   const filterTerpotong = useExplorer((s) => s.filterTerpotong);
   const setFilter = useExplorer((s) => s.setFilter);
   const clearFilter = useExplorer((s) => s.clearFilter);
+  /*
+   * The name filter is a TOOLBAR control, not a section of the panel body.
+   *
+   * It used to sit in the body, between the working set and the tree, so on a
+   * fresh workspace the reader saw a heading, an empty line and a stray input
+   * before a single file - the reported "kenapa harus bawah". A search control
+   * belongs next to the other file actions, and the field only takes a row
+   * while the reader is actually typing in it.
+   */
+  const [filterBuka, setFilterBuka] = useState(false);
+  const filterRef = useRef<HTMLInputElement>(null);
+  const filterAktif = filterBuka || filter.trim() !== '';
+  useEffect(() => {
+    if (filterAktif) filterRef.current?.focus();
+  }, [filterAktif]);
+  /* The working-set section follows the same module the list itself reads, so
+     the heading appears on the first entry and leaves with the last one. */
+  const [adaKerja, setAdaKerja] = useState(false);
+  useEffect(() => {
+    const kunciKerja = workspace ?? '';
+    const segarkan = () => setAdaKerja(bacaKerja(kunciKerja).length > 0);
+    segarkan();
+    return langgananKerja(segarkan);
+  }, [workspace]);
 
   const jumlahRoot = useWs((s) => s.roots.length);
   const kunciRoots = useWs((s) => s.roots.map((r) => r.path).join('|'));
@@ -152,6 +178,26 @@ export default function ExplorerPanel() {
               />
             </svg>
           </button>
+          <button
+            className={`ex-btn${filterAktif ? ' is-on' : ''}`}
+            title={tr('explorer.filter')}
+            aria-label={tr('explorer.filter')}
+            aria-pressed={filterAktif}
+            data-testid="explorer-filter-toggle"
+            onClick={() => {
+              if (filterAktif) {
+                clearFilter();
+                setFilterBuka(false);
+              } else {
+                setFilterBuka(true);
+              }
+            }}
+          >
+            <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M10.2 10.2L13.5 13.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
           <button className="ex-btn" title="Collapse all" aria-label="Collapse all" onClick={collapseAll}>
             <svg viewBox="0 0 16 16" className="ex-icon" aria-hidden="true">
               <path d="M3 5h10M3 8h10M3 11h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -174,50 +220,60 @@ export default function ExplorerPanel() {
           * visible without expanding anything - below the tree it would be
           * behind the same scrolling it is meant to save. It starts open for
           * the same reason: a shortcut nobody sees is not a shortcut.
-          */}
-        <SectionLipat judul={tr('explorer.workingSet')} testid="sec-working-set" bawaanBuka>
-          <WorkingSet />
-        </SectionLipat>
-        {/*
-          * Name filter.
           *
-          * The tree cannot filter what it has not loaded, so typing here walks
-          * the folders (see lib/explorerFilter.ts) and expands the ones that
-          * hold a match. The result line states how many files matched, so an
-          * empty tree is never ambiguous between "no match" and "still walking".
+          * The section is HIDDEN while the list is empty: an expanded heading
+          * over a grey placeholder spends the first two rows of a fresh
+          * workspace on a list that cannot be used yet.
           */}
-        <div className="ex-filter">
-          <input
-            className="ex-filter-input"
-            placeholder={tr('explorer.filter')}
-            aria-label={tr('explorer.filter')}
-            data-testid="explorer-filter"
-            value={filter}
-            spellCheck={false}
-            onChange={(e) => void setFilter(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                clearFilter();
-              } else if (e.key === 'Enter' && filterHasil.length > 0) {
-                e.preventDefault();
-                void useStore.getState().openPath(filterHasil[0], { preview: false });
-              }
-            }}
-          />
-          {filter.trim() !== '' && (
-            <button
-              className="ex-filter-clear"
-              title={tr('explorer.filterClear')}
-              aria-label={tr('explorer.filterClear')}
-              data-testid="explorer-filter-clear"
-              onClick={clearFilter}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-        {filter.trim() !== '' && (
+        {adaKerja && (
+          <SectionLipat judul={tr('explorer.workingSet')} testid="sec-working-set" bawaanBuka>
+            <WorkingSet />
+          </SectionLipat>
+        )}
+        {/*
+          * The field is a one-row strip under the header, shown only while the
+          * toolbar toggle is on. It used to be a permanent block above the tree,
+          * so an empty workspace opened with a search box floating over nothing.
+          */}
+        {filterAktif && (
+          <div className="ex-filter">
+            <input
+              ref={filterRef}
+              className="ex-filter-input"
+              placeholder={tr('explorer.filter')}
+              aria-label={tr('explorer.filter')}
+              data-testid="explorer-filter"
+              value={filter}
+              spellCheck={false}
+              onChange={(e) => void setFilter(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  clearFilter();
+                  setFilterBuka(false);
+                } else if (e.key === 'Enter' && filterHasil.length > 0) {
+                  e.preventDefault();
+                  void useStore.getState().openPath(filterHasil[0], { preview: false });
+                }
+              }}
+              onBlur={() => {
+                if (filter.trim() === '') setFilterBuka(false);
+              }}
+            />
+            {filter.trim() !== '' && (
+              <button
+                className="ex-filter-clear"
+                title={tr('explorer.filterClear')}
+                aria-label={tr('explorer.filterClear')}
+                data-testid="explorer-filter-clear"
+                onClick={clearFilter}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+        {filterAktif && filter.trim() !== '' && (
           <p className="ex-filter-note" data-testid="explorer-filter-note" data-count={filterHasil.length}>
             {filterJalan
               ? tr('explorer.filterJalan')

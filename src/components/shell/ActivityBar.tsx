@@ -326,7 +326,6 @@ export default function ActivityBar() {
                 bukaPanel('tools');
                 return;
               }
-
               if (activity === id) toggleSidebar();
               else {
                 setActivity(id);
