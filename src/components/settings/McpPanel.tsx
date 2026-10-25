@@ -148,6 +148,23 @@ export default function McpPanel() {
         />
       </Row>
 
+      {/*
+        * Autostart dipisah dari sakelar utama.
+        *
+        * `enabled` di sakelar di atas adalah keadaan SEKARANG; `autostart`
+        * adalah niat untuk sesi berikutnya. Kalau keduanya satu field,
+        * mematikan server sekali akan ikut membatalkan autostart - dan pemakai
+        * harus ingat menyalakannya lagi.
+        */}
+      <Row label={tr('mcp.autostart')} hint={tr('mcp.autostartHint')}>
+        <Toggle
+          label={tr('mcp.autostart')}
+          testid="mcp-autostart"
+          checked={!!mcp.autostart}
+          onChange={(v) => void applySettings({ mcp: { autostart: v } })}
+        />
+      </Row>
+
       {running && status && status.port !== status.requestedPort && (
         <p className="set-note is-warn" data-testid="mcp-fallback">
           Port {status.requestedPort} is used by another program, so the server moved to {status.port}.

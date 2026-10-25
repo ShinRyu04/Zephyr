@@ -343,8 +343,55 @@
   color: var(--syn-function, var(--accent));
 }
 
-/* ── Folded runs ──────────────────────────────────────────────────────── */
+/*
+ * The word that actually changed.
+ *
+ * The row already says "this line changed"; this says WHICH WORDS. It is a wash
+ * on top of the token colour rather than a replacement, so a keyword stays
+ * purple-and-changed instead of turning some generic "changed" colour and losing
+ * what it was. The left and right sides use their own hue, so a rename reads as
+ * red-on-the-old-word and green-on-the-new-word in the same row.
+ *
+ * Outline as well as background: on a row that is already tinted, a second wash
+ * of a similar hue is hard to see, and the outline survives at small sizes and
+ * in the themes with low-contrast diff colours.
+ */
+.dv-teks.dv-lama .dv-tok-ubah {
+  background: var(--diff-del-word-bg, color-mix(in srgb, var(--deleted) 42%, transparent));
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--diff-del-word-line, color-mix(in srgb, var(--deleted) 70%, transparent));
+}
 
+.dv-teks.dv-baru .dv-tok-ubah {
+  background: var(--diff-add-word-bg, color-mix(in srgb, var(--added) 42%, transparent));
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--diff-add-word-line, color-mix(in srgb, var(--added) 70%, transparent));
+}
+
+/*
+ * File stepper in the pane header.
+ *
+ * Reviewing eight changed files is a sequence, and the counter is what tells the
+ * reader where they are in it - the arrows alone say "there is more" without
+ * saying how much.
+ */
+.dv-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.dv-nav-pos {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* ── Folded runs ──────────────────────────────────────────────────────── */
 .dv-lipat {
   display: block;
   width: 100%;

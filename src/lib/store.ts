@@ -12,6 +12,7 @@ import { retheme, reSrMode } from './xtermRegistry';
 
 import { useLayout } from './editorLayoutStore';
 import { useExplorer } from './explorerStore';
+import { catatKerja } from './workingSet';
 import { usePanel } from './panelStore';
 import { useTerminal } from './terminalStore';
 import {
@@ -467,6 +468,24 @@ function touchTab(id: string): void {
   const i = touchOrder.indexOf(id);
   if (i >= 0) touchOrder.splice(i, 1);
   touchOrder.push(id);
+}
+
+/*
+ * Working-set bookkeeping, in ONE place.
+ *
+ * Every deliberate open funnels through here rather than each caller
+ * remembering to record the file: the tab strip, the tree, a drop, the CLI and
+ * go-to-definition would otherwise each need their own call, and the first one
+ * added later would silently be missing from the list. Deliberate means
+ * `preview: false` - merely glancing at a file with the arrow keys must not
+ * promote it into the list of files the reader keeps coming back to.
+ */
+function catatTabAktif(id: string, preview: boolean): void {
+  if (preview) return;
+  const s = useStore.getState();
+  const tab = s.tabs.find((t) => t.id === id);
+  if (!tab?.path) return;
+  catatKerja(s.workspace ?? '', tab.path);
 }
 
 // Setiap tab yang ditutup WAJIB lewat sini: tanpa ini `touchOrder` tumbuh selamanya
@@ -993,6 +1012,7 @@ export const useStore = create<Store>((set, get) => ({
         tabs: s.tabs.map((t) => (t.id === existing.id ? { ...t, groupId: fokus } : t)),
       }));
       touchTab(existing.id);
+      catatTabAktif(existing.id, existing.preview === true && opts?.preview !== false);
       void get().ensureTabLoaded(existing.id);
       return;
     }
@@ -1010,6 +1030,7 @@ export const useStore = create<Store>((set, get) => ({
         // Same rule as the pre-read branch above: a request to keep the file
         // open must not be lost just because someone else won the race to add it.
         promoteKalauDiminta(again.id);
+        catatTabAktif(again.id, opts?.preview === false);
         return;
       }
 
@@ -1033,6 +1054,7 @@ export const useStore = create<Store>((set, get) => ({
       };
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
       touchTab(tab.id);
+      catatTabAktif(tab.id, preview);
 
       /*
        * After inserting, collapse any earlier preview.
@@ -1183,6 +1205,7 @@ export const useStore = create<Store>((set, get) => ({
     }
     set({ activeTabId: id });
     touchTab(id);
+    catatTabAktif(id, false);
 
     const gid = get().tabs.find((t) => t.id === id)?.groupId;
     if (gid) useLayout.getState().fokusGroup(gid);

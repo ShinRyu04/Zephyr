@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { barisDiff } from '../../lib/simpleDiff';
+import { barisDiff, diffKata } from '../../lib/simpleDiff';
 import type { DiffRow } from '../../lib/simpleDiff';
 import { useDiff } from '../../lib/diffStore';
 import { useStore } from '../../lib/store';
@@ -183,6 +183,60 @@ function TeksKode({ teks }: { teks: string }) {
   );
 }
 
+/**
+ * A changed cell, with ONLY the words that actually differ marked.
+ *
+ * This is the word-diff. The line diff already decided the row changed; without
+ * this, a one-word rename in a long call paints the entire row as removed on
+ * the left and added on the right, and the reader has to scan both copies to
+ * find the two words that differ. Here the unchanged words keep their normal
+ * syntax colours and the changed words get a wash on top, so the eye lands on
+ * the edit itself.
+ *
+ * Highlighting is additive on purpose: the token colour still says what the
+ * word IS (keyword, type, function) and the wash says that it changed. Replacing
+ * one with the other would trade one kind of information for another.
+ */
+function TeksKodeUbah({ teks, banding }: { teks: string; banding: string }) {
+  const token = useMemo(() => sorotBaris(teks), [teks]);
+
+  /*
+   * The word diff picks which words changed, and `sorotBaris` says what colour
+   * each word gets. Merge the two by walking the highlighted tokens and asking,
+   * per token, whether its text was flagged. Tokens that are pure whitespace are
+   * never marked: a changed space is a real change, but a highlighted strip of
+   * blank is noise, and the surrounding words already show the edit.
+   */
+  const ubah = useMemo(() => diffKata(banding, teks), [banding, teks]);
+  const ditandai = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of ubah.kanan) if (t.changed) set.add(t.text);
+    return set;
+  }, [ubah]);
+
+  if (barisKomentar(teks)) return <span className="dv-tok-komentar">{teks}</span>;
+
+  return (
+    <>
+      {token.map((t, i) => {
+        const berubah = t.teks.trim() !== '' && ditandai.has(t.teks);
+        const kelas = [
+          'dv-tok',
+          t.jenis ? `dv-tok-${t.jenis}` : '',
+          berubah ? 'dv-tok-ubah' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return (
+          <span key={i} className={kelas}>
+            {t.teks}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function folderInduk(path: string): string {
   const pisah = path.split(/[\\/]/);
   pisah.pop();
@@ -238,6 +292,34 @@ export default function DiffViewTab() {
   const aktif = berkas[Math.min(dipilih, Math.max(berkas.length - 1, 0))];
   const totalTambah = berkas.reduce((n, b) => n + b.tambah, 0);
   const totalHapus = berkas.reduce((n, b) => n + b.hapus, 0);
+
+  /*
+   * Alt+F5 / Alt+Shift+F5 step through the files of the turn.
+   *
+   * When an agent touches eight files, the review is a sequence of "read this
+   * one, judge it, move on". Going back to the list with the mouse between each
+   * one breaks that rhythm and, worse, makes it easy to lose the place. The keys
+   * are registered on the tab itself rather than globally: they only mean
+   * something while a diff is being read, and a global binding would steal
+   * Alt+F5 from every other surface in the app.
+   */
+  useEffect(() => {
+    if (berkas.length < 2) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.key !== 'F5' || e.ctrlKey || e.metaKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const langkah = e.shiftKey ? -1 : 1;
+      setDipilih((d) => {
+        const n = berkas.length;
+        return ((d + langkah) % n + n) % n;
+      });
+      setTerbuka(new Set());
+    };
+    /* Capture phase so the editor's own F-key handling cannot claim it first. */
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [berkas.length]);
 
   const rows = useMemo(() => {
     if (!aktif) return [];
@@ -305,6 +387,37 @@ export default function DiffViewTab() {
           </span>
           <span className="dv-pane-folder">{aktif ? folderInduk(aktif.path) : ''}</span>
           <span className="sb-spacer" />
+          {berkas.length > 1 && (
+            <span className="dv-nav" data-testid="diffview-nav" data-index={dipilih} data-total={berkas.length}>
+              <button
+                type="button"
+                className="find-btn"
+                data-testid="diffview-prev"
+                title={tr('Previous file (Alt+Shift+F5)')}
+                onClick={() => {
+                  setDipilih((d) => (d - 1 + berkas.length) % berkas.length);
+                  setTerbuka(new Set());
+                }}
+              >
+                ↑
+              </button>
+              <span className="dv-nav-pos">
+                {dipilih + 1}/{berkas.length}
+              </span>
+              <button
+                type="button"
+                className="find-btn"
+                data-testid="diffview-next"
+                title={tr('Next file (Alt+F5)')}
+                onClick={() => {
+                  setDipilih((d) => (d + 1) % berkas.length);
+                  setTerbuka(new Set());
+                }}
+              >
+                ↓
+              </button>
+            </span>
+          )}
           <button
             type="button"
             className="btn btn-sm"
@@ -348,14 +461,31 @@ export default function DiffViewTab() {
                   <span
                     className={`dv-teks${b.kiri !== null && b.jenis !== 'sama' ? ' dv-lama' : ''}`}
                   >
-                    {b.kiri !== null && <TeksKode teks={b.kiri} />}
+                    {/*
+                     * A row with text on BOTH sides is a modification, and that
+                     * is the only case where a word diff has something to say.
+                     * A pure insertion or removal has no counterpart, so the
+                     * whole line is genuinely new and stays fully marked by the
+                     * row wash alone.
+                     */}
+                    {b.kiri !== null &&
+                      (b.kanan !== null && b.jenis !== 'sama' ? (
+                        <TeksKodeUbah teks={b.kiri} banding={b.kanan} />
+                      ) : (
+                        <TeksKode teks={b.kiri} />
+                      ))}
                   </span>
                   <span className="dv-no dv-no-baru">{b.noKanan ?? ''}</span>
                   <span className={`dv-sel${b.kanan !== null && b.jenis !== 'sama' ? ' dv-baru' : ''}`}>
                     {b.jenis === 'tambah' ? '+' : b.jenis === 'hapus' ? '−' : ' '}
                   </span>
                   <span className={`dv-teks${b.kanan !== null && b.jenis !== 'sama' ? ' dv-baru' : ''}`}>
-                    {b.kanan !== null && <TeksKode teks={b.kanan} />}
+                    {b.kanan !== null &&
+                      (b.kiri !== null && b.jenis !== 'sama' ? (
+                        <TeksKodeUbah teks={b.kanan} banding={b.kiri} />
+                      ) : (
+                        <TeksKode teks={b.kanan} />
+                      ))}
                   </span>
                 </div>
               ))

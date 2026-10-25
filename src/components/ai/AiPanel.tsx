@@ -376,6 +376,7 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const newChat = useAi((s) => s.newChat);
   const selectChat = useAi((s) => s.selectChat);
   const deleteChat = useAi((s) => s.deleteChat);
+  const forkChat = useAi((s) => s.forkChat);
   const setClearAllOpen = useAi((s) => s.setClearAllOpen);
   const runInTerminal = useAi((s) => s.runInTerminal);
   const agentBusy = useAi((s) => s.agentBusys[composerId] ?? false);
@@ -1476,6 +1477,23 @@ const bukaModels = () => bukaPanel('models');
                   >
                     <span className="ai-sesi-judul">{tr(s.title)}</span>
                     <span className="ai-sesi-info">{tf('{n} messages', { n: s.messages.length })}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-sesi-hapus"
+                    data-testid={`ai-sesi-fork-${s.id}`}
+                    title={tr('Fork chat')}
+                    /* Branch the conversation at its last turn: the fork keeps
+                       every message so far and continues on its own. */
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const akhir = s.messages[s.messages.length - 1];
+                      if (!akhir) return;
+                      forkChat(s.id, akhir.id, composerId);
+                      setSesiBuka(false);
+                    }}
+                  >
+                    <AiIkon name="git-branch" size={13} />
                   </button>
                   <button
                     type="button"

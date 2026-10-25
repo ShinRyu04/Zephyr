@@ -395,6 +395,48 @@ export async function lspReferences(path: string, view: EditorView, pos: number)
   return arr.map(asLocation).filter((x): x is LspLocation => !!x);
 }
 
+/*
+ * Implementation and type definition.
+ *
+ * `definition` on an interface answers "where is it DECLARED", which is rarely
+ * the jump the reader wants: standing on `Repository` in TypeScript code, the
+ * useful answer is the class that implements it, not the interface it was
+ * declared in. Same for `type X = ...` - on a value you want the type, on a type
+ * name you want the concrete definition behind it.
+ *
+ * Both requests return exactly the same shape as `definition` (a Location, a
+ * LocationLink, or an array of either), so they share the reader. Servers that
+ * do not implement them answer with an error or null, and the caller reports
+ * "not found" the same way it does for a definition miss.
+ */
+async function navigasiLokasi(
+  path: string,
+  view: EditorView,
+  pos: number,
+  method: string,
+): Promise<LspLocation | null> {
+  const res = await useLsp.getState().req(path, method, {
+    textDocument: { uri: pathToUri(path) },
+    position: offsetToLsp(view, pos),
+  });
+  const arr = Array.isArray(res) ? res : res ? [res] : [];
+  for (const r of arr) {
+    const loc = asLocation(r);
+    if (loc) return loc;
+  }
+  return null;
+}
+
+/** Go to the implementations of the symbol under the cursor. */
+export function lspImplementation(path: string, view: EditorView, pos: number) {
+  return navigasiLokasi(path, view, pos, 'textDocument/implementation');
+}
+
+/** Go to the type definition of the symbol under the cursor. */
+export function lspTypeDefinition(path: string, view: EditorView, pos: number) {
+  return navigasiLokasi(path, view, pos, 'textDocument/typeDefinition');
+}
+
 export async function lspDocumentSymbols(path: string) {
   const res = await useLsp.getState().req(path, 'textDocument/documentSymbol', {
     textDocument: { uri: pathToUri(path) },

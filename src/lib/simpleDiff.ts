@@ -159,3 +159,104 @@ export function terapkanHunk(rows: DiffRow[], diterima: ReadonlySet<number>): st
 export function semuaHunk(hunks: Hunk[]): Set<number> {
   return new Set(hunks.map((h) => h.id));
 }
+
+/* ── Word-level diff inside one changed line ──────────────────────────────
+ *
+ * ## Why lines are not enough
+ *
+ * A line diff answers "this row changed". When the AI renames one identifier
+ * in a 120-character call, the whole row is marked removed on the left and
+ * added on the right, and the reader has to find the one token that differs by
+ * eye. That is the slowest part of reviewing AI edits, and it is exactly the
+ * case where a reviewer is most likely to miss a surprise change.
+ *
+ * ## Tokenising, not character diffing
+ *
+ * Splitting on characters makes `foo` → `bar` look like two unrelated strings.
+ * Splitting on word boundaries keeps `foo` and `bar` whole, so the highlight
+ * covers a word the reader can name. Whitespace is kept as its own token so
+ * the joined tokens reproduce the line byte for byte.
+ */
+
+/** One piece of a line, with whether it exists only on one side. */
+export type DiffToken = {
+  text: string;
+  /** True when this token is not present on the other side. */
+  changed: boolean;
+};
+
+/**
+ * Split a line into words, runs of whitespace, and single punctuation marks.
+ *
+ * Identifiers stay whole (`myVar` is one token), which is what makes a renamed
+ * variable show up as one highlighted word rather than as three fragments.
+ */
+function pecahToken(teks: string): string[] {
+  return teks.match(/[A-Za-z0-9_$]+|\s+|[^\sA-Za-z0-9_$]/g) ?? [];
+}
+
+/**
+ * Word-level diff of two lines.
+ *
+ * Returns the pair of token lists to render on the left and right sides. Only
+ * tokens whose text is absent from the other side are flagged; a token that
+ * merely moved position is shown unhighlighted on both sides, because marking
+ * it on both would claim two changes where there is one.
+ *
+ * The line diff already decided these two lines are a modification, so this
+ * only ever runs on a pair - it is never asked to compare unrelated lines.
+ */
+export function diffKata(lama: string, baru: string): { kiri: DiffToken[]; kanan: DiffToken[] } {
+  const a = pecahToken(lama);
+  const b = pecahToken(baru);
+
+  /*
+   * A very long line would make the LCS table expensive for very little gain -
+   * the reader is already looking at a highlighted row on both sides. Above the
+   * threshold the whole line is reported as changed, which is the same answer
+   * the line diff gave, so nothing is lost that was there before.
+   */
+  if (a.length * b.length > 200_000) {
+    return {
+      kiri: [{ text: lama, changed: true }],
+      kanan: [{ text: baru, changed: true }],
+    };
+  }
+
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  /*
+   * Walk the table once to emit tokens in order. A token is unchanged on the
+   * left exactly when it was paired here, so both sides are built in the same
+   * pass and cannot disagree about which word was modified.
+   */
+  const kiri: DiffToken[] = [];
+  const kanan: DiffToken[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < m && j < n) {
+    if (a[i] === b[j]) {
+      kiri.push({ text: a[i], changed: false });
+      kanan.push({ text: b[j], changed: false });
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      kiri.push({ text: a[i], changed: true });
+      i++;
+    } else {
+      kanan.push({ text: b[j], changed: true });
+      j++;
+    }
+  }
+  while (i < m) kiri.push({ text: a[i++], changed: true });
+  while (j < n) kanan.push({ text: b[j++], changed: true });
+
+  return { kiri, kanan };
+}

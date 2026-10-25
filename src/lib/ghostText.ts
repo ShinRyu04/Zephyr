@@ -13,6 +13,7 @@ import { useStore } from './store';
 import { findModel } from './modelCatalog';
 import type { AiChunk, AiMessage } from './types';
 import { ambilSaran, PEMASOK_LOKAL, setPemasokSaran } from './ghostPemasok';
+import { ghostDitunda } from './ghostSnooze';
 
 import { getActiveView } from './editorRegistry';
 
@@ -207,6 +208,8 @@ function konteksSekitar(view: EditorView): string {
 }
 
 async function mintaSaran(view: EditorView) {
+  /* Snooze stops every source, including this one — see `ghostSnooze.ts`. */
+  if (ghostDitunda()) return;
   /*
    * Jalur LOKAL dulu: penyedia murni yang sudah ada di `ghostPemasok.ts`
    * (tanpa jaringan, tanpa kunci API, tanpa model). Bila seam mengembalikan
