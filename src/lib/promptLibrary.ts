@@ -293,6 +293,19 @@ export function matchPrompts(draft: string): { query: string; items: PromptItem[
  */
 const TRIGGER_SNIPPET = /(^|\s)[>#]([\w-]*)$/;
 
+/**
+ * Whether the composer currently holds a `/` command or a `>`/`#` snippet token.
+ *
+ * The popup is kept alive by its own search field, which is right while the
+ * token is still in the composer but wrong the moment it is gone: deleting the
+ * `/` used to leave the list floating over the chat because the field still had
+ * text. One place answers "is there still something to suggest for?", using the
+ * same grammar as the matchers above instead of a second regex in the panel.
+ */
+export function adaPemicuPrompt(draft: string): boolean {
+  return /^\/[\w-]*$/.test(draft) || TRIGGER_SNIPPET.test(draft);
+}
+
 export function matchSnippets(draft: string): { query: string; items: PromptItem[] } {
   const m = TRIGGER_SNIPPET.exec(draft);
   if (!m) return { query: '', items: [] };

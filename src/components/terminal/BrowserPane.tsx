@@ -8,13 +8,13 @@ import { tx } from '../../lib/i18n';
 import { paneHarusTampil } from '../../lib/nativeOverlay';
 
 export function normalizeUrl(input: string): string {
-  const t = input.trim();
-  if (!t) return '';
-  if (/^https?:\/\//i.test(t)) return t;
-  if (/^localhost(:\d+)?(\/|$)/i.test(t) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?/.test(t)) {
-    return `http://${t}`;
+  const s = input.trim();
+  if (!s) return '';
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) return s;
+  if (/^localhost(:\d+)?(\/|$)/i.test(s) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/|$)/.test(s)) {
+    return `http://${s}`;
   }
-  return `https://${t}`;
+  return `https://${s}`;
 }
 
 export function shortUrl(url: string): string {

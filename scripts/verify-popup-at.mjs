@@ -1,15 +1,15 @@
 ﻿/*
- * Verifikasi popup `@` + tidak ada kotak tool lagi.
+ * Verifikasi popup `@` (bentuk bertingkat seperti TRAE) + tidak ada kotak tool.
  *
  * Bukti diambil dari DOM yang HIDUP, bukan dari modul yang diimpor: harness
  * mengetik "@" di composer sungguhan lalu membaca apa yang tampil.
  *
- *   P1  "@" membuka popup dan SEMUA jenis tampil sekaligus
- *   P2  tidak ada chip lagi (chip-lah yang mengunci filter di depan)
- *   P3  heading jenis ADALAH tombol filter: klik = sempitkan
- *   P4  klik heading yang sama lagi = kembali ke semua
- *   P5  Escape menutup popup (dan filternya ikut hilang)
- *   P6  buka-tutup 10x: popup tetap bersih (bug "nyangkut")
+ *   P1  "@" membuka MENU kategori (File/Folder/Rule/Agent), bukan list campur
+ *   P2  tidak ada chip filter lagi (chip-lah yang mengunci filter di depan)
+ *   P3  memilih satu kategori membuka daftarnya, dan judulnya menamai kategori
+ *   P4  tombol kembali mengembalikan layar menu
+ *   P5  Escape menutup popup (dan kategori + kata kunci ikut hilang)
+ *   P6  buka-tutup 10x: popup selalu kembali ke menu yang bersih ("nyangkut")
  *   P7  folder disisip dengan garis miring (`@src/lib/`)
  *   P8  tidak ada satu pun `.cli-tool` di seluruh sesi (bukan cuma yang aktif)
  *
@@ -47,7 +47,10 @@ const BUKA = `
   };
   window.__VPA_ESC__ = (el) =>
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-  window.__VPA_HEADS__ = () => [...document.querySelectorAll('button.ai-ref-head')];
+  /* The category menu is the popup's first screen; .ai-ref-menu-item is its row. */
+  window.__VPA_MENU__ = () => [...document.querySelectorAll('.ai-ref-menu-item')];
+  window.__VPA_LAYAR__ = () =>
+    document.querySelector('.ai-slash.is-ref')?.getAttribute('data-layar') ?? null;
 `;
 
 await tahap(
@@ -58,7 +61,8 @@ await tahap(
   await wait(1000);
   return {
     buka: !!document.querySelector('[data-pemicu="ref"]'),
-    jenisTampil: window.__VPA_HEADS__().map((b) => b.getAttribute('data-testid')),
+    layar: window.__VPA_LAYAR__(),
+    jenisTampil: window.__VPA_MENU__().map((b) => b.getAttribute('data-testid')),
     adaChip: document.querySelectorAll('.ai-ref-chip, .ai-ref-chips').length,
     baris: document.querySelectorAll('.ai-slash.is-ref .ai-slash-item').length,
     kepala: document.querySelectorAll('.ai-kerja-live').length,
@@ -68,13 +72,32 @@ await tahap(
 await tahap(
   'p3',
   `${BUKA}
-  const awal = window.__VPA_HEADS__().map((b) => b.getAttribute('data-testid'));
-  window.__VPA_HEADS__()[0]?.click();
+  const awal = window.__VPA_LAYAR__();
+  window.__VPA_MENU__()[0]?.click();
+  await wait(700);
+  const jenis = (window.__VPA_MENU__()[0]?.getAttribute('data-testid') ?? '').replace('ai-ref-menu-', '') || 'file';
+  const judul = document.querySelector('[data-testid="ai-ref-judul"]')?.textContent?.trim() ?? null;
+  const baris = [...document.querySelectorAll('[data-testid="ai-file-list"] .ai-slash-item')];
+  const uji = baris.map((b) => b.getAttribute('data-testid') ?? '');
+  const semuaSatuJenis = uji.length > 0 && uji.every((t) => t.startsWith('ai-ref-' + jenis + '-'));
+  const layarSempit = window.__VPA_LAYAR__();
+  window.__VPA_ESC__(document.querySelector('[data-testid="ai-ref-cari"]') ?? input);
+  await wait(300);
+  /* Kosongkan dulu: menulis "@" di atas "@" tidak mengubah draft, jadi popup
+     yang sudah ditutup Escape tidak akan terbuka lagi dan P4 mengukur layar
+     kosong. */
+  window.__VPA_KETIK__('');
+  await wait(160);
+  window.__VPA_KETIK__('@');
+  await wait(700);
+  const layarLagi = window.__VPA_LAYAR__();
+  window.__VPA_MENU__()[0]?.click();
   await wait(500);
-  const sempit = window.__VPA_HEADS__().map((b) => b.getAttribute('data-testid'));
-  window.__VPA_HEADS__()[0]?.click();
-  await wait(500);
-  return { awal, sempit, lagi: window.__VPA_HEADS__().map((b) => b.getAttribute('data-testid')) };`,
+  const kembali = !!document.querySelector('[data-testid="ai-ref-kembali"]');
+  document.querySelector('[data-testid="ai-ref-kembali"]')?.click();
+  await wait(600);
+  const layarPulang = window.__VPA_LAYAR__();
+  return { awal, jenis, judul, baris: baris.length, semuaSatuJenis, layarSempit, layarLagi, kembali, layarPulang };`,
 );
 
 /* P5: Escape menutup popup, lalu buka lagi dengan "@ " di belakangnya -
@@ -83,7 +106,7 @@ await tahap(
 await tahap(
   'p5',
   `${BUKA}
-  window.__VPA_HEADS__()[0]?.click();
+  window.__VPA_MENU__()[0]?.click();
   await wait(400);
   const cari = document.querySelector('[data-testid="ai-ref-cari"]');
   window.__VPA_ESC__(cari ?? input);
@@ -95,7 +118,8 @@ await tahap(
   window.__VPA_KETIK__(input.value + ' @');
   await wait(900);
   const isiSetelah = input.value;
-  const sesudahBukaLagi = window.__VPA_HEADS__().map((b) => b.getAttribute('data-testid'));
+  const sesudahBukaLagi = window.__VPA_MENU__().length;
+  const layarLagi = window.__VPA_LAYAR__();
   const cariLagi = document.querySelector('[data-testid="ai-ref-cari"]');
   window.__VPA_ESC__(cariLagi ?? input);
   await wait(300);
@@ -104,6 +128,7 @@ await tahap(
   return {
     tutup,
     sesudahBukaLagi,
+    layarLagi,
     isiSetelah,
     cariKosong: !cariLagi || cariLagi.value === '',
   };`,
@@ -115,12 +140,13 @@ await tahap(
   let bersih = 0;
   for (let i = 0; i < 10; i += 1) {
     /* Tiap putaran mulai dari composer kosong, seperti pembaca yang mengosongkan
-       pesannya - lalu mengetik "@", menyempitkan, dan keluar dengan Escape. */
+       pesannya - lalu mengetik "@", MASUK ke satu kategori, dan keluar dengan
+       Escape. */
     window.__VPA_KETIK__('');
     await wait(160);
     window.__VPA_KETIK__('@');
     await wait(420);
-    window.__VPA_HEADS__()[0]?.click();
+    window.__VPA_MENU__()[0]?.click();
     await wait(180);
     const cari = document.querySelector('[data-testid="ai-ref-cari"]');
     window.__VPA_ESC__(cari ?? input);
@@ -129,9 +155,10 @@ await tahap(
     await wait(120);
     window.__VPA_KETIK__('@');
     await wait(420);
-    const semua = window.__VPA_HEADS__().length;
+    const menu = window.__VPA_MENU__().length;
+    const layar = window.__VPA_LAYAR__();
     const c = document.querySelector('[data-testid="ai-ref-cari"]');
-    if (semua >= 2 && (!c || c.value === '')) bersih += 1;
+    if (menu >= 2 && layar === 'menu' && (!c || c.value === '')) bersih += 1;
     window.__VPA_ESC__(document.querySelector('[data-testid="ai-ref-cari"]') ?? input);
     await wait(200);
   }
@@ -197,17 +224,25 @@ const p6 = hasil.p6 ?? {};
 const p7 = hasil.p7 ?? {};
 
 console.log('\nBukti — popup @ dan kotak tool:');
-cek('P1 "@" membuka popup dengan semua jenis', p1.buka === true && (p1.jenisTampil ?? []).length >= 2, `${p1.jenisTampil}`);
+cek(
+  'P1 "@" membuka MENU kategori',
+  p1.buka === true && p1.layar === 'menu' && (p1.jenisTampil ?? []).length >= 2,
+  `layar=${p1.layar} ${p1.jenisTampil}`,
+);
 cek('P2 tidak ada chip filter lagi', p1.adaChip === 0, `chip=${p1.adaChip}`);
 cek(
-  'P3 heading jenis menyempitkan list',
-  (p3.sempit ?? []).length === 1 && (p3.sempit ?? [])[0] === (p3.awal ?? [])[0],
-  `${p3.sempit}`,
+  'P3 memilih kategori membuka daftarnya, hanya jenis itu',
+  p3.layarSempit === 'daftar' && p3.semuaSatuJenis === true && !!p3.judul,
+  `layar=${p3.layarSempit} jenis=${p3.jenis} judul="${p3.judul}" baris=${p3.baris}`,
 );
-cek('P4 klik lagi kembali ke semua jenis', (p3.lagi ?? []).length === (p3.awal ?? []).length, `${p3.lagi}`);
 cek(
-  'P5 Escape menutup popup, dan "@ " berikutnya tidak mengunci filter',
-  p5.tutup === true && (p5.sesudahBukaLagi ?? []).length >= 2 && p5.cariKosong === true,
+  'P4 tombol kembali mengembalikan layar menu',
+  p3.kembali === true && p3.layarPulang === 'menu',
+  `kembali=${p3.kembali} layar=${p3.layarPulang}`,
+);
+cek(
+  'P5 Escape menutup popup, dan "@ " berikutnya kembali ke menu bersih',
+  p5.tutup === true && p5.sesudahBukaLagi >= 2 && p5.layarLagi === 'menu' && p5.cariKosong === true,
   JSON.stringify(p5),
 );
 cek('P6 buka-tutup 10x tetap bersih', p6.bersih === 10, `bersih=${p6.bersih}/10 ${p6.fatal ?? ''}`);
@@ -220,5 +255,3 @@ cek(
 
 console.log(`\n== ${lulus}/${lulus + gagal} lulus ==`);
 keluarBersih(gagal === 0 ? 0 : 1);
-
-

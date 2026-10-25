@@ -177,6 +177,7 @@ import './styles/ai-todo-card.css';
 import './styles/ai-subagents-menu.css';
 import './styles/ai-tanya.css';
 import './styles/ai-composer-trae.css';
+import './styles/ai-mention.css';
 /*
  * `<Tip>` needs this one. Its rules used to live in `notes-todos.css`, which
  * stopped being imported when the Notes & todos panel was removed — leaving

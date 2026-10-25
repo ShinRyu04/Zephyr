@@ -97,6 +97,20 @@ export interface QueryRef {
  */
 export const MAKS_RECENT = 3;
 
+/**
+ * How a reference is WRITTEN into a message.
+ *
+ * A bare `@path` works only while the path has no spaces, and this workspace has
+ * plenty that do ("Referensi TRAE Agent Window/1.png", "testing zephyr", ...).
+ * A space ends the token, so such a reference arrived as `@Referensi` followed by
+ * loose words - the chip broke in the transcript and the model saw a path that
+ * was not a path. Quoting is the form that survives: one token, readable, and
+ * unambiguous even when the name itself contains spaces.
+ */
+export function tulisRef(sisip: string): string {
+  return /\s/.test(sisip) ? `@"${sisip}"` : `@${sisip}`;
+}
+
 /** Display order: the kinds a reader reaches for most often come first. */
 export const URUTAN_JENIS: JenisRef[] = ['file', 'folder', 'rule', 'agent'];
 

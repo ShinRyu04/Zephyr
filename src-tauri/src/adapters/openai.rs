@@ -570,7 +570,7 @@ pub fn extract_usage(v: &Value) -> Option<(u64, u64)> {
  * "tool call X returned malformed JSON arguments". The message was accurate and
  * useless - the reader cannot fix the model's JSON, and the run ended there.
  *
- * Three shapes account for nearly every real occurrence, and all three are
+ * Four shapes account for nearly every real occurrence, and all four are
  * LEXICAL damage that can be undone without guessing at what the arguments
  * meant:
  *
@@ -578,7 +578,9 @@ pub fn extract_usage(v: &Value) -> Option<(u64, u64)> {
  *      model emits the file content it is about to write as a real multi-line
  *      string instead of `\n`;
  *   2. a trailing comma before a closing brace or bracket;
- *   3. markdown fences, or a sentence wrapped around the object.
+ *   3. markdown fences, or a sentence wrapped around the object;
+ *   4. a backslash that is not a legal JSON escape (a Windows path, a regex:
+ *      `D:\Zephyr`, `\s+`, `\d`) - see `loloskan_escape_liar`.
  *
  * Structural repair is deliberately NOT attempted: closing an unterminated
  * object would mean inventing which members were dropped, and a tool that runs
@@ -631,6 +633,73 @@ fn loloskan_kontrol(s: &str) -> String {
 }
 
 /** Drop a comma that sits immediately before a closing brace or bracket. */
+/**
+ * Escape a backslash that does not begin a legal JSON escape.
+ *
+ * The fourth shape, and the one that survived the other three: file content or
+ * a regex written with a real backslash - `D:\Zephyr\src`, `\s+`, `\d` - is
+ * INVALID JSON inside a string (`\Z`, `\s`, `\d` are not escapes), so
+ * `serde_json` rejects the whole argument object even though the model's intent
+ * is perfectly clear. `loloskan_kontrol` did not help here: it preserves a
+ * backslash and the character after it verbatim, which is exactly what keeps
+ * the invalid escape invalid.
+ *
+ * This step only DUPLICATES a backslash that has no legal role. It never
+ * invents, drops or reorders content, so the parsed value is what the model
+ * wrote, character for character - `"D:\Zephyr\src"` becomes the string
+ * `D:\Zephyr\src` instead of a dead step.
+ *
+ * A trailing lone backslash is doubled too: it cannot be a legal escape (there
+ * is nothing after it), and leaving it makes the string unterminated.
+ */
+fn loloskan_escape_liar(s: &str) -> String {
+    let c: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut dalam_string = false;
+    let mut i = 0;
+    while i < c.len() {
+        let ch = c[i];
+        if !dalam_string {
+            if ch == '"' {
+                dalam_string = true;
+            }
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == '"' {
+            dalam_string = false;
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == '\\' {
+            match c.get(i + 1) {
+                Some(&n) if matches!(n, '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u') => {
+                    out.push('\\');
+                    out.push(n);
+                    i += 2;
+                }
+                Some(&n) => {
+                    out.push('\\');
+                    out.push('\\');
+                    out.push(n);
+                    i += 2;
+                }
+                None => {
+                    out.push('\\');
+                    out.push('\\');
+                    i += 1;
+                }
+            }
+            continue;
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
+}
+
 fn buang_koma_ujung(s: &str) -> String {
     let c: Vec<char> = s.chars().collect();
     let mut out = String::with_capacity(s.len());
@@ -775,9 +844,11 @@ fn parse_argumen_tool(raw: &str, truncated: bool, name: &str) -> Result<Value, S
     if bersih.is_empty() {
         return Ok(json!({}));
     }
-    let lolos = loloskan_kontrol(bersih);
+    let liar = loloskan_escape_liar(bersih);
+    let lolos = loloskan_kontrol(&liar);
     let kandidat = [
         bersih.to_string(),
+        liar.clone(),
         lolos.clone(),
         buang_koma_ujung(bersih),
         buang_koma_ujung(&lolos),
@@ -788,7 +859,7 @@ fn parse_argumen_tool(raw: &str, truncated: bool, name: &str) -> Result<Value, S
         }
     }
     if let Some(dalam) = ambil_objek_terluar(bersih) {
-        let dalam = buang_koma_ujung(&loloskan_kontrol(dalam));
+        let dalam = buang_koma_ujung(&loloskan_kontrol(&loloskan_escape_liar(dalam)));
         if let Ok(v) = serde_json::from_str::<Value>(&dalam) {
             return Ok(v);
         }
@@ -983,7 +1054,58 @@ mod tests {
         assert_eq!(hasil.tool_calls[0].args["content"], "baris1\nbaris2");
     }
 
+    /*
+     * Kasus nyata (2026-10-26): `multi_edit` gagal dengan "returned malformed
+     * JSON arguments" padahal JSON-nya hanya memuat backslash yang BUKAN escape
+     * JSON sah. Isi berkas yang menyebut path Windows atau regex (`D:\Zephyr`,
+     * `\s+`, `\d`) membuat serde menolak seluruh objek argumen, dan
+     * langkahnya mati - terbaca sebagai deretan merah di UI.
+     */
     #[test]
+    fn repairs_invalid_backslash_escape() {
+        let args = r#"{"path":"notes.md","content":"D:\Zephyr\src dan \s+"}"#;
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": { "name": "multi_edit", "arguments": args }
+                    }]
+                }
+            }]
+        });
+
+        let hasil = parse_tool_response(&response).expect("escape liar harus diperbaiki");
+        assert_eq!(hasil.tool_calls[0].args["path"], "notes.md");
+        assert_eq!(hasil.tool_calls[0].args["content"], r"D:\Zephyr\src dan \s+");
+    }
+
+    /*
+     * Kontrol negatif: perbaikan tadi hanya boleh menyentuh backslash yang TIDAK
+     * sah. Escape yang sah harus tetap berarti apa adanya - kalau tidak,
+     * perbaikan ini diam-diam mengubah isi berkas yang ditulis model.
+     */
+    #[test]
+    fn keeps_legal_escapes_meaning_the_same() {
+        let args = r#"{"path":"a.txt","content":"satu\ndua\ttiga \"kutip\" \\akhir"}"#;
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "tool_calls": [{
+                        "id": "call-1",
+                        "function": { "name": "write_file", "arguments": args }
+                    }]
+                }
+            }]
+        });
+
+        let hasil = parse_tool_response(&response).expect("escape sah harus tetap sah");
+        assert_eq!(
+            hasil.tool_calls[0].args["content"],
+            "satu\ndua\ttiga \"kutip\" \\akhir"
+        );
+    }
+
     fn repairs_trailing_comma_in_tool_arguments() {
         let args = "{\"path\":\"a.txt\",\"content\":\"x\",}";
         let response = json!({

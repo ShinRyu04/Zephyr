@@ -8522,6 +8522,39 @@
 }
 
 /*
+ * Hasil yang menemukan berkas: satu baris per berkas di bawah langkahnya,
+ * dengan path LENGKAP dan tanda `#` di depan - bentuk TRAE. Ditaruh lebih
+ * menjorok daripada baris langkahnya supaya terbaca sebagai isi baris itu,
+ * bukan langkah baru.
+ */
+.ai-anak-berkas {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px 0 2px 22px;
+}
+.ai-anak-berkas-baris {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 18px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.ai-anak-berkas-mark {
+  flex: 0 0 auto;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-faint, var(--text-muted));
+}
+.ai-anak-berkas-path {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+/*
  * TRAE opens a turn with the files the agent looked at, on their own node, so
  * "what did it actually see" is answerable without expanding every run.
  */
