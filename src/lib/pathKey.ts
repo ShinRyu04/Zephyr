@@ -19,6 +19,10 @@
 export const kunciPath = (p: unknown): string =>
   String(p ?? '')
     .replace(/\//g, '\\')
+    /* Separator di ujung bukan pembeda folder: `D:\Zephyr\` dan `D:\Zephyr`
+       adalah folder yang sama, dan dialog/backend mengirim keduanya. Tanpa
+       ini keduanya jadi kunci berbeda. */
+    .replace(/\\+$/, '')
     .toLowerCase();
 
 export const pathSama = (a: unknown, b: unknown): boolean => kunciPath(a) === kunciPath(b);

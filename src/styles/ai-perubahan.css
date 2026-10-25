@@ -364,9 +364,9 @@
   align-items: center;
   gap: 8px;
   min-height: 36px;
-  /* Left inset 10px = the composer's border + the field's 14px padding, so the
-     icon column lines up with the branch chip above it. */
-  padding: 0 6px 0 10px;
+  /* Both insets mirror the composer's control row (8px left, 10px right), so
+     Keep All ends on the same vertical line as Send. */
+  padding: 0 10px 0 8px;
 }
 
 .ai-review-toggle {
@@ -481,8 +481,18 @@
 
 /* Folded with a real height transition, same trick as the card: 0fr -> 1fr
    measures the content, so a nine-file list is not clipped by a guessed
-   max-height. */
+   max-height.
+
+   The list opens UPWARD (`order: -1` puts it above the header). The bar hangs
+   directly over the composer, so a list that grew downward covered the box the
+   reader is about to type in - the one thing this strip must never hide. */
+.ai-review {
+  display: flex;
+  flex-direction: column;
+}
+
 .ai-review-isi {
+  order: -1;
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 160ms ease;
@@ -495,17 +505,17 @@
 .ai-review-gulir {
   min-height: 0;
   overflow: hidden;
-  border-top: 1px solid transparent;
+  /* The rule sits on the edge that faces the header - now the BOTTOM one. */
+  border-bottom: 1px solid transparent;
 }
 
 .ai-review[data-open='1'] .ai-review-gulir {
-  border-top-color: var(--border);
+  border-bottom-color: var(--border);
 }
 
 /* A long run can change a LOT of files; the list scrolls instead of pushing the
-   composer off the screen. */
+   composer off the screen. (The cap itself lives with the motion rules below.) */
 .ai-review[data-open='1'] .ai-review-gulir {
-  max-height: 190px;
   overflow-y: auto;
 }
 
@@ -588,4 +598,10 @@
   .ai-review-isi {
     transition: none;
   }
+}
+
+/* The upward list must not push the bar off the top of the window either: a run
+   that touched thirty files gets a scrollable box, not a wall. */
+.ai-review[data-open='1'] .ai-review-gulir {
+  max-height: min(190px, 38vh);
 }

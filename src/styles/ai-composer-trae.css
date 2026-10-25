@@ -61,10 +61,18 @@
   width: 100%;
   box-sizing: border-box;
   resize: none;
-  min-height: 76px;
+  /*
+   * 76px was a box with a hole in it: on an idle composer the field pushed the
+   * card to ~155px of mostly empty space, so the box read as a text area with
+   * nothing to say. The reference (TRAE / Freebuff) is about three lines tall
+   * and grows with the text - `field-sizing: content` already does the growing,
+   * the floor only has to be the comfortable one-line height plus the caret
+   * breathing room.
+   */
+  min-height: 58px;
   max-height: 220px;
   field-sizing: content;
-  padding: 12px 14px 4px;
+  padding: 10px 14px 2px;
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.55;
@@ -107,7 +115,10 @@
   align-items: center;
   flex-wrap: nowrap;
   gap: 2px;
-  padding: 2px 6px 8px 6px;
+  /* The control row's outer padding matches the field's, so the "+" sits under
+     the first character and Send's right edge lines up with the text column
+     instead of hanging 8px further out. */
+  padding: 2px 10px 8px 8px;
   border-top: 0;
   background: transparent;
 }
