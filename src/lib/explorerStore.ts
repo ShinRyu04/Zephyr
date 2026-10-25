@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { useWs } from './workspaceStore';
 import { cariNamaDiPohon } from './explorerFilter';
 import { hapusKerja } from './workingSet';
 import { notifyError, notifyInfo } from './notificationStore';
@@ -174,19 +175,34 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   collapseAll: () => set({ expanded: {} }),
 
   refreshAll: async () => {
-    const ws = useStore.getState().workspace;
+    /*
+     * Refresh EVERY root, not just the active one.
+     *
+     * `children` is cleared wholesale below, so every root's listing is gone
+     * at that moment. Reloading only `useStore.workspace` left the other roots
+     * of a multi-root workspace as empty sections in the tree: the reader saw
+     * the folder they started with (the active root) and nothing else, which
+     * reads as "refresh put me back to the old folder".
+     */
+    const { roots } = useWs.getState();
+    const aktif = useStore.getState().workspace;
+    const sumber = roots.length > 0 ? roots.map((r) => r.path) : aktif ? [aktif] : [];
     const openDirs = Object.entries(get().expanded)
       .filter(([, v]) => v)
       .map(([k]) => k);
     set({ children: {} });
-    if (ws) await get().loadDir(ws, true);
+    for (const r of sumber) await get().loadDir(r, true);
     for (const d of openDirs) await get().loadDir(d, true);
   },
 
   refreshDir: async (dir) => {
-    
-    const ws = useStore.getState().workspace;
-    const isVisible = dir === ws || get().expanded[dir];
+    /*
+     * Any visible directory gets refreshed, including roots that are not the
+     * active one: in a multi-root workspace every root is drawn at the top of
+     * the tree, so `dir === workspace` alone hid changes under the others.
+     */
+    const akar = useWs.getState().roots.some((r) => r.path === dir);
+    const isVisible = akar || get().expanded[dir];
     if (!isVisible) return;
     await get().loadDir(dir, true);
   },

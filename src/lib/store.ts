@@ -877,7 +877,22 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   syncWorkspaceLokal: async (dir) => {
-    set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });    /*
+    set({ workspace: dir, statusMessage: `Workspace: ${baseName(dir)}` });
+    /*
+     * Write the session NOW, with the folder that was just opened.
+     *
+     * `sessionSave` is otherwise only reached when tabs change or the window
+     * closes. Switching folders touches no tab, so the file on disk kept the
+     * PREVIOUS folder, and anything that reloads the webview (Ctrl+R, which is
+     * the WebView2 reload - Zephyr does not bind it) ran `bootstrap()`, read
+     * that stale folder back and reopened it. Reported verbatim as "ganti
+     * folder, pas di refresh dia balik lagi ke folder awal".
+     *
+     * Debounced on the back end, so the burst of calls while switching roots
+     * costs one write, not one per call.
+     */
+    void get().persistSession();
+    /*
      * Drop the Quick Open index. The new root alone would invalidate it, but
      * clearing here means the very next Ctrl+P cannot answer for the previous
      * tree even for an instant — which is exactly when a reader would notice.

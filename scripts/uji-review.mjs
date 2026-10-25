@@ -25,7 +25,7 @@
 // Exit: 0 = semua lulus, 1 = ada yang gagal, 2 = app tidak hidup di 9223.
 
 import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
-import { Cdp, sleep } from './lib-cdp.mjs';
+import { Cdp, sleep, tungguBridge } from './lib-cdp.mjs';
 
 const PORT = process.env.ZEPHYR_CDP_PORT ?? '9223';
 const AKAR = process.cwd();
@@ -58,15 +58,26 @@ if (!page) {
 }
 const { cdp } = await Cdp.attach(PORT, page.title);
 
+/* Store jendela utama & store diff dipasang ulang setiap reload (HMR). Setiap
+   akses menunggu jembatannya benar-benar ada, bukan menebak dari `sleep`. */
+const z = async (expr) => {
+  await tungguBridge(cdp, '__ZEPHYR__');
+  return cdp.eval(expr);
+};
+
 const ISI_A = 'baris satu\nbaris dua\n';
 const ISI_B = 'baris satu\nbaris dua\nbaris tiga\n';
 
 /* Buka chat AI sebagai tab editor, supaya ada AiPanel (dan kotak inputnya)
    yang pasti ter-mount, terlepas dari panel kanan sedang terbuka atau tidak. */
-await cdp.eval(`window.__ZEPHYR__.getState().bukaViewAi('ai-chat'); 'ok'`);
+await z(`window.__ZEPHYR__.getState().bukaViewAi('ai-chat'); 'ok'`);
 await sleep(700);
 
 const catat = async (path, sebelum, sesudah, id) => {
+  /* Jembatan dev dipasang ulang setiap halaman reload (HMR), jadi tunggu ia ada
+     sebelum menyentuh store - kalau tidak, uji mati dengan "Cannot read
+     properties of undefined" padahal app-nya sehat. */
+  await tungguBridge(cdp, '__ZEPHYR_DIFF__');
   await cdp.eval(`window.__ZEPHYR_DIFF__.mulai(${JSON.stringify(id)}); 'ok'`);
   await cdp.eval(`
     window.__ZEPHYR_DIFF__.store.getState()
@@ -94,6 +105,11 @@ const strip = () =>
       keep: !!el.querySelector('[data-testid="ai-review-keep"]'),
       terbuka: el.getAttribute('data-open') === '1',
       baris: [...el.querySelectorAll('[data-testid="ai-review-baris"]')].map((b) => b.getAttribute('title') ?? ''),
+      /* Arah buka: daftar harus DI ATAS header, bukan menutupi composer. */
+      kepalaBawah: Math.round(el.querySelector('.ai-review-kepala')?.getBoundingClientRect().bottom ?? 0),
+      isiAtas: Math.round(el.querySelector('.ai-review-isi')?.getBoundingClientRect().top ?? 0),
+      isiBawah: Math.round(el.querySelector('.ai-review-isi')?.getBoundingClientRect().bottom ?? 0),
+      composerAtas: Math.round(document.querySelector('.ai-input-row')?.getBoundingClientRect().top ?? 0),
     };
   })())`).then((s) => JSON.parse(s));
 
@@ -117,9 +133,17 @@ cek(
   JSON.stringify(s.baris),
 );
 
+/* R4b — daftar terbuka KE ATAS: kalau ia tumbuh ke bawah, ia menutupi kotak
+   input yang persis ada di bawah bar. Diukur, bukan diasumsikan dari CSS. */
+cek(
+  'R4b daftar berkas terbuka ke atas, tidak menutupi composer',
+  (s.isiBawah ?? 0) <= (s.kepalaBawah ?? 0) + 1 && (s.isiBawah ?? 0) <= (s.composerAtas ?? 0),
+  `isiBawah=${s.isiBawah} kepalaBawah=${s.kepalaBawah} composerAtas=${s.composerAtas}`,
+);
+
 await cdp.eval(`document.querySelector('[data-testid="ai-review-baris"]').click(); 'ok'`);
 await sleep(600);
-const view = await cdp.eval(`JSON.stringify({
+const view = await z(`JSON.stringify({
   view: (() => {
     const st = window.__ZEPHYR__.getState();
     const t = st.tabs.find((x) => x.id === st.activeTabId);
@@ -130,8 +154,9 @@ const view = await cdp.eval(`JSON.stringify({
 cek('R5  klik baris membuka DiffView', view.view === 'diff-view', JSON.stringify(view));
 
 /* Kembali ke chat untuk dua uji berikutnya. */
-await cdp.eval(`window.__ZEPHYR__.getState().bukaViewAi('ai-chat'); 'ok'`);
-await sleep(600);
+await z(`window.__ZEPHYR__.getState().bukaViewAi('ai-chat'); 'ok'`);
+await sleep(900);
+await tungguBridge(cdp, '__ZEPHYR_DIFF__');
 
 /* ── R6: Keep All ───────────────────────────────────────────────────────── */
 await catat(DUMMY, ISI_A, ISI_B, 'uji-review-2');
@@ -188,6 +213,7 @@ for (const p of [DUMMY, BARU]) {
     /* tidak ada */
   }
 }
+await tungguBridge(cdp, '__ZEPHYR_DIFF__');
 await cdp.eval(`window.__ZEPHYR_DIFF__.reset(); 'ok'`);
 
 console.log(`\n== ${lulus}/${lulus + gagal} lulus ==`);
