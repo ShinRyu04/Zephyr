@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { IkonPanelKanan } from './AgentsKontrolSudut';
 import { useAgxTabs, type Tab } from '../../lib/agentsTabs';
 import AgentsPanelKananFile from './AgentsPanelKananFile';

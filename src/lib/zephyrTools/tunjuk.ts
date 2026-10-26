@@ -304,7 +304,6 @@ const SEKSI_CHAT: { kata: string[]; seksi: string; label: string }[] = [
   { kata: ['context', 'konteks'], seksi: 'context', label: 'Context' },
   { kata: ['sub-agent', 'subagent', 'sub agent'], seksi: 'subagent', label: 'Sub-agents' },
   { kata: ['tool', 'alat'], seksi: 'tools', label: 'Tools' },
-  { kata: ['web', 'isi web', 'internet'], seksi: 'web', label: 'Web content' },
   { kata: ['rule', 'aturan chat'], seksi: 'rules', label: 'Rules' },
   { kata: ['model'], seksi: 'models', label: 'Models' },
   { kata: ['appearance', 'tampilan'], seksi: 'appearance', label: 'Appearance' },
@@ -319,7 +318,7 @@ async function bukaChatSettings(niat: string): Promise<string> {
   const label = pilih?.label ?? 'Mode';
   const m = await import('../bukaPanel');
   m.bukaPanel('chat-settings', seksi);
-  return `Sudah saya buka jendela Chat Settings, bagian ${label}. Bagian lain: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced.`;
+  return `Sudah saya buka jendela Chat Settings, bagian ${label}. Bagian lain: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced.`;
 }
 
 /**
@@ -337,7 +336,7 @@ const CATATAN_PERMUKAAN: Record<string, string> = {
   'picker-model':
     'Yang terbuka adalah DAFTAR pilihannya. Memilih model adalah keputusan pembaca (dan berubah saat dia mengetik) - jangan mengklaim sudah mengganti modelnya.',
   'chat-settings':
-    'Yang terbuka adalah JENDELA Chat Settings dan bagian di dalamnya sudah saya pilih sesuai niat. Bagian yang ada: Mode, Agent, Context, Sub-agents, Tools, Web content, Rules, Models, Appearance, Session, Advanced - isinya milik pembaca, jangan mengklaim sudah mengubah setelannya.',
+    'Yang terbuka adalah JENDELA Chat Settings dan bagian di dalamnya sudah saya pilih sesuai niat. Bagian yang ada: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced - isinya milik pembaca, jangan mengklaim sudah mengubah setelannya.',
   'agent-todo':
     'Yang saya buka adalah panel Agent Customizations, tab Conversations, tempat saklar To-Do List. Mengaktifkannya (saklar IDE untuk panel chat di jendela utama, Agent untuk jendela Agents) adalah keputusan pembaca. Kalau yang dia cari kartu tugas yang tampil saat agen bekerja, itu dibuka dari menu … di header chat → "Show task list" (default tersembunyi) - setelan saklar di atas hanya mengizinkan agen memakainya.',
   'agent-mcp':

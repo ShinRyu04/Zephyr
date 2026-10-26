@@ -303,13 +303,19 @@ export const TOOL_INTI: readonly string[] = TOOL_CATALOG.filter((t) => t.source 
 export { _WEB_AKTIF as TOOL_WEB_AKTIF_AWAL };
 
 /**
- * Tool yang nyala pada profil baru: 40 inti + 4 web baca-saja = 44.
+ * Tool yang nyala pada profil baru: 40 inti + SELURUH tool web.
  *
  * Badan `TOOL_BAWAAN_AKTIF` di katalog sudah tidak menentukan apa yang menyala
  * lagi - ia hanya memuat nama yang aman dibaca sejak awal. Sumber kebenaran
  * untuk "apa yang aktif" ada di sini, dan di sini artinya utuh: agen tidak
  * boleh mulai dalam keadaan kehilangan kemampuan menulis daftar tugasnya
  * sendiri, atau membuka halaman yang diminta user.
+ *
+ * Tool web dulu hanya yang membaca. Memisahkannya berarti agen bisa membaca
+ * halaman tetapi tidak bisa mengklik tautan di dalamnya, dan user harus
+ * menyalakan sisanya lebih dulu sebelum "buka link ini" berhasil - pagar yang
+ * tidak pernah diminta dan yang terbaca sebagai kerusakan. Gerbang yang
+ * sebenarnya menjaga tetap ada di `kebijakanIsiWeb.ts`.
  */
 export const TOOL_AKTIF_AWAL: readonly string[] = [
   ...TOOL_INTI,
@@ -317,18 +323,13 @@ export const TOOL_AKTIF_AWAL: readonly string[] = [
 ];
 
 /**
- * Grup yang sejak awal MATI: web/browser, KECUALI yang membaca.
+ * Grup yang sejak awal MATI.
  *
- * Tujuh sisanya bisa menulis berkas dari internet, mengirim data ke luar, dan
- * membuka browser sistem. Semuanya kemampuan yang pantas DIPILIH user, bukan
- * diwariskan. Satu klik menghidupkannya per grup atau satu per satu.
- *
- * Turunannya tetap dihitung dari katalog: menambah tool web baru akan otomatis
- * masuk grup ini dengan sendirinya, tanpa daftar kedua yang harus diperbarui.
+ * Sekarang kosong: grup web/browser ikut menyala. Grup yang masih tertutup
+ * hanyalah yang isinya memang MCP dan ekstensi (lihat `TERTUTUP_AWAL`), dan
+ * itu soal tampilan picker, bukan izin.
  */
-export const GRUP_MATI_AWAL: readonly string[] = TOOL_GROUPS.filter((g) => g.optional).map(
-  (g) => g.id,
-);
+export const GRUP_MATI_AWAL: readonly string[] = [];
 
 /* ------------------------------------------------------------------ */
 /* Deskripsi dan label                                                */

@@ -66,27 +66,6 @@ const EFFORT: { id: string; label: string }[] = [
 ];
 
 /**
- * Host dari teks allowlist: satu per baris, di-trim, baris kosong dibuang.
- *
- * Skema dan jejak URL ikut dibuang kalau ada — "HTTPS://Docs.Example.com/x"
- * menjadi "docs.example.com" — karena yang disimpan dan yang dicocokkan pagar
- * (`hostDiAllowlist`) hanya HOST. Menyimpan URL utuh membuat entri yang tidak
- * pernah cocok, yaitu penolakan yang gagal diam-diam.
- */
-function hostDariTeks(teks: string): string[] {
-  return teks
-    .split(/\r?\n/)
-    .map((b) =>
-      b
-        .trim()
-        .replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
-        .replace(/\/.*$/, '')
-        .toLowerCase(),
-    )
-    .filter((b) => b !== '');
-}
-
-/**
  * The sections, in the order the left column lists them.
  *
  * `label` is both the nav text and the section heading, so a reader who clicks
@@ -98,7 +77,6 @@ const SECTIONS: ReadonlyArray<{ id: ChatSeksi; label: string }> = [
   { id: 'context', label: 'Context' },
   { id: 'subagent', label: 'Sub-agents' },
   { id: 'tools', label: 'Tools' },
-  { id: 'web', label: 'Web content' },
   { id: 'rules', label: 'Rules' },
   { id: 'models', label: 'Models' },
   { id: 'appearance', label: 'Appearance' },
@@ -220,34 +198,6 @@ export default function ChatSettingsPage({
   /* Whether the guard is on at all. The per-rule switches below are dead
      while it is off, so they render disabled rather than pretending to work. */
   const rulesOn = rules?.enabled === true;
-
-  /*
-   * Konten web — the SAME settings object `kebijakanIsiWeb.ts` reads through
-   * `kebijakanDariSetelan(useStore.getState().settings)`, written through the
-   * same `applySettings` every other row here uses. So the switch and the gate
-   * cannot disagree: there is one value, not two copies of it. Both keys are
-   * optional and fail-closed — missing reads as "no permission, empty list".
-   */
-  const izinWeb = settings.izinIsiWeb === true;
-  const allowlistWeb = settings.allowlistWeb ?? [];
-  /*
-   * The allowlist textarea keeps its own TEXT.
-   *
-   * The store holds the parsed host list, but a textarea bound straight to it
-   * would rewrite its own value on every keystroke: typing "example.com" stores
-   * each prefix, and a value round-tripped through the parse can cut the caret
-   * mid-word. So the text is local and the store is written ALONGSIDE it. The
-   * effect below pulls the text from the store only when the store changed to
-   * something this text does not already describe — a Reset or a reload — which
-   * is the one moment overwriting what is in the box is the right move.
-   */
-  const [teksAllowlist, setTeksAllowlist] = useState(() => allowlistWeb.join('\n'));
-  useEffect(() => {
-    const dariSetelan = (settings.allowlistWeb ?? []).join('\n');
-    setTeksAllowlist((lama) =>
-      hostDariTeks(lama).join('\n') === dariSetelan ? lama : dariSetelan,
-    );
-  }, [settings.allowlistWeb]);
 
   /* Tool counts, read as primitives: the Set itself is replaced on every
      toggle, so comparing it in a selector is fine, but a derived number keeps
@@ -636,69 +586,6 @@ export default function ChatSettingsPage({
         </span>
       ),
       isDefault: true,
-    },
-    {
-      /*
-       * Konten web — the two settings the web gate reads, at last with a face.
-       *
-       * `izinIsiWeb` was an opt-in that had no switch: the only way to turn it
-       * on was editing settings.json by hand, which is not a setting UI, it is
-       * a support ticket. The toggle is the master and the list is what the
-       * master governs, so they open the section together — the same pairing
-       * Rules' master switch has with the rules it guards.
-       */
-      section: 'web',
-      id: 'izinisiweb',
-      label: 'Let the agent read web pages',
-      hint: 'The master switch for every web tool (browser and fetch). Off means no page content is ever requested, for any host.',
-      words: 'konten web content izin permission web fetch browse read page internet allow switch',
-      ctl: (
-        <Toggle
-          checked={izinWeb}
-          testid="cset-izinisiweb"
-          label="Let the agent read web pages"
-          onChange={(v) => void apply({ izinIsiWeb: v })}
-        />
-      ),
-      isDefault: izinWeb === false,
-      reset: () => void apply({ izinIsiWeb: false }),
-    },
-    {
-      section: 'web',
-      id: 'allowlistweb',
-      label: 'Allowed hosts',
-      /*
-       * One host per line, no scheme — and a host also opens its subdomains
-       * (`hostDiAllowlist` matches the suffix), which the hint says because
-       * otherwise the natural read is "exact host only" and the reader types
-       * docs.example.com on a second line for nothing.
-       */
-      hint: 'Hosts the agent may read, one per line, without the scheme (example.com). A host also allows its subdomains. Empty refuses every host.',
-      words: 'konten web content allowlist host domain site allowed internet fetch subdomain',
-      ctl: (
-        <textarea
-          className="cset-textarea"
-          data-testid="cset-allowlistweb"
-          rows={4}
-          value={teksAllowlist}
-          placeholder={tr('example.com')}
-          onChange={(e) => {
-            const teks = e.target.value;
-            setTeksAllowlist(teks);
-            /* Written ALONGSIDE the text, not derived back from it: see the
-               state's own comment above. The parse also strips any scheme or
-               path the reader pasted, so what lands in settings.json is a host. */
-            void apply({ allowlistWeb: hostDariTeks(teks) });
-          }}
-        />
-      ),
-      isDefault: allowlistWeb.length === 0,
-      reset: () => {
-        setTeksAllowlist('');
-        /* `null` DELETES the key (mergeDalam drops nulls), which is the true
-           default: no key at all, read by the gate as "no hosts allowed". */
-        void apply({ allowlistWeb: null });
-      },
     },
     {
       /*
