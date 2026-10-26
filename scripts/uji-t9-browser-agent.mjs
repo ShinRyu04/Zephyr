@@ -1,10 +1,9 @@
-// uji-t9-browser-agent.mjs — prove the agent can actually read and click a
-// page inside the browser pane.
+// uji-t9-browser-agent.mjs - prove the agent's browser tools drive the page.
 //
-// The whole point of moving off the iframe was that the agent could see and
-// act. A check that only opens a pane would pass with an iframe too, so every
-// step below goes through browser_pane_eval: read the title, read the text,
-// click a link, read the result.
+// Moved from a browser pane to the Browser tab: the webview is addressed by
+// the constant id 'tab-browser' (ID_TAB_BROWSER in
+// src/lib/zephyrTools/web.ts), so every command here takes that id instead of
+// a pane id, and no terminal pane of kind 'browser' may be created.
 
 import { Cdp } from './lib-cdp.mjs';
 
@@ -13,72 +12,61 @@ const { cdp } = await Cdp.attach('9223', 'Zephyr');
 const hasil = await cdp.runAsync(`
   await new Promise(r => setTimeout(r, 2000));
   const out = {};
-  const mod = await import('/src/lib/commands.ts');
-  const cmd = mod.default ?? mod;
-  const tools = await import('/src/lib/agentTools.ts');
-  const t = await import('/src/lib/terminalStore.ts');
-  const useTerminal = t.useTerminal ?? t.default;
+  const cmdMod = await import('/src/lib/commands.ts');
+  const cmd = cmdMod.default ?? cmdMod;
+  const ID_TAB_BROWSER = 'tab-browser';
 
-  // 1. tool browser terdaftar untuk agent?
-  const spec = tools.agentToolSpecs();
-  out.toolBrowser = spec.filter(s => s.name.startsWith('browser_')).map(s => s.name);
-  out.totalTool = spec.length;
+  // Tab Browser dibuat lewat store editor (satu tab tetap, bukan pane).
+  window.__ZEPHYR__.getState().bukaViewAi('browser', { url: 'about:blank' });
+  await new Promise(r => setTimeout(r, 1500));
+  out.adaTabBrowser = window.__ZEPHYR__.getState().tabs.some((t) => t.view === 'browser');
+  out.idWebview = ID_TAB_BROWSER;
 
-  // 2. buka pane browser
-  const store = useTerminal.getState();
-  let paneId = store.allPanes().find(p => p.kind === 'browser')?.id;
-  if (!paneId) {
-    paneId = await store.addPane('browser');
-    await new Promise(r => setTimeout(r, 1200));
-  }
-  out.paneId = paneId;
-
-  // 3. buka halaman nyata lewat command Rust
   try {
     await cmd.browserPaneOpen({
-      paneId, url: 'https://example.com',
-      x: 0, y: 0, width: 800, height: 600,
+      paneId: ID_TAB_BROWSER, url: 'https://example.com',
+      x: 0, y: 0, width: 900, height: 600,
     });
-    await new Promise(r => setTimeout(r, 3500));
-    out.openOk = true;
-  } catch (e) { out.openErr = String(e).slice(0, 200); }
-
-  // 4. BACA isi halaman — ini inti perubahannya
-  try {
-    const info = await cmd.browserPaneInfo(paneId);
-    out.judul = info.title;
+    await new Promise(r => setTimeout(r, 6000));
+    const info = await cmd.browserPaneInfo(ID_TAB_BROWSER);
     out.url = info.url;
-  } catch (e) { out.infoErr = String(e).slice(0, 200); }
+    out.judul = info.title;
 
-  try {
-    const teks = await cmd.browserPaneEval(paneId, 'document.body.innerText.slice(0,300)');
-    out.teksHalaman = String(teks).slice(0, 250);
-  } catch (e) { out.evalErr = String(e).slice(0, 200); }
+    const teks = await cmd.browserPaneEval(ID_TAB_BROWSER, 'document.body.innerText.slice(0,300)');
+    out.teks = String(teks).slice(0, 200);
 
-  // 5. BACA daftar link
-  try {
-    const link = await cmd.browserPaneEval(paneId,
-      'JSON.stringify(Array.from(document.querySelectorAll("a")).map(a => a.innerText + " -> " + a.href).slice(0,3))');
-    out.link = String(link).slice(0, 300);
-  } catch (e) { out.linkErr = String(e).slice(0, 200); }
+    // tautan: eja isi anchor pertama (navigasi sendiri tidak diuji di sini,
+    // karena example.com hanya punya satu tautan keluar ke iana.org).
+    const link = await cmd.browserPaneEval(ID_TAB_BROWSER,
+      '(() => { const a = document.querySelector("a"); return a ? { href: a.href, teks: a.textContent.trim() } : null; })()');
+    out.tautan = JSON.stringify(link);
 
-  // 6. KLIK link — bukti agent bisa bertindak, bukan cuma membaca
-  try {
-    const klik = await cmd.browserPaneEval(paneId,
-      'document.querySelector("a") ? (document.querySelector("a").click(), "diklik") : "tidak ada link"');
+    const klik = await cmd.browserPaneEval(ID_TAB_BROWSER,
+      '(() => { const a = document.querySelector("a"); if (!a) return "tidak ada tautan"; a.click(); return "diklik"; })()');
     out.klik = String(klik);
-    await new Promise(r => setTimeout(r, 2500));
-    const setelah = await cmd.browserPaneInfo(paneId);
+    await new Promise(r => setTimeout(r, 4000));
+    const setelah = await cmd.browserPaneInfo(ID_TAB_BROWSER);
     out.urlSetelahKlik = setelah.url;
-    out.judulSetelahKlik = setelah.title;
-  } catch (e) { out.klikErr = String(e).slice(0, 200); }
+  } catch (e) {
+    out.err = String(e.message || e).slice(0, 250);
+  }
 
-  // 7. tool browser_open lewat agent (jalur yang dipakai AI)
+  // Jalur tool agent: 'browser' dengan aksi open tidak boleh membuat tab kedua.
   try {
-    const tool = tools.AGENT_TOOLS.find(x => x.spec.name === 'browser_open');
-    const r = await tool.run({ url: 'https://example.com', paneId });
-    out.toolOpen = String(r).slice(0, 200);
-  } catch (e) { out.toolErr = String(e).slice(0, 250); }
+    const tools = window.__ZEPHYR_TOOLS__;
+    if (tools?.jalankan) {
+      out.hasilTool = String(await tools.jalankan('browser', { aksi: 'open', url: 'https://example.com' })).slice(0, 200);
+    } else {
+      out.hasilTool = '(bridge tool tidak ada)';
+    }
+  } catch (e) {
+    out.errTool = String(e.message || e).slice(0, 250);
+  }
+  out.jumlahTabBrowser = window.__ZEPHYR__.getState().tabs.filter((t) => t.view === 'browser').length;
+
+  const T = window.__ZEPHYR_TERM__.getState();
+  out.paneBrowserDiPanel = T.terminalTabs
+    .reduce((n, t) => n + t.panes.filter((p) => p.kind === 'browser').length, 0);
 
   return JSON.stringify(out);
 `);

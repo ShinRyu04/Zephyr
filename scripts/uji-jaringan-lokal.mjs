@@ -34,6 +34,11 @@
  *      userinfo-nya - bukan kebetulan kena allowlist.
  *   S8 fail-closed : objek setelan kosong = default aman; `izinJaringanLokal:
  *      "yes"` (string, bukan boolean) dibaca false.
+ *   S8b opt-out eksplisit : `izinIsiWeb: false` adalah SATU-SATUNYA cara
+ *      mematikan isi web (10ad447 mengubah default dari fail-closed menjadi
+ *      "hanya mati kalau eksplisit false"). Objek kosong = izin penuh, dan itu
+ *      keputusan produk yang disengaja - diukur apa adanya, bukan diasumsikan
+ *      masih fail-closed seperti sebelum 10ad447.
  *   S9 determinisme : seluruh kasus dijalankan DUA KALI dan dibandingkan.
  *
  * YANG TIDAK DIBUKTIKAN DI SINI
@@ -93,12 +98,12 @@ const STUB_WEB = new Map([
   [
     '../store',
     `const setelan = { izinIsiWeb: true, allowlistWeb: ['contoh.com'] };
-     export const useStore = { getState: () => ({ settings: setelan }), setState: () => {}, subscribe: () => () => {} };`,
+     export const useStore = { getState: () => ({ settings: setelan, tabs: [], activeTabId: null, setActiveTab: () => {}, setTabUrl: () => {}, requestCloseTab: () => {}, bukaViewAi: () => {} }), setState: () => {}, subscribe: () => () => {} };`,
   ],
   [
     '../terminalStore',
     `export const useTerminal = { getState: () => ({ terminalTabs: [], activeTabId: null, activePaneId: null, visible: false, toast: null,
-       allPanes: () => [], addPane: async () => null, closePane: async () => {}, setPaneUrl: () => {},
+       allPanes: () => [], addPane: async () => null, closePane: async () => {},
        setActiveTab: () => {}, setActivePane: () => {}, setVisible: () => {} }) };`,
   ],
   ['../agentGuard', 'export const periksaTulis = () => ({ ok: true });'],
@@ -113,6 +118,15 @@ const STUB_WEB = new Map([
     './builtins',
     `export const potong = (s) => String(s);
      export const wajib = (a, k) => { const v = a ? a[k] : undefined; if (v === undefined || v === null) throw new Error('arg wajib: ' + k); return String(v); };`,
+  ],
+  [
+    '../agentsBrowserStore',
+    `export const ID_PANE_AGENTS = 'agents-browser';
+     export const daftarPaneAgents = () => [];
+     export const diJendelaAgents = () => false;
+     export const paneAgents = () => null;
+     export const mintaPaneAgents = () => false;
+     export const mintaBukaDiAgents = () => {};`,
   ],
   ['../checkpoint', 'export const catat = async () => {};'],
 ]);
@@ -325,7 +339,13 @@ async function semuaKasus() {
   t('S6c bodi di atas batas DITOLAK, bukan dipotong diam-diam', M.batasiByte(M.BATAS_BYTE_MAKS + 1, kbBesar.batasByte).ok === false, `alasan=${alasan(M.batasiByte(M.BATAS_BYTE_MAKS + 1, kbBesar.batasByte))}`);
   const potong = M.potongKeluaran('x'.repeat(500), M.kebijakanDariSetelan({ izinIsiWeb: true, batasKarakterWeb: 100 }));
   t('S6d keluaran dipotong dengan penanda', potong.dipotong === true && potong.teks.includes(M.PENANDA_DIPOTONG), `panjang=${potong.teks.length}`);
-  const kbMati = M.KEBIJAKAN_TOLAK_SEMUA;
+  /*
+   * Izin MATI dibangun dari setelan, bukan dari `KEBIJAKAN_TOLAK_SEMUA`:
+   * konstanta itu berarti "belum ada setelan" dan sejak 10ad447 bernilai
+   * `izinIsiWeb: true` (izin penuh). Memakainya sebagai "izin mati" mengukur
+   * kebalikan dari namanya.
+   */
+  const kbMati = M.kebijakanDariSetelan({ izinIsiWeb: false });
   t('S6e izin mati = kirim 0 ke model', M.saringKeModel('RAHASIA', kbMati).kirim === 0, `kirim=${M.saringKeModel('RAHASIA', kbMati).kirim}`);
   // Plafon keras byte tidak bisa dilewati lewat setelan.
   t('S6f BATAS_BYTE_MAKS tetap 8.388.608', M.BATAS_BYTE_MAKS === 8 * 1024 * 1024, `=${M.BATAS_BYTE_MAKS}`);
@@ -373,7 +393,11 @@ async function semuaKasus() {
   t('S8a setelan kosong = izin lokal OFF', kosong.izinJaringanLokal === false, `=${kosong.izinJaringanLokal}`);
   t('S8b setelan kosong = port default 80/443', JSON.stringify(kosong.portSah) === JSON.stringify(M.PORT_SAH), `=${JSON.stringify(kosong.portSah)}`);
   t('S8c setelan kosong = hop default 5', kosong.hopRedirect === 5, `=${kosong.hopRedirect}`);
-  t('S8d setelan kosong = izinIsiWeb OFF', kosong.izinIsiWeb === false, `=${kosong.izinIsiWeb}`);
+  /* 10ad447: hanya `false` eksplisit yang mematikan isi web. Diukur apa
+     adanya - bukan fail-closed lagi, dan bukan pula diubah diam-diam. */
+  t('S8d setelan kosong = izinIsiWeb ON (mati hanya kalau eksplisit false)', kosong.izinIsiWeb === true, `=${kosong.izinIsiWeb}`);
+  t('S8b bis opt-out eksplisit izinIsiWeb:false = OFF', M.kebijakanDariSetelan({ izinIsiWeb: false }).izinIsiWeb === false,
+    `=${M.kebijakanDariSetelan({ izinIsiWeb: false }).izinIsiWeb}`);
   const stringy = M.kebijakanDariSetelan({ izinJaringanLokal: 'yes' });
   t('S8e izinJaringanLokal string "yes" dibaca OFF (harus boolean)', stringy.izinJaringanLokal === false, `=${JSON.stringify(stringy.izinJaringanLokal)}`);
   const rusak = M.kebijakanDariSetelan({ portWeb: 'bukan-array', hopRedirect: 'besar' });

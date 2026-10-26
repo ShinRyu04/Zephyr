@@ -2,7 +2,7 @@
  * uji-browser-baca.mjs - uji NYATA "agent bisa buka browser & baca isinya".
  *
  * Dua bagian:
- *   1) LANGSUNG  - harness memanggil tool `browser_open`/`browser_read` sendiri
+ *   1) LANGSUNG  - harness memanggil tool `browser` (aksi open/read) sendiri
  *                  (lewat bridge __ZEPHYR_TOOLS__.jalankan) pada halaman yang
  *                  isinya BARU ADA setelah JavaScript jalan. Halaman itu
  *                  dilayani http server milik harness ini, jadi isinya pasti:
@@ -18,7 +18,7 @@ import { Cdp, reporter } from './lib-cdp.mjs';
 import http from 'http';
 
 const PORT = process.argv[2] ? String(process.argv[2]) : '9223';
-const R = reporter('agent buka browser pane + baca isi halaman');
+const R = reporter('agent buka tab Browser + baca isi halaman');
 const PORT_WEB = 5199;
 const HALAMAN = `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>Halaman Uji Baca</title></head>
@@ -40,51 +40,47 @@ console.log(`     http server uji: http://localhost:${PORT_WEB} (isinya dirender
 
 const { cdp } = await Cdp.attach(PORT, ['Zephyr', 'localhost']);
 
-/* Bersihkan SEMUA pane browser dari uji sebelumnya - pane yang tertinggal
-   membuat pane baru kena batas dan mengaburkan pane mana yang dibaca. */
+/* Bersihkan tab Browser dari uji sebelumnya - tab yang tertinggal membuat uji
+   berikutnya membaca halaman yang salah. Browser kini satu tab tetap di area
+   editor (id tab-browser), bukan pane di tab terminal. */
 const bersih = await cdp.json(`return JSON.stringify(await (async () => {
-  const term = window.__ZEPHYR_TERM__;
-  if (!term) return 'bridge terminal tidak ada';
-  const st = term.getState();
-  const ids = [];
-  for (const t of st.terminalTabs) for (const p of t.panes) if (p.kind === 'browser') ids.push(p.id);
-  for (const id of ids) { try { await st.closePane(id); } catch (e) { /* biarkan */ } }
-  return 'ditutup: ' + (ids.join(', ') || '(tidak ada)');
+  const S = window.__ZEPHYR__;
+  if (!S) return 'bridge editor tidak ada';
+  const tabs = S.getState().tabs.filter((x) => x.view === 'browser');
+  for (const t of tabs) { try { S.getState().forceCloseTab(t.id); } catch (e) { /* biarkan */ } }
+  return 'ditutup: ' + (tabs.map((t) => t.id).join(', ') || '(tidak ada)');
 })())`);
-console.log('     bersihkan pane -> ' + bersih);
+console.log('     bersihkan tab browser -> ' + bersih);
 
 const url = `http://localhost:${PORT_WEB}`;
 
 /* ── 1) LANGSUNG: open + read, dijalankan harness sendiri ─────────────── */
-const buka = await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser_open', { url: ${JSON.stringify(url)} }))`);
-console.log(`     browser_open -> ${buka}`);
+const buka = await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'open', url: ${JSON.stringify(url)} }))`);
+console.log(`     browser open -> ${buka}`);
 
 let dibaca = '';
 for (let i = 0; i < 20; i++) {
   await new Promise((s) => setTimeout(s, 1000));
-  dibaca = String(await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', {}))`));
+  dibaca = String(await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read' }))`));
   if (dibaca.length > 60) break;
 }
 console.log('     --- isi yang dibaca agen (potongan) ---');
 console.log('     ' + dibaca.replace(/\\n/g, ' | ').slice(0, 700));
 
 R.check('B1', dibaca.includes('SKRIP-BERJALAN: 42 dan alfa/beta'),
-  'browser_read membaca DOM yang SUDAH dirender skrip (bukan HTML mentah)');
+  'browser read membaca DOM yang SUDAH dirender skrip (bukan HTML mentah)');
 R.check('B2', !/<script|<div|<html/i.test(dibaca),
   'yang terbaca teks halaman, bukan tag HTML mentah');
 
 /* Halaman luar nyata, bukti kedua. */
-const bukaLuar = await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser_open', { url: "https://example.com" }))`);
+const bukaLuar = await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'open', url: "https://example.com" }))`);
 let luar = '';
 for (let i = 0; i < 20; i++) {
   await new Promise((s) => setTimeout(s, 1200));
-  const l = await cdp.json(`return JSON.stringify(await (async () => {
-    const panes = window.__ZEPHYR_TOOLS__ ? await window.__ZEPHYR_TOOLS__.jalankan('browser_list', {}) : '[]';
-    return panes;
-  })())`);
-  luar = String(await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser_read', {}))`));
+  const l = await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'list' }))`);
+  luar = String(await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read' }))`));
   if (/example domain/i.test(luar)) break;
-  if (i === 3 && l) console.log('     pane sekarang: ' + l.replace(/\\s+/g, ' ').slice(0, 200));
+  if (i === 3 && l) console.log('     browser sekarang: ' + l.replace(/\\s+/g, ' ').slice(0, 200));
 }
 R.check('B3', /example domain|this domain is for use/i.test(luar),
   'situs luar (example.com) terbaca isinya');
@@ -92,7 +88,7 @@ if (!/example domain/i.test(luar)) console.log('     potongan: ' + luar.slice(0,
 
 /* ── 2) AGENT: suruh model melakukannya ──────────────────────────────── */
 const tugas =
-  `Buka ${url} di pane browser pakai tool browser_open, lalu baca isinya pakai browser_read. ` +
+  `Buka ${url} di tab Browser pakai tool browser (aksi open), lalu baca isinya pakai tool browser (aksi read). ` +
   'Sebutkan persis isi halaman itu, TERMASUK angka yang tertulis di dalamnya.';
 
 await cdp.json(`return JSON.stringify((() => {
@@ -141,8 +137,8 @@ const hasil = await cdp.json(
 const detik = Math.round((Date.now() - t0) / 1000);
 R.check('B4', hasil.ok === true, `agen menyelesaikan tugas sendiri dalam ${detik}s${hasil.macet ? ' (MACET)' : ''}${hasil.timeout ? ' (TIMEOUT)' : ''}`);
 R.check('B5', !hasil.error, `tanpa error provider (${hasil.error ?? 'bersih'})`);
-R.check('B6', (hasil.nama ?? []).includes('browser_open') && (hasil.nama ?? []).includes('browser_read'),
-  `agen benar-benar memakai browser_open + browser_read (${(hasil.nama ?? []).join(' -> ')})`);
+R.check('B6', (hasil.nama ?? []).includes('browser'),
+  `agen benar-benar memakai tool browser (${(hasil.nama ?? []).join(' -> ')})`);
 R.check('B7', /42/.test(String(hasil.balasan ?? '')),
   'jawaban agen memuat angka 42 (hanya ada kalau DOM dirender dibaca agen)');
 
@@ -150,8 +146,8 @@ console.log('\n--- jawaban agen ---');
 console.log(String(hasil.balasan ?? '').trim().slice(0, 1200) || '(kosong)');
 console.log('--------------------\n');
 
-/* Bersihkan: tutup pane, matikan server uji. */
-try { await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser_close', {}))`); } catch {}
+/* Bersihkan: tutup tab Browser, matikan server uji. */
+try { await cdp.json(`return JSON.stringify(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'close' }))`); } catch {}
 R.selesai();
 await cdp.close();
 server.close();

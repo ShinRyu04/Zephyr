@@ -1,7 +1,11 @@
-// debug-v6-12.mjs — inspect the exact values the phase-12 V6 check sees.
+// debug-v6-12.mjs - inspect the exact values the phase-12 V6 check sees.
 //
 // The harness reports a failure whose own message contains the expected text,
 // so the comparison is the thing to inspect, not the page.
+//
+// The browser is now a tab in the editor area, not a pane in the terminal tab,
+// so the page text is read through the `browser` tool (aksi read) and the URL
+// lives in the editor store (`Tab.url`), not in a pane.
 
 import { Cdp } from './lib-cdp.mjs';
 import { createServer } from 'node:http';
@@ -19,6 +23,11 @@ const { cdp } = await Cdp.attach('9223', 'Zephyr');
 
 const r = await cdp.runAsync(`
   const _term = window.__ZEPHYR_TERM__;
+
+  // Tab browser lama ditutup supaya yang diuji hanya tab yang dibuka di sini.
+  for (const t of window.__ZEPHYR__.getState().tabs.filter(x => x.view === 'browser')) {
+    window.__ZEPHYR__.getState().forceCloseTab(t.id);
+  }
   for (const t of _term.getState().terminalTabs.slice()) await _term.getState().closeTab(t.id);
   await new Promise(r => setTimeout(r, 800));
   _term.getState().setVisible(true);
@@ -35,13 +44,15 @@ const r = await cdp.runAsync(`
   el.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   await new Promise(r => setTimeout(r, 3500));
 
-  const pane = _term.getState().activeTab().panes.find(p => p.kind === 'browser');
-  const t = window.__ZEPHYR_TOOLS__ ?? [];
-  const read = t.find(x => x.spec.name === 'browser_read');
-  const isi = String(await read.run({ paneId: pane.id }));
+  const isi = String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read' }));
+  const tab = window.__ZEPHYR__.getState().tabs.find(x => x.view === 'browser');
+  const paneBrowserDiPanel = _term.getState().terminalTabs
+    .reduce((n, t) => n + t.panes.filter(p => p.kind === 'browser').length, 0);
 
   return JSON.stringify({
-    url: _term.getState().findPane(pane.id)?.url ?? null,
+    tabId: tab?.id ?? null,
+    url: tab?.url ?? null,
+    paneBrowserDiPanel,
     panjangIsi: isi.length,
     isiPenuh: isi,
     adaMarker: isi.includes('${MARKER}'),

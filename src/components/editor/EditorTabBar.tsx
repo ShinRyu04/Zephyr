@@ -94,7 +94,32 @@ export default function EditorTabBar({ gid, tanpaTabBaru = false }: { gid?: stri
               }
             }}
           >
-            <FileIcon lang={t.lang} name={t.name} />
+            {t.view === 'browser' ? (
+              /*
+               * The Browser tab gets the globe rather than a file glyph: the
+               * name is "Browser", there is no path, and `FileIcon` would fall
+               * through to its quiet-dot fallback - the one mark that says
+               * nothing about what the tab is.
+               */
+              <svg
+                className="tab-globe"
+                viewBox="0 0 16 16"
+                width={14}
+                height={14}
+                aria-hidden="true"
+                style={{ flexShrink: 0 }}
+              >
+                <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                <path
+                  d="M2.4 8h11.2M8 2.4c1.7 1.6 2.6 3.5 2.6 5.6S9.7 12 8 13.6C6.3 12 5.4 10.1 5.4 8S6.3 4 8 2.4z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+            ) : (
+              <FileIcon lang={t.lang} name={t.name} />
+            )}
             <span className="tab-name">{t.name}</span>
             {t.pinned && (
               <span className="tab-pin" title={tx('Pinned')} aria-hidden="true">

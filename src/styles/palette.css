@@ -317,6 +317,34 @@
   display: flex;
 }
 
+/*
+ * The Browser's home in the EDITOR area.
+ *
+ * `ai-view-tab` cannot be reused: those wrappers are `position: static` on
+ * purpose (their own inner element covers the pane), but the browser hangs a
+ * native child webview on the rect measured from THIS element, so it needs real
+ * geometry. `.editor-host` is already `position: relative`, so `inset: 0`
+ * fills exactly the editor area and nothing else.
+ */
+.bp-tab-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* `.browser-pane` positions itself absolutely; inside the tab host it is the
+   flow child instead, so the toolbar sits above the stage rather than over it. */
+.bp-tab-host > .bp-tab-pane {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 .bp-busy {
   position: absolute;
   top: 6px;

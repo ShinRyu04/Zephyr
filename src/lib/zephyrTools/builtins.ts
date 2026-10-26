@@ -393,7 +393,7 @@ async function cariToolTerdefer(
    * Exclude what is ALREADY SENT, not what the catalog calls "core". Those are
    * different sets: TOOL_INTI is the 43 tools installable by default, but only
    * TOOL_DIKIRIM_SELALU ride every request. Filtering by TOOL_INTI hid
-   * every default-on-but-deferred tool - schedule, notes, background bash -
+   * every default-on-but-deferred tool - schedule, notes, memory -
    * from search, so the model could not find them at all.
    *
    * Jumlahnya sengaja TIDAK ditulis tangan di sini. Komentar lama menyebut
@@ -1123,7 +1123,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
     spec: {
       name: 'bash_run',
       description:
-        'Jalankan perintah dan tunggu sampai selesai. Perintah dijalankan di folder berkas yang sedang dibuka; tanpa berkas terbuka, di folder yang dibuka. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang (server/watcher), jalankan perintahnya di latar lewat shell-nya sendiri (`start`, `&`, `--watch`) - tidak ada tool latar terpisah, dan tool ini tidak akan menunggu proses yang sudah dilepas. Perintah berat (build, install, test suite) boleh berjalan sampai 5 menit; isi `timeout` (milidetik) bila perintahnya butuh lebih lama lagi.',
+        'Jalankan perintah dan tunggu sampai selesai. Perintah dijalankan di folder berkas yang sedang dibuka; tanpa berkas terbuka, di folder yang dibuka. HOST ADALAH WINDOWS: gunakan perintah Windows atau CLI portabel (git, npm, cargo, npx). JANGAN gunakan sintaks bash Linux seperti `pwd && ls -la`, `which`, atau `export` karena akan gagal. Untuk proses panjang yang tidak perlu ditunggu (server/watcher), JANGAN melepasnya sendiri lewat `start`/`&` - pakai `bash_job` supaya keluarannya masih bisa dibaca dan prosesnya bisa dihentikan. Perintah berat (build, install, test suite) boleh berjalan sampai 5 menit; isi `timeout` (milidetik) bila perintahnya butuh lebih lama lagi.',
       parameters: {
         type: 'object',
         properties: {
@@ -1203,6 +1203,113 @@ export const TOOL_BAWAAN: AgentTool[] = [
         r.stderr ? `--- stderr ---\n${r.stderr}` : '',
       ].filter(Boolean);
       return potong(bagian.join('\n'));
+    },
+  },
+
+  {
+    spec: {
+      name: 'bash_job',
+      description:
+        'Kelola proses LATAR: jalankan perintah yang tidak perlu ditunggu (dev server, watcher, test suite panjang), lalu baca keluarannya, hentikan, atau bersihkan. Hasil `mulai` langsung kembali dengan id job (`job-1`, ...); pakai `aksi:"baca"` untuk melihat keluaran terbaru dan apakah sudah selesai. Maksimum 4 job berjalan sekaligus. HOST ADALAH WINDOWS: perintah Windows/CLI portabel, bukan sintaks bash Linux. Untuk perintah biasa yang hasilnya dibutuhkan sekarang, pakai `bash_run`.',
+      parameters: {
+        type: 'object',
+        properties: {
+          aksi: {
+            type: 'string',
+            enum: ['mulai', 'baca', 'hentikan', 'bersihkan', 'daftar'],
+            description:
+              'mulai (default) = jalankan `command` di latar; baca = keluaran + status; hentikan = matikan job; bersihkan = buang job yang sudah selesai (semua bila `id` kosong); daftar = semua job.',
+          },
+          command: { type: 'string', description: 'Perintah untuk aksi `mulai`.' },
+          id: { type: 'string', description: 'Id job, mis. `job-1`. Wajib untuk baca/hentikan.' },
+          max_baris: {
+            type: ['number', 'string'],
+            description: 'Jumlah baris TERAKHIR yang ditampilkan saat `baca` (bawaan 120).',
+          },
+          cwd: { type: 'string', description: 'Folder kerja untuk aksi `mulai` (bawaan: folder terbuka).' },
+        },
+        required: [],
+      },
+    },
+    run: async (a) => {
+      const aksi = String(a.aksi ?? 'mulai').trim().toLowerCase();
+      const { useJobs } = await import('../shellJobs');
+      const store = useJobs.getState();
+
+      const barisAkhir = (teks: string, n: number) => {
+        const baris = teks.split('\n');
+        return baris.length <= n ? teks : baris.slice(baris.length - n).join('\n');
+      };
+
+      const ringkas = (j: {
+        id: string;
+        status: string;
+        command: string;
+        paneId: string;
+        mulai: number;
+        selesai?: number;
+      }) => {
+        const umur = Math.round(((j.selesai ?? Date.now()) - j.mulai) / 1000);
+        return `${j.id} [${j.status}] ${umur}s pane=${j.paneId} :: ${j.command}`;
+      };
+
+      if (aksi === 'daftar') {
+        const jobs = store.jobs;
+        if (!jobs.length) return 'Belum ada proses latar.';
+        return potong(jobs.map(ringkas).join('\n'));
+      }
+
+      if (aksi === 'bersihkan') {
+        const id = a.id ? String(a.id).trim() : undefined;
+        const n = await store.bersihkanSelesai(id);
+        return n ? `${n} job dibersihkan.` : 'Tidak ada job yang perlu dibersihkan.';
+      }
+
+      const id = String(a.id ?? '').trim();
+      if (!id) return 'ERROR: `id` wajib untuk aksi baca/hentikan (lihat aksi "daftar").';
+
+      if (aksi === 'hentikan') {
+        const j = await store.stop(id);
+        if (!j) return `ERROR: job ${id} tidak dikenal.`;
+        return [
+          `${j.id} dihentikan.`,
+          j.keluaran ? `--- keluaran terakhir ---\n${barisAkhir(j.keluaran, 40)}` : '(tidak ada keluaran)',
+        ].join('\n');
+      }
+
+      if (aksi === 'baca') {
+        const j = await store.refresh(id);
+        if (!j) return `ERROR: job ${id} tidak dikenal.`;
+        const n = Math.max(10, Math.min(400, bacaAngka(a.max_baris) ?? 120));
+        return potong(
+          [
+            ringkas(j),
+            j.keterangan ?? '',
+            j.keluaran ? `--- keluaran ---\n${barisAkhir(j.keluaran, n)}` : '(belum ada keluaran)',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+      }
+
+      if (aksi !== 'mulai') return `ERROR: aksi "${aksi}" tidak dikenal.`;
+
+      const command = wajib(a, 'command');
+      periksaPerintah(command);
+      const { perintah: aman, diubah } = kutipUrlDiPerintah(command);
+      const cwd = a.cwd ? String(a.cwd) : (akarCwd() ?? undefined);
+      try {
+        const j = await store.mulai(aman, { cwd: cwd ?? null });
+        return [
+          `Proses latar ${j.id} dijalankan (pane ${j.paneId}).`,
+          'Gunakan aksi "baca" dengan id itu untuk melihat keluaran/statusnya.',
+          diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
+        ]
+          .filter(Boolean)
+          .join('\n');
+      } catch (e) {
+        return `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+      }
     },
   },
 

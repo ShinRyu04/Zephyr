@@ -215,7 +215,7 @@ export const MENUS: MenuDef[] = [
     items: [
       { label: 'New Terminal', command: 'terminal.new' },
       { label: 'New Agent Pane', command: 'terminal.newAgent' },
-      { label: 'Split With Browser', command: 'terminal.splitBrowser' },
+      { label: 'Open Browser Tab', command: 'terminal.splitBrowser' },
       SEP,
       { label: 'Kill Active Pane', command: 'terminal.kill' },
       { label: 'Clear Terminal', command: 'terminal.clear' },

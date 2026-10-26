@@ -174,10 +174,27 @@ interface StoreActions {
    * twice focuses rather than stacking duplicates.
    */
   bukaViewAi: (
-    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view',
+    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view' | 'browser',
+    /*
+     * `url` is only read by the `browser` view. It is how a caller says WHICH
+     * page the one Browser tab should be showing; without it the tab keeps
+     * whatever it already had.
+     */
+    opts?: { url?: string },
   ) => void;
 
   setActiveTab: (id: string) => void;
+
+  /**
+   * Point the BORROWED browser tab at another address.
+   *
+   * `paneId` is accepted so the browser webview code can stay pane-shaped (it
+   * is the same child webview the agents column uses), but only
+   * `PANE_BROWSER_TAB` names an editor tab; anything else is ignored. Written
+   * when the reader navigates inside the webview, so the tab's stored address
+   * follows the page instead of going stale.
+   */
+  setTabUrl: (paneId: string, url: string) => void;
   updateTabContent: (id: string, content: string) => void;
   saveTab: (id: string) => Promise<boolean>;
   saveTabAs: (id: string) => Promise<boolean>;
@@ -1136,16 +1153,29 @@ export const useStore = create<Store>((set, get) => ({
     void get().persistSession();
   },
 
-  bukaViewAi: (view) => {
+  bukaViewAi: (view, opts) => {
     /* Already open: just bring it forward. Reopening must not add a second tab
        — the reader pressed a button they already pressed, and two chat tabs
        would be two conversations pretending to be one. */
     const ada = get().tabs.find((t) => t.view === view);
     if (ada) {
+      /*
+       * The Browser is the one view whose reuse has to be honest about the
+       * address: asking for a DIFFERENT page while the tab is already open must
+       * retarget it, otherwise `browser_open` would report success while the
+       * old page stayed on screen. Same address, or no address at all: touch
+       * nothing, so a plain "bring it forward" never reloads the page.
+       */
+      const urlBaru = view === 'browser' ? opts?.url : undefined;
+      const perluUrl = !!urlBaru && urlBaru !== ada.url;
       set({ activeTabId: ada.id });
       const fokus = useLayout.getState().fokus;
       set((s) => ({
-        tabs: s.tabs.map((t) => (t.id === ada.id ? { ...t, groupId: fokus } : t)),
+        tabs: s.tabs.map((t) =>
+          t.id === ada.id
+            ? { ...t, groupId: fokus, ...(perluUrl ? { url: urlBaru } : {}) }
+            : t,
+        ),
       }));
       return;
     }
@@ -1164,7 +1194,9 @@ export const useStore = create<Store>((set, get) => ({
                 ? 'Tools'
                 : view === 'diff-view'
                   ? 'Changes'
-                  : 'Search Results',
+                  : view === 'browser'
+                    ? 'Browser'
+                    : 'Search Results',
       encoding: 'utf8' as Encoding,
       lineEnding: 'crlf' as LineEnding,
       unsaved: false,
@@ -1172,6 +1204,7 @@ export const useStore = create<Store>((set, get) => ({
       lang: 'plain',
       loaded: true,
       view,
+      ...(view === 'browser' && opts?.url ? { url: opts.url } : {}),
       groupId: useLayout.getState().fokus,
     };
 
@@ -1226,6 +1259,17 @@ export const useStore = create<Store>((set, get) => ({
     if (gid) useLayout.getState().fokusGroup(gid);
 
     void get().ensureTabLoaded(id);
+  },
+
+  setTabUrl: (paneId, url) => {
+    /* Only the editor Browser tab carries an address; the agents column has its
+       own store and never calls this. */
+    if (paneId !== 'tab-browser') return;
+    const tab = get().tabs.find((t) => t.view === 'browser');
+    if (!tab || tab.url === url) return;
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === tab.id ? { ...t, url } : t)),
+    }));
   },
 
   ensureTabLoaded: async (id) => {

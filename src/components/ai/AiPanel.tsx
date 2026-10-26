@@ -1327,7 +1327,7 @@ const bukaModels = () => bukaPanel('models');
           void runCommand('help.shortcuts');
           break;
         /*
-         * `/browser` — a browser pane INSIDE Zephyr.
+         * `/browser` — the browser INSIDE Zephyr.
          *
          * Two targets, because the reader can be in either window:
          *
@@ -1336,10 +1336,9 @@ const bukaModels = () => bukaPanel('models');
          *     shortcut fires reuses that one code path instead of a second
          *     "open the browser tab" implementation that could drift from it.
          *
-         *   - Main window: there is no such column, so the pane goes into the
-         *     bottom panel beside the terminal — `terminal.splitBrowser` is the
-         *     registered command for exactly that, and it already carries the
-         *     default URL.
+         *   - Main window: the browser is an editor TAB now (it used to be a
+         *     pane in the bottom panel). `terminal.splitBrowser` kept its id
+         *     but opens that tab, and it already carries the default URL.
          *
          * The event is dispatched rather than called directly because
          * `AgentsRight` binds its shortcut on `window`; a synthetic

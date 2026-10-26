@@ -1,9 +1,14 @@
 /**
- * Uji: tombol "Pane Browser (split)" sekarang mengirim URL.
+ * Uji: tombol "Open Browser Tab" membuka TAB browser yang benar-benar memuat.
  *
- * SEBELUM perbaikan: addPane('browser') tanpa url -> store mengisi
- * 'about:blank' -> child webview memuat halaman kosong -> pane hitam.
- * SESUDAH: url = HOME -> webview memuat halaman sungguhan.
+ * Dulu tombol ini menambah pane browser di dalam tab terminal dengan url
+ * 'about:blank', jadi pane-nya hitam. Sekarang browser hidup sebagai tab di
+ * area editor; yang harus dibuktikan sama: URL bukan about:blank, child
+ * webview benar-benar dibuat, dan tidak ada layar galat.
+ *
+ * Uji ini sengaja membaca DOM saja (tanpa __ZEPHYR_TERM__ / __ZEPHYR__):
+ * devBridge di-tree-shake dari build rilis, dan skrip ini dipakai untuk
+ * memeriksa build rilis.
  */
 const CDP = process.env.CDP || 'http://127.0.0.1:9350';
 
@@ -46,45 +51,54 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     if (tadi) break;
     await wait(500);
   }
-  cek('tombol Split With Browser tersedia di panel', tadi === true, 'tunggu sampai ada');
+  cek('tombol Open Browser Tab tersedia di panel', tadi === true, 'tunggu sampai ada');
 
-  // Klik tombol "Split With Browser"
+  // Klik tombolnya: sekarang membuka tab browser di area editor.
   const klik = await ev(send, `(()=>{
     const b=document.querySelector('[data-testid="empty-split-browser"]');
     if(!b) return {ada:false};
     b.click(); return {ada:true};
   })()`);
-  cek('tombol Split With Browser ditemukan', klik?.ada === true, JSON.stringify(klik));
+  cek('tombol Open Browser Tab ditemukan', klik?.ada === true, JSON.stringify(klik));
   await wait(7000);
 
-  // 1. URL pane tidak boleh about:blank.
+  // 1. URL di toolbar tab browser tidak boleh about:blank.
   //
   // CATATAN: `window.__ZEPHYR_TERM__` hanya ada di mode dev (devBridge di
   // tree-shake dari build rilis). Di rilis kita baca store lewat jalur yang
-  // selalu tersedia: atribut pane di DOM.
+  // selalu tersedia: DOM. Tab browser dikenali dari host-nya (.bp-tab-host,
+  // lihat SplitEditor) atau dari kelas .bp-tab-pane di root komponennya.
   const paneInfo = await ev(send, `(()=>{
     const panes=[...document.querySelectorAll('[data-pane-kind]')].map(e=>({
       kind:e.getAttribute('data-pane-kind'),
       id:e.getAttribute('data-pane-body')||e.getAttribute('data-pane-id')||null,
     }));
-    const bp=document.querySelector('.browser-pane');
+    const bp=document.querySelector('.browser-pane.bp-tab-pane')||document.querySelector('.bp-tab-host .browser-pane');
     const st=document.querySelector('[data-testid="bp-stage"]');
-    const bar=document.querySelector('[data-testid="bp-bar"] input, [class*=bp-url]');
+    const bar=document.querySelector('[data-testid="bp-url"]');
     return {
       panes,
-      adaBrowserPane: !!bp,
-      urlDiBar: bar ? (bar.value||bar.textContent||'').trim() : null,
+      // Panel bawah kini hanya berisi pane PTY; browser tidak lagi di sana.
+      adaPaneBrowserDiPanel: [...document.querySelectorAll('[data-pane-kind]')].some(e=>e.getAttribute('data-pane-kind')==='browser'),
+      adaBrowserTab: !!bp,
+      adaHostTab: !!document.querySelector('.bp-tab-host'),
+      urlDiBar: bar ? (bar.value||'').trim() : null,
       adaStage: !!st,
       stageRect: st ? (r=>({w:Math.round(r.width),h:Math.round(r.height)}))(st.getBoundingClientRect()) : null,
     };
   })()`);
-  console.log('    [info pane] ' + JSON.stringify(paneInfo));
+  console.log('    [info tab] ' + JSON.stringify(paneInfo));
 
   const url = paneInfo?.urlDiBar || '';
-  cek('pane browser ter-render', paneInfo?.adaBrowserPane === true, 'adaBrowserPane=' + paneInfo?.adaBrowserPane);
+  cek('tab browser ter-render di area editor', paneInfo?.adaBrowserTab === true && paneInfo?.adaHostTab === true,
+      'adaBrowserTab=' + paneInfo?.adaBrowserTab + ' adaHostTab=' + paneInfo?.adaHostTab);
+  cek('panel terminal TIDAK lagi memuat pane browser', paneInfo?.adaPaneBrowserDiPanel === false,
+      'adaPaneBrowserDiPanel=' + paneInfo?.adaPaneBrowserDiPanel);
   cek('url di toolbar BUKAN about:blank / kosong',
       !!url && url !== 'about:blank' && !url.startsWith('about:'),
       'url=' + (url || '-'));
+  cek('stage browser punya ukuran', paneInfo?.adaStage === true && (paneInfo?.stageRect?.w ?? 0) > 100,
+      JSON.stringify(paneInfo?.stageRect));
 
   // 2. child webview benar-benar dibuat (target CDP bertambah)
   const l2 = await (await fetch(CDP + '/json/list')).json();

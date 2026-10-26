@@ -1656,6 +1656,56 @@ export const worktreeRemove = (opts: { path: string; force?: boolean }) =>
   invoke<string>('git_worktree_remove', opts);
 export const worktreePrune = () => invoke<string>('git_worktree_prune');
 
+/*
+ * Root-explicit worktrees (`worktree_*` in src-tauri/src/worktree.rs).
+ *
+ * Unlike the `git_worktree_*` family above, these do not depend on the app's
+ * active workspace and they never reject a usage error as an IPC failure:
+ * every call answers `{ berhasil, pesan, data }`, so the UI must read
+ * `berhasil` instead of relying on `catch`. `data` is null on failure.
+ */
+export interface WorktreeEntri {
+  path: string;
+  branch: string | null;
+  head: string | null;
+  bare: boolean;
+  detached: boolean;
+  locked: boolean;
+  prunable: boolean;
+  isMain: boolean;
+}
+
+export interface HasilWorktree<T = unknown> {
+  berhasil: boolean;
+  pesan: string;
+  data: T | null;
+}
+
+export interface DaftarWorktree {
+  akar: string;
+  jumlah: number;
+  worktree: WorktreeEntri[];
+}
+
+export const worktreeRootList = (root: string) =>
+  invoke<HasilWorktree<DaftarWorktree>>('worktree_list', { root });
+
+export const worktreeRootAdd = (opts: {
+  root: string;
+  path: string;
+  branch?: string;
+  buatCabang?: boolean;
+}) => invoke<HasilWorktree<{ akar: string; path: string; branch: string; buatCabang: boolean }>>(
+  'worktree_add',
+  opts,
+);
+
+export const worktreeRootRemove = (opts: { root: string; path: string; paksa?: boolean }) =>
+  invoke<HasilWorktree<{ akar: string; path: string; paksa: boolean; branch: string | null }>>(
+    'worktree_remove',
+    opts,
+  );
+
 export const cronList = () => invoke<CronJob[]>('cron_list');
 export const cronCreate = (opts: {
   name: string;

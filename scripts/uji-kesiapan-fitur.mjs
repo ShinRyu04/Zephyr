@@ -203,11 +203,11 @@ const adaRedaksiLog = adaBerkas('src-tauri/src/logging.rs') ? /redact/i.test(bac
 const FITUR = [
   {
     id: '150',
-    nama: 'Pane BROWSER bawaan + otomasi',
+    nama: 'TAB BROWSER bawaan + otomasi',
     reuse: [
       'src-tauri/src/browser_pane.rs',
       'src-tauri/src/browser.rs',
-      'src/components/terminal/BrowserPane.tsx',
+      'src/components/editor/BrowserTab.tsx',
       'src/lib/zephyrTools/web.ts',
       'src/lib/commands.ts',
     ],

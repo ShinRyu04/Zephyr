@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePorts, type ForwardedPort } from '../../lib/portsStore';
-import { useTerminal } from '../../lib/terminalStore';
+import { useStore } from '../../lib/store';
 import { notifyError, notifyInfo } from '../../lib/notificationStore';
 import { clipboardWrite } from '../../lib/clipboard';
 import { useT, tx } from '../../lib/i18n';
@@ -12,7 +12,6 @@ export default function PortsView() {
   const add = usePorts((s) => s.add);
   const remove = usePorts((s) => s.remove);
   const update = usePorts((s) => s.update);
-  const addPane = useTerminal((s) => s.addPane);
 
   const [hostPort, setHostPort] = useState('');
   const [edit, setEdit] = useState<string | null>(null);
@@ -40,7 +39,8 @@ export default function PortsView() {
   const bukaDiBrowser = async (p: ForwardedPort) => {
     const url = `${p.protocol}://localhost:${p.hostPort}`;
     try {
-      await addPane('browser', { url });
+      /* Clicking a forwarded port opens the Browser tab, not a terminal pane. */
+      useStore.getState().bukaViewAi('browser', { url });
     } catch (e) {
       notifyError(`Could not open ${url}`, {
         source: 'ports',

@@ -1,44 +1,58 @@
-// cek-posisi-pane.mjs — measure the pane rectangle over time after the agent
+// cek-posisi-pane.mjs - measure the browser rectangle over time after the agent
 // opens a page.
 //
-// The tool call itself succeeds and the pane appears in the store, but an
-// immediate measurement can read [0,0,0,0] because React has not laid the
-// element out yet. This samples the rectangle for a few seconds so a real
-// positioning bug can be told apart from a timing artifact.
+// This used to measure a terminal pane of kind 'browser'. That pane no longer
+// exists: the browser is a tab in the editor area, hosted by `.bp-tab-host` and
+// addressed by the constant webview id 'tab-browser'. What used to be a timing
+// question (the pane read [0,0,0,0] before React laid it out) is now a
+// visibility question - the child WebView2 is only positioned while its host is
+// on screen - so this samples the host rectangle AND the tab state together.
 
 import { Cdp } from './lib-cdp.mjs';
 
 const { cdp } = await Cdp.attach('9223', 'Zephyr');
 
-const r = await cdp.runAsync(`
-  const _term = window.__ZEPHYR_TERM__;
-  for (const t of _term.getState().terminalTabs.slice()) await _term.getState().closeTab(t.id);
-  await new Promise(r => setTimeout(r, 900));
-  _term.getState().setVisible(true);
-  await new Promise(r => setTimeout(r, 400));
+const ID_TAB_BROWSER = 'tab-browser';
 
-  const t = window.__ZEPHYR_TOOLS__ ?? [];
-  const tool = t.find(x => x.spec.name === 'browser_open');
-  const hasil = await tool.run({ url: 'https://example.com' });
+const r = await cdp.runAsync(`
+  const S = window.__ZEPHYR__;
+  const _term = window.__ZEPHYR_TERM__;
+
+  // Panel terminal ditutup dan tab browser lama dibersihkan supaya yang diukur
+  // hanya tab yang dibuka di bawah ini.
+  for (const t of _term.getState().terminalTabs.slice()) await _term.getState().closeTab(t.id);
+  for (const t of S.getState().tabs.filter((x) => x.view === 'browser')) {
+    S.getState().forceCloseTab(t.id);
+  }
+  await new Promise(r => setTimeout(r, 900));
+
+  const tools = window.__ZEPHYR_TOOLS__;
+  const hasil = await tools.jalankan('browser', { aksi: 'open', url: 'https://example.com' });
 
   const jejak = [];
   for (let i = 0; i < 10; i++) {
     await new Promise(r => setTimeout(r, 500));
-    const bp = _term.getState().allPanes().find(p => p.kind === 'browser');
-    const el = bp ? document.querySelector('.pane-body:has([data-pane-body="' + bp.id + '"])') : null;
+    const tab = S.getState().tabs.find((x) => x.view === 'browser');
+    const el = document.querySelector('.bp-tab-host');
     const rr = el?.getBoundingClientRect();
     jejak.push({
       t: (i + 1) * 500,
-      paneAda: !!bp,
+      tabAda: !!tab,
+      hostAda: !!el,
       rect: rr ? [Math.round(rr.left), Math.round(rr.top), Math.round(rr.width), Math.round(rr.height)] : null,
     });
   }
 
-  const bp = _term.getState().allPanes().find(p => p.kind === 'browser');
+  const tab = S.getState().tabs.find((x) => x.view === 'browser');
+  const paneBrowserDiPanel = _term.getState().terminalTabs
+    .reduce((n, t) => n + t.panes.filter((p) => p.kind === 'browser').length, 0);
+
   return JSON.stringify({
     hasil: String(hasil).slice(0, 70),
-    paneId: bp?.id ?? null,
-    urlStore: bp?.url ?? null,
+    tabId: tab?.id ?? null,
+    urlStore: tab?.url ?? null,
+    idWebview: '${ID_TAB_BROWSER}',
+    paneBrowserDiPanel,
     jejak,
   });
 `, 90000);

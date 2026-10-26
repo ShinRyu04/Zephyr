@@ -69,16 +69,17 @@ for (let i = 0; i < 40; i++) {
   await new Promise((s) => setTimeout(s, 500));
 }
 
-/* Bersihkan pane browser lama supaya hitungan K3 mulai dari nol. */
-const paneAwal = await cdp.json(`return JSON.stringify((() => {
-  const out = [];
-  for (const t of window.__ZEPHYR_TERM__.getState().terminalTabs) for (const p of t.panes) if (p.kind === 'browser') out.push(p.id);
+/* Bersihkan tab browser lama supaya hitungan K3 mulai dari nol.
+   Browser tidak lagi hidup sebagai pane di tab terminal: ia satu tab tetap di
+   area editor dengan id 'tab-browser' (lihat src/lib/zephyrTools/web.ts).
+   K3/K4 di bawah tetap bermakna - yang diawasi kini jumlah TAB browser dan
+   id-nya (harus selalu tab yang sama, bukan tab baru per halaman). */
+const tabAwal = await cdp.json(`return JSON.stringify((() => {
+  const out = window.__ZEPHYR__.getState().tabs.filter((x) => x.view === 'browser').map((x) => x.id);
+  for (const id of out) window.__ZEPHYR__.getState().forceCloseTab(id);
   return out;
 })())`);
-for (const id of paneAwal) {
-  await cdp.json(`return JSON.stringify(await (async () => { await window.__ZEPHYR_TERM__.getState().closePane(${JSON.stringify(id)}); return 'ok'; })())`);
-}
-console.log(`     pane browser dibersihkan: ${paneAwal.length}`);
+console.log(`     tab browser dibersihkan: ${tabAwal.length}`);
 
 await cdp.json(`return JSON.stringify((() => {
   const A = window.__ZEPHYR_AI__.store.getState();
@@ -108,21 +109,19 @@ const t0 = Date.now();
 await cdp.json(`return JSON.stringify((() => { void window.__ZEPHYR_AI__.store.getState().send(${JSON.stringify(TUGAS)}); return true; })())`);
 console.log(`     tugas dikirim (${new Date().toISOString()})`);
 
-/* Pengawas pane: diukur dari SISI NODE tiap 2 detik (tahan reload HMR, dan tidak
-   ikut mati bersama context eval yang panjang). */
-let maksPane = 0;
-const idPane = new Set();
+/* Pengawas tab browser: diukur dari SISI NODE tiap 2 detik (tahan reload HMR,
+   dan tidak ikut mati bersama context eval yang panjang). */
+let maksTab = 0;
+const idTab = new Set();
 let berhentiJalan = false;
 const pengawas = (async () => {
   while (!berhentiJalan) {
     try {
       const s = await cdp.json(`return JSON.stringify((() => {
-        const out = [];
-        for (const t of window.__ZEPHYR_TERM__.getState().terminalTabs) for (const p of t.panes) if (p.kind === 'browser') out.push(p.id);
-        return out;
+        return window.__ZEPHYR__.getState().tabs.filter((x) => x.view === 'browser').map((x) => x.id);
       })())`, 15000);
-      maksPane = Math.max(maksPane, s.length);
-      for (const id of s) idPane.add(id);
+      maksTab = Math.max(maksTab, s.length);
+      for (const id of s) idTab.add(id);
     } catch { /* app sedang reload: lewati putaran ini */ }
     await new Promise((r) => setTimeout(r, 2000));
   }
@@ -189,13 +188,13 @@ await pengawas;
 
 console.log(`\n     selesai dalam ${Math.round(hasil.ms / 1000)}s, ${hasil.langkah} langkah`);
 for (const j of (hasil.jejak || []).slice(-12)) console.log('       ' + j);
-console.log(`     pane browser: maksimum ${maksPane}, id unik ${idPane.size} ${[...idPane].join(', ')}`);
+console.log(`     tab browser: maksimum ${maksTab}, id unik ${idTab.size} ${[...idTab].join(', ')}`);
 if (hasil.gagal?.length) console.log(`     langkah gagal: ${hasil.gagal.join(', ')}`);
 
 R.check('K1', !!hasil.ok, `run berakhir sendiri dalam ${Math.round(hasil.ms / 1000)}s (${hasil.langkah} langkah)`);
 R.check('K2', !hasil.error, `tanpa error provider (error=${JSON.stringify(hasil.error ?? null)})`);
-R.check('K3', maksPane <= 1, `pane browser tidak pernah > 1 (maksimum ${maksPane})`);
-R.check('K4', idPane.size <= 1, `pane yang dipakai selalu sama (${idPane.size} id unik)`);
+R.check('K3', maksTab <= 1, `tab browser tidak pernah > 1 (maksimum ${maksTab})`);
+R.check('K4', idTab.size <= 1, `tab browser yang dipakai selalu sama (${idTab.size} id unik)`);
 R.check('K9', (hasil.browserBaca || []).length >= 1, `langkah browser yang berhasil: ${(hasil.browserBaca || []).join(', ') || 'tidak ada'}`);
 
 const ada = fs.existsSync(berkasHasil);

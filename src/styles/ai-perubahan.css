@@ -519,12 +519,29 @@
   overflow-y: auto;
 }
 
+/* Row wrapper: the diff button fills the row, Keep/Undo sit beside it. The
+   divider and hover live on the wrapper so the whole band reads as one row. */
+.ai-review-baris-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ai-review-baris-wrap + .ai-review-baris-wrap {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.ai-review-baris-wrap:hover {
+  background: var(--surface-3, var(--surface-2));
+}
+
 .ai-review-baris {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 6px 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 4px 6px 10px;
   font-family: inherit;
   font-size: 12px;
   color: var(--text);
@@ -534,12 +551,62 @@
   text-align: left;
 }
 
-.ai-review-baris + .ai-review-baris {
-  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+.ai-review-baris-aksi {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding-right: 8px;
 }
 
-.ai-review-baris:hover {
-  background: var(--surface-3, var(--surface-2));
+.ai-review-baris-undo,
+.ai-review-baris-keep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 7px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ai-review-baris-undo {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.ai-review-baris-undo:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+
+.ai-review-baris-keep {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.ai-review-baris-keep:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+
+.ai-review-baris-undo:disabled,
+.ai-review-baris-keep:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ai-review-baris-undo:focus-visible,
+.ai-review-baris-keep:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .ai-review-baris:focus-visible {
@@ -590,7 +657,7 @@
   color: var(--text-muted);
 }
 
-.ai-review-baris:hover .ai-review-baris-diff {
+.ai-review-baris-wrap:hover .ai-review-baris-diff {
   color: var(--text);
 }
 

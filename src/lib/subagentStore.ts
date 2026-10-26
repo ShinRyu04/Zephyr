@@ -7,6 +7,7 @@ import { useStore } from './store';
 import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline, type PeranId } from './subagentRoles';
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
 import { useAi, isDestructive, fullUrlProvider } from './aiStore';
+import type { SesiLatar } from './types';
 import { useSettingsUi } from './settingsStore';
 import { TOOL_DISK_TULIS } from './toolGate';
 import { TOOL_BY_NAME } from './zephyrTools/catalog';
@@ -778,6 +779,31 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
 
     set({ agents, sibuk: true, ringkasan: null, sesiId });
 
+    /*
+     * Record the batch on the conversation that started it.
+     *
+     * The session is the only place that outlives the panel: the reader closes
+     * the AI column, the component that launched these agents unmounts, and
+     * without this the ring in the sidebar and the section count would both
+     * claim a conversation is idle while four agents are still writing files.
+     *
+     * One entry per agent (not per batch) because each can end differently and
+     * a stopped one must stop spinning on its own.
+     */
+    const catatKeSesi = (entri: SesiLatar) => {
+      if (!sesiId) return;
+      useAi.getState().catatLatar(sesiId, entri);
+    };
+    for (const a of agents) {
+      catatKeSesi({
+        id: `sub:${a.id}`,
+        jenis: 'subagent',
+        nama: a.customNama || a.nama,
+        mulai: a.mulai,
+        status: 'menunggu',
+      });
+    }
+
     for (let wi = 0; wi < waves.length; wi++) {
       const gelombang = waves[wi];
       // Context for a later step: the results of every agent that already ran.
@@ -832,6 +858,31 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     const ringkasan = [catatanTulis(akhir), ...bagian].join('\n\n---\n\n');
 
     set({ sibuk: false, ringkasan });
+
+    /*
+     * Close the session-level entries with the real outcomes, in one pass.
+     *
+     * Done here rather than in `jalankanSatu` per agent: the terminal status is
+     * already on each agent by now, and reading it once avoids a second place
+     * that has to stay in sync with every early return inside the step loop.
+     */
+    for (const a of akhir) {
+      catatKeSesi({
+        id: `sub:${a.id}`,
+        jenis: 'subagent',
+        nama: a.customNama || a.nama,
+        mulai: a.mulai,
+        selesai: a.selesai ?? Date.now(),
+        status:
+          a.status === 'selesai'
+            ? 'selesai'
+            : a.status === 'batal'
+              ? 'batal'
+              : 'gagal',
+        /* Finished while the reader was elsewhere - the badge the list shows. */
+        belumDibaca: a.status === 'selesai',
+      });
+    }
 
     // Persist the finished batch so a restart does not lose it.
     try {

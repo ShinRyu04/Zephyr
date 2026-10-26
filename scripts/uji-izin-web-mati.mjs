@@ -68,11 +68,11 @@ const STUB = new Map([
   [
     '../store',
     `const setelan = globalThis.__SET_UJI__;
-     exports.useStore = { getState: () => ({ settings: setelan }), setState: () => {}, subscribe: () => () => {} };`,
+     exports.useStore = { getState: () => ({ settings: setelan, tabs: [], activeTabId: null, setActiveTab: () => {}, setTabUrl: () => {}, requestCloseTab: () => {}, bukaViewAi: () => {} }), setState: () => {}, subscribe: () => () => {} };`,
   ],
   [
     '../terminalStore',
-    `exports.useTerminal = { getState: () => ({ terminalTabs: [], activeTabId: null, activePaneId: null, visible: false, toast: () => {}, allPanes: () => [], addPane: async () => null, closePane: async () => {}, setPaneUrl: () => {}, setActiveTab: () => {}, setActivePane: () => {}, setVisible: () => {} }) };`,
+    `exports.useTerminal = { getState: () => ({ terminalTabs: [], activeTabId: null, activePaneId: null, visible: false, toast: () => {}, allPanes: () => [], addPane: async () => null, closePane: async () => {}, setActiveTab: () => {}, setActivePane: () => {}, setVisible: () => {} }) };`,
   ],
   ['../agentGuard', 'exports.periksaTulis = () => ({ ok: true });'],
   [
@@ -87,6 +87,15 @@ const STUB = new Map([
     './builtins',
     `exports.potong = (s) => String(s);
      exports.wajib = (a, k) => { const v = a ? a[k] : undefined; if (v === undefined || v === null) throw new Error('argumen wajib hilang: ' + k); return v; };`,
+  ],
+  [
+    '../agentsBrowserStore',
+    `exports.ID_PANE_AGENTS = 'agents-browser';
+     exports.daftarPaneAgents = () => [];
+     exports.diJendelaAgents = () => false;
+     exports.paneAgents = () => null;
+     exports.mintaPaneAgents = () => false;
+     exports.mintaBukaDiAgents = () => {};`,
   ],
   ['../checkpoint', 'exports.catat = async () => {};'],
 ]);

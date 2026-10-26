@@ -22,9 +22,9 @@ async function ev(send, e) {
   const { ws, send } = await connect();
   await wait(1500);
   const klik = await ev(send, `(()=>{const b=document.querySelector('[data-testid="empty-split-browser"]'); if(b){b.click(); return true;} return false;})()`);
-  console.log('klik split-browser:', klik);
+  console.log('klik open-browser-tab:', klik);
   await wait(7000);
-  const clip = await ev(send, `(()=>{const st=document.querySelector('[data-testid="bp-stage"]')||document.querySelector('.browser-pane'); if(!st) return null; const r=st.getBoundingClientRect(); return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)};})()`);
+  const clip = await ev(send, `(()=>{const st=document.querySelector('[data-testid="bp-stage"]')||document.querySelector('.bp-tab-host .browser-pane'); if(!st) return null; const r=st.getBoundingClientRect(); return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)};})()`);
   console.log('clip:', JSON.stringify(clip));
   if (clip) {
     const shot = await send('Page.captureScreenshot', { clip: { ...clip, scale: 1 }, format: 'png', captureBeyondViewport: false });

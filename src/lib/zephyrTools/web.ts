@@ -53,33 +53,21 @@ function kebijakan(): KebijakanIsiWeb {
   return kebijakanDariSetelan(useStore.getState().settings);
 }
 
-/** Cari pane browser yang ada di terminalStore. */
-function paneBrowserId(idAtauUrl?: string): string | null {
-  const st = useTerminal.getState();
-  const semua: { id: string; url: string | undefined }[] = [];
-  for (const t of st.terminalTabs) {
-    for (const p of t.panes) {
-      if (p.kind === 'browser') semua.push({ id: p.id, url: p.url });
-    }
-  }
-  if (!semua.length) return null;
-  if (idAtauUrl) {
-    const cocok =
-      semua.find((p) => p.id === idAtauUrl) ??
-      semua.find((p) => p.url && p.url.includes(idAtauUrl));
-    return cocok ? cocok.id : null;
-  }
-  /*
-   * Tanpa argumen, pane yang dituju adalah pane AKTIF - bukan pane browser
-   * pertama yang ditemukan. Pane pertama sering pane lama yang sudah ditinggal:
-   * `browser_open` membuat pane baru dan menjadikannya aktif, lalu `browser_read`
-   * yang tanpa argumen membaca pane lama itu dan melaporkan isinya, sehingga
-   * halaman yang baru dibuka tampak "kosong".
-   */
-  const tabAktif = st.terminalTabs.find((t) => t.id === st.activeTabId);
-  const paneAktif = tabAktif?.panes.find((p) => p.id === tabAktif.activePaneId && p.kind === 'browser');
-  return paneAktif ? paneAktif.id : semua[semua.length - 1].id;
+/** Cari tab Browser yang ada di editor. Null bila belum pernah dibuka. */
+function tabBrowser(): { id: string; url?: string } | null {
+  const s = useStore.getState();
+  const t = s.tabs.find((x) => x.view === 'browser');
+  return t ? { id: t.id, url: t.url } : null;
 }
+
+/**
+ * Identitas webview milik tab Browser.
+ *
+ * The browser is one editor tab now, so there is exactly one id. It has to be
+ * the SAME constant `BrowserTab` registers with, or every eval would address a
+ * pane that does not exist.
+ */
+const ID_TAB_BROWSER = 'tab-browser';
 
 /**
  * Pesan galat yang bisa dibaca.
@@ -317,7 +305,14 @@ async function tungguTutupAgents(paneId: string, batasMs = 12000): Promise<boole
 function idBrowserEfektif(idAtauUrl?: string): string | null {
   if (idAtauUrl && idAgents(idAtauUrl)) return paneAgents(idAtauUrl) ? idAtauUrl : null;
   const paneAg = diJendelaAgents() ? paneAgents(idAtauUrl)?.id : undefined;
-  return paneBrowserId(idAtauUrl) ?? paneAg ?? null;
+  const tab = tabBrowser();
+  /*
+   * A caller may still pass an explicit id (older prompts, agents replaying a
+   * transcript). Only ids this page actually owns are honoured: the Browser
+   * tab's fixed id, or an Agents-column pane.
+   */
+  if (idAtauUrl && !tab && !paneAg) return null;
+  return tab ? ID_TAB_BROWSER : (paneAg ?? null);
 }
 
 /**
@@ -330,6 +325,19 @@ function idBrowserEfektif(idAtauUrl?: string): string | null {
  * agen menyimpulkan halaman yang dibukanya kosong.
  */
 function pastikanTampil(paneId: string): void {
+  /*
+   * The Browser's home is an editor TAB now. Making it the active tab is what
+   * gives its stage a real rect - and a tab that is not active renders no
+   * stage at all, so its child webview would never be created and every eval
+   * would fail for a page the agent was just told it opened.
+   */
+  if (paneId === ID_TAB_BROWSER) {
+    const s = useStore.getState();
+    const tab = s.tabs.find((x) => x.view === 'browser');
+    if (!tab) return;
+    if (s.activeTabId !== tab.id) s.setActiveTab(tab.id);
+    return;
+  }
   const t = useTerminal.getState();
   const tab = t.terminalTabs.find((x) => x.panes.some((p) => p.id === paneId));
   if (tab) {
@@ -434,7 +442,7 @@ async function pastikanHalaman(paneId: string, url: string, batasMs = 15000): Pr
 async function pakaiUlangPane(paneId: string, url: string): Promise<boolean> {
   pastikanTampil(paneId);
   if (!(await pastikanHalaman(paneId, url))) return false;
-  useTerminal.getState().setPaneUrl(paneId, url);
+  useStore.getState().setTabUrl(paneId, url);
   return true;
 }
 
@@ -488,18 +496,22 @@ async function bacaHalamanMentah(paneId: string): Promise<string> {
 
   /* Cadangan 2: fetch statis (tanpa skrip dijalankan). */
   const sebab = galatEvalTerakhir ?? 'webview pane belum dibuat';
-  const tabs = useTerminal.getState().terminalTabs;
-  for (const t of tabs) {
-    for (const p of t.panes) {
-      if (p.id === paneId && p.url) {
-        try {
-          return await cmd.webFetch(p.url, 15000);
-        } catch (e) {
-          return `(gagal membaca halaman: jalur DOM tidak tersedia - ${sebab} - dan fetch statis gagal: ${pesanGalat(e)})`;
-        }
+  if (paneId === ID_TAB_BROWSER) {
+    const tab = tabBrowser();
+    if (tab?.url) {
+      try {
+        return await cmd.webFetch(tab.url, 15000);
+      } catch (e) {
+        return `(gagal membaca halaman: jalur DOM tidak tersedia - ${sebab} - dan fetch statis gagal: ${pesanGalat(e)})`;
       }
     }
+    return `(gagal membaca halaman: jalur DOM tidak tersedia - ${sebab} - dan tab Browser belum punya URL)`;
   }
+  /*
+   * Panes left here are terminals and Agents-column browsers. A terminal pane
+   * has no page to fetch, and the Agents browser lives in another WebView, so
+   * there is nothing more to try: say so instead of guessing a URL.
+   */
   return `(halaman belum bisa dibaca: ${sebab})`;
 }
 
@@ -600,17 +612,13 @@ export const TOOL_WEB: AgentTool[] = [
     spec: {
       name: 'open_link',
       description:
-        'Open a URL in Zephyr\'s own browser pane (split beside the terminal, or the browser column of the Agents window) so the user can SEE it and you can READ it afterwards with `browser`. ' +
+        'Open a URL in Zephyr\'s own browser, which lives in an editor tab next to the code (or the browser column of the Agents window) so the user can SEE it and you can READ it afterwards with `browser`. ' +
         'Use this whenever the user shares a link or asks to open a page - sharing a link IS the request, so open it in the same turn instead of printing the URL. ' +
         'The same allowlist gate applies: if the result says the host is outside the allowlist, tell the user the host name instead of retrying.',
       parameters: {
         type: 'object',
         properties: {
           url: { type: 'string', description: 'The full URL to open.' },
-          new_pane: {
-            type: 'boolean',
-            description: 'Open a separate pane instead of reusing the existing browser pane (default false).',
-          },
         },
         required: ['url'],
       },
@@ -626,7 +634,7 @@ export const TOOL_WEB: AgentTool[] = [
        * setting, so it is passed through unchanged - a second phrasing of the
        * same gate would be one more thing to keep in sync.
        */
-      return buka.run({ url, new_pane: a.new_pane === true });
+      return buka.run({ url });
     },
   },
   {
@@ -722,16 +730,14 @@ export const TOOL_WEB: AgentTool[] = [
     spec: {
       name: 'browser_open',
       description:
-        'Open a URL in the app built-in browser pane so the user can see it and the agent can inspect it. ' +
-        'By default this REUSES the existing browser pane (the pane navigates to the new URL) so browsing several pages does not litter the terminal with panes; pass new_pane=true only when the user asks to compare two pages side by side.',
+        'Open a URL in Zephyr\'s built-in browser, which lives in an editor tab next to the code so the user can see ' +
+        'it and the agent can inspect it. There is exactly one Browser tab: opening another URL navigates that same ' +
+        'tab, so browsing several pages does not pile up browsers. Use browser_read afterwards to read what the ' +
+        'user is looking at.',
       parameters: {
         type: 'object',
         properties: {
           url: { type: 'string', description: 'The full URL to open.' },
-          new_pane: {
-            type: 'boolean',
-            description: 'Open an extra pane for this URL instead of navigating the existing browser pane (default false).',
-          },
         },
         required: ['url'],
       },
@@ -754,7 +760,7 @@ export const TOOL_WEB: AgentTool[] = [
        * `mintaPaneAgents` and the component loads it.
        */
       const pAg = paneAgents();
-      const adaTerminal = useTerminal.getState().allPanes().some((p) => p.kind === 'browser');
+      const adaTerminal = !!tabBrowser();
       /*
        * Jendela `#agents` punya kolom kanan sendiri; permintaan buka link HARUS
        * mendarat di sana, terpisah dari pane browser main window.
@@ -810,114 +816,67 @@ export const TOOL_WEB: AgentTool[] = [
               'page may be slow; retry browser_read on the same pane.'
             );
       }
-      const t = useTerminal.getState();
       /*
-       * Pane browser yang sudah membawa URL INI dipakai ulang; selain itu
-       * dibuat pane baru.
+       * The Browser is ONE editor tab. There is no per-URL pane any more, so
+       * the three rules the old pane code was built around still apply, just
+       * to a single tab:
        *
-       * Dulu di sini `setPaneUrl(existing, url)` dipanggil pada pane browser
-       * PERTAMA yang ditemukan, apa pun isinya. Itu salah karena dua alasan:
-       *
-       *  1. URL hanya tersimpan di state. Child webview sudah dibuat dengan
-       *     URL lama, dan `setPaneUrl` tidak menyuruhnya bernavigasi - jadi
-       *     store menjawab `github.com/...` sementara layarnya tetap
-       *     menampilkan halaman sebelumnya.
-       *  2. Pengguna yang sedang membaca satu halaman kehilangan halamannya
-       *     tanpa diminta begitu agen membuka tautan lain.
-       *
-       * Jadi kesamaan URL-lah yang menentukan, bukan keberadaan pane browser.
-       * `setPaneUrl` tetap dipakai HANYA saat tidak ada yang berubah - yaitu
-       * ketika URL-nya sudah sama dan tidak ada yang perlu dinavigasi.
+       *  1. Same URL already showing -> do NOT navigate. Re-navigating would
+       *     reload a page the reader is in the middle of, and on a form or a
+       *     SPA it throws their state away for no reason.
+       *  2. Different URL -> retarget the tab through `bukaViewAi('browser',
+       *     { url })`, which writes `tab.url`. Writing the store alone is not
+       *     enough: the child webview holds the old page, so `pakaiUlangPane`
+       *     navigates it and only then records the address.
+       *  3. Never create a second webview while the first has not answered.
+       *     One tab means one id, so a slow page is reported honestly instead
+       *     of being papered over with a duplicate.
        */
-      const sameUrl = t
-        .allPanes()
-        .find((p) => p.kind === 'browser' && p.url === url);
-      if (sameUrl) {
-        /* Pane-nya sudah ada: yang belum pasti adalah webview-nya hidup. */
-        pastikanTampil(sameUrl.id);
-        const siap = await pastikanHalaman(sameUrl.id, url);
-        return siap
-          ? `URL ${url} is already open in browser pane (${sameUrl.id}), and the page is readable.`
-          : `URL ${url} is already open in browser pane (${sameUrl.id}), but its webview is not active yet (${galatEvalTerakhir ?? 'tidak diketahui'}) - the pane is probably not rendered on screen, so browser_read cannot see the page.`;
+      const ada = tabBrowser();
+      if (ada && ada.url && samaUrl(ada.url, url)) {
+        /* Already on this page: the only open question is whether the webview
+           is alive (the tab may be behind another one). */
+        pastikanTampil(ID_TAB_BROWSER);
+        const hidup = await pastikanHalaman(ID_TAB_BROWSER, url);
+        return hidup
+          ? `URL ${url} is already open in the Browser tab, and the page is readable.`
+          : `URL ${url} is already open in the Browser tab, but its webview is not answering yet (${galatEvalTerakhir ?? 'penyebab tidak diketahui'}) - the tab is probably not rendered on screen, so browser_read cannot see the page.`;
       }
-      /*
-       * Pakai ulang pane browser yang SUDAH ada - kecuali pemanggil minta pane
-       * terpisah.
-       *
-       * Sebelum ini setiap URL dapat pane baru, jadi agen yang menelusuri lima
-       * halaman meninggalkan lima pane: kena batas pane, dan pengguna harus
-       * menutupinya satu per satu. Pemakaian ulang dilakukan dengan MENUTUP lalu
-       * membuka (bukan `setPaneUrl`) karena child webview hidup di proses
-       * WebView2 dengan URL lama - mengubah state saja membuat pane yang
-       * mengklaim halaman baru sementara isinya masih halaman lama.
-       */
-      const mintaBaru = a.new_pane === true;
-      const paneLama = mintaBaru ? null : paneBrowserId();
-      if (paneLama) {
-        /*
-         * Pane yang sudah ada DIPAKAI ULANG: webview-nya dinavigasi ke URL baru.
-         *
-         * Dulu kegagalan di sini langsung MENUTUP pane lama lalu membuat pane
-         * baru. Itu sumber keluhan "tiap buka, pane baru terus": id pane berubah,
-         * panel berkedip, dan riwayat back/forward hilang hanya karena webview
-         * belum sempat hidup (panel belum dirender saat aplikasi baru dibuka).
-         * Sekarang pane lama DIPERTAHANKAN: dicoba sekali lagi, dan kalau tetap
-         * belum hidup, agen diberi tahu apa adanya - id pane tetap sama, jadi
-         * percobaan berikutnya memakai pane yang sama.
-         */
-        if (await pakaiUlangPane(paneLama, url)) {
-          return `Browser pane ${paneLama} reused: navigated to ${url} (page loaded, ready to read).`;
+      if (ada) {
+        /* The tab exists with another page: navigate it rather than opening a
+           second one. Two attempts, then report honestly - the id stays the
+           same either way, so a retry lands on the same tab. */
+        if (await pakaiUlangPane(ID_TAB_BROWSER, url)) {
+          return `Browser tab reused: navigated to ${url} (page loaded, ready to read).`;
         }
         await new Promise((r) => setTimeout(r, 800));
-        if (await pakaiUlangPane(paneLama, url)) {
-          return `Browser pane ${paneLama} reused: navigated to ${url} (page loaded, ready to read).`;
+        if (await pakaiUlangPane(ID_TAB_BROWSER, url)) {
+          return `Browser tab reused: navigated to ${url} (page loaded, ready to read).`;
         }
-        const masihAda = useTerminal.getState().allPanes().some((p) => p.id === paneLama);
-        if (masihAda) {
-          /*
-           * Pane-nya ADA, webview-nya yang belum menjawab. Jangan buat pane
-           * kedua: itu melipatgandakan masalah (dua pane, id berbeda, satu di
-           * antaranya buta). Beri tahu agen supaya menunggu panel tampil lalu
-           * mencoba lagi dengan pane yang sama.
-           */
+        if (tabBrowser()) {
           return (
-            `Browser pane ${paneLama} is still the active pane, but its webview did not start answering ` +
-            `within 15s (${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Do NOT open another pane - ` +
-            'keep using this pane id. Make sure the terminal/browser panel is visible on screen, then retry ' +
-            'by retrying browser_open with the same URL on the same pane.'
+            `The Browser tab is open, but its webview did not start answering within 15s ` +
+            `(${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Do NOT try to open a second browser - ` +
+            'there is only one. Bring the Browser tab to the front, then retry browser_read.'
           );
         }
       }
-      const paneId = await t.addPane('browser', { url });
-      if (!paneId) {
-        /*
-         * addPane menolak ketika batas pane tercapai, dan pelaporannya ada di
-         * `toast` - bukan sebagai lemparan. Mengembalikan pesan sukses di sini
-         * akan membuat agen mengira halamannya terbuka lalu menebak-nebak
-         * kenapa `browser_read` tidak menemukan apa pun.
-         */
-        return (
-          `Cannot open a new browser pane: ${useTerminal.getState().toast ?? 'pane limit reached'}. ` +
-          'Close a pane first, or raise the limit in Settings.'
-        );
-      }
       /*
-       * Tampilkan pane-nya, lalu TUNGGU sampai webview-nya menjawab. Pesan
-       * sukses di sini berarti "halamannya sudah bisa dibaca", bukan sekadar
-       * "objek pane sudah dibuat" - bedanya pernah menipu agen: ia membuka
-       * halaman, langsung membacanya, mendapat teks kosong, lalu menyimpulkan
-       * halaman itu memang tidak berisi apa-apa.
+       * No tab yet: create it. `bukaViewAi` both creates the tab and makes it
+       * active, which is what gives its stage a rect - a tab that is not
+       * active renders no webview at all.
        */
-      pastikanTampil(paneId);
-      const siap = await pastikanHalaman(paneId, url);
-      if (siap) useTerminal.getState().setPaneUrl(paneId, url);
+      useStore.getState().bukaViewAi('browser', { url });
+      pastikanTampil(ID_TAB_BROWSER);
+      const siap = await pastikanHalaman(ID_TAB_BROWSER, url);
+      if (siap) useStore.getState().setTabUrl(ID_TAB_BROWSER, url);
       return siap
-        ? `Browser pane ${paneId} opened with URL: ${url} (page loaded, ready to read).`
+        ? `Browser tab opened with URL: ${url} (page loaded, ready to read).`
         : (
-            `Browser pane ${paneId} opened with URL: ${url}, but the page did not finish loading within 15s ` +
-            `(${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Keep THIS pane id - do not open another pane. ` +
-            'Ask the user to show the terminal/browser panel if it is hidden, then retry with browser_read or ' +
-            'browser_read on the same pane; web_fetch is only for a static copy.'
+            `Browser tab opened with URL: ${url}, but the page did not finish loading within 15s ` +
+            `(${galatEvalTerakhir ?? 'penyebab tidak diketahui'}). Keep using the Browser tab - do not open ` +
+            'another one. Make sure the tab is visible on screen, then retry browser_read; web_fetch is only ' +
+            'for a static copy.'
           );
     },
   },
@@ -1016,18 +975,25 @@ export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'browser_list',
-      description: 'List every browser pane that is currently open, with its URL and title.',
+      description: 'List the Browser tab (Zephyr\'s in-app browser) and any browser open in the Agents window, with URL and title.',
       parameters: { type: 'object', properties: {} },
     },
     run: async () => {
-      const tabs = useTerminal.getState().terminalTabs;
       const browserPanes: Array<{ id: string; url?: string; title?: string; window?: string }> = [];
-      for (const t of tabs) {
-        for (const p of t.panes) {
-          if (p.kind === 'browser') {
-            browserPanes.push({ id: p.id, url: p.url, title: p.title });
-          }
+      const tab = tabBrowser();
+      if (tab) {
+        /*
+         * The tab is listed from what the WEBVIEW reports, not from the store:
+         * the reader can navigate inside the page, and a stored address that
+         * went stale would send the agent to the wrong page.
+         */
+        let judul = '';
+        try {
+          judul = (await evalPane<string>(ID_TAB_BROWSER, 'document.title')) ?? '';
+        } catch {
+          judul = '';
         }
+        browserPanes.push({ id: ID_TAB_BROWSER, url: tab.url, title: judul || undefined });
       }
       /* The Agents window's browser is published separately (another WebView),
          so it has to be added here or the tool reports "none open" while a
@@ -1035,7 +1001,7 @@ export const TOOL_WEB: AgentTool[] = [
       for (const p of daftarPaneAgents()) {
         browserPanes.push({ id: p.id, url: p.url || undefined, title: p.title || undefined, window: 'agents' });
       }
-      if (!browserPanes.length) return 'No browser pane is currently open.';
+      if (!browserPanes.length) return 'No browser is currently open.';
       return JSON.stringify(browserPanes, null, 2);
     },
   },
@@ -1043,22 +1009,21 @@ export const TOOL_WEB: AgentTool[] = [
   {
     spec: {
       name: 'browser_close',
-      description: 'Close a specific browser pane, or the browser pane that is currently active.',
+      description: 'Close the Browser tab, or a browser open in the Agents window.',
       parameters: {
         type: 'object',
         properties: {
-          pane_id: { type: 'string', description: 'ID of the browser pane to close.' },
+          pane_id: { type: 'string', description: 'ID of the browser to close.' },
         },
       },
     },
     run: async (a) => {
       const id = idBrowserEfektif(a.pane_id ? String(a.pane_id) : undefined);
-      if (!id) return 'No browser pane found to close.';
+      if (!id) return 'No browser found to close.';
       /*
        * An Agents-window pane is owned by its component, not by the terminal
-       * store: `closePane` would not know the id. Asking it to blank the pane is
-       * how it gets torn down — the component then closes the child webview and
-       * unpublishes the entry.
+       * store. Asking it to blank the pane is how it gets torn down — the
+       * component then closes the child webview and unpublishes the entry.
        *
        * The request needs a reader, and only the Agents window has one, so this
        * only works from there. The registry writes `minta: ''` and then removes
@@ -1069,15 +1034,22 @@ export const TOOL_WEB: AgentTool[] = [
        */
       if (idAgents(id)) {
         if (!diJendelaAgents()) {
-          return `Browser pane ${id} belongs to the Agents window; close it there (its × button).`;
+          return `Browser pane ${id} belongs to the Agents window; close it there (its A- button).`;
         }
         if (!mintaPaneAgents(id, '')) return `Could not reach the Agents window's browser (${id}).`;
         return (await tungguTutupAgents(id))
           ? `Browser pane ${id} (Agents window) closed successfully.`
           : `Browser pane ${id} (Agents window) was asked to close but is still open.`;
       }
-      await useTerminal.getState().closePane(id);
-      return `Browser pane ${id} closed successfully.`;
+      /*
+       * The Browser is an editor tab, so closing it means closing the TAB: the
+       * component's unmount is what closes the child webview, and leaving the
+       * tab behind would be a browser the agent can no longer reach.
+       */
+      const tab = tabBrowser();
+      if (!tab) return 'No browser found to close.';
+      useStore.getState().requestCloseTab(tab.id);
+      return 'Browser tab closed successfully.';
     },
   },
 

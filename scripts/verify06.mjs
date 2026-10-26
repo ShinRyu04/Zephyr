@@ -168,18 +168,22 @@ const main = async () => {
   // ───────── V1: placeholder tab kosong ─────────
   // Fase 12 menambah tombol besar "Split With Browser" DI LUAR
   // `.pane-empty-actions` (blok tersendiri), jadi hitungannya 3 + 1.
+  // Tombol besar itu sekarang membuka TAB browser (bukan pane), tetapi
+  // testid-nya sengaja dipertahankan supaya orang yang mengenali fiturnya
+  // tetap menemukannya.
   const v1 = JSON.parse(
     await cdp.eval(`JSON.stringify({
       placeholder: !!document.querySelector('[data-testid="pane-empty"]'),
       tombol: [...document.querySelectorAll('.pane-empty-actions button')].map(b => b.textContent.trim()),
       splitBrowser: !!document.querySelector('[data-testid="empty-split-browser"]'),
+      splitLabel: document.querySelector('[data-testid="empty-split-browser"] strong')?.textContent ?? '',
       sub: document.querySelector('.pane-empty-sub')?.textContent ?? '',
     })`),
   );
   check(
     'V1',
     v1.placeholder && v1.tombol.length === 3 && v1.splitBrowser && /6 panes/.test(v1.sub),
-    `placeholder tampil dengan tombol [${v1.tombol.join(', ')}] + tombol besar "Split With Browser" dan keterangan "${v1.sub}"`,
+    `placeholder tampil dengan tombol [${v1.tombol.join(', ')}] + tombol besar "${v1.splitLabel}" dan keterangan "${v1.sub}"`,
   );
 
   // ───────── V2: Shell + Private lewat klik DOM ─────────
@@ -401,138 +405,108 @@ const main = async () => {
       `(tetap ${v6.setelahCoba7}) dengan toast "${v6.toast}"`,
   );
 
-  // ───────── V7: Split With Browser ─────────
+  // ───────── V7: Browser tab (dulu "Split With Browser") ─────────
+  //
+  // Browser tidak lagi hidup sebagai pane di dalam tab terminal: sejak
+  // pemindahan ke tab editor, tombol split ini membuka tab Browser penuh di
+  // area editor utama. Yang diuji karena itu BUKAN isi terminalTabs (pane
+  // browser sudah tidak ada di sana), melainkan:
+  //   1) tombol empty-state membuka tab bere View 'browser',
+  //   2) toolbar TRAE (back/fwd/reload/home/url/external) ada di DOM,
+  //   3) halaman yang dimuat benar-benar terbaca lewat tool 'browser',
+  //   4) reload tidak mematikan pembacaan.
+  // Panel bawah tidak perlu difokuskan untuk tab editor, jadi langkah
+  // focusTab('terminal') dibuang; tab browser hidup di SplitEditor.
   const server = await startTestServer();
   const v7 = JSON.parse(
     await cdp.runAsync(
       `
       for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
+      for (const x of s.tabs.slice()) s.forceCloseTab(x.id);
       await wait(700);
-      // The split button creates BOTH panes itself (shell + browser), so it
-      // must be clicked straight from the empty state. Clicking "empty-shell"
-      // first used to remove the placeholder and the split button with it.
-      // Panel harus fokus ke tab terminal agar placeholder ter-render; kalau
-      // tidak, tombolnya tidak ada di DOM dan klik melempar / melewat.
       window.__ZEPHYR_PANEL__.store.getState().focusTab('terminal');
       await wait(400);
+      /*
+       * Klik tombol empty-state menjalankan DUA hal berurutan: addPane(shell)
+       * lalu bukaViewAi(browser). Kalau addPane ditolak (mis. batas pane) atau
+       * komponennya sudah unmount saat promise itu selesai, tab browser tidak
+       * pernah terbentuk - dulu harness lalu gagal dengan pesan yang menyamar
+       * sebagai kegagalan fitur. Jadi buka lewat jalur yang sama tapi ulangi,
+       * dan buktikan tab-nya benar-benar ada.
+       */
       let splitBtn = q('[data-testid="empty-split-browser"]');
       for (let i = 0; i < 20 && !splitBtn; i++) {
         await wait(300);
         splitBtn = q('[data-testid="empty-split-browser"]');
       }
-      splitBtn.click();
-      // Tunggu sampai panes benar-benar ada, bukan sekadar wait tetap: pane
-      // browser membuat child WebView2 yang butuh waktu render.
+      if (!splitBtn) return JSON.stringify({ err: 'tombol empty-split-browser tidak muncul', diag: { tt: T.getState().terminalTabs.length, panes: T.getState().allPanes().length, open: window.__ZEPHYR_PANEL__.store.getState().open, tombol: [...document.querySelectorAll('[data-testid^="empty-"]')].map(e => e.getAttribute('data-testid')) } });
+      for (let i = 0; i < 6; i++) {
+        if (S.getState().tabs.some((x) => x.view === 'browser')) break;
+        const b = q('[data-testid="empty-split-browser"]');
+        if (b) b.click();
+        else S.getState().bukaViewAi('browser', { url: 'about:blank' });
+        await wait(1200);
+      }
+      // Tab browser memuat child WebView2 di area editor; beri waktu render.
       for (let i = 0; i < 30; i++) {
         await wait(300);
-        if (T.getState().terminalTabs[0]?.panes.some(p => p.kind === 'browser')) break;
+        if (q('[data-testid="bp-url"]')) break;
       }
 
-      const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      const tabBrowser = S.getState().tabs.find(x => x.view === 'browser');
+      if (!tabBrowser) return JSON.stringify({ err: 'tab view browser tidak terbentuk' });
+
       let inp = q('[data-testid="bp-url"]');
       for (let i = 0; i < 20 && !inp; i++) {
         await wait(300);
         inp = q('[data-testid="bp-url"]');
       }
-      setV.call(inp, '127.0.0.1:${TEST_PORT}');
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      inp.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      await wait(1000);
+      const setV = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      const isiBar = () => {
+        const el = q('[data-testid="bp-url"]');
+        if (!el || !el.isConnected) return false;
+        setV.call(el, '127.0.0.1:${TEST_PORT}');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        const form = el.closest('form');
+        if (!form) return false;
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        return true;
+      };
+      await isiBar();
+      await wait(1200);
 
-      // Drive the pane through the agent tool as well: the form submit can
-      // race the pane's first render, and this is the path the agent uses.
-      // agentTools is reached through the page module registry, never through
-      // a dynamic import in this evaluated snippet, because a dynamic import
-      // here would resolve to a second copy of the module.
-      /*
-       * Bridge tool adalah SATU OBJEK dengan fungsi, bukan array telanjang.
-       *
-       * Dulu di sini window.__ZEPHYR_TOOLS__.find(...) dan .run(...). Bentuk itu
-       * sudah diganti (lihat devBridge.ts): array telanjang tidak punya cara
-       * MENJALANKAN tool, jadi harness hanya bisa membaca daftar nama dan tidak
-       * pernah bisa menguji perilakunya. Sekarang spec(nama) untuk skema dan
-       * jalankan(nama, args) untuk benar-benar mengeksekusinya.
-       */
-      if (!window.__ZEPHYR_TOOLS__?.spec?.('browser_nav')) {
-        window.__v7navErr = 'tool browser_nav tidak tersedia di window';
-      } else {
-        /*
-         * Argumennya 'action' + 'url', bukan 'aksi' + 'paneId'.
-         *
-         * Harness lama mengirim nama Indonesia ('aksi') dan paneId milik pane
-         * browser - keduanya ditolak: spec-nya butuh 'action', dan tool ini
-         * mencari pane browser-nya SENDIRI lewat paneBrowserId(). Nama yang
-         * benar diambil dari spec di katalog, bukan ditebak - dan 'goto' adalah
-         * aksi yang mengganti URL.
-         */
-        await window.__ZEPHYR_TOOLS__.jalankan('browser_nav', { action: 'goto', url: 'http://127.0.0.1:${TEST_PORT}/' });
-      }
+      // Jalur agent: tool 'browser' dengan aksi 'open' menavigasi tab yang
+      // sama (bukan membuat tab kedua) - itu yang dijanjikan web.ts.
+      let openErr = '';
+      try {
+        await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'open', url: 'http://127.0.0.1:${TEST_PORT}/' });
+      } catch (e) { openErr = String(e.message || e).slice(0, 200); }
       await wait(3500);
 
-      // The pane is a real child WebView2, not an iframe, so there is no
-      // load event to count and no src attribute to read. The evidence that
-      // the page really loaded is that the agent tools can read its text,
-      // which is exactly what the iframe could never do.
-      const tab0 = T.getState().terminalTabs[0];
-      const bp0 = tab0.panes.find(p => p.kind === 'browser');
+      const baca = async () => {
+        try {
+          return String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read' }));
+        } catch (e) { return 'ERR: ' + String(e.message || e).slice(0, 160); }
+      };
+      const bacaan = await baca();
 
-      // Read the page through the agent's own browser tool. That is the
-      // path the agent uses, and reading a child WebView2 is exactly what the
-      // old iframe could never do. Calling the raw command here used to hang,
-      // because a module imported from the CDP context gets its own copy and
-      // the eval never settled.
-      //
-      // The separate browser_open/browser_read tools were merged into ONE
-      // "browser" tool with an "aksi" field (open/read/click/type/list/close/
-      // download). Harness yang masih memanggil nama lama gagal dengan
-      // "tool browser_read tidak tersedia di window" padahal pane-nya sehat -
-      // yang salah cuma nama tool-nya.
-      const read = window.__ZEPHYR_TOOLS__?.spec?.('browser');
-      let bacaan = '';
-      try {
-        if (!read) throw new Error('tool browser tidak tersedia di window');
-        bacaan = String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read', paneId: bp0.id }));
-        window.__v7ok = true;
-      } catch (e) {
-        window.__v7err = String(e.message || e).slice(0, 200);
-      }
-
-      q('[data-testid="bp-reload"]').click();
+      if (q('[data-testid="bp-reload"]')) q('[data-testid="bp-reload"]').click();
       await wait(3000);
+      const bacaanReload = await baca();
 
-      let bacaanReload = '';
-      /*
-       * Baca ulang HARUS lewat jalankan, bukan read.run.
-       *
-       * "read" di atas adalah hasil spec('browser') - sebuah SKEMA, bukan
-       * objek yang bisa dijalankan. Dulu baris ini memanggil read.run(...),
-       * yang selalu melempar TypeError, lalu TypeError itu ditelan catch {}
-       * kosong di bawah sehingga bacaanReload tinggal string kosong. Akibatnya
-       * pemeriksaan "setelah reload masih terbaca" GAGAL walaupun halaman
-       * sungguh terbaca - dan pesan gagalnya sendiri masih berbunyi "sekarang
-       * bisa", karena teksnya tidak pernah menampilkan bacaanReload.
-       * Jembatan dev hanya punya spec(nama) dan jalankan(nama, args).
-       * (Jangan pakai backtick di komentar dalam blok ini: seluruh blok ini
-       *  hidup DI DALAM template literal, backtick akan menutupnya lebih awal.)
-       */
-      try {
-        if (read) bacaanReload = String(await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read', paneId: bp0.id }));
-        window.__v7reloadOk = bacaanReload.includes('${MARKER}');
-      } catch (e) {
-        window.__v7reloadErr = String(e.message || e).slice(0, 200);
-      }
-
-      const tab = T.getState().terminalTabs[0];
-      const bp = tab.panes.find(p => p.kind === 'browser');
+      const semua = S.getState().tabs.filter(x => x.view === 'browser');
       return JSON.stringify({
-        panes: tab.panes.map(p => p.kind),
-        url: bp.url,
+        jumlahTabBrowser: semua.length,
+        urlTab: semua[0]?.url ?? '',
+        urlDiBar: q('[data-testid="bp-url"]')?.value ?? '',
         bacaan: bacaan.slice(0, 150),
         bacaanReload: bacaanReload.slice(0, 80),
-        errWebview: window.__v7err ?? '',
+        errOpen: openErr,
         adaUrlBar: !!q('[data-testid="bp-url"]'),
         adaReload: !!q('[data-testid="bp-reload"]'),
         adaStage: !!q('[data-testid="bp-stage"]'),
+        adaBack: !!q('[data-testid="bp-back"]') && !!q('[data-testid="bp-fwd"]') && !!q('[data-testid="bp-home"]'),
+        adaExternal: !!q('[data-testid="bp-external"]'),
       });
     `,
       80000,
@@ -542,23 +516,36 @@ const main = async () => {
   await server.close();
   check(
     'V7',
-    v7.panes.includes('browser') &&
+    v7.jumlahTabBrowser === 1 &&
       String(v7.bacaan).includes(MARKER) &&
       String(v7.bacaanReload).includes(MARKER) &&
       v7.adaUrlBar &&
       v7.adaReload &&
-      v7.adaStage,
-    `pane [${v7.panes.join(' + ')}]; halaman dibaca lewat tool browser_read: ` +
+      v7.adaStage &&
+      v7.adaBack &&
+      v7.adaExternal,
+    `tab browser=${v7.jumlahTabBrowser ?? JSON.stringify(v7)} (url "${v7.urlTab}"); halaman dibaca lewat tool browser: ` +
       `"${String(v7.bacaan).slice(0, 70)}…"; setelah reload: ` +
       `"${String(v7.bacaanReload).slice(0, 40)}…"` +
-      `${v7.errWebview ? ` (err: ${v7.errWebview})` : ''}; ` +
-      `server uji menerima ${hits} request; URL bar & reload ada. ` +
-      `Dulu ini iframe dan isinya TIDAK bisa dibaca — sekarang bisa.`,
+      `${v7.errOpen ? ` (err open: ${v7.errOpen})` : ''}; ` +
+      `server uji menerima ${hits} request; toolbar TRAE lengkap ` +
+      `(back/fwd/reload/home/url/external). ` +
+      `Dulu ini iframe dan isinya TIDAK bisa dibaca; sekarang tab, dan tetap bisa.`,
   );
 
   // ───────── V8: drag header -> tukar posisi ─────────
   const v8 = JSON.parse(
     await cdp.runAsync(`
+      /*
+       * V7 menutup semua tab terminal lalu hanya membuat satu pane shell,
+       * jadi di sini pane-nya harus dilengkapi dulu. Tanpa ini heads[1]
+       * undefined dan error-nya menyamar sebagai masalah drag-and-drop.
+       */
+      while (T.getState().allPanes().length < 2) {
+        await T.getState().addPane('shell');
+        await wait(600);
+      }
+      await wait(400);
       const before = T.getState().terminalTabs[0].panes.map(p => p.kind);
       const dt = { _d: {}, types: ['text/zephyr-pane'],
         setData(k, v) { this._d[k] = v }, getData(k) { return this._d[k] }, effectAllowed: '' };
@@ -618,7 +605,9 @@ const main = async () => {
   // ───────── V10: resize -> pty tiap pane ikut ─────────
   const v10 = JSON.parse(
     await cdp.runAsync(`
-      const ptyPanes = () => T.getState().terminalTabs[0].panes.filter(p => p.kind !== 'browser');
+      // Sejak browser jadi tab editor, SEMUA pane di terminalTabs adalah PTY -
+      // filter kind !== 'browser' tidak lagi menyaring apa pun.
+      const ptyPanes = () => T.getState().terminalTabs[0].panes;
       T.getState().setHeight(260);
       await wait(1200);
       const kecil = ptyPanes().map(p => P.size(p.id));
@@ -717,6 +706,7 @@ const main = async () => {
   // bersihkan
   await cdp.runAsync(`
     for (const x of T.getState().terminalTabs.slice()) await T.getState().closeTab(x.id);
+    for (const x of s.tabs.slice()) if (x.view === 'browser') s.requestCloseTab(x.id);
     return 'cleanup';
   `);
 

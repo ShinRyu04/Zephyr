@@ -41,6 +41,9 @@ export default function UbahReview({
   const berkas = useDiffBerkas();
   const [terbuka, setTerbuka] = useState(false);
   const [sibuk, setSibuk] = useState(false);
+  /* path currently being undone, or null. Per-file so one slow restore does not
+     freeze every other row. */
+  const [sibukPath, setSibukPath] = useState<string | null>(null);
 
   /* Nothing changed this turn: no bar. A chat that only read files has nothing
      to keep or undo. */
@@ -90,6 +93,34 @@ export default function UbahReview({
     if (sibuk) return;
     for (const b of [...useDiff.getState().berkas]) useDiff.getState().buang(b.path);
     useAi.getState().setToast(tr('Changes kept'));
+  };
+
+  /* Per-file restore. Same rule as Undo All: `sebelum === null` means the file
+     did not exist and must go; otherwise the recorded bytes are written back.
+     The path is read fresh from the store so a stale row cannot restore an entry
+     that was already removed. */
+  const undoOne = async (path: string) => {
+    if (sibuk || sibukPath) return;
+    const b = useDiff.getState().berkas.find((x) => x.path === path);
+    if (!b) return;
+    setSibukPath(path);
+    try {
+      if (b.sebelum === null) await fsDelete([path]);
+      else await fsWrite(path, b.sebelum, undefined, undefined, { wasExisting: true });
+      await useStore.getState().reloadTabFromDisk(path);
+      useDiff.getState().buang(path);
+      useAi.getState().setToast(tr('Change undone'));
+    } catch (e) {
+      useAi.getState().setToast(asZephyrError(e).message);
+    } finally {
+      setSibukPath(null);
+    }
+  };
+
+  /* Per-file keep: nothing on disk changes, only the review entry goes away. */
+  const keepOne = (path: string) => {
+    if (sibuk || sibukPath) return;
+    useDiff.getState().buang(path);
   };
 
   const bukaDiff = (path: string) => {
@@ -151,28 +182,57 @@ export default function UbahReview({
         <div className="ai-review-gulir">
           {berkas.map((b) => {
             const nama = b.path.split(/[\\/]/).pop() ?? b.path;
+            const sedang = sibukPath === b.path;
             return (
-              <button
-                type="button"
-                className="ai-review-baris"
-                data-testid="ai-review-baris"
-                key={b.path}
-                title={b.path}
-                onClick={() => bukaDiff(b.path)}
-              >
-                <span className="ai-review-berkas-ikon" aria-hidden="true">
-                  <FileIkon nama={nama} />
-                </span>
-                <span className="ai-review-nama">{nama.replace(/\.[^.]+$/, '') || nama}</span>
-                <span className="ai-review-dir">.{b.path.replace(/\\/g, '/')}</span>
-                <span className="ai-review-stat">
-                  <span className="ai-ubah-tambah">+{b.tambah}</span>
-                  <span className="ai-ubah-hapus">−{b.hapus}</span>
-                </span>
-                <span className="ai-review-baris-diff" aria-hidden="true">
-                  <AiIkon name="diff" size={11} />
-                </span>
-              </button>
+              /* A row is a wrapper, not a button: Keep/Undo are siblings of the
+                 diff button. Nesting three buttons inside one another is invalid
+                 HTML and makes the inner click ambiguous. */
+              <div className="ai-review-baris-wrap" key={b.path}>
+                <button
+                  type="button"
+                  className="ai-review-baris"
+                  data-testid="ai-review-baris"
+                  title={b.path}
+                  onClick={() => bukaDiff(b.path)}
+                >
+                  <span className="ai-review-berkas-ikon" aria-hidden="true">
+                    <FileIkon nama={nama} />
+                  </span>
+                  <span className="ai-review-nama">{nama.replace(/\.[^.]+$/, '') || nama}</span>
+                  <span className="ai-review-dir">.{b.path.replace(/\\/g, '/')}</span>
+                  <span className="ai-review-stat">
+                    <span className="ai-ubah-tambah">+{b.tambah}</span>
+                    <span className="ai-ubah-hapus">−{b.hapus}</span>
+                  </span>
+                  <span className="ai-review-baris-diff" aria-hidden="true">
+                    <AiIkon name="diff" size={11} />
+                  </span>
+                </button>
+                <div className="ai-review-baris-aksi">
+                  <button
+                    type="button"
+                    className="ai-review-baris-undo"
+                    data-testid="ai-review-undo-berkas"
+                    data-path={b.path}
+                    disabled={sibuk || sedang}
+                    title={tf('Undo changes to {nama}', { nama })}
+                    onClick={() => void undoOne(b.path)}
+                  >
+                    {sedang ? tr('Undoing…') : tr('Undo')}
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-review-baris-keep"
+                    data-testid="ai-review-keep-berkas"
+                    data-path={b.path}
+                    disabled={sibuk || sedang}
+                    title={tf('Keep changes to {nama}', { nama })}
+                    onClick={() => keepOne(b.path)}
+                  >
+                    {tr('Keep')}
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>

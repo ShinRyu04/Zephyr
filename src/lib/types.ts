@@ -176,7 +176,12 @@ export type FsChangeKind = 'create' | 'remove' | 'modify';
 
 export type PtyKind = 'shell' | 'private' | 'cmd' | 'bash' | 'wsl' | 'pwsh' | 'agent' | 'ssh';
 
-export type PaneKind = PtyKind | 'browser';
+/**
+ * Jenis pane di panel terminal. Browser TIDAK termasuk: browser sekarang hidup
+ * sebagai tab di area editor (`components/editor/BrowserTab.tsx`), jadi pane di
+ * sini selalu punya proses PTY.
+ */
+export type PaneKind = PtyKind;
 
 export interface ShellInfo {
   id: string;
@@ -235,8 +240,6 @@ export interface PaneMeta {
   status: PaneStatus;
   cwd: string | null;
   pid?: number | null;
-
-  url?: string;
 
   exitCode?: number | null;
 
@@ -455,7 +458,57 @@ export interface ChatSession {
    */
   pinned?: boolean;
 
+  /*
+   * Unread marker for the session lists.
+   *
+   * `unread` is set when a run finishes in a conversation the reader is not
+   * looking at, and cleared the moment that conversation is selected. It is a
+   * convenience flag, not a source of truth: `undefined` reads as "read" so
+   * every transcript written before this field existed loads unchanged.
+   *
+   * `lastReadAt` records when the marker was last cleared. It is only used to
+   * sort/annotate; nothing depends on it being present.
+   */
+  unread?: boolean;
+  lastReadAt?: number;
+
+  /**
+   * Background agents this conversation started that have not been dismissed.
+   *
+   * Stored on the session (see `SesiLatar`) so the running ring, the unread
+   * badge and the status section survive closing the panel. Optional and
+   * pruned in `loadSessions`: transcripts written before this existed simply
+   * have none.
+   */
+  latar?: SesiLatar[];
+
   approval?: ApprovalMode;
+}
+
+/**
+ * A background agent that outlives the run that started it.
+ *
+ * Written by `subagentStore`/`scheduleStore` into the session's own
+ * `latar` list, because "this chat still has work running" is a property of the
+ * conversation - the reader closes the panel, comes back, and the ring, the
+ * badge and the section all have to agree about it without the component that
+ * started the work being mounted any more.
+ *
+ * Deliberately a SNAPSHOT, not a live handle: the subagent itself lives in its
+ * own in-memory store, which a restarted window does not have. What is stored
+ * here is only what the list needs to say (what it is, when it started, how it
+ * ended), so a stale entry after a restart is visibly finished ('hilang' or
+ * whatever outcome was last written) rather than pretending to run.
+ */
+export interface SesiLatar {
+  id: string;
+  jenis: 'subagent' | 'jadwal';
+  nama: string;
+  mulai: number;
+  selesai?: number;
+  status: 'jalan' | 'selesai' | 'gagal' | 'batal' | 'menunggu';
+  /** Unseen since it finished - cleared when the session is opened. */
+  belumDibaca?: boolean;
 }
 
 export type ApprovalMode =
@@ -977,7 +1030,21 @@ export interface Tab {
    * skips them. `view` is what routes them to their own component; a tab with
    * no `view` and no path is still the ordinary untitled buffer.
    */
-  view?: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view';
+  view?:
+    | 'ai-chat'
+    | 'chat-settings'
+    | 'search-editor'
+    | 'extensions'
+    | 'tools'
+    | 'diff-view'
+    | 'browser';
+
+  /*
+   * The address a `browser` tab is showing. Only meaningful on `view:'browser'`
+   * tabs; it is what lets `bukaViewAi('browser', { url })` say WHICH page the
+   * single Browser tab should now load. Every other tab leaves it undefined.
+   */
+  url?: string;
 
   loaded?: boolean;
 
@@ -1059,6 +1126,13 @@ export type ActivityId =
   | 'search'
   | 'outline'
   | 'scm'
+  /*
+   * The browser lives in the EDITOR area as a tab, and this rail entry is only
+   * its front door - the same relationship `extensions` and `tools` have. It
+   * sits between Source Control and Run & Debug because it is neither a
+   * file-centric view (explorer/search/scm) nor a machine-side tool.
+   */
+  | 'browser'
   // phase 22: Run & Debug
   | 'debug'
   | 'ai'
