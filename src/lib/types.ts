@@ -1876,12 +1876,14 @@ export interface Settings {
    * `zephyrTools/kebijakanIsiWeb.ts`, yang membaca keduanya dari objek settings
    * ini apa adanya.
    *
-   * Keduanya opsional dan FAIL-CLOSED: tidak ada = izin mati dan allowlist
-   * kosong (tolak semua), sama dengan default di `settings.rs default_settings()`.
-   * `allowlistWeb` berisi HOST tanpa skema ("example.com", bukan
+   * `izinIsiWeb` NYALA secara bawaan: agen boleh langsung membuka link yang
+   * diberikan user tanpa dialog izin per panggilan. Hanya `false` eksplisit
+   * yang mematikannya, jadi settings.json lama yang tidak punya key ini
+   * berperilaku sama dengan instalasi baru. `allowlistWeb` kosong = semua host
+   * boleh. `allowlistWeb` berisi HOST tanpa skema ("example.com", bukan
    * "https://example.com"); sebuah entri juga membuka subdomainnya
-   * (`hostDiAllowlist` mencocokkan suffix). Disunting dari Chat Settings >
-   * Konten web, bukan dari settings.json.
+   * (`hostDiAllowlist` mencocokkan suffix). Keduanya hanya bisa diubah lewat
+   * settings.json.
    */
   izinIsiWeb?: boolean;
   allowlistWeb?: string[];

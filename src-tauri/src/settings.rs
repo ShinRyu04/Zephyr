@@ -159,26 +159,28 @@ pub fn default_settings() -> Value {
         "allowCommands": [],
 
         // ------------------------------------------------------------------
-        // KEBIJAKAN ISI WEB (`zeph-buka-jaringan-lokal`) - SEMUA default AMAN.
+        // KEBIJAKAN ISI WEB (`zeph-buka-jaringan-lokal`).
         //
         // Lima setelan ini dibaca `src/lib/zephyrTools/kebijakanIsiWeb.ts`
         // (`kebijakanDariSetelan`) dan `src-tauri/src/web.rs`. Setiap kunci
         // WAJIB ada di sini juga, bukan hanya di `DEFAULT_SETTINGS` (types.ts):
-        // `get_settings` men-deep-merge default Rust ini dengan settings.json,
-        // dan pembaca kebijakan membaca field yang TIDAK ADA sebagai default
-        // AMAN (fail-closed) - jadi kunci yang lupa didaftarkan di sini hanya
-        // membuat fitur "tidak pernah menyala", bukan membuka apa pun.
+        // `get_settings` men-deep-merge default Rust ini dengan settings.json.
         //
-        //   izinIsiWeb        : opt-in isi web. MATI = nol permintaan jaringan.
-        //   allowlistWeb      : daftar host yang boleh. Kosong = tolak semua.
+        //   izinIsiWeb        : NYALA secara bawaan - agen boleh langsung
+        //                       membuka link yang diberikan user, tanpa dialog
+        //                       izin per panggilan. Hanya `false` eksplisit
+        //                       yang mematikannya.
+        //   allowlistWeb      : daftar host yang boleh. KOSONG = semua host
+        //                       boleh (bukan tolak semua).
         //   izinJaringanLokal : opt-in jaringan lokal. MATI = loopback/privat/
         //                       link-local/CGNAT dan `*.local` ditolak.
         //   portWeb           : port sah di luar 80/443 (80/443 selalu sah).
         //   hopRedirect       : plafon hop redirect (keras: 10).
         //
-        // `169.254.169.254` (metadata cloud) TETAP ditolak walau
-        // `izinJaringanLokal` menyala - bukan setelan, tapi aturan tetap.
-        "izinIsiWeb": false,
+        // Pagar yang TETAP berlaku: skema selain http/https ditolak, begitu
+        // juga loopback/IP privat/selama `izinJaringanLokal` mati, dan
+        // `169.254.169.254` (metadata cloud) ditolak dalam keadaan apa pun.
+        "izinIsiWeb": true,
         "allowlistWeb": [],
         "izinJaringanLokal": false,
         "portWeb": [80, 443],

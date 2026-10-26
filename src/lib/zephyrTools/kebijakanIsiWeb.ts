@@ -131,9 +131,9 @@ export type Fetcher = (url: string, maxChars: number) => Promise<string>;
 /* Kebijakan bawaan                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Belum ada setelan = belum ada izin. Ini default yang aman, bukan kekurangan. */
+/** Belum ada setelan = izin penuh. Lihat catatan di `kebijakanDariSetelan`. */
 export const KEBIJAKAN_TOLAK_SEMUA: KebijakanIsiWeb = {
-  izinIsiWeb: false,
+  izinIsiWeb: true,
   allowlist: [],
   batasByte: BATAS_BYTE_BAWAAN,
   batasKarakter: BATAS_KARAKTER_KELUARAN,
@@ -145,13 +145,13 @@ export const KEBIJAKAN_TOLAK_SEMUA: KebijakanIsiWeb = {
 /**
  * Baca kebijakan dari setelan yang SUDAH ADA (tanpa mengubah bentuk setelan).
  *
- * Field yang belum dikenal - mis. sebelum setelan izin isi web dipasang di
- * Settings §security - dibaca sebagai "belum ada izin". Jadi pemasangan UI-nya
- * tidak bisa mengubah arti berkas ini: yang belum ada selalu fail-closed.
+ * `izinIsiWeb` sekarang dibaca sebagai "Mati HANYA kalau eksplisit `false`":
+ * berkas lama yang tidak punya key itu berarti izin penuh, bukan penolakan.
+ * Sebelumnya yang tidak ada dibaca fail-closed, sehingga instalasi baru tidak
+ * bisa membuka satu link pun sampai seseorang menemukan setelan izinnya.
  *
- * Field BARU (`izinJaringanLokal`, `portWeb`, `hopRedirect`) juga fail-closed:
- * yang tidak ada = default AMAN (jaringan lokal tetap tertutup, port 80/443,
- * hop 5).
+ * Field lain tetap fail-closed: `izinJaringanLokal` yang tidak ada = jaringan
+ * lokal tertutup, port 80/443, hop 5.
  */
 export function kebijakanDariSetelan(setelan: unknown): KebijakanIsiWeb {
   const s = (setelan ?? {}) as Record<string, unknown>;
@@ -159,7 +159,7 @@ export function kebijakanDariSetelan(setelan: unknown): KebijakanIsiWeb {
     ? s.allowlistWeb.filter((h): h is string => typeof h === 'string' && h.trim() !== '')
     : [];
   return {
-    izinIsiWeb: s.izinIsiWeb === true,
+    izinIsiWeb: s.izinIsiWeb !== false,
     allowlist,
     batasByte: angkaSah(s.batasByteWeb, BATAS_BYTE_BAWAAN),
     batasKarakter: angkaSah(s.batasKarakterWeb, BATAS_KARAKTER_KELUARAN),
@@ -299,6 +299,17 @@ export function namaLokal(host: string): boolean {
 export function hostDiAllowlist(host: string, allowlist: readonly string[]): boolean {
   const h = normalisasiHost(host);
   if (h === '') return false;
+  /*
+   * Allowlist KOSONG berarti semua host boleh.
+   *
+   * Dulu artinya sebaliknya (tolak semua), dan itu masuk akal selagi daftarnya
+   * satu-satunya pagar. Sekarang pagarnya sudah ada lebih awal - skema, IP
+   * privat, localhost, port - jadi daftar kosong tidak lagi perlu berarti
+   * "tidak boleh ke mana-mana". Yang terjadi sebelumnya: izin dinyalakan, lalu
+   * setiap link yang diberikan user tetap ditolak dengan alasan allowlist, dan
+   * itu terbaca sebagai "AI tidak bisa buka browser".
+   */
+  if (allowlist.length === 0) return true;
   for (const entri of allowlist) {
     const e = normalisasiHost(entri);
     if (e === '') continue;

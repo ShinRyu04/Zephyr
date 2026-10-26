@@ -50,7 +50,7 @@ export const TOOL_BROWSER: AgentTool = {
       'Kendalikan pane browser Zephyr - SATU tool untuk semua aksi. ' +
       'aksi: open (buka URL di pane), read (baca teks halaman yang terbuka), click (klik elemen lewat CSS selector), type (isi field), list (daftar pane), close (tutup pane), download (unduh URL ke berkas). ' +
       'url wajib untuk open/download; selector wajib untuk click/type; text wajib untuk type; paneId opsional (bawaan: pane aktif). ' +
-      'SEMUA aksi melewati pagar yang sama: izin isi web harus nyala dan host harus terdaftar di allowlistWeb. Hasil "host-luar-allowlist:<host>" BUKAN error yang bisa diulang - jangan coba ulang, jangan pindah ke tool web lain (pagarnya sama), sebutkan hostnya ke user.',
+      'SEMUA aksi melewati pagar yang sama: izin isi web (nyala secara bawaan) dan allowlistWeb (kosong = semua host boleh). Hasil "host-luar-allowlist:<host>" BUKAN error yang bisa diulang - jangan coba ulang, jangan pindah ke tool web lain (pagarnya sama), sebutkan hostnya ke user.',
     parameters: {
       type: 'object',
       properties: {
