@@ -48,7 +48,7 @@ export const TOLAK_PENANDA = 'NOTHING TO INSTALL:';
  * Versi Zephyr yang dikutip di pesan tolak. Penguji memastikan ini sama dengan
  * `package.json`, jadi pesannya tidak pernah menyebut versi yang salah.
  */
-export const VERSI_ZEPHYR = '1.1.14';
+export const VERSI_ZEPHYR = '1.1.15';
 
 export type Tahap = 'url' | 'unduh' | 'hash' | 'kode' | 'pasang';
 
