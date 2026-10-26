@@ -32,7 +32,7 @@ export const TOOL_WEB_SATU: AgentTool = {
       'Ambil informasi dari internet. ' +
       'aksi: search (cari lewat mesin bawaan Zephyr, hasilnya tautan + judul - bukan kutipan; lanjutkan dengan fetch), fetch (ambil isi satu URL sebagai teks). ' +
       'query wajib untuk search; url wajib untuk fetch. ' +
-      'Dua-duanya melewati pagar yang SAMA: izin isi web harus nyala dan host harus terdaftar di allowlistWeb. Hasil "host-luar-allowlist:<host>" BUKAN error yang bisa diulang - jangan coba ulang, sebutkan hostnya ke user. ' +
+      'Dua-duanya melewati pagar yang SAMA: izin isi web (nyala secara bawaan) dan allowlistWeb (kosong = semua host boleh). Hasil "host-luar-allowlist:<host>" BUKAN error yang bisa diulang - jangan coba ulang, sebutkan hostnya ke user. ' +
       'Untuk membuka halaman di pane yang terlihat, pakai tool browser (aksi open).',
     parameters: {
       type: 'object',

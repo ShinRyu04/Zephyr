@@ -6874,12 +6874,12 @@ export const useAi = create<AiStore>((set0, get) => {
     /*
      * Jaring pengaman untuk `izin-isi-web-mati` (temuan 2026-10-15).
      *
-     * Ketika `izinIsiWeb` mati (itu DEFAULT, lihat `kebijakanIsiWeb.ts:98`),
-     * `web_fetch`/`web_search` menolak dengan teks yang berisi
-     * "izin-isi-web-mati". Model lalu mengulang fetch dengan argumen lain,
-     * ditolak lagi, dan loop itu baru berhenti setelah disodok 20x oleh
-     * BATAS_LANJUT_TANPA_TOOL - pengguna melihat "thinking" lama sekali lalu
-     * run mati sendiri tanpa penjelasan.
+     * Ketika `izinIsiWeb` dimatikan paksa di settings.json (bawaannya NYALA,
+     * lihat `kebijakanIsiWeb.ts`), `web_fetch`/`web_search` menolak dengan teks
+     * yang berisi "izin-isi-web-mati". Model lalu mengulang fetch dengan
+     * argumen lain, ditolak lagi, dan loop itu baru berhenti setelah disodok 20x
+     * oleh BATAS_LANJUT_TANPA_TOOL - pengguna melihat "thinking" lama sekali
+     * lalu run mati sendiri tanpa penjelasan.
      *
      * Penghitungnya SEKALI PER RUN, bukan per langkah: izin yang mati tidak
      * berubah di tengah run, jadi mengulang percobaan ke-N sama saja dengan
@@ -9029,7 +9029,7 @@ let autoLanjut = 0;
             if (izinWebMatiPercobaan === 1) {
               hasil =
                 '(izin-isi-web-mati: fetching the web is DISABLED for this workspace.\n' +
-                'It is a user setting (Settings > AI Tools > Web fetching, `izinIsiWeb`) ' +
+                'It is a user setting (`izinIsiWeb` in settings.json, no longer in the UI) ' +
                 'and you cannot turn it on,\nso do NOT retry web_fetch, web_search, ' +
                 'browser_open or download with any URL - every attempt\nreturns this ' +
                 'same refusal.\nAnswer the user NOW: report that web access is off ' +
@@ -9038,7 +9038,7 @@ let autoLanjut = 0;
             } else {
               akhir =
                 'Stopped: web fetching is disabled (izinIsiWeb is off) and the attempt ' +
-                'was retried.\nEnable it in Settings > AI Tools > Web fetching, then ' +
+                'was retried.\nSet "izinIsiWeb" to true in settings.json, then ' +
                 'run the task again.';
               agentStopReason = 'guard';
               agentBatal = true;

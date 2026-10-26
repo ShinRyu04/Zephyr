@@ -35,12 +35,22 @@ export function IkonPanelKanan() {
   );
 }
 
+export function IkonTambah() {
+  return (
+    <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
+      <path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function AgentsKontrolSudut({
   panelTerbuka,
   onTogglePanel,
+  onBukaBrowser,
 }: {
   panelTerbuka: boolean;
   onTogglePanel: () => void;
+  onBukaBrowser: () => void;
 }) {
   return (
     <div className="agx-sudut" data-testid="agx-kontrol-sudut">
@@ -68,16 +78,27 @@ export default function AgentsKontrolSudut({
           tombolnya pindah ke bar panel kanan (`AgentsPanelKanan`). Jadi tidak
           pernah ada dua tombol panel sekaligus. */}
       {!panelTerbuka && (
-        <button
-          className="agx-tb-btn agx-panel-toggle"
-          data-testid="agx-panel-kanan"
-          title="Show right panel"
-          aria-label="Toggle right panel"
-          aria-pressed={panelTerbuka}
-          onClick={onTogglePanel}
-        >
-          <IkonPanelKanan />
-        </button>
+        <>
+          <button
+            className="agx-tb-btn agx-panel-toggle"
+            data-testid="agx-panel-tambah"
+            title="New browser tab"
+            aria-label="New browser tab"
+            onClick={onBukaBrowser}
+          >
+            <IkonTambah />
+          </button>
+          <button
+            className="agx-tb-btn agx-panel-toggle"
+            data-testid="agx-panel-kanan"
+            title="Show right panel"
+            aria-label="Toggle right panel"
+            aria-pressed={panelTerbuka}
+            onClick={onTogglePanel}
+          >
+            <IkonPanelKanan />
+          </button>
+        </>
       )}
     </div>
   );

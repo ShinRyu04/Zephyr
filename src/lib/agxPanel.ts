@@ -17,7 +17,14 @@ import type { Tampilan } from '../components/agents/AgentsViewDropdown';
 export const AGX_BUKA_PANEL = 'zephyr-agx-buka-panel';
 
 export type PermintaanPanelAgx = {
-  tampilan: Extract<Tampilan, 'diff-view' | 'file'>;
+  /*
+   * `browser` ikut di sini karena permintaannya datang dari LAPISAN TOOL (web.ts),
+   * bukan dari komponen React: view Browser bisa belum ada tab-nya sama sekali,
+   * dan hanya `AgentsApp` yang boleh membuka panelnya (ia pemilik `panelKanan`).
+   * Tanpa `browser`, "buka link ini" dari jendela Agents tidak punya jalan untuk
+   * menampilkan pane-nya.
+   */
+  tampilan: Extract<Tampilan, 'diff-view' | 'file' | 'browser'>;
   /** File to select, for the `file` tab only. */
   path?: string;
 };

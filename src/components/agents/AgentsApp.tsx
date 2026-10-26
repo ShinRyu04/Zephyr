@@ -12,6 +12,7 @@ import AiPanel from '../ai/AiPanel';
 import { useAi } from '../../lib/aiStore';
 import { useAgxTabs } from '../../lib/agentsTabs';
 import { AGX_BUKA_PANEL, type PermintaanPanelAgx } from '../../lib/agxPanel';
+import { ID_PANE_AGENTS, ambilBukaDiAgents, lupakanPaneAgents } from '../../lib/agentsBrowserStore';
 import { useAutomationScheduler } from '../../lib/automationStore';
 /* Gaya jendela ini (`.agx-*`). Ia halaman sendiri (`#agents`), bukan bagian
    panel editor, jadi berkasnya dimuat di sini — `App.tsx` tidak mengimpornya. */
@@ -57,12 +58,73 @@ export default function AgentsApp() {
       setPanelKanan(true);
       setTampilan('chat');
       const tabs = useAgxTabs.getState();
-      tabs.buka(tampilan, tampilan === 'diff-view' ? 'Diff View' : 'File');
+      tabs.buka(
+        tampilan,
+        tampilan === 'diff-view' ? 'Diff View' : tampilan === 'browser' ? 'Browser' : 'File',
+      );
       const id = useAgxTabs.getState().aktifId;
       if (tampilan === 'file' && path && id) useAgxTabs.getState().setFile(id, path);
     };
     window.addEventListener(AGX_BUKA_PANEL, onBuka);
     return () => window.removeEventListener(AGX_BUKA_PANEL, onBuka);
+  }, []);
+  /*
+   * Link yang diminta agen lewat tool web (`browser_open`) saat panel kanan
+   * TERTUTUP.
+   *
+   * Pemantau ini dulu tinggal di `AgentsPanelKanan`, dan itu tidak pernah bisa
+   * jalan: panel kanan hanya di-render ketika `panelKanan` true, jadi saat agen
+   * membuka link pertama - panel tertutup - tidak ada komponen yang membaca
+   * permintaannya. Hasilnya permintaan menggantung di `localStorage` sampai
+   * kedaluwarsa, lalu tool melapor "did not confirm the page within 15s".
+   *
+   * Di sini komponennya selalu ter-mount dan pemilik `panelKanan`, jadi ia
+   * yang bisa membuka panel + tab Browser. Komponen browser sendiri tetap
+   * pembaca URL-nya (ia yang punya webview); yang dikerjakan di sini hanya
+   * memastikan panel dan tab-nya ada.
+   */
+  useEffect(() => {
+    /*
+     * Tugas komponen ini HANYA memastikan panel + tab Browser-nya ada.
+     *
+     * Permintaan tutup (`browser_close` menulis `minta: ''`) TIDAK dibaca di
+     * sini, dan tab-nya pun tidak dibuang dari sini: membuangnya meng-unmount
+     * `AgentsPanelKananBrowser` sebelum ia sempat menjalankan `browserPaneClose`
+     * + melepas entri registry, dan pelepasan entri itulah yang ditunggu
+     * `browser_close` sebelum menjawab. Pembuangan tab terjadi di view-nya,
+     * setelah pane-nya lepas.
+     *
+     * Permintaan buka diambil lewat `ambilBukaDiAgents`, yang MENGHAPUS kuncinya
+     * saat dibaca. Dua render StrictMode karena itu hanya memproses satu
+     * permintaan, bukan dua.
+     */
+    const periksa = () => {
+      const buka = ambilBukaDiAgents();
+      if (!buka) return;
+      lupakanPaneAgents(ID_PANE_AGENTS);
+      /*
+       * Alamatnya dicatat DULU, saat tab-nya belum ada.
+       *
+       * `buka()` mengecek store dengan `get()` yang langsung dieksekusi, jadi
+       * view baru me-mount SETELAH ini — dan saat mount ia membaca
+       * `tab.url ?? null`. Kalau `setUrl` dipanggil sesudah `setPanelKanan`,
+       * view sudah ter-mount dengan url kosong dan tidak pernah melihat alamat
+       * dari permintaan itu: panel terbuka, tab Browser ada, tapi stage-nya
+       * tidak pernah dibuat ("did not confirm the page within 15s").
+       */
+      let id = useAgxTabs.getState().tabs.find((t) => t.tampilan === 'browser')?.id;
+      if (id) useAgxTabs.getState().setUrl(id, buka);
+      else {
+        useAgxTabs.getState().buka('browser', 'Browser');
+        id = useAgxTabs.getState().aktifId ?? undefined;
+        if (id) useAgxTabs.getState().setUrl(id, buka);
+      }
+      setPanelKanan(true);
+      setTampilan('chat');
+    };
+    periksa();
+    const t = window.setInterval(periksa, 500);
+    return () => window.clearInterval(t);
   }, []);
   /*
    * Apakah permukaan chat jendela ini sudah punya percakapan.
@@ -164,6 +226,10 @@ export default function AgentsApp() {
             <AgentsKontrolSudut
               panelTerbuka={panelKanan}
               onTogglePanel={() => setPanelKanan((v) => !v)}
+              onBukaBrowser={() => {
+                setPanelKanan(true);
+                useAgxTabs.getState().buka('browser', 'Browser');
+              }}
             />
           )}
           {tampilan === 'automation' ? (

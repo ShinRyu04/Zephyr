@@ -4,6 +4,13 @@ import * as cmd from '../../lib/commands';
 import { HOME, normalizeUrl } from '../terminal/BrowserPane';
 import { paneHarusTampil } from '../../lib/nativeOverlay';
 import { useAgxTabs } from '../../lib/agentsTabs';
+import {
+  ID_PANE_AGENTS,
+  ambilBukaDiAgents,
+  ambilPermintaanAgents,
+  catatPaneAgents,
+  lupakanPaneAgents,
+} from '../../lib/agentsBrowserStore';
 import ZephyrLogo from '../shell/ZephyrLogo';
 
 /*
@@ -17,7 +24,17 @@ import ZephyrLogo from '../shell/ZephyrLogo';
  */
 
 export default function AgentsPanelKananBrowser({ bar, tab }: { bar?: ReactNode | null; tab?: { id: string; url?: string } }) {
-  const [paneId] = useState(() => `agx-bp-${Date.now().toString(36)}`);
+  /*
+   * Id pane-nya TETAP, bukan diturunkan dari jam.
+   *
+   * `browser_pane_*` di Rust mencari webview lewat id ini. Id acak berarti setiap
+   * kali view ini di-mount ulang (pindah tab, buka-tutup panel) id-nya berubah,
+   * dan permintaan dari tool yang sudah menyebut id lama berakhir
+   * "browser pane not found" - itulah yang terjadi saat agen membuka link dari
+   * jendela ini. Satu jendela hanya punya satu view Browser (singleton), jadi
+   * satu id tetap sudah benar.
+   */
+  const [paneId] = useState(() => ID_PANE_AGENTS);
   /* Url awal dari tab (persit lintas pindah tab); `null` = halaman kosong. */
   const [url, setUrl] = useState<string | null>(tab?.url ?? null);
   const [draft, setDraft] = useState(tab?.url ?? '');
@@ -141,6 +158,105 @@ export default function AgentsPanelKananBrowser({ bar, tab }: { bar?: ReactNode 
     return () => {
       void cmd.browserPaneClose(id).catch(() => {});
     };
+  }, [paneId]);
+
+  /*
+   * Permintaan dari tool web: "buka link ini di sini".
+   *
+   * Dua jalur, keduanya lewat `localStorage` karena tool-nya jalan di WebView yang
+   * mungkin jendela lain:
+   *   - `mintaBukaDiAgents`      -> view Browser belum tentu ada; komponen inilah
+   *                                 satu-satunya yang tahu kolom kanan ini, jadi ia
+   *                                 yang membuka view-nya lalu memuat URL.
+   *   - `ambilPermintaanAgents`  -> pane sudah ada, cukup navigasi.
+   *
+   * Tanpa ini, `browser_open` dari jendela Agents jatuh ke jalur pane terminal
+   * main window dan hasilnya "browser pane not found" (label webview anak
+   * berbeda per jendela).
+   *
+   * View ini juga pembaca TUNGGAL permintaan tutup (`minta: ''`). `AgentsApp`
+   * sengaja tidak membuang tab dari luar: kalau ia melakukannya, view ini
+   * ter-unmount sebelum sempat menjalankan `browserPaneClose` + melepas entri
+   * registry, padahal penghapusan entri itulah yang ditunggu `browser_close`.
+   */
+  useEffect(() => {
+    const periksa = () => {
+      const buka = ambilBukaDiAgents();
+      if (buka) {
+        go(buka);
+        return;
+      }
+      const nav = ambilPermintaanAgents(paneId);
+      if (nav === null) return;
+      /* `''` = tutup, sama seperti tombol × di toolbar. Tab-nya ikut dibuang
+         setelah pane lepas (lihat effect registry di bawah). */
+      if (!nav) {
+        if (tab?.id) tutupTabRef.current = tab.id;
+        setUrl(null);
+      } else go(nav);
+    };
+    periksa();
+    const t = window.setInterval(periksa, 1200);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key.startsWith('zephyr.agents.browser.')) periksa();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [paneId]);
+
+  /*
+   * Umumkan pane ini supaya tool (`browser_read`, `browser_list`, ...) bisa
+   * menemukannya, dan tarik lagi saat view ditutup.
+   *
+   * Registry dibaca jendela LAIN lewat `localStorage`; tanpa publikasi ini,
+   * membuka link berhasil tapi langkah berikutnya (membaca halaman) menjawab
+   * "No browser pane is currently open".
+   */
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  /*
+   * Tab yang ditutup OLEH TOOL (`minta: ''`), bukan oleh tombol × di bar tab.
+   *
+   * `browser_close` tidak mengenal tab: ia menutup PANE-nya. Tab-nya harus
+   * dibuang di sini — komponen yang memegang `useAgxTabs` dan satu-satunya yang
+   * tahu penutupan itu sudah selesai — karena `AgentsApp` yang membuangnya
+   * justru meng-unmount view ini sebelum `browserPaneClose` sempat jalan.
+   *
+   * `tutupTabRef` disetel di pembaca permintaan; effect di bawah menunggu
+   * penandanya habis dulu, baru membuang tab, supaya pane sudah benar-benar
+   * lepas saat panel berganti ke layar "Start here".
+   */
+  const tutupTabRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!url) {
+      lupakanPaneAgents(paneId);
+      const idTab = tutupTabRef.current;
+      if (!idTab) return;
+      tutupTabRef.current = null;
+      useAgxTabs.getState().tutup(idTab);
+      return;
+    }
+    const catat = () =>
+      catatPaneAgents({
+        id: paneId,
+        url: urlRef.current ?? '',
+        title: live.title,
+        siap: siapRef.current,
+      });
+    catat();
+    const t = window.setInterval(catat, 3000);
+    return () => {
+      window.clearInterval(t);
+      /* Saat `url` berubah effect ini jalan lagi; jangan lupakan pane yang masih
+         terpakai - hanya unmount/penutupan sejati yang menghapus entri. */
+    };
+  }, [paneId, url, live.title]);
+
+  useEffect(() => {
+    return () => lupakanPaneAgents(paneId);
   }, [paneId]);
 
   const secure = live.url.startsWith('https://');

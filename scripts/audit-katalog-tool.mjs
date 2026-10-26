@@ -311,13 +311,14 @@ const hitungNama = new Map();
 for (const t of KATALOG) hitungNama.set(t.name, (hitungNama.get(t.name) || 0) + 1);
 const namaGanda = [...hitungNama].filter(([, c]) => c > 1).map(([n]) => n);
 
-/* Aturan izin MIRROR aturan katalog (catalog.ts:407): fsWrite|exec wajib; web netWrite wajib.
-   `appWrite` sengaja TIDAK termasuk - lihat catalog.ts:95-104 (`ingat`). */
-const lupaIzin = KATALOG.filter((t) => {
-  if ((t.effect === 'fsWrite' || t.effect === 'exec') && !t.needsApproval) return true;
-  if (t.source === 'web' && t.effect === 'netWrite' && !t.needsApproval) return true;
-  return false;
-}).map((t) => t.name);
+/* Aturan izin MIRROR aturan katalog (catalog.ts:407): fsWrite|exec wajib.
+   `appWrite` sengaja TIDAK termasuk - lihat catalog.ts:95-104 (`ingat`).
+   `netWrite` web juga TIDAK termasuk: `browser` sengaja tidak meminta izin per
+   panggilan sejak gate-nya pindah ke `kebijakanIsiWeb.ts` (skema, IP privat,
+   localhost, port). */
+const lupaIzin = KATALOG.filter(
+  (t) => (t.effect === 'fsWrite' || t.effect === 'exec') && !t.needsApproval,
+).map((t) => t.name);
 
 /* ================================================================== */
 /* D. MCP Rust (mcp_server.rs) vs MCP JS (katalog)                    */

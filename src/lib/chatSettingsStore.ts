@@ -16,8 +16,6 @@ export type ChatSeksi =
   | 'context'
   | 'subagent'
   | 'tools'
-  /* Konten web: izin isi web + allowlist host, pagar semua tool web. */
-  | 'web'
   | 'rules'
   | 'models'
   | 'appearance'

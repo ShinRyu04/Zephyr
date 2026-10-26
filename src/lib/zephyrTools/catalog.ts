@@ -394,45 +394,27 @@ export const TOOL_BAWAAN_AKTIF: readonly string[] = TOOL_CATALOG.filter(
 ).map((t) => t.name);
 
 /**
- * Tool web yang MATI pada profil baru - yang bertindak, bukan yang membaca.
+ * Tool web yang MATI pada profil baru.
  *
- * ## Kenapa daftar MATI, bukan daftar NYALA
+ * ## Kenapa sekarang KOSONG
  *
- * Versi sebelumnya menyebut yang NYALA, dan itu arah yang salah. Daftar nyala
- * berarti tool web BARU lahir mati, dan kelahirannya yang perlu disadari
- * seseorang; kalau terlewat, ia mati diam-diam sampai user melihat baris merah
- * di transkrip. Itu yang persis terjadi pada `browser_list`:
+ * Daftar ini dulu memuat `browser_click`, `browser_type`,
+ * `browser_download_url`, dan `browser_close`: keempatnya bisa bertindak atas
+ * nama user di halaman, jadi user harus menyalakannya sadar dulu. Akibatnya
+ * agen tidak bisa membuka dan membaca link yang baru saja diberikan user
+ * sampai orangnya mencari panel Tools lebih dulu - dan itu terbaca sebagai
+ * "AI-nya tidak bisa buka browser", bukan sebagai pagar.
  *
- *   1. User meminta agen membuka sebuah URL.
- *   2. Agen memanggil `browser_list` dulu untuk melihat apakah halamannya
- *      sudah terbuka - langkah yang wajar.
- *   3. Sekat menolaknya karena tool itu tidak ada di daftar nyala.
- *   4. Baris merah "List pages - failed" muncul di transkrip.
- *   5. Agen kehilangan jalan membuka pane, lalu beralih ke `web_fetch`
- *      berulang kali, dan pengawas anti-loop menghentikan seluruh giliran.
+ * Sekarang seluruh tool web aktif sejak awal dan alur "kasih link -> agen
+ * membukanya" jalan tanpa langkah persiapan. Yang TETAP menjaga adalah
+ * gerbang URL di `kebijakanIsiWeb.ts` (skema non-http, IP privat, localhost)
+ * - bukan daftar nama yang harus ditebak user lebih dulu.
  *
- * Dengan daftar MATI, arah salahnya terbalik dan jauh lebih aman: tool baru
- * lahir BISA DIPAKAI. Yang perlu disadari seseorang adalah tool yang berbahaya,
- * dan tool berbahaya selalu ditulis dengan sadar - tidak ada yang menambahkan
- * "klik elemen di halaman user" tanpa memikirkannya.
- *
- * ## Isinya: yang mengubah sesuatu di luar Zephyr
- *
- *   browser_click, browser_type   - bertindak atas nama user di halaman web
- *   browser_download_url          - menulis berkas dari internet ke disk
- *   browser_close                 - menutup pane yang mungkin sedang dibaca
- *
- * `web_search` dan `web_fetch` TIDAK di sini meski efeknya `net`: keduanya
- * cuma mengirim permintaan GET dan mengembalikan teks. Ia mengirim data ke
- * luar, tapi data itu adalah URL yang diminta agen sendiri - bukan isi mesin
- * user, bukan isi berkas, bukan sesuatu yang perlu izin.
+ * Daftar ini dibiarkan ada, dan tetap diturunkan dari katalog, supaya tool web
+ * berbahaya yang ditambahkan nanti punya tempat yang jelas bila suatu saat
+ * perlu dimatikan lagi.
  */
-const WEB_MATI: readonly string[] = [
-  'browser_click',
-  'browser_type',
-  'browser_download_url',
-  'browser_close',
-];
+const WEB_MATI: readonly string[] = [];
 
 /**
  * Tool web yang nyala pada profil baru: katalog web DIKURANGI daftar mati.
@@ -501,23 +483,7 @@ export function periksaKatalog(): string[] {
   }
 
   /*
-   * Keempat tool web/browser yang punya efek tulis WAJIB minta izin.
-   *
-   * Browser bisa mengirim data ke luar - mengklik tombol kirim di halaman
-   * adalah POST yang nyata - jadi memperlakukannya sebagai pembaca biasa akan
-   * membuat sesuatu yang mengirim data terlihat seperti sesuatu yang tidak.
-   */
-  for (const t of TOOL_CATALOG) {
-    if (t.source !== 'web') continue;
-    if (t.effect === 'netWrite' && !t.needsApproval) {
-      masalah.push(`tool web mengirim data tanpa izin: ${t.name}`);
-    }
-  }
-
-  /*
-   * Tool web BACA yang menyala default - dan hanya yang efeknya membaca.
-   *
-   * ## Kenapa pemeriksaan ini TIDAK memakai daftar nama sendiri
+   * Pemeriksaan blok WEB - dan kenapa tidak memakai daftar nama sendiri.
    *
    * Versi sebelumnya menulis ulang keempat nama di sini
    * (`['browser_open','browser_read','browser_nav','web_fetch']`), jadi aturan
@@ -527,35 +493,26 @@ export function periksaKatalog(): string[] {
    * pemeriksaan berbunyi - karena pemeriksaannya membandingkan daftar dengan
    * dirinya sendiri.
    *
-   * Sekarang yang diperiksa adalah ATURANNYA, bukan namanya: setiap tool web
-   * ber-efek `read` harus ada, harus benar-benar bersumber web, dan - yang
-   * paling penting - TIDAK boleh menuntut izin per panggilan. Membaca yang
-   * minta izin berarti dua lapis penjagaan untuk perbuatan yang tidak mengubah
-   * apa pun; user akan menekan "izinkan" puluhan kali untuk hal yang tidak
-   * berisiko, dan itu melatihnya mengklik tanpa membaca.
+   * Sekarang yang diperiksa adalah ATURANNYA, bukan namanya: blok WEB harus
+   * ada isinya, dan tool web yang menulis berkas harus meminta izin.
    */
   const webSemua = TOOL_CATALOG.filter((t) => t.source === 'web');
   if (webSemua.length === 0) {
     masalah.push('tidak ada satu pun tool web - blok WEB di katalog hilang?');
   }
-  /* Gagal-terbuka bukan berarti gagal-aman: tool yang mengubah sesuatu di luar
-     Zephyr tetap harus meminta izin per panggilan. Kalau daftar mati berubah
-     dan sebuah tool bertindak jadi nyala, izin inilah jaring terakhirnya. */
+  /*
+   * Tool web yang MENULIS BERKAS juga harus minta izin - aturan yang sama
+   * dengan `fsWrite` di atas, hanya sumbernya web.
+   *
+   * `netWrite` TIDAK lagi ikut di sini. `browser` sengaja tidak meminta izin
+   * per panggilan: pagarnya sekarang ada di `kebijakanIsiWeb.ts` (skema
+   * non-http, IP privat, localhost, port), dan izin per panggilan untuk
+   * "buka link ini" hanya menghasilkan dialog yang ditekan tanpa dibaca -
+   * sekaligus membuat alur "kasih link -> agen membukanya" berhenti.
+   */
   for (const t of webSemua) {
-    const bertindak = t.effect === 'netWrite' || t.effect === 'fsWrite' || t.effect === 'appWrite';
-    if (bertindak && !t.needsApproval) {
-      masalah.push(`tool web yang bertindak harus minta izin: ${t.name}`);
-    }
-  }
-  /* Keputusan sekat dan aturan katalog harus sepakat. Kalau sekat menyalaikan
-     sesuatu yang efeknya bukan membaca, itu perluasan izin yang tidak disengaja
-     dan harus ketahuan di sini, bukan saat user melihatnya gagal. */
-  for (const n of TOOL_WEB_AKTIF_AWAL) {
-    const t = TOOL_BY_NAME.get(n);
-    if (!t) masalah.push(`tool web aktif-default tidak ada di katalog: ${n}`);
-    else if (t.source !== 'web') masalah.push(`bukan tool web: ${n}`);
-    else if (t.effect !== 'read' && t.effect !== 'net') {
-      masalah.push(`tool web aktif-default tidak boleh mengubah sesuatu: ${n}`);
+    if (t.effect === 'fsWrite' && !t.needsApproval) {
+      masalah.push(`tool web yang menulis berkas harus minta izin: ${t.name}`);
     }
   }
 
