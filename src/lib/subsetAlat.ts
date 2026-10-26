@@ -31,14 +31,15 @@ import { TOOL_CATALOG } from './zephyrTools/catalog';
 /* ------------------------------------------------------------------ */
 
 /**
- * Tool yang mengakses JARINGAN lewat pane browser.
+ * Tool yang mengakses JARINGAN.
  *
- * Sengaja didaftar dengan awalan + daftar nama: awalan menangkap tool pane yang
- * ditambahkan nanti, daftar nama menangkap tool jaringan yang tidak berpane
- * (`web_fetch`/`web_search`).
+ * Dua bentuk dibutuhkan: awalan untuk nama per-aksi lama (`browser_*`) yang
+ * masih tersedia di `TOOL_WEB`, dan daftar nama untuk tool gabungan yang kini
+ * benar-benar ditawarkan (`web`, `browser`). Tanpa dua nama gabungan itu, tugas
+ * non-web tetap membawa `web`/`browser` dan menghabiskan jatah catatan.
  */
 const AWALAN_WEB = ['browser_'];
-const NAMA_WEB = ['web_fetch', 'web_search'];
+const NAMA_WEB = ['web', 'web_fetch', 'web_search', 'browser'];
 
 export function butuhAlatWeb(nama: string): boolean {
   if (NAMA_WEB.includes(nama)) return true;

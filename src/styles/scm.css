@@ -907,3 +907,176 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* ── Worktree manager ─────────────────────────────────────────────────── */
+
+.scm-worktree {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.scm-worktree-jumlah {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.scm-worktree-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 8px 6px;
+}
+
+.scm-worktree-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.scm-worktree-baris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.scm-worktree-baris:hover {
+  background: var(--surface-3, var(--surface-2));
+}
+
+.scm-worktree-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.scm-worktree-nama {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.scm-worktree-nama > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-worktree-lencana {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.scm-worktree-lencana-bahaya {
+  color: var(--danger);
+}
+
+.scm-worktree-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-worktree-head {
+  opacity: 0.8;
+}
+
+.scm-worktree-aksi {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.scm-worktree-btn {
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.scm-worktree-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.scm-worktree-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.scm-worktree-btn-bahaya:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.scm-worktree-form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.scm-worktree-form-baris {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scm-worktree-form-baris .input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+}
+
+.scm-worktree-centang {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.scm-worktree-form-aksi {
+  display: flex;
+  gap: 4px;
+}
+
+.scm-worktree-konfirm {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.scm-worktree-konfirm p {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  word-break: break-word;
+}

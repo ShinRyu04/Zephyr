@@ -486,7 +486,6 @@ export async function runAction(type: string, p: Record<string, unknown>): Promi
           pid: pane.pid ?? null,
           running: pane.status === 'live',
           cwd: pane.cwd,
-          url: pane.url ?? null,
         })),
       );
 

@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { folderDialogOpen, revealPath } from '../../lib/commands';
 import { useT } from '../../lib/i18n';
 import { useTanya } from '../../lib/tanyaStore';
 import type { TampilanAgents } from '../../lib/agentsWindow';
+import { ringkasSesi, sesiPerluPerhatian } from '../../lib/unreadSesi';
 
 /*
  * Sidebar jendela Agents.
@@ -229,7 +230,7 @@ export default function AgentsSidebar({
   const [rename, setRename] = useState<{ id: string; nilai: string } | null>(null);
 
   const [mode, setMode] = useState<'grouped' | 'list'>('grouped');
-  const [filter, setFilter] = useState<'all' | 'local'>('all');
+  const [filter, setFilter] = useState<'all' | 'local' | 'unread'>('all');
 
   /* Klik di luar menutup menu. Listener dipasang setelah satu tick supaya klik
      yang MEMBUKA menu tidak langsung menutupnya. */
@@ -247,10 +248,46 @@ export default function AgentsSidebar({
     };
   }, [menuSesi, menuProyek, menuOpsi]);
 
+  /*
+   * FILTERS ACTUALLY FILTER.
+   *
+   * `All` / `Local` were buttons that set a `filter` value nothing ever read:
+   * clicking them closed the menu and changed nothing, so the control was a
+   * fake toggle. The list is filtered here, once, before grouping - so the
+   * project headers, the "default" group and the list view all agree.
+   *
+   * `Local` is every task that belongs to a folder plus the folderless ones
+   * THIS window owns (they are by definition local - Cloud tasks do not
+   * exist). It is written positively rather than as "not cloud" so that the
+   * day a cloud source appears, it is silently excluded instead of silently
+   * included.
+   *
+   * `Unread` is derived from the same `sesiPerluPerhatian` rule the badge
+   * uses, which keeps the filter and the dot from ever disagreeing.
+   */
+  const sesiTampil = useMemo(() => {
+    /*
+     * `Local` keeps every task that belongs to a folder plus the folderless
+     * ones this window owns (they are local by definition - Cloud tasks do not
+     * exist). Written positively rather than as "not cloud" so that the day a
+     * cloud source appears it is silently excluded instead of silently
+     * included.
+     */
+    if (filter === 'local') return sessions.filter((s) => !!s.workspace);
+    if (filter === 'unread') return sessions.filter((s) => sesiPerluPerhatian(s));
+    return sessions;
+  }, [sessions, filter]);
+
+  /* How many conversations want attention - the number on the filter row. */
+  const jumlahBelumDibaca = useMemo(
+    () => sessions.reduce((n, s) => n + (sesiPerluPerhatian(s) ? 1 : 0), 0),
+    [sessions],
+  );
+
   /* Dikelompokkan menurut folder. Urutan di dalam grup: yang di-pin dulu, lalu
      yang terbaru — sama seperti daftar riwayat pada umumnya. */
   const grup = new Map<string, typeof sessions>();
-  for (const s of sessions) {
+  for (const s of sesiTampil) {
     const kunci = s.workspace ? kunciPath(s.workspace) : '';
     const isi = grup.get(kunci);
     if (isi) isi.push(s);
@@ -329,11 +366,15 @@ export default function AgentsSidebar({
     const sedangRename = rename?.id === s.id;
     /*
      * Sedang bekerja = masih ada bubble asisten yang streaming di percakapan
-     * ini. Dibaca dari pesannya, bukan dari `agentBusys[permukaan]`: penanda
-     * permukaan hanya tahu kotak yang sedang dilihat, sedangkan cincin di
-     * daftar harus menyala untuk tugas yang berjalan di latar belakang juga.
+     * ini, ATAU percakapan ini masih punya pekerjaan latar yang hidup
+     * (subagent/jadwal). Sumber kedua itu penting: subagent berjalan di store
+     * sendiri dan bubble-nya tidak streaming, jadi tanpa `latar` barisnya diam
+     * padahal empat agen sedang menulis berkas - dan penanda itu harus bertahan
+     * setelah panel ditutup, karena ia disimpan pada sesinya, bukan pada
+     * komponen yang meluncurkannya.
      */
-    const berjalan = s.messages.some((m) => m.streaming);
+    const ringkas = ringkasSesi(s);
+    const berjalan = s.messages.some((m) => m.streaming) || ringkas.berjalan;
     return (
       <div
         key={s.id}
@@ -382,6 +423,18 @@ export default function AgentsSidebar({
             data-testid="agx-sesi-berjalan"
             aria-label="Agent is working"
             title={tr('Agent is working')}
+          />
+        )}
+
+        {/* Titik belum dibaca: ada yang selesai saat reader tidak melihat.
+            Hanya muncul kalau baris itu TIDAK sedang berjalan - cincin dan titik
+            pada baris yang sama berbicara tentang dua keadaan yang berbeda. */}
+        {!berjalan && ringkas.butuhPerhatian && (
+          <span
+            className="agx-sesi-unread"
+            data-testid="agx-sesi-belum-dibaca"
+            aria-label={tr('Unread')}
+            title={tr('Unread')}
           />
         )}
 
@@ -823,6 +876,26 @@ export default function AgentsSidebar({
               <IkonFolder />
               Local
               {filter === 'local' && <span className="agx-ctx-cek">✓</span>}
+            </button>
+            {/* Unread is a real entry because the badge needs a destination:
+                a dot with no way to show only the dotted rows is decoration. */}
+            <button
+              className="agx-ctx-item"
+              data-testid="agx-filter-unread"
+              aria-pressed={filter === 'unread'}
+              onClick={() => {
+                setFilter('unread');
+                setMenuOpsi(null);
+              }}
+            >
+              <IkonKotak />
+              Unread
+              {jumlahBelumDibaca > 0 && (
+                <span className="agx-ctx-hitung" data-testid="agx-filter-unread-count">
+                  {jumlahBelumDibaca}
+                </span>
+              )}
+              {filter === 'unread' && <span className="agx-ctx-cek">✓</span>}
             </button>
           </>,
           menuOpsi,

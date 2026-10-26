@@ -81,7 +81,10 @@ export default function DevEnvView() {
     useTerminal.getState().terminalTabs.find((t) => t.panes.some((x) => x.id === paneId))?.id ?? '';
   const focusTerminal = useTerminal((s) => s.setActivePane);
   const ports = usePorts((s) => s.ports);
-  const bukaUrl = useTerminal((s) => s.addPane);
+  /* The browser is an editor tab now, so "open" means "open the Browser tab". */
+  const bukaUrl = (_jenis: 'browser', opsi: { url: string }) => {
+    useStore.getState().bukaViewAi('browser', { url: opsi.url });
+  };
   const muat = useDevenv((s) => s.muat);
   const refresh = useDevenv((s) => s.refresh);
   const memindai = useDevenv((s) => s.memindai);

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { useTerminal } from '../../lib/terminalStore';
+import { useStore } from '../../lib/store';
+import { HOME } from '../editor/BrowserTab';
 import { useT, tx } from '../../lib/i18n';
-import BrowserPane, { shortUrl, HOME } from './BrowserPane';
 import PaneIcon from './PaneIcons';
 import XtermPane from './XtermPane';
 import type { PaneMeta, TerminalTab } from '../../lib/types';
@@ -33,10 +34,11 @@ export function PaneEmpty() {
         data-testid="empty-split-browser"
         onClick={async () => {
           await addPane('shell');
-          // URL wajib. Tanpa ini pane lahir dengan 'about:blank', toolbar
-          // menolaknya ("harus http:// atau https://"), dan pane tinggal
-          // hitam tanpa memuat apa pun.
-          await addPane('browser', { url: HOME });
+          /*
+           * The browser is an editor tab now, so "split with browser" becomes
+           * "shell pane here + Browser tab next door" instead of two panes.
+           */
+          useStore.getState().bukaViewAi('browser', { url: HOME });
         }}
       >
         <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
@@ -117,7 +119,7 @@ function PaneHeader({
     >
       <PaneIcon kind={pane.kind} agentId={pane.agent?.name} />
       <span className="pane-title">
-        {pane.kind === 'browser' && pane.url ? shortUrl(pane.url) : pane.title}
+        {pane.title}
       </span>
       {pane.pid ? <span className="pane-pid">{pane.pid}</span> : null}
       {pane.status === 'exited' && <span className="tt-dead">exited</span>}
@@ -155,7 +157,6 @@ function PaneHeader({
             className="tt-drop-item"
             role="menuitem"
             data-testid="pane-kill"
-            disabled={pane.kind === 'browser'}
             onClick={(e) => {
               e.stopPropagation();
               void killPane(pane.id);
@@ -217,7 +218,7 @@ export default function PaneGrid({ tab }: { tab: TerminalTab }) {
         >
           <PaneHeader pane={p} index={i} tabId={tab.id} active={tab.activePaneId === p.id} />
           <div className="pane-body">
-            {p.kind === 'browser' ? <BrowserPane pane={p} /> : <XtermPane pane={p} />}
+            <XtermPane pane={p} />
           </div>
         </section>
       ))}

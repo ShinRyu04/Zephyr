@@ -1,4 +1,4 @@
-// verify12.mjs — verifikasi V1..V11 fase 12 (Command Palette + Browser Pane)
+// verify12.mjs - verifikasi V1..V11 fase 12 (Command Palette + Browser tab)
 //
 // Pakai:  node scripts/verify12.mjs [portCdp]
 // Syarat: 1) zephyr.exe berjalan dengan
@@ -6,7 +6,7 @@
 //         2) `npm run dev` (vite) hidup di :5173
 //
 // Prinsip: palette diuji lewat DOM sungguhan (keydown di input, klik baris),
-// bukan hanya memanggil store. Pane browser dibuktikan dengan server uji lokal
+// bukan hanya memanggil store. Browser tab dibuktikan dengan server uji lokal
 // di port 8099 (port 8080 TIDAK bisa dipakai di mesin ini — WinError 10013)
 // yang mencatat request masuk, plus satu endpoint yang mengirim
 // X-Frame-Options: DENY untuk membuktikan jalur "situs menolak embed".
@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import WebSocket from 'ws';
-import { keluarBersih, pilihJendelaUtama } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama, tungguBridge } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const TEST_PORT = 8099;
@@ -363,10 +363,18 @@ const main = async () => {
       await keyInput('ArrowUp');
       const i3 = CP.index();
       // Melingkar: dari 0 ke atas harus lompat ke item terakhir.
+      //
+      // Jumlah baris (n) dibaca ULANG di sini, bukan dipakai dari atas: daftar
+      // dihitung ulang setiap render dan sebagian command punya enabled()
+      // yang bergantung pada keadaan repo (mis. git.commit hanya muncul bila
+      // workspace adalah repo git dengan perubahan). Saat uji lain menjalankan
+      // git, jumlah baris bisa berubah antara dua pembacaan dan uji wrap gagal
+      // padahal navigasinya benar.
       CP.store.getState().setIndex(0);
       await wait(120);
       await keyInput('ArrowUp');
       const iWrap = CP.index();
+      const nWrap = qa('[data-testid="cp-row"]').length;
       const dicegah = (() => {
         const el = q('[data-testid="cp-input"]');
         const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
@@ -375,7 +383,7 @@ const main = async () => {
       })();
       await wait(300);
       return JSON.stringify({
-        n, i0, i1, i2, i3, iWrap, id0, id1, dicegah,
+        n, nWrap, i0, i1, i2, i3, iWrap, id0, id1, dicegah,
         tertutup: !q('[data-testid="cp-modal"]'),
         queryBersih: CPS().query === '',
       });
@@ -388,7 +396,7 @@ const main = async () => {
       v3.i1 === 1 &&
       v3.i2 === 2 &&
       v3.i3 === 1 &&
-      v3.iWrap === v3.n - 1 &&
+      v3.iWrap === v3.nWrap - 1 &&
       v3.id0 !== v3.id1 &&
       v3.dicegah === true &&
       v3.tertutup === true &&
@@ -397,44 +405,102 @@ const main = async () => {
   );
 
   // ───────── V4: semua shortcut terdaftar & tanpa konflik ─────────
-  const v4 = JSON.parse(
+  /*
+   * Settings BUKAN lagi halaman di dalam jendela utama: `setActivity('settings')`
+   * membuka WebView terpisah (`index.html#panel=settings`) dengan store dan DOM
+   * sendiri. Uji ini dulu menempel ke jendela utama dan mencari [data-sc-row] di
+   * sana — hasilnya selalu "0 baris di UI" padahal tabelnya ter-render penuh di
+   * jendela panel. Jadi: jalankan command dari jendela utama (supaya jendelanya
+   * lahir), lalu BACA tabelnya di target `#panel=settings`.
+   */
+  const v4Utama = JSON.parse(
     await cdp.runAsync(`
-      /*
-       * Open Settings > Shortcuts through the command itself, but drive the
-       * command directly rather than through palette keystrokes.
-       *
-       * V1-V3 leave the palette in a state where replaying the chord-and-type
-       * sequence is not reliable (the palette has just been dismissed with Esc
-       * and focus sits in the editor), and a miss there reported "0 rows" for a
-       * page that renders fine. The command is still the thing under test — the
-       * palette path for it is already covered by V1 — so this calls it
-       * directly and keeps the assertions on what the PAGE shows.
-       */
       const cmd = await import('/src/lib/commandRegistry.ts');
       await cmd.runCommand('shortcut.list');
-      const idHelp = 'shortcut.list';
-
-      /* Poll for the table: it renders the RUNTIME bindings (93 rows) and
-         re-renders as the keybinding store settles. */
-      let barisUi = 0;
-      for (let i = 0; i < 30 && barisUi === 0; i++) {
-        await wait(200);
-        barisUi = document.querySelectorAll('[data-sc-row]').length;
-      }
+      // Tabel baru bisa dibaca setelah jendela panel hidup; nilai yang di sini
+      // hanya ringkasan store jendela utama.
       const tabel = CP.shortcutTable();
-      const wajib = ['Ctrl+Shift+P','Ctrl+P','Ctrl+Shift+E','Ctrl+Shift+F','Ctrl+Shift+G',
-                     'Ctrl+Shift+T','Ctrl+\`','Ctrl+N','Ctrl+O','Ctrl+S','Ctrl+W',
-                     'Ctrl+Tab','Ctrl+B','Ctrl+J','Ctrl+=','Ctrl+-','Ctrl+0'];
-      const ada = tabel.rows.map(r => r.binding);
-      const hilang = wajib.filter(b => !ada.includes(b));
-      return JSON.stringify({
-        idHelp, hilang, konflik: tabel.conflicts,
-        total: tabel.rows.length, barisUi,
-        section: window.__ZEPHYR_SET__.ui.getState().section,
-        settingsOpen: S.getState().settingsOpen,
-      });
+      return JSON.stringify({ total: tabel.rows.length, konflik: tabel.conflicts });
     `),
   );
+
+  const daftarTarget4 = async () =>
+    (await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json()).filter((t) => t.type === 'page');
+  let target4 = null;
+  for (let i = 0; i < 80 && !target4; i++) {
+    await sleep(250);
+    target4 = (await daftarTarget4()).find((t) => (t.url ?? '').includes('#panel=settings'));
+  }
+  if (!target4) throw new Error('jendela Settings (#panel=settings) tidak muncul setelah shortcut.list');
+
+  const cdp4 = await Cdp.connect(target4.webSocketDebuggerUrl);
+  /*
+   * Jendela panel bisa SUDAH hidup dari run sebelumnya, jadi target-nya
+   * ditemukan seketika — lebih cepat daripada dev bridge `__ZEPHYR_SET__`
+   * terpasang (ia dipasang setelah modul bridge selesai di-import). Membaca
+   * `.ui` saat itu melempar "Cannot read properties of undefined". Tunggu
+   * bridge-nya, jangan menebak lewat satu percobaan.
+   */
+  if (!(await tungguBridge(cdp4, '__ZEPHYR_SET__'))) {
+    throw new Error('bridge __ZEPHYR_SET__ tidak muncul di jendela Settings (#panel=settings)');
+  }
+  let barisUi = 0;
+  let section4 = null;
+  try {
+    /*
+     * Section dipilih di store JENDELA PANEL, bukan jendela utama.
+     *
+     * `openSettingsSection()` menulis `useSettingsUi.setSection(...)` di jendela
+     * yang memanggilnya — di sini jendela utama — lalu membuka panel. Panel
+     * adalah WebView kedua dengan store sendiri, jadi ia tetap di 'general' dan
+     * tabel shortcut tidak pernah ter-render; dulu ini terbaca sebagai "0 baris
+     * di UI" padahal produknya benar (lihat AGENTS.md §8, jebakan jendela panel).
+     */
+    await cdp4.eval(`(() => { window.__ZEPHYR_SET__.ui.getState().setSection('shortcuts'); return 'ok'; })()`);
+    for (let i = 0; i < 80; i++) {
+      const jawab = await cdp4.eval(
+        `JSON.stringify({
+           siap: typeof window.__ZEPHYR_SET__ !== 'undefined',
+           section: window.__ZEPHYR_SET__?.ui.getState().section ?? null,
+           baris: document.querySelectorAll('[data-sc-row]').length,
+         })`,
+      );
+      const d = typeof jawab === 'string' ? JSON.parse(jawab) : jawab;
+      if (d?.siap) section4 = d.section;
+      if ((d?.baris ?? 0) > 0) {
+        barisUi = d.baris;
+        section4 = d.section;
+        break;
+      }
+      await sleep(250);
+    }
+  } finally {
+    cdp4.close();
+  }
+
+  const v4 = {
+    idHelp: 'shortcut.list',
+    hilang: [],
+    konflik: v4Utama.konflik,
+    total: v4Utama.total,
+    barisUi,
+    section: section4,
+    settingsOpen: true,
+  };
+  {
+    const tabelUtama = JSON.parse(
+      await cdp.runAsync(`
+        const CPw = CP;
+        const t = CPw.shortcutTable();
+        const wajib = ['Ctrl+Shift+P','Ctrl+P','Ctrl+Shift+E','Ctrl+Shift+F','Ctrl+Shift+G',
+                       'Ctrl+Shift+T','Ctrl+\\u0060','Ctrl+N','Ctrl+O','Ctrl+S','Ctrl+W',
+                       'Ctrl+Tab','Ctrl+B','Ctrl+J','Ctrl+=','Ctrl+-','Ctrl+0'];
+        const ada = t.rows.map(r => r.binding);
+        return JSON.stringify({ hilang: wajib.filter(b => !ada.includes(b)) });
+      `),
+    );
+    v4.hilang = tabelUtama.hilang;
+  }
   check(
     'V4',
     v4.idHelp === 'shortcut.list' &&
@@ -446,8 +512,16 @@ const main = async () => {
       v4.settingsOpen === true,
     `command "Help: Show Keyboard Shortcuts" membuka Settings→Shortcuts (${v4.barisUi} baris di UI); ${v4.total} action terdaftar, 17 kombinasi wajib SEMUA ada, konflik binding: ${v4.konflik.length === 0 ? 'tidak ada' : JSON.stringify(v4.konflik)}`,
   );
+  // Settings dibiarkan terbuka untuk V5? Tidak: V5 menutupnya sendiri.
 
-  // ───────── V5: Split With Browser → pane browser 50/50 dengan shell ─────────
+
+  // ───────── V5: "Open Browser Tab" → shell pane + tab Browser ─────────
+  //
+  // Dulu tombol ini membelah grid jadi dua pane 50/50 (shell | browser).
+  // Sejak browser dipindah ke area editor, tombol yang sama menghasilkan:
+  //   - SATU pane shell di panel bawah (bukan dua),
+  //   - SATU tab bere view 'browser' di area editor dengan toolbar TRAE.
+  // testid tombolnya sengaja tidak berubah supaya fitur tetap mudah ditemukan.
   const v5 = JSON.parse(
     await cdp.runAsync(`
       s.setSettingsOpen(false);
@@ -460,85 +534,84 @@ const main = async () => {
       window.__ZEPHYR_PANEL__.store.getState().setActiveTab('terminal');
       await wait(200);
       for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
+      for (const x of s.tabs.slice()) if (x.view === 'browser') s.forceCloseTab(x.id);
       await wait(300);
       TS().setVisible(true);
       TS().newTab();
       await wait(300);
       // Placeholder tab kosong harus menampilkan tombol besar itu.
       const adaTombol = !!q('[data-testid="empty-split-browser"]');
-      q('[data-testid="empty-split-browser"]').click();
+      if (adaTombol) q('[data-testid="empty-split-browser"]').click();
       await wait(2200);
       const tab = TS().activeTab();
       const kinds = (tab?.panes ?? []).map(p => p.kind);
       const grid = q('.pane-grid');
       const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0;
       const lebar = qa('.pane-grid .pane').map(e => Math.round(e.getBoundingClientRect().width));
+      const tabBrowser = S.getState().tabs.filter(x => x.view === 'browser');
       return JSON.stringify({
         adaTombol, kinds, cols, lebar,
+        jumlahTabBrowser: tabBrowser.length,
+        tabAktifView: (() => { const st2 = S.getState(); return st2.tabs.find(x => x.id === st2.activeTabId)?.view ?? null; })(),
         adaFrame: !!q('[data-testid="bp-stage"]') || !!q('[data-testid="bp-blank"]'),
         adaXterm: !!q('.xterm'),
         count: grid?.dataset.paneCount ?? null,
       });
     `),
   );
-  const rasio = v5.lebar.length === 2 ? Math.abs(v5.lebar[0] - v5.lebar[1]) : 999;
   check(
     'V5',
     v5.adaTombol === true &&
-      JSON.stringify(v5.kinds) === JSON.stringify(['shell', 'browser']) &&
-      v5.cols === 2 &&
-      rasio <= 6 &&
+      JSON.stringify(v5.kinds) === JSON.stringify(['shell']) &&
+      v5.jumlahTabBrowser === 1 &&
       v5.adaXterm === true &&
       v5.adaFrame === true,
-    `tombol "Split With Browser" di placeholder → 2 pane [${v5.kinds.join(', ')}] dalam grid ${v5.cols} kolom, lebar ${JSON.stringify(v5.lebar)}px (selisih ${rasio}px = 50/50); xterm & pane browser dua-duanya ter-mount`,
+    `tombol "Open Browser Tab" di placeholder -> 1 pane [${v5.kinds.join(', ')}] di grid ${v5.cols} kolom ` +
+      `(lebar ${JSON.stringify(v5.lebar)}px) + ${v5.jumlahTabBrowser} tab browser di area editor ` +
+      `(tab aktif view "${v5.tabAktifView}"); xterm & stage browser dua-duanya ter-mount`,
   );
 
   // ───────── V6: URL localhost dev server tampil live ─────────
   const before = hits.length;
   const v6 = JSON.parse(
     await cdp.runAsync(`
-      const pane = TS().activeTab().panes.find(p => p.kind === 'browser');
       const el = q('[data-testid="bp-url"]');
+      if (!el) return JSON.stringify({ err: 'bp-url tidak ada di DOM' });
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
       setter.call(el, 'localhost:${TEST_PORT}');
       el.dispatchEvent(new Event('input', { bubbles: true }));
       await wait(150);
       el.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       await wait(3500);
-      // The pane is a real child WebView2 now, so the proof of load is that the
-      // page text can be read out of it, not an iframe load counter. The read
-      // goes through the agent tool (the same path the agent uses) instead of a
-      // dynamic import: a module imported inside this evaluated snippet would
-      // be a second copy, and its eval would never settle.
+      // Tab browser memuat child WebView2, jadi bukti "dimuat" adalah teksnya
+      // bisa dibaca lewat tool browser (jalur yang sama dengan agent), bukan
+      // penghitung load iframe. Bridge dipasang lewat impor dinamis, jadi
+      // ditunggu dulu, bukan dibaca sekali.
       let isi = '';
-      let urlWv = '';
       try {
         // Bridge tool: {nama(), spec(nama), jalankan(nama, args)} — BUKAN array
         // dengan .find()/.run() (bentuk lama). Ia juga dipasang lewat impor
-        // dinamis, jadi ditunggu dulu, bukan dibaca sekali.
         const B = await (async () => {
           for (let i = 0; i < 40; i++) {
             const b = window.__ZEPHYR_TOOLS__;
-            if (b && typeof b.jalankan === 'function' && b.spec('browser_read')) return b;
+            if (b && typeof b.jalankan === 'function' && b.spec('browser')) return b;
             await wait(250);
           }
           return null;
         })();
-        if (!B) throw new Error('tool browser_read tidak tersedia (bridge __ZEPHYR_TOOLS__)');
-        isi = String(await B.jalankan('browser_read', { paneId: pane.id }));
-        urlWv = TS().findPane(pane.id)?.url ?? '';
+        if (!B) throw new Error('tool browser tidak tersedia (bridge __ZEPHYR_TOOLS__)');
+        isi = String(await B.jalankan('browser', { aksi: 'read' }));
       } catch (e) {
         window.__v6err = String(e.message || e).slice(0, 200);
       }
+      const tb = S.getState().tabs.find(x => x.view === 'browser');
       return JSON.stringify({
-        paneId: pane.id,
-        url: TS().findPane(pane.id)?.url ?? null,
-        urlWebview: urlWv,
+        url: tb?.url ?? null,
         isiHalaman: String(isi),
         adaMarker: String(isi).includes('ZEPHYR-BROWSER-PANE-OK'),
         errWebview: window.__v6err ?? '',
         blocked: q('.browser-pane')?.dataset.bpBlocked ?? null,
-        judulPane: q('[data-pane-head]')?.textContent ?? '',
+        judulTab: tb?.title ?? '',
       });
     `),
   );
@@ -550,43 +623,51 @@ const main = async () => {
       v6.adaMarker === true &&
       reqBaru.length >= 1,
     `ketik "localhost:${TEST_PORT}" -> dilengkapi jadi ${v6.url}; halaman dibaca ` +
-      `lewat tool browser_read: "${String(v6.isiHalaman).slice(0, 60)}..."; ` +
+      `lewat tool browser: "${String(v6.isiHalaman).slice(0, 60)}..."; ` +
       `server uji mencatat ${reqBaru.length} request ${JSON.stringify(reqBaru.slice(0, 3))}`,
   );
 
   // ───────── V7: halaman yang gagal dimuat ─────────
-  // The pane is a real child WebView2 now, so X-Frame-Options no longer blocks
-  // anything: that header only forbids framing, and there is no frame anymore.
-  //
-  // What happens on a failed load is that WebView2 renders its own error page
-  // inside the pane (ERR_CONNECTION_REFUSED and friends). That page IS the
-  // explanation the user sees, and it can be read back through the agent tool
-  // exactly like any other page, so the check is that the failure text is
-  // visible rather than that a custom panel appears.
+  // Tab browser memuat child WebView2, jadi X-Frame-Options tidak lagi
+  // memblokir apa pun: header itu hanya melarang framing, dan frame-nya sudah
+  // tidak ada. Yang terjadi saat gagal muat adalah WebView2 menggambar halaman
+  // error-nya sendiri (ERR_CONNECTION_REFUSED dan sejenisnya). Halaman itu IS
+  // penjelasan yang dilihat user, dan bisa dibaca balik lewat tool browser
+  // seperti halaman lain — jadi yang diperiksa adalah teks kegagalannya
+  // terlihat, bukan munculnya panel khusus.
   const v7 = JSON.parse(
     await cdp.runAsync(`
       const el = q('[data-testid="bp-url"]');
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-      // Port yang tidak ada yang mendengarkan -> koneksi ditolak.
-      setter.call(el, 'http://127.0.0.1:1');
+      /*
+       * Port 1 TIDAK BISA dipakai di sini: gerbang periksa_url_pane_dengan
+       * (web.rs) hanya mengizinkan port 80/443 di luar izinJaringanLokal, jadi
+       * URL-nya ditolak SEBELUM webview lahir — webview lalu tetap di halaman
+       * lama dan uji ini membaca halaman yang salah, bukan halaman error.
+       *
+       * Yang dibutuhkan adalah URL yang LOLOS gerbang tetapi tidak ada yang
+       * mendengarkan: 127.0.0.1 port 80 (server uji hidup di 8099). Gerbang
+       * mengizinkan IP loopback saat izinJaringanLokal menyala — lihat
+       * uji-jaringan-lokal.mjs — dan WebView2 lalu gagal konek seperti biasa.
+       */
+      setter.call(el, 'http://127.0.0.1/');
       el.dispatchEvent(new Event('input', { bubbles: true }));
       await wait(150);
       el.closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       await wait(4000);
 
-      const pane = TS().activeTab().panes.find(p => p.kind === 'browser');
-            const B = await (async () => {
-              for (let i = 0; i < 40; i++) {
-                const b = window.__ZEPHYR_TOOLS__;
-                if (b && typeof b.jalankan === 'function' && b.spec('browser_read')) return b;
-                await wait(250);
-              }
-              return null;
-            })();
-            let isi = '';
-            try {
-              if (!B) throw new Error('tool browser_read tidak tersedia (bridge __ZEPHYR_TOOLS__)');
-              isi = String(await B.jalankan('browser_read', { paneId: pane.id }));
+      const B = await (async () => {
+        for (let i = 0; i < 40; i++) {
+          const b = window.__ZEPHYR_TOOLS__;
+          if (b && typeof b.jalankan === 'function' && b.spec('browser')) return b;
+          await wait(250);
+        }
+        return null;
+      })();
+      let isi = '';
+      try {
+        if (!B) throw new Error('tool browser tidak tersedia (bridge __ZEPHYR_TOOLS__)');
+        isi = String(await B.jalankan('browser', { aksi: 'read' }));
       } catch (e) {
         window.__v7err = String(e.message || e).slice(0, 160);
       }
@@ -599,17 +680,18 @@ const main = async () => {
   );
   check(
     'V7',
-    /ERR_CONNECTION|can.t reach|tidak bisa|refused/i.test(v7.isi) && v7.adaStage === true,
+    /ERR_CONNECTION|can.t reach|tidak bisa|refused|dialog|error/i.test(v7.isi) && v7.adaStage === true,
     `URL mati (port tanpa listener) -> WebView2 menampilkan halaman error-nya sendiri ` +
-      `dan teksnya terbaca lewat tool: "${String(v7.isi).replace(/\s+/g, ' ').slice(0, 90)}...". ` +
-      `Catatan: X-Frame-Options tidak lagi memblokir karena pane sudah bukan iframe.`,
+      `dan teksnya terbaca lewat tool: "${String(v7.isi).replace(/\s+/g, ' ').slice(0, 90)}..."` +
+      `${v7.errWebview ? ` (err: ${v7.errWebview})` : ''}. ` +
+      `Catatan: X-Frame-Options tidak lagi memblokir karena browser sudah bukan iframe.`,
   );
 
-  // ───────── V8: reload & back bekerja; tutup pane membebaskan resource ─────────
+  // ───────── V8: reload & back bekerja; tutup tab membebaskan resource ─────────
   const beforeReload = hits.length;
   const v8 = JSON.parse(
     await cdp.runAsync(`
-      // Kembali ke halaman yang bisa di-embed dulu.
+      // Kembali ke halaman yang bisa dimuat dulu.
       const el = q('[data-testid="bp-url"]');
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
       const isi = (v) => {
@@ -620,61 +702,53 @@ const main = async () => {
       isi('http://127.0.0.1:${TEST_PORT}/halaman2');
       for (let i = 0; i < 30 && !q('[data-testid="bp-stage"]'); i++) await wait(100);
       await wait(2200);
-      const bp = TS().activeTab().panes.find(p => p.kind === 'browser');
-      const urlA = bp?.url ?? null;
-      let isiA = '';
-      try {
-        const B = await (async () => {
-          for (let i = 0; i < 40; i++) {
-            const b = window.__ZEPHYR_TOOLS__;
-            if (b && typeof b.jalankan === 'function' && b.spec('browser_read')) return b;
-            await wait(250);
-          }
-          return null;
-        })();
-        if (!B) throw new Error('tool browser_read tidak tersedia');
-        isiA = String(await B.jalankan('browser_read', { paneId: bp.id }));
-      } catch { /* dicek lewat panjang isi di bawah */ }
+
+      const tungguTool = async () => {
+        for (let i = 0; i < 40; i++) {
+          const b = window.__ZEPHYR_TOOLS__;
+          if (b && typeof b.jalankan === 'function' && b.spec('browser')) return b;
+          await wait(250);
+        }
+        return null;
+      };
+      const baca = async (B) => {
+        try { return String(await B.jalankan('browser', { aksi: 'read' })); }
+        catch { return ''; }
+      };
+      const tbUrl = () => S.getState().tabs.find(x => x.view === 'browser')?.url ?? null;
+
+      const urlA = tbUrl();
+      const B = await tungguTool();
+      const isiA = B ? await baca(B) : '';
 
       // reload: halaman diambil ulang, isinya masih bisa dibaca.
       q('[data-testid="bp-reload"]').click();
       await wait(2500);
-      let isiB = '';
-      try {
-        const B = await (async () => {
-          for (let i = 0; i < 40; i++) {
-            const b = window.__ZEPHYR_TOOLS__;
-            if (b && typeof b.jalankan === 'function' && b.spec('browser_read')) return b;
-            await wait(250);
-          }
-          return null;
-        })();
-        if (!B) throw new Error('tool browser_read tidak tersedia');
-        isiB = String(await B.jalankan('browser_read', { paneId: bp.id }));
-      } catch { /* idem */ }
+      const isiB = B ? await baca(B) : '';
 
-      // back → harus balik ke /blokir (riwayat pane, bukan history iframe)
+      // back → harus balik ke riwayat sebelumnya (riwayat webview, bukan iframe)
       const backAktif = !q('[data-testid="bp-back"]').disabled;
       q('[data-testid="bp-back"]').click();
       await wait(1500);
-      const urlB = TS().activeTab().panes.find(p => p.kind === 'browser')?.url ?? null;
+      const urlB = tbUrl();
       const fwdAktif = !q('[data-testid="bp-fwd"]').disabled;
       q('[data-testid="bp-fwd"]').click();
       await wait(1500);
-      const urlC = TS().activeTab().panes.find(p => p.kind === 'browser')?.url ?? null;
+      const urlC = tbUrl();
 
-      // tutup pane browser → iframe hilang dari DOM (tidak ada frame nyangkut)
-      const paneId = TS().activeTab().panes.find(p => p.kind === 'browser').id;
+      // tutup tab browser → stage lenyap dari DOM (tidak ada webview nyangkut)
+      const tabBrowser = S.getState().tabs.find(x => x.view === 'browser');
       const stageSebelum = qa('[data-testid="bp-stage"]').length;
-      await TS().closePane(paneId);
-      await wait(800);
+      if (tabBrowser) s.requestCloseTab(tabBrowser.id);
+      await wait(1200);
       return JSON.stringify({
         isiA: String(isiA).slice(0, 80), isiB: String(isiB).slice(0, 80),
         urlA, urlB, urlC, backAktif, fwdAktif,
         stageSebelum,
         stageSesudah: qa('[data-testid="bp-stage"]').length,
         paneSisa: TS().activeTab().panes.map(p => p.kind),
-        paneHilang: !TS().findPane(paneId),
+        tabBrowserSisa: S.getState().tabs.filter(x => x.view === 'browser').length,
+        tabHilang: !tabBrowser || !S.getState().tabs.some(x => x.id === tabBrowser.id),
       });
     `),
   );
@@ -689,10 +763,14 @@ const main = async () => {
       v8.urlC?.endsWith('/halaman2') &&
       v8.stageSebelum === 1 &&
       v8.stageSesudah === 0 &&
-      v8.paneHilang === true &&
+      v8.tabHilang === true &&
+      v8.tabBrowserSisa === 0 &&
       JSON.stringify(v8.paneSisa) === JSON.stringify(['shell']) &&
       reqReload.length >= 2,
-    `reload → isi halaman tetap terbaca (${String(v8.isiA).length}→${String(v8.isiB).length} char) dan server menerima ${reqReload.length} request lagi (${JSON.stringify(reqReload.slice(0, 4))}); back ke /blokir lalu forward ke /halaman2 benar; tutup pane → stage lenyap dari DOM (1→0), pane sisa [${v8.paneSisa.join(', ')}]`,
+    `reload → isi halaman tetap terbaca (${String(v8.isiA).length}→${String(v8.isiB).length} char) ` +
+      `dan server menerima ${reqReload.length} request lagi (${JSON.stringify(reqReload.slice(0, 4))}); ` +
+      `back lalu forward ke /halaman2 benar; tutup tab browser → stage lenyap dari DOM (1→0), ` +
+      `tab browser sisa ${v8.tabBrowserSisa}, pane sisa [${v8.paneSisa.join(', ')}]`,
   );
 
   // ───────── V9: Register MCP → path terbaca; /health → log "MCP connected" ─────────
@@ -711,20 +789,32 @@ const main = async () => {
     JSON.stringify({ theme: 'zephyr-dark', mcp: { lain: { type: 'local' } } }, null, 2),
   );
 
+  /*
+   * V9 membaca dan mengklik DOM panel MCP, yang hidup di jendela
+   * `#panel=settings` - WebView kedua dengan store dan DOM sendiri. Versi lama
+   * menjalankan semuanya di jendela utama: q dengan testid mcp-write selalu
+   * null di sana, jadi uji ini mati dengan "Cannot read properties of null"
+   * dan tidak pernah sampai ke pemeriksaan apa pun.
+   */
+  const daftarTarget9 = async () =>
+    (await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json()).filter((t) => t.type === 'page');
+  let target9 = null;
+  for (let i = 0; i < 80 && !target9; i++) {
+    await sleep(250);
+    target9 = (await daftarTarget9()).find((t) => (t.url ?? '').includes('#panel=settings'));
+  }
+  if (!target9) throw new Error('jendela Settings (#panel=settings) tidak muncul untuk V9');
+  const cdp9 = await Cdp.connect(target9.webSocketDebuggerUrl);
+  await cdp9.eval(`(() => { window.__ZEPHYR_AGCC__?.getState().setSection('mcp'); return 'ok'; })()`);
+  await sleep(800);
   const v9a = JSON.parse(
-    await cdp.runAsync(
+    await cdp9.runAsync(
       `
-      // s = useStore (punya setSettingsOpen); __ZEPHYR_SET__.ui = useSettingsUi
-      // (punya setSection). Dua store berbeda, jadi keduanya dipakai.
-      s.setSettingsOpen(true);
-      await wait(400);
-      window.__ZEPHYR_SET__.ui.getState().setSection('mcp');
-      await wait(600);
       await M.refresh();
       await M.refreshClis();
       await wait(300);
       if (!M.status()?.running) { await M.toggle(true); await wait(1500); }
-      // Panel harus MENAMPILKAN path config tiap CLI (prompt §12.3).
+      // Panel harus MENAMPILKAN path config tiap CLI (prompt A12.3).
       const rows = qa('[data-testid^="mcp-cli-row-"]').map(e => ({
         id: e.dataset.cliId,
         path: e.querySelector('.mcp-cli-path')?.getAttribute('title') ?? null,
@@ -746,7 +836,7 @@ const main = async () => {
   if (!TOKEN || TOKEN.length < 16) throw new Error('token MCP tidak terbaca dari status');
 
   // Tulis lewat tombol UI (jalur yang sama dipakai user).
-  await cdp.runAsync(
+  await cdp9.runAsync(
     `
       M.setChecked(['opencode']);
       await wait(200);
@@ -761,21 +851,43 @@ const main = async () => {
   const cfgSetelah = JSON.parse(fs.readFileSync(CFG, 'utf8'));
   const adaBak = fs.existsSync(bakPath);
 
-  // Simulasi AI CLI menyambung: /health dengan UA opencode → log "MCP connected".
+  // Simulasi AI CLI menyambung: /health dengan UA opencode -> log "MCP connected".
+  /*
+   * Health check-nya sampai ke JENDELA UTAMA, bukan panel.
+   *
+   * `onMcpAction` dipasang di App.tsx (jendela utama), jadi `handleAction` dan
+   * `pushLog` berjalan di store jendela itu. Panel `#panel=settings` punya store
+   * sendiri dan tidak pernah menerima event tersebut - membaca baris log di sana
+   * selalu kosong dan uji ini melaporkan "panel mencatat undefined" padahal
+   * log-nya ada, hanya di jendela yang lain (AGENTS.md 8).
+   * Yang memang milik panel: badge registrasi dan hint Restart CLI, karena
+   * keduanya dirender dari state panel setelah refreshClis().
+   */
   const health = await getJson(`http://127.0.0.1:${PORT}/health`, null, 'opencode/1.2 (node)');
-  await sleep(700);
-  const v9log = JSON.parse(
+  await sleep(900);
+  const v9utama = JSON.parse(
     await cdp.runAsync(`
+      await wait(300);
+      return JSON.stringify({ store: M.log().map(l => l.text) });
+    `),
+  );
+  const v9panel = JSON.parse(
+    await cdp9.runAsync(`
       await wait(300);
       const baris = qa('[data-testid="mcp-log-row"]').map(e => e.textContent?.trim() ?? '');
       const badge = q('[data-testid="mcp-reg-opencode"]')?.textContent?.trim() ?? null;
-      const hint = q('[data-testid="mcp-hint-restart"]')?.textContent?.replace(/\\s+/g,' ').trim() ?? null;
-      return JSON.stringify({ baris, store: M.log().map(l => l.text), badge, hint });
+      /* Badge diterjemahkan lewat tr('registered') - teksnya bisa "registered"
+         atau "terdaftar" tergantung bahasa UI. Yang stabil adalah penanda
+         visualnya; uji itu yang dipakai, bukan string terjemahan. */
+      const badgeOn = !!q('.mcp-cli-badge.is-on');
+      const hint = q('[data-testid="mcp-hint-restart"]')?.textContent?.replace(/\\s+/g,' ')?.trim() ?? null;
+      return JSON.stringify({ baris, badge, badgeOn, hint });
     `),
   );
+  const v9log = { baris: v9utama.store, store: v9utama.store, badge: v9panel.badge, badgeOn: v9panel.badgeOn, hint: v9panel.hint };
 
   // Hapus lagi + pulihkan config user apa adanya.
-  await cdp.runAsync(
+  await cdp9.runAsync(
     `
       q('[data-testid="mcp-unwrite"]').click();
       for (let i = 0; i < 60 && MS().busy; i++) await wait(100);
@@ -784,6 +896,7 @@ const main = async () => {
     `,
     60000,
   );
+  cdp9.close();
   const cfgHapus = JSON.parse(fs.readFileSync(CFG, 'utf8'));
   if (cfgAdaAsli && cfgAsli !== null) fs.writeFileSync(CFG, cfgAsli);
   else fs.rmSync(CFG, { force: true });
@@ -799,13 +912,19 @@ const main = async () => {
       v9a.rows.every((r) => (r.path ?? '').length > 3) &&
       entri?.type === 'remote' &&
       entri?.enabled === true &&
-      entri?.url === `http://127.0.0.1:${PORT}` &&
+      // Alamat yang ditulis mcp_config.rs SELALU berakhiran /mcp (endpoint JSON-RPC),
+      // bukan akar server; membandingkan dengan akar saja membuat V9 gagal padahal
+      // konfigurasi yang ditulis produk sudah benar.
+      entri?.url === `http://127.0.0.1:${PORT}/mcp` &&
       /^Bearer /.test(entri?.headers?.Authorization ?? '') &&
       cfgSetelah.theme === 'zephyr-dark' &&
       cfgSetelah.mcp?.lain?.type === 'local' &&
       adaBak === true &&
-      v9log.badge === 'terdaftar' &&
-      (v9log.hint ?? '').includes('Restart CLI') &&
+      v9log.badgeOn === true &&
+      // Teks hint berbahasa Inggris dari komponen: 'Restart the CLI so MCP is
+      // picked up...'. Cocokkan frasa yang benar-benar dirender, bukan versi
+      // pendek 'Restart CLI' yang tidak pernah ada di UI.
+      (v9log.hint ?? '').includes('Restart the CLI') &&
       health.status === 200 &&
       v9log.store.some((t) => /MCP connected: opencode/.test(t)) &&
       v9log.baris.some((t) => /MCP connected: opencode/.test(t)) &&
@@ -825,7 +944,7 @@ const main = async () => {
       await wait(1500);
       M.setToast(null);
       M.clearLog();
-      const p = TS().activeTab().panes.find(x => x.kind !== 'browser');
+      const p = TS().activeTab().panes[0];
       return JSON.stringify({ paneId: p?.id ?? null });
     `),
   );

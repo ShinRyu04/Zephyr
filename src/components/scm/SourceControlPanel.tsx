@@ -5,6 +5,7 @@ import { useStore } from '../../lib/store';
 import type { GitChange, ScmRepo } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
 import ConflictEditor from './ConflictEditor';
+import WorktreeSection from './WorktreeSection';
 
 const STATUS_CLASS: Record<string, string> = {
   M: 'is-modified',
@@ -1320,6 +1321,7 @@ export default function SourceControlPanel() {
           </p>
         )}
         <GitGraphSection />
+        <WorktreeSection />
       </div>
 
       <GitHubRow />

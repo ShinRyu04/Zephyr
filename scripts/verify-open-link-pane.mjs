@@ -1,5 +1,5 @@
 /*
- * Bukti: `open_link` membuka PANE ZEPHYR (webview), bukan browser OS.
+ * Bukti: `open_link` membuka TAB BROWSER Zephyr (webview), bukan browser OS.
  *
  * Permintaan pemilik aplikasi, dua kali: tautan harus dibuka di pane browser
  * yang sudah ada di terminal (split) dan di kolom browser jendela "Open in
@@ -18,7 +18,7 @@ const h = await cdp.json(
   `return JSON.stringify(await (async () => {
   const tunggu = (ms) => new Promise((r) => setTimeout(r, ms));
   const S = window.__ZEPHYR__;
-  const T = window.__ZEPHYR_TERM__;
+  const tabBrowser = () => (S.getState().tabs || []).filter((t) => t && t.view === 'browser');
   const out = {};
   const asli = S.getState().settings;
   const izinAwal = asli.izinIsiWeb === true;
@@ -44,7 +44,7 @@ const h = await cdp.json(
   out.adaBaca = !!baca;
 
   /* Berapa pane browser sebelum. */
-  const sebelum = T.getState().allPanes().filter((p) => p.kind === 'browser').length;
+  const sebelum = tabBrowser().length;
   out.paneSebelum = sebelum;
 
   /* Buka lewat open_link. */
@@ -57,7 +57,7 @@ const h = await cdp.json(
   }
   await tunggu(1200);
 
-  const panes = T.getState().allPanes().filter((p) => p.kind === 'browser');
+  const panes = tabBrowser();
   out.paneSesudah = panes.length;
   out.paneUrl = panes.map((p) => p.url).slice(0, 3);
   out.adaPaneBaru = panes.length > sebelum || panes.some((p) => String(p.url).includes('example.com'));
@@ -74,12 +74,12 @@ const h = await cdp.json(
   /* P4: izin mati -> ditolak, tanpa pane baru. */
   await S.getState().applySettings({ izinIsiWeb: false });
   await tunggu(300);
-  const sebelumTolak = T.getState().allPanes().filter((p) => p.kind === 'browser').length;
+  const sebelumTolak = tabBrowser().length;
   if (openLink) {
     out.tolak = String(await openLink.run({ url: 'https://github.com' })).slice(0, 160);
   }
   await tunggu(400);
-  out.paneSetelahTolak = T.getState().allPanes().filter((p) => p.kind === 'browser').length;
+  out.paneSetelahTolak = tabBrowser().length;
   out.paneSebelumTolak = sebelumTolak;
 
   /* Pulihkan setelan. */
@@ -106,21 +106,21 @@ const cek = (n, ok, info = '') => {
   else gagal++;
 };
 
-console.log('\nBukti — tautan dibuka di PANE Zephyr:');
+console.log('\nBukti — tautan dibuka di TAB BROWSER Zephyr:');
 cek('tool open_link ada', d.adaOpenLink === true, String(d.adaOpenLink));
 cek(
-  'P1 tidak memakai browser OS (hasil menyebut pane)',
-  typeof d.hasil === 'string' && /pane/i.test(d.hasil) && !/system browser/i.test(d.hasil),
+  'P1 tidak memakai browser OS (hasil menyebut tab)',
+  typeof d.hasil === 'string' && /tab/i.test(d.hasil) && !/system browser/i.test(d.hasil),
   String(d.hasil ?? d.galat ?? '').slice(0, 110),
 );
-cek('P2 pane browser dibuat/dinavigasi', d.adaPaneBaru === true, `${d.paneSebelum} -> ${d.paneSesudah}`);
+cek('P2 tab browser dibuat/dinavigasi', d.adaPaneBaru === true, `${d.paneSebelum} -> ${d.paneSesudah}`);
 cek(
   'P3 halaman yang sama bisa DIBACA',
-  typeof d.baca === 'string' && d.baca.length > 20 && !/No browser pane/i.test(d.baca),
+  typeof d.baca === 'string' && d.baca.length > 20 && !/No browser/i.test(d.baca),
   String(d.baca ?? d.bacaGalat ?? '').slice(0, 90),
 );
 cek(
-  'P4 izin mati -> ditolak tanpa pane baru',
+  'P4 izin mati -> ditolak tanpa tab baru',
   typeof d.tolak === 'string' && /ditolak/i.test(d.tolak) && d.paneSetelahTolak === d.paneSebelumTolak,
   `${d.paneSebelumTolak} -> ${d.paneSetelahTolak}`,
 );

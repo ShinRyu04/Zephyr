@@ -603,7 +603,7 @@ export const useDebug = create<DebugStoreState & DebugActions>((set, get) => ({
     const t = useTerminal.getState();
     let pane = t
       .allPanes()
-      .find((p) => p.status === 'live' && p.kind !== 'browser' && p.kind !== 'agent');
+      .find((p) => p.status === 'live' && p.kind !== 'agent');
     if (!pane) {
       const id = await t.addPane('shell', cfg.cwd ? { cwd: ganti(cfg.cwd) } : undefined);
       if (!id) {

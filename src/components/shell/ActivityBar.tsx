@@ -36,6 +36,22 @@ const Icons: Record<ActivityId, () => JSX.Element> = {
     </svg>
   ),
   /*
+   * A globe, not a screen: the entry opens a real web page, and a monitor
+   * glyph already means "Dev Environment" everywhere else in this product.
+   */
+  browser: () => (
+    <svg viewBox="0 0 16 16" className="ab-icon" aria-hidden="true">
+      <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M2.4 8h11.2" stroke="currentColor" strokeWidth="1.3" fill="none" />
+      <path
+        d="M8 2.4c1.7 1.6 2.6 3.5 2.6 5.6S9.7 12 8 13.6C6.3 12 5.4 10.1 5.4 8S6.3 4 8 2.4z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+    </svg>
+  ),
+  /*
    * `wiki` glyph kept for the union, but no longer in ORDER so the rail has one
    * entry fewer. The drawing stays so a stale profile that still names it does
    * not render an empty button.
@@ -184,6 +200,7 @@ const LABEL: Record<ActivityId, string> = {
   search: 'Search',
   outline: 'Outline',
   scm: 'Source Control',
+  browser: 'Browser',
   wiki: 'Atlas',
   debug: 'Run & Debug (Ctrl+Shift+D)',
   /*
@@ -222,6 +239,13 @@ const ORDER: ActivityId[] = [
   'explorer',
   'search',
   'scm',
+  /*
+   * The Browser is not a sidebar view, but it earns a rail entry as its front
+   * door - the same relationship Extensions and Tools have. It sits after
+   * Source Control and before Run & Debug: it is neither file-centric nor a
+   * machine-side tool.
+   */
+  'browser',
   'debug',
   'extensions',
   'terminal',
@@ -295,8 +319,10 @@ export default function ActivityBar() {
       {ORDER.map((id) => {
         const Icon = Icons[id];
         /* Extensions and Tools are windows now, so there is no popup flag to
-           read: the rail's only active state is the side-bar view it opens. */
-        const isActive = activity === id && sidebarVisible;
+           read: the rail's only active state is the side-bar view it opens.
+           Browser is a TAB, so it has no sidebar state at all - it is never
+           "active" here, which is why it is excluded from the sidebar check. */
+        const isActive = id !== 'browser' && activity === id && sidebarVisible;
         return (
           <button
             key={id}
@@ -324,6 +350,16 @@ export default function ActivityBar() {
               }
               if (id === 'tools') {
                 bukaPanel('tools');
+                return;
+              }
+              /*
+               * Browser opens as an EDITOR TAB, not a sidebar view, so it must
+               * not touch `activity`/`sidebarVisible`: doing that would leave
+               * the rail highlighting an empty column and close the reader's
+               * Explorer or Source Control on the way to the page.
+               */
+              if (id === 'browser') {
+                useStore.getState().bukaViewAi('browser');
                 return;
               }
               if (activity === id) toggleSidebar();

@@ -296,9 +296,17 @@ const OPERASI_DASAR = [
   { operasi: 'salin', tool: ['copy_file'], wajib: true },
   { operasi: 'cari isi', tool: ['grep'], wajib: true },
   { operasi: 'daftar folder', tool: ['list_directory'], wajib: true },
-  { operasi: 'buat folder', tool: ['create_directory'], wajib: true },
-  { operasi: 'ambil isi web (fetch)', tool: ['web_fetch'], wajib: true },
-  { operasi: 'simpan unduhan web ke berkas', tool: ['browser_download_url'], wajib: false },
+  { operasi: 'buat folder', tool: ['create_directory', 'write_file'], wajib: true },
+  { operasi: 'ambil isi web (fetch)', tool: ['web_fetch', 'web'], wajib: true },
+  { operasi: 'simpan unduhan web ke berkas', tool: ['browser_download_url', 'browser'], wajib: false },
+  /*
+   * Proses latar: "jalankan sesuatu yang lama TANPA ditunggu, lalu baca
+   * hasilnya". Ini operasi dasar untuk agen (dev server, watcher, test suite
+   * panjang) dan dulu tidak punya rumah sama sekali - model disuruh
+   * melepasnya lewat `start`/`&` di dalam `bash_run`, dan sesudah itu
+   * keluarannya tidak bisa dibaca lagi. Rumahnya `bash_job`.
+   */
+  { operasi: 'jalankan proses latar', tool: ['bash_job'], wajib: true },
   { operasi: 'jadwal perintah', tool: ['schedule_command', 'list_schedules', 'cancel_schedule'], wajib: true },
   { operasi: 'git worktree', tool: ['git_worktree_list', 'git_worktree_add', 'git_worktree_remove', 'mcp__zephyr__worktree'], wajib: false },
 ];

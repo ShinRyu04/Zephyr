@@ -160,13 +160,36 @@ await sleep(700);
 await tutupPanel();
 R.check('A1', (await panelTerbuka()) === false, 'panel kanan tertutup tidak dirender sama sekali');
 
-const adaTombolTambah = await cdpAg.eval(
-  `!!document.querySelector('[data-testid="agx-panel-tambah"]')`,
+/*
+ * Saat panel TERTUTUP, satu-satunya pintu adalah tombol sudut
+ * `agx-panel-kanan` (AgentsKontrolSudut). Dropdown "New" ada DI DALAM panel,
+ * jadi baru bisa diklik setelah panel terbuka. Tes mengikuti alur nyata itu:
+ * tombol sudut -> panel hidup -> dropdown New -> pilih Browser.
+ */
+const adaTombolPanel = await cdpAg.eval(
+  `!!document.querySelector('[data-testid="agx-kontrol-sudut"] [data-testid="agx-panel-kanan"]')`,
 );
-R.check('A2', adaTombolTambah === true, 'tombol `+` (buka tab browser) tersedia saat panel tertutup');
+R.check('A2', adaTombolPanel === true, 'tombol sudut `Show right panel` tersedia saat panel tertutup');
 
 await cdpAg.eval(
-  `(() => { document.querySelector('[data-testid="agx-panel-tambah"]')?.click(); return 1; })()`,
+  `(() => { document.querySelector('[data-testid="agx-kontrol-sudut"] [data-testid="agx-panel-kanan"]')?.click(); return 1; })()`,
+);
+await sleep(800);
+const sesudahPanel = await qAg(`
+  return { panel: !!document.querySelector('[data-testid="agx-panel-kanan-isi"]'),
+           dropdown: !!document.querySelector('[data-testid="agx-view-dropdown"]') };`);
+R.check(
+  'A2b',
+  sesudahPanel.panel === true && sesudahPanel.dropdown === true,
+  `tombol sudut membuka panel dan dropdown New ada di dalamnya: ${JSON.stringify(sesudahPanel)}`,
+);
+
+await cdpAg.eval(
+  `(() => { document.querySelector('[data-testid="agx-view-dropdown"]')?.click(); return 1; })()`,
+);
+await sleep(300);
+await cdpAg.eval(
+  `(() => { document.querySelector('[data-testid="agx-view-dropdown-browser"]')?.click(); return 1; })()`,
 );
 await sleep(1200);
 const sesudahTambah = await qAg(`
@@ -178,7 +201,7 @@ const sesudahTambah = await qAg(`
 R.check(
   'A3',
   sesudahTambah.panel === true && sesudahTambah.tab === true && sesudahTambah.tampilan === 'browser',
-  `\`+\` membuka panel + tab Browser: ${JSON.stringify(sesudahTambah)}`,
+  `dropdown New membuka panel + tab Browser: ${JSON.stringify(sesudahTambah)}`,
 );
 
 /* ── B. Browser hidup di panel itu — SEBELUM ada alamat ──────────────────── */
@@ -227,11 +250,30 @@ R.check(
 );
 
 /* ── D. Jembatan: `browser` aksi open dijalankan DI window Agents ────────── */
+/*
+ * Kondisi paling sulit: tab Browser SUDAH ada tapi kalah fokus (File aktif).
+ * Dulu `AgentsApp` hanya memanggil `setUrl` tanpa memfokuskan tab, `IsiTab`
+ * tidak me-mount view Browser, dan tool menunggu 15 detik lalu melapor
+ * "did not confirm the page". Tes ini memakai `open_link` (jalur yang dipakai
+ * agen saat user memberi link) supaya regresi fokus langsung tertangkap.
+ */
+await cdpAg.runAsync(`
+  const m = await import('/src/lib/agentsTabs.ts');
+  m.useAgxTabs.getState().buka('file', 'File');
+  return 'ok';`);
+await sleep(400);
 await tutupPanel();
-R.check('D0', (await panelTerbuka()) === false, 'mulai dari panel tertutup — agen harus membukanya sendiri');
+R.check(
+  'D0',
+  (await panelTerbuka()) === false &&
+    (await qAg(
+      `return document.querySelector('[data-testid="agx-panel-kanan-isi"]')?.dataset.tampilan ?? null;`,
+    )) === null,
+  'mulai dari panel tertutup dengan tab Browser + tab File sudah ada — agen harus membukanya sendiri',
+);
 
-const jawabOpen = await jalankanTool('browser', { aksi: 'open', url: URL_UJI });
-R.check('D1', /loaded|ready to read|already open/i.test(jawabOpen), `browser open: ${jawabOpen.slice(0, 160)}`);
+const jawabOpen = await jalankanTool('open_link', { url: URL_UJI });
+R.check('D1', /loaded|ready to read|already open/i.test(jawabOpen), `open_link: ${jawabOpen.slice(0, 160)}`);
 
 await sleep(2500);
 const sesudahOpen = await qAg(`
@@ -258,11 +300,19 @@ R.check(
 const paneMain = JSON.parse(
   await cdpMain.eval(`JSON.stringify((() => {
     const t = window.__ZEPHYR__.getState(); const out = [];
-    for (const tab of t.terminalTabs) for (const p of tab.panes) if (p.kind === 'browser') out.push(p.id);
+    for (const tab of (t.tabs || [])) if (tab && tab.view === 'browser') out.push(tab.id);
     return { jumlah: out.length, ids: out };
   })())`),
 );
-R.check('D4', paneMain.jumlah === 0, `tidak ada pane browser dibuat di window utama: ${JSON.stringify(paneMain)}`);
+/*
+ * Window utama boleh (dan memang) membuka satu TAB browser, tapi TIDAK boleh
+ * ikut membuat pane browser di panel terminal - pane itu sudah dihapus.
+ */
+R.check(
+  'D4',
+  paneMain.jumlah <= 1,
+  `window utama punya ${paneMain.jumlah} tab browser, bukan pane: ${JSON.stringify(paneMain)}`,
+);
 
 const daftar = await jalankanTool('browser', { aksi: 'list' });
 R.check(
@@ -307,6 +357,23 @@ R.check(
   'E1',
   !/agents-browser/.test(daftarSesudah) && sisaPane.view === false,
   `browser close melepas pane Agents: ${jawabTutup.replace(/\s+/g, ' ').slice(0, 90)} | list=${daftarSesudah.replace(/\s+/g, ' ').slice(0, 80)} | dom=${JSON.stringify(sisaPane)}`,
+);
+
+/*
+ * Close memindahkan fokus dari tab Browser (dan tab File dari section D ikut
+ * ada di bar), jadi `data-tampilan` TIDAK lagi 'browser' — yang dibuktikan di
+ * sini adalah panel tetap hidup dan tidak ada sisa view/stage browser.
+ */
+const sesudahTutup = await qAg(`
+  return {
+    panel: !!document.querySelector('[data-testid="agx-panel-kanan-isi"]'),
+    tampilan: document.querySelector('[data-testid="agx-panel-kanan-isi"]')?.dataset.tampilan ?? null,
+    tabBrowser: !!document.querySelector('[data-testid="agx-tab-browser"]'),
+  };`);
+R.check(
+  'E2',
+  sesudahTutup.panel === true && sesudahTutup.tampilan !== 'browser',
+  `setelah close panel tetap hidup dan tidak menampilkan Browser: ${JSON.stringify(sesudahTutup)}`,
 );
 
 /* ── bersih-bersih: setelan web dikembalikan seperti semula ──────────────── */

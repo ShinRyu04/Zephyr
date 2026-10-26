@@ -65,7 +65,6 @@ interface TerminalActions {
     kind: PaneKind,
     opts?: {
       agentId?: string;
-      url?: string;
       cwd?: string;
       /** Profil terminal bernama; menggantikan shell/cwd/command bawaan. */
       profile?: TerminalProfile;
@@ -87,7 +86,6 @@ interface TerminalActions {
   closePane: (paneId: string) => Promise<void>;
   killPane: (paneId: string) => Promise<void>;
   reorderPane: (tabId: string, from: number, to: number) => void;
-  setPaneUrl: (paneId: string, url: string) => void;
   markExited: (paneId: string, code?: number | null) => void;
   refreshFromBackend: () => Promise<void>;
 
@@ -212,23 +210,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     const tab = get().terminalTabs.find((t) => t.id === id);
     if (tab) {
       for (const p of tab.panes) {
-        if (p.kind === 'browser') {
-          /*
-           * Webview anak TIDAK ikut mati bersama state React.
-           *
-           * `browser_pane_open` membuat webview di sisi Rust, dan yang
-           * menutupnya selama ini hanyalah efek unmount `BrowserPane`. Tapi
-           * grid pane hanya merender tab yang AKTIF: menutup tab browser yang
-           * sedang tidak dilihat tidak pernah menjalankan unmount itu, dan
-           * webview-nya tertinggal melayang di layar tanpa pane pemiliknya.
-           *
-           * Karena itu penutupannya dilakukan di sini, dari data, bukan
-           * menggantungkan diri pada siklus hidup komponen yang belum tentu
-           * berjalan.
-           */
-          await cmd.browserPaneClose(p.id).catch(() => undefined);
-          continue;
-        }
         try {
           await cmd.ptyKill(p.id);
         } catch {
@@ -285,31 +266,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     const profil = opts?.profile;
     const workspace =
       profil?.cwd?.trim() || opts?.cwd?.trim() || useStore.getState().workspace;
-
-    if (kind === 'browser') {
-      // Never navigate to an unrelated site as a placeholder. In particular,
-      // the agent may create this pane and set its real URL in the same turn;
-      // example.com caused a visible flash and could be mistaken for success.
-      const awal = opts?.url?.trim() || 'about:blank';
-      const pane: PaneMeta = {
-        id: paneId,
-        kind,
-        title: LABEL.browser,
-        status: 'live',
-        cwd: workspace,
-        url: awal,
-      };
-      set((s) => ({
-        terminalTabs: s.terminalTabs.map((t) =>
-          t.id === tabId ? { ...t, panes: [...t.panes, pane], activePaneId: paneId } : t,
-        ),
-        visible: true,
-        pickerOpen: false,
-        agentPickerOpen: false,
-        terminalError: null,
-      }));
-      return paneId;
-    }
 
     let command: string | undefined;
     let args: string[] | undefined;
@@ -611,24 +567,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
     closing.add(paneId);
     try {
       const pane = get().findPane(paneId);
-      if (pane && pane.kind === 'browser') {
-        /*
-         * Webview anak ditutup DARI SINI, tidak diserahkan ke unmount komponen.
-         *
-         * Sebelumnya cabang ini hanya "lewati, bukan terminal" - dan
-         * pengandaiannya adalah efek unmount `BrowserPane` yang akan
-         * membersihkan webview-nya. Pengandaian itu tidak selalu benar: grid
-         * pane hanya merender tab yang AKTIF, jadi menutup pane browser pada
-         * tab yang sedang tidak dilihat tidak pernah menjalankan unmount itu.
-         * Webview-nya tertinggal di koordinat layar terakhirnya, melayang di
-         * atas panel lain - dan tidak ada lagi yang mengurusnya.
-         *
-         * Ditutup dari data, bukan dari siklus hidup komponen: pane ini ada di
-         * store, jadi penutupannya pun tidak boleh bergantung pada apakah
-         * komponennya kebetulan pernah dirender.
-         */
-        await cmd.browserPaneClose(paneId).catch(() => undefined);
-      } else if (pane) {
+      if (pane) {
         try {
           if (pane.kind === 'agent') {
             await cmd.ptyInterrupt(paneId).catch((e) => console.warn('[terminal] ptyInterrupt failed for pane', paneId, e));
@@ -682,14 +621,6 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       }),
     })),
 
-  setPaneUrl: (paneId, url) =>
-    set((s) => ({
-      terminalTabs: s.terminalTabs.map((t) => ({
-        ...t,
-        panes: t.panes.map((p) => (p.id === paneId ? { ...p, url } : p)),
-      })),
-    })),
-
   markExited: (paneId, code) =>
     set((s) => ({
       terminalTabs: s.terminalTabs.map((t) => ({
@@ -740,9 +671,7 @@ export const useTerminal = create<TerminalStore>((set, get) => ({
       set((s) => ({
         terminalTabs: s.terminalTabs.map((t) => ({
           ...t,
-          panes: t.panes.map((p) =>
-            p.kind === 'browser' ? p : { ...p, status: liveIds.has(p.id) ? 'live' : 'exited' },
-          ),
+          panes: t.panes.map((p) => ({ ...p, status: liveIds.has(p.id) ? 'live' : 'exited' })),
         })),
       }));
     } catch {

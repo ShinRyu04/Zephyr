@@ -16,6 +16,10 @@
 //   R6  Keep All mengosongkan strip dan TIDAK mengubah disk
 //   R7  Undo All mengembalikan isi sebelum tulisan agen
 //   R8  Undo All menghapus berkas yang baru DIBUAT agen (sebelum = null)
+//   R9  Keep per berkas hanya membuang baris itu, disk tidak berubah
+//   R10 Undo per berkas hanya mengembalikan berkas itu
+//   R11 tombol Keep/Undo per berkas TIDAK membuka DiffView
+//   R12 campuran: keep satu berkas, undo berkas lain
 //
 // Pemakaian (butuh app hidup dengan port debug):
 //   npm run dev
@@ -78,7 +82,16 @@ const catat = async (path, sebelum, sesudah, id) => {
      sebelum menyentuh store - kalau tidak, uji mati dengan "Cannot read
      properties of undefined" padahal app-nya sehat. */
   await tungguBridge(cdp, '__ZEPHYR_DIFF__');
-  await cdp.eval(`window.__ZEPHYR_DIFF__.mulai(${JSON.stringify(id)}); 'ok'`);
+  /* `mulai` mengosongkan daftar berkas (satu giliran = satu turnId). Memanggilnya
+     per berkas menghapus baris berkas pertama, jadi hanya dipanggil kalau
+     turnId-nya memang berbeda. */
+  await cdp.eval(`
+    (() => {
+      const st = window.__ZEPHYR_DIFF__.store.getState();
+      if (st.turnId !== ${JSON.stringify(id)}) st.mulaiTurn(${JSON.stringify(id)});
+      return 'ok';
+    })()
+  `);
   await cdp.eval(`
     window.__ZEPHYR_DIFF__.store.getState()
       .catatSebelum(${JSON.stringify(path)}, ${JSON.stringify(sebelum)});
@@ -205,8 +218,134 @@ await cdp.eval(`document.querySelector('[data-testid="ai-review-undo"]').click()
 await sleep(1200);
 cek('R8  Undo All menghapus berkas yang baru dibuat', existsSync(BARU) === false);
 
+/* ── R9..R12: keep/undo PER BERKAS ──────────────────────────────────────── */
+const KEDUA = `${AKAR}\\scratch\\uji-review-kedua.ts`;
+const ISI_KEDUA_A = 'kedua sebelum\n';
+const ISI_KEDUA_B = 'kedua sesudah\n';
+
+const barisInfo = () =>
+  /* Hanya strip PERTAMA: app boleh punya dua permukaan chat hidup (kolom kanan
+     dan tab editor `ai-chat`), dan keduanya merender strip review dari store
+     yang sama. Menghitung semua `wrap` akan melihat tiap baris dua kali. */
+  cdp.eval(`JSON.stringify([...(document.querySelectorAll('[data-testid="ai-review"]')[0]
+    ?.querySelectorAll('.ai-review-baris-wrap') ?? [])].map((w) => ({
+    path: w.querySelector('[data-testid="ai-review-baris"]')?.getAttribute('title') ?? '',
+    undo: !!w.querySelector('[data-testid="ai-review-undo-berkas"]'),
+    keep: !!w.querySelector('[data-testid="ai-review-keep-berkas"]'),
+  })))`).then((v) => JSON.parse(v));
+
+const klikBerkas = async (testid, path) => {
+  const ok = await cdp.eval(`(() => {
+    const b = [...document.querySelectorAll('[data-testid="${testid}"]')]
+      .find((x) => x.getAttribute('data-path') === ${JSON.stringify(path)});
+    if (!b) return false;
+    b.click();
+    return true;
+  })()`);
+  return ok === true;
+};
+
+const pastikanDaftarTerbuka = async () => {
+  const terbuka = await cdp.eval(
+    `document.querySelector('[data-testid="ai-review"]')?.getAttribute('data-open') === '1'`,
+  );
+  if (!terbuka) {
+    await cdp.eval(`document.querySelector('[data-testid="ai-review-toggle"]').click(); 'ok'`);
+    await sleep(300);
+  }
+};
+
+/* R9 — Keep satu berkas: baris itu hilang, berkas lain tetap, disk utuh. */
+/* Giliran baru: sisa entri dari uji sebelumnya (mis. baris yang tertinggal saat
+   workspace belum kembali ke D:\Zephyr) akan menggandakan baris dan membuat
+   hitungan R9a gagal padahal produknya benar. */
+await cdp.eval(`window.__ZEPHYR_DIFF__.store.getState().mulaiTurn('uji-review-9'); 'ok'`);
+await sleep(200);
+writeFileSync(DUMMY, ISI_A, 'utf8');
+writeFileSync(KEDUA, ISI_KEDUA_A, 'utf8');
+await catat(DUMMY, ISI_A, ISI_B, 'uji-review-5');
+writeFileSync(DUMMY, ISI_B, 'utf8');
+await catat(KEDUA, ISI_KEDUA_A, ISI_KEDUA_B, 'uji-review-5');
+writeFileSync(KEDUA, ISI_KEDUA_B, 'utf8');
+await sleep(500);
+await pastikanDaftarTerbuka();
+let info = await barisInfo();
+cek(
+  'R9a dua berkas punya tombol Keep/Undo sendiri',
+  info.length === 2 && info.every((r) => r.undo && r.keep),
+  JSON.stringify(info),
+);
+const klikKeepDummy = await klikBerkas('ai-review-keep-berkas', DUMMY);
+await sleep(500);
+info = await barisInfo();
+cek(
+  'R9b Keep satu berkas membuang hanya baris itu',
+  klikKeepDummy &&
+    !info.some((r) => r.path.replace(/\\/g, '/').endsWith('scratch/uji-review-dummy.ts')) &&
+    info.some((r) => r.path.replace(/\\/g, '/').endsWith('scratch/uji-review-kedua.ts')),
+  JSON.stringify(info),
+);
+cek('R9c Keep satu berkas tidak mengubah disk', readFileSync(DUMMY, 'utf8') === ISI_B);
+
+/* R10 — Undo satu berkas: hanya berkas itu kembali; berkas lain tetap. */
+await pastikanDaftarTerbuka();
+const klikUndoKedua = await klikBerkas('ai-review-undo-berkas', KEDUA);
+await sleep(1200);
+const sisa = await strip();
+cek(
+  'R10a Undo satu berkas mengembalikan hanya berkas itu',
+  klikUndoKedua && readFileSync(KEDUA, 'utf8') === ISI_KEDUA_A,
+  JSON.stringify(readFileSync(KEDUA, 'utf8')),
+);
+cek('R10b Undo satu berkas membiarkan berkas lain di disk', readFileSync(DUMMY, 'utf8') === ISI_B);
+cek(
+  'R10c Undo satu berkas membuang barisnya',
+  !(sisa.baris ?? []).some((p) => p.replace(/\\/g, '/').endsWith('scratch/uji-review-kedua.ts')),
+  JSON.stringify(sisa.baris),
+);
+
+/* R11 — tombol aksi baris tidak boleh ikut membuka DiffView. */
+await catat(DUMMY, ISI_A, ISI_B, 'uji-review-6');
+writeFileSync(DUMMY, ISI_B, 'utf8');
+await sleep(400);
+await pastikanDaftarTerbuka();
+const viewSebelum = await z(`JSON.stringify((() => {
+  const st = window.__ZEPHYR__.getState();
+  return st.tabs.find((x) => x.id === st.activeTabId)?.view ?? null;
+})())`);
+await klikBerkas('ai-review-keep-berkas', DUMMY);
+await sleep(400);
+const viewSesudah = await z(`JSON.stringify((() => {
+  const st = window.__ZEPHYR__.getState();
+  return st.tabs.find((x) => x.id === st.activeTabId)?.view ?? null;
+})())`);
+cek('R11 Keep per berkas tidak membuka DiffView', viewSebelum === viewSesudah, `${viewSebelum} -> ${viewSesudah}`);
+
+/* R12 — campuran: keep A, undo B. */
+try {
+  rmSync(BARU, { force: true });
+} catch {
+  /* sudah tidak ada */
+}
+writeFileSync(DUMMY, ISI_A, 'utf8');
+writeFileSync(BARU, 'isi lama baru\n', 'utf8');
+await catat(DUMMY, ISI_A, ISI_B, 'uji-review-7');
+writeFileSync(DUMMY, ISI_B, 'utf8');
+await cdp.eval(`window.__ZEPHYR_DIFF__.store.getState().catatSebelum(${JSON.stringify(BARU)}, 'isi lama baru\\n'); 'ok'`);
+writeFileSync(BARU, 'isi baru dari agen\n', 'utf8');
+await cdp.eval(`window.__ZEPHYR_DIFF__.store.getState().catatSesudah(${JSON.stringify(BARU)}, 'isi baru dari agen\\n'); 'ok'`);
+await sleep(500);
+await pastikanDaftarTerbuka();
+await klikBerkas('ai-review-keep-berkas', DUMMY);
+await sleep(300);
+await klikBerkas('ai-review-undo-berkas', BARU);
+await sleep(1200);
+cek('R12a campuran: berkas yang di-keep tetap versi agen', readFileSync(DUMMY, 'utf8') === ISI_B);
+cek('R12b campuran: berkas yang di-undo kembali ke isi lama', readFileSync(BARU, 'utf8') === 'isi lama baru\n');
+cek('R12c campuran: strip kosong', (await strip()).ada === false);
+
 /* Bersihkan: jangan tinggalkan berkas uji atau sisa strip di layar. */
-for (const p of [DUMMY, BARU]) {
+for (const p of [DUMMY, BARU, KEDUA]) {
   try {
     rmSync(p, { force: true });
   } catch {

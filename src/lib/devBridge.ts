@@ -8,6 +8,7 @@ import { useExplorer } from './explorerStore';
 import { useTerminal } from './terminalStore';
 import { useAiCli } from './aiCliStore';
 import { useAgentExtras } from './agentExtrasStore';
+import { useAgentCustom } from './agentCustomStore';
 import { usePlugins } from './pluginsStore';
 import { useSettingsUi, SECTION_ORDER } from './settingsStore';
 import { useAiChatSettings } from './chatSettingsStore';
@@ -77,6 +78,13 @@ import {
   cekMuterBrowser,
   BATAS_BROWSER_MUTER,
   isNavigationOnlyRequest,
+  /*
+   * Phase 3 (unread): exposed so a harness can mark a session from OUTSIDE the
+   * store that owns it, exactly the way `cronRunner` does. Setting
+   * `store.setState({ sessions })` from the harness would test a write path no
+   * product code uses, and would not prove the export works at all.
+   */
+  tandaiSesiBelumDibaca,
 } from './aiStore';
 import {
   mengulangDominan,
@@ -128,6 +136,12 @@ import {
   tasksRun as tasksRunCmd,
   tasksKill as tasksKillCmd,
   workspaceBolehEksekusi as workspaceBolehEksekusiCmd, asZephyrError,
+} from './commands';
+import {
+  worktreeRootList as wtList,
+  worktreeRootAdd as wtAdd,
+  worktreeRootRemove as wtRemove,
+  worktreePrune as wtPrune,
 } from './commands';
 import type { CliArgs } from './types';
 import type { AgentMsg, AgentToolCall } from './types';
@@ -326,6 +340,9 @@ export function installDevBridge(): void {
 
   w.__ZEPHYR_AI__ = {
     store: useAi,
+
+    /* Phase 3: cross-store unread marking, the same call `cronRunner` makes. */
+    tandaiSesiBelumDibaca,
 
     /*
      * A(i)/A(iv): predikat subset alat, dibuka untuk HARNESS.
@@ -1032,6 +1049,14 @@ export function installDevBridge(): void {
     sections: () => SECTION_ORDER.slice(),
   };
 
+  /* MCP tinggal di panel Agent Customizations, bukan section Settings: harness
+     yang dulu memanggil `__ZEPHYR_SETUI__.setSection('''mcp''')` memakai ini. */
+  w.__ZEPHYR_AGCC__ = {
+    store: useAgentCustom,
+    section: () => useAgentCustom.getState().section,
+    setSection: (id: string) => useAgentCustom.getState().setSection(id as never),
+  };
+
   w.__ZEPHYR_SHORTCUTS__ = {
     ACTIONS: ACTIONS,
     byId: (id: string) => ACTION_BY_ID.get(id as never),
@@ -1158,6 +1183,17 @@ export function installDevBridge(): void {
    * getters expose the store both halves read, so a test can say which half
    * failed.
    */
+  /* Worktree manager: the same root-explicit commands the UI calls, so the
+     harness proves the real `{berhasil,pesan,data}` contract. */
+  w.__ZEPHYR_WORKTREE__ = {
+    list: (root: string) => wtList(root),
+    add: (root: string, path: string, branch: string, buatCabang = false) =>
+      wtAdd({ root, path, branch, buatCabang }),
+    remove: (root: string, path: string, paksa = false) =>
+      wtRemove({ root, path, paksa }),
+    prune: () => wtPrune(),
+  };
+
   w.__ZEPHYR_DIFF__ = {
     store: useDiff,
     berkas: () =>

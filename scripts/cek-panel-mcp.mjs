@@ -22,10 +22,10 @@ const r = await cdp.runAsync(`
 
   st.setSettingsOpen(true);
   await new Promise(r => setTimeout(r, 400));
-  setui.getState().setSection('mcp');
+  window.__ZEPHYR_AGCC__?.getState().setSection('mcp');
   await new Promise(r => setTimeout(r, 1800));
 
-  out.section = setui.getState().section;
+  out.section = window.__ZEPHYR_AGCC__?.getState().section ?? null;
   out.settingsOpen = window.__ZEPHYR__.getState().settingsOpen;
   out.adaMcpWrite = !!document.querySelector('[data-testid="mcp-write"]');
   out.semuaMcp = [...document.querySelectorAll('[data-testid^="mcp-"]')].map(e => e.getAttribute('data-testid')).slice(0, 14);

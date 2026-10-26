@@ -57,7 +57,7 @@ export const ALAT: AlatInfo[] = [
   { id: 'web_fetch', label: 'Fetch a page', hint: 'Fetch the text of one URL', ikon: '✦' },
   { id: 'multi_edit', label: 'Edit files', hint: 'Change the contents of files', ikon: '✎' },
   { id: 'bash_run', label: 'Run commands', hint: 'Run a shell command and read its output', ikon: '⌨' },
-  { id: 'browser', label: 'Open a page', hint: 'Load a URL in the built-in browser pane', ikon: '◉' },
+  { id: 'browser', label: 'Open a page', hint: 'Load a URL in the built-in browser', ikon: '◉' },
   { id: 'web_search', label: 'Search the web', hint: 'Find pages by query', ikon: '⌕' },
 ];
 

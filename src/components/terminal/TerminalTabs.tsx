@@ -5,7 +5,7 @@ import Popover from '../shell/Popover';
 import PaneIcon, { AgentLogo } from './PaneIcons';
 import type { PaneKind, TerminalTab } from '../../lib/types';
 import { useT, tx } from '../../lib/i18n';
-import { HOME as URL_HOME_BROWSER } from './BrowserPane';
+import { HOME as URL_HOME_BROWSER } from '../editor/BrowserTab';
 import { useStore } from '../../lib/store';
 
 export function ActionIcon({
@@ -312,21 +312,19 @@ export function TerminalOps() {
               className="tt-drop-item"
               role="menuitem"
               data-testid="term-browser"
-              onClick={async () => {
+              onClick={() => {
                 setPickerOpen(false);
-
-                if ((activeTab?.panes.length ?? 0) === 0) await addPane('shell');
-                // WAJIB kirim url. Tanpa ini `addPane('browser')` membuat pane
-                // dengan url kosong, dan BrowserPane lalu membuat child webview
-                // yang memuat halaman kosong -> hanya latar gelap, terlihat
-                // seperti panel mati. Alamat yang dipakai harus sama dengan
-                // HOME di BrowserPane.tsx (dev: localhost:5173, rilis:
-                // duckduckgo.com) supaya pane langsung menampilkan sesuatu.
-                await addPane('browser', { url: URL_HOME_BROWSER });
+                /*
+                 * The browser is an editor TAB now, not a pane in this panel.
+                 * Opening one here still makes sense - the item used to be
+                 * "Pane Browser (split)" - so it opens that tab instead of
+                 * quietly doing nothing after the pane was removed.
+                 */
+                useStore.getState().bukaViewAi('browser', { url: URL_HOME_BROWSER });
               }}
             >
               <ActionIcon name="browser" />
-              Pane Browser (split)
+              Browser tab
             </button>
             <button
               className="tt-drop-item"
@@ -372,7 +370,7 @@ export function TerminalOps() {
               className="tt-drop-item"
               role="menuitem"
               data-testid="term-clear"
-              disabled={!activePane || activePane.kind === 'browser'}
+              disabled={!activePane}
               onClick={() => {
                 if (activePane) clearTerm(activePane.id);
                 setMenuFor(null);
@@ -385,7 +383,7 @@ export function TerminalOps() {
               className="tt-drop-item"
               role="menuitem"
               data-testid="term-kill"
-              disabled={!activePane || activePane.kind === 'browser'}
+              disabled={!activePane}
               onClick={() => activePane && void killPane(activePane.id)}
             >
               <ActionIcon name="kill" />

@@ -7,7 +7,7 @@ import RulesSection from './RulesSection';
 import { AboutSection, ScmSection, SshSection } from './SectionsMisc';
 import { ExtensionsSection } from './SectionsExtensions';
 import SectionsLsp from './SectionsLsp';
-import McpPanel from './McpPanel';
+import AgentCustomPage from './AgentCustomPage';
 import SecuritySection from './SecuritySection';
 import AccessibilitySection from './AccessibilitySection';
 import MemoriPanel from './MemoriPanel';
@@ -42,7 +42,12 @@ function SectionBody({ id }: { id: SectionId }) {
     case 'scm':
       return <ScmSection />;
     case 'mcp':
-      return <McpPanel />;
+      /* MCP bukan section Settings: ia tab di panel Agent Customizations
+         (`bukaPanel('agent-custom', 'mcp')`, lihat `mcpStore.ts` `view.mcp`).
+         `'mcp'` tetap ada di `SectionId` untuk tautan lama, dan tautan itu
+         mendarat di sini - jadi yang ditampilkan adalah tab MCP yang sama,
+         bukan halaman kosong. */
+      return <AgentCustomPage seksiAwal="mcp" />;
     case 'devenv':
       return <DevEnvSettingsSection />;
     case 'devupdate':

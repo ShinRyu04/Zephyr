@@ -3,6 +3,7 @@ import * as cmd from './commands';
 import type { CronJob } from './commands';
 import { useTerminal } from './terminalStore';
 import { notifyError, notifyInfo, notifyWarn } from './notificationStore';
+import { tandaiSesiBelumDibaca, useAi } from './aiStore';
 
 /*
  * Cron job runner.
@@ -45,7 +46,7 @@ async function jalankanDiTerminal(command: string): Promise<boolean> {
     const t = useTerminal.getState();
     let pane = t
       .allPanes()
-      .find((p) => p.status === 'live' && p.kind !== 'browser' && p.kind !== 'agent');
+      .find((p) => p.status === 'live' && p.kind !== 'agent');
     if (!pane) {
       const id = await t.addPane('shell');
       if (!id) return false;
@@ -104,15 +105,37 @@ async function jalankanJob(job: CronJob): Promise<void> {
     return;
   }
 
+  /*
+   * A schedule is created from a conversation (the scheduler tool is one of the
+   * agent's tools), but the timer fires later, possibly with that chat closed.
+   * The conversation is therefore the thing that has news, and it is marked the
+   * same way a finished agent run marks it: skipped when the reader is already
+   * looking at that chat. No session means no badge - a job created before the
+   * chat existed has nowhere to point.
+   */
+  const sesi = useAi.getState().activeSession()?.id;
+
   const keTerminal = await jalankanDiTerminal(command);
   if (keTerminal) {
     notifyInfo(`Ran scheduled job "${nama}" in the terminal`, { source: 'schedule' });
+    if (sesi) {
+      useAi.getState().catatLatar(sesi, {
+        id: `jadwal:${job.id}:${Date.now()}`,
+        jenis: 'jadwal',
+        nama,
+        mulai: Date.now(),
+        status: 'jalan',
+      });
+      tandaiSesiBelumDibaca(sesi);
+    }
     return;
   }
 
   try {
     await jalankanDiLatar(command, nama);
+    if (sesi) tandaiSesiBelumDibaca(sesi);
   } catch (e) {
+    if (sesi) tandaiSesiBelumDibaca(sesi);
     notifyError(`Scheduled job "${nama}" failed to start`, {
       source: 'schedule',
       detail: cmd.asZephyrError(e).message,

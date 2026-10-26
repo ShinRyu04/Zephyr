@@ -21,6 +21,12 @@ const ToolsView = lazy(() => import('./ToolsView'));
 const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 const DiffViewTab = lazy(() => import('../ai/DiffViewTab'));
 /*
+ * The Browser is a tab, not a pane. It is deliberately NOT lazy: the child
+ * webview it owns is created from a measured rect, and a chunk that arrives a
+ * frame late would be one more frame in which the stage has no size.
+ */
+import BrowserTab from '../editor/BrowserTab';
+/*
  * Dev Environment, API Client and SFTP are NO LONGER editor views.
  *
  * They live inside the Tools window as tabs (see ToolsView). The per-activity
@@ -203,6 +209,18 @@ function EditorPane({ gid }: { gid: string }) {
               <Suspense fallback={null}>
                 <DiffViewTab />
               </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'browser' ? (
+          /*
+           * `bp-tab-host`, not `ai-view-tab`: the chat views are `position:
+           * static` because their own inner element covers the pane, while the
+           * browser needs a REAL rect to hang a native child webview on. This
+           * wrapper is what `getBoundingClientRect` measures.
+           */
+          <div className="bp-tab-host" data-testid="bp-tab-host">
+            <ErrorBoundary nama="Browser">
+              <BrowserTab url={tab.url} />
             </ErrorBoundary>
           </div>
         ) : gambarGrup ? (

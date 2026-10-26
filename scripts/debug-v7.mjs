@@ -1,14 +1,20 @@
-// debug-v7.mjs — run the phase-06 V7 steps by hand, one at a time, printing
+// debug-v7.mjs - run the phase-06 V7 steps by hand, one at a time, printing
 // after each one so the step that hangs is obvious.
 //
 // V7 used to hang with no output because the harness only printed the final
 // result. Splitting the steps makes the failing one visible.
+//
+// Rebased onto the Browser TAB: the browser is no longer a terminal pane, so
+// clicking `empty-split-browser` now creates a tab in the editor area and every
+// step reads `Tab.url` / the `browser` tool instead of a pane id. The old
+// `browser_nav` tool no longer exists either - navigation is `browser` with
+// `aksi: 'open'`, so the step was retargeted at that.
 
 import { Cdp } from './lib-cdp.mjs';
 import { createServer } from 'node:http';
 
 const TEST_PORT = 8099;
-const MARKER = 'HALO-DARI-BROWSER-PANE';
+const MARKER = 'HALO-DARI-BROWSER-TAB';
 
 const srv = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -20,19 +26,30 @@ console.log(`  server uji siap di ${TEST_PORT}`);
 const { cdp } = await Cdp.attach('9223', 'Zephyr');
 
 const langkah = [
-  ['tutup semua tab', `
+  ['bersihkan tab', `
+    const S = window.__ZEPHYR__;
+    for (const t of S.getState().tabs.filter(x => x.view === 'browser')) {
+      S.getState().forceCloseTab(t.id);
+    }
     for (const x of window.__ZEPHYR_TERM__.getState().terminalTabs.slice())
       await window.__ZEPHYR_TERM__.getState().closeTab(x.id);
     await new Promise(r => setTimeout(r, 1000));
-    return JSON.stringify({ tabs: window.__ZEPHYR_TERM__.getState().terminalTabs.length });
+    return JSON.stringify({
+      tabTerminal: window.__ZEPHYR_TERM__.getState().terminalTabs.length,
+      tabBrowser: S.getState().tabs.filter(x => x.view === 'browser').length,
+    });
   `],
   ['klik split-browser', `
     const b = document.querySelector('[data-testid="empty-split-browser"]');
     if (!b) return JSON.stringify({ err: 'tombol tidak ada' });
     b.click();
     await new Promise(r => setTimeout(r, 3000));
+    const S = window.__ZEPHYR__;
     const panes = window.__ZEPHYR_TERM__.getState().allPanes();
-    return JSON.stringify({ panes: panes.map(p => p.kind) });
+    return JSON.stringify({
+      tabBrowser: S.getState().tabs.filter(x => x.view === 'browser').map(x => x.id),
+      panes: panes.map(p => p.kind),
+    });
   `],
   ['isi address bar', `
     const inp = document.querySelector('[data-testid="bp-url"]');
@@ -44,22 +61,16 @@ const langkah = [
     await new Promise(r => setTimeout(r, 1500));
     return JSON.stringify({ ok: true, nilai: inp.value });
   `],
-  ['browser_nav lewat tool', `
-    const t = window.__ZEPHYR_TOOLS__;
-    if (!t) return JSON.stringify({ err: '__ZEPHYR_TOOLS__ tidak ada' });
-    const nav = t.find(x => x.spec.name === 'browser_nav');
-    if (!nav) return JSON.stringify({ err: 'tool tidak ada' });
-    const bp = window.__ZEPHYR_TERM__.getState().allPanes().find(p => p.kind === 'browser');
-    if (!bp) return JSON.stringify({ err: 'pane browser tidak ada' });
-    await nav.run({ paneId: bp.id, aksi: 'http://127.0.0.1:${TEST_PORT}/' });
+  ['browser open lewat tool', `
+    const T = window.__ZEPHYR_TOOLS__;
+    if (!T) return JSON.stringify({ err: '__ZEPHYR_TOOLS__ tidak ada' });
+    const hasil = await T.jalankan('browser', { aksi: 'open', url: 'http://127.0.0.1:${TEST_PORT}/' });
     await new Promise(r => setTimeout(r, 3000));
-    return JSON.stringify({ ok: true, url: bp.url });
+    const tab = window.__ZEPHYR__.getState().tabs.find(x => x.view === 'browser');
+    return JSON.stringify({ ok: true, balasan: String(hasil).slice(0, 120), tabId: tab?.id ?? null, url: tab?.url ?? null });
   `],
-  ['browser_read', `
-    const t = window.__ZEPHYR_TOOLS__;
-    const read = t.find(x => x.spec.name === 'browser_read');
-    const bp = window.__ZEPHYR_TERM__.getState().allPanes().find(p => p.kind === 'browser');
-    const h = await read.run({ paneId: bp.id });
+  ['browser read', `
+    const h = await window.__ZEPHYR_TOOLS__.jalankan('browser', { aksi: 'read' });
     return JSON.stringify({ bacaan: String(h).slice(0, 200) });
   `],
 ];
