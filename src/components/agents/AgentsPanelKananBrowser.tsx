@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import * as cmd from '../../lib/commands';
-import { HOME, normalizeUrl } from '../terminal/BrowserPane';
+import { HOME, normalizeUrl } from '../editor/BrowserTab';
 import { paneHarusTampil } from '../../lib/nativeOverlay';
 import { useAgxTabs } from '../../lib/agentsTabs';
 import {
@@ -40,6 +40,20 @@ export default function AgentsPanelKananBrowser({ bar, tab }: { bar?: ReactNode 
   const [draft, setDraft] = useState(tab?.url ?? '');
   const [live, setLive] = useState<{ url: string; title: string }>({ url: '', title: '' });
   const [galat, setGalat] = useState('');
+
+  /*
+   * Alamat dari tab bisa berubah SETELAH view ini ter-mount: `AgentsApp`
+   * menulis `setUrl` ke registry saat webview masih hidup, dan registry itu
+   * bisa basi sesaat. Tanpa sinkronisasi ini state lokal tetap di alamat lama
+   * dan halaman baru tidak pernah dimuat. Hanya menimpa bila berbeda supaya
+   * efek webview (yang bergantung pada `url`) tidak jalan tanpa alasan.
+   */
+  useEffect(() => {
+    const u = tab?.url;
+    if (!u) return;
+    setUrl((lama) => (lama === u ? lama : u));
+    setDraft((lama) => (lama === u ? lama : u));
+  }, [tab?.url]);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const siapRef = useRef(false);
 
@@ -181,6 +195,13 @@ export default function AgentsPanelKananBrowser({ bar, tab }: { bar?: ReactNode 
    */
   useEffect(() => {
     const periksa = () => {
+      /*
+       * Tanpa tab Browser yang hidup, view ini adalah sisa penutupan: `close`
+       * membuang tab sesudah pane-nya lepas, dan kalau permintaan buka lama
+       * (`ambilBukaDiAgents`) masih terbaca, `go()` memuat ulang halaman yang
+       * baru saja ditutup. Tab hilang = tidak ada yang perlu dilayani.
+       */
+      if (!useAgxTabs.getState().tabs.some((t) => t.tampilan === 'browser')) return;
       const buka = ambilBukaDiAgents();
       if (buka) {
         go(buka);
@@ -191,7 +212,13 @@ export default function AgentsPanelKananBrowser({ bar, tab }: { bar?: ReactNode 
       /* `''` = tutup, sama seperti tombol × di toolbar. Tab-nya ikut dibuang
          setelah pane lepas (lihat effect registry di bawah). */
       if (!nav) {
-        if (tab?.id) tutupTabRef.current = tab.id;
+        if (tab?.id) {
+          tutupTabRef.current = tab.id;
+          /* Hapus alamat di tab SEBELUM `setUrl(null)`: sinkronisasi `tab.url`
+             di bawah akan memulihkan alamat lama kalau tab masih menyimpannya,
+             dan pane yang diminta tutup justru memuat ulang halaman. */
+          useAgxTabs.getState().setUrl(tab.id, '');
+        }
         setUrl(null);
       } else go(nav);
     };

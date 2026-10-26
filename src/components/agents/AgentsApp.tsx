@@ -112,13 +112,16 @@ export default function AgentsApp() {
        * dari permintaan itu: panel terbuka, tab Browser ada, tapi stage-nya
        * tidak pernah dibuat ("did not confirm the page within 15s").
        */
-      let id = useAgxTabs.getState().tabs.find((t) => t.tampilan === 'browser')?.id;
+      /*
+       * `buka()` dipakai untuk dua kasus: tab Browser belum ada (dibuat) dan
+       * tab sudah ada (difokuskan). Dulu cabang "sudah ada" hanya memanggil
+       * `setUrl` tanpa memfokuskan tab, jadi kalau File/Terminal yang aktif
+       * `IsiTab` tidak pernah me-mount view Browser: panel terbuka di tab yang
+       * salah dan tool menunggu 15 detik lalu melapor "did not confirm".
+       */
+      useAgxTabs.getState().buka('browser', 'Browser');
+      const id = useAgxTabs.getState().aktifId ?? undefined;
       if (id) useAgxTabs.getState().setUrl(id, buka);
-      else {
-        useAgxTabs.getState().buka('browser', 'Browser');
-        id = useAgxTabs.getState().aktifId ?? undefined;
-        if (id) useAgxTabs.getState().setUrl(id, buka);
-      }
       setPanelKanan(true);
       setTampilan('chat');
     };
@@ -226,10 +229,6 @@ export default function AgentsApp() {
             <AgentsKontrolSudut
               panelTerbuka={panelKanan}
               onTogglePanel={() => setPanelKanan((v) => !v)}
-              onBukaBrowser={() => {
-                setPanelKanan(true);
-                useAgxTabs.getState().buka('browser', 'Browser');
-              }}
             />
           )}
           {tampilan === 'automation' ? (

@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useAiDebug } from '../../lib/aiDebugStore';
-import { useBanding } from '../../lib/compareStore';
 import { bukaPanel } from '../../lib/bukaPanel';
 import AiIkon from './AiIkon';
 import { useT } from '../../lib/i18n';
@@ -32,7 +31,6 @@ export default function ChatHeadActions() {
   const tipsVisible = useAi((s) => s.tipsVisible);
   const setTipsVisible = useAi((s) => s.setTipsVisible);
   const debugBuka = useAiDebug((s) => s.buka);
-  const bandingBuka = useBanding((s) => s.buka);
 
   /* The "New chat" split-button dropdown (New Chat / in Editor / in Window). */
   const [newMenuBuka, setNewMenuBuka] = useState(false);
@@ -195,7 +193,6 @@ export default function ChatHeadActions() {
                   <button role="menuitem" className="ai-more-item" data-testid="ai-open-chat-settings" onClick={() => { bukaPanel('chat-settings'); setMenuBuka(false); }}>{tr('Chat Settings')}</button>
                   <div className="ai-more-sep" />
                   <button role="menuitemcheckbox" aria-checked={debugBuka} className="ai-more-item" data-testid="ai-toggle-debug" onClick={() => { useAiDebug.getState().toggle(); setMenuBuka(false); }}>{tr('Show Chat Debug View')}</button>
-                  <button role="menuitemcheckbox" aria-checked={bandingBuka} className="ai-more-item" data-testid="ai-toggle-compare" onClick={() => { useBanding.getState().setBuka(!bandingBuka); setMenuBuka(false); }}>{tr('Compare models')}</button>
                   <div className="ai-more-sep" />
                   <button role="menuitemcheckbox" aria-checked={tipsVisible} className="ai-more-item" data-testid="ai-toggle-tips" onClick={() => setTipsVisible(!tipsVisible)}>{tr('Show tips')}</button>
                   <div className="ai-more-sep" />

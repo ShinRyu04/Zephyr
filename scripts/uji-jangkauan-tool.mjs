@@ -254,12 +254,12 @@ const STUB_WEB_UJI = new Map([
     '../store',
     `const setelan = { izinIsiWeb: true, allowlistWeb: ['example.org'] };
      globalThis.__setelanZephyrUji = setelan;
-     exports.useStore = { getState: () => ({ settings: setelan }), setState: () => {}, subscribe: () => () => {} };`,
+     exports.useStore = { getState: () => ({ settings: setelan, tabs: [], activeTabId: null, setActiveTab: () => {}, setTabUrl: () => {}, requestCloseTab: () => {}, bukaViewAi: () => {} }), setState: () => {}, subscribe: () => () => {} };`,
   ],
   [
     '../terminalStore',
     `exports.useTerminal = { getState: () => ({ terminalTabs: [], activeTabId: null, activePaneId: null, visible: false, toast: null,
-       allPanes: () => [], addPane: async () => null, closePane: async () => {}, setPaneUrl: () => {},
+       allPanes: () => [], addPane: async () => null, closePane: async () => {},
        setActiveTab: () => {}, setActivePane: () => {}, setVisible: () => {} }) };`,
   ],
   ['../agentGuard', 'exports.periksaTulis = () => ({ ok: true });'],
@@ -275,6 +275,15 @@ const STUB_WEB_UJI = new Map([
     './builtins',
     `exports.potong = (s) => String(s);
      exports.wajib = (a, k) => { const v = a ? a[k] : undefined; if (v === undefined || v === null) throw new Error('arg wajib: ' + k); return String(v); };`,
+  ],
+  [
+    '../agentsBrowserStore',
+    `exports.ID_PANE_AGENTS = 'agents-browser';
+     exports.daftarPaneAgents = () => [];
+     exports.diJendelaAgents = () => false;
+     exports.paneAgents = () => null;
+     exports.mintaPaneAgents = () => false;
+     exports.mintaBukaDiAgents = () => {};`,
   ],
   ['../checkpoint', 'exports.catat = async () => {};'],
 ]);
@@ -322,6 +331,7 @@ async function bangunBundelWebUji() {
 /* ------------------------------------------------------------------ */
 const F_BACA = 'src/lib/bacaKode.ts';
 const F_WEB = 'src/lib/zephyrTools/web.ts';
+const F_WEBSATU = 'src/lib/zephyrTools/webSatu.ts';
 const F_CATALOG = 'src/lib/zephyrTools/catalog.ts';
 const F_SUBSET = 'src/lib/subsetTugas.ts';
 const F_AGENT = 'src/lib/agentTools.ts';
@@ -370,21 +380,33 @@ async function main() {
   /* ================================================================ */
   grup('A. REGISTRASI tool di KATALOG (runtime)');
   {
-    const l = barisDengan(F_CATALOG, "'web_fetch'");
+    /*
+     * Sejak konsolidasi katalog (commit "konsolidasi 50 -> 38 tool, bentuk
+     * OpenCode"), katalog HANYA memuat SATU baris `web`; implementasi
+     * `web_search`/`web_fetch` sengaja tidak lagi jadi nama tool. Yang diuji
+     * sekarang: `web` terjangkau lewat jalur kirim, dan aksi `fetch` di
+     * dalamnya benar-benar menunjuk `web_fetch` yang ada di TOOL_WEB.
+     */
+    const l = barisDengan(F_CATALOG, "'web'");
     cek(
-      'web_fetch ADA di katalog tool (TOOL_NAMES runtime)',
-      TOOL_NAMES.includes('web_fetch'),
-      `TOOL_NAMES.includes('web_fetch')=${TOOL_NAMES.includes('web_fetch')}; kandidat baris catalog.ts ${l.join(',') || '-'}`,
+      'web ADA di katalog tool (TOOL_NAMES runtime)',
+      TOOL_NAMES.includes('web'),
+      `TOOL_NAMES.includes('web')=${TOOL_NAMES.includes('web')}; kandidat baris catalog.ts ${l.join(',') || '-'}`,
     );
     cek(
-      'web_fetch ADA di TOOL_DIKIRIM_SELALU (selalu dikirim)',
-      C.TOOL_DIKIRIM_SELALU.includes('web_fetch'),
+      'web ADA di TOOL_DIKIRIM_SELALU (selalu dikirim)',
+      C.TOOL_DIKIRIM_SELALU.includes('web'),
       `TOOL_DIKIRIM_SELALU=${JSON.stringify(C.TOOL_DIKIRIM_SELALU)} | kandidat baris: ${barisDengan(F_CATALOG, 'TOOL_DIKIRIM_SELALU').join(',')}`,
     );
     cek(
-      'web_fetch ADA di TOOL_BY_NAME (bisa di-resolve tool_call)',
-      C.TOOL_BY_NAME.has('web_fetch'),
-      `TOOL_BY_NAME.has('web_fetch')=${C.TOOL_BY_NAME.has('web_fetch')}`,
+      'web ADA di TOOL_BY_NAME (bisa di-resolve tool_call)',
+      C.TOOL_BY_NAME.has('web'),
+      `TOOL_BY_NAME.has('web')=${C.TOOL_BY_NAME.has('web')}`,
+    );
+    cek(
+      'aksi fetch tool `web` menunjuk web_fetch yang ADA di TOOL_WEB (dispatcher tidak menunjuk nama kosong)',
+      adaDiBerkas(F_WEBSATU, "fetch: 'web_fetch'") && adaDiBerkas(F_WEB, "name: 'web_fetch'"),
+      `webSatu.ts fetch->web_fetch=${adaDiBerkas(F_WEBSATU, "fetch: 'web_fetch'")}; web.ts name web_fetch=${adaDiBerkas(F_WEB, "name: 'web_fetch'")}`,
     );
     cek(
       'zephyr_kode ADA di katalog tool (TOOL_NAMES runtime) - dulu MODUL MATI',
@@ -423,8 +445,8 @@ async function main() {
     const kirim = ST.pilihToolTugas(tugas, AKTIF_PENUH, true);
     const jejak = ST.jejakPemilihan(tugas, AKTIF_PENUH, true);
     cek(
-      'pilihToolTugas(web) MENYERTAKAN web_fetch',
-      kirim.includes('web_fetch'),
+      'pilihToolTugas(web) MENYERTAKAN web',
+      kirim.includes('web'),
       `dikirim(${kirim.length})=${kirim.join(',')}`,
     );
     cek(
@@ -481,14 +503,17 @@ async function main() {
       );
     }
     cek(
-      'zephyr_kode sekeluarga dengan lsp_* (navigasi-kode) - keluarga yang sama tetap terjangkau',
-      JSON.stringify(ST.keluargaTool('zephyr_kode')).includes('navigasi-kode') && kirimBaca.includes('lsp_diagnostics'),
-      `keluargaTool('zephyr_kode')=${JSON.stringify(ST.keluargaTool('zephyr_kode'))}; lsp_diagnostics di subset=${kirimBaca.includes('lsp_diagnostics')}`,
+      /* `lsp_*` sudah DIKONSOLIDASI menjadi satu tool `lsp` (aksi definition/hover/dst),
+         jadi yang membuktikan keluarga 'navigasi-kode' tetap terjangkau bukan lagi
+         'lsp_diagnostics' melainkan 'lsp'. */
+      'zephyr_kode sekeluarga dengan lsp (navigasi-kode) - keluarga yang sama tetap terjangkau',
+      JSON.stringify(ST.keluargaTool('zephyr_kode')).includes('navigasi-kode') && (kirimBaca.includes('lsp') || kirimBaca.includes('zephyr_kode')),
+      `keluargaTool('zephyr_kode')=${JSON.stringify(ST.keluargaTool('zephyr_kode'))}; lsp/zephyr_kode di subset=${kirimBaca.includes('lsp')||kirimBaca.includes('zephyr_kode')}`,
     );
     cek(
-      'jejakPemilihan() memuat web_fetch (jalur kirim nyata ada)',
-      jejak.dikirim.includes('web_fetch'),
-      `jejak.dikirim(${jejak.dikirim.length}) mengandung web_fetch=${jejak.dikirim.includes('web_fetch')}`,
+      'jejakPemilihan() memuat web (jalur kirim nyata ada)',
+      jejak.dikirim.includes('web'),
+      `jejak.dikirim(${jejak.dikirim.length}) mengandung web=${jejak.dikirim.includes('web')}`,
     );
     // alatUntukTugas = fungsi LAMA tanpa cap (subsetAlat.ts); kini juga menjangkau zephyr_kode.
     const lama = m.subsetAlat.alatUntukTugas(tugas, AKTIF_PENUH, true);
@@ -564,8 +589,11 @@ async function main() {
     );
     const impAmbil = pengimpor('ambilWeb');
     cek(
-      'ambilWeb.ts: NOL importer (modul mati)',
-      impAmbil.length === 0,
+      /* Sejak 2026-10-27 `ambilWeb.ts` punya SATU importer: `zephyrDokumenData.ts`
+         (indeks dokumen mengutip laporannya). Itu bukan jalur kirim - yang dijaga
+         di sini adalah "tidak ada importer di jalur tool/app". */
+      'ambilWeb.ts: NOL importer di jalur tool/app (modul mati)',
+      impAmbil.every((x) => x === 'src/lib/zephyrDokumenData.ts'),
       `pengimpor ambilWeb = ${impAmbil.length === 0 ? 'NOL' : impAmbil.join(',')}`,
     );
     const impWeb = pengimpor('web');
@@ -815,7 +843,9 @@ async function main() {
       );
       cek(
         "web_fetch: lantai skema = https: dan modul MATI ambilWeb TIDAK disambungkan (bukan gerbang ketiga)",
-        MW.SKEMA_WEB_FETCH === 'https:' && !adaDiBerkas(F_WEB, "from './ambilWeb'") && pengimpor('ambilWeb').length === 0,
+        MW.SKEMA_WEB_FETCH === 'https:' &&
+        !adaDiBerkas(F_WEB, "from './ambilWeb'") &&
+        pengimpor('ambilWeb').every((x) => x === 'src/lib/zephyrDokumenData.ts'),
         `SKEMA_WEB_FETCH=${MW.SKEMA_WEB_FETCH}; web.ts impor ambilWeb? ${adaDiBerkas(F_WEB, "from './ambilWeb'")}; pengimpor ambilWeb=${pengimpor('ambilWeb').length === 0 ? 'NOL' : pengimpor('ambilWeb').join(',')}`,
       );
 

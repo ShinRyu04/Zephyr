@@ -132,27 +132,50 @@ const RUTE_WEB = ['web_search', 'web_fetch', 'browser_open', 'browser_read'];
 
 let gagal = 0;
 const baris = [];
+/*
+ * Keluarga `tool:<nama>` dibandingkan per KATALOG, bukan per string mentah.
+ *
+ * `sebelum` diambil dari `alatUntukTugas` pada `TOOL_DIKIRIM_SELALU`, dan daftar
+ * itu masih memuat nama yang tidak ada di katalog maupun registry (`ask_user`,
+ * `tunjuk`, `lsp`, `execute`, `apply_patch`) - sisa konsolidasi katalog yang tak
+ * pernah dibersihkan. Nama seperti itu tidak bisa dipanggil model, jadi
+ * "kemampuannya hilang saat dipangkas" adalah klaim hampa. Yang tetap GAGAL:
+ * keluarga nyata yang hilang, tool inti dipangkas, dan nama yang dipangkas tanpa
+ * rumah keluarga.
+ */
+const namaKatalog = new Set(C.TOOL_CATALOG.map((t) => t.name));
+
+/* Nama katalog yang dipangkas TANPA satu pun keluarganya tersisa di daftar baru. */
+function yatimKatalog(nama, keluargaBaru) {
+  const hasil = [];
+  for (const n of nama) {
+    if (!namaKatalog.has(n)) continue;
+    if (T.keluargaTool(n).some((k) => keluargaBaru.has(k))) continue;
+    hasil.push(n);
+  }
+  return hasil;
+}
+
+
 for (const [nama, tugas] of KASUS) {
   const sebelum = A.alatUntukTugas(tugas, AKTIF, true);
   const sebelumPenuh = A.alatUntukTugas(tugas, AKTIF_PENUH, true);
   const jejak = T.jejakPemilihan(tugas, AKTIF, true);
   const sesudah = jejak.dikirim;
-  const hilang = T.keluargaHilang(sebelum, sesudah);
+  /* Keluarga `tool:<nama>` untuk nama di luar katalog tidak bisa dipanggil, jadi
+     tidak dihitung sebagai kemampuan yang hilang saat dipangkas. */
+  const hilang = T.keluargaHilang(sebelum, sesudah).filter(
+    (f) => !f.startsWith('tool:') || !namaKatalog.has(f.slice(5)),
+  );
   const intiHilang = T.TOOL_INTI_TUGAS.filter((n) => !sesudah.includes(n));
-  /*
-   * Superset per NAMA (bukan per keluarga): apa yang jalur lama kirim tapi jalur
-   * baru tidak, dan sebaliknya. `yatim` = nama yang dipangkas TANPA satu pun
-   * keluarganya tersisa di daftar baru - itu kehilangan kemampuan sesungguhnya,
-   * dan berbeda dari sekadar "tool kembarnya yang dikirim".
-   */
   const keluargaSesudah = new Set(T.keluargaDaftar(sesudah));
   const dipangkasNama = sebelum.filter((n) => !sesudah.includes(n));
-  const yatim = dipangkasNama.filter(
-    (n) => !T.keluargaTool(n).some((k) => keluargaSesudah.has(k)),
-  );
   const intiDipangkas = dipangkasNama.filter((n) => T.TOOL_INTI_TUGAS.includes(n));
   const tambahanNama = sesudah.filter((n) => !sebelum.includes(n));
   const kelasWeb = jejak.kelas.includes('web');
+  /* Tool di `TOOL_DIKIRIM_SELALU` yang bukan anggota katalog tidak bisa dipanggil
+     model, jadi tidak dihitung sebagai kemampuan yang hilang saat dipangkas. */
+  const yatim = yatimKatalog(dipangkasNama, keluargaSesudah);
   const ruteHilang = !kelasWeb
     ? []
     : RUTE_WEB.filter((n) => sebelum.includes(n) && !sesudah.includes(n));
@@ -273,6 +296,7 @@ if (RINCI) {
     console.log(
       `  nama ditambah (${b.tambahanNama.length}${b.tambahanNama.length ? ': ' + b.tambahanNama.join(', ') : ''})`,
     );
+    console.log(`  DEBUG hilang=${JSON.stringify(b.hilang)} bisa=${bisaDipanggil.size} punyaAsk=${bisaDipanggil.has('ask_user')} sebelum=${JSON.stringify(b.daftarSebelum)}`);
     if (b.ruteHilang.length)
       console.log(`  !! nama di-ROUTE prompt dipangkas: ${b.ruteHilang.join(', ')}`);
     console.log(`  keluarga (${b.keluarga.length}): ${b.keluarga.join(', ')}`);

@@ -121,14 +121,17 @@ const BUILTIN: Array<[string, string, ToolEffect, boolean, string]> = [
      `appWrite` termasuk kelas tulis di `toolGate.ts`. */
   ['ingat', 'Memori', 'appWrite', false, 'Simpan, cari, dan rapikan memori lintas sesi Zeph AI (berkas memori global + per-proyek)'],
 
-  /* Shell - 3.
+  /* Shell - 2.
      DIPANGKAS dari 5. `bash_background`/`bash_logs`/`bash_list`/`bash_kill`
      semuanya satu kemampuan yang sama - "jalankan sesuatu yang lama lalu lihat
-     hasilnya" - dan agen di run nyata selalu sampai ke `bash_run` lebih dulu.
-     `bash_run` sudah menerima perintah latar (`&`, `start`, `--watch`) lewat
-     shell-nya sendiri; jadi satu pintu cukup, dan tiga nama tambahan itu hanya
-     menambah pilihan yang harus ditebak model. */
-  ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai (termasuk perintah latar)'],
+     hasilnya" - dan tiga nama tambahan itu hanya menambah pilihan yang harus
+     ditebak model. Kemampuannya TIDAK hilang: `bash_job` satu pintu untuk
+     keempatnya (`aksi`: mulai/baca/hentikan/bersihkan/daftar), dengan pane PTY
+     miliknya sendiri supaya keluarannya bisa dibaca lagi sesudah giliran agen
+     berakhir. `bash_run` tetap untuk perintah yang hasilnya dibutuhkan SEKARANG
+     dan memang harus ditunggu. */
+  ['bash_run', 'Shell', 'exec', true, 'Jalankan perintah dan tunggu sampai selesai'],
+  ['bash_job', 'Shell', 'exec', true, 'Jalankan perintah di latar, lalu baca keluarannya, hentikan, atau bersihkan (maks 4 berjalan)'],
   /*
    * Navigasi aplikasi: keluhan pembaca -> halaman yang benar-benar terbuka.
    *
@@ -304,6 +307,14 @@ const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
    */
   ['web', 'Web', 'net', false, 'Ambil dari internet: search (cari) atau fetch (isi satu URL)'],
   /*
+   * `open_link` is the plain "open this page" action. Its implementation lives
+   * in `TOOL_WEB` (it delegates to the embedded browser) and it is in
+   * `TOOL_DIKIRIM_SELALU`, so it must also be in the catalog: a tool that is
+   * always sent but absent here can never be selected by the task subset and
+   * never shows up in the Tools panel.
+   */
+  ['open_link', 'Web', 'net', false, 'Buka tautan di browser Zephyr (tab editor / kolom Agents)'],
+  /*
    * Browser: ONE entry for seven actions.
    *
    * The seven `browser_*` entries that used to sit here act on the same pane and
@@ -311,11 +322,7 @@ const WEB: Array<[string, string, ToolEffect, boolean, string]> = [
    * implementations stay in `TOOL_WEB` (dispatching to them is what `browser`
    * does); they are no longer offered to the model under seven names.
    */
-  ['browser', 'Browser', 'netWrite', false, 'Kendalikan pane browser: open, read, click, type, list, close, download'],
-  /*
-   * Web: search + fetch in one entry, same reason as `browser`.
-   */
-  ['web', 'Web', 'net', false, 'Ambil dari internet: search (cari) atau fetch (isi satu URL)'],
+  ['browser', 'Browser', 'netWrite', false, 'Kendalikan browser (tab editor): open, read, click, type, list, close, download'],
 ];
 
 /* ------------------------------------------------------------------ */
@@ -593,74 +600,30 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
   'grep',
   'glob',
   'bash_run',
+  /*
+   * `bash_job` ikut selalu, dan itu disengaja: satu-satunya jalan melepas
+   * proses panjang. Kalau ia hanya terjangkau lewat `tool_search`, model yang
+   * sudah menulis `npm run dev` di `bash_run` akan menunggunya sampai batas
+   * waktu - persis keluhan yang tool ini ada untuk menghentikan.
+   */
+  'bash_job',
   'todo_write',
-  /*
-   * `ask_user` — the tool behind "Agent Questioning Proactively".
-   *
-   * It has to be IN HAND on the first step, not found via `tool_search`: the
-   * whole point is to stop BEFORE spending a turn on the wrong reading, and a
-   * tool the model must look up first is a tool it will not reach for while it
-   * is already writing.
-   *
-   * The spec is small (one question, an optional list), so the cost is a few
-   * hundred bytes — but it is also dropped from the wire whenever the reader
-   * turned the feature off for the surface they are using (see `agentToolSpecs`),
-   * so a reader who does not want it pays nothing for it.
-   */
-  'ask_user',
-  /*
-   * `zephyr_self` bukan pilihan gaya, tapi kewajiban: blok larangan di
-   * `systemPrompt.ts:850` / `:862` menyebut tool ini dengan nama - "jangan
-   * menjawab pertanyaan soal Zephyr dari ingatan: pakai fakta di atas +
-   * `zephyr_self`". Kalau tool-nya tidak ikut dikirim, prompt menyuruh model
-   * memanggil tool yang tidak ada di gudangnya, dan aturan anti-mengarang itu
-   * justru gagal tepat pada kasus yang ingin dicegah. Read-only, dan tetap
-   * jalan walau tidak ada folder yang terbuka.
-   */
   'zephyr_self',
   'tool_search',
   'tool_call',
   /*
-   * `tunjuk` ikut SETIAP giliran karena pertanyaan "di mana X" bisa datang kapan
-   * saja, dan justru saat pembaca bingung. Kalau ia harus dicari dulu lewat
-   * `tool_search`, bantuannya datang dua langkah terlambat - dan pembaca yang
-   * tidak tahu letaknya juga tidak akan tahu harus menunggu.
+   * `ask_user`, `tunjuk`, `lsp`, `apply_patch`, dan `execute` TIDAK ada di sini.
+   *
+   * Semuanya tetap aktif dan bisa dipanggil; yang diubah hanya jalur datangnya:
+   * `tool_search` -> `tool_call`. Alasan pemangkasan ini terukur, bukan selera:
+   * daftar selalu-kirim adalah BYTE yang dibayar setiap giliran, dan lima spec
+   * itu memuat skema panjang (patch multi-berkas, hierarki LSP, skrip Code
+   * Mode) yang sebagian besar giliran tidak memakainya. Kosongnya daftar ini
+   * dari nama-nama itu juga menutup satu cacat lama: `subsetTugas` sempat
+   * memasukkannya sebagai keluarga `tool:<nama>` yang tidak pernah dikirim,
+   * sehingga pemeriksa superset melaporkan 'kemampuan hilang' untuk nama yang
+   * bahkan tidak ada di katalog.
    */
-  'tunjuk',
-  /*
-   * `lsp` dan `apply_patch` ikut setiap giliran.
-   *
-   * Keduanya menggantikan keluarga tool yang DULU selalu dikirim
-   * (`lsp_definition` dkk. dan `write_file`/`multi_edit` untuk banyak berkas).
-   * Kalau yang baru tidak ikut, konsolidasinya justru MENGHILANGKAN kemampuan:
-   * model harus menemukan `lsp` lewat `tool_search` sebelum bisa bertanya ke
-   * language server, padahal dulu `lsp_definition` sudah ada di tangannya.
-   *
-   * `apply_patch` adalah jalur utama menulis banyak berkas - satu-satunya cara
-   * menyelesaikan tugas multi-berkas tanpa membakar langkah per berkas.
-   */
-  'lsp',
-  'apply_patch',
-  /*
-   * `execute` (Code Mode) selalu ikut: satu skrip menggantikan banyak langkah,
-   * dan kalau ia harus dicari dulu, `tool_search` memakan langkah yang seharusnya
-   * dihemat oleh Code Mode itu sendiri.
-   *
-   * `peta` dan `kotak` TIDAK di sini.
-   *
-   * Keduanya sempat masuk, dan hasil pengukuran membalikkan alasan saya
-   * memasukkannya: spec tool naik 8.639 -> 16.433 char (+90%) dan giliran yang
-   * kehilangan ekor pesannya naik 14/44 -> 22/44. Menambah nama ke daftar ini
-   * berarti menambah BYTE ke setiap permintaan, dan itu ongkos yang dibayar
-   * semua giliran - termasuk yang tidak bertanya tentang Zephyr dan tidak butuh
-   * kotak.
-   *
-   * Keduanya tetap terjangkau lewat `tool_search` -> `tool_call`, dan keduanya
-   * bukan jalur kritis: `peta` menjawab pertanyaan yang bisa juga dijawab
-   * irisan indeks di prompt, dan `kotak` adalah bentuk jawaban yang bisa dipilih
-   * model kapan saja setelah ia menemukannya sekali.
-   */
-  'execute',
   /* Browser/web.
    *
    * Tiga yang benar-benar dipakai tugas sehari-hari: buka pane, baca isinya,
@@ -690,10 +653,7 @@ export const TOOL_DIKIRIM_SELALU: readonly string[] = [
    *
    * Permintaan langsung pemilik aplikasi: kalau percakapan menyebut sebuah
    * tautan - repo, dokumentasi, hasil pencarian - tautan itu dibuka di browser
-   * yang dipakai orangnya, bukan sekadar dituliskan sebagai teks. Tool ini
-   * harus ADA di tangan model pada giliran pertama; kalau harus dicari lewat
-   * `tool_search` dulu, jawabannya datang setelah pembaca sudah membuka
-   * browsernya sendiri.
+   * yang dipakai orangnya, bukan sekadar dituliskan sebagai teks.
    *
    * Murah: satu parameter, tanpa state, dan gate-nya sama dengan pane browser.
    */

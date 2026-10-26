@@ -15,7 +15,7 @@ const r = await cdp.runAsync(`
 
   st.setSettingsOpen(true);
   await new Promise(r => setTimeout(r, 400));
-  setui.getState().setSection('mcp');
+  window.__ZEPHYR_AGCC__?.getState().setSection('mcp');
   await new Promise(r => setTimeout(r, 900));
 
   await _M.refresh();

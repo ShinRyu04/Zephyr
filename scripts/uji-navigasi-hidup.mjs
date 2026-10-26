@@ -108,22 +108,27 @@ R.check(
   `tidak ada chip error "dibatalkan" (${hasil.error ?? 'bersih'})`,
 );
 
-/* Pane browser harus benar-benar ada dan sudah memuat. */
-const pane = await cdp.json(`return JSON.stringify((() => {
-  const T = window.__ZEPHYR_TERM__;
-  const st = T.getState();
-  const tabs = st.terminalTabs || [];
-  const aktif = tabs.find((t) => t.id === st.activeTabId) || tabs[0];
-  const all = tabs.flatMap((t) => t.panes || []);
-  const browserPanes = all.filter((p) => p.kind === 'browser');
+/* Tab Browser harus benar-benar ada dan sudah memuat. */
+const tab = await cdp.json(`return JSON.stringify((() => {
+  const S = window.__ZEPHYR__;
+  const tabs = (S.getState().tabs || []).filter((t) => t && t.view === 'browser');
+  let paneBrowser = 0;
+  try {
+    const ts = window.__ZEPHYR_TERM__.getState();
+    for (const tb of (ts.terminalTabs || [])) {
+      for (const p of (tb.panes || [])) if (p && p.kind === 'browser') paneBrowser++;
+    }
+  } catch { paneBrowser = -1; }
   return {
-    iframe: document.querySelectorAll('iframe').length,
-    paneBrowser: browserPanes.length,
-    url: browserPanes.length ? browserPanes[browserPanes.length - 1].url : null,
+    host: !!document.querySelector('.bp-tab-host'),
+    tabBrowser: tabs.length,
+    url: tabs.length ? tabs[tabs.length - 1].url : null,
+    paneBrowser,
   };
 })())`);
-R.check('N7', pane.paneBrowser >= 1, `pane browser ada (${pane.paneBrowser} pane, url=${pane.url})`);
-R.check('N8', hits >= 0, `server uji menerima ${hits} request (pane memuat dari cache bila 0)`);
+R.check('N7', tab.tabBrowser >= 1, `tab Browser ada (${tab.tabBrowser} tab, url=${tab.url})`);
+R.check('N7b', tab.paneBrowser === 0, `tidak ada pane browser di panel terminal (${tab.paneBrowser})`);
+R.check('N8', hits >= 0, `server uji menerima ${hits} request (tab memuat dari cache bila 0)`);
 
 console.log('\n--- jawaban agent ---');
 console.log(String(hasil.balasan).trim() || '(kosong)');

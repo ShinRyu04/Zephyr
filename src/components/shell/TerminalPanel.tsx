@@ -191,17 +191,17 @@ export default function TerminalPanel() {
                         tab.activePaneId === p.id && tab.id === activeTabId ? ' is-active' : ''
                       }`}
                       onClick={() => fokus(tab.id, p.id)}
-                      title={p.cwd ?? p.url ?? p.title}
+                      title={p.cwd ?? p.title}
                     >
                       <PaneIcon kind={p.kind} agentId={p.agent?.name} size={13} />
                       <span className="tp-pane-title">{p.title}</span>
                       <StatusDot status={p.status} />
                       <span className="tp-pid">
-                        {p.kind === 'browser' ? 'iframe' : p.pid ? `pid ${p.pid}` : '-'}
+                        {p.pid ? `pid ${p.pid}` : '-'}
                       </span>
                     </button>
                     <span className="tp-pane-ops">
-                      {p.status === 'live' && p.kind !== 'browser' && (
+                      {p.status === 'live' && (
                         <button
                           className="tp-op"
                           title={tx('Kill process')}

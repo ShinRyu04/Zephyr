@@ -83,7 +83,7 @@ import {
   PAYLOAD_MAX_CHARS,
   ukuranPayload,
 } from './contextBudget';
-import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel } from './types';
+import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel, SesiLatar } from './types';
 import { TOOL_CATALOG } from './zephyrTools/catalog';
 import { agentStopMessage, type AgentFailureCategory, type AgentStopReason } from './agentStop';
 
@@ -2793,6 +2793,7 @@ function makeSession(model: string, provider: string): ChatSession {
     provider,
     messages: [],
     createdAt: Date.now(),
+    unread: false,
   };
 }
 
@@ -2809,6 +2810,26 @@ function loadSessions(): { sessions: ChatSession[]; activeId: string | null; act
         // an earlier version). Normalise them to the standard, already-translated titles.
         title: JUDUL_LAMA.has(String(s.title ?? '')) ? 'New chat' : s.title,
         messages: s.messages.slice(-MAX_MSGS).map((m) => ({ ...m, streaming: false })),
+        /*
+         * `unread` is normalised to a real boolean. A transcript written before
+         * the field existed has `undefined`, which must read as "read" - leaving
+         * it `undefined` works for a truthiness check but makes the stored shape
+         * depend on history, so it is pinned down on load instead.
+         */
+        unread: s.unread === true,
+        /*
+         * `latar` entries are snapshots of work that lived in memory of the
+         * PREVIOUS process. A window restart cannot resume them, so any entry
+         * still claiming 'jalan'/'menunggu' is a lie the UI would render as a
+         * spinning ring on a conversation that will never report again. It is
+         * closed as 'batal' on load - the run did not finish, and saying so is
+         * the only honest reading.
+         */
+        latar: Array.isArray(s.latar)
+          ? s.latar
+              .filter((l) => l && typeof l.id === 'string')
+              .map((l) => (l.status === 'jalan' || l.status === 'menunggu' ? { ...l, status: 'batal' as const } : l))
+          : undefined,
       }));
     const activeId = sessions.some((s) => s.id === parsed.activeId)
       ? (parsed.activeId as string)
@@ -3363,6 +3384,16 @@ interface AiActions {
     forkChat: (id: string, msgId: string, composerId?: string) => string | null;
     setChatPinned: (id: string, pinned: boolean) => void;
     /**
+     * Record (or update) a background agent on the conversation that started
+     * it. Called by the subagent/schedule stores so the ring and the unread
+     * badge survive the panel being closed.
+     */
+    catatLatar: (sessionId: string, entri: SesiLatar) => void;
+    /** Drop one finished background entry from a session. */
+    hapusLatar: (sessionId: string, latarId: string) => void;
+    /** Clear every finished background entry from a session. */
+    bersihkanLatar: (sessionId: string) => void;
+    /**
      * Point the chat surfaces at the conversation belonging to this folder.
      * Called when a workspace is opened, so the transcript on screen is never
      * another project's history.
@@ -3466,8 +3497,54 @@ function persist(state: AiState) {
   }
 }
 
-const boot = loadSessions();
+/**
+ * Is the reader actually looking at this conversation right now?
+ *
+ * Unread is a promise about attention: "something finished and you have not
+ * seen it". Marking a conversation unread while its text is on screen is the
+ * one thing that would make the marker worthless, so the check is deliberately
+ * conservative - any surface pointing at the session counts as watching, and a
+ * surface whose chat is open in a collapsed/hidden column still counts, because
+ * there is no reliable, cheap "is this element visible" answer from the store.
+ * The cost of that limitation is a missed badge, never a phantom one.
+ *
+ * The value is read at completion time rather than captured at send time: a run
+ * lasts minutes and the reader can open the chat halfway through.
+ */
+function sesiSedangDibaca(sessionId: string, state: AiState): boolean {
+  if (state.activeId === sessionId) return true;
+  for (const v of Object.values(state.activeIds)) {
+    if (v === sessionId) return true;
+  }
+  /*
+   * Editor-area chats (`activeIds['editor']`) can be closed while the id stays
+   * behind, and the Agents window is a different WebView with its own store -
+   * there is nothing to read here about it. Both are accepted as "possibly
+   * watching"; see the function comment. Callers that decide the badge (the
+   * cron runner below) have to answer that question for themselves.
+   */
+  return false;
+}
 
+/**
+ * Publish "this conversation is unread" - the cross-store way in.
+ *
+ * `catatLatar` on the session already covers background work. A scheduled
+ * command has no session handle of its own (it runs on Rust's timer), so it
+ * hands the session id here instead, and this reuses the same attention rule as
+ * a finished turn: skip it when the reader is already looking at that chat.
+ */
+export function tandaiSesiBelumDibaca(sessionId: string): void {
+  if (!sessionId) return;
+  const s = useAi.getState();
+  if (sesiSedangDibaca(sessionId, s)) return;
+  useAi.setState((st) => ({
+    sessions: st.sessions.map((x) => (x.id === sessionId ? { ...x, unread: true } : x)),
+  }));
+  persist(useAi.getState());
+}
+
+const boot = loadSessions();
 /**
  * What a turn DOES: an agent run. Kept as a stored field for older sessions,
  * but no longer a choice.
@@ -5080,6 +5157,17 @@ export const useAi = create<AiStore>((set0, get) => {
       activeIds: { ...st.activeIds, [composerId]: id },
       ...(composerId === '' ? { activeId: id } : {}),
       /*
+       * Opening a conversation is exactly the act of reading it, so the unread
+       * marker goes away here - the only place it is cleared. Written
+       * conditionally so selecting an already-read chat does not rewrite the
+       * session list (and does not churn `lastReadAt` on every click).
+       */
+      ...(s?.unread
+        ? {
+            sessions: st.sessions.map((x) => (x.id === id ? { ...x, unread: false, lastReadAt: Date.now() } : x)),
+          }
+        : {}),
+      /*
        * Approval mode is a property of the CHAT, not the surface — switching the
        * docked panel to a chat whose approval is 'auto' must not silently change
        * what the editor tab's chat will do. Only the primary surface's switch
@@ -5202,6 +5290,47 @@ export const useAi = create<AiStore>((set0, get) => {
   setChatPinned: (id, pinned) => {
     set((s) => ({
       sessions: s.sessions.map((x) => (x.id === id ? { ...x, pinned } : x)),
+    }));
+    persist(get());
+  },
+
+  catatLatar: (sessionId, entri) => {
+    set((s) => ({
+      sessions: s.sessions.map((x) => {
+        if (x.id !== sessionId) return x;
+        const ada = x.latar ?? [];
+        const tanpa = ada.filter((l) => l.id !== entri.id);
+        return {
+          ...x,
+          /*
+           * Newest first, and capped: this is a status list, not a log. Without
+           * a cap a long-running chat that spawns a subagent every turn would
+           * grow the persisted transcript until it hits the storage quota,
+           * which fails silently and loses ALL chats (`persist` swallows it).
+           */
+          latar: [entri, ...tanpa].slice(0, 20),
+        };
+      }),
+    }));
+    persist(get());
+  },
+
+  hapusLatar: (sessionId, latarId) => {
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId ? { ...x, latar: (x.latar ?? []).filter((l) => l.id !== latarId) } : x,
+      ),
+    }));
+    persist(get());
+  },
+
+  bersihkanLatar: (sessionId) => {
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId
+          ? { ...x, latar: (x.latar ?? []).filter((l) => l.status === 'jalan' || l.status === 'menunggu') }
+          : x,
+      ),
     }));
     persist(get());
   },
@@ -9314,8 +9443,8 @@ let autoLanjut = 0;
              */
             const openedUrl = String(argsObj.url ?? '').trim();
             akhir = openedUrl
-              ? `Halaman dibuka di pane browser: ${openedUrl}.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan. Beri tahu saya kalau ada yang ingin dicari atau dilakukan di sana.`
-              : 'Halaman dibuka di pane browser.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan.';
+              ? `Halaman dibuka di tab Browser: ${openedUrl}.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan. Beri tahu saya kalau ada yang ingin dicari atau dilakukan di sana.`
+              : 'Halaman dibuka di tab Browser.\n\nTugas selesai - halaman sudah tampil, jadi tidak ada langkah lain yang dikerjakan.';
             navigationOpened = true;
           }
 
@@ -9911,6 +10040,20 @@ let autoLanjut = 0;
     finishAgentToolCache();
     catatanPercobaanGagal.clear();
     agentBatal = false;
+    /*
+     * Unread is decided HERE, in the single exit path of a run, together with
+     * the rest of the end-of-run bookkeeping - because this is the only place
+     * that knows the run is over for good. Marking on every agent step's done
+     * frame would badge a conversation that is still working.
+     *
+     * The marker belongs to the session the run wrote into (`sessionId`), not
+     * to whatever is active now: the reader can switch chats while the agent
+     * works, and that switch is exactly the case the badge exists for.
+     *
+     * Not marked when the reader pressed Stop: they were there, they saw it
+     * end, and a run they ended is not news.
+     */
+    const tandaiUnread = !runWasCancelled && !sesiSedangDibaca(sessionId, get());
     set((s) => ({
       agentBusy: false,
       agentNavigationOnly: false,
@@ -9935,6 +10078,9 @@ let autoLanjut = 0;
         x.id === sessionId
           ? {
               ...x,
+              /* Set or kept; never cleared here - a finished run is news. If the
+                 reader was watching, the flag simply stays as it was. */
+              unread: tandaiUnread ? true : x.unread,
               messages: x.messages.map((m) => {
                 if (m.id !== botMsg.id) return m;
                 /*
@@ -10865,7 +11011,7 @@ let autoLanjut = 0;
 
     let pane = t
       .allPanes()
-      .find((p) => p.status === 'live' && p.kind !== 'browser' && p.kind !== 'agent');
+      .find((p) => p.status === 'live' && p.kind !== 'agent');
     if (!pane) {
       const id = await t.addPane('shell');
       if (!id) {

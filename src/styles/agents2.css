@@ -5473,3 +5473,34 @@ body.agx-dragging-kolom {
     animation: none;
   }
 }
+
+/*
+ * Titik "belum dibaca".
+ *
+ * Berbeda dari cincin: cincin berarti MASIH bekerja, titik berarti SUDAH
+ * selesai dan belum dilihat. Dua keadaan itu tidak pernah tampil bersamaan pada
+ * satu baris (lihat `barisSesi`), jadi keduanya boleh memakai slot kanan yang
+ * sama - dan memang harus, supaya judulnya tidak bergeser saat status berubah.
+ */
+.agx-sesi-unread {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--agx-trae-aksen);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--agx-trae-aksen) 18%, transparent);
+}
+
+/* Angka di baris filter "Unread" - hanya penanda, bukan tombol tersendiri. */
+.agx-ctx-hitung {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--agx-trae-aksen) 22%, transparent);
+  color: var(--agx-trae-teks);
+}
+

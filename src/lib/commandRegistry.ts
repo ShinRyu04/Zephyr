@@ -1,7 +1,7 @@
 import { useStore } from './store';
 import { useLayoutCustom } from './layoutStore';
 import { useTerminal } from './terminalStore';
-import { HOME as HOME_BROWSER } from '../components/terminal/BrowserPane';
+import { HOME as HOME_BROWSER } from '../components/editor/BrowserTab';
 import { useAi } from './aiStore';
 import { useGit } from './gitStore';
 import { useMcp } from './mcpStore';
@@ -271,6 +271,18 @@ export const COMMANDS: CommandDef[] = [
       if (!s.sidebarVisible) s.toggleSidebar();
     },
   },  {
+    id: 'view.browser',
+    title: 'View: Open Browser Tab',
+    group: 'View',
+    keywords: 'browser web preview url localhost http tab',
+    /*
+     * A TAB, not a sidebar view and not a terminal pane. There is exactly one,
+     * so this focuses the existing one rather than stacking duplicates - the
+     * same contract every other view tab has.
+     */
+    run: () => S().bukaViewAi('browser'),
+  },
+  {
     id: 'view.sidebar',
     title: 'View: Toggle Sidebar',
     group: 'View',
@@ -422,16 +434,16 @@ export const COMMANDS: CommandDef[] = [
   },
   {
     id: 'terminal.splitBrowser',
-    title: 'Terminal: Split With Browser',
-    group: 'Terminal',
-    keywords: 'browser preview iframe localhost',
-    run: async () => {
-
-      const t = T();
-      if ((t.activeTab()?.panes.length ?? 0) === 0) await t.addPane('shell');
-      // URL wajib - lihat catatan di TerminalTabs.tsx. Tanpa ini pane browser
-      // memuat 'about:blank' dan tampil sebagai panel gelap kosong.
-      await t.addPane('browser', { url: HOME_BROWSER });
+    title: 'View: Open Browser Tab',
+    group: 'View',
+    keywords: 'browser preview iframe localhost split',
+    run: () => {
+      /*
+       * The browser used to be a terminal pane ("Split With Browser"). It is
+       * an editor tab now, so this command opens that tab instead of a pane -
+       * the id is kept so existing keybindings and menus still resolve.
+       */
+      useStore.getState().bukaViewAi('browser', { url: HOME_BROWSER });
     },
   },
   {

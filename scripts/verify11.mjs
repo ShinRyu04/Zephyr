@@ -106,7 +106,7 @@ class Cdp {
           st.setActivity('settings');
           st.setSettingsOpen(true);
           if (!S.getState().sidebarVisible) st.toggleSidebar();
-          SET.ui.getState().setSection('mcp');
+          window.__ZEPHYR_AGCC__?.getState().setSection('mcp');
           await wait(250);
         };
         const tunggu = async (ms = 20000) => {

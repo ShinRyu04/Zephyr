@@ -27,6 +27,28 @@ const h = await cdp.json(
   out.selaluDikirim = cat.TOOL_DIKIRIM_SELALU.includes('open_link');
   out.jumlahSelalu = cat.TOOL_DIKIRIM_SELALU.length;
 
+  /*
+   * L1b/L1c: dua jalur yang dulu membuat tool ini tidak pernah sampai ke model.
+   * Katalog harus memuatnya, subset untuk "buka youtube" (tanpa URL) harus
+   * memilihnya, dan saringan kirim agentToolSpecs harus meloloskannya.
+   */
+  out.diKatalog = cat.TOOL_BY_NAME.has('open_link');
+  const st = await import('/src/lib/subsetTugas.ts');
+  const tg = await import('/src/lib/toolGate.ts');
+  const aktif = [...tg.useToolGate.getState().aktif];
+  const subset = st.pilihToolTugas('buka youtube', aktif, true);
+  out.subsetBukaYoutube = {
+    browser: subset.includes('browser'),
+    openLink: subset.includes('open_link'),
+    jumlah: subset.length,
+  };
+  const kirim = at.agentToolSpecs({ alat: subset }).map((s) => s.name);
+  out.kirimBukaYoutube = {
+    browser: kirim.includes('browser'),
+    openLink: kirim.includes('open_link'),
+    jumlah: kirim.length,
+  };
+
   /* ── L2..L5: jalankan tool-nya lewat registry produksi ────────────────── */
   const tool = at.AGENT_TOOLS.find((t) => t.spec.name === 'open_link');
   out.adaTool = !!tool;
@@ -83,6 +105,17 @@ const cek = (n, ok, info = '') => {
 console.log('\nBukti — tautan dibuka, pagar tetap berlaku:');
 cek('tool open_link terdaftar di registry', d.terdaftar === true, String(d.terdaftar));
 cek('open_link selalu dikirim ke model', d.selaluDikirim === true, String(d.selaluDikirim));
+cek('open_link terdaftar di TOOL_CATALOG', d.diKatalog === true, String(d.diKatalog));
+cek(
+  'subset "buka youtube" memilih browser + open_link',
+  d.subsetBukaYoutube?.browser === true && d.subsetBukaYoutube?.openLink === true,
+  JSON.stringify(d.subsetBukaYoutube ?? null),
+);
+cek(
+  'wire "buka youtube" mengirim browser + open_link',
+  d.kirimBukaYoutube?.browser === true && d.kirimBukaYoutube?.openLink === true,
+  JSON.stringify(d.kirimBukaYoutube ?? null),
+);
 cek(
   'tanpa izin isi web, tautan DITOLAK',
   typeof d.tanpaIzin === 'string' && /ditolak/i.test(d.tanpaIzin),

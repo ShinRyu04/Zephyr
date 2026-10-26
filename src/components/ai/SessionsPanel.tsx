@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { useAi } from '../../lib/aiStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
+import { ringkasSesi } from '../../lib/unreadSesi';
 
 /*
  * The Sessions sidebar, shown when the AI panel is maximized.
@@ -115,23 +116,48 @@ const SessionsPanel = memo(function SessionsPanel({
             {g.items.map((s) => {
               const last = s.messages[s.messages.length - 1];
               const ts = last?.at ?? s.createdAt;
+              const ringkas = ringkasSesi(s);
               return (
-                <button
+                /*
+                 * A div row holding SIBLING buttons, not a button containing
+                 * buttons.
+                 *
+                 * The old markup nested the fork and delete <button>s inside the
+                 * row <button>. HTML forbids that, and browsers silently
+                 * un-nest it while parsing, so the action buttons ended up
+                 * outside the row they belonged to - hover, width and the
+                 * click-through to the row all depended on a DOM shape that
+                 * only existed by accident. One row element, three buttons.
+                 */
+                <div
                   key={s.id}
                   className={`ai-sessions-baris${s.id === activeId ? ' is-aktif' : ''}`}
                   data-testid={`ai-sessions-baris-${s.id}`}
-                  onClick={() => selectChat(s.id)}
                 >
-                  <span className="ai-sessions-judul">{tr(s.title)}</span>
-                  <span className="ai-sessions-waktu">{relatif(ts)}</span>
+                  <button
+                    className="ai-sessions-baris-utama"
+                    onClick={() => selectChat(s.id)}
+                  >
+                    <span className="ai-sessions-judul">{tr(s.title)}</span>
+                    {/* Unread dot: a turn or a background job finished while this
+                        chat was not the one on screen. Cleared by selecting it. */}
+                    {ringkas.butuhPerhatian && (
+                      <span
+                        className="ai-sessions-unread"
+                        data-testid={`ai-sessions-unread-${s.id}`}
+                        aria-label={tr('Unread')}
+                        title={tr('Unread')}
+                      />
+                    )}
+                    <span className="ai-sessions-waktu">{relatif(ts)}</span>
+                  </button>
                   <button
                     className="ai-sessions-hapus"
                     data-testid={`ai-sessions-fork-${s.id}`}
                     title={tr('Fork chat')}
                     /* Branch at the last message: the fork keeps this whole
                        conversation and continues on its own from here. */
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       if (!last) return;
                       forkChat(s.id, last.id);
                     }}
@@ -142,14 +168,11 @@ const SessionsPanel = memo(function SessionsPanel({
                     className="ai-sessions-hapus"
                     data-testid={`ai-sessions-hapus-${s.id}`}
                     title={tr('Delete')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteChat(s.id);
-                    }}
+                    onClick={() => deleteChat(s.id)}
                   >
                     <AiIkon name="trash" size={12} />
                   </button>
-                </button>
+                </div>
               );
             })}
           </div>

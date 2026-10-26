@@ -3,8 +3,8 @@
  *
  * ## Arsitektur
  *
- * Registry ini terdiri dari tepat 65 tools:
- *   1. 40 Built-in (diadaptasi ke backend Zephyr di src/lib/zephyrTools/builtins.ts)
+ * Registry ini terdiri dari tepat 66 tools:
+ *   1. 41 Built-in (diadaptasi ke backend Zephyr di src/lib/zephyrTools/builtins.ts)
  *   2. 14 MCP (diadaptasi ke window/state Zephyr di src/lib/zephyrTools/mcp.ts)
  *   3. 11 Web & Browser Zephyr (dipertahankan di src/lib/zephyrTools/web.ts)
  *

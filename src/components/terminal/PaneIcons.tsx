@@ -323,15 +323,6 @@ export default function PaneIcon({
       </svg>
     );
   }
-  if (kind === 'browser') {
-    return (
-      <svg {...p} aria-hidden="true">
-        <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6" {...box} stroke="var(--accent)" />
-        <path d="M1.6 5.8h12.8" stroke="var(--accent)" strokeWidth="1.2" />
-        <circle cx="3.6" cy="4.2" r="0.6" fill="var(--accent)" />
-      </svg>
-    );
-  }
   if (kind === 'ssh') {
     return (
       <svg {...p} aria-hidden="true">

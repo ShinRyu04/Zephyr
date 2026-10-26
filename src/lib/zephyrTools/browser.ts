@@ -47,16 +47,16 @@ export const TOOL_BROWSER: AgentTool = {
   spec: {
     name: 'browser',
     description:
-      'Kendalikan pane browser Zephyr - SATU tool untuk semua aksi. ' +
-      'aksi: open (buka URL di pane), read (baca teks halaman yang terbuka), click (klik elemen lewat CSS selector), type (isi field), list (daftar pane), close (tutup pane), download (unduh URL ke berkas). ' +
-      'url wajib untuk open/download; selector wajib untuk click/type; text wajib untuk type; paneId opsional (bawaan: pane aktif). ' +
+      'Kendalikan browser Zephyr (tab Browser di area editor) - SATU tool untuk semua aksi. ' +
+      'aksi: open (buka URL di tab Browser), read (baca teks halaman yang terbuka), click (klik elemen lewat CSS selector), type (isi field), list (daftar browser yang terbuka), close (tutup tab Browser), download (unduh URL ke berkas). ' +
+      'url wajib untuk open/download; selector wajib untuk click/type; text wajib untuk type; paneId opsional dan diabaikan (selalu tab Browser yang sama). ' +
       'SEMUA aksi melewati pagar yang sama: izin isi web (nyala secara bawaan) dan allowlistWeb (kosong = semua host boleh). Hasil "host-luar-allowlist:<host>" BUKAN error yang bisa diulang - jangan coba ulang, jangan pindah ke tool web lain (pagarnya sama), sebutkan hostnya ke user.',
     parameters: {
       type: 'object',
       properties: {
-        aksi: { type: 'string', enum: [...AKSI], description: 'Aksi yang dijalankan pada pane browser.' },
+        aksi: { type: 'string', enum: [...AKSI], description: 'Aksi yang dijalankan pada browser.' },
         url: { type: 'string', description: 'Untuk open/download: URL tujuan.' },
-        paneId: { type: 'string', description: 'Pane yang dituju. Kosong = pane aktif.' },
+        paneId: { type: 'string', description: 'Diabaikan: hanya ada satu tab Browser. Diterima supaya pemanggil lama tidak gagal.' },
         selector: { type: 'string', description: 'Untuk click/type: CSS selector elemen.' },
         text: { type: 'string', description: 'Untuk type: teks yang diketik.' },
         simpanKe: { type: 'string', description: 'Untuk download: jalur berkas tujuan.' },

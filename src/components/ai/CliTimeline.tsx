@@ -27,12 +27,32 @@ import { useT } from '../../lib/i18n';
 const MD_PLUGINS = [remarkGfm];
 const MdPre: NonNullable<Components['pre']> = ({ children }) => <>{children}</>;
 
+/*
+ * A Markdown table gets the same scroll wrapper the Chat AI transcript uses.
+ *
+ * This timeline is shared by every hosted CLI (the plain-text fallback below is
+ * what a CLI without a bespoke surface renders through), so the table handling
+ * lives here rather than behind an `agentId === 'claude'` branch: whatever CLI
+ * the answer comes from, a wide table must stay readable instead of being
+ * crushed into the column.
+ *
+ * `ai-tabel-bungkus` is reused on purpose - it is already the one wrapper that
+ * carries `max-width: 100%` + `overflow-x: auto`, so a table here and the same
+ * table in Chat AI scroll the same way.
+ */
+const MdTabel: NonNullable<Components['table']> = ({ children }) => (
+  <div className="ai-tabel-bungkus" data-testid="cli-tabel-bungkus">
+    <table>{children}</table>
+  </div>
+);
+
 /* Build the Markdown component map, making any image clickable so it opens in
    the zoomable Lightbox — same gesture the real Claude Code desktop app gives
    screenshots and diagrams in an answer. */
 function mdComponents(onImage: (src: string) => void): Components {
   return {
     pre: MdPre,
+    table: MdTabel,
     img: ({ src, alt }) =>
       src ? (
         <img

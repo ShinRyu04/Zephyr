@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4).
  *
  * ## Kenapa berkas ini ada
@@ -65,6 +65,12 @@ export const BATAS_TOOL_TUGAS = 20;
  * Ini kontrak syarat (2): baca/tulis berkas, cari (grep/glob), jalankan shell,
  * rencana (`todo_write`), dan JALUR PENEMUAN tool (`tool_search`/`tool_call`).
  * Tanpa keduanya, "dipangkas" berarti "hilang".
+ *
+ * `browser`/`open_link` ikut inti: "buka youtube" dan "buka tautan ini" tidak
+ * selalu terdeteksi sebagai kelas web (tidak ada URL literal), jadi kalau
+ * keduanya hanya ikut saat kelas web, permintaan paling wajar untuk membuka
+ * halaman justru kehilangan alatnya. Keduanya ada di `TOOL_DIKIRIM_SELALU`,
+ * jadi tetap lolos saringan kirim dan tidak menembus batas 20.
  */
 export const TOOL_INTI_TUGAS: readonly string[] = [
   'read_file',
@@ -72,9 +78,13 @@ export const TOOL_INTI_TUGAS: readonly string[] = [
   'grep',
   'glob',
   'bash_run',
+  /* Proses panjang (server/watcher/test suite) DILEPAS di sini, bukan ditunggu. */
+  'bash_job',
   'todo_write',
   'tool_search',
   'tool_call',
+  'browser',
+  'open_link',
 ];
 
 /**
@@ -118,6 +128,10 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   glob: ['cari-berkas', 'daftar-isi-folder'],
   /* shell - satu keluarga untuk seluruh pengelolaan proses latar */
   bash_run: ['jalankan-shell'],
+  /* Satu keluarga dengan `bash_run`: kemampuannya "jalankan proses", bedanya
+     hanya ditunggu atau tidak. Keluarga terpisah akan membuat salah satunya
+     dianggap kemampuan yang hilang saat yang lain dipangkas. */
+  bash_job: ['jalankan-shell'],
   /* rencana, penalaran, jalur tool */
   todo_write: ['rencana-tugas'],
   tool_search: ['temukan-tool'],
@@ -138,16 +152,14 @@ const KELUARGA_TOOL: Record<string, readonly string[]> = {
   zephyr_kode: ['navigasi-kode'],
   zephyr_self: ['introspeksi-app'],
   skill_view: ['muat-skill'],
-  /* web: mencari, mengambil URL, dan membaca isi panel = TIGA kemampuan berbeda */
-  web_search: ['web-cari'],
-  web_fetch: ['web-ambil-url'],
-  browser_open: ['panel-kendali'],
-  browser_read: ['baca-panel'],
-  browser_list: ['panel-kendali'],
-  browser_close: ['panel-kendali'],
-  browser_click: ['panel-kendali'],
-  browser_type: ['panel-kendali'],
-  browser_download_url: ['panel-kendali'],
+  /* web: mencari, mengambil URL, dan membaca isi panel = TIGA kemampuan berbeda.
+     Sejak katalog dikonsolidasi, `web_search`/`web_fetch` dan tujuh `browser_*`
+     tidak lagi nama tool yang ditawarkan - yang ada `web` dan `browser`. Dua
+     keluarga web tetap didaftarkan ke dua nama itu supaya cek-subset tidak
+     menganggap kemampuannya hilang; nama per-aksi tidak didaftarkan lagi karena
+     tidak pernah muncul di daftar kirim. */
+  web: ['web-cari', 'web-ambil-url'],
+  browser: ['baca-panel', 'panel-kendali'],
   /* app lain */
   ingat: ['memori'],
   notes_write: ['catatan-user'],
@@ -377,7 +389,7 @@ const RUMAH: Record<string, readonly string[]> = {
   'daftar-isi-folder': ['glob', 'list_directory'],
   'cari-isi': ['grep'],
   'cari-berkas': ['glob'],
-  'jalankan-shell': ['bash_run'],
+  'jalankan-shell': ['bash_run', 'bash_job'],
   'rencana-tugas': ['todo_write'],
   'temukan-tool': ['tool_search'],
   'panggil-tool': ['tool_call'],
@@ -390,20 +402,15 @@ const RUMAH: Record<string, readonly string[]> = {
   /* pindah + salin digabung satu rumah: keduanya juga terjangkau `bash_run` (mv/cp) */
   'kelola-berkas': ['move_file', 'copy_file'],
   /* web: cari (satu rumah), ambil URL (satu rumah), baca panel (satu rumah) */
-  'web-cari': ['web_search'],
-  'web-ambil-url': ['web_fetch'],
-  /* rumah pembaca panel: bukan `browser_open` (yang hanya membuka) */
-  'baca-panel': ['browser_read'],
-  /* panel: semua aksi panel satu keluarga, rumah dipilih dari kata kunci tugas */
-  'panel-kendali': [
-    'browser_open',
-    'browser_read',
-    'browser_list',
-    'browser_click',
-    'browser_type',
-    'browser_close',
-    'browser_download_url',
-  ],
+  'web-cari': ['web'],
+  'web-ambil-url': ['web'],
+  /* rumah pembaca panel: bukan aksi `open` (yang hanya membuka). Sejak
+     konsolidasi, `browser` sendiri yang membawa aksi read. */
+  'baca-panel': ['browser'],
+  /* panel: semua aksi panel satu keluarga. `browser` mencakup ketujuh aksi
+     (open/read/click/type/list/close/download) lewat field `aksi`, jadi satu
+     rumah sudah menutup seluruh keluarga. */
+  'panel-kendali': ['browser'],
 };
 
 /**
@@ -432,17 +439,24 @@ export function rumahDelegasi(_kelas: readonly KelasTugas[]): { pilih: string; c
 
 /** Rumah `panel-kendali`: aksi yang disebut tugas lebih dulu menang. */
 export function rumahPanel(teks: string): { pilih: string; cadangan: string[] } {
+  /*
+   * Sejak tujuh `browser_*` dikonsolidasi jadi satu `browser` (field `aksi`),
+   * seluruh aksi punya rumah yang SAMA. Pola di bawah tetap dipertahankan dan
+   * tetap dicocokkan: ia yang membuktikan tugasnya memang menyebut aksi panel,
+   * dan bila kelak nama per-aksi ditawarkan lagi, hanya nilai kembaliannya yang
+   * perlu diubah - bukan seluruh daftar polanya.
+   */
   const kandidat: ReadonlyArray<readonly [RegExp, string]> = [
-    [/\b(klik|click|tekan|tap|tombol|button|centang)\b/i, 'browser_click'],
-    [/\b(ketik|type|isi kolom|form|login|kirim teks)\b/i, 'browser_type'],
-    [/\b(baca|read|isi halaman|konten halaman|teks halaman|ambil isi)\b/i, 'browser_read'],
-    [/\b(daftar|list|tab|tabel|riwayat)\b/i, 'browser_list'],
-    [/\b(tutup|close)\b/i, 'browser_close'],
-    [/\b(unduh|download|simpan halaman)\b/i, 'browser_download_url'],
-    [/\b(buka|open|navigasi|kunjungi|halaman|url|link|tautan|panel|preview|pratinjau)\b/i, 'browser_open'],
+    [/\b(klik|click|tekan|tap|tombol|button|centang)\b/i, 'browser'],
+    [/\b(ketik|type|isi kolom|form|login|kirim teks)\b/i, 'browser'],
+    [/\b(baca|read|isi halaman|konten halaman|teks halaman|ambil isi)\b/i, 'browser'],
+    [/\b(daftar|list|tab|tabel|riwayat)\b/i, 'browser'],
+    [/\b(tutup|close)\b/i, 'browser'],
+    [/\b(unduh|download|simpan halaman)\b/i, 'browser'],
+    [/\b(buka|open|navigasi|kunjungi|halaman|url|link|tautan|panel|preview|pratinjau)\b/i, 'browser'],
   ];
   const semua = RUMAH['panel-kendali'] ?? [];
-  const pilih = kandidat.find(([pola]) => pola.test(teks))?.[1] ?? semua[0] ?? 'browser_open';
+  const pilih = kandidat.find(([pola]) => pola.test(teks))?.[1] ?? semua[0] ?? 'browser';
   return { pilih, cadangan: semua.filter((n) => n !== pilih) };
 }
 
@@ -483,8 +497,8 @@ function tambahanKelas(kelas: readonly KelasTugas[]): string[] {
     push('move_file');
   }
   if (kelas.includes('web') || kelas.includes('panel')) {
-    push('web_search');
-    push('browser_list');
+    push('web');
+    push('browser');
   }
   if (kelas.includes('git')) {
   }
