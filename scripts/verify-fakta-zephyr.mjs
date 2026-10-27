@@ -155,11 +155,28 @@ periksa('"models" tidak lagi diklaim halaman Settings / seksi Chat Settings', ((
     !/not Settings pages at all any more/.test(fakta)
   );
 })());
-/* Daftar seksi dibaca dari ChatSettingsPage.tsx; "Konten web" tidak ada di sana
-   (itu label lain), jadi asersi lama menuntut seksi yang tidak pernah ada. */
+/*
+ * Daftar seksi dibaca dari ChatSettingsPage.tsx dan DIBANDINGKAN dengan baris
+ * fakta, bukan disalin ke sini.
+ *
+ * Salinan tetap (dulu "Mode, Agent, Context, Sub-agents, ...") basi setiap kali
+ * seksi berubah - Sub-agents sudah pindah ke Agent Customizations, dan asersi
+ * lama langsung merah padahal fakta yang dihasilkan sudah benar. Membaca sumber
+ * membuat asersi ini memeriksa hal yang memang ingin dijaga: fakta = produk.
+ */
 periksa(
   'seksi Chat Settings ada',
-  /Chat Settings .*sections: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced/.test(fakta),
+  (() => {
+    const teks = baca('src/components/ai/ChatSettingsPage.tsx');
+    const awal = teks.indexOf('const SECTIONS');
+    if (awal < 0) return false;
+    const blok = teks.slice(awal, teks.indexOf('];', awal));
+    const label = [...blok.matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1]);
+    const baris =
+      fakta.split('\n').find((b) => b.includes('has these sections:')) ?? '';
+    const daftarFakta = baris.split('has these sections:')[1]?.replace(/\.\s*$/, '').trim() ?? '';
+    return label.length > 0 && daftarFakta === label.join(', ');
+  })(),
 );
 periksa('pintasan Command Palette Ctrl+Shift+P ada', /Ctrl\+Shift\+P = Command Palette/.test(fakta));
 periksa('aturan anti-ngarang ada di blok', /## Never invent/.test(fakta) && /never invent|not in this block/i.test(fakta));

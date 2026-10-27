@@ -54,6 +54,7 @@ import { buatApplyPatchTool } from './patch';
 import type { SearchOpts } from '../types';
 import { periksaBaca, periksaTulis, periksaPerintahShell } from '../agentGuard';
 import { kutipUrlDiPerintah } from '../kutipPerintah';
+import { bacaNonaktif } from '../skillAktif';
 /*
  * `zephyr_self` membaca indeks fakta yang dibundel bersama aplikasi (ratusan
  * kilobyte). Import-nya HANYA tipe: yang nyata dimuat di dalam badan tool,
@@ -1642,12 +1643,24 @@ export const TOOL_BAWAAN: AgentTool[] = [
       },
     },
     run: async (a) => {
-      const daftar = await cmd.skillsList().catch(() => []);
+      const semua = await cmd.skillsList().catch(() => []);
+      /*
+       * The off list is applied to the LIST as well as to the read.
+       *
+       * A skill the reader switched off in Agent Customizations -> Skills must not
+       * come back through this tool: the prompt no longer names it, and if the tool
+       * still served it, its description - not just its body - would keep leaking
+       * into the model's world through the no-argument listing.
+       */
+      const mati = new Set(bacaNonaktif());
+      const daftar = semua.filter((s) => !mati.has(s.name.toLowerCase()));
       const nama = typeof a.name === 'string' ? a.name.trim() : '';
 
       if (!nama) {
         if (daftar.length === 0) {
-          return 'Belum ada skill yang terpasang. Skill disimpan di .zephyr/skills/<nama>/ (workspace) atau folder data Zephyr (global).';
+          return semua.length === 0
+            ? 'Belum ada skill yang terpasang. Skill disimpan di .zephyr/skills/<nama>/ (workspace) atau folder data Zephyr (global).'
+            : 'Semua skill yang terpasang sedang dimatikan di Agent Customizations → Skills. Nyalakan yang kamu butuhkan di sana.';
         }
         return daftar
           .map((s) => `- ${s.name} [${s.scope}]: ${s.description || '(tanpa deskripsi)'}`)
@@ -1664,6 +1677,18 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const kunci = nama.toLowerCase();
       const ketemu = daftar.find((s) => s.name.toLowerCase() === kunci);
       if (!ketemu) {
+        /*
+         * A skill that EXISTS but is switched off gets its own answer.
+         *
+         * "No such skill" would send the model hunting for a typo in a name it
+         * read correctly, and it would try again. Naming the real reason lets it
+         * either proceed without the skill or tell the reader which switch to
+         * flip - both are useful, and neither is guessing.
+         */
+        const adaTapiMati = semua.find((s) => s.name.toLowerCase() === kunci);
+        if (adaTapiMati) {
+          return `Skill "${adaTapiMati.name}" sedang DIMATIKAN di Agent Customizations → Skills, jadi isinya tidak dibaca. Kerjakan tanpa skill itu, atau beri tahu user bahwa ia bisa menyalakannya di sana.`;
+        }
         const mirip = daftar
           .filter((s) => s.name.toLowerCase().includes(kunci) || kunci.includes(s.name.toLowerCase()))
           .map((s) => s.name)

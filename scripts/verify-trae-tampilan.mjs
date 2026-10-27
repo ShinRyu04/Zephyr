@@ -9,9 +9,9 @@
  *   A5  Add Model: grid 2 kolom dengan logo tiap provider
  *   A6  Add Model: ada tile "Custom endpoint"
  *
- *   S1  Skills & Commands: rail kiri dengan Skills dan Commands
- *   S2  daftar skill memakai baris ramping dengan aksi per baris
- *   S3  tab Commands menampilkan command NYATA dari registry
+ *   S1  Skills: judul + hitungan + pemilih scope, tanpa rail kiri
+ *   S2  daftar skill memakai KARTU berikon dengan sakelar + hapus
+ *   S3  Commands SUDAH TIDAK ADA di halaman ini (satu tempat: palet)
  *   S4  kotak cari menyaring skill
  *
  *   C1  Conversations: dua kolom (daftar kiri, detail kanan)
@@ -32,7 +32,7 @@ async function J(expr, ms = 60000) {
   return typeof raw === 'string' ? JSON.parse(raw) : raw;
 }
 
-async function mount(id, path) {
+async function mount(id, path, nama = 'default') {
   const slot = '__UJI_' + id.replace(/[^a-zA-Z0-9]/g, '_') + '__';
   const ok = slot + 'OK__';
   await cdp.eval(
@@ -51,7 +51,7 @@ async function mount(id, path) {
         const D = (await import('/node_modules/.vite/deps/react-dom_client.js')).default;
         const mod = await import(${JSON.stringify(path)});
         const root = D.createRoot(host);
-        root.render(R.createElement(mod.default));
+        root.render(R.createElement(mod[${JSON.stringify(nama)}] ?? mod.default));
         window[${JSON.stringify(slot)}] = root;
         window[${JSON.stringify(ok)}] = true;
       } catch (e) {
@@ -117,20 +117,27 @@ out.a2 = typeof a2 === 'string' ? JSON.parse(a2) : a2;
 await klik('#uji-m [data-testid="aim-grup-builtin"]');
 await new Promise((r) => setTimeout(r, 600));
 
-/* A4: expand a provider row. */
-await klik('#uji-m [data-testid="aim-prov-buka-gemini"]');
-await new Promise((r) => setTimeout(r, 800));
+/*
+ * A4: provider key + Base URL fields live in Settings -> Models
+ * (`SectionsAdvanced.tsx` -> `ModelsSection`, testids `prov-*`). They were
+ * removed from this page on purpose, so the test follows them instead of
+ * asking the product to grow a second copy here.
+ */
+await unmount('uji-m');
+out.mountProv = await mount('uji-p', '/src/components/settings/SectionsAdvanced.tsx', 'ModelsSection');
 const a4 = await J(`(() => {
-  const k = document.querySelector('#uji-m [data-testid="aim-key-gemini"]');
+  const p = document.querySelector('#uji-p');
   return {
-    adaPanelKey: !!k,
-    adaInputKey: !!k?.querySelector('[data-testid="aim-key-input-gemini"]'),
-    adaInputUrl: !!k?.querySelector('[data-testid="aim-key-url-gemini"]'),
+    adaPanelKey: !!p?.querySelector('[data-testid="prov-key-gemini"]'),
+    adaInputKey: !!p?.querySelector('[data-testid="prov-key-gemini"]'),
+    adaInputUrl: !!p?.querySelector('[data-testid="prov-url-gemini"]'),
   };
 })()`);
 out.a4 = typeof a4 === 'string' ? JSON.parse(a4) : a4;
+await unmount('uji-p');
 
 /* A5/A6: Add Model. */
+await mount('uji-m', '/src/components/settings/AiModelsPage.tsx');
 await klik('#uji-m [data-testid="aim-tambah"]');
 await new Promise((r) => setTimeout(r, 900));
 const a5 = await J(`(() => {
@@ -149,37 +156,55 @@ const a5 = await J(`(() => {
 out.a5 = typeof a5 === 'string' ? JSON.parse(a5) : a5;
 await unmount('uji-m');
 
-/* ── S: Skills & Commands ───────────────────────────────────────────────── */
+/* ── S: Skills ──────────────────────────────────────────────────────────── */
 out.mountSkc = await mount('uji-skc', '/src/components/settings/AgcSkills.tsx');
 
 const s = await J(`(() => {
   const p = document.querySelector('#uji-skc [data-testid="agx-skills"]');
+  if (!p) return { ada: false };
+  /*
+   * Rows are counted by their OWN prefix minus the per-row buttons, the same way
+   * the other harness counts them: the prefix also matches the switch and the
+   * trash, so a naive count reports three rows for one skill.
+   */
+  const baris = [...p.querySelectorAll('[data-testid^="agx-skill-"]')].filter(
+    (x) => !/agx-skill-(hapus|pasang)-/.test(x.getAttribute('data-testid') || ''),
+  );
   return {
-    ada: !!p,
-    rail: !!p?.querySelector('.skc-rail'),
-    tabSkills: !!p?.querySelector('[data-testid="agx-skc-skills"]'),
-    tabCommands: !!p?.querySelector('[data-testid="agx-skc-commands"]'),
-    baris: p ? p.querySelectorAll('[data-testid^="agx-skill-"]').length : 0,
-    adaCari: !!p?.querySelector('[data-testid="agx-skills-cari"]'),
+    ada: true,
+    judul: p.querySelector('.agc-zc-judul')?.textContent ?? '',
+    rail: !!p.querySelector('.skc-rail'),
+    grup: [...p.querySelectorAll('.agc-zc-grub-judul')].map((g) => g.textContent.trim()),
+    kartu: p.querySelectorAll('.agc-zc-kartu').length,
+    sakelar: p.querySelectorAll('[data-testid^="agc-skill-aktif-"]').length,
+    hapus: p.querySelectorAll('[data-testid^="agx-skill-hapus-"]').length,
+    baris: baris.length,
+    adaCari: !!p.querySelector('[data-testid="agx-skills-cari"]'),
+    adaScope: !!p.querySelector('[data-testid="agx-skills-scope"]'),
+    adaBaru: !!p.querySelector('[data-testid="agx-skills-baru"]'),
   };
 })()`);
 out.s = typeof s === 'string' ? JSON.parse(s) : s;
 
-await klik('#uji-skc [data-testid="agx-skc-commands"]');
-await new Promise((r) => setTimeout(r, 800));
+/*
+ * S3: the Commands rail must be GONE - from this page and from the DOM.
+ *
+ * Asserted two ways on purpose: no `agx-cmd-*` row (the list) and no
+ * `agx-skc-commands` control (the rail button). A page that still carried the
+ * button would look right in a screenshot of the Skills pane alone and still
+ * hold a second copy of the command palette one click away.
+ */
 const s3 = await J(`(() => {
   const p = document.querySelector('#uji-skc [data-testid="agx-skills"]');
-  const baris = p ? [...p.querySelectorAll('[data-testid^="agx-cmd-"]')] : [];
   return {
-    baris: baris.length,
-    contoh: baris.slice(0, 4).map((b) => b.getAttribute('data-testid').replace('agx-cmd-', '')),
+    cmdBaris: p ? p.querySelectorAll('[data-testid^="agx-cmd-"]').length : -1,
+    cmdKontrol: p ? p.querySelectorAll('[data-testid="agx-skc-commands"]').length : -1,
+    rail: p ? p.querySelectorAll('[role="tablist"]').length : -1,
   };
 })()`);
 out.s3 = typeof s3 === 'string' ? JSON.parse(s3) : s3;
 
 /* S4: search. */
-await klik('#uji-skc [data-testid="agx-skc-skills"]');
-await new Promise((r) => setTimeout(r, 600));
 const sebelumCari = await J(`(() => ({
   n: document.querySelector('#uji-skc [data-testid="agx-skills"]').querySelectorAll('[data-testid^="agx-skill-"]').length,
 }))()`);
@@ -208,6 +233,10 @@ await unmount('uji-skc');
 
 /* ── C: Conversations ───────────────────────────────────────────────────── */
 out.mountConv = await mount('uji-c', '/src/components/settings/AgcConversations.tsx');
+
+/* The list + detail two-column view lives on the History tab. */
+await klik('#uji-c [data-testid="agx-conv-riwayat"]');
+await new Promise((r) => setTimeout(r, 700));
 
 const c = await J(`(() => {
   const p = document.querySelector('#uji-c [data-testid="agx-conv"]');
@@ -341,17 +370,25 @@ cek(
 );
 cek('A6 ada tile Custom endpoint', out.a5?.adaCustom === true, '');
 
-console.log('\nBukti — Skills & Commands ala TRAE:');
+console.log('\nBukti — halaman Skills bentuk ZCode:');
 cek(
-  'S1 rail kiri dengan Skills + Commands',
-  out.mountSkc === true && out.s?.rail === true && out.s?.tabSkills === true && out.s?.tabCommands === true,
-  '',
+  'S1 judul + hitungan + pemilih scope, tanpa rail kiri',
+  out.mountSkc === true &&
+    out.s?.ada === true &&
+    (out.s?.judul ?? '') === 'Skills' &&
+    out.s?.adaScope === true &&
+    out.s?.rail === false,
+  `judul="${out.s?.judul}" rail=${out.s?.rail}`,
 );
-cek('S2 daftar skill memakai baris dengan aksi', (out.s?.baris ?? 0) > 0, `baris=${out.s?.baris}`);
 cek(
-  'S3 tab Commands menampilkan command nyata',
-  (out.s3?.baris ?? 0) > 20,
-  `${out.s3?.baris} command, contoh: ${(out.s3?.contoh ?? []).join(', ')}`,
+  'S2 kartu skill dengan sakelar + hapus, dibagi per grup',
+  (out.s?.kartu ?? 0) > 0 && (out.s?.sakelar ?? 0) === (out.s?.baris ?? -1) && (out.s?.hapus ?? 0) > 0,
+  `kartu=${out.s?.kartu} sakelar=${out.s?.sakelar} baris=${out.s?.baris} grup=${(out.s?.grup ?? []).join('|')}`,
+);
+cek(
+  'S3 Commands sudah tidak ada di halaman ini',
+  out.s3?.cmdBaris === 0 && out.s3?.cmdKontrol === 0 && (out.s3?.rail ?? -1) === 0,
+  `baris cmd=${out.s3?.cmdBaris} kontrol=${out.s3?.cmdKontrol} tablist=${out.s3?.rail}`,
 );
 cek(
   'S4 kotak cari menyaring skill',

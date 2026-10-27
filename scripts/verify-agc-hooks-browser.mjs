@@ -134,7 +134,10 @@ out.hooks2 = typeof hHooks2 === 'string' ? JSON.parse(hHooks2) : hHooks2;
 /* H5: pilih event yang BELUM tersambung, lalu peringatannya harus muncul. */
 await cdp.eval(
   `(() => {
-  const sel = document.querySelector('#uji-hooks .agx-hook-ev');
+  /* Dipilih lewat testid barisnya, BUKAN lewat nama kelas: kelas baris hook
+     berubah saat panel dirapikan (agx-hook-ev -> agset-hook-ev) dan uji ini
+     ikut merah padahal peringatannya masih dirender. */
+  const sel = document.querySelector('#uji-hooks [data-testid="agx-hooks-daftar"] select');
   if (!sel) return 'no-sel';
   const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
   setter.call(sel, 'before-tool');

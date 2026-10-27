@@ -49,6 +49,7 @@ const PETA: Record<string, AksiInfo> = {
   bash_logs: { label: 'Read output', jenis: 'baca', ikon: 'doc' },
   bash_list: { label: 'List processes', jenis: 'baca', ikon: 'list' },
   bash_kill: { label: 'Stop process', jenis: 'jalan', ikon: 'terminal' },
+  bash_job: { label: 'Job', jenis: 'jalan', ikon: 'terminal' },
 
   /* Network */
 
@@ -68,6 +69,9 @@ const PETA: Record<string, AksiInfo> = {
   mcp__zephyr__state: { label: 'Read state', jenis: 'baca', ikon: 'doc' },
   mcp__zephyr__read: { label: 'Read surface', jenis: 'baca', ikon: 'doc' },
   mcp__zephyr__wait_for_terminal: { label: 'Wait for terminal', jenis: 'baca', ikon: 'clock' },
+
+  /* Zephyr sendiri: log/state internal yang diperiksa agen ke dirinya. */
+  zephyr_self: { label: 'Self-check', jenis: 'baca', ikon: 'stethoscope' },
 
   /* MCP - control */
   mcp__zephyr__run_command: { label: 'Run command', jenis: 'jalan', ikon: 'terminal' },
@@ -233,6 +237,15 @@ export function perintahAksi(nama: string | undefined, args: string | undefined)
   /* A single string field is the call itself — print it, not its name. */
   if (kunci.length === 1 && typeof o[kunci[0]] === 'string') {
     return String(o[kunci[0]]).trim();
+  }
+
+  /*
+   * A shell tool with extra knobs (bash_job: aksi + command + cwd) still
+   * identifies by its COMMAND — key=value pairs read like a dump, and the row
+   * is one line. The other fields are context, not identity.
+   */
+  if (typeof o.command === 'string' && o.command.trim()) {
+    return o.command.trim();
   }
 
   const bagian: string[] = [];

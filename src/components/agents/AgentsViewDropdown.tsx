@@ -18,7 +18,11 @@ export type Tampilan =
   | 'browser'
   | 'task-summary'
   | 'side-chat'
-  | 'diff-view';
+  | 'diff-view'
+  /* Dibuka programatik: 'plan' dari kartu Plan ("View full plan"), 'subagent'
+     dari baris SubAgent di transkrip - bukan butir dropdown. */
+  | 'plan'
+  | 'subagent';
 
 export type Butir = { id: Tampilan; label: string; ket: string; ikon: ReactNode };
 

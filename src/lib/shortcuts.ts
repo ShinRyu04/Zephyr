@@ -25,7 +25,6 @@ export const ACTIONS: ActionDef[] = [
   { id: 'view.sidebar', label: 'Toggle sidebar', group: 'View', default: 'Ctrl+B' },
   { id: 'view.panel', label: 'Toggle bottom panel', group: 'View', default: 'Ctrl+J' },
 
-  { id: 'view.subagents', label: 'Panel Subagents', group: 'View', default: 'Ctrl+Shift+D' },
   { id: 'view.splitEditorRight', label: 'Split editor to the right', group: 'View', default: 'Ctrl+\\' },
   { id: 'view.explorer', label: 'Open Explorer', group: 'View', default: 'Ctrl+Shift+E' },
   { id: 'view.palette', label: 'Command Palette', group: 'View', default: 'Ctrl+Shift+P' },

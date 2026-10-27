@@ -1,31 +1,30 @@
 /*
- * Browser — the TRAE-shaped page inside Agent Customizations.
+ * Browser — halaman di dalam Agent Customizations, bentuk ZCode.
  *
- * THE SHAPE, and what changed from the first pass:
+ * BENTUKNYA, dan apa yang berubah dari versi pertama:
  *
- * The first version had four controls in a flat column: default browser, auto
- * screenshot, local URL, external URL, clear. That is the right SET of settings
- * but the wrong ORGANISATION - it reads as a list of unrelated switches.
+ * Versi pertama punya empat kontrol di satu kolom datar: browser bawaan, auto
+ * screenshot, URL lokal, URL luar, clear. Itu SET setelan yang benar tapi
+ * SUSUNAN yang salah - ia terbaca sebagai daftar sakelar yang tidak berhubungan.
+ * Sekarang halaman ini memakai bahasa yang sama dengan Skills dan Computer Use di
+ * sebelahnya: judul + hitungan, grup bernama, kartu berikon, kontrol di kanan.
+ * Sakelar induk juga pindah KE DALAM pane: sebelumnya ia menggantung di luar
+ * `agx-browser`, jadi ia terbaca sebagai milik halaman lain.
  *
- * The reference groups them by the question they answer:
+ * KENAPA LOKAL DAN LUAR TETAP TERPISAH:
  *
- *   GENERAL       what browser AI tasks use, and whether actions capture a shot
- *   URL OPENING   local vs external, as a pair with a stated default
- *   BROWSER DATA  one destructive button, set apart
+ * Keduanya janji yang berbeda. URL localhost adalah dev server pembaca sendiri -
+ * membukanya DI DALAM Zephyr yang membuat agen bisa membacanya kembali. Tautan
+ * luar adalah web yang lebih luas, dan di situ browser sistem sering justru yang
+ * diinginkan. Satu sakelar untuk keduanya memaksa pilihan yang salah separuh
+ * waktu.
  *
- * WHY LOCAL AND EXTERNAL ARE SEPARATE, and stay separate:
+ * KENAPA TOMBOL CLEAR JUJUR SOAL CAKUPANNYA:
  *
- * They are different promises. A localhost URL is the reader's own dev server -
- * opening it INSIDE Zephyr is what lets the agent read it back. An external link
- * is the wider web, where the OS browser is often what the reader actually
- * wants. One switch for both would force a choice that is wrong half the time.
- *
- * WHY THE CLEAR BUTTON IS HONEST ABOUT ITS SCOPE:
- *
- * It calls `browser_clear_data`, which only touches webviews labelled
- * `browser-*`. Wiping the UI windows would take the reader's sessions and
- * settings with it - the opposite of what the button promises - so the Rust
- * command deliberately skips them and this page says how many panes it cleared.
+ * Ia memanggil `browser_clear_data`, yang hanya menyentuh webview berlabel
+ * `browser-*`. Menghapus jendela UI akan membawa sesi dan setelan pembaca -
+ * kebalikan dari janji tombolnya - jadi perintah Rust itu sengaja melewatinya dan
+ * halaman ini menyebut berapa pane yang dibersihkan.
  */
 import { useState } from 'react';
 import { useT } from '../../lib/i18n';
@@ -46,6 +45,7 @@ export default function AgcBrowser() {
   const [sibuk, setSibuk] = useState(false);
 
   const br = (settings.browser ?? {}) as Record<string, unknown>;
+  const aktif = br.enabled !== false;
   const bawaan = String(br.bawaan ?? 'builtin');
   const autoShot = br.autoScreenshot === true;
   const urlLokal = String(br.urlLokal ?? 'builtin');
@@ -90,129 +90,162 @@ export default function AgcBrowser() {
           : tr('Every link opens in your system browser.')
         : tr('Local and external links open in different places.');
 
+  const pilihan = (nilai: string, testid: string, label: string, patch: string) => (
+    <select
+      className="agset-pil"
+      data-testid={testid}
+      aria-label={tr(label)}
+      value={nilai}
+      onChange={(e) => simpan({ [patch]: e.target.value })}
+    >
+      {PILIHAN.map((p) => (
+        <option key={p.id} value={p.id}>
+          {tr(p.label)}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
-    <div className="agc-pane agset-pane" data-testid="agx-browser">
-      <h2 className="agc-pane-title">
-        {tr('Browser')}{' '}
-        <span className="agset-tanya" title={tr('How the agent opens and captures web pages.')}>
-          ?
-        </span>
-      </h2>
-      <p className="agc-pane-desc">
+    <div className="agc-pane agc-skills" data-testid="agx-browser">
+      <div className="agc-zc-atas">
+        <h2 className="agc-zc-judul">{tr('Browser')}</h2>
+        <span className="agc-zc-hitung">{[aktif, autoShot].filter(Boolean).length}/2</span>
+      </div>
+      <p className="agc-zc-desk-satu">
         {tr('Choose how Zephyr opens links and captures pages for AI tasks.')}
       </p>
 
       {/* ── 1. General ─────────────────────────────────────────────────── */}
-      <h3 className="agset-seksi">{tr('General')}</h3>
+      <div className="agc-zc-grub-head">
+        <span className="agc-zc-grub-judul">{tr('General')}</span>
+      </div>
 
-      <div className="agset-kartu-setelan">
-        <div className="agset-kartu-baris">
-          <div className="agset-baris-teks">
-            <span className="agset-baris-nama">{tr('Default Browser for AI Tasks')}</span>
-            <span className="agset-baris-desk">
+      <div className="agc-zc-daftar">
+        {/* Gerbang induk: mati = tool browser_* tidak dikirim ke model. */}
+        <div className="agc-zc-kartu" data-testid="agc-browser-enable-baris">
+          <span className="agc-zc-ikon" aria-hidden="true">
+            <AiIkon name="web" size={15} />
+          </span>
+          <div className="agc-zc-isi">
+            <span className="agc-zc-kartu-head">{tr('Enable built-in browser control')}</span>
+            <span className="agc-zc-desk">
+              {tr('Enable the official Browser Use plugin so new sessions can access and control web pages in the built-in browser.')}
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={aktif}
+            aria-label={tr('Enable built-in browser control')}
+            data-testid="agc-browser-enable"
+            className={`agc-set-toggle${aktif ? ' is-on' : ''}`}
+            onClick={() => simpan({ enabled: !aktif })}
+          >
+            <span className="agc-set-knob" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="agc-zc-kartu">
+          <span className="agc-zc-ikon" aria-hidden="true">
+            <AiIkon name="web" size={15} />
+          </span>
+          <div className="agc-zc-isi">
+            <span className="agc-zc-kartu-head">{tr('Default Browser for AI Tasks')}</span>
+            <span className="agc-zc-desk">
               {tr(PILIHAN.find((p) => p.id === bawaan)?.ket ?? '')}
             </span>
           </div>
-          <select
-            className="agset-pil"
-            data-testid="agx-br-bawaan"
-            aria-label={tr('Default Browser for AI Tasks')}
-            value={bawaan}
-            onChange={(e) => simpan({ bawaan: e.target.value })}
-          >
-            {PILIHAN.map((p) => (
-              <option key={p.id} value={p.id}>
-                {tr(p.label)}
-              </option>
-            ))}
-          </select>
+          {pilihan(bawaan, 'agx-br-bawaan', 'Default Browser for AI Tasks', 'bawaan')}
         </div>
 
-        <div className="agset-kartu-baris">
-          <div className="agset-baris-teks">
-            <span className="agset-baris-nama">{tr('Auto Screenshot')}</span>
-            <span className="agset-baris-desk">
+        {/*
+          Auto Screenshot: satu label yang membungkus input asli.
+          Harness mengklik `[data-testid="agx-br-autoshot"] input`; sebelumnya
+          testid itu ada di INPUT-nya sendiri, jadi selektor itu tidak pernah
+          menemukan apa pun dan uji "toggle menulis ke setelan" lolos tanpa
+          mengubah apa pun. Sekarang testid ada di barisnya dan input-nya benar
+          ada di dalam.
+        */}
+        <div className="agc-zc-kartu" data-testid="agx-br-autoshot">
+          <span className="agc-zc-ikon" aria-hidden="true">
+            <AiIkon name="image" size={15} />
+          </span>
+          <div className="agc-zc-isi">
+            <span className="agc-zc-kartu-head">{tr('Auto Screenshot')}</span>
+            <span className="agc-zc-desk">
               {tr('Automatically capture a screenshot after browser actions, for display only.')}
             </span>
           </div>
-          <label className="agset-switch" title={tr('Auto Screenshot')}>
+          <label className="agc-zc-switch" title={tr('Auto Screenshot')}>
             <input
               type="checkbox"
-              data-testid="agx-br-autoshot"
               checked={autoShot}
+              aria-label={tr('Auto Screenshot')}
               onChange={(e) => simpan({ autoScreenshot: e.target.checked })}
             />
-            <span />
+            <span className={`agc-set-toggle${autoShot ? ' is-on' : ''}`} aria-hidden="true">
+              <span className="agc-set-knob" />
+            </span>
           </label>
         </div>
       </div>
 
       {/* ── 2. URL opening ─────────────────────────────────────────────── */}
-      <h3 className="agset-seksi">{tr('URL Link Opening')}</h3>
+      <div className="agc-zc-grub-head">
+        <span className="agc-zc-grub-judul">{tr('URL Link Opening')}</span>
+      </div>
 
-      <div className="agset-kartu-setelan">
-        <div className="agset-kartu-baris">
-          <div className="agset-baris-teks">
-            <span className="agset-baris-nama">{tr('Local URL')}</span>
-            <span className="agset-baris-desk">
+      <div className="agc-zc-daftar">
+        <div className="agc-zc-kartu">
+          <span className="agc-zc-ikon" aria-hidden="true">
+            <AiIkon name="monitor" size={15} />
+          </span>
+          <div className="agc-zc-isi">
+            <span className="agc-zc-kartu-head">{tr('Local URL')}</span>
+            <span className="agc-zc-desk">
               {tr('For example localhost:3000, the dev server you are working on.')}
             </span>
           </div>
-          <select
-            className="agset-pil"
-            data-testid="agx-br-lokal"
-            aria-label={tr('Local URL')}
-            value={urlLokal}
-            onChange={(e) => simpan({ urlLokal: e.target.value })}
-          >
-            {PILIHAN.map((p) => (
-              <option key={p.id} value={p.id}>
-                {tr(p.label)}
-              </option>
-            ))}
-          </select>
+          {pilihan(urlLokal, 'agx-br-lokal', 'Local URL', 'urlLokal')}
         </div>
 
-        <div className="agset-kartu-baris">
-          <div className="agset-baris-teks">
-            <span className="agset-baris-nama">{tr('External URL')}</span>
-            <span className="agset-baris-desk">
+        <div className="agc-zc-kartu">
+          <span className="agc-zc-ikon" aria-hidden="true">
+            <AiIkon name="web" size={15} />
+          </span>
+          <div className="agc-zc-isi">
+            <span className="agc-zc-kartu-head">{tr('External URL')}</span>
+            <span className="agc-zc-desk">
               {tr('Any other address the agent opens, such as documentation or a repository.')}
             </span>
           </div>
-          <select
-            className="agset-pil"
-            data-testid="agx-br-luar"
-            aria-label={tr('External URL')}
-            value={urlLuar}
-            onChange={(e) => simpan({ urlLuar: e.target.value })}
-          >
-            {PILIHAN.map((p) => (
-              <option key={p.id} value={p.id}>
-                {tr(p.label)}
-              </option>
-            ))}
-          </select>
+          {pilihan(urlLuar, 'agx-br-luar', 'External URL', 'urlLuar')}
         </div>
       </div>
 
-      <p className="agset-muted" data-testid="agx-br-ringkas">
+      <p className="agc-zc-muted" data-testid="agx-br-ringkas">
         {ringkasUrl}
       </p>
 
       {/* ── 3. Browser data ────────────────────────────────────────────── */}
-      <h3 className="agset-seksi">{tr('Built-in Browser')}</h3>
+      <div className="agc-zc-grub-head">
+        <span className="agc-zc-grub-judul">{tr('Built-in Browser')}</span>
+      </div>
 
-      <div className="agset-log-baris">
-        <div className="agset-baris-teks">
-          <span className="agset-baris-nama">{tr('Browser Data')}</span>
-          <span className="agset-baris-desk">
+      <div className="agc-zc-kartu">
+        <span className="agc-zc-ikon" aria-hidden="true">
+          <AiIkon name="trash" size={15} />
+        </span>
+        <div className="agc-zc-isi">
+          <span className="agc-zc-kartu-head">{tr('Browser Data')}</span>
+          <span className="agc-zc-desk">
             {tr('Website data stored in the built-in browser, such as cookies and local storage.')}
           </span>
         </div>
         <button
           type="button"
-          className="agset-btn-hapus"
+          className="agc-zc-btn is-bahaya"
           data-testid="agx-br-clear"
           disabled={sibuk}
           onClick={() => void bersihkan()}

@@ -380,6 +380,7 @@ export const useStore = {
 };
 export const fsRead = async () => ({ isi: '' });
 export const instructionRead = async () => '';
+export const agentKustomAktif = () => null;
 export const blokPersona = () => ({ identitas: '', caraKerja: '', aturan: '' });
 export const personaAktif = () => ({ nama: 'Zeph', identitas: '', caraKerja: '', aturan: '' });
 export const blokKeadaan = () => '';
@@ -420,6 +421,7 @@ const GANTI = [
   './store',
   './commands',
   './personaStore',
+  './agentCatalog',
   './zephyrRuntime',
   './zephyrCari',
   './mcpTools',

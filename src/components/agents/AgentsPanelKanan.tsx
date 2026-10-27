@@ -8,6 +8,8 @@ import AgentsViewDropdown, { BUTIR, type Tampilan } from './AgentsViewDropdown';
 import AgentsPanelKananTerminal from './AgentsPanelKananTerminal';
 import AgentsPanelKananBrowser from './AgentsPanelKananBrowser';
 import AgentsPanelKananSummary from './AgentsPanelKananSummary';
+import AgentsPanelKananPlan from './AgentsPanelKananPlan';
+import AgentsPanelKananSubAgent from './AgentsPanelKananSubAgent';
 import AgentsPanelKananSideChat from './AgentsPanelKananSideChat';
 import AgentsPanelKananDiff from './AgentsPanelKananDiff';
 
@@ -54,6 +56,8 @@ const LABEL_VIEW: Record<Tampilan, string> = {
   'task-summary': 'Task Summary',
   'side-chat': 'Side Chat',
   'diff-view': 'Diff View',
+  plan: 'Plan',
+  subagent: 'SubAgent',
 };
 
 /* View selain File di-unmount saat tidak aktif supaya PTY/browser tidak
@@ -63,6 +67,8 @@ function IsiTab({ tampilan, tab }: { tampilan: Tampilan; tab: Tab }) {
   if (tampilan === 'browser') return <AgentsPanelKananBrowser tab={tab} />;
   if (tampilan === 'task-summary') return <AgentsPanelKananSummary />;
   if (tampilan === 'side-chat') return <AgentsPanelKananSideChat />;
+  if (tampilan === 'plan') return <AgentsPanelKananPlan />;
+  if (tampilan === 'subagent') return <AgentsPanelKananSubAgent />;
   return <AgentsPanelKananDiff />;
 }
 

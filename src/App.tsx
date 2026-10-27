@@ -6,7 +6,6 @@ import SplitEditor from './components/shell/SplitEditor';
 import Panel from './components/shell/Panel';
 import TerminalArea from './components/shell/TerminalArea';
 import AiPanel from './components/ai/AiHost';
-import SubAgentInfo from './components/ai/SubAgentInfo';
 import SessionsPanel from './components/ai/SessionsPanel';
 import PanelTrail from './components/ai/PanelTrail';
 import PanelWins from './components/ai/PanelWins';
@@ -350,7 +349,6 @@ export default function App() {
   const terminalMaximized = useTerminal((s) => s.maximized);
   const panelBawahVisible = useTerminal((s) => s.visible);
   const aiPanelPos = useStore((s) => s.settings.general.aiPanel ?? 'right');
-  const subKanan = useLayoutCustom((s) => s.subKanan);
   const aiWidth = useStore((s) => s.aiWidth);
   const aiMax = useStore((s) => s.aiMax);
   /* Which AI tab is in front. The Sessions column belongs to the CHAT tab
@@ -691,11 +689,6 @@ export default function App() {
 
           if (t.allPanes().length === 0 && !t.visible) void t.addPane('shell');
           else t.toggleVisible();
-          break;
-        case 'view.subagents':
-
-          usePanel.getState().focusTab('subagents');
-          if (!t.visible) t.setVisible(true);
           break;
         case 'view.palette':
           void usePalette.getState().openPalette('command');
@@ -1847,7 +1840,6 @@ export default function App() {
                 {/* T4.1b: panel INFO subagent di sebelah kanan chat. Ditaruh
                     inside the AI column so it only appears when the chat is
                     actually showing - otherwise it hangs there with no context. */}
-                {subKanan && <SubAgentInfo />}
                 {/* The Sessions sidebar, beside the expanded CHAT only:
                     Claude Code and Codex keep their own conversation inside the
                     CLI, so a list of Zephyr chats next to them would be a list

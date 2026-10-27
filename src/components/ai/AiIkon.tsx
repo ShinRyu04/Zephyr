@@ -65,6 +65,7 @@ export type NamaAiIkon =
      * beside each other in one transcript, so each needs its own silhouette.
      */
     | 'thought'
+    | 'brain'
     | 'eye'
     | 'terminal'
     | 'collapse'
@@ -489,6 +490,29 @@ export default function AiIkon({ name, size = 15 }: Props) {
           />
         </svg>
       );
+    /*
+     * Brain, for the Thought row: ZCode/CTA labels reasoning with a brain, and
+     * the sparkle already means "the live line is sweeping" - two different
+     * ideas were wearing one mark. Paths from Lucide's 24 grid, scaled into
+     * this 16 grid; the stroke width compensates for the 2/3 scale so the
+     * weight matches every other icon here.
+     */
+    case 'brain':
+      return (
+        <svg {...box}>
+          <g transform="scale(0.6667)" strokeWidth={2.1}>
+            <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+            <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+            <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+            <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
+            <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
+            <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
+            <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
+            <path d="M6 18a4 4 0 0 1-1.967-.516" />
+            <path d="M19.967 17.484A4 4 0 0 1 18 18" />
+          </g>
+        </svg>
+      );
     case 'eye':
       return (
         <svg {...box}>
@@ -599,13 +623,6 @@ export default function AiIkon({ name, size = 15 }: Props) {
       return (
         <svg {...box}>
           <path d="M6.2 2.6h3.6v1.9a1.3 1.3 0 1 0 2.6 0V2.6h.8a1.2 1.2 0 0 1 1.2 1.2v2.6h-1.9a1.3 1.3 0 1 0 0 2.6h1.9v4.4a1.2 1.2 0 0 1-1.2 1.2H3.8a1.2 1.2 0 0 1-1.2-1.2V9h1.9a1.3 1.3 0 1 0 0-2.6H2.6V3.8a1.2 1.2 0 0 1 1.2-1.2h2.4z" />
-        </svg>
-      );
-    case 'brain':
-      return (
-        <svg {...box}>
-          <path d="M6.4 2.6a2.2 2.2 0 0 0-2.2 2.2 2 2 0 0 0-1.2 3.6 2.1 2.1 0 0 0 .9 3.4 2.2 2.2 0 0 0 4.1.6V4.4a2 2 0 0 0-1.6-1.8z" />
-          <path d="M9.6 2.6a2.2 2.2 0 0 1 2.2 2.2 2 2 0 0 1 1.2 3.6 2.1 2.1 0 0 1-.9 3.4 2.2 2.2 0 0 1-4.1.6" />
         </svg>
       );
     case 'dot':

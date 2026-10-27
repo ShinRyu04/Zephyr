@@ -344,87 +344,330 @@
 
 .ai-review {
   /*
-   * Same box as the composer, measured rather than guessed: the composer is
-   * inset 10px on both sides, has a 16px radius, `--surface` fill and a 1px
-   * inset highlight. The bar is a sibling card, so it has to line up with those
-   * edges - at margin 0 it was 10px wider on each side and its 10px radius read
-   * as a different family of box.
+   * Kartu = STRIP doang (tinggi 32px). Isinya panel drop-up yang MELAYANG di
+   * atasnya (position: absolute, lihat .ai-review-badan) - jadi overflow
+   * visible, dan radius sudut atas bergantung keadaan buka (data-open).
    */
+  position: relative;
   width: auto;
   margin: 0 10px 8px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: 0 1px 0 rgb(255 255 255 / 3%) inset;
+}
+
+.ai-review[data-open='0'] {
+  border-radius: 12px;
+}
+
+.ai-review[data-open='1'] {
+  border-radius: 0 0 12px 12px;
+  border-top-color: transparent;
+}
+
+
+/*
+ * Kartu review satu kotak (todos + berkas) — gaya produk rujukan.
+ *
+ * Markup baru: `.ai-review-badan` berisi bagian todos dan/atau daftar berkas
+ * (SELALU terbuka - lipatan lama diganti strip keputusan di bawah), lalu
+ * `.ai-review-kaki` = penanda bagian + kalimat status + aksi + dismiss.
+ */
+
+/*
+ * Badan = panel drop-up: MELAYANG di atas strip (absolute, bukan aliran) -
+ * transkrip di belakangnya tidak terdorong. Melekat ke tepi atas strip
+ * (bottom: calc(100% - 1px)) supaya terbaca satu kartu dengan strip di bawah.
+ */
+.ai-review-badan {
+  position: absolute;
+  bottom: calc(100% - 1px);
+  left: -1px;
+  right: -1px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -10px 28px rgb(0 0 0 / 38%);
   overflow: hidden;
+  z-index: 6;
 }
 
-.ai-review-kepala {
+/* ---- Bagian todos: rencana yang dijalankan (todo_write) ---- */
+.ai-review-todos {
+  padding: 4px 6px 2px;
+}
+
+.ai-review-todo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  /* Both insets mirror the composer's control row (8px left, 10px right), so
-     Keep All ends on the same vertical line as Send. */
-  padding: 0 10px 0 8px;
+  gap: 7px;
+  min-height: 22px;
+  padding: 0 4px;
+  border-radius: 5px;
 }
 
-.ai-review-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 4px 0;
-  font-family: inherit;
-  /* 13px / 600: the composer's own type scale (field 13px, branch chip 11.5px).
-     12px made the bar look like a tooltip parked above a bigger box. */
-  font-size: 13px;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.ai-review-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.ai-review-ikon {
+.ai-review-todo-cek {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 12px;
+  height: 12px;
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: var(--surface-3, var(--surface-2));
-  color: var(--text-secondary);
 }
 
-.ai-review-judul {
+/* Belum mulai: lingkaran kosong. */
+.ai-review-todo-pend {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+}
+
+/* Sedang jalan: cincin berputar. */
+.ai-review-todo-spin {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--accent);
+  animation: ai-review-todo-putar 900ms linear infinite;
+}
+
+@keyframes ai-review-todo-putar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-review-todo-label {
   min-width: 0;
-  font-weight: 600;
+  font-size: 11.5px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.ai-review-caret {
+/* Selesai: dicoret redup, persis produk rujukan. */
+.ai-review-todo.is-done .ai-review-todo-label {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.ai-review-todo.is-pending .ai-review-todo-label {
+  color: var(--text-secondary);
+}
+
+/* ---- Bagian berkas: satu baris per berkas, klik = diff ---- */
+.ai-review-berkas {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* Tanpa bagian todos, daftar berkas adalah isi pertama kartu. */
+.ai-review-berkas:first-child {
+  border-top: 0;
+}
+
+.ai-review-gulir {
+  overflow-y: auto;
+  /* Run yang menyentuh tiga puluh berkas dapat kotak gulir, bukan tembok yang
+     mendorong composer keluar layar. */
+  max-height: min(160px, 32vh);
+}
+
+/* Baris RINGKIH: 26px, ikon 13px. Kartu ini duduk di atas composer, bukan
+   kartu isi transcript - skala besarnya membuat kartu terasa ngawang-ngawang
+   dibanding produk rujukan. */
+.ai-review-baris {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 8px 2px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-review-baris + .ai-review-baris {
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.ai-review-baris:hover {
+  background: var(--surface-3, var(--surface-2));
+}
+
+.ai-review-baris:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ai-review-baris:hover .ai-review-baris-diff {
+  color: var(--text);
+}
+
+.ai-review-berkas-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+/* Ikon tema berkas datang 16px - dipaksa 13px supaya barisnya tetap 26px. */
+.ai-review-berkas-ikon svg,
+.ai-review-berkas-ikon .ai-fikon {
+  width: 13px;
+  height: 13px;
+  font-size: 12px;
+  line-height: 13px;
+}
+
+.ai-review-nama {
+  flex: 0 0 auto;
+  max-width: 42%;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-review-dir {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-review-stat {
+  display: inline-flex;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-review-baris-diff {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
   color: var(--text-muted);
 }
 
-.ai-review-aksi {
+/* ---- Strip: penanda bagian + status + aksi + dismiss ---- */
+.ai-review-kaki {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  /* Kedua inset mengikuti baris kontrol composer (8 kiri, 10 kanan) supaya
+     Keep All berakhir di garis vertikal yang sama dengan Send. */
+  padding: 0 10px 0 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-review-kaki-ikon {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+/* Dua ikon strip = TAB (todo | kerjaan AI): yang aktif disorot. */
+.ai-review-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-review-mark:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.ai-review-mark.is-aktif {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.ai-review-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-review-tutup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-review-tutup:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.ai-review-tutup:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-review-todo-spin {
+    animation: none;
+  }
+}
+
+/* Aksi di ujung strip: Undo All / Keep All / dismiss. */
+.ai-review-aksi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 0 0 auto;
 }
 
@@ -433,15 +676,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Same 26px band as the composer's toolbar controls, so the two rows read as
-     one rhythm when the bar sits directly above the box. */
-  height: 26px;
+  height: 24px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: 7px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -479,196 +720,130 @@
   outline-offset: 2px;
 }
 
-/* Folded with a real height transition, same trick as the card: 0fr -> 1fr
-   measures the content, so a nine-file list is not clipped by a guessed
-   max-height.
-
-   The list opens UPWARD (`order: -1` puts it above the header). The bar hangs
-   directly over the composer, so a list that grew downward covered the box the
-   reader is about to type in - the one thing this strip must never hide. */
-.ai-review {
-  display: flex;
-  flex-direction: column;
-}
-
-.ai-review-isi {
-  order: -1;
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 160ms ease;
-}
-
-.ai-review[data-open='1'] .ai-review-isi {
-  grid-template-rows: 1fr;
-}
-
-.ai-review-gulir {
-  min-height: 0;
-  overflow: hidden;
-  /* The rule sits on the edge that faces the header - now the BOTTOM one. */
-  border-bottom: 1px solid transparent;
-}
-
-.ai-review[data-open='1'] .ai-review-gulir {
-  border-bottom-color: var(--border);
-}
-
-/* A long run can change a LOT of files; the list scrolls instead of pushing the
-   composer off the screen. (The cap itself lives with the motion rules below.) */
-.ai-review[data-open='1'] .ai-review-gulir {
-  overflow-y: auto;
-}
-
-/* Row wrapper: the diff button fills the row, Keep/Undo sit beside it. The
-   divider and hover live on the wrapper so the whole band reads as one row. */
-.ai-review-baris-wrap {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.ai-review-baris-wrap + .ai-review-baris-wrap {
+/* ---- Tab Queue: antrian pesan yang diketik saat agent masih kerja ---- */
+.ai-review-queue {
   border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
-.ai-review-baris-wrap:hover {
-  background: var(--surface-3, var(--surface-2));
+.ai-review-queue:first-child {
+  border-top: 0;
 }
 
-.ai-review-baris {
+.ai-review-antrian {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 6px 4px 6px 10px;
-  font-family: inherit;
-  font-size: 12px;
+  gap: 7px;
+  min-height: 26px;
+  padding: 2px 8px 2px 10px;
+  font-size: 11.5px;
   color: var(--text);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
 }
 
-.ai-review-baris-aksi {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+.ai-review-antrian + .ai-review-antrian {
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.ai-review-antrian-no {
   flex: 0 0 auto;
-  padding-right: 8px;
-}
-
-.ai-review-baris-undo,
-.ai-review-baris-keep {
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  padding: 0 7px;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.ai-review-baris-undo {
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid transparent;
-}
-
-.ai-review-baris-undo:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--surface-2, rgba(127, 127, 127, 0.12));
-}
-
-.ai-review-baris-keep {
-  color: var(--text-secondary);
-  background: transparent;
+  border-radius: 50%;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-muted);
   border: 1px solid var(--border);
-}
-
-.ai-review-baris-keep:hover:not(:disabled) {
-  color: var(--text);
-  background: var(--surface-2, rgba(127, 127, 127, 0.12));
-}
-
-.ai-review-baris-undo:disabled,
-.ai-review-baris-keep:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.ai-review-baris-undo:focus-visible,
-.ai-review-baris-keep:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.ai-review-baris:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.ai-review-berkas-ikon {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  color: var(--text-muted);
-}
-
-.ai-review-nama {
-  flex: 0 0 auto;
-  max-width: 45%;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ai-review-dir {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ai-review-stat {
-  display: inline-flex;
-  gap: 5px;
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
 }
 
-.ai-review-baris-diff {
+.ai-review-antrian-teks {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-review-antrian-img {
   display: inline-flex;
   align-items: center;
+  gap: 3px;
   flex: 0 0 auto;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
-.ai-review-baris-wrap:hover .ai-review-baris-diff {
+.ai-review-antrian-buang {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-review-antrian-buang:hover {
   color: var(--text);
+  background: var(--surface-3, var(--surface-2));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ai-review-isi {
-    transition: none;
-  }
+.ai-review-antrian-bersih {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  cursor: pointer;
 }
 
-/* The upward list must not push the bar off the top of the window either: a run
-   that touched thirty files gets a scrollable box, not a wall. */
-.ai-review[data-open='1'] .ai-review-gulir {
-  max-height: min(190px, 38vh);
+.ai-review-antrian-bersih:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+/*
+ * Strip antrian LAMA di work-stack (ai-work-stack-queue) disembunyikan:
+ * antrian sekarang tinggal di tab Queue kartu review di bawahnya - dua-duanya
+ * menampilkan barisan pesan yang sama persis, dan itu pemborosan layar.
+ */
+.ai-work-stack-queue {
+  display: none;
+}
+
+/* ---- Baris SubAgent di garis waktu (bentuk ZCode) ---- */
+.ai-gariswaktu-tool.is-subagent {
+  width: 100%;
+  text-align: left;
+}
+
+.ai-gariswaktu-tool.is-subagent:hover {
+  background: var(--surface-3, var(--surface-2));
+  border-radius: 6px;
+}
+
+.ai-subagent-jenis {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ai-subagent-tugas {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
 }

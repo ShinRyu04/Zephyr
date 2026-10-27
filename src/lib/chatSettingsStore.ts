@@ -14,7 +14,6 @@ export type ChatSeksi =
   | 'mode'
   | 'agent'
   | 'context'
-  | 'subagent'
   | 'tools'
   | 'rules'
   | 'models'

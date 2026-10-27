@@ -174,7 +174,7 @@ interface StoreActions {
    * twice focuses rather than stacking duplicates.
    */
   bukaViewAi: (
-    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view' | 'browser',
+    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view' | 'plan' | 'subagent' | 'browser',
     /*
      * `url` is only read by the `browser` view. It is how a caller says WHICH
      * page the one Browser tab should be showing; without it the tab keeps
@@ -1220,7 +1220,11 @@ export const useStore = create<Store>((set, get) => ({
                 ? 'Tools'
                 : view === 'diff-view'
                   ? 'Changes'
-                  : view === 'browser'
+                  : view === 'plan'
+                    ? 'Plan'
+                    : view === 'subagent'
+                      ? 'SubAgent'
+                      : view === 'browser'
                     ? 'Browser'
                     : 'Search Results',
       encoding: 'utf8' as Encoding,

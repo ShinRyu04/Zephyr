@@ -380,9 +380,30 @@ export function PermissionMenu() {
 
   const mode = useAi((s) => s.approvalMode ?? 'work');
   const setMode = useAi((s) => s.setApprovalMode);
+  /* Plan = sumbu runMode, bukan tingkat izin. Tersedia di dua permukaan
+     (permintaan user 28 Okt); Custom dihapus dari keduanya. */
+  const runMode = useAi((s) => s.runMode);
+  const setRunMode = useAi((s) => s.setRunMode);
+  const planNyala = runMode === 'plan';
   const approvalAktif = APPROVAL.find((a) => a.id === mode) ?? APPROVAL[2];
 
   return (
+    <>
+    {planNyala && (
+      <button
+        type="button"
+        className="ai-plan-chip"
+        data-testid="ai-plan-chip"
+        title={tr('Matikan plan mode')}
+        onClick={() => setRunMode('interactive')}
+      >
+        <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+          <path d="M8 1.8a4.4 4.4 0 0 0-2.4 8.1c.5.35.8.9.8 1.5v.3h3.2v-.3c0-.6.3-1.15.8-1.5A4.4 4.4 0 0 0 8 1.8z" />
+          <path d="M6.6 14h2.8M7.1 15.3h1.8" />
+        </svg>
+        Plan
+      </button>
+    )}
     <span className={`izin-wrap ${approvalAktif.kelas}`} ref={ref}>
       <button
         className="mode-btn"
@@ -400,6 +421,35 @@ export function PermissionMenu() {
 
       {buka && (
         <div className="mode-pop is-naik is-trae" data-testid="ai-izin-pop" role="menu">
+          {/*
+            * Plan paling atas, seperti produk rujukan: memilihnya tidak
+            * mengubah tingkat izin yang tercentang. Dua permukaan sama-sama
+            * mendapatkannya (permintaan user 28 Okt).
+            */}
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={runMode === 'plan'}
+            className={`mode-item${runMode === 'plan' ? ' is-on' : ''}`}
+            data-testid="ai-approval-plan"
+            onClick={() => {
+              setRunMode(runMode === 'plan' ? 'interactive' : 'plan');
+              setBuka(false);
+            }}
+          >
+            <span className="mode-item-teks">
+              <b>
+                <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+                  <path d="M8 1.8a4.4 4.4 0 0 0-2.4 8.1c.5.35.8.9.8 1.5v.3h3.2v-.3c0-.6.3-1.15.8-1.5A4.4 4.4 0 0 0 8 1.8z" />
+                  <path d="M6.6 14h2.8M7.1 15.3h1.8" />
+                </svg>{' '}
+                {tr('Plan')}
+              </b>
+              <i>{tr('Plan before editing')}</i>
+            </span>
+            {runMode === 'plan' && <span className="pick-check">✓</span>}
+          </button>
+          <div className="izin-sep" aria-hidden="true" />
           {APPROVAL.map((a) => (
             <button
               key={a.id}
@@ -421,25 +471,10 @@ export function PermissionMenu() {
             </button>
           ))}
 
-          {/* Custom is not a mode: it opens the per-tool rule editor. */}
-          <button
-            type="button"
-            role="menuitem"
-            className="mode-item"
-            data-testid="ai-approval-custom"
-            onClick={() => {
-              setBuka(false);
-              bukaPanel('chat-settings', 'chat');
-            }}
-          >
-            <span className="mode-item-teks">
-              <b>{tr('Custom')}</b>
-              <i>{tr('Set rules in a config file')}</i>
-            </span>
-          </button>
         </div>
       )}
     </span>
+    </>
   );
 }
 
