@@ -157,6 +157,23 @@ interface CustomState {
   setAktif: (id: string, aktif: boolean) => Promise<void>;
 }
 
+/**
+ * True when a stored `subagentCustom` entry was really created as an AGENT.
+ *
+ * The Agents page ("Create Agent") used to write into this list, so an agent
+ * the reader made to talk to showed up as a worker in `SubAgentBar`. The two
+ * fields below are written ONLY by that editor, so their presence is the
+ * reliable signal; the worker editor never touches them.
+ *
+ * This is a migration heuristic, not a rule: it runs once, and the entries it
+ * moves are gone from this list afterwards.
+ */
+export function bergayaAgent(d: SubagentCustom): boolean {
+  const punyaId = String((d as { idInggris?: string }).idInggris ?? '').trim() !== '';
+  const punyaKapan = String((d as { kapanDipanggil?: string }).kapanDipanggil ?? '').trim() !== '';
+  return punyaId || punyaKapan;
+}
+
 /** The stored list, tolerating a settings file written before this existed. */
 export function bacaDaftar(): SubagentCustom[] {
   const s = useStore.getState().settings as unknown as {
@@ -170,13 +187,16 @@ export function bacaDaftar(): SubagentCustom[] {
    * penyaring nama tidak mengenali id itu dan hasilnya daftar kosong, tanpa
    * satu pun pesan bahwa ada yang hilang.
    */
-  return daftar.map((d) => ({
-    ...d,
-    alat: (Array.isArray(d.alat) ? d.alat : []).map((a) =>
-      String(a) === 'fetch' ? ('web_fetch' as AlatId) : a,
-    ),
-  }));
+  return daftar
+    .filter((d) => !bergayaAgent(d))
+    .map((d) => ({
+      ...d,
+      alat: (Array.isArray(d.alat) ? d.alat : []).map((a) =>
+        String(a) === 'fetch' ? ('web_fetch' as AlatId) : a,
+      ),
+    }));
 }
+
 
 /**
  * The workers the orchestrator is allowed to reach, by name.
@@ -313,7 +333,7 @@ export const useSubagentCustom = create<CustomState>((set, get) => ({
     set({ daftar: next, sunting: null, baru: false });
     await useStore
       .getState()
-      .applySettings({ subagentCustom: next } as never)
+      .applySettings({ subagentCustom: gabungDenganAgentTersimpan(next) } as never)
       .catch(() => useStore.getState().setStatus('could not save the custom sub-agent'));
   },
 
@@ -322,7 +342,7 @@ export const useSubagentCustom = create<CustomState>((set, get) => ({
     set({ daftar: next, sunting: null, baru: false });
     await useStore
       .getState()
-      .applySettings({ subagentCustom: next } as never)
+      .applySettings({ subagentCustom: gabungDenganAgentTersimpan(next) } as never)
       .catch(() => useStore.getState().setStatus('could not delete the custom sub-agent'));
   },
 
@@ -331,16 +351,97 @@ export const useSubagentCustom = create<CustomState>((set, get) => ({
     set({ daftar: next });
     await useStore
       .getState()
-      .applySettings({ subagentCustom: next } as never)
+      .applySettings({ subagentCustom: gabungDenganAgentTersimpan(next) } as never)
       .catch(() => useStore.getState().setStatus('could not save the custom sub-agent'));
   },
 }));
 
 /**
- * The custom worker whose name matches a task prefix, if any. The orchestrator
- * writes `nama: task` for a built-in role and `@nama: task` for a custom one,
- * so a custom worker is never shadowed by a role that happens to share a name.
+ * Merge the worker list back into what is on disk.
+ *
+ * `applySettings` imports a patch, and `subagentCustom` is an ARRAY - so
+ * writing the filtered list would DELETE the agent-shaped entries that the
+ * Agents-page editor left behind, wiping those definitions on the next save.
+ * Carrying them over unchanged keeps them alive until `migrasiAgentLama` moves
+ * them to their own key.
  */
+function gabungDenganAgentTersimpan(next: SubagentCustom[]): SubagentCustom[] {
+  const s = useStore.getState().settings as unknown as {
+    subagentCustom?: SubagentCustom[];
+  };
+  const tersimpan = Array.isArray(s.subagentCustom) ? s.subagentCustom : [];
+  const sisa = tersimpan.filter(bergayaAgent);
+  return sisa.length === 0 ? next : [...next, ...sisa];
+}
+
+/**
+ * Move agent-shaped entries out of the worker list into `settings.agentCustom`.
+ *
+ * Runs once per boot. Without it the entries would stay in `subagentCustom`
+ * forever: `bacaDaftar` hides them from the worker paths, and the Agents page
+ * would show an empty list while the user's agents sat right there on disk.
+ *
+ * Idempotent: after the first run there is nothing agent-shaped left to move,
+ * so a second call writes nothing.
+ */
+export async function migrasiAgentLama(): Promise<number> {
+  /*
+   * READ FRESH, then pass the exact lists back in the SAME patch.
+   *
+   * `applySettings` merges into a pending payload that is written later, so any
+   * value this function reads must be the one on disk right now, and every key
+   * it changes must travel in one call. The earlier version sent two patches
+   * (`agentCustom`/`subagentCustom`, then `agents.agentAktif`) against a store
+   * snapshot that could already be stale - and an array key in a merge REPLACES
+   * the whole array, so a stale write is silent data loss, not a merge.
+   */
+  const st = useStore.getState();
+  let s: {
+    subagentCustom?: SubagentCustom[];
+    agentCustom?: unknown[];
+    agents?: { agentAktif?: string };
+  };
+  try {
+    s = (await st.reloadSettings(), useStore.getState().settings) as unknown as typeof s;
+  } catch {
+    s = useStore.getState().settings as unknown as typeof s;
+  }
+  const tersimpan = Array.isArray(s.subagentCustom) ? s.subagentCustom : [];
+  const pindah = tersimpan.filter(bergayaAgent);
+  if (pindah.length === 0) return 0;
+
+  const sudahAda = Array.isArray(s.agentCustom) ? s.agentCustom : [];
+  const namaSudah = new Set(
+    sudahAda.map((a) => String((a as { nama?: string }).nama ?? '').trim().toLowerCase()),
+  );
+
+  const { dariSubagen } = await import('./agentCustom');
+  const baru = pindah
+    .filter((d) => !namaSudah.has(String(d.nama ?? '').trim().toLowerCase()))
+    .map((d) => dariSubagen(d));
+
+  /*
+   * ONE atomic patch carrying both lists.
+   *
+   * `applySettings` merges into a pending payload and writes once. The earlier
+   * version followed this with a SECOND patch for `agents.agentAktif` - and
+   * because the pending payload is merged by key, a later write could carry a
+   * stale `subagentCustom` array (the pre-migration one) back over the file.
+   * Everything the migration changes now travels in a single call, so there is
+   * no window where one list is written without the other.
+   */
+  const patch: Record<string, unknown> = {
+    agentCustom: [...sudahAda, ...baru],
+    subagentCustom: tersimpan.filter((d) => !bergayaAgent(d)),
+  };
+  if (!s.agents?.agentAktif && baru.length === 1) {
+    patch.agents = { agentAktif: baru[0].id };
+  }
+  await st.applySettings(patch as never);
+  return baru.length;
+}
+
+
 export function customDariPrefix(teks: string): { custom: SubagentCustom; tugas: string } | null {
   const m = /^@([\p{L}\p{N}_-]+)\s*:\s*([\s\S]+)$/u.exec(teks.trim());
   if (!m) return null;

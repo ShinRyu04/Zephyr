@@ -93,6 +93,13 @@ const langTs = baca('src/lib/lang.ts');
 const loaderTs = baca('src/lib/extLoader.ts');
 const modeTs = baca('src/lib/cmLegacyModes.ts');
 const uiTsx = baca('src/components/extensions/ExtensionsView.tsx');
+/*
+ * The marketplace MOVED out of `ExtensionsView` into its own component, and the
+ * honest label has to be checked where the catalogue is actually drawn. Reading
+ * only the old file made this check fail for a reason that had nothing to do
+ * with labels: the UI it inspected no longer renders the catalogue.
+ */
+const pasarTsx = baca('src/components/extensions/ExtMarketplace.tsx');
 const katalogTs = baca('src/lib/extCatalog.ts');
 
 cek(
@@ -352,11 +359,11 @@ cek(
    * karena ada dua daftar yang memang sah. Yang penting adalah TIDAK ada
    * penyaringan berdasarkan label; itu yang dites di sini.
    */
-  (uiTsx.match(/daftar\.map\(/g) ?? []).length >= 1 && !/\.filter\([^)]*labelPaket/.test(uiTsx),
+  (pasarTsx.match(/daftar\.map\(/g) ?? []).length >= 1 && !/\.filter\([^)]*labelPaket/.test(pasarTsx),
 );
 cek(
   'UI memakai tabel label nyata (labelPaket(item.id)) dan menandai jenisnya',
-  uiTsx.includes('labelPaket(item.id)') && uiTsx.includes('data-jenis-label={label.jenis}'),
+  pasarTsx.includes('labelPaket(k.id)') && pasarTsx.includes('data-jenis-label={l.jenis}'),
 );
 cek(
   'label lama "melengkapi bahasa bawaan" sudah tidak dipakai di UI',

@@ -768,8 +768,21 @@ export const useStore = create<Store>((set, get) => ({
     bootstrapBerjalan = (async () => {
     try {
       const s = await cmd.getSettings();
-      set({ settings: normalisasiSettings(s), settingsLoaded: true });
-      void import('./aiStore').then((m) => m.useAi.getState().sinkronProvider());
+        set({ settings: normalisasiSettings(s), settingsLoaded: true });
+        /*
+         * Move agent-shaped entries out of the worker list before anything
+         * reads either list. Settings are on disk already; this is a one-time
+         * rewrite and is a no-op once it has run once.
+         */
+        void import('./subagentCustom')
+          .then((m) => m.migrasiAgentLama())
+          .then((n) => {
+            if (n > 0) {
+              set({ statusMessage: `${n} agent(s) moved out of Sub-agents` });
+            }
+          })
+          .catch(() => {});
+        void import('./aiStore').then((m) => m.useAi.getState().sinkronProvider());
       set({ activeTheme: applyTheme(s.general, s.theme, s.background) });
       retheme();
       terapkanA11y(s.accessibility);
@@ -938,10 +951,23 @@ export const useStore = create<Store>((set, get) => ({
     const ex = useExplorer.getState();
     useExplorer.setState({ children: {}, expanded: {}, selected: [], anchor: null });
     await ex.loadDir(dir, true);
+    /*
+     * A watcher that refuses to start must not be silent.
+     *
+     * This was `try { await cmd.fsWatch(dir) } catch {}` — an empty catch, so a
+     * folder the OS will not let us watch opened looking completely normal and
+     * then never updated again. The error is now shown where the reader will
+     * see it; opening the folder itself still succeeds, because the scan above
+     * already gave them a tree.
+     */
     try {
       await cmd.fsWatch(dir);
-    } catch {
-
+    } catch (e) {
+      const msg = cmd.asZephyrError(e).message;
+      set({ statusMessage: `File watcher unavailable: ${msg}` });
+      void import('./notificationStore').then((m) =>
+        m.notifyError('File watcher unavailable', { detail: msg, source: 'explorer' }),
+      );
     }
     await get().refreshRecents();
   },

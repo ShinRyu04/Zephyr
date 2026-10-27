@@ -240,6 +240,14 @@ export interface AgentToolSpecsOptions {
   bolehTulis?: boolean;
   kedalaman?: number;
   alat?: string[];
+  /**
+   * MCP server ids this call may use. Empty/missing means every server.
+   *
+   * The agent editor's allowlist lands here: an agent that was granted only
+   * one server must not be handed another server's tools just because those
+   * servers are active for the app.
+   */
+  mcp?: string[];
 }
 
 /** Ambil seluruh spesifikasi tool untuk dikirim ke provider LLM. */
@@ -247,6 +255,8 @@ export function agentToolSpecs(
   optsOrWhitelist?: AgentToolSpecsOptions | string[],
 ): AgentToolSpec[] {
   let daftar = AGENT_TOOLS;
+  /* Empty means "every MCP server" - see `AgentToolSpecsOptions.mcp`. */
+  let mcpIzin: string[] = [];
   if (!optsOrWhitelist) {
     const aktif = useToolGate.getState().aktif;
     daftar = daftar.filter((t) => aktif.has(t.spec.name));
@@ -262,6 +272,7 @@ export function agentToolSpecs(
     if (optsOrWhitelist.bolehTulis === false) {
       daftar = daftar.filter((t) => !TOOL_TULIS.has(t.spec.name));
     }
+    if (optsOrWhitelist.mcp) mcpIzin = optsOrWhitelist.mcp;
   }
   /*
    * Progressive disclosure: only the CORE tools are sent every request.
@@ -292,7 +303,7 @@ export function agentToolSpecs(
    * request — but it is bounded by what the READER configured, and a
    * configured server that the model cannot reach is the bug being fixed.
    */
-  return [...daftar.map((t) => t.spec), ...mcpExternalSpecs()];
+  return [...daftar.map((t) => t.spec), ...mcpExternalSpecs(mcpIzin)];
 }
 
 /** Jalankan tool berdasarkan nama dan argumen. */

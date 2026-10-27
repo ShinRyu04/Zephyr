@@ -63,6 +63,7 @@ import {
 /* LAMA-a1 (subset tool <= 20 per giliran) + LAMA-a4 (paksa todo di tugas berat).
    Modulnya murni dan tidak mengubah apa pun sampai dipanggil dari sini. */
 import { pilihToolTugas, wajibTodo } from './subsetTugas';
+import { agentTerdetail, saringAlatAgent } from './agentCatalog';
 import { evaluasiUntukPanggilan } from './toolRules';
 import {
   agentToolSpecs,
@@ -410,6 +411,28 @@ export const HISTORY_KEEP_STEPS = 6;
 export const HISTORY_TOOL_CHARS = 500;
 
 /*
+ * Batas LEBIH PANJANG untuk hasil BACA (read_file, grep, glob, list_directory).
+ *
+ * 500 karakter cukup untuk membuang log build yang sudah basi, tapi terlalu
+ * pendek untuk ISI BERKAS: setelah dipotong, model tidak lagi memegang apa yang
+ * barusan dibacanya, jadi ia membuka berkas yang sama lagi pada langkah
+ * berikutnya - baca berulang yang menghabiskan jatah langkah tanpa menulis
+ * apa pun. Potongan tulis (500) tetap dipakai untuk tool shell/subagent, yang
+ * hasilnya memang log panjang dan biasanya sudah tidak dipakai lagi.
+ */
+export const HISTORY_BACA_CHARS = 1200;
+
+/** Tool yang hasilnya isi berkas/daftar, bukan log proses. */
+const TOOL_HASIL_BACA = new Set([
+  'read_file', 'grep', 'glob', 'list_directory', 'search_files', 'read_terminal',
+]);
+
+/** Batas potong yang tepat untuk satu pesan tool (pakai nama tool-nya). */
+export function batasPotongTool(nama: string | undefined): number {
+  return nama && TOOL_HASIL_BACA.has(nama) ? HISTORY_BACA_CHARS : HISTORY_TOOL_CHARS;
+}
+
+/*
  * How much of the clipped budget goes to the END of a long tool result.
  *
  * The tail is not a nicety. A build or test log puts its verdict at the bottom
@@ -602,8 +625,19 @@ const BATAS_AKSI_INGAT = 2;
  * the model circling. Three of those in a row is enough to stop.
  */
 export const BATAS_BROWSER_MUTER = 3;
-/* Consecutive read-only steps that teach nothing before the run is ended. */
-const BATAS_TANPA_KEMAJUAN = 8;
+/*
+ * Langkah beruntun yang hanya MEMBACA sebelum agen disodok, lalu diakhiri.
+ *
+ * Lima, turun dari delapan. Turunnya bukan karena "lebih ketat lebih baik":
+ * penghitung ini diperiksa SEKALI PER LANGKAH, bukan per panggilan tool, jadi
+ * satu langkah boleh berisi tiga bacaan sekaligus tanpa menaikkannya tiga
+ * kali. Yang tersisa dihitung hanya langkah yang benar-benar tidak mengubah
+ * apa pun - dan delapan langkah seperti itu beruntun lebih lama daripada yang
+ * dibutuhkan tugas yang jujur: berkasnya sudah ada di disk, modelnya hanya
+ * membaca ulang. Lima membuat sodokan datang saat pembaca SUDAH melihat
+ * agennya diam, bukan setengah menit sesudahnya.
+ */
+const BATAS_TANPA_KEMAJUAN = 5;
 /*
  * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
  * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai.
@@ -850,6 +884,56 @@ export function catatAksiBerulang(peta: Map<string, number>, name: string, args:
      */
     hentikan: bolehHentikan ? jumlah >= BATAS_AKSI_SAMA : jumlah >= BATAS_BACA_SAMA,
   };
+}
+
+/**
+ * Apa yang harus terjadi pada aksi yang sudah terhitung berulang.
+ *
+ * Dipisah dari loop supaya bisa diuji tanpa menjalankan agen sungguhan: yang
+ * menentukan perilakunya cuma nama tool dan hasil hitungannya, bukan keadaan
+ * app. Harness `scripts/uji-baca-berulang.mjs` memanggilnya langsung.
+ *
+ * Tiga jalan, dan yang tengah itu yang istimewa:
+ *
+ *   jalan      - belum berulang, panggil tool-nya seperti biasa;
+ *   tolak-baca - baca identik yang KEEMPAT: panggilannya tidak dijalankan,
+ *                tapi model menerima hasil aslinya lagi (lihat
+ *                `pesanBacaDitolak`) dan run-nya TIDAK dimatikan;
+ *   hentikan   - panggilan ke-5 (atau penulis yang berulang) mengakhiri run.
+ *
+ * Jarak satu langkah antara "tolak" dan "hentikan" itu disengaja: membaca
+ * ulang untuk memverifikasi itu wajar, dan mematikan run di situ menghapus
+ * konteks yang sudah dikumpulkan. Tapi panggilan yang MENGABAIKAN larangan
+ * eksplisit adalah loop yang nyata, dan di situ mengembalikan isi yang sama
+ * sekali lagi hanya menambah salinan di riwayat.
+ */
+export function keputusanAksiBerulang(
+  nama: string,
+  hitung: HasilCatatAksi,
+): 'jalan' | 'tolak-baca' | 'hentikan' {
+  if (!hitung.hentikan) return 'jalan';
+  if (TOOL_BACA_SET.has(nama) && hitung.jumlah === BATAS_BACA_SAMA) return 'tolak-baca';
+  return 'hentikan';
+}
+
+/**
+ * Jawaban untuk baca identik yang panggilannya ditolak.
+ *
+ * Yang dikembalikan HASIL ASLINYA, bukan pesan kosong: menolak tanpa isi
+ * membuat model kehilangan bahan yang sudah ia bayar, dan model yang
+ * kehilangan bahan akan membacanya lagi - persis perilaku yang penolakan ini
+ * hendak hentikan. Kalimat penutupnya menyebut jalan keluarnya ("kamu sudah
+ * punya ini"), karena larangan tanpa alternatif hanya membuatnya mencoba
+ * cara lain.
+ */
+export function pesanBacaDitolak(jumlah: number, hasilAsli: string): string {
+  const instruksi =
+    `[You have asked for this exact read ${jumlah} times this turn. ` +
+    'The result above is unchanged and you already have it - use it, and do not call this again.]';
+  const isi = (hasilAsli ?? '').trim();
+  return isi ? `${isi}
+
+${instruksi}` : instruksi;
 }
 
 /**
@@ -1236,7 +1320,7 @@ export function ringkasRiwayat(history: AgentMsg[], cap: number = PAYLOAD_MAX_CH
        * which is the entire reason the model asked for the output. See
        * `potongHasilRiwayat` for why the middle is what gets discarded.
        */
-      return { ...tanpaGambar, content: potongHasilRiwayat(String(m.content ?? '')) };
+      return { ...tanpaGambar, content: potongHasilRiwayat(String(m.content ?? ''), batasPotongTool(m.name)) };
     }
     if (m.role === 'assistant') {
       const teks = String(m.content ?? '');
@@ -1854,6 +1938,38 @@ export interface AgentStep {
   at: number;
 }
 
+/**
+ * Satu LANGKAH dalam kartu tanya (`ask_user`), ala widget interaktif VS Code.
+ *
+ * Bentuk berlapis ini menggantikan pasangan `(pertanyaan, pilihan[])` yang lama:
+ * satu pertanyaan hanya bisa menampilkan chips, sedangkan widget aslinya punya
+ * beberapa LANGKAH dengan tipe field berbeda (teks, angka, pilih satu, pilih
+ * banyak), counter `n/N`, dan tombol Submit sendiri.
+ */
+export type TipeLangkah = 'teks' | 'angka' | 'pilih-satu' | 'pilih-banyak';
+
+export interface LangkahTanya {
+  tipe: TipeLangkah;
+  /** Judul langkah, satu baris. */
+  pertanyaan: string;
+  /** Kalimat penjelas di bawah judul (abu-abu). Boleh kosong. */
+  deskripsi?: string;
+  /** Untuk `pilih-satu` / `pilih-banyak`. Dikosongkan untuk tipe field. */
+  pilihan?: string[];
+  /** Langkah wajib: Submit terkunci sampai terisi. */
+  wajib?: boolean;
+}
+
+/** Pertanyaan yang sedang menunggu jawaban (satu atau beberapa langkah). */
+export interface TanyaAktif {
+  langkah: LangkahTanya[];
+  /**
+   * Index langkah yang sedang dilihat pembaca. Disimpan di sini supaya
+   * perpindahan langkah ikut selamat saat komponen render ulang.
+   */
+  langkahKe?: number;
+}
+
 interface AgentStepResult {
   content: string;
   toolCalls: AgentToolCall[];
@@ -1998,6 +2114,34 @@ export function berkasDitulisGiliran(steps: AgentStep[]): string[] {
 }
 
 /** Berapa langkah tool TERAKHIR yang berturut-turut hanya membaca. */
+/**
+ * Berkas yang sudah DIBACA pada giliran ini, urut kejadian dan unik.
+ *
+ * Cermin `berkasDitulisGiliran`, untuk masalah yang berbeda dan sama mahalnya:
+ * hasil `read_file` lama dipangkas (`HISTORY_TOOL_CHARS`) dan `toolCalls`
+ * langkah lama dibuang dari wire, jadi model benar-benar kehilangan catatan
+ * "aku sudah membuka berkas ini". Yang dilakukannya lalu: membukanya lagi.
+ * Terukur di satu run: satu berkas yang sama dibaca enam kali berturut-turut
+ * dalam satu giliran, sementara rencananya tidak bergerak.
+ *
+ * Daftar ini murah (satu baris per berkas) dan memberi tahu persis hal yang
+ * mahal dipulihkan: mana yang sudah ada di kepala model.
+ */
+export function berkasDibacaGiliran(steps: AgentStep[]): string[] {
+  const urut: string[] = [];
+  const ada = new Set<string>();
+  for (const s of steps) {
+    if (s.kind !== 'tool' || s.ok === false) continue;
+    const nama = String(s.name ?? '');
+    if (!TOOL_HANYA_BACA.has(nama)) continue;
+    const p = pathDariArgumen(s.args);
+    if (!p || ada.has(p)) continue;
+    ada.add(p);
+    urut.push(p);
+  }
+  return urut;
+}
+
 export function ekorHanyaBaca(steps: AgentStep[], maks = 20): number {
   const tool = steps.filter((s) => s.kind === 'tool');
   let n = 0;
@@ -2058,6 +2202,23 @@ export function statusPekerjaan(
    * mahal dipulihkan: berkas apa yang sudah ada, dan bahwa isinya tidak perlu
    * diverifikasi ulang.
    */
+  /*
+   * Berkas yang sudah DIBACA: pengingat yang sama, untuk sisi baca.
+   *
+   * Tanpa daftar ini model mengulang `read_file` pada berkas yang sudah
+   * dibukanya beberapa langkah lalu - hasilnya sudah dipangkas dari riwayat,
+   * jadi ia merasa belum pernah membacanya. Ditulis SEBELUM daftar tulis
+   * supaya urutannya mengikuti cara kerja: baca dulu, tulis kemudian.
+   */
+  const sudahDitulis = new Set(berkasDitulisGiliran(steps));
+  const dibaca = berkasDibacaGiliran(steps).filter((p) => !sudahDitulis.has(p));
+  if (dibaca.length) {
+    baris.push(
+      `## Berkas yang SUDAH kamu baca di giliran ini (${dibaca.length}) - isinya sudah kamu punya; JANGAN dibaca ulang`,
+    );
+    for (const p of dibaca.slice(-30)) baris.push(`- ${p}`);
+  }
+
   const ditulis = berkasDitulisGiliran(steps);
   if (ditulis.length) {
     baris.push(
@@ -2899,7 +3060,7 @@ export interface AgentSurfaceState {
   startedAt: number | null;
   navigationOnly: boolean;
   /** A question the agent is waiting on, for this run. */
-  tanya: { pertanyaan: string; pilihan: string[] } | null;
+  tanya: TanyaAktif | null;
   /** An approval the loop is blocked on, for this run. */
   confirm: { tool: string; argsText: string; isDestructive: boolean; isWrite?: boolean } | null;
   /** The task list the agent maintains, for this run. */
@@ -3146,7 +3307,7 @@ interface AiState {
    * `pilihan` boleh kosong: kalau ada isinya, UI menampilkan tombol pilihan
    * cepat di samping kotak ketik bebas.
    */
-  agentTanya: { pertanyaan: string; pilihan: string[] } | null;
+  agentTanya: TanyaAktif | null;
 
   agentTodos: AgentTodo[];
   /**
@@ -3258,6 +3419,12 @@ interface AiActions {
   setConfirmCmd: (v: string | null) => void;
 
   setAgentMode: (m: 'chat' | 'agent') => void;
+  /**
+   * Select the agent that answers the next turn: `'chat'`, `'agent'`, or a
+   * `CustomAgent` id. The only writer of `agentMode` + `agents.agentAktif`
+   * together, so the picker and the run can never disagree.
+   */
+  setAgentAktif: (id: string) => void;
   setRunMode: (m: 'interactive' | 'plan' | 'autopilot') => void;
   tipsVisible: boolean;
 
@@ -3316,7 +3483,7 @@ interface AiActions {
    * menemukan instruksi ambigu berhenti dan bertanya, alih-alih menebak lalu
    * mengerjakan hal yang salah.
    */
-  agentAjukanTanya: (pertanyaan: string, pilihan?: string[]) => Promise<string | null>;
+  agentAjukanTanya: (langkah: LangkahTanya[]) => Promise<string | null>;
   /** Jawab pertanyaan yang sedang menunggu. Dipanggil dari UI. */
   jawabTanya: (jawaban: string | null) => void;
 
@@ -4583,6 +4750,28 @@ export const useAi = create<AiStore>((set0, get) => {
       /* diabaikan */
     }
   },
+  /*
+   * Pick which agent answers the next turn.
+   *
+   * One setting, two surfaces that must agree: `agentAktif` is what the prompt
+   * and the tool allowlist read, and `agentMode` is what the composer's label
+   * draws. Writing only one of them is how a picker can look switched and still
+   * send the old agent, so this is the only writer of the pair.
+   *
+   * `'chat'` and `'agent'` are the built-ins; anything else is a custom agent
+   * id and always runs with tools (Chat is the "no tools" mode by definition).
+   */
+  setAgentAktif: (id) => {
+    const pilih = typeof id === 'string' ? id : '';
+    const mode: 'chat' | 'agent' = pilih === 'chat' ? 'chat' : 'agent';
+    set({ agentMode: mode });
+    try {
+      localStorage.setItem('zephyr.ai.mode', mode);
+    } catch {
+      /* diabaikan */
+    }
+    void useStore.getState().applySettings({ agents: { agentAktif: pilih } } as never);
+  },
   setTipsVisible: (v) => {
     set({ tipsVisible: v });
     try {
@@ -4982,7 +5171,7 @@ export const useAi = create<AiStore>((set0, get) => {
       }, izinTimeoutMs);
     }),
 
-  agentAjukanTanya: (pertanyaan, pilihan) =>
+  agentAjukanTanya: (langkah) =>
     new Promise<string | null>((selesai) => {
       /*
        * Hanya satu pertanyaan yang boleh menunggu pada satu waktu. Kalau ada
@@ -4996,7 +5185,7 @@ export const useAi = create<AiStore>((set0, get) => {
       }
 
       agentTanyaResolve = selesai;
-      set({ agentTanya: { pertanyaan, pilihan: pilihan ?? [] } });
+      set({ agentTanya: { langkah } });
       /*
        * The run is now parked on a decision, and the reader may be in another
        * window. This is the "needs you" moment, so it gets its own tone — see
@@ -7605,7 +7794,31 @@ let autoLanjut = 0;
              * rencananya masih kosong - setelah rencana ada, daftar alat penuh
              * kembali seperti biasa.
              */
-            const alatAktif = [...useToolGate.getState().aktif];
+            /*
+             * The agent picked in the composer narrows the switches first.
+             *
+             * A custom agent carries its own tool allowlist, and that list is a
+             * PROMISE made in the editor ("this one only reads"). Filtering
+             * after the per-task subset would let a task shape re-introduce a
+             * tool the agent was never granted, so the allowlist is applied
+             * here, before anything else touches the list. Built-ins pass
+             * `null` and keep every switch as-is.
+             */
+            /*
+             * The agent is resolved ONCE for this step.
+             *
+             * It used to be read twice - once for the tool allowlist and once for
+             * the MCP allowlist - and each read goes through settings. A reader
+             * who switches agents while a run is in flight could therefore get
+             * the tools of one agent and the MCP servers of another within a
+             * single step. One value, used by both filters, cannot disagree with
+             * itself.
+             */
+            const agentSaatIni = agentTerdetail();
+            const alatAktif = saringAlatAgent(
+              [...useToolGate.getState().aktif],
+              agentSaatIni.alat,
+            );
             /*
              * Tanpa folder terbuka, tool ber-scope folder tidak dikirim sama
              * sekali: ia pasti ditolak backend, dan penolakan itu memakan
@@ -7672,7 +7885,7 @@ let autoLanjut = 0;
               alatSaring,
               adaFolderRun,
             );
-            const toolSpecs = agentToolSpecs({ alat: alatSaring });
+            const toolSpecs = agentToolSpecs({ alat: alatSaring, mcp: agentSaatIni.mcp });
             /*
              * The tool list rides in every request but is not part of the
              * message history, so a cap measured on messages alone lets the
@@ -8755,7 +8968,32 @@ let autoLanjut = 0;
            * without paying for the call first.
            */
           const hitungAksi = catatAksiBerulang(agenAksiBerulang, tc.name, argsObj);
-          if (hitungAksi.hentikan) {
+          const putusanAksi = keputusanAksiBerulang(tc.name, hitungAksi);
+          if (putusanAksi === 'tolak-baca') {
+            const kunciBaca = agentToolCacheKey(tc.name, argsObj);
+            const asli = (kunciBaca ? agentToolCache.get(kunciBaca)?.result : '') ?? '';
+            history.push({
+              role: 'tool',
+              toolCallId: tc.id,
+              name: tc.name,
+              content: pesanBacaDitolak(hitungAksi.jumlah, asli).slice(0, HISTORY_BACA_CHARS + 400),
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: tc.name,
+                  args: JSON.stringify(argsObj).slice(0, 200),
+                  result: 'Read refused - the same result is already in the conversation above.',
+                  ok: true,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            continue;
+          }
+          if (putusanAksi === 'hentikan') {
             /*
              * Nothing runs. The refused call is recorded as a tool message so
              * the provider pairing (assistant toolCalls -> tool results) stays
@@ -10230,6 +10468,55 @@ let autoLanjut = 0;
      * offering "restore" on a read-only turn would be offering an action that
      * does nothing.
      */
+    /*
+     * Freeze what this run changed onto its own message.
+     *
+     * Same reasoning as the checkpoint above: the card belongs to the turn, so
+     * it must live on the turn. Built from `diffStore` (the measured
+     * before/after capture) merged with the tool rows, and written ONCE at the
+     * end of the run - after this point the list never changes again, which is
+     * what lets the card scroll away with the history instead of following the
+     * chat.
+     */
+    void import('./diffStore').then((d) => {
+      const terukur = d.useDiff.getState().berkas;
+      if (terukur.length === 0) return;
+      const potong = (p: string) => {
+        const bersih = p.replace(/\\/g, '/');
+        const i = bersih.lastIndexOf('/');
+        return i < 0
+          ? { dir: '', nama: bersih }
+          : { dir: bersih.slice(0, i), nama: bersih.slice(i + 1) };
+      };
+      const perubahan = terukur
+        .map((b) => {
+          const { dir, nama } = potong(b.path);
+          return {
+            path: b.path,
+            nama,
+            judul: nama.replace(/\.[^.]+$/, '') || nama,
+            dir,
+            tambah: b.tambah,
+            hapus: b.hapus,
+            gagal: b.gagal === true,
+          };
+        })
+        .sort((a, b) => a.path.localeCompare(b.path));
+      set((s) => ({
+        sessions: s.sessions.map((x) =>
+          x.id === sessionId
+            ? {
+                ...x,
+                messages: x.messages.map((msg) =>
+                  msg.id === botMsg.id ? { ...msg, perubahan } : msg,
+                ),
+              }
+            : x,
+        ),
+      }));
+      persist(get());
+    });
+
     void import('./checkpoint').then((m) => {
       const cp = m.tutupCheckpoint();
       if (!cp) return;

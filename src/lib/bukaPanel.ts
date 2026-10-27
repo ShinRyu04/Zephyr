@@ -32,7 +32,7 @@ const FLAG: Partial<Record<PanelId, (v: boolean) => void>> = {
  * instances: a flag set here would be invisible there. `PanelWindow` reads it
  * and hands it to the page as its initial section.
  */
-export function bukaPanel(id: PanelId, seksi?: string): void {
+export function bukaPanel(id: PanelId, seksi?: string, opsi?: { baru?: boolean }): void {
   FLAG[id]?.(false);
-  void bukaPanelWindow(id, seksi);
+  void bukaPanelWindow(id, seksi, opsi);
 }

@@ -326,15 +326,27 @@ pub fn parse_tool_response(v: &Value) -> Result<AiToolResult, String> {
         .and_then(|t| t.as_array())
     {
         for (index, tc) in tcs.iter().enumerate() {
-            let name = tc
-                .pointer("/function/name")
-                .and_then(|x| x.as_str())
-                .filter(|name| !name.trim().is_empty())
-                .ok_or_else(|| format!("tool call #{index} is missing a function name"))?;
             let raw_args = tc
                 .pointer("/function/arguments")
                 .and_then(|x| x.as_str())
                 .unwrap_or("");
+            /*
+             * The name is missing, so the snippet is the only thing that can say
+             * WHICH call broke. `raw_args` has to be read before the `?` on the
+             * name: after it, the closure has already returned and there is
+             * nothing left to quote.
+             */
+            let name = tc
+                .pointer("/function/name")
+                .and_then(|x| x.as_str())
+                .filter(|name| !name.trim().is_empty())
+                .ok_or_else(|| {
+                    format!(
+                        "tool call #{index} is missing a function name: {}",
+                        cuplik_argumen(raw_args)
+                    )
+                })?;
+
             /* `arguments: ""` berarti "tanpa argumen", bukan JSON rusak — sama
                seperti jalur streaming `finish()` di bawah. */
             /* Perbaikan leksikal lebih dulu: newline mentah di dalam string,
@@ -343,7 +355,8 @@ pub fn parse_tool_response(v: &Value) -> Result<AiToolResult, String> {
             let args: Value = parse_argumen_tool(raw_args, false, name)?;
             if !args.is_object() {
                 return Err(format!(
-                    "tool call \"{name}\" arguments must be a JSON object"
+                    "tool call \"{name}\" arguments must be a JSON object: {}",
+                    cuplik_argumen(raw_args)
                 ));
             }
             tool_calls.push(ToolCall {
@@ -517,7 +530,8 @@ impl ToolAcc {
                 let parsed: Value = parse_argumen_tool(&args, truncated, &name)?;
                 if !parsed.is_object() {
                     return Err(format!(
-                        "tool call \"{name}\" arguments must be a JSON object"
+                        "tool call \"{name}\" arguments must be a JSON object: {}",
+                        cuplik_argumen(&args)
                     ));
                 }
                 Ok(ToolCall {

@@ -665,7 +665,7 @@ export function terapkanIkonTema(extId: string | null): void {
 /** The packs read by the last load, for the picker. */
 export const daftarPaketIkon = () => paketIkon.slice();
 
-function normalisasiSvg(teks: string): string | null {
+export function normalisasiSvg(teks: string): string | null {
   const t = teks.trim();
   if (!t.startsWith('<svg') && !t.startsWith('<?xml')) return null;
   const bersih = t

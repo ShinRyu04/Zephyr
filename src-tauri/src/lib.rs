@@ -5,6 +5,7 @@ mod agents;
 mod ai;
 mod api_client;
 mod app_state;
+mod avatars;
 mod bg_image;
 mod browser;
 mod browser_pane;
@@ -166,6 +167,10 @@ pub fn run() {
                 &argv.iter().skip(1).cloned().collect::<Vec<String>>(),
                 std::path::Path::new(&cwd),
             );
+            /* The second launch is usually a double-click on a file, and that
+               file rarely sits inside the open workspace. Approve what the user
+               named before the UI asks to read it - see `izinkan_target_cli`. */
+            cli::izinkan_target_cli(&app.state::<AppState>(), &args);
 
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.unminimize();
@@ -272,6 +277,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bg_image::bg_image_read,
+            avatars::avatar_save,
+            avatars::avatar_delete,
+            avatars::avatar_url,
             dev_update::dev_update_info,
             dev_update::dev_update_build,
             dev_update::dev_update_apply,
@@ -499,6 +507,7 @@ pub fn run() {
             ext_pkg::extensions_manifests,
             ext_pkg::extensions_download_zext,
             ext_bundled::extensions_write_bundled,
+            ext_bundled::extensions_preview_bundled,
             ext_bundled::extensions_bundled_ids,
             notifikasi::notify_show,
             ext_registry::ext_registry_list,

@@ -1588,3 +1588,45 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ── MCP Market dialog ────────────────────────────────────────────────────
+ *
+ * The server list is the one part of this dialog that can be longer than the
+ * window: the catalogue alone has ten entries and it grows. It therefore gets
+ * its own scroll area with a HARD max height instead of pushing the dialog past
+ * its `max-height` - when that happened the Create/Close buttons were the part
+ * that went off screen, so the reader could see the list and not leave it.
+ *
+ * `min-height: 0` on the flex child is what makes scrolling possible at all:
+ * without it the child refuses to shrink below its content.
+ */
+.agset-daftar-gulir {
+  overflow-y: auto;
+  min-height: 0;
+  max-height: min(52vh, 460px);
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.agset-grup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agset-grup-judul {
+  margin: 10px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* A shop row leads with the brand mark, like every other marketplace row. */
+.agset-daftar-gulir .agset-baris > .xmkt-merek,
+.agset-daftar-gulir .agset-baris > .xmkt-mono {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+}

@@ -62,7 +62,7 @@ export const DEFAULT_A11Y: AccessibilitySettings = {
   screenReader: false,
   autoFocusDialog: true,
   
-  toastDurasiMin: 3200,
+  toastDurasiMin: 1000,
 };
 
 export function terapkanA11y(a: Partial<AccessibilitySettings> | undefined): AccessibilitySettings {

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import PanelTitleBar from './components/shell/PanelTitleBar';
-import { JUDUL, panelDariHash, seksiDariHash } from './lib/panelWindow';
+import { JUDUL, baruDariHash, panelDariHash, seksiDariHash } from './lib/panelWindow';
 import { pasangSinkronSetelan, useStore } from './lib/store';
 import { useAi } from './lib/aiStore';
 import { useAiChatSettings } from './lib/chatSettingsStore';
@@ -83,7 +83,7 @@ function saatSetelanSiap(fn: () => void): () => void {
   });
 }
 
-function PanelIsi({ id, seksi }: { id: string; seksi: string | null }) {
+function PanelIsi({ id, seksi, baru }: { id: string; seksi: string | null; baru?: boolean }) {
   if (id === 'settings') {
     return (
       <div className="panel-win-dua">
@@ -133,7 +133,7 @@ function PanelIsi({ id, seksi }: { id: string; seksi: string | null }) {
   }
   return (
     <Suspense fallback={null}>
-      <AgentCustomPage seksiAwal={seksi} />
+      <AgentCustomPage seksiAwal={seksi} mintaBaru={baru} />
     </Suspense>
   );
 }
@@ -172,6 +172,11 @@ function AksiChatSettings() {
 export default function PanelWindow() {
   const id = panelDariHash(window.location.hash);
   const [seksi, setSeksi] = useState<string | null>(() => seksiDariHash(window.location.hash));
+  /*
+   * "Start a new one" travels in the URL like the section does, and for the same
+   * reason: this is a separate WebView and the opener cannot set state here.
+   */
+  const [baru, setBaru] = useState<boolean>(() => baruDariHash(window.location.hash));
 
   /* The AI panel's provider/model selection, for the two pages that render model
      controls. Same as `AiWindow` does. */
@@ -190,9 +195,12 @@ export default function PanelWindow() {
     let hidup = true;
     void import('@tauri-apps/api/event')
       .then((m) =>
-        m.listen<{ id: string; seksi: string }>('panel-section', (e) => {
+        m.listen<{ id: string; seksi: string; baru?: boolean }>('panel-section', (e) => {
           if (!hidup || e.payload.id !== id) return;
           setSeksi(e.payload.seksi);
+          /* Only ever turned ON by an event: an unrelated section switch must
+             not keep the "open the editor" wish alive from a previous door. */
+          if (e.payload.baru) setBaru(true);
         }),
       )
       .catch(() => {
@@ -221,7 +229,7 @@ export default function PanelWindow() {
         actions={id === 'chat-settings' ? <AksiChatSettings /> : undefined}
       />
       <div className="panel-win" data-testid={`panel-win-body-${id}`}>
-        <PanelIsi id={id} seksi={seksi} />
+        <PanelIsi id={id} seksi={seksi} baru={baru} />
       </div>
       <Suspense fallback={null}>
         <ToolGatePanel />
