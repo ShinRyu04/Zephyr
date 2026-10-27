@@ -131,3 +131,6 @@ TODO-BELUM-SELESAI.txt
 # Ruang kerja sementara: hasil uji, potongan teks, cadangan berkas.
 # Bukan bagian produk, dan isinya berganti tiap sesi.
 scratch/
+
+# Plan/scratch internal agen AI (bukan bagian produk) — lihat commit b24c0b1
+.zcode/
