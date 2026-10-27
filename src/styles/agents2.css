@@ -4486,6 +4486,25 @@ body.agx-dragging-kolom {
   margin-inline: auto;
 }
 
+/*
+ * Strip ANTREAN (work-stack-queue) TAMPIL kembali di jendela ini.
+ *
+ * `ai-perubahan.css` menyembunyikan strip `[data-testid='ai-work-stack-queue']`
+ * secara global karena di jendela utama daftar yang sama persis sudah hidup di
+ * tab Queue kartu review - menampilkan dua barisan itu sekaligus hanya
+ * memboroskan layar. Kartu review TIDAK dirender di jendela Agents, jadi tanpa
+ * pengecualian ini stripnya jadi satu-satunya tampilan antrean dan ikut hilang:
+ * pesan yang diketik selagi agen bekerja tidak terlihat di mana pun.
+ *
+ * Selector memakai testid (bukan class) karena elemen strip itu `<section
+ * className="ai-work-section" data-testid="ai-work-stack-queue">`. Specifity
+ * tiga kelas/atribut mengalahkan aturan global dua atribut, dan cakupannya
+ * hanya canvas chat `.agx-chat` - panel AI jendela utama tetap tersembunyi.
+ */
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] {
+  display: block;
+}
+
 .agx-chat .ai-input-row {
   /*
    * `width: 100%` + `align-self: center`, BUKAN `margin-inline: auto`.
