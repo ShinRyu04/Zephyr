@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { useStore } from '../../lib/store';
 import { useWs } from '../../lib/workspaceStore';
+import { kunciPath } from '../../lib/pathKey';
 import type { WsRoot } from '../../lib/types';
 import FileTree from '../explorer/FileTree';
 import { tx } from '../../lib/i18n';
@@ -27,7 +28,10 @@ export default function RootSection({ root, tunggal }: { root: WsRoot; tunggal: 
   const hapusRoot = useWs((s) => s.hapusRoot);
   const tanya = useWs((s) => s.tanya);
 
-  const isAktif = (aktifPath || '').toLowerCase() === root.path.toLowerCase();
+  /* Keyed comparison: the active path and the root's path reach here from
+     different sources (store vs backend) and may differ in separator or
+     trailing slash, which `toLowerCase()` alone did not absorb. */
+  const isAktif = !!aktifPath && kunciPath(aktifPath) === kunciPath(root.path);
 
   return (
     <div className={`root-section${isAktif ? ' is-active' : ''}`} data-root={root.path}>

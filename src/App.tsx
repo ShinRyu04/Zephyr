@@ -1166,7 +1166,23 @@ export default function App() {
     if (fsListenerBound) return;
     fsListenerBound = true;
     let unlisten: (() => void) | undefined;
-    onFsChanged(({ dir, path, kind }) => {
+    onFsChanged(({ dir, path, kind, message }) => {
+      /*
+       * A watcher that failed to install reports itself once and then goes
+       * quiet, so this is the only chance to say anything. It used to be
+       * dropped on the floor: the tree simply stopped updating and the only
+       * visible symptom was missing files.
+       */
+      if (kind === 'error') {
+        useStore
+          .getState()
+          .setStatus(
+            message
+              ? `File watcher unavailable (${message}). Use Refresh.`
+              : 'File watcher unavailable. Use Refresh.',
+          );
+        return;
+      }
       const ex = useExplorer.getState();
       void ex.refreshDir(dir);
 

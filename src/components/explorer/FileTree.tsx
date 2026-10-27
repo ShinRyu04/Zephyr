@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../lib/store';
 import { useExplorer } from '../../lib/explorerStore';
+import { kunciPath } from '../../lib/pathKey';
 import { detectLang } from '../../lib/lang';
 import FileIcon, { FolderIcon } from '../editor/FileIcon';
 import type { DirNode } from '../../lib/types';
@@ -19,10 +20,16 @@ function buildRows(
   expanded: Record<string, boolean>,
 ): Row[] {
   const rows: Row[] = [];
+  /*
+   * `children` and `expanded` are keyed by `kunciPath`, so every lookup here
+   * has to go through the same function. Reading `children[node.path]` with the
+   * raw path was the reason a populated store still drew an empty tree: the
+   * data was under `d:\galeri` and the lookup asked for `D:\Galeri\`.
+   */
   const walk = (dir: string, depth: number) => {
-    for (const node of children[dir] ?? []) {
+    for (const node of children[kunciPath(dir)] ?? []) {
       rows.push({ node, depth });
-      if (node.isDir && expanded[node.path]) walk(node.path, depth + 1);
+      if (node.isDir && expanded[kunciPath(node.path)]) walk(node.path, depth + 1);
     }
   };
   walk(root, 0);
@@ -130,7 +137,7 @@ export default function FileTree({ root }: { root?: string }) {
 
   const rowDepthFor = (dir: string) => {
     if (dir === akar) return 0;
-    const found = rows.find((r) => r.node.path === dir);
+    const found = rows.find((r) => kunciPath(r.node.path) === kunciPath(dir));
     return found ? found.depth + 1 : 0;
   };
 
@@ -199,7 +206,7 @@ export default function FileTree({ root }: { root?: string }) {
               role="treeitem"
               tabIndex={0}
               aria-selected={isSel}
-              aria-expanded={node.isDir ? !!expanded[node.path] : undefined}
+              aria-expanded={node.isDir ? !!expanded[kunciPath(node.path)] : undefined}
               title={node.path}
               className={`tree-row${isSel ? ' is-selected' : ''}${isActive ? ' is-active' : ''}${
                 dragOver === node.path ? ' is-dragover' : ''
@@ -273,10 +280,10 @@ export default function FileTree({ root }: { root?: string }) {
               onKeyDown={(e) => onRowKeyDown(e, node)}
             >
               <span className="tree-twisty">
-                {node.isDir && node.hasChildren ? <Chevron open={!!expanded[node.path]} /> : null}
+                {node.isDir && node.hasChildren ? <Chevron open={!!expanded[kunciPath(node.path)]} /> : null}
               </span>
               {node.isDir ? (
-                <FolderIcon open={!!expanded[node.path]} nama={node.name} />
+                <FolderIcon open={!!expanded[kunciPath(node.path)]} nama={node.name} />
               ) : (
                 <FileIcon lang={detectLang(node.name)} name={node.name} />
               )}
@@ -287,7 +294,7 @@ export default function FileTree({ root }: { root?: string }) {
             {inlineEdit &&
               inlineEdit.kind !== 'rename' &&
               inlineEdit.target === node.path &&
-              expanded[node.path] && (
+              expanded[kunciPath(node.path)] && (
                 <InlineInput
                   initial={inlineEdit.initial}
                   depth={rowDepthFor(node.path)}

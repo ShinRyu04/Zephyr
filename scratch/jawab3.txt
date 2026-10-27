@@ -1,4 +1,0 @@
-﻿memantau konfirmasi agen...
-
-agen selesai (idle 6 sampel). konfirmasi dijawab: 0
-jejak: []

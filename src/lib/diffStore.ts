@@ -25,6 +25,7 @@
  * copies of source code behind.
  */
 import { create } from 'zustand';
+import { kunciPath } from './pathKey';
 
 /** One file the turn changed, with both sides captured. */
 export interface DiffBerkas {
@@ -157,19 +158,23 @@ export const useDiff = create<DiffState>()((set, get) => ({
   },
 
   catatSesudah: (path, isi, gagal) => {
-    const ada = get().berkas.find((b) => b.path === path);
+    /* The "before" was recorded from the tab/store side and the "after" comes
+       back from the tool result, so the two spellings can differ. A raw compare
+       missed its own entry and the diff for that file stayed empty. */
+    const kunci = kunciPath(path);
+    const ada = get().berkas.find((b) => kunciPath(b.path) === kunci);
     if (!ada) return;
     const { tambah, hapus } = hitungBaris(ada.sebelum, isi);
     set((s) => ({
       berkas: s.berkas.map((b) =>
-        b.path === path ? { ...b, sesudah: isi, tambah, hapus, gagal } : b,
+        kunciPath(b.path) === kunci ? { ...b, sesudah: isi, tambah, hapus, gagal } : b,
       ),
     }));
   },
 
   buang: (path) =>
     set((s) => ({
-      berkas: s.berkas.filter((b) => b.path !== path),
+      berkas: s.berkas.filter((b) => kunciPath(b.path) !== kunciPath(path)),
       /* `sudah` sengaja TIDAK dihapus: kalau agen menulis berkas yang sama
          lagi di giliran ini, "sebelum" tetap harus isi sebelum tulisan
          pertama, bukan isi hasil revert. */

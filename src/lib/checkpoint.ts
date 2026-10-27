@@ -29,6 +29,8 @@
  * to prevent.
  */
 
+import { kunciPath } from './pathKey';
+
 /** One file a turn changed, with the snapshot taken before the first change. */
 export interface BerkasCheckpoint {
   path: string;
@@ -87,7 +89,12 @@ export async function catat(path: string): Promise<void> {
    * roll back to before the FIRST edit; recording the latest would leave the
    * turn's own intermediate state in place.
    */
-  if (aktif.berkas.some((b) => b.path === path)) return;
+  /* Keyed compare: this list is fed by tool calls, and a turn can name the same
+     file `src\a.ts` once and `src/a.ts` the next time. A raw compare let the
+     second one through, so the snapshot taken for it OVERWROTE the "before"
+     that rollback depends on. */
+  const kunci = kunciPath(path);
+  if (aktif.berkas.some((b) => kunciPath(b.path) === kunci)) return;
 
   const { useHistory } = await import('./historyStore');
   try {

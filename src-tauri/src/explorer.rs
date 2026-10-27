@@ -158,7 +158,25 @@ pub fn fs_watch(app: AppHandle, state: State<AppState>, path: String) -> ZResult
             }
         };
 
-        if watcher.watch(&root, RecursiveMode::Recursive).is_err() {
+        /*
+         * A watcher that cannot be installed is reported, never swallowed.
+         *
+         * This used to be `if ... .is_err() { return; }`: the thread died, the
+         * app had no watcher, and nothing anywhere said so. Every later change
+         * on disk then went unnoticed and the tree stayed frozen at whatever
+         * was scanned when the folder was opened — the reader's only clue was
+         * that files kept not appearing, and the only workaround was a manual
+         * refresh that had its own way of blanking the panel.
+         *
+         * The frontend listens for `kind: "error"` on `fs-changed` (it already
+         * handles the same event from `recommended_watcher` failing above), so
+         * reporting it here reaches the status bar instead of a dead thread.
+         */
+        if let Err(e) = watcher.watch(&root, RecursiveMode::Recursive) {
+            let _ = app.emit(
+                "fs-changed",
+                json!({ "path": root.to_string_lossy(), "kind": "error", "message": e.to_string() }),
+            );
             return;
         }
 

@@ -5,6 +5,7 @@ import { useWs } from './workspaceStore';
 import { cariNamaDiPohon } from './explorerFilter';
 import { hapusKerja } from './workingSet';
 import { notifyError, notifyInfo } from './notificationStore';
+import { kunciPath } from './pathKey';
 import type { DirNode, SearchHit } from './types';
 import { tx } from './i18n';
 
@@ -145,66 +146,133 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
   searchError: null,
 
   loadDir: async (path, force = false) => {
-    if (!force && get().children[path]) return;
-    set((s) => ({ loading: { ...s.loading, [path]: true } }));
+    /*
+     * Listings are keyed by `kunciPath`, never by the raw string.
+     *
+     * The same folder reaches this store as `D:\galeri`, `D:\galeri\` and
+     * `d:/galeri` depending on who asked: the backend's `roots[].path`, the
+     * file watcher's `dir`, a drop target, or `useStore.workspace`. Storing
+     * under the raw string meant a listing written under one spelling was
+     * invisible to a reader asking with another — the tree looked EMPTY while
+     * the data sat in the store. `pathKey.ts` already exists for exactly this
+     * and six other stores already use it; Explorer was the one that did not.
+     */
+    const kunci = kunciPath(path);
+    if (!force && get().children[kunci]) return;
+    set((s) => ({ loading: { ...s.loading, [kunci]: true } }));
     try {
       const nodes = await cmd.scanDir(path);
       set((s) => ({
-        children: { ...s.children, [path]: nodes },
-        loading: { ...s.loading, [path]: false },
+        children: { ...s.children, [kunci]: nodes },
+        loading: { ...s.loading, [kunci]: false },
         explorerError: null,
       }));
     } catch (e) {
       set((s) => ({
-        loading: { ...s.loading, [path]: false },
+        loading: { ...s.loading, [kunci]: false },
         explorerError: cmd.asZephyrError(e).message,
       }));
     }
   },
 
   toggleExpand: async (path) => {
-    const open = get().expanded[path];
+    const kunci = kunciPath(path);
+    const open = get().expanded[kunci];
     if (open) {
-      set((s) => ({ expanded: { ...s.expanded, [path]: false } }));
+      set((s) => ({ expanded: { ...s.expanded, [kunci]: false } }));
       return;
     }
-    set((s) => ({ expanded: { ...s.expanded, [path]: true } }));
+    set((s) => ({ expanded: { ...s.expanded, [kunci]: true } }));
     await get().loadDir(path);
   },
 
   collapseAll: () => set({ expanded: {} }),
 
+  /*
+   * Refresh rebuilds every root and every open folder — but it is not allowed
+   * to leave the reader staring at an empty panel.
+   *
+   * The previous version cleared `children` first and reloaded afterwards. When
+   * a root failed, or when its path arrived in a different spelling than the
+   * one the tree reads, the clear was all that survived: every file vanished
+   * and nothing said why, reported verbatim as "pas pencet refresh, tiba-tiba
+   * ilang semua file". So the reload now builds a fresh map and swaps it in
+   * only after at least one directory answered; a total failure keeps the old
+   * listings and surfaces the error instead of blanking the tree.
+   */
   refreshAll: async () => {
-    /*
-     * Refresh EVERY root, not just the active one.
-     *
-     * `children` is cleared wholesale below, so every root's listing is gone
-     * at that moment. Reloading only `useStore.workspace` left the other roots
-     * of a multi-root workspace as empty sections in the tree: the reader saw
-     * the folder they started with (the active root) and nothing else, which
-     * reads as "refresh put me back to the old folder".
-     */
     const { roots } = useWs.getState();
     const aktif = useStore.getState().workspace;
     const sumber = roots.length > 0 ? roots.map((r) => r.path) : aktif ? [aktif] : [];
     const openDirs = Object.entries(get().expanded)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    set({ children: {} });
-    for (const r of sumber) await get().loadDir(r, true);
-    for (const d of openDirs) await get().loadDir(d, true);
+
+    const tujuan: string[] = [];
+    for (const p of [...sumber, ...openDirs]) {
+      if (p && !tujuan.some((x) => kunciPath(x) === kunciPath(p))) tujuan.push(p);
+    }
+    if (tujuan.length === 0) return;
+
+    const lama = get().children;
+    const baru: Record<string, DirNode[]> = {};
+    const gagal: string[] = [];
+    for (const d of tujuan) {
+      try {
+        baru[kunciPath(d)] = await cmd.scanDir(d);
+      } catch (e) {
+        gagal.push(`${d}: ${cmd.asZephyrError(e).message}`);
+        /*
+         * Keep whatever was already known for this folder. A refresh must
+         * never be the reason a listing disappears — a lock, a transient
+         * permission error or a folder that was just renamed is not evidence
+         * that its contents are gone.
+         */
+        const k = kunciPath(d);
+        if (lama[k]) baru[k] = lama[k];
+      }
+    }
+
+    if (Object.keys(baru).length === 0) {
+      set({ explorerError: gagal.join(' · ') || 'refresh failed' });
+      return;
+    }
+    set((s) => ({
+      children: { ...s.children, ...baru },
+      explorerError: gagal.length > 0 ? gagal.join(' · ') : null,
+    }));
   },
 
+  /*
+   * One folder changed on disk. It is either a root or a folder the tree has
+   * open, and both are now compared by key rather than by raw string: the
+   * watcher sends the path Windows reported, while the root list and the
+   * expanded set may spell it differently.
+   *
+   * The old `if (!isVisible) return;` was silent, so a spelling mismatch made
+   * every agent write invisible in the tree with no error anywhere. Now a
+   * folder that is the parent of an open path still refreshes, and a directory
+   * the tree has never seen falls back to reloading the active root instead of
+   * doing nothing.
+   */
   refreshDir: async (dir) => {
-    /*
-     * Any visible directory gets refreshed, including roots that are not the
-     * active one: in a multi-root workspace every root is drawn at the top of
-     * the tree, so `dir === workspace` alone hid changes under the others.
-     */
-    const akar = useWs.getState().roots.some((r) => r.path === dir);
-    const isVisible = akar || get().expanded[dir];
-    if (!isVisible) return;
-    await get().loadDir(dir, true);
+    if (!dir) return;
+    const target = kunciPath(dir);
+    const akar = useWs.getState().roots.some((r) => kunciPath(r.path) === target);
+    const terbuka = Object.keys(get().expanded).some((k) => k === target);
+    if (akar || terbuka) {
+      await get().loadDir(dir, true);
+      return;
+    }
+    const parentDariTerbuka = Object.keys(get().expanded).some(
+      (k) => k.startsWith(`${target}\\`) && k !== target,
+    );
+    if (parentDariTerbuka) {
+      await get().loadDir(dir, true);
+      return;
+    }
+    const aktif = useStore.getState().workspace ?? useWs.getState().roots[0]?.path;
+    if (aktif) await get().loadDir(aktif, true);
   },
 
   select: (path, mode, visibleOrder) => {
@@ -390,7 +458,7 @@ export const useExplorer = create<ExplorerStore>((set, get) => ({
     if (get().filter.trim() !== teks) return;
 
     for (const d of hasil.buka) {
-      set((s) => ({ expanded: { ...s.expanded, [d]: true } }));
+      set((s) => ({ expanded: { ...s.expanded, [kunciPath(d)]: true } }));
       await get().loadDir(d);
     }
     set({

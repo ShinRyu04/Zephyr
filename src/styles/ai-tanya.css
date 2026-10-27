@@ -1,147 +1,263 @@
 /*
- * Kartu pertanyaan agen (tool ask_user).
+ * Kartu pertanyaan agen (`ask_user`), bentuk FORM BERTAHAP.
  *
- * Kartu ini adalah PESAN dari agen, dan dirender DI DALAM area gulir chat
- * (.ai-chat) - bukan kapsul yang menempel di kotak ketik. Bentuknya mengikuti
- * bahasa visual bubble chat: kartu mengambang ber-radius penuh dengan bayangan
- * lembut, bergaris aksen di kiri sebagai penanda "menunggu kamu".
+ * Arah gaya ini diganti dari "bubble chat ber-chip" menjadi "panel formulir",
+ * dan alasannya bukan selera: kartu ini menahan langkah agen sampai dijawab,
+ * jadi pembaca harus langsung melihat bahwa ia sedang mengisi sesuatu yang
+ * punya AWAL dan AKHIR - kepala berjudul, isi, lalu kaki berisi navigasi dan
+ * tombol kirim. Kartu mengambang ber-radius penuh dengan chips terbaca sebagai
+ * pesan, bukan sebagai formulir, dan tidak memberi tempat untuk counter `n/m`
+ * maupun tombol Submit.
+ *
+ * Warnanya seluruhnya dari token tema (AGENTS.md §4), supaya 19 tema bawaan
+ * tetap konsisten; tidak ada satu pun hex di sini.
  */
 
 .ai-tanya {
   box-sizing: border-box;
   margin: 10px 12px 14px;
-  padding: 11px 13px 12px;
-  border: 0.8px solid var(--border);
-  /* Garis aksen di kiri: penanda kartu yang butuh tindakan, tanpa berteriak. */
-  border-left: 2.5px solid var(--accent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
-  box-shadow: 0 2px 10px rgb(0 0 0 / 22%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  /* Kartu hidup di dalam area gulir: ia tidak boleh ikut mengempis saat
+     transkrip panjang, karena field-nya yang sedang dipakai. */
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.ai-tanya-label {
+/* ── Kepala: judul langkah + tutup/lipat ─────────────────────────────────── */
+
+.ai-tanya-kepala {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 5px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  text-transform: none;
+  gap: 2px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
-/* Titik berdenyut: kartu ini sedang MENUNGGU, bukan sekadar tampil. */
-.ai-tanya-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-  animation: ai-tanya-denyut 1.6s ease-in-out infinite;
-}
-
-@keyframes ai-tanya-denyut {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.ai-tanya-isi {
-  margin: 0 0 9px;
+.ai-tanya-judul {
+  flex: 1;
+  min-width: 0;
   font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--fg0);
-  /* Pertanyaan boleh panjang dan berbaris-baris: jangan dipotong. */
-  white-space: pre-wrap;
+  font-weight: 600;
+  color: var(--text);
   word-break: break-word;
 }
 
-/* Pilihan cepat: chips yang mengalir horizontal, wrap kalau panjang. */
-.ai-tanya-pilihan {
+.ai-tanya-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ai-tanya-ikon:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* ── Badan: penjelas + field langkah ────────────────────────────────────── */
+
+.ai-tanya-badan {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.ai-tanya-deskripsi {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  word-break: break-word;
 }
 
 /*
- * Satu opsi = satu chip ringkas.
+ * Field selebar kartu, bukan selebar isinya.
  *
- * Chips mengalir mengikuti lebar teksnya, bukan tombol blok selebar penuh:
- * dalam alur chat yang lebar, baris tombol penuh terasa seperti form, sedangkan
- * chips terbaca sebagai jawaban cepat. Opsi yang panjang tetap utuh karena
- * kartu sendiri boleh melebar dan chip yang kelebihan beban turun ke baris
- * baru (flex-wrap di atas).
+ * Ukuran alami sebuah input teks adalah ~20 karakter; pertanyaan seperti path
+ * atau nama branch jauh lebih panjang dari itu, dan field sempit memaksa
+ * pembaca menggulir jawabannya sendiri untuk memastikan yang ia tulis benar.
  */
-.ai-tanya-op {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
+.ai-tanya-field {
+  width: 100%;
   box-sizing: border-box;
-  padding: 6px 11px;
-  border: 0.8px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg0);
-  color: var(--fg0);
-  font-size: 12px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
   font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
-.ai-tanya-op:hover {
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg0));
+.ai-tanya-field:focus {
+  outline: none;
   border-color: var(--accent);
 }
 
-.ai-tanya-op:active {
-  background: color-mix(in srgb, var(--accent) 22%, var(--bg0));
-}
-
-.ai-tanya-op-teks {
-  /* Opsi panjang turun baris, bukan memotong diri sendiri. */
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.4;
-}
-
-.ai-tanya-op-panah {
-  flex-shrink: 0;
+.ai-tanya-field::placeholder {
   color: var(--text-muted);
-  font-size: 12px;
 }
 
-.ai-tanya-op:hover .ai-tanya-op-panah {
+/* ── Langkah pilihan: baris bernomor, bukan chips ───────────────────────── */
+
+.ai-tanya-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-tanya-baris {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.ai-tanya-baris:hover {
+  background: var(--surface-3);
+}
+
+.ai-tanya-baris.aktif {
+  background: var(--accent-subtle);
+}
+
+.ai-tanya-baris:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.ai-tanya-no {
+  width: 14px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-tanya-opsi-teks {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.ai-tanya-centang {
+  flex-shrink: 0;
   color: var(--accent);
 }
 
-/* Pemisah antara pilihan dan input bebas. */
-.ai-tanya-pemisah {
-  margin: 0 0 6px;
+/*
+ * Radio/checkbox aslinya disembunyikan, BUKAN diganti div.
+ *
+ * Elemen aslinya yang menyimpan status, fokus, dan pembacaan layar: klik label
+ * meneruskannya, Tab bisa berhenti di situ, dan panah atas/bawah tetap bekerja
+ * seperti daftar pilihan biasa. Yang digambar hanya barisnya.
+ */
+.ai-tanya-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-tanya-baris-bebas .ai-tanya-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Kaki: navigasi langkah + kirim ─────────────────────────────────────── */
+
+.ai-tanya-kaki {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-tanya-panah {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ai-tanya-panah:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.ai-tanya-panah:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ai-tanya-hitung {
+  margin-left: 2px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Petunjuk papan tuntas di dorong ke kanan, berbagi baris dengan Submit. */
+.ai-tanya-hint {
+  margin-left: auto;
   font-size: 11px;
-  font-style: italic;
   color: var(--text-muted);
 }
 
-.ai-tanya-isi-jawab {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+.ai-tanya-kirim {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--text-inverse);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.ai-tanya-isi-jawab .input {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg0);
+.ai-tanya-kirim:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ai-tanya-dot {
-    animation: none;
-  }
+.ai-tanya-kirim:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ai-tanya-ikon:focus-visible,
+.ai-tanya-panah:focus-visible,
+.ai-tanya-kirim:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

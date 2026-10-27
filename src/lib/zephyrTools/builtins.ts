@@ -44,7 +44,9 @@
  *   isi yang salah dengan yakin.
  */
 import { useStore } from '../store';
+import { kunciPath } from '../pathKey';
 import { useAi, MAX_TODOS, todoTerpangkas, permukaanAgentAktif } from '../aiStore';
+import type { LangkahTanya } from '../aiStore';
 import * as cmd from '../commands';
 import type { AgentTool } from '../agentTools';
 import { buatLspTool } from './lsp';
@@ -536,7 +538,11 @@ function akarCwd(): string | null {
 
 /** Berkas yang sedang terbuka di editor, kalau ada. */
 function tabUntuk(path: string) {
-  return useStore.getState().tabs.find((t) => t.path && t.path === path) ?? null;
+  /* `path` comes from the model, `t.path` from our own open. They disagree on
+     separators and case often enough that a raw compare missed the open tab,
+     and the agent then read the stale disk copy of a file the reader is editing. */
+  const kunci = kunciPath(path);
+  return useStore.getState().tabs.find((t) => t.path && kunciPath(t.path) === kunci) ?? null;
 }
 
 /**
@@ -784,6 +790,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
       await (await import('../checkpoint')).catat(path);
       await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
       await segarkanTab(path);
+      await segarkanPohon(path);
       const diff = buatDiff(path, lama, isi);
       return `Ditulis: ${path} (${isi.length} karakter)` + (diff ? `\n${diff}` : '');
     },
@@ -812,6 +819,8 @@ export const TOOL_BAWAAN: AgentTool[] = [
          di tempat lama - menghidupkan kembali berkas yang baru saja
          dipindahkan. */
       useStore.getState().renamePathInTabs(from, to);
+      await segarkanPohon(from);
+      await segarkanPohon(to);
       return `Dipindahkan: ${from} -> ${to}`;
     },
   },
@@ -840,6 +849,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
          can delete it — same reason as the create path above. */
       await (await import('../checkpoint')).catat(to);
       await cmd.fsWrite(to, hasil.content, undefined, undefined, { allowMissing: true });
+      await segarkanPohon(to);
       return `Disalin: ${from} -> ${to} (${hasil.content.length} karakter)`;
     },
   },
@@ -863,6 +873,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
       jagaTulis(path);
       await cmd.fsDelete([path], bacaBool(a.recursive));
       useStore.getState().closeTabsUnder([path]);
+      await segarkanPohon(path);
       return `Dihapus: ${path}`;
     },
   },
@@ -947,6 +958,13 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const hasil = await cmd.searchReplace(berkas, opsi, replacement);
       const berubah = hasil.filter((h) => h.jumlah > 0);
       for (const h of berubah) await segarkanTab(h.path);
+      {
+        /* One scan per affected folder, not per file: a repo-wide replace
+           can touch hundreds of files that live in a handful of folders. */
+        const folder = [...new Set(berubah.map((h) =>
+          h.path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '')))];
+        for (const f of folder) await segarkanFolder(f);
+      }
       const baris = berubah.map((h) => `  ${h.path}  (${h.jumlah} penggantian)`);
       const galat = hasil.filter((h) => h.error);
       const total = berubah.reduce((n, h) => n + h.jumlah, 0);
@@ -1578,9 +1596,11 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     tulis: async (p, isi) => {
       await cmd.fsWrite(p, isi);
+      await segarkanPohon(p);
     },
     hapus: async (p) => {
       await cmd.fsDelete([p]);
+      await segarkanPohon(p);
     },
     ada: async (p) => {
       try {
@@ -1685,22 +1705,44 @@ export const TOOL_BAWAAN: AgentTool[] = [
     spec: {
       name: 'ask_user',
       description:
-        'Tanya user SATU pertanyaan dan tunggu jawabannya sebelum melanjutkan. Pakai hanya kalau ada dua bacaan atau lebih yang sama masuk akal dan salah pilih akan membuang pekerjaan (mis. "hapus berkas lama" tanpa menyebut yang mana). JANGAN pakai untuk hal yang bisa kamu periksa sendiri lewat tool lain, dan jangan untuk basa-basi. Kalau user tidak menjawab, lanjutkan dengan pilihan paling aman dan sebutkan asumsinya.',
+        'Tanya user dan TUNGGU jawabannya sebelum melanjutkan. Kirim satu ATAU beberapa langkah (`langkah[]`); UI menampilkannya sebagai kartu bertahap (Step 1/3, 2/3, ...) dengan tombol Submit, seperti form - tipe field bisa teks, angka, pilih satu, atau pilih banyak. Pakai hanya kalau ada dua bacaan atau lebih yang sama masuk akal dan salah pilih akan membuang pekerjaan (mis. "hapus berkas lama" tanpa menyebut yang mana). JANGAN pakai untuk hal yang bisa kamu periksa sendiri lewat tool lain, dan jangan untuk basa-basi. Kalau user tidak menjawab, lanjutkan dengan pilihan paling aman dan sebutkan asumsinya.',
       parameters: {
         type: 'object',
         properties: {
-          pertanyaan: {
-            type: 'string',
-            description: 'Pertanyaan yang jelas dan singkat, satu kalimat.',
-          },
-          pilihan: {
+          langkah: {
             type: 'array',
             description:
-              'Dua sampai empat kemungkinan jawaban, masing-masing pendek. Boleh kosong kalau jawabannya harus bebas.',
-            items: { type: 'string' },
+              'Satu atau beberapa langkah tanya, ditampilkan berurutan. Untuk satu pertanyaan sederhana, kirim satu langkah saja.',
+            items: {
+              type: 'object',
+              properties: {
+                tipe: {
+                  type: 'string',
+                  enum: ['teks', 'angka', 'pilih-satu', 'pilih-banyak'],
+                  description:
+                    'Jenis field: teks (jawaban bebas), angka (jumlah), pilih-satu (radio), pilih-banyak (checkbox).',
+                },
+                pertanyaan: { type: 'string', description: 'Judul langkah, satu baris pendek.' },
+                deskripsi: {
+                  type: 'string',
+                  description: 'Kalimat penjelas singkat di bawah judul. Boleh kosong.',
+                },
+                pilihan: {
+                  type: 'array',
+                  description:
+                    'Daftar pilihan untuk tipe pilih-satu / pilih-banyak. WAJIB untuk dua tipe itu, diabaikan untuk teks/angka.',
+                  items: { type: 'string' },
+                },
+                wajib: {
+                  type: 'boolean',
+                  description: 'Kalau true, tombol Submit terkunci sampai langkah ini terisi.',
+                },
+              },
+              required: ['tipe', 'pertanyaan'],
+            },
           },
         },
-        required: ['pertanyaan'],
+        required: ['langkah'],
       },
     },
     run: async (a) => {
@@ -1720,16 +1762,53 @@ export const TOOL_BAWAAN: AgentTool[] = [
         return 'Pertanyaan ke user sedang dimatikan untuk permukaan ini (Conversation > Agent Questioning Proactively). Jangan menunggu jawaban: pilih bacaan paling aman, kerjakan, lalu sebutkan asumsi yang kamu ambil.';
       }
 
-      const pertanyaan = String(a.pertanyaan ?? '').trim();
-      if (!pertanyaan) {
-        return 'ERROR: `pertanyaan` kosong. Tidak ada yang bisa ditanyakan, jadi lanjutkan sendiri dan sebutkan asumsimu.';
-      }
-      const pilihan = (Array.isArray(a.pilihan) ? a.pilihan : [])
-        .map((p) => String(p ?? '').trim())
-        .filter(Boolean)
-        .slice(0, 4);
+      /*
+       * Dua bentuk masuk diterima, dan itu disengaja.
+       *
+       * Bentuk BARU `langkah[]` adalah yang diminta spec di atas. Bentuk LAMA
+       * `{ pertanyaan, pilihan }` tetap diterima supaya model yang menghafal
+       * skema lama, atau percakapan lama yang masih di riwayat, tidak langsung
+       * gagal - keduanya dinormalkan ke daftar langkah di sini, bukan ditolak.
+       */
+      const TIPE_SAH = new Set(['teks', 'angka', 'pilih-satu', 'pilih-banyak']);
+      const langkahMasuk: unknown[] = Array.isArray(a.langkah)
+        ? (a.langkah as unknown[])
+        : a.pertanyaan
+          ? [{ tipe: 'teks', pertanyaan: a.pertanyaan, pilihan: a.pilihan }]
+          : [];
 
-      const jawaban = await useAi.getState().agentAjukanTanya(pertanyaan, pilihan);
+      const langkah: LangkahTanya[] = [];
+      for (const mentah of langkahMasuk.slice(0, 8)) {
+        const o = (mentah ?? {}) as Record<string, unknown>;
+        const pertanyaan = String(o.pertanyaan ?? '').trim();
+        if (!pertanyaan) continue;
+        const tipeMentah = String(o.tipe ?? 'teks').trim();
+        const pilihan = (Array.isArray(o.pilihan) ? o.pilihan : [])
+          .map((x) => String(x ?? '').trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        /* `pilih-satu`/`pilih-banyak` tanpa daftar pilihan bukan pilihan sama
+           sekali - jatuh ke `teks` supaya pembaca tetap bisa menjawab. */
+        const pilih = tipeMentah === 'pilih-satu' || tipeMentah === 'pilih-banyak';
+        const tipe: LangkahTanya['tipe'] = pilih && pilihan.length === 0
+          ? 'teks'
+          : TIPE_SAH.has(tipeMentah)
+            ? (tipeMentah as LangkahTanya['tipe'])
+            : 'teks';
+        langkah.push({
+          tipe,
+          pertanyaan,
+          deskripsi: String(o.deskripsi ?? '').trim() || undefined,
+          pilihan: pilih && pilihan.length ? pilihan : undefined,
+          wajib: o.wajib === true,
+        });
+      }
+
+      if (langkah.length === 0) {
+        return 'ERROR: tidak ada satu pun langkah yang bisa ditanyakan. Lanjutkan sendiri dan sebutkan asumsi yang kamu ambil.';
+      }
+
+      const jawaban = await useAi.getState().agentAjukanTanya(langkah);
 
       if (jawaban === null) {
         return 'User menutup pertanyaannya tanpa menjawab. Itu berarti "putuskan sendiri": ambil jalan paling aman, kerjakan, dan sebutkan asumsimu. Jangan mengulang pertanyaan ini.';
@@ -2332,4 +2411,38 @@ export async function tulis(path: string, isi: string): Promise<void> {
 async function segarkanTab(path: string): Promise<void> {
   const tab = tabUntuk(path);
   if (tab) await useStore.getState().reloadTabFromDisk(path).catch(() => undefined);
+}
+
+/**
+ * Tell the Explorer that a path on disk changed.
+ *
+ * Every write tool used to skip this and rely on the OS file watcher to notice.
+ * The watcher only covers the workspace root, it is best-effort by design, and
+ * a failure to install it was swallowed — so files an agent created or deleted
+ * simply did not appear (or lingered) in the tree until a manual refresh, and a
+ * manual refresh could blank the panel. Rebuilding the listing of the affected
+ * folder directly is deterministic and costs one directory scan.
+ *
+ * The parent is refreshed, not the file: `refreshDir` reloads a directory
+ * listing, and a newly created file has never been scanned before.
+ */
+async function segarkanPohon(path: string): Promise<void> {
+  const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '');
+  await segarkanFolder(parent || path);
+}
+
+/**
+ * Same, for a folder we already know. Kept separate so callers that worked out
+ * the directory themselves (a bulk replace knows every file, and its folders)
+ * do not have to forge a child path just to have it stripped off again.
+ */
+async function segarkanFolder(dir: string): Promise<void> {
+  if (!dir) return;
+  try {
+    const { useExplorer } = await import('../explorerStore');
+    await useExplorer.getState().refreshDir(dir);
+  } catch {
+    /* The tree is a view over the disk; failing to redraw it must not turn a
+       successful write into a failed tool call. The next refresh fixes it. */
+  }
 }
