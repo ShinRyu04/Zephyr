@@ -142,6 +142,7 @@ pub fn mcp_client_tools(
                     &s.command,
                     &s.args,
                     Some(s.cwd.as_str()),
+                    &s.env,
                 );
             }
             if !s.url.trim().is_empty() {
@@ -206,6 +207,10 @@ pub fn mcp_client_save(
     command: Option<String>,
     args: Option<Vec<String>>,
     cwd: Option<String>,
+    /* Environment for a stdio server, spelled the way the `mcpServers` document
+       spells it. Optional so every existing caller and every stored server keeps
+       working - this only ADDS a capability. */
+    env: Option<std::collections::BTreeMap<String, String>>,
 ) -> ZResult<McpServer> {
     crate::mcp_client::save_server(
         &app,
@@ -217,6 +222,7 @@ pub fn mcp_client_save(
         command.unwrap_or_default(),
         args.unwrap_or_default(),
         cwd.unwrap_or_default(),
+        env,
     )
 }
 

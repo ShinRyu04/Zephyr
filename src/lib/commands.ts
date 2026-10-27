@@ -1207,6 +1207,8 @@ export const mcpClientSave = (opts: {
   command?: string;
   args?: string[];
   cwd?: string;
+  /** Environment variables for a stdio server (NAME -> value). */
+  env?: Record<string, string>;
 }) => invoke<McpServer>('mcp_client_save', opts);
 
 export const mcpClientRemove = (id: string) => invoke<boolean>('mcp_client_remove', { id });
@@ -1250,6 +1252,15 @@ export const extensionsWriteBundled = (id: string) =>
   invoke<string>('extensions_write_bundled', { id });
 
 export const extensionsBundledIds = () => invoke<string[]>('extensions_bundled_ids');
+
+/**
+ * Read a bundled icon theme's definitions WITHOUT installing it.
+ *
+ * Returns the `icons/*.json` documents the pack ships. Used only for the
+ * marketplace preview: browsing a theme must never install it.
+ */
+export const extensionsPreviewBundled = (id: string) =>
+  invoke<Record<string, string>>('extensions_preview_bundled', { id });
 
 export const extensionsDownloadZext = (url: string, id: string) =>
   invoke<string>('extensions_download_zext', { url, id });
@@ -1462,6 +1473,19 @@ export const dapSetBreakpointsEx = (path: string, breakpoints: DapBreakpointOpsi
 export const dapLoadedSources = () => invoke<Record<string, unknown>>('dap_loaded_sources');
 
 export const cliArgsAwal = () => invoke<CliArgs>('cli_args_awal');
+/**
+ * Agent avatars. The store keeps the bare FILE NAME; the bytes live in
+ * `%APPDATA%\zephyr\avatars`, so settings stay small and an image cannot
+ * corrupt them.
+ *
+ * `avatarSave` takes the already-downscaled payload (no data-URL prefix) and
+ * returns the file name to store. `avatarUrl` returns an absolute path, or ""
+ * when the file is gone - callers must fall back to the drawn mark on "".
+ */
+export const avatarSave = (id: string, data: number[]) =>
+  invoke<string>('avatar_save', { id, data });
+export const avatarDelete = (id: string) => invoke<boolean>('avatar_delete', { id });
+export const avatarUrl = (name: string) => invoke<string>('avatar_url', { name });
 
 export const cliParse = (argv: string[], cwd: string) =>
   invoke<CliArgs>('cli_parse', { argv, cwd });

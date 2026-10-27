@@ -87,9 +87,9 @@ export default function AccessibilitySection() {
           label="Minimum notification duration"
           testid="a11y-toast-durasi"
           value={a.toastDurasiMin}
-          min={1500}
-          max={30000}
-          step={500}
+            min={1000}
+            max={30000}
+            step={500}
           suffix="ms"
           onChange={(v) => patch({ toastDurasiMin: v })}
         />

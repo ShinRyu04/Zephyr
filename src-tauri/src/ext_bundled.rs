@@ -3452,6 +3452,38 @@ fn cari_paket(id: &str) -> Option<Paket> {
         .or_else(|| PAKET_BAHASA.iter().copied().find(|(pid, _)| *pid == id))
 }
 
+/**
+ * Preview a bundled icon theme WITHOUT installing it.
+ *
+ * The marketplace has to show what an icon theme looks like before the reader
+ * commits to it - that is the whole decision - but the packs only reach the
+ * renderer once the extension is installed. Writing the pack to disk just to
+ * read it would install it as a side effect of browsing, which is exactly what
+ * a preview must not do.
+ *
+ * This returns the pack's icon-definition files as text, read from the same
+ * `PAKET` table `extensions_write_bundled` writes, and touches nothing.
+ */
+#[tauri::command]
+pub fn extensions_preview_bundled(id: String) -> ZResult<std::collections::BTreeMap<String, String>> {
+    let paket = cari_paket(&id)
+        .ok_or_else(|| ZephyrError::NotFound(format!("paket bundled {id}")))?;
+    let mut out = std::collections::BTreeMap::new();
+    for (rel, isi) in paket.1 {
+        /* Only the icon-definition documents: the preview needs the marks, not
+           the manifest, the grammar or the theme tokens. */
+        if rel.starts_with("icons/") && rel.ends_with(".json") {
+            out.insert((*rel).to_string(), (*isi).to_string());
+        }
+    }
+    if out.is_empty() {
+        return Err(ZephyrError::NotFound(format!(
+            "{id} has no icon definitions to preview"
+        )));
+    }
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn extensions_write_bundled(state: State<AppState>, id: String) -> ZResult<String> {
     let paket =

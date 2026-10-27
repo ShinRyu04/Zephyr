@@ -890,3 +890,191 @@
 .xmg-switch.is-on .xmg-switch-knob {
   transform: translateX(15px);
 }
+
+/* ── Shelf grouping: repository vs local ─────────────────────────────────
+ *
+ * The grid used to be one undifferentiated block, so a package fetched from
+ * someone's GitHub and one this build ships sat side by side with no marker -
+ * exactly where the reader is deciding whether to run third-party code. The
+ * outer grid stays for layout; each shelf is a full-width cell with its own
+ * inner grid, and the heading only appears when both shelves have rows.
+ */
+.xmkt-grup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xmkt-grup-judul {
+  margin: 12px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* The marketplace body is the scroll container; it needs a hard bound, or the
+   last rows sit under the window edge with no way to reach them. */
+.xmkt-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── Icon theme preview ──────────────────────────────────────────────────
+ *
+ * A theme card carries every mark the pack contributes, so the reader can
+ * choose by looking. That is many more pixels than a normal card, which is why
+ * the strip is capped and scrolls: an unbounded grid of a hundred icons would
+ * move the Install button far below the fold and make the card feel broken.
+ */
+.xmkt-ikon-pratinjau {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px;
+  max-height: 132px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.xmkt-ikon-sel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+/* The pack's markup carries its own size hints; pin the box so a 32px viewBox
+   does not make one cell taller than its neighbours. */
+.xmkt-ikon-svg {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+}
+.xmkt-ikon-svg > svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.xmkt-ikon-glyph {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* The card needs the full width for that strip. */
+.xmkt-kartu:has(.xmkt-ikon-pratinjau) {
+  grid-column: 1 / -1;
+}
+
+/* ── Languages tab: the "already built in" note ──────────────────────────
+ *
+ * It sits above the catalogue and must not read as another row of it: a card
+ * with a border, a count, and the compile caveat set apart from the list of
+ * languages. The list itself is a dense wrap of chips so forty languages take
+ * four lines instead of forty.
+ */
+.xmkt-info-bahasa {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.xmkt-info-kepala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.xmkt-info-teks {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.xmkt-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-bottom: 8px;
+}
+
+.xmkt-info-sel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.xmkt-info-sel em {
+  font-style: normal;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+/* The caveat is the one part that must not be skimmed past. */
+.xmkt-info-ingat {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+.xmkt-info-catatan {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+/* ── Honest note on a language pack ──────────────────────────────────────
+ *
+ * Two kinds, and they must be told apart at a glance - not by reading:
+ *   ekstensi-sisa - the language already ships; only a few extensions are new.
+ *   no-op         - installing changes nothing at all.
+ * A plain paragraph would read as another line of the description, which is
+ * exactly the ambiguity the note exists to remove.
+ */
+.xmkt-label-jujur {
+  display: block;
+  margin-top: 3px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+  border: 1px solid var(--border);
+}
+
+.xmkt-label-jujur.is-ekstensi-sisa {
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+/* A NO-OP must not look like an ordinary option. */
+.xmkt-label-jujur.is-no-op {
+  color: var(--text);
+  background: color-mix(in srgb, var(--warn, #f59e0b) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warn, #f59e0b) 45%, transparent);
+}

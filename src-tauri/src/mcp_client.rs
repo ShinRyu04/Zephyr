@@ -30,6 +30,15 @@ pub struct McpServer {
     /// Direktori kerja perintah (opsional; kosong = direktori app).
     #[serde(default)]
     pub cwd: String,
+
+    /// Environment variables for a stdio server, as NAME -> value.
+    ///
+    /// MCP servers are configured this way in the wild (`env` in the
+    /// `mcpServers` document), and a server that needs a key simply does not
+    /// start without it. Stored here so a manually added server keeps working
+    /// after a restart instead of losing the variables with the dialog.
+    #[serde(default)]
+    pub env: std::collections::BTreeMap<String, String>,
 }
 
 impl McpServer {
@@ -343,6 +352,7 @@ pub fn call_by_server(state: &AppState, server: &str, tool: &str, args: Value) -
             &s.command,
             &s.args,
             Some(s.cwd.as_str()),
+            &s.env,
             tool,
             args,
         );
@@ -360,6 +370,8 @@ pub fn save_server(
     command: String,
     args: Vec<String>,
     cwd: String,
+    /* Environment for a stdio server; `None` and an empty map mean the same. */
+    env: Option<std::collections::BTreeMap<String, String>>,
 ) -> ZResult<McpServer> {
     let alamat = url.trim().to_string();
     let perintah = command.trim().to_string();
@@ -380,17 +392,14 @@ pub fn save_server(
         label.trim().to_string()
     };
     let server = McpServer {
-        id: if id.trim().is_empty() {
-            new_id()
-        } else {
-            id.trim().to_string()
-        },
+        id: id_server(&id),
         label: judul,
         url: alamat,
         token: token.trim().to_string(),
         command: perintah,
         args,
         cwd: cwd.trim().to_string(),
+        env: env.unwrap_or_default(),
     };
 
     let mut daftar = servers_of(state);
@@ -413,6 +422,55 @@ pub fn remove_server(app: &tauri::AppHandle, state: &AppState, id: &str) -> ZRes
     }
     crate::settings::patch_settings(app, state, json!({ "mcp": { "servers": daftar } }))?;
     Ok(true)
+}
+
+/**
+ * The id an MCP server is stored under, made safe for tool names.
+ *
+ * The id becomes part of every tool name it contributes (`mcp__<id>__<tool>`),
+ * and `pecah_nama_mcp` splits that name on the first `__`. An id containing
+ * `__`, whitespace or punctuation therefore mis-splits: the tool is attributed
+ * to a server that does not exist and the call is dropped. The manual-config
+ * dialog accepts JSON written by somebody else, which is exactly where such an
+ * id arrives.
+ *
+ * Letters, digits, `-`, `_` and `.` pass through; everything else becomes `-`,
+ * and a doubled `__` collapses so it can never look like the separator.
+ * An id that normalises to nothing gets a generated one.
+ */
+fn id_server(id: &str) -> String {
+    let bersih: String = id
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    /*
+     * Leading and trailing dots are stripped too, not just dashes.
+     *
+     * `.` is allowed inside an id (`v2.1`), but at the EDGES it is the one
+     * character that makes a name look like a path: `../secret` normalised to
+     * `..-secret` with dashes trimmed only. An id is a label, never a path, so
+     * it may not begin or end with a dot either.
+     */
+    let bersih = bersih
+        .trim_matches(|c| c == '-' || c == '.')
+        .replace("__", "_");
+    if bersih.is_empty() {
+        new_id()
+    } else {
+        bersih
+    }
+}
+
+/** Test seam for `id_server`; see `tests_mcp::id_server_bisa_dipakai_di_nama_tool`. */
+pub fn id_server_for_test(id: &str) -> String {
+    id_server(id)
 }
 
 fn new_id() -> String {

@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use tauri::State;
 
+use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 
 pub const ACCENT_PUB: &str = "\x1b[38;2;79;140;255m";
@@ -199,11 +201,43 @@ pub fn path_penanda_wait(token: &str) -> PathBuf {
     dir_penanda_wait().join(format!("{bersih}.wait"))
 }
 
+/**
+ * Register the files a command line named, so opening them is allowed.
+ *
+ * "Open with Zephyr" hands the app a path from an association (`"%1"` in
+ * `scripts/asosiasi-zephyr.ps1`), and it is usually OUTSIDE whatever workspace
+ * happens to be open. The read path goes through `fs_read`, which asks
+ * `ensure_writable` before touching the disk, so the double-click used to die
+ * with "path outside the workspace".
+ *
+ * The guard is not weakened here: nothing about it changes, and the workspace
+ * is not moved. A path the user typed or double-clicked is a deliberate
+ * approval, exactly like the path they pick in the file dialog
+ * (`dialogs.rs` -> `allow_exact`). `allow_exact` opens that ONE file, never its
+ * folder - `allow` would hand out the parent directory instead.
+ *
+ * Diff operands are registered too: both are files the user literally named.
+ */
+pub fn izinkan_target_cli(state: &AppState, args: &Args) {
+    for t in &args.targets {
+        match t {
+            Target::File { path, .. } => state.allow_exact(Path::new(path)),
+            Target::Diff { kiri, kanan } => {
+                state.allow_exact(Path::new(kiri));
+                state.allow_exact(Path::new(kanan));
+            }
+            Target::Folder(_) => {}
+        }
+    }
+}
+
 #[tauri::command(async)]
-pub fn cli_args_awal() -> Args {
+pub fn cli_args_awal(state: State<'_, AppState>) -> Args {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    parse(&argv, &cwd)
+    let args = parse(&argv, &cwd);
+    izinkan_target_cli(&state, &args);
+    args
 }
 
 #[tauri::command(async)]
@@ -249,8 +283,10 @@ pub fn cli_teks(mode: String, warna: bool, kolom: Option<usize>) -> ZResult<Stri
 }
 
 #[tauri::command(async)]
-pub fn cli_parse(argv: Vec<String>, cwd: String) -> Args {
-    parse(&argv, Path::new(&cwd))
+pub fn cli_parse(state: State<'_, AppState>, argv: Vec<String>, cwd: String) -> Args {
+    let args = parse(&argv, Path::new(&cwd));
+    izinkan_target_cli(&state, &args);
+    args
 }
 
 #[cfg(windows)]

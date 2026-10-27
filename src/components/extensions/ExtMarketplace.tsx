@@ -52,6 +52,9 @@ import { useSnip } from '../../lib/snippetStore';
 import { semuaTema, resolveTheme } from '../../lib/themes';
 import IkonExt from './IkonExt';
 import { IkonPasar } from './IkonPasar';
+import PratinjauIkon from './PratinjauIkon';
+import { labelPaket } from '../../lib/labelPaket';
+import InfoBahasa from './InfoBahasa';
 import ExtMarketplaceManage from './ExtMarketplaceManage';
 
 export type Tab =
@@ -88,9 +91,41 @@ interface Kartu {
   aktif?: boolean;
   /** Paket ekstensi di balik baris ini, kalau ada. */
   paket?: KatalogItem;
-  /** Teks kecil di samping nama (mis. "Local", "v1.0.0"). */
-  badge?: string;
-}
+    /**
+     * Which shelf the row belongs on: fetched from someone's repository, or
+     * shipped/built locally.
+     *
+     * The reader is deciding whether to run third-party code, so the two are
+     * never mixed into one list. Left unset by the row builders; `sumberKartu`
+     * derives it from the data already present instead of asking every builder
+     * to repeat the rule.
+     */
+    sumber?: 'repo' | 'lokal';
+    /** Teks kecil di samping nama (mis. "Local", "v1.0.0"). */
+    badge?: string;
+  }
+
+  /**
+   * Repository or local, from what the row already knows.
+   *
+   * Three signals, in order:
+   *   1. an explicit `sumber`, when the builder already knows;
+   *   2. a package whose `url` points at a repository - that is code fetched
+   *      from somewhere else, the thing the reader is deciding to trust;
+   *   3. `publisher === 'zephyr'`, which is bundled by definition.
+   *
+   * Everything else counts as local. The bundled catalogue is ALL `zephyr`, so
+   * on a fresh install every row lands on the local shelf and no heading is
+   * drawn - the split only appears once a repository package is present, which
+   * is exactly when the distinction starts to matter.
+   */
+  function sumberKartu(k: Kartu): 'repo' | 'lokal' {
+    if (k.sumber) return k.sumber;
+    const url = String(k.paket?.url ?? '');
+    if (/^https?:\/\/(www\.)?github\.com\//i.test(url)) return 'repo';
+    if (k.paket?.publisher === 'zephyr') return 'lokal';
+    return 'lokal';
+  }
 
 export default function ExtMarketplace({
   /*
@@ -601,6 +636,15 @@ export default function ExtMarketplace({
         </p>
       )}
 
+      {/*
+        * The Languages tab leads with what the app ALREADY does.
+        *
+        * Ninety catalogue rows look like ninety things to install; they are
+        * not, and the note also separates highlighting from the toolchain so
+        * nobody expects a bundled compiler. See `InfoBahasa`.
+        */}
+      {tab === 'languages' && <InfoBahasa />}
+
       {tampil.length === 0 ? (
         <div className="xmkt-kosong" data-testid="xmkt-kosong">
           <AiIkon name="puzzle" size={22} />
@@ -608,7 +652,34 @@ export default function ExtMarketplace({
         </div>
       ) : (
         <div className="xmkt-grid" data-testid="xmkt-grid">
-          {tampil.map((k) => (
+          {/*
+            * Split by source, and only when BOTH kinds are present.
+            *
+            * A heading over an empty half is noise; a single undifferentiated
+            * grid is what made "did I write this or did it come from GitHub"
+            * unanswerable. The marker is per row, so filtering and searching
+            * keep working - it is the same list, drawn on two shelves.
+            */}
+          {(['repo', 'lokal'] as const).map((kel) => {
+            const isi = tampil.filter((k) => sumberKartu(k) === kel);
+            if (isi.length === 0) return null;
+            const adaKeduanya =
+              tampil.some((k) => sumberKartu(k) === 'repo') &&
+              tampil.some((k) => sumberKartu(k) === 'lokal');
+            return (
+              <div
+                key={kel}
+                className="xmkt-grup"
+                data-testid={`xmkt-grup-${kel}`}
+                style={{ gridColumn: '1 / -1' }}
+              >
+                {adaKeduanya && (
+                  <h3 className="xmkt-grup-judul">
+                    {kel === 'repo' ? tr('From repository') : tr('Local / built in')}
+                  </h3>
+                )}
+                <div className="xmkt-grid">
+                  {isi.map((k) => (
             <article
               className="xmkt-kartu"
               key={k.id}
@@ -640,8 +711,49 @@ export default function ExtMarketplace({
                   )}
                   {k.badge && <span className="xmkt-badge">{k.badge}</span>}
                 </span>
-                <span className="xmkt-ket">{k.ket}</span>
-              </div>
+                  <span className="xmkt-ket">{k.ket}</span>
+                  {/*
+                    * The honest note for a language pack that adds little.
+                    *
+                    * The table in `labelPaket.ts` was written from the real
+                    * catalogue but never rendered anywhere, so a pack claiming
+                    * ".pp" that Pascal already owns still read as new language
+                    * support. Only packs WITH a note draw this row; the rest are
+                    * unchanged.
+                    */}
+                  {(() => {
+                    /*
+                     * Card ids carry a namespace prefix (`paket:zephyr.lang-perl`)
+                     * while the honesty table is keyed by the extension id alone.
+                     * Passing the raw card id made every lookup miss, so the note
+                     * existed in code and never appeared on screen.
+                     */
+                    const idPaket = k.id.replace(/^paket:/, '');
+                    const l = labelPaket(idPaket);
+                    if (!l) return null;
+                    return (
+                      <span
+                        className={`xmkt-label-jujur is-${l.jenis}`}
+                        data-jenis-label={l.jenis}
+                        data-testid={`xmkt-label-${idPaket}`}
+                      >
+                        {tr(l.teks)}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/*
+                  * An icon theme is chosen by how its marks LOOK, so the card
+                  * shows them. The data is the installed pack itself
+                  * (`PaketIkon.ikon`), which is why this needs no new command -
+                  * the old card drew a colour swatch or two initials instead,
+                  * and the reader had to install a theme to find out.
+                  */}
+                {k.jenis === 'icon-themes' && (() => {
+                  const paket = packs.find((p) => `ikon:${p.extId}` === k.id);
+                  return paket ? <PratinjauIkon paket={paket} label={paket.label} /> : null;
+                })()}
 
               <span className="xmkt-aksi">
                 {/* ── Plugins ── */}
@@ -761,7 +873,11 @@ export default function ExtMarketplace({
 
               </span>
             </article>
-          ))}
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -172,7 +172,12 @@ export interface ProbeResult {
   ms: number;
 }
 
-export type FsChangeKind = 'create' | 'remove' | 'modify';
+/*
+ * `error` is the watcher itself failing to start, not a change on disk. Rust
+ * has always been able to send it (`explorer.rs`), but the type never allowed
+ * it, so the frontend had no way to name — let alone react to — the event.
+ */
+export type FsChangeKind = 'create' | 'remove' | 'modify' | 'error';
 
 export type PtyKind = 'shell' | 'private' | 'cmd' | 'bash' | 'wsl' | 'pwsh' | 'agent' | 'ssh';
 
@@ -355,6 +360,33 @@ export interface ChatMsg extends AiMessage {
    * one.
    */
   checkpoint?: import('./checkpoint').Checkpoint;
+
+  /*
+   * The files THIS run changed, frozen when the run ended.
+   *
+   * A snapshot rather than a live read on purpose. The transcript's card used
+   * to be built from `diffStore` at render time and pinned to the end of the
+   * list, so it followed the chat forever and always described the newest run -
+   * a reader scrolling back saw one card claiming to be every turn's work.
+   * Carried on the message, it belongs to the turn that produced it: it stays
+   * where it was inserted and scrolls away with the rest of the history, which
+   * is what the reference does.
+   *
+   * Absent on a read-only turn - there is nothing to summarise, and an empty
+   * card is worse than none.
+   */
+  perubahan?: {
+    path: string;
+    /** File name with its extension. */
+    nama: string;
+    /** Name without the extension - the bold part of the row. */
+    judul: string;
+    /** Directory part; empty for a file at the workspace root. */
+    dir: string;
+    tambah: number;
+    hapus: number;
+    gagal: boolean;
+  }[];
 
   /*
    * What HydraFusion decided for THIS turn, when it routed it.
@@ -713,6 +745,13 @@ export interface McpServer {
   args?: string[];
   /** Direktori kerja perintah (opsional; kosong = direktori app). */
   cwd?: string;
+  /**
+   * Environment variables for a stdio server (NAME -> value).
+   *
+   * Part of the `mcpServers` document every MCP server publishes, and the only
+   * way a server that needs a key starts at all.
+   */
+  env?: Record<string, string>;
 }
 
 export interface McpToolSpec {
@@ -1614,6 +1653,16 @@ export interface Settings {
      */
     customInstructions: string;
 
+    /**
+     * The agent selected in the composer: `''` / `'agent'` for the built-in
+     * Agent, `'chat'` for Chat, or a `CustomAgent` id.
+     *
+     * Global rather than per-workspace on purpose - the reader switches agents
+     * the way they switch models, and a switch that came back after re-opening
+     * a folder would feel like the picker had not taken.
+     */
+    agentAktif?: string;
+
     /*
      * `chatAvatar` was removed: the transcript no longer renders avatars, so a
      * switch that could only turn on something that does not exist was dead
@@ -2047,14 +2096,20 @@ export const DEFAULT_SETTINGS: Settings = {
    * checkpoint, and `terminalAutoOpen: 'always'` takes over a pane. None of that
    * may happen because someone opened a settings page, so the defaults are the
    * quiet ones and the reader opts in.
+   *
+   * SATU pengecualian, dan arahnya berlawanan: `questioningIde` /
+   * `questioningSolo` menyala secara default. Keduanya tidak menyentuh berkas
+   * dan tidak merebut apa pun - justru sebaliknya: agen berhenti dan BERTANYA
+   * sebelum melakukan hal yang tidak bisa dibatalkan. Mematikannya adalah
+   * pilihan yang boleh diambil pembaca; menyalakannya adalah sikap aman.
    */
   conversation: {
     todoListIde: false,
     todoListSolo: false,
     autoFixIde: false,
     autoFixSolo: false,
-    questioningIde: false,
-    questioningSolo: false,
+    questioningIde: true,
+    questioningSolo: true,
     reviewScope: 'all',
     reviewJump: true,
     terminalEnv: 'efficient',
@@ -2075,7 +2130,7 @@ export const DEFAULT_SETTINGS: Settings = {
     reducedMotion: false,
     screenReader: false,
     autoFocusDialog: true,
-    toastDurasiMin: 3200,
+    toastDurasiMin: 1000,
   },
   git: { defaultBranch: 'main', pullBeforePush: true },
   mcp: { enabled: false, autostart: false, port: 9222, token: '', writeToCli: [], allowTerminalControl: false, maxToolsPerServer: 40 },

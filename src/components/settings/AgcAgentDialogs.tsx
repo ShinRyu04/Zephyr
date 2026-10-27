@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { IKON_SUBAGENT, ikonSubagent } from '../../lib/subagentIcons';
+import { kecilkanGambar } from '../../lib/gambarKecil';
 
 /*
  * The avatar set, in the order the picker shows it.
@@ -105,16 +106,31 @@ function Dialog({
   );
 }
 
+/** Read a picked image file as a data URL, so the shared downscaler can run. */
+function berkasKeDataUrl(f: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result ?? ''));
+    r.onerror = () => reject(new Error('could not read the image'));
+    r.readAsDataURL(f);
+  });
+}
+
 /* ── Avatar picker ────────────────────────────────────────────────────────── */
 
 export function AvatarPicker({
   nilai,
   onPilih,
   onTutup,
+  onGambar,
+  onGagal,
 }: {
   nilai: string;
   onPilih: (id: string) => void;
   onTutup: () => void;
+  /** Uploaded picture: base64 payload (no prefix) and the original file name. */
+  onGambar?: (base64: string, namaBerkas: string) => void;
+  onGagal?: (pesan: string) => void;
 }) {
   const tr = useT();
   const [calon, setCalon] = useState(nilai || 'robot');
@@ -178,21 +194,49 @@ export function AvatarPicker({
           {tr('Upload from Local')}
         </button>
         {/*
-          * Uploading an image avatar is NOT wired to a store field: an agent's
-          * icon is an id from `subagentIcons.ts`, and there is no column for
-          * image bytes. The input is here so the control is honest about what it
-          * does - it opens the picker and reports that this build keeps drawn
-          * marks - instead of silently doing nothing.
-        */}
+          * Uploading replaces the drawn mark with a real picture.
+          *
+          * The file is downscaled HERE, before it leaves the webview: an agent
+          * avatar renders at 13-44 px, and shipping a 4 MB photo into the data
+          * folder would be a waste that also makes the picker slow. 128 px is
+          * four times the largest size it is ever drawn at.
+          *
+          * The parent saves the bytes; this dialog only reports what was picked
+          * so a failed write can be shown instead of silently keeping the old
+          * mark.
+          */}
         <input
           ref={berkasRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           hidden
           data-testid="agx-avatar-berkas"
-          onChange={() => onTutup()}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            void berkasKeDataUrl(f)
+              .then((dataUrl) => kecilkanGambar(dataUrl, { sisiMaks: 128, batasChar: 400_000 }))
+              .then((h) => onGambar?.(h.dataUrl.replace(/^data:[^,]*,/, ''), f.name))
+              .catch((err: unknown) =>
+                onGagal?.(String((err as { message?: string })?.message ?? err)),
+              )
+              .finally(() => onTutup());
+          }}
         />
-        <span className="agset-muted agset-dialog-catatan">{tr('Drawn avatars only in this build')}</span>
+        {nilai ? (
+          <button
+            type="button"
+            className="agset-btn-batal"
+            data-testid="agx-avatar-hapus"
+            onClick={() => {
+              onGambar?.('', '');
+              onTutup();
+            }}
+          >
+            {tr('Remove avatar')}
+          </button>
+        ) : null}
       </div>
 
       <div className="modal-actions">

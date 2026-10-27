@@ -114,7 +114,17 @@ export function seksiDariHash(hash: string): string | null {
   const bersih = hash.replace(/^#/, '');
   const i = bersih.indexOf('&s=');
   if (i < 0) return null;
-  const s = decodeURIComponent(bersih.slice(i + 3));
+  /*
+   * Stop at the NEXT parameter, not at the end of the hash.
+   *
+   * The opener appends `&from=<label>` after `&s=`, so slicing to the end
+   * returned "agents&from=main" - a string that matches no section, which sent
+   * every panel opened from another window back to its default section. The
+   * symptom was `Create Agent` landing on Agent Customizations' Overview
+   * instead of its Agents page.
+   */
+  const sisa = bersih.slice(i + 3).split('&')[0] ?? '';
+  const s = decodeURIComponent(sisa);
   return s || null;
 }
 
@@ -124,6 +134,17 @@ export function seksiDariHash(hash: string): string | null {
  * `null` when the panel was loaded directly - then there is no opener to ask,
  * and callers must treat the store bridge as unavailable rather than guessing.
  */
+/**
+ * True when the door that opened this panel asked for a NEW item rather than a
+ * page (`#panel=agent-custom&s=agents&new=1`).
+ *
+ * "Create Agent" in the composer means one thing to the reader: the editor, now.
+ * The section alone lands on the list, which reads as "it only opened Settings".
+ */
+export function baruDariHash(hash: string): boolean {
+  return /[?&#]new=1(&|$)/.test(hash);
+}
+
 export function pembukaDariHash(hash: string): string | null {
   const bersih = hash.replace(/^#/, '');
   const i = bersih.indexOf('&from=');
@@ -261,7 +282,7 @@ export async function mintaStoreUtama<T = unknown>(
 }
 
 /** Open (or focus) a panel in its own window. */
-export async function bukaPanelWindow(id: PanelId, seksi?: string): Promise<void> {
+export async function bukaPanelWindow(id: PanelId, seksi?: string, opsi?: { baru?: boolean }): Promise<void> {
   const label = labelPanelWindow(id);
   /*
    * THE OPENER'S LABEL RIDES IN THE URL.
@@ -276,6 +297,7 @@ export async function bukaPanelWindow(id: PanelId, seksi?: string): Promise<void
   const dari = getCurrentWebviewWindow().label;
   const url =
     `index.html#panel=${id}${seksi ? `&s=${encodeURIComponent(seksi)}` : ''}` +
+    (opsi?.baru ? '&new=1' : '') +
     `&from=${encodeURIComponent(dari)}`;
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
@@ -292,7 +314,10 @@ export async function bukaPanelWindow(id: PanelId, seksi?: string): Promise<void
      * from here would only change THIS window's URL.
      */
     if (seksi) {
-      await emitTo(label, 'panel-section', { id, seksi }).catch(() => {});
+      await emitTo(label, 'panel-section', { id, seksi, baru: opsi?.baru === true }).catch(() => {});
+    } else if (opsi?.baru) {
+      /* No section named, but the caller still wants a fresh item started. */
+      await emitTo(label, 'panel-section', { id, seksi: '', baru: true }).catch(() => {});
     }
     return;
   }

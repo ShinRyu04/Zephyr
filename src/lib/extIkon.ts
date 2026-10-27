@@ -197,14 +197,38 @@ function catTinta(svg: string, tinta: string): string {
 }
 
 /**
+ * Does this markup already carry a real colour of its own?
+ *
+ * `fill` was the only thing checked, and that is what flattened an entire icon
+ * theme: line-style marks paint with `stroke="#ffa726"` and leave `fill="none"`,
+ * so they looked "colourless", were tinted as a group, and every file in the
+ * tree came out the same shade. A declared `stroke` that is not `none` and not
+ * `currentColor` is just as much a colour as a `fill`.
+ *
+ * `currentColor` deliberately does NOT count: it means "take the colour from
+ * outside", which is exactly the case that needs a tint here - the outside is a
+ * near-black sidebar.
+ */
+function sudahBerwarna(raw: string): boolean {
+  const warna = /\b(fill|stroke)\s*=\s*"([^"]*)"/gi;
+  for (const m of raw.matchAll(warna)) {
+    const v = m[2].trim().toLowerCase();
+    if (!v || v === 'none' || v === 'currentcolor' || v === 'transparent') continue;
+    /* `url(#gradien)` is a paint server, not the absence of paint. */
+    return true;
+  }
+  return false;
+}
+
+/**
  * Turn a data-URI icon into inline markup, tinted if it has no colour.
  *
  * The marketplace ships each icon as `data:image/svg+xml;base64,…`. An `<img>`
  * holding one cannot be recoloured from outside the document, so 64 of the 73
- * language marks — every single-path icon with no `fill` — rendered as black
- * cutouts on a near-black sidebar. Inlining the markup and pushing a `fill`
- * onto the shape keeps the real artwork and makes it legible; the 9 that
- * already carry their brand colour are passed through untouched.
+ * language marks — every single-path icon with no colour of its own — rendered
+ * as black cutouts on a near-black sidebar. Inlining the markup and pushing a
+ * `fill` onto the shape keeps the real artwork and makes it legible; anything
+ * that already declares a colour is passed through untouched.
  */
 export function inlineIkonDataUri(dataUri: string, nama: string): { svg: string; tint: boolean } | null {
   const m = /^data:image\/svg\+xml;base64,(.+)$/.exec(dataUri.trim());
@@ -216,8 +240,7 @@ export function inlineIkonDataUri(dataUri: string, nama: string): { svg: string;
     return null;
   }
   if (!/<svg/i.test(raw)) return null;
-  const sudahWarna = /fill="(?!none)/i.test(raw);
-  if (sudahWarna) return { svg: raw, tint: false };
+  if (sudahBerwarna(raw)) return { svg: raw, tint: false };
   return { svg: catTinta(raw, WARNA_BAHASA[nama] ?? hueDariNama(nama)), tint: true };
 }
 

@@ -36,7 +36,7 @@ import '../../styles/ai-perubahan.css';
  */
 
 /** One file the session wrote to, with its numbers added up. */
-type Berkas = {
+export type Berkas = {
   path: string;
   /** File name including its extension. */
   nama: string;
@@ -93,9 +93,20 @@ function susun(peta: Map<string, AgentToolRun[]>): Berkas[] {
 
 export default function PerubahanBerkas({
   peta,
+  daftar,
   permukaan = 'main',
 }: {
-  peta: Map<string, AgentToolRun[]>;
+  /** Live tool rows for the SESSION (legacy: the pinned-end-of-chat card). */
+  peta?: Map<string, AgentToolRun[]>;
+  /**
+   * Frozen rows carried by ONE message.
+   *
+   * This is the card as the transcript draws it now: built once when the run
+   * ended and stored on the message, so it stays where it was inserted and
+   * scrolls away with the history. `peta` is kept so an older call site still
+   * compiles, but nothing in the transcript uses it any more.
+   */
+  daftar?: Berkas[];
   /*
    * Which window this card is in.
    *
@@ -112,7 +123,10 @@ export default function PerubahanBerkas({
   const tr = useT();
   const [terbuka, setTerbuka] = useState(false);
 
-  const berkas = useMemo(() => susun(peta), [peta]);
+  const berkas = useMemo(
+    () => daftar ?? (peta ? susun(peta) : []),
+    [daftar, peta],
+  );
 
   /*
    * Numbers from the ACTUAL snapshot, when it has them.
@@ -121,17 +135,25 @@ export default function PerubahanBerkas({
    * the ones measured from the before/after capture. The latter is the truth,
    * so it wins when present, and the row numbers are the fallback for a file
    * the store never saw (a delete, or a run that predates the store).
+   *
+   * A frozen `daftar` already IS that measured snapshot, so it is used as-is -
+   * reading the live store here would let a LATER run rewrite an OLD card.
    */
   const terukur = useDiffBerkas();
 
   const angka = useMemo(() => {
     const p = new Map<string, { tambah: number; hapus: number }>();
     for (const b of berkas) {
+      if (daftar) {
+        p.set(b.path, { tambah: b.tambah, hapus: b.hapus });
+        continue;
+      }
       const m = terukur.find((x) => x.path === b.path);
       p.set(b.path, m ? { tambah: m.tambah, hapus: m.hapus } : { tambah: b.tambah, hapus: b.hapus });
     }
     return p;
-  }, [berkas, terukur]);
+  }, [berkas, terukur, daftar]);
+
 
   /* Nothing was written: no card. A read-only session has nothing to summarise. */
   if (berkas.length === 0) return null;
