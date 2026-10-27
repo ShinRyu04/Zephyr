@@ -24,7 +24,7 @@ export type PermintaanPanelAgx = {
    * Tanpa `browser`, "buka link ini" dari jendela Agents tidak punya jalan untuk
    * menampilkan pane-nya.
    */
-  tampilan: Extract<Tampilan, 'diff-view' | 'file' | 'browser'>;
+  tampilan: Extract<Tampilan, 'diff-view' | 'file' | 'browser' | 'plan' | 'subagent'>;
   /** File to select, for the `file` tab only. */
   path?: string;
 };

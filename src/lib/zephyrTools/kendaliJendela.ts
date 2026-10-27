@@ -61,7 +61,6 @@ export const KONTROL_PANEL: Record<PanelTabId, string> = {
   debug: 'debugConsolePanel.focus',
   terminal: 'terminalPanel.focus',
   ports: 'portsPanel.focus',
-  subagents: 'subagentsPanel.focus',
 };
 
 /* ------------------------------------------------------------------ */

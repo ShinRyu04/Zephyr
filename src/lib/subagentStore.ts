@@ -6,6 +6,7 @@ import { routeSubagentModel, type SubagentModelSource, type SubagentModelCandida
 import { useStore } from './store';
 import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline, type PeranId } from './subagentRoles';
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
+import { faktaInti, petaFitur } from './systemPrompt';
 import { useAi, isDestructive, fullUrlProvider } from './aiStore';
 import type { SesiLatar } from './types';
 import { useSettingsUi } from './settingsStore';
@@ -411,6 +412,15 @@ interface SubAgentState {
 
   /** Restore the last batch from localStorage, once, at start-up. */
   muatTersimpan: () => void;
+
+  /*
+   * Subagent yang DISOROT untuk tampilan detail: klik baris SubAgent di chat
+   * membuka detailnya (panel kanan Agent window / tab editor main window) dan
+   * menandai id-nya di sini, supaya panel/tab yang sama bisa menampilkan
+   * subagent yang berbeda tanpa tab baru per klik.
+   */
+  sorotId: string | null;
+  sorot: (id: string | null) => void;
 }
 
 const resolvers = new Map<string, (r: AgentStepResult) => void>();
@@ -617,6 +627,10 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
         '- If the task cannot be done, say why. Do not make things up.',
       ]
     : [
+        "You are a SUBAGENT of Zephyr, a desktop code editor (Tauri 2 + React + TypeScript) running on the user's machine. You work inside that app on the user's workspace.",
+        faktaInti(),
+        petaFitur(),
+        '',
         'You are a SUBAGENT on a parallel task.',
         p ? `PERANMU: ${p.label}` : '',
         p ? p.arahan : custom ? arahanCustom(custom, total) : '',
@@ -1195,6 +1209,9 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     }
     return true;
   },
+
+  sorotId: null,
+  sorot: (id) => set({ sorotId: id }),
 
   muatTersimpan: () => {
     // Restore once; a later run overwrites this.

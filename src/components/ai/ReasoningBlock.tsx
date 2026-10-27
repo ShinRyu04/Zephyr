@@ -116,7 +116,7 @@ export default function ReasoningBlock({
         aria-expanded={terbuka}
         onClick={() => setPilihan((v) => !(v ?? Boolean(berjalan)))}
       >
-        <AiIkon name="thought" size={13} />
+        <AiIkon name="brain" size={13} />
         {/* While it streams, the header must not claim a duration: the run is
             not over, and "Thought for 0s" is a number that will be wrong in a
             second. Say what is actually happening instead. */}

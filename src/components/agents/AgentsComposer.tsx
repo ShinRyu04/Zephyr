@@ -139,6 +139,10 @@ function MenuIzin() {
   const ref = useRef<HTMLSpanElement | null>(null);
   const mode = useAi((s) => s.approvalMode ?? 'work');
   const setMode = useAi((s) => s.setApprovalMode);
+  /* Plan adalah sumbu runMode, bukan tingkat izin: keduanya berdiri sendiri
+     dan bisa aktif bersamaan - persis produk rujukan. */
+  const runMode = useAi((s) => s.runMode);
+  const setRunMode = useAi((s) => s.setRunMode);
   const aktif = APPROVAL.find((a) => a.id === mode) ?? APPROVAL[1];
 
   useEffect(() => {
@@ -177,6 +181,41 @@ function MenuIzin() {
 
       {buka && (
         <div className="agx-comp-menu is-izin" data-testid="agx-comp-izin-menu" role="menu">
+          {/* Plan paling atas, seperti produk rujukan: ia bukan tingkat izin,
+              jadi memilihnya tidak mengubah approval yang tercentang. */}
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={runMode === 'plan'}
+            className={`agx-comp-menu-item is-dua${runMode === 'plan' ? ' is-on' : ''}`}
+            data-testid="agx-comp-izin-plan"
+            onClick={() => {
+              setRunMode(runMode === 'plan' ? 'interactive' : 'plan');
+              setBuka(false);
+            }}
+          >
+            <span className="agx-comp-menu-teks">
+              <b>
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 1.8a4.4 4.4 0 0 0-2.4 8.1c.5.35.8.9.8 1.5v.3h3.2v-.3c0-.6.3-1.15.8-1.5A4.4 4.4 0 0 0 8 1.8z" />
+                  <path d="M6.6 14h2.8M7.1 15.3h1.8" />
+                </svg>{' '}
+                Plan
+              </b>
+              <i>Plan before editing</i>
+            </span>
+            {runMode === 'plan' && <span className="agx-comp-centang">✓</span>}
+          </button>
+          <div className="agx-comp-menu-sep" />
           {APPROVAL.map((a) => (
             <button
               key={a.id}
@@ -197,23 +236,6 @@ function MenuIzin() {
               {a.id === mode && <span className="agx-comp-centang">✓</span>}
             </button>
           ))}
-
-          {/* Custom bukan mode: ia membuka editor aturan per-alat. */}
-          <button
-            type="button"
-            role="menuitem"
-            className="agx-comp-menu-item is-dua is-pisah"
-            data-testid="agx-comp-izin-custom"
-            onClick={() => {
-              setBuka(false);
-              bukaPanel('chat-settings', 'chat');
-            }}
-          >
-            <span className="agx-comp-menu-teks">
-              <b>Custom</b>
-              <i>Set rules in a config file</i>
-            </span>
-          </button>
         </div>
       )}
     </span>
@@ -260,6 +282,12 @@ export default function AgentsComposer() {
    * membandingkan hasilnya dengan `===` (pelajaran fase 09).
    */
   const tr = useT();
+  const cuSet = useStore((s) => s.settings.computerUse);
+  const applySettings = useStore((s) => s.applySettings);
+  /* Plan chip: ditampilkan HANYA saat runMode 'plan' - kliknya mematikan,
+     tanpa perlu membuka menu izin lagi. */
+  const runMode = useAi((s) => s.runMode);
+  const setRunMode = useAi((s) => s.setRunMode);
   const tanpaKey = useAi(
     (s) => s.keys.length > 0 && !s.keys.some((k) => k.provider === s.provider && k.hasKey),
   );
@@ -470,6 +498,51 @@ export default function AgentsComposer() {
             />
 
             <MenuIzin />
+
+            {/* Chip Plan aktif: tampil di sebelah tombol izin (dropdown di
+                kanannya ikut bergeser), klik = matikan plan mode. */}
+            {(() => {
+              const cu = cuSet;
+              if (!cu?.showButton) return null;
+              return (
+                <button
+                  type="button"
+                  className={`ai-cu-chip${cu.enabled ? ' is-on' : ''}`}
+                  title={cu.enabled ? tr('Computer Use is on') : tr('Computer Use is off')}
+                  onClick={() => void applySettings({ computerUse: { ...(cu ?? { enabled: false, showButton: false }), enabled: !(cu?.enabled ?? false) } })}
+                >
+<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+          <rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.4" />
+          <path d="M5.5 13.5h5M8 11.2v2.3" />
+        </svg>
+                  Computer Use
+                </button>
+              );
+            })()}
+            {runMode === 'plan' && (
+              <button
+                type="button"
+                className="agx-comp-plan-chip"
+                data-testid="agx-comp-plan-chip"
+                title={tr('Matikan plan mode')}
+                onClick={() => setRunMode('interactive')}
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 1.8a4.4 4.4 0 0 0-2.4 8.1c.5.35.8.9.8 1.5v.3h3.2v-.3c0-.6.3-1.15.8-1.5A4.4 4.4 0 0 0 8 1.8z" />
+                  <path d="M6.6 14h2.8M7.1 15.3h1.8" />
+                </svg>
+                Plan
+              </button>
+            )}
 
             {/* Kanan: model tepat di samping tombol kirim, seperti composer
                 panel kanan di jendela utama. `margin-left: auto` ada di sini,

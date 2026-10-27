@@ -84,7 +84,7 @@ import {
   PAYLOAD_MAX_CHARS,
   ukuranPayload,
 } from './contextBudget';
-import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel, SesiLatar } from './types';
+import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel, ReasoningSegmen, SesiLatar } from './types';
 import { TOOL_CATALOG } from './zephyrTools/catalog';
 import { agentStopMessage, type AgentFailureCategory, type AgentStopReason } from './agentStop';
 
@@ -526,6 +526,14 @@ import { BATAS_TULIS_PAKSA } from './agentDorong';
 
 import { useCliAgent } from './cliAgentStore';
 import { useTerminal } from './terminalStore';
+/*
+ * Skill yang dimatikan pembaca di Agent Customizations -> Skills.
+ *
+ * Disaring di SINI, bukan di Rust, karena `dariRust` di-cache mentah: satu
+ * penyaring di perbatasan tempat teks Rust menjadi prompt berarti sakelar
+ * berlaku mulai giliran berikutnya tanpa membuang cache 60 detik itu.
+ */
+import { bacaNonaktif, saringBlokSkill } from './skillAktif';
 import { useProblems } from './problemsStore';
 import { tx, tf } from './i18n';
 /*
@@ -1136,7 +1144,7 @@ export async function konteksAgent(): Promise<string> {
     /* a bonus block; the workspace line in `hidup` still stands on its own */
   }
 
-  return gabung(dariRust, proyek, hidup, kegagalan);
+  return gabung(saringBlokSkill(dariRust, bacaNonaktif()), proyek, hidup, kegagalan);
 }
 
 /**
@@ -6746,6 +6754,13 @@ export const useAi = create<AiStore>((set0, get) => {
       streaming: true,
       model: get().model,
       /*
+       * Plan marker, stamped at SEND time: if this turn runs in plan mode the
+       * Agent window renders the answer as a "Plan" card instead of a plain
+       * bubble. Read at send, not at render - the reader can flip the mode
+       * mid-run and an old plan must stay a plan.
+       */
+      plan: get().runMode === 'plan',
+      /*
        * The reasoning clock starts here, at zero.
        *
        * A `reasoningMs` of 0 is what tells the block's header that reasoning is
@@ -11481,6 +11496,66 @@ function terapkanReasoning(
   return { ...m, reasoning: cur + inc, reasoningMs: jam };
 }
 
+/*
+ * Reasoning sebagai SEGMEN per langkah loop agent.
+ *
+ * Frame reasoning datang berkala: pikir -> teks -> tool -> pikir -> … Store
+ * lama menumpuk semuanya di `msg.reasoning`, sehingga transcript hanya bisa
+ * menampilkan SATU blok "Thought" di atas semua tool. Segmen dicatat dengan
+ * jumlah tool yang SUDAH ter-append saat frame datang (`hinggaTool`): 0 =
+ * pikiran pembuka, k = pikiran di antara tool k-1 dan tool k, tools.length =
+ * pikiran sebelum jawaban akhir. Renderer menyisipkannya ke garis waktu di
+ * posisi itu, sehingga teks "Thought · 3s" tampil di antara baris tool.
+ *
+ * Konvensi jam sama dengan `reasoningMs` (lihat freeze di bawah): `ms`
+ * menyimpan epoch selama segmen mengalir, lalu membeku menjadi durasi saat
+ * teks langkah itu mulai datang atau giliran tamat. Frame reasoning dan teks
+ * pertama sering tiba dalam SATU frame yang dipadatkan, jadi frame diterapkan
+ * dulu ke segmen yang sedang berjalan, baru dibekukan oleh teks.
+ *
+ * `reasoning` (blob utuh) tetap dipelihara untuk echo ke provider; segmen
+ * hanya tambahan untuk tampilan.
+ */
+function segmenReasoningBerikut(
+  m: Pick<ChatMsg, 'tools' | 'reasoningSegmen'>,
+  frames: readonly string[],
+  teksDatang: boolean,
+  selesai: boolean,
+): ReasoningSegmen[] | undefined {
+  const n = m.tools?.length ?? 0;
+  const lama = m.reasoningSegmen ?? [];
+  const masihMengalir = (s: ReasoningSegmen) => s.ms > 1e12;
+  const akhir = lama.length > 0 ? lama[lama.length - 1] : null;
+  let segmen = lama;
+  let berubah = false;
+
+  if (frames.length > 0) {
+    const jalan = akhir !== null && akhir.hinggaTool === n && masihMengalir(akhir);
+    const acc: { reasoning?: string; reasoningMs?: number } = {
+      reasoning: jalan ? akhir!.teks : '',
+      reasoningMs: 0,
+    };
+    for (const inc of frames) acc.reasoning = terapkanReasoning(acc, inc).reasoning;
+    const dasar = jalan
+      ? segmen.slice()
+      : [...segmen, { hinggaTool: n, teks: '', ms: Date.now() } as ReasoningSegmen];
+    dasar[dasar.length - 1] = { ...dasar[dasar.length - 1], teks: acc.reasoning ?? '' };
+    segmen = dasar;
+    berubah = true;
+  }
+
+  if ((teksDatang || selesai) && segmen.length > 0) {
+    const akhirKini = segmen[segmen.length - 1];
+    if (akhirKini.hinggaTool === n && masihMengalir(akhirKini)) {
+      segmen = segmen.slice();
+      segmen[segmen.length - 1] = { ...akhirKini, ms: Date.now() - akhirKini.ms };
+      berubah = true;
+    }
+  }
+
+  return berubah ? segmen : undefined;
+}
+
 function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void {
   /*
    * A buffered frame carries its reasoning as an ordered list; a direct chunk
@@ -11585,6 +11660,15 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
               typeof base === 'number' && base > 1e12 ? Date.now() - base : base;
             patch = { ...patch, content: m.content + c.text, reasoningMs: ms };
           }
+
+          /*
+           * Timeline: catat reasoning sebagai segmen per langkah, dan bekukan
+           * segmen yang sedang mengalir saat teks datang atau giliran tamat.
+           * Dipanggil untuk SEMUA frame (bukan hanya yang ber-reasoning) agar
+           * pembekuan tepat waktu walau frame hanya membawa teks.
+           */
+          const segmenBaru = segmenReasoningBerikut(m, frames, Boolean(c.text), Boolean(c.done));
+          if (segmenBaru) patch = { ...patch, reasoningSegmen: segmenBaru };
 
           /*
            * Backfill the reasoning on the `done` frame.

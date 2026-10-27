@@ -60,7 +60,15 @@ export default function AgentsApp() {
       const tabs = useAgxTabs.getState();
       tabs.buka(
         tampilan,
-        tampilan === 'diff-view' ? 'Diff View' : tampilan === 'browser' ? 'Browser' : 'File',
+        tampilan === 'diff-view'
+          ? 'Diff View'
+          : tampilan === 'browser'
+            ? 'Browser'
+            : tampilan === 'plan'
+              ? 'Plan'
+              : tampilan === 'subagent'
+                ? 'SubAgent'
+                : 'File',
       );
       const id = useAgxTabs.getState().aktifId;
       if (tampilan === 'file' && path && id) useAgxTabs.getState().setFile(id, path);

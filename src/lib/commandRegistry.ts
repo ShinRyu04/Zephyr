@@ -1277,13 +1277,6 @@ export const COMMANDS: CommandDef[] = [
     run: () => bukaAi(),
   },
   {
-    id: 'subagentsPanel.focus',
-    title: 'View: Show Subagents',
-    group: 'View',
-    keywords: 'subagent paralel agent worker tugas',
-    run: () => usePanel.getState().focusTab('subagents'),
-  },
-  {
     id: 'test.focus',
     title: 'View: Focus Tests',
     group: 'View',

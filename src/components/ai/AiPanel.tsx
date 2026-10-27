@@ -47,7 +47,6 @@ import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
-import TodoPanel from './TodoPanel';
 import BrowserContextChip from './BrowserContextChip';
 import { ModeMenu, PermissionMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
@@ -228,7 +227,7 @@ const PesanList = memo(function PesanList({
   /* From Chat Settings. Turning it off must actually remove the dividers. */
   if (!showDividers) {
     for (const m of msgs) {
-      baris.push(<ChatMessage key={m.id} msg={m} />);
+      baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} />);
       const kartuTurn = kartuPesan(m, permukaan);
       if (kartuTurn) baris.push(kartuTurn);
     }
@@ -250,7 +249,7 @@ const PesanList = memo(function PesanList({
       baris.push(<DayDivider key={`d-${m.id}`} at={m.at} />);
       hariSebelumnya = hari;
     }
-    baris.push(<ChatMessage key={m.id} msg={m} />);
+    baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} />);
     const kartuTurn = kartuPesan(m, permukaan);
     if (kartuTurn) baris.push(kartuTurn);
   }
@@ -258,6 +257,9 @@ const PesanList = memo(function PesanList({
 });
 
 function AiPanelInner({ composerId = '' }: { composerId?: string }) {
+  /* Chip Computer Use (Agent Customizations > Computer Use > showButton). */
+  const cuSet = useStore((s) => s.settings.computerUse);
+  const applySet = useStore((s) => s.applySettings);
   const tr = useT();
   const tf = useTf();
   /*
@@ -2284,17 +2286,10 @@ const bukaModels = () => bukaPanel('models');
         )}
 
         {/*
-          * The task list rides inside the same stack.
-          *
-          * This is the AGENT's own plan for the run it is doing - not the
-          * user's notes and todos (that floating panel is a separate feature
-          * and has its own entry point). Hermes renders its todo tree as one of
-          * the stack's own sections, which is why the plan and the loop read as
-          * one object. Keeping it here - rather than as a sibling card - is what
-          * makes the todo collapse and expand in the same box as everything
-          * else.
+          * The agent's todo list moved INTO the turn review card (`UbahReview`
+          * below, next to the composer): one card carries both the plan and the
+          * files the turn wrote, so this dock would have duplicated it.
           */}
-        <TodoPanel />
       </div>
       )}
 
@@ -3163,6 +3158,25 @@ const bukaModels = () => bukaPanel('models');
             */}
           <PermissionMenu />
           <ModeMenu />
+          {(() => {
+            const cu = cuSet;
+            if (!cu?.showButton) return null;
+            return (
+              <button
+                type="button"
+                className={`ai-cu-chip${cu.enabled ? ' is-on' : ''}`}
+                data-testid="ai-cu-chip"
+                title={cu.enabled ? tr('Computer Use is on') : tr('Computer Use is off')}
+                onClick={() => void applySet({ computerUse: { ...(cu ?? { enabled: false, showButton: false }), enabled: !(cu?.enabled ?? false) } })}
+              >
+<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+          <rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.4" />
+          <path d="M5.5 13.5h5M8 11.2v2.3" />
+        </svg>
+                Computer Use
+              </button>
+            );
+          })()}
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
 

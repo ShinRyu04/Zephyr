@@ -4826,13 +4826,18 @@
  * under its header, muted, same size as the steps.
  */
 .ai-reason-body {
-  margin: 2px 0 6px 19px;
-  padding: 0;
-  border: 0;
+  margin: 2px 0 6px 9px;
+  padding: 0 4px 0 10px;
+  border-left: 1px solid var(--border);
   background: none;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.55;
+  /* Isi reasoning bisa ratusan baris: ZCode membatasi tingginya dan
+     menggulir di dalam, jadi satu Thought yang di-expand tidak menelan
+     seluruh layar. */
+  max-height: 220px;
+  overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -8523,6 +8528,86 @@
   padding-left: 4px;
   min-height: 22px;
 }
+/*
+ * Garis waktu kronologis giliran (`.ai-gariswaktu`): Thought -> narasi ->
+ * tool, flat, dalam urutan kejadian — bentuk ZCode/TRAE yang diminta
+ * pembaca. Semua baris menggantung di kolom yang sama, tanpa bar lipatan
+ * anak; lipatan satu-satunya adalah bar induk gilirannya.
+ */
+.ai-gariswaktu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px;
+}
+/* Kalimat model di antara langkah: ukuran badan teks — pembaca baru saja
+   MELIHAT kalimat ini mengalir, jadi ia tidak boleh menyusut jadi chip. */
+.ai-gariswaktu .ai-segmen {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.ai-gariswaktu .ai-segmen p {
+  margin: 0 0 6px;
+}
+.ai-gariswaktu .ai-segmen p:last-child {
+  margin-bottom: 0;
+}
+/* Baris tool: label kerja + detail args, satu baris dengan elipsis.
+   Semua baris mulai dari tepi yang sama (padding nol) — di produk rujukan
+   tidak ada baris yang lebih masuk dari yang lain. */
+.ai-gariswaktu-tool {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 22px;
+  padding: 1px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ai-gariswaktu-tool-label {
+  flex: 0 0 auto;
+}
+/* Detail = teks polos redup, BUKAN chip: latar code bawaan mengubah satu
+   baris hasil kerja jadi deretan kotak, dan itu bukan bentuk rujukan. */
+.ai-gariswaktu-tool-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+/* Nama berkas lebih terang dari foldernya - dua nada yang sama dengan
+   produk rujukan ("ChatMessage.tsx  src/components/ai/"). */
+.ai-gariswaktu-tool-nama {
+  flex: 0 0 auto;
+  color: var(--text);
+}
+.ai-gariswaktu-tool-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+.ai-gariswaktu .ai-reason {
+  margin: 2px 0;
+}
+/* Pemisah di bawah bar induk yang terbuka: "Working for 2m 45s" berdiri di
+   atas garis, isinya mengalir di bawahnya. */
+.ai-kerja.is-open > .ai-kerja-head {
+  border-bottom: 1px solid var(--border);
+  border-radius: 5px 5px 0 0;
+  padding-bottom: 5px;
+}
 .ai-cabang-isi .ai-anak-hasil {
   padding-left: 16px;
 }
@@ -8921,6 +9006,12 @@
 }
 .ai-kerja.is-open .ai-kerja-isi:has(> :last-child .ai-anak-hasil)::before {
   bottom: 34px;
+}
+/* Garis waktu flat TIDAK punya benang: semua baris sejajar di tepi yang sama
+   (bentuk ZCode). Benang pohon lama di x=9px hanya lewat di tengah ikon tiap
+   baris — ketimpa garis, bukan digantunginya. */
+.ai-kerja.is-open .ai-kerja-isi:has(> .ai-gariswaktu)::before {
+  content: none;
 }
 
 /*
@@ -11904,4 +11995,1219 @@
 }
 .aim-td-logo svg {
   display: block;
+}
+
+/*
+ * Kartu Plan - permukaan Agent window saja.
+ *
+ * Jawaban turn yang diproduksi dalam run mode 'plan' (stamp `msg.plan`)
+ * dirender sebagai kartu ber-header "Plan": ikon + judul + tombol salin, badan
+ * ter-clamp bila panjang (gradasi + tombol "View full plan"), mengikuti kartu
+ * plan produk rujukan.
+ */
+.ai-plan {
+  position: relative;
+  margin: 4px 0 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.ai-plan-kepala {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px 0;
+}
+
+.ai-plan-ikon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.ai-plan-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ai-plan-salin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-plan-salin:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+/* Badan ter-clamp: rencana panjang tidak mendorong transcript; gradasi di bawah
+   menandakan ada kelanjutan, dan tombol "View full plan" membukanya. */
+.ai-plan-badan {
+  padding: 4px 12px 10px;
+}
+
+.ai-plan-badan.is-terpotong {
+  max-height: 210px;
+  overflow: hidden;
+}
+
+.ai-plan-badan.is-terpotong::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, var(--surface) 78%);
+  pointer-events: none;
+}
+
+.ai-plan.is-open .ai-plan-badan {
+  max-height: none;
+}
+
+.ai-plan-buka {
+  display: block;
+  margin: 0 auto 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ai-plan-buka:hover {
+  border-color: var(--accent);
+}
+
+/* Kartu plan menggantikan jawaban biasa: judul pertamanya (H2/H3 markdown)
+   tidak perlu margin atas ekstra di dalam badan. */
+.ai-plan-badan > *:first-child,
+.ai-plan-badan .ai-md > *:first-child {
+  margin-top: 0;
+}
+
+/*
+ * Chip Plan di baris composer Agent window - pasangan tombol izin. Muncul
+ * HANYA saat runMode 'plan'; klik = matikan. Dropdown di kanannya bergeser.
+ */
+.ai-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ai-plan-chip:hover {
+  filter: brightness(1.12);
+}
+
+/* ---- Kartu persetujuan plan (gaya ask user) ----
+   Muncul di bawah kartu Plan pada permukaan Agent window, saat turn plan
+   selesai dan run mode masih 'plan'. */
+.ai-plan-izin {
+  margin: 6px 0 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.ai-plan-izin-kepala {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-plan-izin-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.ai-plan-izin-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-plan-izin-hitung {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Opsi Approve: satu baris pilihan besar, seperti langkah form ask-user. */
+.ai-plan-izin-opsi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ai-plan-izin-opsi:hover {
+  background: var(--surface-3, var(--surface-2));
+}
+
+.ai-plan-izin-opsi b {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.ai-plan-izin-opsi i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-plan-izin-jawab {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.ai-plan-izin-jawab::placeholder {
+  color: var(--text-muted);
+}
+
+.ai-plan-izin-aksi {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.ai-plan-izin-batal,
+.ai-plan-izin-kirim {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-plan-izin-batal {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.ai-plan-izin-batal:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.ai-plan-izin-kirim {
+  color: var(--accent-fg, var(--bg));
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.ai-plan-izin-kirim:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Pemisah di dalam pop izin, antara Plan dan tingkat approval. */
+.izin-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border);
+}
+
+/* ---- Tab editor "Plan" (main window) ---- */
+.ai-plan-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg0);
+}
+
+.ai-plan-tab-kepala {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-plan-tab-ikon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.ai-plan-tab-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ai-plan-tab-isi {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.ai-plan-tab-kosong {
+  padding: 24px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---- Chip Computer Use di composer ---- */
+.ai-cu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ai-cu-chip:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.ai-cu-chip.is-on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ---- Detail SubAgent (panel kanan agents + tab editor main) ---- */
+.subagent-detail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg0);
+  overflow-y: auto;
+}
+
+.subagent-detail-kepala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subagent-detail-ikon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.subagent-detail-nama {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.subagent-detail-nama b {
+  font-weight: 600;
+}
+
+.subagent-detail-peran {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.subagent-detail-status {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.subagent-detail-status.is-jalan {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.subagent-detail-status.is-selesai {
+  color: var(--success);
+}
+
+.subagent-detail-status.is-gagal {
+  color: var(--danger, #f66);
+}
+
+.subagent-detail-tugas {
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.subagent-detail-langkah {
+  padding: 6px 8px;
+}
+
+.subagent-detail-langkah.is-pikir,
+.subagent-detail-langkah.is-tool {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  border-radius: 5px;
+}
+
+.subagent-detail-langkah.is-gagal {
+  color: var(--danger, #f66);
+}
+
+.subagent-detail-langkah-mark {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
+.subagent-detail-langkah-teks {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subagent-detail-kosong-langkah,
+.subagent-detail-kosong {
+  padding: 20px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.subagent-detail-hasil {
+  margin: 6px 8px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.subagent-detail-hasil-judul {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.subagent-detail-hasil-isi {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.subagent-detail-error {
+  margin: 0 8px 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--danger, #f66);
+  background: color-mix(in srgb, #f66 10%, transparent);
+}
+
+/* ---- Halaman Subagents + kartu setelan generik (Agent Customizations) ----
+
+/* ---- Halaman Subagents di Agent Customizations ---- */
+.agc-sub-atas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.agc-sub-atas h2 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.agc-sub-hitung {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agc-sub-cari {
+  flex: 1 1 auto;
+  max-width: 320px;
+  margin-left: auto;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.agc-sub-cari:focus {
+  border-color: var(--accent);
+}
+
+.agc-sub-section-judul {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agc-sub-baru {
+  margin-left: auto;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent-fg, var(--bg));
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+}
+
+.agc-sub-form {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.agc-sub-form-baris {
+  display: flex;
+  gap: 10px;
+}
+
+.agc-sub-form-baris label {
+  flex: 1 1 auto;
+}
+
+.agc-sub-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.agc-sub-form input,
+.agc-sub-form textarea {
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg0);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  resize: vertical;
+}
+
+.agc-sub-form input:focus,
+.agc-sub-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.agc-sub-form-judul {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.agc-sub-alat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.agc-sub-alat-item {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: var(--text) !important;
+}
+
+.agc-sub-form-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.agc-sub-form-aksi button {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agc-sub-simpan {
+  color: var(--accent-fg, var(--bg));
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.agc-sub-form-aksi button:not(.agc-sub-simpan) {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.agc-sub-kosong {
+  padding: 28px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.agc-sub-kosong-judul {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.agc-sub-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agc-sub-kartu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.agc-sub-kartu-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  color: var(--text-muted);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-sub-kartu-isi {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agc-sub-kartu-nama {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agc-sub-kartu-alat {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-sub-kartu-deskripsi {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agc-sub-kartu-aksi {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.agc-sub-kartu-aksi button {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.agc-sub-kartu-aksi button:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-sub-hapus:hover {
+  color: var(--danger, #f66) !important;
+  border-color: var(--danger, #f66) !important;
+}
+
+.agc-sub-role-model {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg0);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* ---- Kartu setelan generik (Computer Use / Browser Use) ---- */
+.agc-set-kartu {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.agc-set-baris {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.agc-set-baris + .agc-set-baris {
+  border-top: 1px solid var(--border);
+}
+
+.agc-set-teks {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agc-set-teks b {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.agc-set-teks i {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.agc-set-toggle {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--surface-3, var(--surface-2));
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.agc-set-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.agc-set-toggle.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agc-set-toggle.is-on .agc-set-knob {
+  transform: translateX(17px);
+  background: var(--accent-fg, var(--bg));
+}
+
+/* ---- Agent Customizations: halaman bentuk ZCode (Skills, Computer Use,
+   Browser) --------------------------------------------------------------
+
+   One card vocabulary for the three pages, so a reader moving between them
+   reads the same shapes: a 30px icon square, a bold name with small chips, a
+   two-line description, and the controls for that row pinned right. Colours are
+   tokens only - the light themes invert every one of these surfaces. */
+.agc-skills {
+  max-width: 960px;
+}
+
+.agc-zc-atas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.agc-zc-judul {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text);
+}
+
+.agc-zc-hitung {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.agc-zc-scope,
+.agc-zc-cari {
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.agc-zc-scope {
+  cursor: pointer;
+}
+
+.agc-zc-cari {
+  flex: 1 1 auto;
+  max-width: 280px;
+  margin-left: auto;
+}
+
+.agc-zc-scope:focus,
+.agc-zc-cari:focus {
+  border-color: var(--accent);
+}
+
+.agc-zc-grub-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 8px;
+}
+
+.agc-zc-grub-judul {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The first control after a section title slides right; the rest follow it. */
+.agc-zc-dorong {
+  margin-left: auto;
+}
+
+.agc-zc-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agc-zc-kartu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* A switched-off row stays legible: dimmed, not hidden - the reader still has
+   to be able to find the switch that turned it off. */
+.agc-zc-kartu.is-mati {
+  opacity: 0.55;
+}
+
+.agc-zc-ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-zc-isi {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agc-zc-judulbaris {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agc-zc-nama {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agc-zc-nama:hover {
+  text-decoration: underline;
+}
+
+.agc-zc-chip {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-zc-desk {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agc-zc-catatan {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--warn, #d9a13b);
+}
+
+.agc-zc-aksi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.agc-zc-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agc-zc-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-zc-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.agc-zc-btn.is-utama {
+  color: var(--accent-fg, var(--bg));
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agc-zc-btn.is-bahaya {
+  color: var(--danger, #f66);
+  border-color: color-mix(in srgb, var(--danger, #f66) 45%, transparent);
+}
+
+.agc-zc-ikon-btn,
+.agc-zc-ikon-hapus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agc-zc-ikon-btn:hover:not(:disabled),
+.agc-zc-ikon-hapus:hover {
+  color: var(--text);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.agc-zc-ikon-hapus:hover {
+  color: var(--danger, #f66);
+}
+
+.agc-zc-ikon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.agc-zc-kosong-kecil {
+  padding: 12px 2px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.agc-zc-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.agc-zc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.agc-zc-path {
+  margin-left: auto;
+  max-width: 46%;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agc-zc-baris-dua {
+  display: flex;
+  gap: 10px;
+}
+
+.agc-zc-field {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.agc-zc-field select {
+  height: 30px;
+}
+
+/* Model picker inside a card action (Subagents built-in roles). */
+.agc-zc-pil {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  outline: none;
+}
+
+.agc-zc-pil:focus {
+  border-color: var(--accent);
+}
+
+/* Tool allowlist: a wrapped row of checkboxes inside the editor. */
+.agc-zc-alat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 4px;
+}
+
+.agc-zc-alat-item {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.agc-zc-aksi-bawah {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.agc-zc-muted {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* A card title that is a heading rather than a control (Computer Use, Browser). */
+.agc-zc-kartu-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.agc-zc-desk-satu {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* A switch that keeps its real <input type="checkbox"> in the DOM.
+
+   Wrapping the input in a label (instead of drawing a button and calling it a
+   switch) is what makes the control reachable three ways at once: the harness can
+   still click the input, a screen reader sees a checkbox with the right label,
+   and the painted track is ours. The input sits on top, invisible, so a click on
+   the visible track lands on it. */
+.agc-zc-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.agc-zc-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }

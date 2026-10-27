@@ -1,11 +1,16 @@
 /*
  * Bukti: halaman Skills dan editor Rules di Agent Customizations.
  *
- *   S1  pane Skills merender daftar dengan tombol Install/Remove per baris
- *   S2  skill bawaan (termasuk modlens) muncul di daftar
+ *   S1  pane Skills merender daftar bergrup dengan kartu
+ *   S2  skill terpasang (termasuk modlens) muncul di daftar
  *   S3  kotak cari menyaring daftar
- *   S4  filter "Installed only" menyaring
- *   S5  skill yang BELUM terpasang punya tombol Install (bisa dipasang)
+ *   S4  pemilih scope + tombol New ada (dan New benar-benar membuka editor)
+ *   S5  skill bawaan yang BELUM terpasang punya tombol Install
+ *   S6  tiap baris terpasang punya SAKELAR AKTIF
+ *   S7  mematikan satu skill lewat sakelar benar-benar mengubah prompt:
+ *       barisnya hilang dari `konteksAgent()`, tapi MASIH ada di jawaban mentah
+ *       Rust (`agent_context`) — jadi yang menyaring memang jalur prompt, bukan
+ *       berkasnya yang kebetulan hilang. Sakelarnya dikembalikan di akhir.
  *
  *   R1  pane Rules & Memories merender dengan tombol Create
  *   R2  Create membuka EDITOR TEKS (bukan langsung menyimpan)
@@ -69,19 +74,20 @@ const sk = await J(`(() => {
   const o = { ada: !!p };
   if (!p) return o;
   /*
-   * Rows are counted by their OWN prefix. The prefix also matches the per-row
-   * action buttons (hapus / pasang), so a naive count reported 42 rows for 21
-   * skills - which reads as "the list is duplicated" when it is one list with
-   * one button each.
+   * Rows are counted by their OWN prefix minus the per-row controls, the same way
+   * the other harness counts them: the prefix also matches the trash button, and
+   * a naive count therefore reports two rows for one skill.
    */
   o.baris = [...p.querySelectorAll('[data-testid^="agx-skill-"]')].filter(
     (x) => !/agx-skill-(hapus|pasang)-/.test(x.getAttribute('data-testid') || ''),
   ).length;
   o.adaCari = !!p.querySelector('[data-testid="agx-skills-cari"]');
-  o.adaFilter = !!p.querySelector('[data-testid="agx-skills-filter"]');
+  o.adaScope = !!p.querySelector('[data-testid="agx-skills-scope"]');
+  o.adaBaru = !!p.querySelector('[data-testid="agx-skills-baru"]');
+  o.grup = [...p.querySelectorAll('.agc-zc-grub-judul')].map((g) => g.textContent.trim());
+  o.sakelar = p.querySelectorAll('[data-testid^="agc-skill-aktif-"]').length;
   o.pasang = p.querySelectorAll('[data-testid^="agx-skill-pasang-"]').length;
   o.hapus = p.querySelectorAll('[data-testid^="agx-skill-hapus-"]').length;
-  o.nama = [...p.querySelectorAll('.agx-baris-nama')].slice(0, 24).map((x) => x.textContent);
   o.adaModlens = !!p.querySelector('[data-testid="agx-skill-modlens"]');
   return o;
 })()`);
@@ -110,6 +116,7 @@ const sesudahCari = await J(`(() => ({
 }))()`);
 out.sesudahCari = typeof sesudahCari === 'string' ? JSON.parse(sesudahCari) : sesudahCari;
 
+/* S4b: "+ New" benar-benar membuka editor (dulu tombolnya mati). */
 await cdp.eval(
   `(() => {
   const i = document.querySelector('#uji-skills [data-testid="agx-skills-cari"]');
@@ -118,10 +125,143 @@ await cdp.eval(
     s.call(i, '');
     i.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  try { window.__UJI_uji_skills__?.unmount(); } catch (e) {}
   return 'ok';
 })()`,
 );
+await new Promise((r) => setTimeout(r, 500));
+
+await cdp.eval(
+  `(() => {
+  const b = document.querySelector('#uji-skills [data-testid="agx-skills-baru"]');
+  if (b) b.click();
+  return 'ok';
+})()`,
+);
+await new Promise((r) => setTimeout(r, 600));
+
+const editorSkill = await J(`(() => {
+  const e = document.querySelector('#uji-skills [data-testid="agx-skill-editor"]');
+  return {
+    ada: !!e,
+    adaNama: !!e?.querySelector('[data-testid="agx-skill-nama"]'),
+    adaIsi: !!e?.querySelector('[data-testid="agx-skill-body"]'),
+    adaSimpan: !!e?.querySelector('[data-testid="agx-skill-simpan"]'),
+  };
+})()`);
+/*
+ * Kunci terpisah dari `out.editor`.
+ *
+ * Bagian Rules di bawah memakai `out.editor` untuk EDITOR ATURAN; memakai nama
+ * yang sama di sini membuat nilai ini tertimpa, dan ujinya gagal dengan
+ * "editor=undefined" padahal editornya benar-benar terbuka.
+ */
+out.editorSkill = typeof editorSkill === 'string' ? JSON.parse(editorSkill) : editorSkill;
+
+/*
+ * S7: hidup-mati satu skill, dibuktikan pada PROMPT, bukan pada DOM saja.
+ *
+ * `konteksAgent()` (aiStore) adalah jalur yang benar-benar menyusun konteks tiap
+ * giliran; `agentContext()` (Rust) adalah jawaban mentahnya. Keduanya diperiksa
+ * sekaligus: baris harus HILANG di yang pertama dan MASIH ADA di yang kedua —
+ * itu bukti penyaringnya bekerja di perbatasan prompt, bukan di berkas skill.
+ */
+/* Langkah 1: keadaan AWAL, sebelum sakelar disentuh. */
+const s7a = await J(`await (async () => {
+  const { useSkills } = await import('/src/lib/skillsStore.ts');
+  const { konteksAgent } = await import('/src/lib/aiStore.ts');
+  const cmd = await import('/src/lib/commands.ts');
+
+  await useSkills.getState().muatKatalog();
+  const semua = useSkills.getState().daftar;
+  const target = semua.find((s) => s.name === 'modlens') ?? semua[0];
+  if (!target) return { ada: false };
+  window.__UJI_TARGET_SKILL__ = target.name;
+
+  const sebelum = await konteksAgent();
+  const mentahSebelum = await cmd.agentContext();
+  return {
+    ada: true,
+    nama: target.name,
+    sebelumAda: sebelum.includes(target.name + ' ['),
+    mentahSebelumAda: mentahSebelum.includes(target.name + ' ['),
+  };
+})()`);
+out.aktif = typeof s7a === 'string' ? JSON.parse(s7a) : s7a;
+
+/*
+ * Langkah 2: matikan dengan MENGKLIK SAKELARNYA, bukan dengan memanggil store.
+ *
+ * Kenapa klik: modul yang diimpor harness bisa berupa instance berbeda dari yang
+ * dirender app (Vite menambahkan `?t=` pada modul yang pernah di-HMR), dan saat
+ * itu terjadi store-nya berubah tapi DOM-nya tidak — uji-nya lalu gagal karena
+ * alasan yang tidak ada hubungannya dengan produk. Klik menjalankan jalur yang
+ * sama dengan user, jadi tidak ada instance mana pun yang bisa tertukar.
+ */
+await cdp.eval(
+  `(() => {
+  const b = document.querySelector('#uji-skills [data-testid="agc-skill-aktif-' + window.__UJI_TARGET_SKILL__ + '"]');
+  if (b) b.click();
+  return !!b;
+})()`,
+);
+/*
+ * Jeda ini BUKAN hiasan. Membaca DOM di tick yang sama dengan perubahan store
+ * mengembalikan nilai LAMA (React belum render ulang), dan ujinya gagal dengan
+ * "aria=true" padahal sakelarnya benar-benar berubah.
+ */
+await new Promise((r) => setTimeout(r, 900));
+
+/* Langkah 3: keadaan SESUDAH, dibaca di panggilan terpisah. */
+const s7b = await J(`await (async () => {
+  const { bacaNonaktif } = await import('/src/lib/skillAktif.ts');
+  const { konteksAgent } = await import('/src/lib/aiStore.ts');
+  const cmd = await import('/src/lib/commands.ts');
+  const nama = window.__UJI_TARGET_SKILL__;
+  const sesudah = await konteksAgent();
+  const mentahSesudah = await cmd.agentContext();
+  const sakelar = document.querySelector('#uji-skills [data-testid="agc-skill-aktif-' + nama + '"]');
+  return {
+    sesudahAda: sesudah.includes(nama + ' ['),
+    mentahSesudahAda: mentahSesudah.includes(nama + ' ['),
+    nonaktif: bacaNonaktif(),
+    ariaSesudah: sakelar?.getAttribute('aria-checked') ?? null,
+    barisMati: !!document.querySelector('#uji-skills [data-testid="agx-skill-' + nama + '"].is-mati'),
+  };
+})()`);
+out.aktifSesudah = typeof s7b === 'string' ? JSON.parse(s7b) : s7b;
+
+/* Langkah 4: kembalikan — sakelar ini milik pembaca, bukan milik harness. */
+await cdp.eval(
+  `(() => {
+  const b = document.querySelector('#uji-skills [data-testid="agc-skill-aktif-' + window.__UJI_TARGET_SKILL__ + '"]');
+  if (b) b.click();
+  return !!b;
+})()`,
+);
+await new Promise((r) => setTimeout(r, 700));
+
+const s7c = await J(`await (async () => {
+  const { bacaNonaktif } = await import('/src/lib/skillAktif.ts');
+  const { konteksAgent } = await import('/src/lib/aiStore.ts');
+  const nama = window.__UJI_TARGET_SKILL__;
+  const sakelar = document.querySelector('#uji-skills [data-testid="agc-skill-aktif-' + nama + '"]');
+  return {
+    bersih: bacaNonaktif().length === 0,
+    pulih: (await konteksAgent()).includes(nama + ' ['),
+    ariaPulih: sakelar?.getAttribute('aria-checked') ?? null,
+  };
+})()`);
+out.aktifPulih = typeof s7c === 'string' ? JSON.parse(s7c) : s7c;
+
+await cdp.eval(
+  `(() => {
+  try { window.__UJI_uji_skills__?.unmount(); } catch (e) {}
+  const h = document.getElementById('uji-skills');
+  if (h) h.remove();
+  return 'ok';
+})()`,
+);
+await new Promise((r) => setTimeout(r, 600));
 
 /* ── Rules & Memories ───────────────────────────────────────────────────── */
 /*
@@ -233,14 +373,46 @@ const cek = (n, ok, info = '') => {
 
 console.log('\nBukti — Skills (Agent Customizations):');
 cek('S1 daftar Skills merender', out.mountSkills === true && out.skills?.ada === true, '');
-cek('S2 skill bawaan tampil (>= 15 baris)', (out.skills?.baris ?? 0) >= 15, `baris=${out.skills?.baris}`);
-cek('S2b modlens ada di daftar', out.skills?.adaModlens === true, '');
+cek('S2 skill terpasang tampil (>= 15 baris)', (out.skills?.baris ?? 0) >= 15, `baris=${out.skills?.baris}`);
+cek(
+  'S2b modlens ada di daftar + grup berlabel',
+  out.skills?.adaModlens === true && (out.skills?.grup ?? []).length >= 1,
+  `grup=${(out.skills?.grup ?? []).join('|')}`,
+);
 cek('S3 kotak cari menyaring', (out.sesudahCari?.n ?? 0) === 0 && out.sesudahCari?.kosong === true, `${out.sebelumCari?.n} -> ${out.sesudahCari?.n}`);
-cek('S4 filter "Installed only" ada', out.skills?.adaFilter === true, '');
+cek(
+  'S4 pemilih scope ada + tombol New membuka editor',
+  out.skills?.adaScope === true &&
+    out.editorSkill?.ada === true &&
+    out.editorSkill?.adaNama === true &&
+    out.editorSkill?.adaIsi === true,
+  `scope=${out.skills?.adaScope} editor=${out.editorSkill?.ada}`,
+);
 cek(
   'S5 ada tombol Install untuk yang belum terpasang',
   (out.skills?.pasang ?? 0) > 0 || (out.skills?.hapus ?? 0) > 0,
-  `install=${out.skills?.pasang} remove=${out.skills?.hapus}`,
+  `install=${out.skills?.pasang} hapus=${out.skills?.hapus}`,
+);
+cek(
+  'S6 tiap baris terpasang punya sakelar aktif',
+  (out.skills?.sakelar ?? 0) > 0 && (out.skills?.sakelar ?? 0) === (out.skills?.baris ?? 0),
+  `sakelar=${out.skills?.sakelar}/${out.skills?.baris}`,
+);
+cek(
+  'S7 mematikan skill menghilangkannya dari PROMPT (bukan dari disk)',
+  out.aktif?.ada === true &&
+    out.aktif?.sebelumAda === true &&
+    out.aktif?.mentahSebelumAda === true &&
+    out.aktifSesudah?.sesudahAda === false &&
+    out.aktifSesudah?.mentahSesudahAda === true &&
+    out.aktifSesudah?.ariaSesudah === 'false' &&
+    out.aktifSesudah?.barisMati === true,
+  `skill=${out.aktif?.nama} prompt:${out.aktif?.sebelumAda}->${out.aktifSesudah?.sesudahAda} rust:${out.aktif?.mentahSebelumAda}->${out.aktifSesudah?.mentahSesudahAda} aria=${out.aktifSesudah?.ariaSesudah} redup=${out.aktifSesudah?.barisMati} nonaktif=[${(out.aktifSesudah?.nonaktif ?? []).join(',')}]`,
+);
+cek(
+  'S7b sakelar dikembalikan ke semula oleh harness',
+  out.aktifPulih?.bersih === true && out.aktifPulih?.pulih === true && out.aktifPulih?.ariaPulih === 'true',
+  `bersih=${out.aktifPulih?.bersih} pulih=${out.aktifPulih?.pulih} aria=${out.aktifPulih?.ariaPulih}`,
 );
 
 console.log('\nBukti — Rules editor:');

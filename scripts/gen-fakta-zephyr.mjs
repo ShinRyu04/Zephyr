@@ -1157,7 +1157,6 @@ function daftarSemuaKunciSetelan(setelan) {
     'view.palette',
     'view.explorer',
     'view.sidebar',
-    'view.subagents',
     'terminal.toggle',
     'terminal.new',
     'ai.panel',

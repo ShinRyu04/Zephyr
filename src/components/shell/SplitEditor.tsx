@@ -20,6 +20,8 @@ const ExtensionsView = lazy(() => import('../extensions/ExtensionsView'));
 const ToolsView = lazy(() => import('./ToolsView'));
 const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 const DiffViewTab = lazy(() => import('../ai/DiffViewTab'));
+const PlanTab = lazy(() => import('../ai/PlanTab'));
+const SubAgentTab = lazy(() => import('../ai/SubAgentTab'));
 /*
  * The Browser is a tab, not a pane. It is deliberately NOT lazy: the child
  * webview it owns is created from a measured rect, and a chunk that arrives a
@@ -208,6 +210,22 @@ function EditorPane({ gid }: { gid: string }) {
             <ErrorBoundary nama="DiffView">
               <Suspense fallback={null}>
                 <DiffViewTab />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'plan' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-plan">
+            <ErrorBoundary nama="PlanTab">
+              <Suspense fallback={null}>
+                <PlanTab />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'subagent' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-subagent">
+            <ErrorBoundary nama="SubAgentTab">
+              <Suspense fallback={null}>
+                <SubAgentTab />
               </Suspense>
             </ErrorBoundary>
           </div>

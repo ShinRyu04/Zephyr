@@ -15,7 +15,6 @@ import {
   HYDRA_MAX_REQUESTS_LIMIT,
   pilihanTersimpan,
 } from '../../lib/hydraFusion';
-import { CustomSubagentsCard } from '../settings/SectionsAdvanced';
 import { bukaPanel } from '../../lib/bukaPanel';
 import CommandPermissions from '../settings/CommandPermissions';
 import AiIkon from './AiIkon';
@@ -75,7 +74,6 @@ const SECTIONS: ReadonlyArray<{ id: ChatSeksi; label: string }> = [
   { id: 'mode', label: 'Mode' },
   { id: 'agent', label: 'Agent' },
   { id: 'context', label: 'Context' },
-  { id: 'subagent', label: 'Sub-agents' },
   { id: 'tools', label: 'Tools' },
   { id: 'rules', label: 'Rules' },
   { id: 'models', label: 'Models' },
@@ -466,97 +464,6 @@ export default function ChatSettingsPage({
       reset: () => void apply({ subagent: { autoCollapse: true } }),
     },
 
-    {
-      section: 'subagent',
-      id: 'subwrite',
-      label: 'Let sub-agents write',
-      hint: 'Off means every sub-agent may only read. On means they write files themselves; commands that can delete or overwrite files still need the Auto approval mode.',
-      words: 'subagent sub-agent write edit allow worker parallel permission',
-      ctl: (
-        <Toggle
-          checked={subagent.allowWrite ?? false}
-          testid="cset-subwrite"
-          label="Let sub-agents write"
-          onChange={(v) => void apply({ subagent: { allowWrite: v } })}
-        />
-      ),
-      isDefault: (subagent.allowWrite ?? false) === false,
-      reset: () => void apply({ subagent: { allowWrite: false } }),
-    },
-    {
-      section: 'subagent',
-      id: 'subpanel',
-      label: 'Show the sub-agent panel',
-      hint: 'The live list of workers beside the chat.',
-      words: 'subagent sub-agent panel show workers list side',
-      ctl: (
-        <Toggle
-          checked={subagent.showPanel !== false}
-          testid="cset-subpanel"
-          label="Show the sub-agent panel"
-          onChange={(v) => void apply({ subagent: { showPanel: v } })}
-        />
-      ),
-      isDefault: (subagent.showPanel !== false) === true,
-      reset: () => void apply({ subagent: { showPanel: true } }),
-    },
-    {
-      section: 'subagent',
-      id: 'parallel',
-      label: 'Run at most',
-      hint: 'How many sub-agents may work at the same time.',
-      words: 'subagent sub-agent parallel concurrency workers simultaneous',
-      ctl: (
-        <Select
-          value={String(subagent.maxParallel ?? 4)}
-          testid="cset-subparallel"
-          label="Run at most"
-          options={[1, 2, 3, 4, 6, 8].map((n) => ({ value: String(n), label: `${n}` }))}
-          onChange={(v) => void apply({ subagent: { maxParallel: Number(v) } })}
-        />
-      ),
-      isDefault: (subagent.maxParallel ?? 4) === 4,
-      reset: () => void apply({ subagent: { maxParallel: 4 } }),
-    },
-    {
-      section: 'subagent',
-      id: 'steps',
-      label: 'Steps per sub-agent',
-      hint: 'The ceiling on how many tool steps one worker may take.',
-      words: 'subagent sub-agent steps limit budget ceiling tools',
-      ctl: (
-        <Select
-          value={String(subagent.maxSteps ?? 15)}
-          testid="cset-substeps"
-          label="Steps per sub-agent"
-          options={[5, 10, 15, 20, 30, 50].map((n) => ({ value: String(n), label: `${n}` }))}
-          onChange={(v) => void apply({ subagent: { maxSteps: Number(v) } })}
-        />
-      ),
-      isDefault: (subagent.maxSteps ?? 15) === 15,
-      reset: () => void apply({ subagent: { maxSteps: 15 } }),
-    },
-    {
-      section: 'subagent',
-      id: 'idle',
-      label: 'Give up after',
-      hint: 'How long a sub-agent may sit idle before its step is abandoned.',
-      words: 'subagent sub-agent idle timeout give up abandon seconds',
-      ctl: (
-        <Select
-          value={String(subagent.idleSecs ?? 90)}
-          testid="cset-subidle"
-          label="Give up after"
-          options={[30, 60, 90, 120, 300, 600].map((n) => ({
-            value: String(n),
-            label: `${n}s`,
-          }))}
-          onChange={(v) => void apply({ subagent: { idleSecs: Number(v) } })}
-        />
-      ),
-      isDefault: (subagent.idleSecs ?? 90) === 90,
-      reset: () => void apply({ subagent: { idleSecs: 90 } }),
-    },
     {
       section: 'tools',
       id: 'toolsets',
@@ -1076,52 +983,6 @@ export default function ChatSettingsPage({
      */
 
     /* ── Sub-agent model ─────────────────────────────────────────────────── */
-    {
-      section: 'subagent',
-      id: 'submodel2',
-      label: 'Sub-agent provider',
-      hint: 'Which provider the workers use. Empty follows the chat.',
-      words: 'subagent sub-agent provider model worker batch cheap',
-      ctl: (
-        <Select
-          value={subagent.provider ?? ''}
-          testid="cset-subprovider"
-          label="Sub-agent provider"
-          options={[
-            { value: '', label: tr('Follow chat') },
-            { value: 'openai', label: 'OpenAI' },
-            { value: 'anthropic', label: 'Anthropic' },
-            { value: 'gemini', label: 'Google Gemini' },
-            { value: 'ollama', label: 'Ollama' },
-            { value: 'groq', label: 'Groq' },
-            { value: 'custom', label: 'Custom / local' },
-          ]}
-          onChange={(v) => void apply({ subagent: { provider: v } })}
-        />
-      ),
-      isDefault: (subagent.provider ?? '') === '',
-      reset: () => void apply({ subagent: { provider: '' } }),
-    },
-    {
-      section: 'subagent',
-      id: 'subworker',
-      /*
-       * The list itself, not a door to it.
-       *
-       * This section is now the only home for sub-agent settings, so sending the
-       * reader to another page to see their own workers would defeat the move.
-       * `CustomSubagentsCard` is the Settings page's own component, reused
-       * verbatim — one implementation, so the two cannot disagree about what a
-       * worker is.
-       */
-      label: 'Your sub-agents',
-      hint: 'Workers you defined yourself. Each one reads only; you approve any write.',
-      words: 'subagent sub-agent custom worker list mine define edit delete active',
-      ctl: <CustomSubagentsCard />,
-      /* Holds a list, not a value: nothing to reset and nothing to compare
-         against a default. */
-      isDefault: true,
-    },
 
     /* ── MCP server ──────────────────────────────────────────────────────── */
 

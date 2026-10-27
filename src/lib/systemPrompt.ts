@@ -1060,6 +1060,27 @@ export function kelasKondisionalTersedia(): string[] {
   return KONDISIONAL.map((a) => a.kelas);
 }
 
+/*
+ * Peta FITUR & TATA LETAK Zephyr keadaan TERKINI — selalu ikut di setiap
+ * prompt (utama + subagent). Dibuat kurasi manual, bukan generated: blok ini
+ * adalah sumber kebenaran soal DI MANA setiap fitur tinggal HARI INI, termasuk
+ * yang barusan dipindah/dihapus, supaya model tidak pernah menjawab dari
+ * pengetahuan basi ("panel bawah ada tab Subagents" dsb.).
+ */
+export function petaFitur(): string {
+  return [
+    'ZEPHYR FEATURE & LAYOUT MAP (current — trust this over any older memory):',
+    '- MAIN WINDOW: editor + bottom panel (Problems, Output, Debug Console, Terminal, Ports — the Subagents tab was REMOVED) + the AI chat panel on the right.',
+    '- AI panel (main): transcript + composer. ABOVE the composer sits the turn review card with three tabs — Todo | Files | Queue (drop-up, click a tab icon to open). Files tab: Undo All / Keep All. Messages sent while the agent works are queued automatically (Queue tab). Plan-mode turns render as a "Plan" card; "View full plan" opens the plan as an editor tab.',
+    '- AGENT WINDOW: sessions sidebar, center chat, right panel with tabs (Diff View, Task Summary = Todo/Context/Files, File, Browser, Plan, SubAgent). There is NO review card above this composer — the right panel tracks todos and changes automatically.',
+    '- Chat timeline: work folds under "Working for Xs"; subagents appear as "SubAgent <role> · <task>" rows (click = open the detail: right panel in the Agents window, editor tab in the main window). Plan-mode turns also show an approval card (Approve = exit plan mode and start).',
+    '- Composer approval menu (both windows): Plan / Manual Approval / Auto Approval / Full Access — no Custom entry. When Plan is active a "Plan" chip shows next to it.',
+    '- AGENT CUSTOMIZATIONS (window) sections: Overview, Plugins, MCP Servers, Skills, Rules & Memories, Agents, Computer Use, Subagents, Hooks, Browser, Conversations, Permissions, Tools, Migrations.',
+    '- CHAT SETTINGS sections: Mode, Agent, Context, Tools, Rules, Models, Appearance, Session, Advanced — the Sub-agents section was REMOVED (subagent management now lives in Agent Customizations > Subagents).',
+    '- REMOVED features — never reference them: bottom-panel Subagents tab, the old "Task list" dock above the composer, the Custom approval entry, per-row Keep/Undo buttons in the review card.',
+  ].join('\n');
+}
+
 export function systemPromptFor(
   answerLang: string,
   konteks = '',
@@ -1162,6 +1183,9 @@ export function systemPromptFor(
      */
     faktaInti(),
     blokLarangan(),
+    /* Peta fitur & tata letak terkini: sumber kebenaran soal di mana setiap
+       fitur tinggal HARI INI (termasuk yang baru dipindah/dihapus). */
+    petaFitur(),
     /*
      * Potongan INDEKS pengetahuan Zephyr (indeks penuh 676 KB di
      * `zephyrIndeks.ts`). Yang disuntik di sini HANYA entri yang cocok dengan

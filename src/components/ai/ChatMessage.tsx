@@ -7,7 +7,6 @@ import { bagiHunk, barisDiff, ringkasDiff, type DiffRow } from '../../lib/simple
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
 import type { AgentToolRun, ChatMsg } from '../../lib/types';
-import type { NamaAiIkon } from './AiIkon';
 import AiIkon from './AiIkon';
 import FileIkon from './FileIkon';
 import Lightbox from './Lightbox';
@@ -18,6 +17,8 @@ import { EditDiff, IkonBerkas, ikonSasaran, toolGlyph, toolKind } from './claude
 import { infoAksi, namaPolos, perintahAksi, sasaranAksi } from '../../lib/labelAksi';
 import { tx, tf, useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
+import { useSubAgent } from '../../lib/subagentStore';
+import { bukaPanelAgx } from '../../lib/agxPanel';
 import { useExplorer } from '../../lib/explorerStore';
 
 const SHELL_LANGS = new Set([
@@ -411,6 +412,142 @@ const MD_JAWABAN: Components = {
  *  3. A failure keeps the group open and shows the count, because a run that
  *     ended badly must not look tidy.
  */
+/*
+ * Satu entri garis waktu kronologis giliran: fase pikir (ReasoningBlock),
+ * kalimat model (narasi), atau satu panggilan tool.
+ */
+type KejadianGarisWaktu =
+  | { jenis: 'thought'; kunci: string; teks: string; ms?: number; hidup: boolean }
+  | { jenis: 'narasi'; kunci: string; teks: string }
+  | { jenis: 'tool'; kunci: string; run: AgentToolRun; hidup: boolean };
+
+/* Kartu persetujuan plan yang di-dismiss pembaca, per id pesan. Set modul:
+   komponen per-pesan tidak boleh membangkitkan kartu yang sudah ditutup. */
+const PLAN_IZIN_TUTUP = new Set<string>();
+
+/*
+ * Baris SubAgent (tool `run_subagent`): bentuk ZCode - ikon robot, label
+ * "SubAgent", jenis/permukaannya berwarna, lalu tugasnya. Statusnya LIVE dari
+ * subagentStore (spinner = jalan, centang = selesai, merah = gagal). Klik =
+ * buka detail: panel kanan di Agent window, tab editor di jendela utama.
+ */
+function BarisSubagent({
+  run,
+  hidup,
+  permukaan,
+}: {
+  run: AgentToolRun;
+  hidup: boolean;
+  permukaan: 'main' | 'agents';
+}) {
+  const tr = useT();
+  const args = (() => {
+    try {
+      return JSON.parse(run.args) as Record<string, unknown>;
+    } catch {
+      return {} as Record<string, unknown>;
+    }
+  })();
+  const prompt = typeof args.prompt === 'string' ? args.prompt : run.args;
+  const jenis = typeof args.type === 'string' ? args.type : '';
+  const sub = useSubAgent((s) => s.agents.find((a) => a.tugas === prompt));
+  const sorot = useSubAgent((s) => s.sorot);
+  const label = sub?.customNama || sub?.peran || jenis || 'SubAgent';
+  const status = sub?.status ?? (hidup ? 'jalan' : 'selesai');
+
+  const bukaDetail = () => {
+    sorot(sub?.id ?? null);
+    if (permukaan === 'agents') bukaPanelAgx('subagent');
+    else void useStore.getState().bukaViewAi('subagent');
+  };
+
+  return (
+    <button
+      type="button"
+      className="ai-gariswaktu-tool is-subagent"
+      data-testid="ai-gariswaktu-subagent"
+      onClick={bukaDetail}
+      title={prompt}
+    >
+      <span className="cli-tool-ikon is-subagent" aria-hidden="true">
+        <AiIkon name="robot" size={12} />
+      </span>
+      <span className="ai-gariswaktu-tool-label">SubAgent</span>
+      <span className="ai-subagent-jenis">{label}</span>
+      <span className="ai-subagent-tugas">{prompt}</span>
+      {status === 'jalan' ? (
+        <span className="ai-kerja-spin" aria-hidden="true" />
+      ) : status === 'gagal' ? (
+        <span className="cli-tool-fail">{tr('failed')}</span>
+      ) : status === 'selesai' ? (
+        <AiIkon name="check" size={11} />
+      ) : null}
+    </button>
+  );
+}
+
+/*
+ * Satu baris tool pada garis waktu datar: ikon, kerja, lalu detail args.
+ *
+ * Bentuknya label + sasaran ("Terminal  grep -rn …", "Read  ChatMessage.tsx
+ * src/components/ai/"), bukan kalimat hasil — barisnya menerangkan APA yang
+ * dipanggil, dan hasilnya satu klik di dalam fold induk.
+ */
+function BarisToolDatar({
+  run,
+  hidup,
+  permukaan = 'main',
+}: {
+  run: AgentToolRun;
+  hidup: boolean;
+  permukaan?: 'main' | 'agents';
+}) {
+  if (namaPolos(run.name) === 'run_subagent') {
+    return <BarisSubagent run={run} hidup={hidup} permukaan={permukaan} />;
+  }
+  const target = sasaranAksi(run.args);
+  const perintah = perintahAksi(run.name, run.args);
+  const ikonTarget = ikonSasaran(target);
+  /* Path ditulis dua nada seperti produk rujukan: nama berkas lebih terang,
+     foldernya redup. Untuk sasaran bukan-path (pola grep, URL) tetap satu teks. */
+  const namaBerkas = target && !perintah ? (target.split(/[\\/]/).pop() ?? target) : '';
+  const dirBerkas =
+    target && !perintah && namaBerkas !== target
+      ? target.slice(0, target.length - namaBerkas.length).replace(/[\\/]$/, '')
+      : '';
+  return (
+    <div className="ai-gariswaktu-tool" data-testid="ai-gariswaktu-tool">
+      <span className={`cli-tool-ikon is-${toolKind(run.name)}`} aria-hidden="true">
+        {ikonTarget ? (
+          <IkonBerkas ikon={ikonTarget} size={12} />
+        ) : (
+          <AiIkon name={toolGlyph(run.name) as never} size={12} />
+        )}
+      </span>
+      <span className="ai-gariswaktu-tool-label">{infoAksi(run.name).label}</span>
+      {perintah ? (
+        <code className="ai-gariswaktu-tool-detail" title={perintah}>
+          {perintah}
+        </code>
+      ) : target ? (
+        <span className="ai-gariswaktu-tool-detail" title={target}>
+          {ikonTarget && namaBerkas ? (
+            <>
+              <IkonBerkas ikon={ikonTarget} size={12} />
+              <span className="ai-gariswaktu-tool-nama">{namaBerkas}</span>
+              {dirBerkas && <span className="ai-gariswaktu-tool-dir">{dirBerkas}</span>}
+            </>
+          ) : (
+            target
+          )}
+        </span>
+      ) : null}
+      {run.ok === false && <span className="cli-tool-fail">failed</span>}
+      {hidup && <span className="ai-kerja-spin" aria-hidden="true" />}
+    </div>
+  );
+}
+
 function GrupKerja({
   tools,
   narasi,
@@ -567,7 +704,9 @@ function GrupKerja({
         </span>
         <span className="ai-kerja-judul">{judulBar}</span>
         <span className="ai-kerja-durasi" data-testid="ai-kerja-durasi">
-          {totalMs > 0 ? `· ${durasi}` : ''}
+          {/* Bar induk menulis durasi di dalam judulnya ("Working for 2m 45s",
+              "Selesai dalam 4s") - badge ganda membaca seperti jam dua kali. */}
+          {!judul && totalMs > 0 ? `· ${durasi}` : ''}
         </span>
         <span className="ai-kerja-caret" aria-hidden="true">
           {terbuka ? '▾' : '›'}
@@ -629,71 +768,6 @@ function GrupKerja({
   );
 }
 
-/*
- * Split a message's tools into groups — ONE GROUP PER RUN OF WORK.
- *
- * ## What a "run" is
- *
- * A new group starts when the model spoke, then called another tool. The
- * narration between two calls is the boundary: "let me check…" followed by a
- * call is a new step of work, and the reference product shows exactly that —
- * `Created 1 file, Read 1 file ❯` on one line, then a sentence, then
- * `Created 1 file, Edited 3 files ❯` on the next (`Trae.png`).
- *
- * ## Why not one group per message, and why not per sentence
- *
- * One group per MESSAGE was where this started, and it merged two visibly
- * separate runs into a single bar. One group per SENTENCE was the version
- * before that, and it was worse: models narrate constantly, so nearly every
- * call landed alone and the transcript filled with one-line bars.
- *
- * The rule that holds both ends is the one above: a sentence only opens a new
- * group if a tool ran BEFORE it. Narration with no call behind it is prose, not
- * a boundary — it stays attached to the group it followed.
- *
- * The tail (prose after the last call) never opens a group. It is rendered
- * outside the fold as the answer.
- */
-function kelompokPerNarasi(
-  tools: readonly AgentToolRun[],
-  narasi: readonly string[],
-  indeksSibuk: number,
-  /* Kept for the caller's signature; the tail is rendered outside the fold by
-     `ChatMessageInner`, not grouped. */
-  ekor = '',
-): Array<{ narasi: string; items: number[] }> {
-  if (tools.length === 0) return [];
-  void ekor;
-
-  const grup: Array<{ narasi: string; items: number[] }> = [];
-  for (let i = 0; i < tools.length; i += 1) {
-    const kalimat = (narasi[i] ?? '').trim();
-    /* A group is open AND this call follows a sentence that came after the
-       previous call -> the model finished a step and started another. */
-    const bukaBaru = grup.length > 0 && kalimat !== '';
-    if (grup.length === 0 || bukaBaru) grup.push({ narasi: kalimat, items: [i] });
-    else grup[grup.length - 1].items.push(i);
-  }
-
-  /*
-   * The call in flight is pulled out of the fold and rendered as its own row.
-   *
-   * It must not be the last item of a group, or the fold would swallow the one
-   * call the reader is watching.
-   */
-  if (indeksSibuk >= 0 && indeksSibuk < tools.length) {
-    for (const g of grup) {
-      const pos = g.items.indexOf(indeksSibuk);
-      if (pos >= 0) {
-        g.items.splice(pos, 1);
-        break;
-      }
-    }
-    grup.push({ narasi: '', items: [indeksSibuk] });
-  }
-
-  return grup.filter((g) => g.items.length > 0);
-}
 
 /**
  * The verb families `ringkasKerja` counts. Kept next to it so the "no family
@@ -833,332 +907,6 @@ function berkasRujukan(tools: readonly AgentToolRun[]): string[] {
   return urut;
 }
 
-/*
- * ── Pohon langkah ala TRAE ────────────────────────────────────────────────
- *
- * Langkah berurutan yang SEJENIS menjadi SATU cabang pohon:
- *
- *     ⌕ Search  tool|tools        1s  ›
- *       └ Found 200 matches in 36 files
- *     ∞ Read  AGENTS.md           1s  ›
- *       └ Read 156 lines
- *
- * Sebelumnya setiap panggilan berdiri sendiri. Sembilan pencarian berarti
- * sembilan baris datar "Searched files 1 time", dan pembaca tidak bisa melihat
- * mana yang satu rangkaian kerja. TRAE merangkum rangkaian itu jadi satu
- * cabang dan menaruh hasilnya sebagai anak cabang - bentuk yang sama dipakai
- * di sini.
- *
- * Hanya langkah yang BERSAMBUNG yang digabung. Satu pencarian, lalu satu
- * pembacaan, lalu pencarian lagi adalah tiga cabang, bukan satu cabang
- * "2 search" - urutannya bagian dari cerita, dan merangkumnya akan
- * menyembunyikan bahwa pekerjaan itu bolak-balik.
- */
-type KeluargaLangkah = 'cari' | 'baca' | 'tulis' | 'jalan' | 'lain';
-
-function keluargaLangkah(nama: string): KeluargaLangkah {
-  const n = namaPolos(nama);
-  if (n === 'bash_run' || n === 'sh' || n === 'run_command') return 'jalan';
-  if (n === 'grep' || n === 'glob' || n.startsWith('search') || n.startsWith('find')) return 'cari';
-  if (n.startsWith('read') || n.startsWith('list_') || n === 'bash_logs' || n === 'bash_list') return 'baca';
-  if (n.startsWith('write') || n.startsWith('edit') || n.startsWith('apply')) return 'tulis';
-  if (n.startsWith('create') || n === 'delete_file' || n === 'move_file' || n === 'copy_file') return 'tulis';
-  return 'lain';
-}
-
-/* Ikon + label cabang. `lain` memakai nama tool-nya sendiri (lihat
-   `infoAksi`), jadi tidak perlu label generik di sini. */
-const IKON_KELUARGA: Record<KeluargaLangkah, NamaAiIkon> = {
-  cari: 'search',
-  baca: 'doc',
-  tulis: 'doc-edit',
-  jalan: 'terminal',
-  lain: 'dot',
-};
-
-interface CabangPohon {
-  keluarga: KeluargaLangkah;
-  /* Label cabang tertutup: "Search", "Read", "Ran", atau nama tool untuk
-     keluarga `lain`. */
-  label: string;
-  /* Indeks ke `msg.tools`, berurutan. */
-  items: number[];
-  /* Jumlah tujuan BERBEDA - dipakai untuk "Read 2 files" di judul cabang. */
-  berkas: string[];
-}
-
-/**
- * Susun cabang pohon dari satu giliran, dalam bentuk yang dipakai TRAE.
- *
- * TRAE tidak membuat satu baris per jenis pekerjaan. Ia menulis SATU baris
- * ringkasan untuk seluruh giliran ("Read 12 files, Searched files 7 times"),
- * lalu di bawahnya menaruh satu baris per langkah dengan HASILNYA ("Found 2
- * files ai-kerja|…", "Found 61 lines ^|…", "Read ChatMessage.tsx").
- *
- * Susunan itu yang dipakai di sini:
- *   - langkah yang BERSAMBUNG dan sejenis digabung jadi satu cabang;
- *   - cabang pertama giliran menjadi baris kepala yang menulis ringkasan
- *     SELURUH giliran (`kepala: true`) - itulah "Read 12 files, Searched
- *     files 7 times" milik TRAE;
- *   - setiap cabang menyimpan langkah-langkahnya, jadi membuka kepala
- *     menampilkan seluruh pohon tanpa lapisan bar tambahan.
- */
-function cabangPohon(tools: readonly AgentToolRun[]): CabangPohon[] {
-  const hasil: CabangPohon[] = [];
-  for (const [i, t] of tools.entries()) {
-    const keluarga = keluargaLangkah(t.name);
-    const terakhir = hasil[hasil.length - 1];
-    if (terakhir && terakhir.keluarga === keluarga) {
-      terakhir.items.push(i);
-      const sasaran = sasaranAksi(t.args);
-      if (sasaran && !terakhir.berkas.includes(sasaran)) terakhir.berkas.push(sasaran);
-      continue;
-    }
-    const sasaran = sasaranAksi(t.args);
-    hasil.push({
-      keluarga,
-      label: keluarga === 'lain' ? infoAksi(t.name).label : '',
-      items: [i],
-      berkas: sasaran ? [sasaran] : [],
-    });
-  }
-  return hasil;
-}
-
-/**
- * Isi satu langkah, dalam kata TRAE: satu kalimat hasil, lalu DAFTAR berkas
- * yang benar-benar ditemukan/dibaca sebagai anak barisnya.
- *
- * TRAE menulis:
- *
- *     Found 2 files  ai-kerja|…
- *       # d:\Zephyr\src\styles\ai.css
- *       # d:\Zephyr\src\styles\ai-trace.css
- *     Found 61 lines  ^|grep
- *       # d:\Zephyr\src\components\ai\ChatMessage.tsx
- *     Read  ai.css
- *     No results found
- *
- * Kalimatnya hasil, bukan perintah, dan path ditulis LENGKAP - pembaca tidak
- * perlu membuka apa pun untuk tahu apa yang ditemukan.
- */
-interface RingkasLangkah {
-  /* Kalimat hasil ("Found 2 files", "Read", "No results found"). */
-  teks: string;
-  /* Sasaran pendek di kanan kalimat (pola pencarian), bila ada. */
-  sasaran: string;
-  /* Path hasil, satu baris per berkas. */
-  berkas: string[];
-}
-
-function ringkasLangkah(
-  t: AgentToolRun,
-  tf: (s: string, v: Record<string, string | number>) => string,
-  tr: (s: string) => string,
-): RingkasLangkah {
-  const nama = namaPolos(t.name);
-  const hasil = (t.result ?? '').trim();
-  const target = sasaranAksi(t.args);
-  const kosong = { teks: '', sasaran: '', berkas: [] };
-  if (t.ok === false) return { ...kosong, teks: tr('Failed') };
-
-  if (nama === 'grep' || nama === 'search_grep' || nama.startsWith('search')) {
-    const pola = (() => {
-      try {
-        return (JSON.parse(t.args || '{}') as { pattern?: string }).pattern ?? '';
-      } catch {
-        return '';
-      }
-    })();
-    const m = hasil.match(/^\[(\d+)\s*berkas,\s*(\d+)\s*kecocokan\]/i);
-    if (m) {
-      /* Berkas yang disebut setelah header `[N berkas, M kecocokan]`. */
-      const berkas = hasil
-        .split('\n')
-        .slice(1)
-        .map((b) => b.trim())
-        .filter((b) => /^[A-Za-z]:[\\/]|^[./]|^\w+[\\/]/.test(b));
-      return { teks: tf('Found {n} lines', { n: Number(m[2]) }), sasaran: pola, berkas };
-    }
-    if (/^Tidak ada hasil/i.test(hasil)) return { ...kosong, teks: tr('No results found') };
-    return { ...kosong, teks: tr('Searched'), sasaran: pola };
-  }
-
-  if (nama === 'glob' || nama === 'list_workspace_files') {
-    if (/^Tidak ada berkas yang cocok/i.test(hasil)) return { ...kosong, teks: tr('No results found') };
-    const baris = hasil
-      .split('\n')
-      .map((b) => b.trim())
-      .filter((b) => b && !b.startsWith('['));
-    if (baris.length === 0) {
-      return { ...kosong, teks: tr('No results found') };
-    }
-    return { teks: tf('Found {n} files', { n: baris.length }), sasaran: '', berkas: baris };
-  }
-
-  if (nama === 'bash_run' || nama === 'sh' || nama === 'run_command') {
-    const cmd = perintahAksi(t.name, t.args) || target;
-    if (typeof t.exitCode === 'number' && t.exitCode !== 0) {
-      return { ...kosong, teks: cmd, sasaran: tf('Exit code {n}', { n: t.exitCode }) };
-    }
-    return { ...kosong, teks: tr('Ran'), sasaran: cmd };
-  }
-
-  /* Read: TRAE menulis "Read" + path, tanpa jumlah baris. */
-  return { ...kosong, teks: infoAksi(t.name).label, sasaran: target };
-}
-
-/**
- * Judul cabang tertutup, dalam kata yang dipakai TRAE.
- *
- * Satu langkah menulis namanya sendiri ("Search", "Ran"); beberapa langkah
- * menulis jumlahnya ("Searched files 3 times", "Read 2 files"), karena itulah
- * yang memberi tahu pembaca seberapa besar rangkaian kerja itu tanpa dibuka.
- */
-
-/*
- * Satu pohon langkah: SATU baris kepala berisi ringkasan seluruh giliran,
- * lalu satu baris anak per langkah dengan HASILNYA.
- *
- * Bentuk ini diambil langsung dari TRAE:
- *
- *     ▾ Read 12 files, Searched files 7 times                       ›
- *         Found 2 files ai-kerja|…                              ai-kerja
- *         Found 61 lines ^|grep                                       #
- *         Read ChatMessage.tsx
- *
- * Sebelumnya setiap jenis pekerjaan mendapat baris kepala sendiri
- * ("Searched files 3 times", "Read 3 files", "Edited 2 files"), jadi satu
- * giliran sepuluh langkah menjadi empat baris kepala bersarang - lebih ramai
- * dari yang dirangkum TRAE dalam satu baris.
- *
- * Kepala = cabang PERTAMA giliran (supaya urutan langkah di bawahnya tetap
- * urutan aslinya); seluruh langkah dari semua cabang digambar sebagai anak.
- */
-function PohonLangkah({
-  cabang,
-  tools,
-  tr,
-  tf,
-  live,
-}: {
-  cabang: CabangPohon[];
-  tools: readonly AgentToolRun[];
-  tr: (s: string) => string;
-  tf: (s: string, v: Record<string, string | number>) => string;
-  live: boolean;
-}) {
-  /*
-   * Cabang yang baru selesai MENUTUP sendiri, sekali.
-   *
-   * Sama seperti lipatan induk: selama berjalan isinya harus terlihat, dan
-   * begitu selesai pohon harus jadi ringkas. Klik pembaca selalu menang atas
-   * penutupan otomatis ini.
-   */
-  const [pilihan, setPilihan] = useState<boolean | null>(null);
-  const sudahLiveRef = useRef(live);
-  useEffect(() => {
-    if (live) {
-      sudahLiveRef.current = true;
-      return;
-    }
-    if (sudahLiveRef.current) {
-      sudahLiveRef.current = false;
-      setPilihan((p) => (p === null ? false : p));
-    }
-  }, [live]);
-
-  const terbuka = pilihan ?? live;
-  const kepala = cabang[0];
-  if (!kepala) return null;
-  /* Ringkasan seluruh giliran, bukan hanya cabang pertama: itulah yang ditulis
-     TRAE di baris kepala ("Read 12 files, Searched files 7 times"). */
-  const semua = cabang.flatMap((c) => c.items);
-  const gagal = semua.some((i) => tools[i]?.ok === false);
-  const judul = ringkasKerja(
-    semua.map((i) => tools[i]).filter(Boolean),
-    tf,
-  );
-  const ikon = IKON_KELUARGA[kepala.keluarga];
-
-  return (
-    <div
-      className={`ai-cabang${terbuka ? ' is-open' : ''}${gagal ? ' is-gagal' : ''}`}
-      data-testid="ai-cabang"
-      data-keluarga={kepala.keluarga}
-      data-jumlah={semua.length}
-    >
-      <button
-        type="button"
-        className="ai-cabang-head"
-        data-testid="ai-cabang-head"
-        aria-expanded={terbuka}
-        onClick={() => setPilihan(!terbuka)}
-        title={judul}
-      >
-        <span className="ai-cabang-mark" aria-hidden="true">
-          {live ? <span className="ai-kerja-spin" /> : <AiIkon name={ikon} size={12} />}
-        </span>
-        <span className="ai-cabang-judul">{judul}</span>
-        <span className="ai-cabang-caret" aria-hidden="true">
-          {terbuka ? '▾' : '›'}
-        </span>
-      </button>
-      {terbuka && (
-        <div className="ai-cabang-isi">
-          {semua.map((i) => {
-            const t = tools[i];
-            if (!t) return null;
-            const target = sasaranAksi(t.args);
-            const ikonTarget = ikonSasaran(target);
-            const isi = ringkasLangkah(t, tf, tr);
-            /* Baris sudah MENYEBUT sasarannya, jadi chip path di kanan tidak
-               digambar lagi - TRAE menulis path di dalam kalimat, bukan dua
-               kali dalam satu baris. */
-            const chip = isi.sasaran;
-            return (
-              <div className="ai-grup-item" key={i}>
-                <div
-                  className={`ai-grup-baris${t.ok === false ? ' is-gagal' : ''}`}
-                  data-testid="ai-kerja-baris"
-                >
-                  <span className={`cli-tool-ikon is-${toolKind(t.name)}`} aria-hidden="true">
-                    {ikonTarget ? (
-                      <IkonBerkas ikon={ikonTarget} size={12} />
-                    ) : (
-                      <AiIkon name={toolGlyph(t.name) as never} size={12} />
-                    )}
-                  </span>
-                  <span className="cli-tool-name">{isi.teks}</span>
-                  {chip && (
-                    <code className="ai-grup-args" title={chip}>
-                      {chip}
-                    </code>
-                  )}
-                  {t.ok === false && <span className="cli-tool-fail">{tr('failed')}</span>}
-                </div>
-                {/* Hasil yang menemukan berkas: satu baris per berkas, path
-                    LENGKAP, di bawah barisnya - bentuk TRAE. */}
-                {isi.berkas.length > 0 && (
-                  <div className="ai-anak-berkas" data-testid="ai-anak-berkas">
-                    {isi.berkas.map((b) => (
-                      <div className="ai-anak-berkas-baris" key={b} title={b}>
-                        <span className="ai-anak-berkas-mark" aria-hidden="true">
-                          #
-                        </span>
-                        <span className="ai-anak-berkas-path">{b}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /*
  * A pasted prompt is not an answer: it can be hundreds of lines.
@@ -1328,7 +1076,16 @@ function PesanUser({ teks }: { teks: string }) {
   );
 }
 
-function ChatMessageInner({ msg }: { msg: ChatMsg }) {
+function ChatMessageInner({
+  msg,
+  permukaan = 'main',
+}: {
+  msg: ChatMsg;
+  /* Permukaan pemilik transkrip: 'agents' = Agent window. Hanya di sana
+     pesan plan dirender sebagai kartu "Plan" - permukaan lain tetap jawaban
+     biasa supaya hemat ruang (keputusan user). */
+  permukaan?: 'main' | 'agents';
+}) {
   /*
    * Transcript appearance, from Chat Settings.
    *
@@ -1397,6 +1154,58 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
    * typed right now), so the same expression covers both states.
    */
   const narasiEkor = ekorNarasi;
+  /* Teks jawaban akhir: identik dengan yang dirender di bawah, dihitung sekali
+     supaya kartu Plan dan blok jawaban biasa tidak bisa berbeda isi. */
+  const teksJawaban = msg.tools && msg.tools.length > 0 ? narasiEkor : ekorNarasi;
+
+  /*
+   * Kartu Plan - permukaan Agent window saja.
+   *
+   * Turn yang diproduksi dalam run mode 'plan' (stamp `msg.plan` di store)
+   * dirender sebagai kartu ber-header "Plan" dengan badan ter-clamp: rencana
+   * bisa panjang, dan menampilkan seluruhnya mendorong transcript. Badan lebih
+   * tinggi dari clamp mendapat gradasi + tombol "View full plan"; sekali
+   * dibuka tetap terbuka. Di permukaan lain pesan plan tetap jawaban biasa.
+   */
+  const isPlan = msg.plan === true && permukaan === 'agents' && msg.role === 'assistant';
+  const [planBuka, setPlanBuka] = useState(false);
+  const planRef = useRef<HTMLDivElement | null>(null);
+  /* Awal: TERCLAMP. Kalau diukur dan isinya pendek, efek di bawah melepasnya.
+     Mengukur dalam keadaan ter-clamp penting: clientHeight = 210 tetap
+     (overflow hidden) sementara scrollHeight mencerminkan isi penuh, jadi
+     perbandingannya valid. Mengukur tanpa clamp membuat keduanya sama dan
+     rencana panjang tidak pernah terdeteksi. */
+  const [planTerpotong, setPlanTerpotong] = useState(true);
+
+  /*
+   * Kartu persetujuan plan (gaya ask user): muncul di bawah kartu Plan ketika
+   * turn plan SELESAI dan run mode masih 'plan'. Approve = keluar plan mode +
+   * agent langsung disuruh mengeksekusi; jawaban bebas = kirim apa adanya
+   * (rencana direvisi, plan mode tetap). Dismiss pakai Set modul supaya kartu
+   * tidak bangkit lagi saat pesan yang sama dirender ulang.
+   */
+  const runMode = useAi((s) => s.runMode);
+  const setRunMode = useAi((s) => s.setRunMode);
+  const izinTerlihat = useAi((s) => {
+    if (permukaan !== 'agents') return false;
+    const sid = s.activeIds.agents ?? s.activeId;
+    const ses = s.sessions.find((x) => x.id === sid);
+    const list = ses?.messages;
+    return !!list && list.length > 0 && list[list.length - 1].id === msg.id;
+  });
+  const [izinTutup, setIzinTutup] = useState(PLAN_IZIN_TUTUP.has(msg.id));
+  const [jawabanPlan, setJawabanPlan] = useState('');
+  const tampilkanIzin =
+    isPlan && !msg.streaming && runMode === 'plan' && izinTerlihat && !izinTutup;
+  useEffect(() => {
+    if (!isPlan || planBuka) {
+      setPlanTerpotong(false);
+      return;
+    }
+    const el = planRef.current;
+    if (!el) return;
+    setPlanTerpotong(el.scrollHeight > el.clientHeight + 8);
+  }, [isPlan, planBuka, teksJawaban]);
   /* Which attachment is open full-size, if any. `null` = the viewer is closed. */
   const [gambarBuka, setGambarBuka] = useState<string | null>(null);
   /* Reference starts folded: TRAE shows a one-line "Reference ▾", not the
@@ -1456,26 +1265,48 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   };
 
   /*
-   * Tool rows after folding: runs of consecutive plain reads become one summary
-   * segment, everything else stays its own row in place. Computed here rather
-   * than per render so the DOM order stays stable across re-renders.
-   */
-  const indeksSibuk = msg.streaming ? (msg.tools?.length ?? 0) - 1 : -1;
-  /*
-   * The same tools, grouped by narration instead of by kind.
+   * Garis waktu kronologis giliran: Thought -> narasi -> tool -> … flat,
+   * dalam urutan kejadian — bentuk ZCode/TRAE yang diminta pembaca.
    *
-   * `segmenTools` answers "which reads can share a summary"; this answers "which
-   * calls ran after one sentence", which is what the accordion needs. Both are
-   * kept because `BarisBacaBerkelompok` still uses the first for its read-run
-   * summary inside a group.
+   * Sumbernya tiga lapis data yang saling melengkapi:
+   *   - `msg.reasoningSegmen`: fase "pikir" per langkah (posisi `hinggaTool`);
+   *   - `potongNarasi[i]`: teks yang ditulis model sebelum tool i jalan;
+   *   - `msg.tools[i]`: panggilannya sendiri, dengan status dan hasil.
+   *
+   * Urutan di dalam satu langkah: pikir dulu, lalu ngomong, lalu kerja.
+   * Transkrip lama tanpa segmen tetap utuh: tanpa baris Thought, reasoning
+   * tetap satu blok di atas garis waktu (perilaku sebelumnya).
    */
-  const indeksToolSibuk = indeksSibuk;
-  const grupTools = useMemo(
-    () => kelompokPerNarasi(msg.tools ?? [], potongNarasi, indeksSibuk, narasiEkor),
-    // `potongNarasi` is rebuilt each render from `msg.content`; keying on the
-    // content and the tools is what keeps this from recomputing on every tick.
-    [msg.tools, msg.content, indeksSibuk, msg.streaming],
-  );
+  const kejadianGaris = useMemo<KejadianGarisWaktu[]>(() => {
+    const tools = msg.tools ?? [];
+    const hasil: KejadianGarisWaktu[] = [];
+    for (let i = 0; i <= tools.length; i += 1) {
+      const seg = msg.reasoningSegmen?.find((s) => s.hinggaTool === i);
+      if (seg && seg.teks.trim()) {
+        hasil.push({
+          jenis: 'thought',
+          kunci: `pikir-${i}`,
+          teks: seg.teks,
+          /* Selama mengalir `ms` masih epoch - jangan ditulis sebagai durasi. */
+          ms: seg.ms > 1e12 ? undefined : seg.ms,
+          hidup: Boolean(msg.streaming) && seg.ms > 1e12,
+        });
+      }
+      if (i < tools.length) {
+        const kata = potongNarasi[i]?.trim() ?? '';
+        if (kata) hasil.push({ jenis: 'narasi', kunci: `omong-${i}`, teks: kata });
+        hasil.push({
+          jenis: 'tool',
+          kunci: `kerja-${i}`,
+          run: tools[i],
+          hidup: Boolean(msg.streaming) && i === tools.length - 1,
+        });
+      }
+    }
+    return hasil;
+    // `potongNarasi` dibangun ulang tiap render dari `msg.content`; memasukkan
+    // keduanya ke kunci memo menjaga urutan baris selalu sinkron dengan teks.
+  }, [msg.tools, potongNarasi, msg.reasoningSegmen, msg.streaming]);
 
   /*
    * Seconds since this message started streaming.
@@ -1491,148 +1322,47 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
   const [detik, setDetik] = useState(0);
 
   /*
+   * Jam bar induk saat giliran hidup: detik sejak pesan dibuat, ditik setiap
+   * 1 detik, sehingga bar membaca "Working for 2m 45s" seperti produk
+   * rujukan — bukan "Working…" diam tanpa angka. Setelah giliran tamat jam
+   * ini mati dan judul memakai durasi hasil kerja.
+   */
+  const [detikJalan, setDetikJalan] = useState(0);
+  useEffect(() => {
+    if (!msg.streaming || !(msg.tools?.length ?? 0)) {
+      setDetikJalan(0);
+      return;
+    }
+    const mulai = typeof msg.at === 'number' ? msg.at : Date.now();
+    const hitung = () => setDetikJalan(Math.max(0, Math.floor((Date.now() - mulai) / 1000)));
+    hitung();
+    const t = window.setInterval(hitung, 1000);
+    return () => window.clearInterval(t);
+  }, [msg.streaming, msg.at, msg.tools?.length]);
+
+  /*
    * The turn's single parent fold.
    *
-   * `anakPohon` is the old top-level list - one fold per run of work - and it
-   * now becomes the BODY of a parent fold that spans the whole turn, so a
-   * finished turn reads as one "Worked for 1m 22s" line instead of a stack of
-   * unrelated bars. While the turn is live the parent is skipped: the bar in
-   * flight must stay in the flow, and the live duration is not final yet.
+   * The whole timeline lives in the BODY of one fold that spans the turn, so
+   * a finished turn reads as one "Selesai dalam Xs" line instead of a stack
+   * of unrelated bars. While the turn is live the fold opens by itself: the
+   * rows in flight must stay in the flow.
    *
-   * The duration is the sum of every tool's own `ms` (what each bar already
-   * shows) plus the reasoning time, which the per-bar sums cannot see.
+   * The finished duration is the sum of every tool's own `ms` plus the
+   * reasoning time, which the per-tool sums cannot see.
    */
-  const foldInduk = grupTools.length > 0;
+  const foldInduk = (msg.tools?.length ?? 0) > 0;
   const rujukan = useMemo(() => berkasRujukan(msg.tools ?? []), [msg.tools]);
   const durasiTurn =
     (msg.tools ?? []).reduce((n, t) => n + (typeof t.ms === 'number' ? t.ms : 0), 0) +
     (msg.reasoningMs ?? 0);
-  const detikTurn = Math.max(1, Math.round(durasiTurn / 1000));
-  /* While the turn is live the parent bar says what TRAE says while it works -
-     the verb - and the clock is whatever has been spent so far on the tools
-     that already finished. It is not "Selesai" until the turn really ends. */
+  const formatDurasiPendek = (ms: number) => {
+    const d = Math.max(1, Math.round(ms / 1000));
+    return d >= 60 ? `${Math.floor(d / 60)}m ${d % 60}s` : `${d}s`;
+  };
   const judulTurn = msg.streaming
-    ? tr('Working…')
-    : detikTurn >= 60
-      ? tf('Selesai dalam {d}', { d: `${Math.floor(detikTurn / 60)}m ${detikTurn % 60}s` })
-      : tf('Selesai dalam {d}', { d: `${detikTurn}s` });
-
-  /*
-   * Inside the parent fold the turn is ONE list, not one bar per run.
-   *
-   * `kelompokPerNarasi` splits on every sentence the model speaks after a call,
-   * which is right for a transcript without a parent - each run keeps its own
-   * bar. Nested under `Worked for Xs` that same rule stacked a bar per
-   * sentence (`Searched files 1 time`, `Ran 1 command`, `1 step`, `1 step`, …)
-   * and the tree turned into a wall, which is exactly what the reader reported
-   * as "numpuk". The parent already summarises the turn, so the children are
-   * simply every call in order, with `{n} steps` left to the per-run bar only
-   * when there is no parent.
-   */
-  const grupPohon = foldInduk
-    ? [{ narasi: '', items: (msg.tools ?? []).map((_, i) => i) }]
-    : grupTools;
-
-  const anakPohon = grupPohon.map((g, gi) => {
-    const items = g.items.map((i) => msg.tools![i]);
-    const sibukDiSini = g.items.includes(indeksToolSibuk);
-    return (
-      <Fragment key={`g-${gi}`}>
-        {/*
-         * The narration does NOT render as its own paragraph out here. On a
-         * finished group it lives inside the fold (see GrupKerja), so the
-         * closed transcript is exactly the TRAE shape: answer prose, one
-         * "Worked for Xs" bar, answer. Only the LIVE row keeps its narration
-         * outside, because that sentence is the context for the step in flight.
-         */}
-        {sibukDiSini && g.narasi ? (
-          <div className="ai-segmen" data-testid="ai-segmen">
-            <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
-              {g.narasi}
-            </Markdown>
-          </div>
-        ) : null}
-        {/*
-         * The call in flight is a THIN ROW, not a bordered card.
-         *
-         * It used to render as a full `ToolRow`: a bordered box with a head, a
-         * body and its own collapse, which is the "kotak tools" the reader
-         * asked to stop seeing. The row still has to exist - it is the only
-         * sign the run is alive - so it keeps the information and drops the
-         * chrome: an icon, the verb, the target, a spinner. Same family as the
-         * fold bar directly above it.
-         */}
-        {sibukDiSini ? (
-          <div className="ai-kerja-live" data-testid="ai-kerja-live">
-            <span
-              className={`cli-tool-ikon is-${toolKind(items[0].name)}`}
-              aria-hidden="true"
-            >
-              {(() => {
-                const ik = ikonSasaran(sasaranAksi(items[0].args));
-                return ik ? (
-                  <IkonBerkas ikon={ik} size={12} />
-                ) : (
-                  <AiIkon name={toolGlyph(items[0].name) as never} size={12} />
-                );
-              })()}
-            </span>
-            <span className="ai-kerja-live-label">{infoAksi(items[0].name).label}</span>
-            {(sasaranAksi(items[0].args) ||
-              perintahAksi(items[0].name, items[0].args)) && (
-              <code
-                className="ai-grup-args"
-                title={
-                  sasaranAksi(items[0].args) ||
-                  perintahAksi(items[0].name, items[0].args)
-                }
-              >
-                {sasaranAksi(items[0].args) ||
-                  perintahAksi(items[0].name, items[0].args)}
-              </code>
-            )}
-            <span className="ai-kerja-spin" aria-hidden="true" />
-          </div>
-        ) : (
-          /*
-           * EVERY finished group folds, even a single call.
-           *
-           * A group of one used to render as a full row on the argument that a
-           * summary of one is noise. The result was the reported "1 1 terus":
-           * the active call is always a full row, so a turn of two tools showed
-           * TWO separate rows and the fold only ever appeared at three or more.
-           * Folding from one keeps the transcript to the shape the reader asked
-           * for and the single call is still one click away inside the bar.
-           */
-          <GrupKerja
-            tools={items}
-            narasi={g.narasi}
-            tr={tr}
-            tf={tf}
-            live={Boolean(msg.streaming) && gi === grupPohon.length - 1}
-            judul={ringkasKerja(items, tf)}
-          />
-        )}
-      </Fragment>
-    );
-  });
-
-  /*
-   * Inside the parent fold the turn is ONE tree, like TRAE.
-   *
-   * Satu baris kepala berisi ringkasan seluruh giliran ("Read 12 files,
-   * Searched files 7 times"), lalu satu baris anak per langkah dengan hasilnya.
-   * Lihat `PohonLangkah`.
-   */
-  const pohonDatar = foldInduk ? (
-    <PohonLangkah
-      cabang={cabangPohon(msg.tools ?? [])}
-      tools={msg.tools ?? []}
-      tr={tr}
-      tf={tf}
-      live={Boolean(msg.streaming)}
-    />
-  ) : null;
+    ? tf('Bekerja selama {d}', { d: formatDurasiPendek(detikJalan * 1000) })
+    : tf('Selesai dalam {d}', { d: formatDurasiPendek(durasiTurn) });
 
   useEffect(() => {
     if (!msg.streaming || msg.content || msg.reasoning) {
@@ -1964,7 +1694,11 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                             : null}
                         </div>
                       ) : null}
-                      {showThinking && msg.reasoning ? (
+                      {/* Transkrip lama tanpa segmen: reasoning tetap SATU
+                          blok di atas garis waktu, persis perilaku lama.
+                          Pesan baru menyusunnya jadi baris Thought per
+                          langkah di `kejadianGaris` di bawah. */}
+                      {!msg.reasoningSegmen && showThinking && msg.reasoning ? (
                         <div className="ai-timeline" data-timeline data-testid="ai-timeline-reason">
                           <ReasoningBlock
                             teks={msg.reasoning}
@@ -1974,15 +1708,41 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                           />
                         </div>
                       ) : null}
-                      <div className="ai-anak-pohon">
-                        {pohonDatar}
-                      </div>
+                      {kejadianGaris.length > 0 ? (
+                        <div className="ai-gariswaktu" data-testid="ai-gariswaktu">
+                          {kejadianGaris.map((e) => {
+                            if (e.jenis === 'thought') {
+                              return (
+                                <ReasoningBlock
+                                  key={e.kunci}
+                                  teks={e.teks}
+                                  ms={e.ms}
+                                  berjalan={e.hidup}
+                                  judul={tr('Thought')}
+                                />
+                              );
+                            }
+                            if (e.jenis === 'narasi') {
+                              return (
+                                <div
+                                  className="ai-segmen"
+                                  data-testid="ai-gariswaktu-narasi"
+                                  key={e.kunci}
+                                >
+                                  <Markdown remarkPlugins={MD_PLUGINS} components={MD_NARASI}>
+                                    {e.teks}
+                                  </Markdown>
+                                </div>
+                              );
+                            }
+                            return <BarisToolDatar key={e.kunci} run={e.run} hidup={e.hidup} permukaan={permukaan} />;
+                          })}
+                        </div>
+                      ) : null}
                     </>
                   }
                 />
-              ) : (
-                anakPohon
-              )}
+              ) : null}
             </div>
           )}
           {/*
@@ -2025,9 +1785,118 @@ function ChatMessageInner({ msg }: { msg: ChatMsg }) {
                   <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
                 </div>
               )}
-              <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
-              {msg.tools && msg.tools.length > 0 ? narasiEkor : ekorNarasi}
-            </Markdown>
+              {isPlan && teksJawaban.trim() ? (
+                <>
+                <div className={`ai-plan${planBuka ? ' is-open' : ''}`} data-testid="ai-plan">
+                  <div className="ai-plan-kepala">
+                    <span className="ai-plan-ikon" aria-hidden="true">
+                      <AiIkon name="clipboard" size={13} />
+                    </span>
+                    <span className="ai-plan-judul">{tr('Plan')}</span>
+                    <button
+                      type="button"
+                      className="ai-plan-salin"
+                      title={tr('Salin rencana')}
+                      onClick={() => void clipboardWrite(msg.content ?? '')}
+                    >
+                      <AiIkon name="clipboard" size={12} />
+                    </button>
+                  </div>
+                  <div
+                    className={`ai-plan-badan${planTerpotong && !planBuka ? ' is-terpotong' : ''}`}
+                    ref={planRef}
+                  >
+                    <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
+                      {teksJawaban}
+                    </Markdown>
+                  </div>
+                  {planTerpotong && !planBuka && (
+                    <button
+                      type="button"
+                      className="ai-plan-buka"
+                      onClick={() => {
+                        /* Rujukan: plan kebuka di SEBELAH - panel kanan di
+                           Agent window, tab editor di jendela utama. */
+                        if (permukaan === 'agents') void import('../../lib/agxPanel').then((m) => m.bukaPanelAgx('plan'));
+                        else {
+                          setPlanBuka(true);
+                          void useStore.getState().bukaViewAi('plan');
+                        }
+                      }}
+                    >
+                      {tr('Lihat rencana lengkap')} →
+                    </button>
+                  )}
+                </div>
+                {tampilkanIzin && (
+                  <div className="ai-plan-izin" data-testid="ai-plan-izin">
+                    <div className="ai-plan-izin-kepala">
+                      <span className="ai-plan-izin-badge">{tr('Permission required')}</span>
+                      <b className="ai-plan-izin-judul">{tr('Implementation plan')}</b>
+                      <span className="ai-plan-izin-hitung">1/1</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ai-plan-izin-opsi"
+                      onClick={() => {
+                        PLAN_IZIN_TUTUP.add(msg.id);
+                        setIzinTutup(true);
+                        setRunMode('interactive');
+                        void useAi
+                          .getState()
+                          .send(tr('Lanjutkan eksekusi rencananya.'), undefined, 'agents');
+                      }}
+                    >
+                      <b>1. {tr('Approve')}</b>
+                      <i>{tr('Exit plan mode and start implementation.')}</i>
+                    </button>
+                    <input
+                      className="ai-plan-izin-jawab"
+                      placeholder={tr('Enter your answer…')}
+                      value={jawabanPlan}
+                      onChange={(e) => setJawabanPlan(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && jawabanPlan.trim()) {
+                          PLAN_IZIN_TUTUP.add(msg.id);
+                          setIzinTutup(true);
+                          void useAi.getState().send(jawabanPlan.trim(), undefined, 'agents');
+                          setJawabanPlan('');
+                        }
+                      }}
+                    />
+                    <div className="ai-plan-izin-aksi">
+                      <button
+                        type="button"
+                        className="ai-plan-izin-batal"
+                        onClick={() => {
+                          PLAN_IZIN_TUTUP.add(msg.id);
+                          setIzinTutup(true);
+                        }}
+                      >
+                        {tr('Dismiss')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ai-plan-izin-kirim"
+                        disabled={!jawabanPlan.trim()}
+                        onClick={() => {
+                          PLAN_IZIN_TUTUP.add(msg.id);
+                          setIzinTutup(true);
+                          void useAi.getState().send(jawabanPlan.trim(), undefined, 'agents');
+                          setJawabanPlan('');
+                        }}
+                      >
+                        {tr('Submit')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
+              ) : (
+                <Markdown remarkPlugins={MD_PLUGINS} components={MD_JAWABAN}>
+                  {teksJawaban}
+                </Markdown>
+              )}
             </>
           )}
 

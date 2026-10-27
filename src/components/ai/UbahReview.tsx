@@ -1,53 +1,130 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAi } from '../../lib/aiStore';
+import type { AntrianPesan } from '../../lib/aiStore';
 import { useDiff, useDiffBerkas } from '../../lib/diffStore';
 import { useStore } from '../../lib/store';
 import { asZephyrError, fsDelete, fsWrite } from '../../lib/commands';
-import { bukaPanelAgx } from '../../lib/agxPanel';
 import { tf, useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import FileIkon from './FileIkon';
 import '../../styles/ai-perubahan.css';
 
 /*
- * The review bar above the composer.
+ * The turn review card, above the composer — MAIN WINDOW ONLY.
  *
- * WHY it exists: the "files changed" card at the end of the transcript says what
- * the agent touched, but it appears only after scrolling to the bottom of a long
- * transcript and it offers no decision. The reader who just watched a run finish
- * needs the answer to one question - "do I keep this?" - within reach of the
- * message box, and needs it BEFORE typing the next message. So the bar lives
- * here: one row, the count, and the two buttons.
+ * In the Agents window this card does not render at all: that window's right
+ * panel already tracks the run automatically (Task Summary: Todo / Context /
+ * Files), and a second copy above the composer would duplicate it. The reader
+ * decided this after seeing both side by side (2026-10-28).
  *
- * Scope: the CURRENT turn, which is what `diffStore` captures (it resets on
- * every turn). The transcript card is session-wide and read-only by comparison;
- * deciding to keep or undo is a per-turn act, so it reads the per-turn list.
+ * Shape (the reference product's):
  *
- * Shape, following the reference (the user's screenshots):
+ *   tertutup — satu strip tipis di atas composer:
+ *     [☑] [🗂] [☰]  2 files to review        Undo All  [ Keep All ]  ×
  *
- *   [icon] 9 files to review ⌄                 Undo All   [ Keep All ]
+ *   klik tab / kalimat status — panel DROP-UP melayang ke ATAS strip,
+ *     isinya mengikuti tab yang dipilih (todo | berkas | queue).
  *
- * The destination of a click follows the surface, exactly like the transcript
- * card: the main window opens the DiffView as an editor tab, the Agents window
- * opens the right panel's Diff View (its chat column is too narrow for a split
- * diff beside it).
+ * The strip is an ARRAY of tabs, so adding a fourth section is one entry, not
+ * a fourth hand-written branch. Today: todos (the agent's plan), files (what
+ * the turn wrote), queue (messages the reader typed while the agent worked).
+ *
+ * Scope: the CURRENT turn. `diffStore` resets every turn; `agentTodos` is the
+ * live checklist the agent rewrites via todo_write. × hides the card until
+ * the next turn begins.
  */
+/* Beku: identitas stabil untuk selector - jangan bikin array baru per render. */
+const KOSONG_ANTRIAN: AntrianPesan[] = [];
+
 export default function UbahReview({
   permukaan = 'main',
 }: {
   permukaan?: 'main' | 'agents';
 }) {
   const tr = useT();
+  const todos = useAi((s) => s.agentTodos);
   const berkas = useDiffBerkas();
-  const [terbuka, setTerbuka] = useState(false);
-  const [sibuk, setSibuk] = useState(false);
-  /* path currently being undone, or null. Per-file so one slow restore does not
-     freeze every other row. */
-  const [sibukPath, setSibukPath] = useState<string | null>(null);
+  const turnId = useDiff((s) => s.turnId);
 
-  /* Nothing changed this turn: no bar. A chat that only read files has nothing
-     to keep or undo. */
-  if (berkas.length === 0) return null;
+  const composerId = '';
+
+  const antrianStore = useAi((s) => s.antrians[composerId]);
+  const buangAntrian = useAi((s) => s.buangAntrian);
+  const kosongkanAntrian = useAi((s) => s.kosongkanAntrian);
+
+  const [sibuk, setSibuk] = useState(false);
+  const [buka, setBuka] = useState(false);
+  /* Tab yang dipilih pembaca; null = otomatis (berkas > todo > queue). */
+  const [tabDipilih, setTabDipilih] = useState<string | null>(null);
+
+  /* Dismissed for THIS turn. A new turn (new diffStore turnId) brings the card
+     back - the reader dismissed the old answer, not every future one. */
+  const [ditutup, setDitutup] = useState(false);
+  useEffect(() => {
+    setDitutup(false);
+  }, [turnId]);
+
+  /* Agent window: kartu ini tidak dirender - Task Summary panel kanan yang
+     mengurus todos dan perubahan secara otomatis. Gerbangnya SETELAH semua
+     hooks supaya urutan hook tetap konsisten antar render. */
+  if (permukaan === 'agents') return null;
+
+  const adaTodos = todos.length > 0;
+  const adaBerkas = berkas.length > 0;
+  const antrian = antrianStore ?? KOSONG_ANTRIAN;
+  const adaAntrian = antrian.length > 0;
+  const semuaSelesai = adaTodos && todos.every((t) => t.status === 'done');
+
+  /* Tab bersifat data-driven: satu entri = satu tab di strip. Urutannya
+     urutan tampil di strip. */
+  const TABS: { id: string; judul: string; ada: boolean; ikon: ReactNode }[] = [
+    {
+      id: 'todo',
+      judul: tr('Task list'),
+      ada: adaTodos,
+      ikon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path
+            d="M2.5 4.2l1.6 1.6 3-3.1M2.5 11.2l1.6 1.6 3-3.1M9 4.6h4.6M9 11.6h4.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'berkas',
+      judul: adaBerkas
+        ? berkas.length === 1
+          ? tr('1 file to review')
+          : tf('{n} files to review', { n: berkas.length })
+        : tr('Files'),
+      ada: adaBerkas,
+      ikon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <rect x="2" y="2.5" width="12" height="5" rx="1.5" />
+          <rect x="2" y="9" width="12" height="5" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: 'queue',
+      judul: tr('Queue'),
+      ada: adaAntrian,
+      ikon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M2.5 4h11M2.5 8h11M2.5 12h7" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
+
+  const tabHidup = TABS.filter((t) => t.ada);
+  const tabAktif = tabDipilih ?? (tabHidup[0]?.id ?? 'berkas');
+  const tabAktifData = tabHidup.find((t) => t.id === tabAktif);
+
+  /* Tidak ada tab yang berisi, atau kartu di-dismiss: tanpa kartu. */
+  if (!tabHidup.length || ditutup) return null;
 
   /*
    * Undo All = put every file back the way it was before the agent wrote it.
@@ -87,156 +164,218 @@ export default function UbahReview({
       );
   };
 
-  /* Keep All = accept what is on disk. The list empties, so the bar disappears;
-     nothing is written, because the files already hold the kept version. */
+  /* Keep All = accept what is on disk. The list empties, so the section
+     disappears; nothing is written, because the files already hold the kept
+     version. */
   const keepAll = () => {
     if (sibuk) return;
     for (const b of [...useDiff.getState().berkas]) useDiff.getState().buang(b.path);
     useAi.getState().setToast(tr('Changes kept'));
   };
 
-  /* Per-file restore. Same rule as Undo All: `sebelum === null` means the file
-     did not exist and must go; otherwise the recorded bytes are written back.
-     The path is read fresh from the store so a stale row cannot restore an entry
-     that was already removed. */
-  const undoOne = async (path: string) => {
-    if (sibuk || sibukPath) return;
-    const b = useDiff.getState().berkas.find((x) => x.path === path);
-    if (!b) return;
-    setSibukPath(path);
-    try {
-      if (b.sebelum === null) await fsDelete([path]);
-      else await fsWrite(path, b.sebelum, undefined, undefined, { wasExisting: true });
-      await useStore.getState().reloadTabFromDisk(path);
-      useDiff.getState().buang(path);
-      useAi.getState().setToast(tr('Change undone'));
-    } catch (e) {
-      useAi.getState().setToast(asZephyrError(e).message);
-    } finally {
-      setSibukPath(null);
-    }
-  };
-
-  /* Per-file keep: nothing on disk changes, only the review entry goes away. */
-  const keepOne = (path: string) => {
-    if (sibuk || sibukPath) return;
-    useDiff.getState().buang(path);
-  };
-
   const bukaDiff = (path: string) => {
     useDiff.getState().pilih(path);
-    if (permukaan === 'agents') bukaPanelAgx('diff-view');
-    else useStore.getState().bukaViewAi('diff-view');
+    useStore.getState().bukaViewAi('diff-view');
   };
 
-  /* Satu berkas tidak boleh berbunyi "1 files": the count is read at a glance,
-     and wrong grammar there is the first thing the eye catches. */
-  const judul =
-    berkas.length === 1
-      ? tr('1 file to review')
-      : tf('{n} files to review', { n: berkas.length });
+  /* Kalimat status strip: angka berkas saat tab berkas aktif, hitungan antrian
+     saat queue, kalimat rencana saat todo. */
+  const statusTeks =
+    tabAktif === 'berkas'
+      ? (tabAktifData?.judul ?? judulBerkasLabel(berkas.length, tr))
+      : tabAktif === 'queue'
+        ? tf('{n} pesan mengantre', { n: antrian.length })
+        : adaTodos
+          ? semuaSelesai
+            ? tr('Misi selesai')
+            : tr('Task list')
+          : (tabAktifData?.judul ?? '');
 
   return (
-    <section className="ai-review" data-testid="ai-review" data-open={terbuka ? '1' : '0'}>
-      <div className="ai-review-kepala">
+    <section
+      className="ai-review"
+      data-testid="ai-review"
+      data-open={buka ? '1' : '0'}
+    >
+      {/* Panel drop-up: dirender hanya saat terbuka, melayang di atas strip. */}
+      {buka && (
+        <div className="ai-review-badan" data-tab={tabAktif}>
+          {tabAktif === 'todo' && adaTodos && (
+            <div className="ai-review-todos" data-testid="ai-review-todos">
+              {todos.map((t, i) => (
+                <div className={`ai-review-todo is-${t.status}`} key={t.id ?? i}>
+                  <span className="ai-review-todo-cek" aria-hidden="true">
+                    {t.status === 'done' ? (
+                      <svg width="12" height="12" viewBox="0 0 16 16">
+                        <circle cx="8" cy="8" r="7.2" fill="var(--success)" />
+                        <path
+                          d="M5 8.2l2 2 4-4.4"
+                          stroke="var(--bg0)"
+                          strokeWidth="1.8"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : t.status === 'in_progress' ? (
+                      <span className="ai-review-todo-spin" />
+                    ) : (
+                      <span className="ai-review-todo-pend" />
+                    )}
+                  </span>
+                  <span className="ai-review-todo-label" title={t.content}>
+                    {t.content}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tabAktif === 'berkas' && adaBerkas && (
+            <div className="ai-review-berkas" data-testid="ai-review-berkas">
+              <div className="ai-review-gulir">
+                {berkas.map((b) => {
+                  const nama = b.path.split(/[\\/]/).pop() ?? b.path;
+                  return (
+                    <button
+                      type="button"
+                      className="ai-review-baris"
+                      data-testid="ai-review-baris"
+                      key={b.path}
+                      title={b.path}
+                      onClick={() => bukaDiff(b.path)}
+                    >
+                      <span className="ai-review-berkas-ikon" aria-hidden="true">
+                        <FileIkon nama={nama} />
+                      </span>
+                      <span className="ai-review-nama">{nama.replace(/\.[^.]+$/, '') || nama}</span>
+                      <span className="ai-review-dir">.{b.path.replace(/\\/g, '/')}</span>
+                      <span className="ai-review-stat">
+                        <span className="ai-ubah-tambah">+{b.tambah}</span>
+                        <span className="ai-ubah-hapus">−{b.hapus}</span>
+                      </span>
+                      <span className="ai-review-baris-diff" aria-hidden="true">
+                        <AiIkon name="diff" size={11} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {tabAktif === 'queue' && adaAntrian && (
+            <div className="ai-review-queue" data-testid="ai-review-queue">
+              <div className="ai-review-gulir">
+                {antrian.map((a, i) => (
+                  <div className="ai-review-antrian" key={a.id ?? i}>
+                    <span className="ai-review-antrian-no" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                    <span className="ai-review-antrian-teks" title={a.teks}>
+                      {a.teks}
+                    </span>
+                    {a.images.length > 0 && (
+                      <span className="ai-review-antrian-img">
+                        <AiIkon name="image" size={11} />
+                        {a.images.length}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="ai-review-antrian-buang"
+                      title={tr('Hapus dari antrian')}
+                      aria-label={tr('Hapus dari antrian')}
+                      onClick={() => buangAntrian(a.id ?? i, composerId)}
+                    >
+                      <AiIkon name="close" size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="ai-review-antrian-bersih"
+                onClick={() => kosongkanAntrian(composerId)}
+              >
+                {tr('Kosongkan antrian')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Strip: deretan TAB + kalimat status + aksi + dismiss. */}
+      <div className="ai-review-kaki">
+        <div className="ai-review-kaki-ikon">
+          {tabHidup.map((t) => (
+            <button
+              type="button"
+              key={t.id}
+              className={`ai-review-mark${tabAktif === t.id && buka ? ' is-aktif' : ''}`}
+              data-testid={`ai-review-tab-${t.id}`}
+              title={t.judul}
+              onClick={() => {
+                if (tabAktif === t.id && buka) setBuka(false);
+                else {
+                  setTabDipilih(t.id);
+                  setBuka(true);
+                }
+              }}
+            >
+              {t.ikon}
+            </button>
+          ))}
+        </div>
+        {/* Kalimat status = tombol buka/tutup drop-up. */}
         <button
           type="button"
-          className="ai-review-toggle"
-          data-testid="ai-review-toggle"
-          aria-expanded={terbuka}
-          title={terbuka ? tr('Hide the file list') : tr('Show the file list')}
-          onClick={() => setTerbuka((v) => !v)}
+          className="ai-review-status"
+          aria-expanded={buka}
+          onClick={() => setBuka((v) => !v)}
         >
-          <span className="ai-review-ikon" aria-hidden="true">
-            <AiIkon name="check" size={12} />
-          </span>
-          <span className="ai-review-judul">{judul}</span>
-          <span className="ai-review-caret" aria-hidden="true">
-            <AiIkon name={terbuka ? 'chev-up' : 'chev-down'} size={11} />
-          </span>
+          {statusTeks}
         </button>
-
         <div className="ai-review-aksi">
+          {tabAktif === 'berkas' && adaBerkas && (
+            <>
+              <button
+                type="button"
+                className="ai-review-undo"
+                data-testid="ai-review-undo"
+                disabled={sibuk}
+                onClick={() => void undoAll()}
+              >
+                {sibuk ? tr('Undoing…') : tr('Undo All')}
+              </button>
+              <button
+                type="button"
+                className="ai-review-keep"
+                data-testid="ai-review-keep"
+                disabled={sibuk}
+                onClick={keepAll}
+              >
+                {tr('Keep All')}
+              </button>
+            </>
+          )}
           <button
             type="button"
-            className="ai-review-undo"
-            data-testid="ai-review-undo"
-            disabled={sibuk}
-            onClick={() => void undoAll()}
+            className="ai-review-tutup"
+            data-testid="ai-review-tutup"
+            title={tr('Tutup kartu ini')}
+            aria-label={tr('Tutup kartu ini')}
+            onClick={() => setDitutup(true)}
           >
-            {sibuk ? tr('Undoing…') : tr('Undo All')}
+            <AiIkon name="close" size={11} />
           </button>
-          <button
-            type="button"
-            className="ai-review-keep"
-            data-testid="ai-review-keep"
-            disabled={sibuk}
-            onClick={keepAll}
-          >
-            {tr('Keep All')}
-          </button>
-        </div>
-      </div>
-
-      <div className="ai-review-isi" aria-hidden={!terbuka}>
-        <div className="ai-review-gulir">
-          {berkas.map((b) => {
-            const nama = b.path.split(/[\\/]/).pop() ?? b.path;
-            const sedang = sibukPath === b.path;
-            return (
-              /* A row is a wrapper, not a button: Keep/Undo are siblings of the
-                 diff button. Nesting three buttons inside one another is invalid
-                 HTML and makes the inner click ambiguous. */
-              <div className="ai-review-baris-wrap" key={b.path}>
-                <button
-                  type="button"
-                  className="ai-review-baris"
-                  data-testid="ai-review-baris"
-                  title={b.path}
-                  onClick={() => bukaDiff(b.path)}
-                >
-                  <span className="ai-review-berkas-ikon" aria-hidden="true">
-                    <FileIkon nama={nama} />
-                  </span>
-                  <span className="ai-review-nama">{nama.replace(/\.[^.]+$/, '') || nama}</span>
-                  <span className="ai-review-dir">.{b.path.replace(/\\/g, '/')}</span>
-                  <span className="ai-review-stat">
-                    <span className="ai-ubah-tambah">+{b.tambah}</span>
-                    <span className="ai-ubah-hapus">−{b.hapus}</span>
-                  </span>
-                  <span className="ai-review-baris-diff" aria-hidden="true">
-                    <AiIkon name="diff" size={11} />
-                  </span>
-                </button>
-                <div className="ai-review-baris-aksi">
-                  <button
-                    type="button"
-                    className="ai-review-baris-undo"
-                    data-testid="ai-review-undo-berkas"
-                    data-path={b.path}
-                    disabled={sibuk || sedang}
-                    title={tf('Undo changes to {nama}', { nama })}
-                    onClick={() => void undoOne(b.path)}
-                  >
-                    {sedang ? tr('Undoing…') : tr('Undo')}
-                  </button>
-                  <button
-                    type="button"
-                    className="ai-review-baris-keep"
-                    data-testid="ai-review-keep-berkas"
-                    data-path={b.path}
-                    disabled={sibuk || sedang}
-                    title={tf('Keep changes to {nama}', { nama })}
-                    onClick={() => keepOne(b.path)}
-                  >
-                    {tr('Keep')}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
     </section>
   );
+}
+
+/* Judul berkas untuk pemakaian di luar TABS (menghindari duplikasi tata bahasa). */
+function judulBerkasLabel(n: number, tr: (k: string) => string): string {
+  return n === 1 ? tr('1 file to review') : tf('{n} files to review', { n });
 }
