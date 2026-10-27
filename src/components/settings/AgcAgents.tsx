@@ -19,7 +19,7 @@
  * may use. Clicking Create opens the editor: avatar, name, prompt, delegation
  * fields, and the tool checklist.
  *
- * The data is NOT invented here: custom agents are `useSubagentCustom` (the
+ * The data is NOT invented here: custom agents are `useAgentCustom` (the
  * same list the orchestrator reads), and the two built-ins are the two modes the
  * app already ships (`agentMode`). This page is a face on existing state, not a
  * second source of truth.
@@ -27,9 +27,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
-import { useSubagentCustom, kosongkanSubagent, type SubagentCustom, type AlatId } from '../../lib/subagentCustom';
-import { ikonSubagent } from '../../lib/subagentIcons';
+import { useAgentCustom, kosongkanAgent, type CustomAgent } from '../../lib/agentCustom';
+import type { AlatId } from '../../lib/subagentCustom';
+import type { McpServer } from '../../lib/types';
 import { AvatarPicker, SmartGenerate } from './AgcAgentDialogs';
+import {
+  McpMarket,
+  McpManual,
+  pasangDariKatalog,
+  pasangManual,
+  type EntriManual,
+} from './AgcMcpDialogs';
+import * as cmd from '../../lib/commands';
+import AgenAvatar from '../ai/AgenAvatar';
 
 /* ── Tool labels, in the words the reader sees ──────────────────────────────
  *
@@ -38,12 +48,12 @@ import { AvatarPicker, SmartGenerate } from './AgcAgentDialogs';
  * tool appears in the checklist as soon as it is added below, and a tool that is
  * removed from the app cannot leave a dead row behind.
  */
-const ALAT_TAMPIL: { id: AlatId; label: string; ikon: string }[] = [
-  { id: 'read_file', label: 'Read', ikon: 'doc' },
-  { id: 'multi_edit', label: 'Edit', ikon: 'wrench' },
-  { id: 'bash_run', label: 'Terminal', ikon: 'terminal' },
-  { id: 'browser', label: 'Preview', ikon: 'eye' },
-  { id: 'web_search', label: 'Web search', ikon: 'globe' },
+const ALAT_TAMPIL: { id: AlatId; label: string; hint: string; ikon: string }[] = [
+  { id: 'read_file', label: 'Read', hint: 'Retrieve and view files', ikon: 'doc' },
+  { id: 'multi_edit', label: 'Edit', hint: 'Add, delete and edit files', ikon: 'wrench' },
+  { id: 'bash_run', label: 'Terminal', hint: 'Run commands and read the result', ikon: 'terminal' },
+  { id: 'browser', label: 'Preview', hint: 'Open a page in the built-in browser', ikon: 'eye' },
+  { id: 'web_search', label: 'Web search', hint: 'Search the web for the task', ikon: 'globe' },
 ];
 
 /* The two built-in agents, described in the same words the reference uses. */
@@ -66,23 +76,71 @@ const BAWAAN = [
 
 type Tampilan = { jenis: 'daftar' } | { jenis: 'detail'; id: string } | { jenis: 'sunting'; id: string | null };
 
-export default function AgcAgents() {
+export default function AgcAgents({ mintaBaru = false }: { mintaBaru?: boolean } = {}) {
   const tr = useT();
-  const daftar = useSubagentCustom((s) => s.daftar);
-  const muat = useSubagentCustom((s) => s.muat);
-  const simpan = useSubagentCustom((s) => s.simpan);
-  const hapus = useSubagentCustom((s) => s.hapus);
-  const setAktif = useSubagentCustom((s) => s.setAktif);
+  const daftar = useAgentCustom((s) => s.daftar);
+  const muat = useAgentCustom((s) => s.muat);
+  const simpan = useAgentCustom((s) => s.simpan);
+  const hapus = useAgentCustom((s) => s.hapus);
+  const setAktif = useAgentCustom((s) => s.setAktif);
 
-  const [tampilan, setTampilan] = useState<Tampilan>({ jenis: 'daftar' });
+  /*
+   * The FIRST paint already has the editor up when the door asked for a new
+   * agent. Seeding the state (rather than switching in an effect) means the list
+   * never flashes before the form - the reader pressed "Create Agent", so the
+   * form is the only thing they should see.
+   */
+  const [tampilan, setTampilan] = useState<Tampilan>(
+    mintaBaru ? { jenis: 'sunting', id: null } : { jenis: 'daftar' },
+  );
   const [menu, setMenu] = useState<string | null>(null);
 
   useEffect(() => {
     muat();
   }, [muat]);
 
+  /*
+   * "Create Agent" from the composer opens this page with the editor already
+   * up.
+   *
+   * Two channels, because the panel is its own WebView: the section travels in
+   * the URL hash (handled by AgentCustomPage), and this event says "start a new
+   * one" once this page is alive. The store flag covers the case where this
+   * window was ALREADY open - then there is no mount and no fresh hash, only
+   * the emit.
+   */
+  useEffect(() => {
+    if (mintaBaru || useAgentCustom.getState().ambilMintaCreate()) {
+      setTampilan({ jenis: 'sunting', id: null });
+      setDraft(kosongkanAgent());
+      setGalat(null);
+    }
+    let hidup = true;
+    let unlisten: (() => void) | undefined;
+    void import('@tauri-apps/api/event')
+      .then((m) =>
+        m.listen('agent-create', () => {
+          if (!hidup) return;
+          setTampilan({ jenis: 'sunting', id: null });
+          setDraft(kosongkanAgent());
+          setGalat(null);
+        }),
+      )
+      .then((u) => {
+        if (!hidup) u();
+        else unlisten = u;
+      })
+      .catch(() => {
+        /* non-Tauri origin */
+      });
+    return () => {
+      hidup = false;
+      unlisten?.();
+    };
+  }, []);
+
   /* ── Editor state ─────────────────────────────────────────────────────── */
-  const [draft, setDraft] = useState<Omit<SubagentCustom, 'id'>>(kosongkanSubagent);
+  const [draft, setDraft] = useState<Omit<CustomAgent, 'id'>>(kosongkanAgent);
   const [sibuk, setSibuk] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   /*
@@ -90,7 +148,45 @@ export default function AgcAgents() {
    * booleans can both be true, and then two backdrops stack and Escape closes
    * only the top one - a state the UI can reach but never should.
    */
-  const [dialog, setDialog] = useState<'avatar' | 'smart' | null>(null);
+  const [dialog, setDialog] = useState<'avatar' | 'smart' | 'mcp-market' | 'mcp-manual' | null>(null);
+  /* The "+ Add MCP Servers" submenu, collapsed until asked for. */
+  const [mcpMenu, setMcpMenu] = useState(false);
+  /*
+   * The MCP server list, read DIRECTLY from settings.
+   *
+   * NOT `useMcp.refreshServers()`: that one also probes every server's tools -
+   * an HTTP request per remote server and a spawn per stdio server - which is
+   * work for the agent RUNTIME, not for a form. The checklist only needs names
+   * and ids, and `mcpClientList` answers that from settings.json alone: no
+   * network, no child processes, no failure that could block the editor.
+   */
+  const [mcpServer, setMcpServer] = useState<McpServer[]>([]);
+  /**
+   * Re-read the server list and RETURN it.
+   *
+   * Installing from the Market writes to settings through the same command the
+   * checklist reads, so the only thing missing after an install is this refresh.
+   * It is deliberately a plain list read: no probing, no spawning (see above).
+   */
+  const segarkanMcp = async (): Promise<McpServer[]> => {
+    const s = await cmd.mcpClientList().catch(() => [] as McpServer[]);
+    setMcpServer(s);
+    return s;
+  };
+  useEffect(() => {
+    let hidup = true;
+    void cmd
+      .mcpClientList()
+      .then((s) => {
+        if (hidup) setMcpServer(s);
+      })
+      .catch(() => {
+        /* list unreadable: the checklist shows "No MCP servers" */
+      });
+    return () => {
+      hidup = false;
+    };
+  }, []);
 
   const bukaEditor = (id: string | null) => {
     setGalat(null);
@@ -101,7 +197,7 @@ export default function AgcAgents() {
         setDraft(sisa);
       }
     } else {
-      setDraft(kosongkanSubagent());
+      setDraft(kosongkanAgent());
     }
     setTampilan({ jenis: 'sunting', id });
   };
@@ -135,6 +231,8 @@ export default function AgcAgents() {
       deskripsi: c.deskripsi,
       ikon: c.ikon,
       alat: c.alat,
+      mcp: c.mcp ?? [],
+      avatar: c.avatar,
       custom: true as const,
       bisaDipanggil: c.bisaDipanggil,
       idInggris: c.idInggris,
@@ -179,6 +277,7 @@ export default function AgcAgents() {
                 nama={a.nama}
                 deskripsi={a.deskripsi}
                 ikon={a.ikon}
+                avatar={a.avatar}
                 aktif={a.aktif}
                 menuBuka={menu === a.id}
                 onMenu={() => setMenu(menu === a.id ? null : a.id)}
@@ -275,9 +374,20 @@ export default function AgcAgents() {
 
         <h3 className="agset-seksi">{tr('Tools')}</h3>
         <div className="agset-kotak">
-          <div className="agset-kotak-head">{tr('MCP')}</div>
+          <div className="agset-kotak-head">{tr('Tools - MCP')}</div>
           <div className="agset-kotak-isi">
-            <span className="agset-muted">{tr('No MCP servers configured for this agent.')}</span>
+            {(() => {
+              const dipilih = detail.custom ? (detail as { mcp?: string[] }).mcp ?? [] : [];
+              const nama = mcpServer.filter((s) => dipilih.includes(s.id));
+              if (dipilih.length === 0) {
+                return <span className="agset-muted">{tr('All active MCP servers')}</span>;
+              }
+              return (
+                <span className="agset-muted">
+                  {nama.length > 0 ? nama.map((s) => s.label || s.id).join(', ') : dipilih.join(', ')}
+                </span>
+              );
+            })()}
           </div>
           <div className="agset-kotak-head">{tr('Built-In')}</div>
           <div className="agset-kotak-isi">
@@ -292,7 +402,10 @@ export default function AgcAgents() {
                     <span className="agset-tool-ikon">
                       <AiIkon name={info.ikon as never} size={13} />
                     </span>
-                    <span className="agset-tool-nama">{tr(info.label)}</span>
+                    <span className="agset-tool-nama">
+                      {tr(info.label)}
+                      <span className="agset-muted"> — {tr(info.hint)}</span>
+                    </span>
                   </div>
                 );
               })
@@ -340,7 +453,10 @@ export default function AgcAgents() {
           aria-label={tr('Change Avatar')}
           onClick={() => setDialog('avatar')}
         >
-          <AiIkon name={ikonSubagent(draft.ikon).id as never} size={30} />
+          <AgenAvatar
+            agent={{ id: 'draft', ikon: draft.ikon, avatar: draft.avatar }}
+            size={30}
+          />
         </button>
         <div className="agset-avatar-ket">
           <span className="agset-baris-nama">{tr('Avatar')}</span>
@@ -433,10 +549,100 @@ export default function AgcAgents() {
 
       <h3 className="agset-seksi">{tr('Tools')}</h3>
       <div className="agset-kotak">
+        {/*
+          * MCP servers as a CHECKLIST, exactly like the Built-In group below.
+          *
+          * The first version collapsed this behind "+ Add MCP Servers" with a
+          * summary line, which read as "MCP is not really selectable here" -
+          * the reader had to trust an invisible default. Now every installed
+          * server renders as a checkable row, the same row shape as the
+          * built-in tools, straight from `useMcp.servers`.
+          *
+          * Leaving every box UNCHECKED means "use all active servers": an agent
+          * created before this field existed used to see them all, and that
+          * must not silently shrink. The hint under the list says so.
+          */}
         <div className="agset-kotak-head">
-          {tr('MCP')}
-          <span className="agset-muted">{tr('No MCP servers')}</span>
+          {tr('Tools - MCP')}
+          <span className="agset-menu-wrap">
+            <button
+              type="button"
+              className="agset-btn-batal"
+              data-testid="agx-mcp-tambah"
+              aria-haspopup="menu"
+              aria-expanded={mcpMenu}
+              onClick={() => setMcpMenu((v) => !v)}
+            >
+              + {tr('Add MCP Servers')}
+            </button>
+            {/*
+              * Two doors, the same pair the reference offers: the shipped
+              * catalogue, or a config pasted from a server's own documentation.
+              * Both end in the same save command, so a hand-written server is
+              * stored exactly like a catalogue one.
+              */}
+            {mcpMenu && (
+              <div className="agset-menu" role="menu" data-testid="agx-mcp-tambah-menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="agx-mcp-dari-market"
+                  onClick={() => {
+                    setMcpMenu(false);
+                    setDialog('mcp-market');
+                  }}
+                >
+                  {tr('Create from Market')}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="agx-mcp-dari-manual"
+                  onClick={() => {
+                    setMcpMenu(false);
+                    setDialog('mcp-manual');
+                  }}
+                >
+                  {tr('Create Manually')}
+                </button>
+              </div>
+            )}
+          </span>
         </div>
+        <div className="agset-kotak-isi" data-testid="agx-mcp-daftar">
+          {mcpServer.length === 0 ? (
+            <span className="agset-muted">{tr('No MCP servers')}</span>
+          ) : (
+            mcpServer.map((s) => {
+              const pilih = (draft.mcp ?? []).includes(s.id);
+              return (
+                <label className="agset-tool-baris agset-tool-pil" key={s.id}>
+                  <input
+                    type="checkbox"
+                    data-testid={`agx-mcp-${s.id}`}
+                    checked={pilih}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        mcp: e.target.checked
+                          ? [...(draft.mcp ?? []), s.id]
+                          : (draft.mcp ?? []).filter((x) => x !== s.id),
+                      })
+                    }
+                  />
+                  <span className="agset-tool-nama">{s.label || s.id}</span>
+                </label>
+              );
+            })
+          )}
+        </div>
+        {mcpServer.length > 0 && (
+          <span className="agset-muted" data-testid="agx-mcp-ringkas">
+            {(draft.mcp ?? []).length === 0
+              ? tr('Nothing checked = this agent may use every active server.')
+              : (draft.mcp ?? []).length + ' ' + tr('MCP server(s) selected')}
+          </span>
+        )}
         <div className="agset-kotak-head">{tr('Built-In')}</div>
         <div className="agset-kotak-isi">
           {ALAT_TAMPIL.map((a) => {
@@ -459,7 +665,10 @@ export default function AgcAgents() {
                 <span className="agset-tool-ikon">
                   <AiIkon name={a.ikon as never} size={13} />
                 </span>
-                <span className="agset-tool-nama">{tr(a.label)}</span>
+                <span className="agset-tool-nama">
+                  {tr(a.label)}
+                  <span className="agset-muted"> — {tr(a.hint)}</span>
+                </span>
               </label>
             );
           })}
@@ -496,13 +705,65 @@ export default function AgcAgents() {
         <AvatarPicker
           nilai={draft.ikon}
           onPilih={(ikon) => setDraft({ ...draft, ikon })}
+          onGambar={(base64) => {
+            void (async () => {
+              try {
+                if (!base64) {
+                  await cmd.avatarDelete(draft.idInggris || 'agent');
+                  setDraft({ ...draft, avatar: '' });
+                  return;
+                }
+                const nama = await cmd.avatarSave(
+                  draft.idInggris || `agent-${Date.now().toString(36)}`,
+                  Array.from(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))),
+                );
+                setDraft({ ...draft, avatar: nama });
+              } catch (e) {
+                setGalat(cmd.asZephyrError(e).message);
+              }
+            })();
+          }}
+          onGagal={(pesan) => setGalat(pesan)}
           onTutup={() => setDialog(null)}
         />
       )}
 
       {dialog === 'smart' && (
-        <SmartGenerate
-          onHasil={(nama, prompt) => setDraft((d) => ({ ...d, nama, prompt }))}
+          <SmartGenerate
+            onHasil={(nama, prompt) => setDraft((d) => ({ ...d, nama, prompt }))}
+            onTutup={() => setDialog(null)}
+          />
+        )}
+
+      {/*
+        * Installing a server makes it available to the app; ticking it for THIS
+        * agent is a separate act, so a fresh install is also selected here -
+        * the reader pressed "+" inside this agent's editor, which can only mean
+        * "this one may use it".
+        */}
+      {dialog === 'mcp-market' && (
+        <McpMarket
+          sudahAda={mcpServer.map((s) => s.id)}
+          onPasang={async (e) => {
+            await pasangDariKatalog(e);
+            await segarkanMcp();
+            setDraft((d) =>
+              (d.mcp ?? []).includes(e.id) ? d : { ...d, mcp: [...(d.mcp ?? []), e.id] },
+            );
+          }}
+          onTutup={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === 'mcp-manual' && (
+        <McpManual
+          onPasang={async (e: EntriManual) => {
+            await pasangManual(e);
+            await segarkanMcp();
+            setDraft((d) =>
+              (d.mcp ?? []).includes(e.id) ? d : { ...d, mcp: [...(d.mcp ?? []), e.id] },
+            );
+          }}
           onTutup={() => setDialog(null)}
         />
       )}
@@ -521,9 +782,10 @@ function BarisAgen({
   onDetail,
   onSunting,
   onHapus,
-  onToggle,
-  tr,
-}: {
+    onToggle,
+    avatar,
+    tr,
+  }: {
   nama: string;
   deskripsi: string;
   ikon: string;
@@ -534,12 +796,13 @@ function BarisAgen({
   onSunting?: () => void;
   onHapus?: () => void;
   onToggle?: (v: boolean) => void;
+  avatar?: string;
   tr: (s: string) => string;
 }) {
   return (
     <div className={`agset-baris${aktif ? '' : ' is-mati'}`} data-testid={`agx-baris-${nama}`}>
       <span className="agset-avatar" aria-hidden="true">
-        <AiIkon name={(ikon as never) ?? 'robot'} size={17} />
+        <AgenAvatar agent={{ id: nama, ikon, avatar }} size={17} />
       </span>
       <div className="agset-baris-teks">
         <span className="agset-baris-nama">{nama}</span>

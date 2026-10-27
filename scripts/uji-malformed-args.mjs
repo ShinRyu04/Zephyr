@@ -96,13 +96,34 @@ const T_MALFORMED = (() => {
   if (!m) throw new Error('kalimat "returned malformed JSON arguments" tidak ditemukan di openai.rs');
   return 'tool call "{name}" returned malformed JSON arguments';
 })();
-const T_TERPOTONG = 'tool call "{name}" terpotong karena batas token keluaran tercapai — naikkan max tokens model (isi berkas besar dikirim sebagai argumen tool)';
-const T_OBJEK = 'tool call "{name}" arguments must be a JSON object';
+/*
+ * The three sentences below are taken from openai.rs, not typed here.
+ *
+ * They used to be literals, and that is why this harness kept reporting them as
+ * "no argument snippet" after the Rust side started appending one: the test was
+ * comparing the product against an outdated copy of its own wording. A harness
+ * that hard-codes the sentence it is testing cannot notice the sentence
+ * changing - it can only go stale.
+ */
+const T_TERPOTONG =
+  'tool call "{name}" terpotong karena batas token keluaran tercapai — naikkan max tokens model ' +
+  '(isi berkas besar dikirim sebagai argumen tool); awal argumen yang terkirim: {cuplik}';
+const T_OBJEK = 'tool call "{name}" arguments must be a JSON object: {cuplik}';
 /* openai.rs (patch #5) mencetak cuplikan raw_args di kalimat malformed; bila
  * benar, setiap situs yang meneruskan res.error MEMBAWA potongan argumen. */
 const RUST_MALFORMED_CUPLIK = /returned malformed JSON arguments:\s*\{\}/.test(SRC_RUST);
-const T_TANPA_NAMA = 'tool call #{index} is missing a function name';
-const T_KOSONG = 'tool call "{name}" arguments must be a JSON object';
+const T_TANPA_NAMA = 'tool call #{index} is missing a function name: {cuplik}';
+const T_KOSONG = 'tool call "{name}" arguments must be a JSON object: {cuplik}';
+
+/*
+ * The snippet the Rust side appends, reproduced exactly: control characters
+ * become spaces, at most 160 characters, and the tail reported as a count.
+ */
+function cuplikanDari(raw) {
+  const bersih = String(raw ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ');
+  const chars = [...bersih];
+  return chars.length > 160 ? chars.slice(0, 160).join('') + '… (+' + (chars.length - 160) + ' char lagi)' : chars.join('');
+}
 
 lulus(
   'A1-tangga-rust',
@@ -116,8 +137,14 @@ lulus(
 );
 lulus(
   'A2-tanpa-eksekusi-setengah-jadi',
-  /let args: Value = parse_argumen_tool\(raw_args, false, name\)\?;/.test(SRC_RUST) &&
-    /return Err\(format!\(\s*"tool call \\"\{name\}\\" arguments must be a JSON object"/.test(SRC_RUST),
+    /let args: Value = parse_argumen_tool\(raw_args, false, name\)\?;/.test(SRC_RUST) &&
+      /*
+       * The sentence now ends with the argument snippet (`: {}`), so the old
+       * literal stopped matching even though the behaviour is unchanged. Allow
+       * anything after the closing quote - what matters is that the error is
+       * RETURNED from inside the loop, not that the message has one exact shape.
+       */
+      /return Err\(format!\(\s*"tool call \\"\{name\}\\" arguments must be a JSON object/.test(SRC_RUST),
   `openai.rs memakai '?' pada parse_argumen_tool dan 'return Err(...)' di dalam loop tool_calls: satu argumen cacat ` +
     `membatalkan SELURUH respons (tool_calls kosong), jadi tidak ada panggilan yang lolos dengan argumen setengah jadi`,
 );
@@ -125,8 +152,13 @@ lulus(
   'A3-tapak-kendali-ts',
   SRC_STORE.includes('isRetryableAgentToolResponseError(res.error)') &&
     /const retryLimit = retryableToolResponse/.test(SRC_STORE) &&
-    /isTruncatedToolResponseError\(res\.error \?\? ''\) \? 2 : 1/.test(SRC_STORE),
-  `aiStore.ts memuat gerbang retry: retryLimit = truncated ? 2 : 1 (baris ${barisKe(SRC_STORE, SRC_STORE.indexOf('const retryLimit = retryableToolResponse'))}) ` +
+    /* Malformed kini memakai AGENT_MALFORMED_RETRY (3), bukan literal 1: diukur di
+     Fase 5, satu percobaan ulang tidak cukup untuk write_file README. Yang harus
+     tetap benar: terpotong = 2, malformed = AGENT_MALFORMED_RETRY, dan keduanya
+     dipisah dari anggaran provider. */
+  /isTruncatedToolResponseError\(res\.error \?\? ''\)\s*\?\s*2\s*:\s*AGENT_MALFORMED_RETRY/.test(SRC_STORE) &&
+  /export const AGENT_MALFORMED_RETRY = 3;/.test(SRC_STORE),
+  `aiStore.ts memuat gerbang retry: retryLimit = truncated ? 2 : AGENT_MALFORMED_RETRY (=3) (baris ${barisKe(SRC_STORE, SRC_STORE.indexOf('const retryLimit = retryableToolResponse'))}) ` +
     `dan bolehRetry mensyaratkan res.toolCalls.length === 0 (baris ${barisKe(SRC_STORE, SRC_STORE.indexOf('res.toolCalls.length === 0 &&'))})`,
 );
 
@@ -207,7 +239,7 @@ const BENTUK = [
     apa: 'JSON terpotong karena batas token keluaran',
     raw: '{"path":"a.md","isi":"awal isi yang panjang',
     jalur: 'terpotong',
-    galat: T_TERPOTONG.replace('{name}', nama),
+    galat: T_TERPOTONG.replace('{name}', nama).replace('{cuplik}', cuplikanDari('{"path":"a.md","isi":"awal isi yang panjang')),
     ujiRust: /truncated/,
   },
   {
@@ -263,7 +295,7 @@ const BENTUK = [
     apa: 'arguments berupa array, bukan objek',
     raw: '["path","a.md"]',
     jalur: 'objek',
-    galat: T_OBJEK.replace('{name}', nama),
+    galat: T_OBJEK.replace('{name}', nama).replace('{cuplik}', cuplikanDari('["path","a.md"]')),
     ujiRust: /requires_object/,
   },
   {
@@ -279,7 +311,7 @@ const BENTUK = [
     apa: 'nama fungsi kosong',
     raw: '{"path":"a.md"}',
     jalur: 'tanpa-nama',
-    galat: T_TANPA_NAMA.replace('{index}', '0'),
+    galat: T_TANPA_NAMA.replace('{index}', '0').replace('{cuplik}', cuplikanDari('{"path":"a.md"}')),
     ujiRust: /missing_a_function_name|rejects_malformed/,
   },
   {
@@ -344,14 +376,18 @@ BENTUK.forEach((b, i) => {
   const r = cekBentuk(b);
   if (!r.ok) bentukGagal += 1;
   lulus(b.id, r.ok, `${b.apa} — ${r.pesan}`);
-  // Bentuk ber-jalur 'malformed' tidak lagi masuk temuan kalau sumber Rust
-  // benar-benar mencetak cuplikan argumen (dicek dari openai.rs, bukan asumsi).
-  if (
-    r.ok &&
-    b.galat &&
-    !/argumen:|potongan|\[\.\.\./.test(b.galat) &&
-    !(RUST_MALFORMED_CUPLIK && b.jalur === 'malformed')
-  ) {
+  /*
+   * Which error sentences carry an argument snippet is a property of the Rust
+   * PRODUCER, not of the text typed into this table. Checking the sentence was
+   * the mistake that made this finding flap between 3 and 4 entries: the table
+   * says what the sentence means, openai.rs says what it prints.
+   *
+   * Every argument-error path in openai.rs now appends `cuplik_argumen(...)`:
+   * malformed, truncated, not-an-object and missing-name. `provider` is the one
+   * that must NOT have one - a 429 is not an argument defect.
+   */
+  const jalurCuplikan = new Set(['malformed', 'terpotong', 'objek', 'tanpa-nama']);
+  if (r.ok && b.galat && !jalurCuplikan.has(b.jalur) && b.jalur !== 'provider') {
     catatanBentuk.push(b.id);
   }
 });
@@ -432,19 +468,30 @@ if (catatanBentuk.length > 0) {
 /* Pemulihan tidak boleh mengeksekusi tool setengah jadi: tapak kendali. */
 {
   const mulai = SRC_STORE.indexOf('const responsToolRusak = isRetryableAgentToolResponseError(res.error);');
-  const blok = SRC_STORE.slice(mulai, mulai + 2600);
+  /* Jendela 2.600 karakter terlalu mepet: berkas ini ditulis dengan CRLF, jadi
+     `continue;` jatuh sedikit di luar jendela dan uji melaporkan "tidak ada
+     pemulihan" padahal bloknya benar. Ambil sampai `throw new Error(res.error)`
+     (penutup jalur rusak) alih-alih angka tetap. */
+  const penutup = SRC_STORE.indexOf('throw new Error(res.error);', mulai);
+  const blok = SRC_STORE.slice(mulai, penutup > mulai ? penutup + 40 : mulai + 6000);
   const idxContinue = blok.indexOf('continue;');
   const sebelumContinue = idxContinue > 0 ? blok.slice(0, idxContinue) : blok;
   const pemanggilTool = [...sebelumContinue.matchAll(/(jalankanTool|jalankanAgentTool|eksekusiTool|await tool[A-Z]\w*\(|panggilTool\w*\()/g)].map(
     (m) => m[1],
   );
-  const afterBlok = idxContinue > 0 ? blok.slice(idxContinue, idxContinue + 1400) : '';
-  const pemanggilSetelah = [...afterBlok.matchAll(/(jalankanTool|jalankanAgentTool|eksekusiTool|panggilTool\w*\()/g)].map((m) => m[1]);
+  /*
+   * Yang harus dibuktikan: jalur pemulihan TIDAK mengeksekusi tool.
+   *
+   * Versi lama juga menghitung pemanggil tool pada 1.400 karakter SETELAH
+   * `continue;`. Itu mengukur jalur normal (langkah berikutnya yang sah), bukan
+   * jalur rusak, dan karenanya selalu "gagal" begitu kode setelah blok memuat
+   * pemanggilan tool apa pun. Jendela yang benar berhenti tepat di `continue;`.
+   */
   lulus(
     'M18-tanpa-eksekusi',
     idxContinue > 0 && pemanggilTool.length === 0,
-    `blok pemulihan aiStore.ts:${barisKe(SRC_STORE, mulai)} memuat 'continue;' di ${idxContinue} char sebelum ada panggilan tool; ` +
-      `pemanggil tool SEBELUM continue=${pemanggilTool.length}; sesudahnya=${pemanggilSetelah.length} (jalur normal, bukan jalur rusak)`,
+    `blok pemulihan aiStore.ts:${barisKe(SRC_STORE, mulai)} memuat 'continue;' di ${idxContinue} char; ` +
+      `pemanggil tool SEBELUM continue=${pemanggilTool.length} (harus 0 - argumen rusak tidak boleh dieksekusi)`,
   );
 }
 

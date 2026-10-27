@@ -152,7 +152,7 @@ pub fn default_settings() -> Value {
             "reducedMotion": false,
             "screenReader": false,
             "autoFocusDialog": true,
-            "toastDurasiMin": 3200
+            "toastDurasiMin": 1000
         },
         "git": { "defaultBranch": "main", "pullBeforePush": true, "github": { "method": "none", "clientId": "" } },
 

@@ -119,7 +119,7 @@ const NAV: NavItem[] = [
   { id: 'migrations', label: 'Migrations', icon: 'warn' },
 ];
 
-function Isi({ section }: { section: AgentCustomSection }) {
+function Isi({ section, mintaBaru }: { section: AgentCustomSection; mintaBaru?: boolean }) {
   const tr = useT();
   switch (section) {
     case 'tools':
@@ -170,7 +170,7 @@ function Isi({ section }: { section: AgentCustomSection }) {
        * one "Agent" referred to, and the reference layout has no such ambiguity.
        * Personas are still editable in Chat Settings, where they always were.
        */
-      return <AgcAgents />;
+      return <AgcAgents mintaBaru={mintaBaru === true} />;
     case 'plugins':
       return <AgcPlugins />;
     case 'skills':
@@ -254,7 +254,10 @@ function Isi({ section }: { section: AgentCustomSection }) {
   }
 }
 
-export default function AgentCustomPage({ seksiAwal }: { seksiAwal?: string | null } = {}) {
+export default function AgentCustomPage({
+  seksiAwal,
+  mintaBaru,
+}: { seksiAwal?: string | null; mintaBaru?: boolean } = {}) {
   const tr = useT();
   const section = useAgentCustom((s) => s.section);
   const setSection = useAgentCustom((s) => s.setSection);
@@ -300,7 +303,7 @@ export default function AgentCustomPage({ seksiAwal }: { seksiAwal?: string | nu
           ))}
         </nav>
         <div className="agc-content" data-testid="agc-content">
-          <Isi section={section} />
+          <Isi section={section} mintaBaru={mintaBaru} />
         </div>
       </div>
     </div>

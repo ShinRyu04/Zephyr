@@ -43,7 +43,7 @@ export function shortUrl(url: string): string {
  * on it in an installed build, so pick per environment rather than hardcoding
  * localhost:5173 everywhere - that is how the old pane opened to a dead page.
  */
-export const HOME = import.meta.env.DEV ? 'http://localhost:5173' : 'https://duckduckgo.com';
+export const HOME = 'https://duckduckgo.com';
 
 function Icon({ d, size = 13 }: { d: string; size?: number }) {
   return (

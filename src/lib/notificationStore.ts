@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useStore } from './store';
 
 export type Severity = 'info' | 'warn' | 'error';
 
@@ -23,7 +24,25 @@ export interface Notif {
   read: boolean;
 }
 
-const AUTO_HIDE_MS = 4200;
+/**
+ * How long a toast stays up.
+ *
+ * ONE SECOND, the length of an ordinary notification, and read from the
+ * accessibility setting rather than baked in.
+ *
+ * It used to be a hardcoded 4200 ms while `settings.accessibility.toastDurasiMin`
+ * sat in Settings being written and never read - so the control did nothing, and
+ * the toast outlived the glance it was for. The setting is the source of truth
+ * now; 1000 is its default.
+ */
+const AUTO_HIDE_DEFAULT_MS = 1000;
+
+/** The reader's setting, clamped to something a human can still read. */
+function autoHideMs(): number {
+  const v = useStore.getState().settings?.accessibility?.toastDurasiMin;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) return AUTO_HIDE_DEFAULT_MS;
+  return Math.min(Math.max(v, 400), 20_000);
+}
 
 const MAX_RIWAYAT = 200;
 
@@ -107,7 +126,7 @@ export const useNotif = create<NotifState & NotifActions>((set, get) => ({
         window.setTimeout(() => {
           timers.delete(id);
           get().dismiss(id);
-        }, AUTO_HIDE_MS),
+        }, autoHideMs()),
       );
     }
     return id;

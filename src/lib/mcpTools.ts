@@ -164,13 +164,22 @@ export function pecahNamaMcp(nama: string): { serverId: string; tool: string } |
   return { serverId, tool };
 }
 
-/** The specs, in the shape the agent loop sends. */
-export function mcpExternalSpecs(): AgentToolSpec[] {
+/**
+ * The specs, in the shape the agent loop sends.
+ *
+ * `serverIds` narrows the list to the servers an agent was granted. It is an
+ * ALLOWLIST from the agent editor, and an EMPTY array means "every server" -
+ * deliberately: an agent created before the field existed used to see them all,
+ * and hiding them now would break agents nobody edited.
+ */
+export function mcpExternalSpecs(serverIds: string[] = []): AgentToolSpec[] {
+  const izin = serverIds.length > 0 ? new Set(serverIds) : null;
   /* Jatah per server dikonsumsi berurutan, jadi yang dikirim persis sama dengan
      angka `dipakai` yang dibaca panel Setelan - bukan cuma sama panjangnya. */
   const jatah = new Map(ringkas.map((r) => [r.serverId, r.dipakai]));
   const keluar: AgentToolSpec[] = [];
   for (const t of daftar) {
+    if (izin && !izin.has(t.serverId)) continue;
     const sisa = jatah.get(t.serverId) ?? 0;
     if (sisa <= 0) continue;
     jatah.set(t.serverId, sisa - 1);

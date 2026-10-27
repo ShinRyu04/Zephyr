@@ -129,7 +129,13 @@ fn perintah_untuk(nama: &str) -> Command {
  * di-restart - dan pesan itu terbaca seperti konfigurasi yang salah, padahal
  * prosesnya cuma perlu dijalankan lagi.
  */
-fn pastikan_hidup(id: &str, perintah: &str, args: &[String], cwd: Option<&str>) -> ZResult<()> {
+fn pastikan_hidup(
+    id: &str,
+    perintah: &str,
+    args: &[String],
+    cwd: Option<&str>,
+    env: &std::collections::BTreeMap<String, String>,
+) -> ZResult<()> {
     let k = kunci(id);
     let mut peta = sesi()
         .lock()
@@ -156,6 +162,11 @@ fn pastikan_hidup(id: &str, perintah: &str, args: &[String], cwd: Option<&str>) 
     }
 
     let mut cmd = perintah_untuk(nama);
+    /* Configured variables first, so a server that needs a key can start. They
+       are added, never inherited-over: the parent environment still applies. */
+    for (k, v) in env.iter() {
+        cmd.env(k, v);
+    }
     cmd.args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -205,10 +216,11 @@ fn rpc_stdio(
     perintah: &str,
     args: &[String],
     cwd: Option<&str>,
+    env: &std::collections::BTreeMap<String, String>,
     method: &str,
     params: Value,
 ) -> ZResult<Value> {
-    pastikan_hidup(id, perintah, args, cwd)?;
+    pastikan_hidup(id, perintah, args, cwd, env)?;
     let k = kunci(id);
     let mut peta = sesi()
         .lock()
@@ -276,8 +288,14 @@ fn rpc_stdio(
 }
 
 /// Nama tool yang ditawarkan server stdio.
-pub fn list_tools(id: &str, perintah: &str, args: &[String], cwd: Option<&str>) -> ZResult<Vec<crate::mcp_client::McpToolSpec>> {
-    let result = rpc_stdio(id, perintah, args, cwd, "tools/list", json!({}))?;
+pub fn list_tools(
+    id: &str,
+    perintah: &str,
+    args: &[String],
+    cwd: Option<&str>,
+    env: &std::collections::BTreeMap<String, String>,
+) -> ZResult<Vec<crate::mcp_client::McpToolSpec>> {
+    let result = rpc_stdio(id, perintah, args, cwd, env, "tools/list", json!({}))?;
     let arr = result
         .get("tools")
         .and_then(|t| t.as_array())
@@ -295,6 +313,7 @@ pub fn call_tool(
     perintah: &str,
     args: &[String],
     cwd: Option<&str>,
+    env: &std::collections::BTreeMap<String, String>,
     tool: &str,
     argumen: Value,
 ) -> ZResult<Value> {
@@ -308,6 +327,7 @@ pub fn call_tool(
         perintah,
         args,
         cwd,
+        env,
         "tools/call",
         json!({ "name": nama, "arguments": a }),
     )
@@ -359,7 +379,7 @@ else{console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{ok:true,echo:m.pa
         }
         let dir = std::env::temp_dir();
         let cmd = tulis_server_tiruan(&dir);
-        let hasil = list_tools("uji-tiruan", &cmd, &[], None);
+        let hasil = list_tools("uji-tiruan", &cmd, &[], None, &Default::default());
         let _ = matikan("uji-tiruan");
         let daftar = hasil.expect("tools/list harus terjawab");
         assert_eq!(daftar.len(), 1);
@@ -381,7 +401,7 @@ rl.on('line',(l)=>{if(!l.trim())return;const m=JSON.parse(l);\
 console.log(JSON.stringify({jsonrpc:'2.0',method:'notifications/progress',params:{}}));\
 console.log(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{tools:[{name:'x',description:'',inputSchema:{}}]}}));});\"\r\n";
         std::fs::write(&p, isi).expect("tulis server notifikasi");
-        let hasil = list_tools("uji-notif", &p.to_string_lossy(), &[], None);
+        let hasil = list_tools("uji-notif", &p.to_string_lossy(), &[], None, &Default::default());
         let _ = matikan("uji-notif");
         let daftar = hasil.expect("jawaban setelah notifikasi harus terbaca");
         assert_eq!(daftar.len(), 1);

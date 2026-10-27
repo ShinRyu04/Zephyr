@@ -2117,7 +2117,7 @@ export const COMMANDS: CommandDef[] = [
           reducedMotion: !!a?.reducedMotion,
           screenReader: baru,
           autoFocusDialog: a?.autoFocusDialog ?? true,
-          toastDurasiMin: a?.toastDurasiMin ?? 3200,
+          toastDurasiMin: a?.toastDurasiMin ?? 1000,
         },
       });
       umumkanA11y(
@@ -2141,7 +2141,7 @@ export const COMMANDS: CommandDef[] = [
           reducedMotion: baru,
           screenReader: !!a?.screenReader,
           autoFocusDialog: a?.autoFocusDialog ?? true,
-          toastDurasiMin: a?.toastDurasiMin ?? 3200,
+          toastDurasiMin: a?.toastDurasiMin ?? 1000,
         },
       });
       umumkanA11y(baru ? 'Animasi dikurangi.' : 'Animasi dinyalakan.');

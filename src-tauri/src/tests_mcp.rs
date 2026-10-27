@@ -251,4 +251,31 @@ mod tests {
         assert!(out.contains("  lain:"), "server lain hilang");
         assert!(out.contains("name: x"));
     }
+
+    /*
+     * The id ends up inside every tool name this server contributes
+     * (`mcp__<id>__<tool>`), and that name is split on the first `__`. An id
+     * with a space or a doubled underscore therefore makes the tool unusable -
+     * it is filed under a server that does not exist. These cases are what the
+     * manual-config dialog can receive: a JSON document written by somebody else.
+     */
+    #[test]
+    fn id_server_bisa_dipakai_di_nama_tool() {
+        use crate::mcp_client::id_server_for_test;
+
+        assert_eq!(id_server_for_test("context7"), "context7");
+        assert_eq!(id_server_for_test("my-server_v2.1"), "my-server_v2.1");
+        /* Separator collision: `__` must never survive. */
+        assert_eq!(id_server_for_test("a__b"), "a_b");
+        /* Punctuation and spaces collapse to a dash instead of being kept. */
+        assert_eq!(id_server_for_test("my server"), "my-server");
+        assert_eq!(id_server_for_test("a/b:c"), "a-b-c");
+        /* Path-like input cannot escape into the name. */
+        assert_eq!(id_server_for_test("../secret"), "secret");
+        /* Nothing usable left: a generated id, never an empty one. */
+        let kosong = id_server_for_test("   ");
+        assert!(!kosong.is_empty());
+        assert!(!kosong.contains("__"));
+        assert!(!kosong.contains(' '));
+    }
 }

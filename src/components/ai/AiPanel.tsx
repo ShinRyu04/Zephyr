@@ -38,13 +38,13 @@ import {
 } from '../../lib/contextRefs';
 import FileIkon from './FileIkon';
 import CmdIkon from './CmdIkon';
+import AskUserCard from './AskUserCard';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
 import PerubahanBerkas from './PerubahanBerkas';
 import UbahReview from './UbahReview';
 import { DayDivider } from './ChatStamp';
-import type { ChatMsg, AgentToolRun } from '../../lib/types';
-import { namaToolTulis, pathsDari } from '../../lib/zephyrTools/tulisBerkas';
+import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import TodoPanel from './TodoPanel';
@@ -79,24 +79,24 @@ import StatusArea from './StatusArea';
 const PESAN_KOSONG: ChatMsg[] = [];
 
 /*
- * Close the transcript with the session's "files changed" card.
+ * The "files changed" card for ONE turn, drawn after that turn's message.
  *
- * WHY once per SESSION and not once per turn: the card answers "what has this
- * chat touched?", and a turn-scoped card answered a narrower question while
- * looking like the wider one. Five rewrites of the same file produced five
- * cards, each listing the same path with a fifth of the numbers, and the
- * reader had to add them up. The session map is built once in `PesanList`.
+ * It used to be appended to the END of the transcript and fed from the live
+ * session diff, so it followed the chat forever and always described the newest
+ * run - scrolling back showed a single card that looked like every turn's work,
+ * while older turns showed none.
  *
- * Only when the session actually wrote something - a read-only chat shows no
- * card at all, and `PerubahanBerkas` returns null for an empty map anyway.
+ * Now it is built once, when the run ends, and stored on the message
+ * (`ChatMsg.perubahan`). Being part of the list is what makes it behave like a
+ * message: it stays where it was inserted and scrolls away as the conversation
+ * continues, which is what the reference does. No live store is read here, so a
+ * later run can never rewrite an older card.
  */
-function kartu(
-  baris: React.ReactNode[],
-  peta: Map<string, AgentToolRun[]>,
-  permukaan: 'main' | 'agents',
-): React.ReactNode {
-  if (peta.size === 0) return baris;
-  return [...baris, <PerubahanBerkas key="ubah-sesi" peta={peta} permukaan={permukaan} />];
+function kartuPesan(m: ChatMsg, permukaan: 'main' | 'agents'): React.ReactNode {
+  if (!m.perubahan || m.perubahan.length === 0) return null;
+  return (
+    <PerubahanBerkas key={`ubah-${m.id}`} daftar={m.perubahan} permukaan={permukaan} />
+  );
 }
 
 /*
@@ -166,50 +166,12 @@ const PesanList = memo(function PesanList({
    * the composer and the send path already use.
    */
   const showDividers = useAi((s) => s.showDividers);
+  /* Where a click on the card's arrow should open the diff - see `PerubahanBerkas`. */
+  const permukaan: 'main' | 'agents' = composerId === 'agents' ? 'agents' : 'main';
   const msgs = useAi((s) => {
     const id = s.activeIds[composerId] ?? null;
     return (id ? s.sessions.find((x) => x.id === id)?.messages : null) ?? PESAN_KOSONG;
   });
-
-  /*
-   * Every file this CHAT SESSION wrote, in first-touch order.
-   *
-   * WHY it is computed here and not inside `PerubahanBerkas`: the card reads
-   * this to show one "files changed" summary per session. Computing it inside
-   * the card would mean every message's card walked the whole transcript, so a
-   * 200-message session would pay for 200 full scans on every streamed token.
-   * One pass here, memoised on the message list, is O(n) once.
-   *
-   * A tool row is included only when it succeeded OR carried numbers: a call
-   * rejected by a gate never wrote anything, and listing it would claim a file
-   * changed when none did.
-   */
-  const berkasSesi = useMemo(() => {
-    const peta = new Map<string, AgentToolRun[]>();
-    for (const m of msgs) {
-      if (!m.tools) continue;
-      for (const t of m.tools) {
-        if (!namaToolTulis(t.name)) continue;
-        /* A call rejected before it ran wrote nothing; a FAILED call may still
-           have written half a patch, so only the untouched ones are dropped. */
-        if (t.ok === false && typeof t.additions !== 'number') continue;
-        let args: Record<string, unknown> = {};
-        try {
-          const o = JSON.parse(t.args || '{}');
-          if (o && typeof o === 'object') args = o as Record<string, unknown>;
-        } catch {
-          continue;
-        }
-        const paths = pathsDari(args, t.result ?? '');
-        for (const p of paths) {
-          const ada = peta.get(p);
-          if (ada) ada.push(t);
-          else peta.set(p, [t]);
-        }
-      }
-    }
-    return peta;
-  }, [msgs]);
 
   /*
    * Keep the newest output in view while the agent works.
@@ -265,8 +227,12 @@ const PesanList = memo(function PesanList({
   let hariSebelumnya: number | null = null;
   /* From Chat Settings. Turning it off must actually remove the dividers. */
   if (!showDividers) {
-    for (const m of msgs) baris.push(<ChatMessage key={m.id} msg={m} />);
-    return <>{kartu(baris, berkasSesi, composerId === 'agents' ? 'agents' : 'main')}</>;
+    for (const m of msgs) {
+      baris.push(<ChatMessage key={m.id} msg={m} />);
+      const kartuTurn = kartuPesan(m, permukaan);
+      if (kartuTurn) baris.push(kartuTurn);
+    }
+    return <>{baris}</>;
   }
   for (const m of msgs) {
     const t = new Date(m.at);
@@ -285,8 +251,10 @@ const PesanList = memo(function PesanList({
       hariSebelumnya = hari;
     }
     baris.push(<ChatMessage key={m.id} msg={m} />);
+    const kartuTurn = kartuPesan(m, permukaan);
+    if (kartuTurn) baris.push(kartuTurn);
   }
-  return <>{kartu(baris, berkasSesi, composerId === 'agents' ? 'agents' : 'main')}</>;
+  return <>{baris}</>;
 });
 
 function AiPanelInner({ composerId = '' }: { composerId?: string }) {
@@ -431,7 +399,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
      menjawab, jadi kartunya tidak boleh ikut disembunyikan saat panel sibuk. */
   const agentTanya = kosong.tanya;
   const jawabTanya = useAi((s) => s.jawabTanya);
-  const [jawabanTanya, setJawabanTanya] = useState('');
 
   /*
    * Kartu ask_user muncul DI DALAM area gulir (bukan lagi menempel di atas
@@ -1617,7 +1584,6 @@ const bukaModels = () => bukaPanel('models');
             </div>
           </div>
         )}
-
       </div>
 
       {/* The Chat Settings overlay used to mount here. It is its own window now
@@ -1738,71 +1704,13 @@ const bukaModels = () => bukaPanel('models');
           * Kartu ini adalah PESAN dari agen, jadi ia hidup di dalam area
           * gulir bersama riwayat: ikut naik-turun dengan pesan-pesan, dan
           * terbaca tepat di bawah konteks yang menimbulkan pertanyaannya.
-          * Pilihan cepat HANYA muncul kalau model mengirim daftarnya;
-          * pertanyaan bebas tetap bisa dijawab lewat kotak ketik di kartu.
+          * Bentuk formulirnya - langkah bertahap, field per tipe, counter,
+          * dan Submit - ada di `AskUserCard`; di sini hanya tempatnya.
           */}
         {agentTanya && (
-          <div className="ai-tanya" role="alertdialog" data-testid="ai-agent-tanya">
-            <p className="ai-tanya-label">
-              <span className="ai-tanya-dot" aria-hidden="true" />
-              {tr('The agent needs your answer')}
-            </p>
-            <p className="ai-tanya-isi">{agentTanya.pertanyaan}</p>
-            {agentTanya.pilihan.length > 0 && (
-              <>
-                <div className="ai-tanya-pilihan">
-                  {agentTanya.pilihan.map((p, i) => (
-                    <button
-                      key={i}
-                      className="ai-tanya-op"
-                      data-testid={`ai-tanya-pilih-${i}`}
-                      onClick={() => jawabTanya(p)}
-                    >
-                      <span className="ai-tanya-op-teks">{p}</span>
-                      <span className="ai-tanya-op-panah" aria-hidden="true">
-                        →
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <p className="ai-tanya-pemisah">{tr('or write your own')}</p>
-              </>
-            )}
-            <div className="ai-tanya-isi-jawab">
-              <input
-                className="input input-sm"
-                data-testid="ai-tanya-jawab"
-                value={jawabanTanya}
-                placeholder={tr('Type your answer...')}
-                onChange={(e) => setJawabanTanya(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && jawabanTanya.trim()) {
-                    e.preventDefault();
-                    jawabTanya(jawabanTanya.trim());
-                  }
-                }}
-              />
-              <button
-                className="btn btn-sm btn-primary"
-                data-testid="ai-tanya-kirim"
-                disabled={!jawabanTanya.trim()}
-                onClick={() => jawabTanya(jawabanTanya.trim())}
-              >
-                {tr('Send')}
-              </button>
-              {/* Batal mengirim null, dan tool-nya membedakan itu dari jawaban
-                  kosong: agen tidak boleh menganggap "dibatalkan" sama dengan
-                  "terserah kamu". */}
-              <button
-                className="btn btn-sm"
-                data-testid="ai-tanya-batal"
-                onClick={() => jawabTanya(null)}
-              >
-                {tr('Cancel')}
-              </button>
-            </div>
-          </div>
+          <AskUserCard tanya={agentTanya} onJawab={jawabTanya} tr={tr} tf={tf} />
         )}
+
       </div>
 
       {/*

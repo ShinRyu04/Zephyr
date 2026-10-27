@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
 import type { ApprovalMode } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
+import { useStore } from '../../lib/store';
+import { useAgentCustom } from '../../lib/agentCustom';
+import AgenAvatar from './AgenAvatar';
 
 /*
  * The persona's mark, shown at the head of its row.
@@ -136,7 +139,45 @@ export function ModeMenu() {
   const muatPersona = usePersona((s) => s.muat);
   /* Which of the two answers the composer is set to. */
   const modeAktif = useAi((s) => s.agentMode ?? 'agent');
-  const setAgentMode = useAi((s) => s.setAgentMode);
+
+  /* The agent the reader picked: '' / 'agent' / 'chat' / a custom agent id. */
+  const agentAktif = useStore((s) => s.settings.agents?.agentAktif ?? '');
+  const setAgentAktif = useAi((s) => s.setAgentAktif);
+  const agentKustom = useAgentCustom((s) => s.daftar);
+  const muatAgent = useAgentCustom((s) => s.muat);
+  /*
+   * Load the agent list on first open.
+   *
+   * The store starts empty and was only ever filled by the Agents page in its
+   * own window, so the composer showed Chat/Agent and nothing else while the
+   * user's agents sat in settings - the picker looked like it had no custom
+   * agents rather than not having loaded them.
+   */
+  useEffect(() => {
+    if (agentKustom.length === 0) muatAgent();
+  }, [agentKustom.length, muatAgent]);
+  const daftarAgentKustom = useMemo(
+    () => agentKustom.filter((a) => a.aktif && a.nama.trim()),
+    [agentKustom],
+  );
+  /*
+   * The custom agent behind the chip, if that is what is selected.
+   *
+   * The chip used to say "Agent" for every non-chat pick, so a reader who chose
+   * their own agent had no way to tell from the composer which one was live -
+   * the one place the choice has to be visible.
+   */
+  const agentKustomAktifChip = daftarAgentKustom.find((a) => a.id === agentAktif) ?? null;
+  /*
+   * The id the menu highlights.
+   *
+   * `modeAktif` alone cannot express the choice: `setAgentAktif` maps every
+   * custom agent to mode 'agent', so highlighting from the mode would keep the
+   * built-in "Agent" row lit while a custom one is actually answering. The
+   * stored id is the source of truth; it falls back through the legacy empty
+   * value to whichever built-in the mode names.
+   */
+  const idAktif = agentAktif || (modeAktif === 'chat' ? 'chat' : 'agent');
 
   /* The list may not be loaded yet on a cold start, so the popup falls back to
      describing the row generically rather than rendering an empty label. */
@@ -177,6 +218,9 @@ export function ModeMenu() {
               strokeLinejoin="round"
             />
           </svg>
+        ) : agentKustomAktifChip ? (
+          /* A custom agent's own mark, so the chip names the one that answers. */
+          <AgenAvatar agent={agentKustomAktifChip} size={12} />
         ) : (
           /* A robot head: this mode has tools and acts on the workspace. */
           <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
@@ -187,7 +231,7 @@ export function ModeMenu() {
             <circle cx="9.8" cy="9" r="0.95" fill="currentColor" stroke="none" />
           </svg>
         )}
-        {tr(modeAktif === 'chat' ? 'Chat' : 'Agent')}
+        {agentKustomAktifChip ? agentKustomAktifChip.nama : tr(modeAktif === 'chat' ? 'Chat' : 'Agent')}
         <span className="pick-caret">▾</span>
       </button>
 
@@ -202,12 +246,12 @@ export function ModeMenu() {
           <button
             type="button"
             role="menuitemradio"
-            aria-checked={modeAktif === 'chat'}
-            className={`mode-item${modeAktif === 'chat' ? ' is-on' : ''}`}
+            aria-checked={idAktif === 'chat'}
+            className={`mode-item${idAktif === 'chat' ? ' is-on' : ''}`}
             data-testid="ai-mode-chat"
             title={tr('Ask questions and talk - no tools, no file changes')}
             onClick={() => {
-              setAgentMode('chat');
+              setAgentAktif('chat');
               setBuka(false);
             }}
           >
@@ -225,17 +269,17 @@ export function ModeMenu() {
             <span className="mode-item-teks">
               <b>{tr('Chat')}</b>
             </span>
-            {modeAktif === 'chat' && <span className="pick-check">✓</span>}
+            {idAktif === 'chat' && <span className="pick-check">✓</span>}
           </button>
 
           <button
             type="button"
             role="menuitemradio"
-            aria-checked={modeAktif === 'agent'}
-            className={`mode-item${modeAktif === 'agent' ? ' is-on' : ''}`}
+            aria-checked={idAktif === 'agent'}
+            className={`mode-item${idAktif === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-persona-aktif"
             onClick={() => {
-              setAgentMode('agent');
+              setAgentAktif('agent');
               setBuka(false);
             }}
           >
@@ -252,8 +296,44 @@ export function ModeMenu() {
             <span className="mode-item-teks">
               <b>{tr('Agent')}</b>
             </span>
-            {modeAktif === 'agent' && <span className="pick-check">✓</span>}
+            {idAktif === 'agent' && <span className="pick-check">✓</span>}
           </button>
+
+          {/*
+            * The reader's own agents, in the same list as Chat and Agent.
+            *
+            * Same row shape as the two above on purpose - the reference puts
+            * them in one list, and a second section header here would make the
+            * composer read like a different feature. A custom agent also sets
+            * the run's prompt and tool allowlist (`agentCatalog.ts`), so
+            * picking one is a real switch, not a label.
+            */}
+          {daftarAgentKustom.map((a) => {
+            const dipilih = agentAktif === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={dipilih}
+                className={`mode-item${dipilih ? ' is-on' : ''}`}
+                data-testid={`ai-agent-${a.id}`}
+                title={tr(a.deskripsi)}
+                onClick={() => {
+                  setAgentAktif(a.id);
+                  setBuka(false);
+                }}
+              >
+                <span className="mode-item-ikon" aria-hidden="true">
+                  <AgenAvatar agent={a} size={13} />
+                </span>
+                <span className="mode-item-teks">
+                  <b>{a.nama}</b>
+                </span>
+                {dipilih && <span className="pick-check">✓</span>}
+              </button>
+            );
+          })}
 
           <div className="mode-div" aria-hidden="true" />
           <button
@@ -263,7 +343,16 @@ export function ModeMenu() {
             data-testid="ai-mode-manage"
             onClick={() => {
               setBuka(false);
-              bukaPanel('agent-custom', 'agents');
+              /*
+               * One gesture, one result: the editor.
+               *
+               * This used to open the panel on the Agents SECTION, which lands
+               * on the list - so "Create Agent" looked like it only opened
+               * Settings, and the reader pressed Create a second time. The
+               * `baru` flag rides in the URL (this is another WebView with its
+               * own stores), and the page seeds itself straight into the form.
+               */
+              bukaPanel('agent-custom', 'agents', { baru: true });
             }}
           >
             <span className="mode-item-ikon" aria-hidden="true">
