@@ -5950,82 +5950,90 @@ export const useAi = create<AiStore>((set0, get) => {
 
     if (diketik) get().addPromptHistory(diketik);
 
-    if (get().agentMode === 'agent') {
-      if (get().agentBusy) {
-        // Park it instead of refusing: the composer accepts the message and it
-        // goes out as soon as the running task finishes.
-        /*
-         * The queue holds what the user TYPED, not the expanded text: the drain
-         * runs it back through `send`, which expands it again. Storing the
-         * expanded form would work too - a body does not start with a slash, so
-         * a second pass leaves it alone - but the queued row would then show the
-         * paragraph instead of the command, and the two paths would drift.
-         */
-        /*
-         * LANE ANTREAN-LIVE (item C). Keputusan masuk/penuh/terlalu-panjang TIDAK
-         * ditebak di sini: `rencanaMasukSaatSibuk` (src/lib/antreanPesan.ts) yang
-         * memutuskan, dengan aturan yang sama dengan 18 uji di
-         * scripts/uji-antrean-pesan.mjs. Tiga akibatnya, semuanya disengaja:
-         *   * pesan kosong / terlalu panjang -> DITOLAK dengan sebab yang bisa
-         *     dibaca, dan draft TIDAK dikosongkan supaya user bisa langsung
-         *     memperbaikinya (dulu: apa pun yang diketik "berhasil" diantrekan);
-         *   * antrean penuh (20 pesan) -> pesan TERLAMA dibuang dan pesan BARU
-         *     tetap masuk, dengan pemberitahuan (dulu: tak ada batas sama sekali);
-         *   * barisnya ditulis ke `antrians[composerId]` - daftar yang dirender
-         *     panel - dan dicerminkan ke `antrian` untuk permukaan utama, sama
-         *     seperti aksi antrean lain. Jadi pesan yang diketik selagi sibuk
-         *     SEKARANG terlihat di daftar antrean panel (dulu hanya masuk daftar
-         *     datar yang tidak dirender).
-         */
-        const kunciAntrean = composerId || COMPOSER_AKTIF;
-        const barisAntrean: AntrianPesan = { id: idAntrian(), teks: diketik, images: imgs };
-        /*
-         * Baris TANPA teks (hanya gambar yang ditempel) tetap lewat jalur lama:
-         * `kirim()` di antreanPesan.ts menolak pesan kosong, sedangkan panel
-         * menerima baris bergambar. Menolaknya di sini akan menghilangkan gambar
-         * yang sudah ditempel user - keluhan yang justru sedang diperbaiki - jadi
-         * aturan antrean hanya berlaku untuk baris berteks.
-         */
-        if (diketik.trim().length === 0) {
-          set((s) => ({ antrian: [...s.antrian, barisAntrean] }));
-          set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
-          return true;
-        }
-        const keputusan = rencanaMasukSaatSibuk(get().antrians[kunciAntrean] ?? [], diketik, imgs);
-        if (!keputusan.ok || !keputusan.item) {
-          // Draft sengaja TIDAK dikosongkan: user harus bisa memperbaiki teksnya.
-          set({ toast: keputusan.pesan ?? tx('Message could not be queued') });
-          return false;
-        }
-        const penuh = keputusan.buangIndeks !== null;
-        set((s) => {
-          const sekarang = (s.antrians[kunciAntrean] ?? []).slice();
-          if (keputusan.buangIndeks !== null) sekarang.splice(keputusan.buangIndeks, 1);
-          const sesudah = [...sekarang, { ...barisAntrean, teks: keputusan.item!.teks }];
-          return {
-            antrians: { ...s.antrians, [kunciAntrean]: sesudah },
-            ...(kunciAntrean === '' ? { antrian: sesudah } : {}),
-          };
-        });
-        set((s) => ({
-          drafts: { ...s.drafts, [composerId]: '' },
-          draftImages: [],
-          toast: penuh
-            ? tf('Queue full ({n}): the oldest queued message was dropped, yours is in', {
-                n: keputusan.keadaan.batas,
-              })
-            : tx('Added to the queue'),
-        }));
+    /*
+     * Mode + sinyal sibuk pada permukaan yang MENGETIK:
+     *   agent -> `agentBusy`; chat -> `pendings[composerId]` (dengan fallback
+     *   `pending` untuk permukaan utama), pola baca yang sama dengan
+     *   `pend` di `kirimSekarang`. Aturannya SATU untuk kedua mode: pesan yang
+     *   diketik selagi sibuk MASUK ANTREAN ke `antrians[composerId]` - daftar
+     *   yang dirender tab Queue kartu review dan strip work-stack - lalu diambil
+     *   lagi otomatis begitu giliran selesai (drain chunk -> `kirimAntrian`).
+     *   Dulu mode chat menulis ke lane datar `antrian` lama: lane itu tidak
+     *   dirender (work-stack-queue disembunyikan) dan tidak pernah di-drain,
+     *   jadi pesan tampak hilang padahal cuma nyangkut.
+     */
+    const modeAgent = get().agentMode === 'agent';
+    const sibuk = modeAgent
+      ? get().agentBusy
+      : !!(get().pendings[composerId] ?? (composerId === '' ? get().pending : null));
+    if (sibuk) {
+      // Park it instead of refusing: the composer accepts the message and it
+      // goes out as soon as the running task finishes.
+      /*
+       * The queue holds what the user TYPED, not the expanded text: the drain
+       * runs it back through `send`, which expands it again. Storing the
+       * expanded form would work too - a body does not start with a slash, so
+       * a second pass leaves it alone - but the queued row would then show the
+       * paragraph instead of the command, and the two paths would drift.
+       */
+      /*
+       * LANE ANTREAN-LIVE (item C). Keputusan masuk/penuh/terlalu-panjang TIDAK
+       * ditebak di sini: `rencanaMasukSaatSibuk` (src/lib/antreanPesan.ts) yang
+       * memutuskan, dengan aturan yang sama dengan 18 uji di
+       * scripts/uji-antrean-pesan.mjs. Tiga akibatnya, semuanya disengaja:
+       *   * pesan kosong / terlalu panjang -> DITOLAK dengan sebab yang bisa
+       *     dibaca, dan draft TIDAK dikosongkan supaya user bisa langsung
+       *     memperbaikinya (dulu: apa pun yang diketik "berhasil" diantrekan);
+       *   * antrean penuh (20 pesan) -> pesan TERLAMA dibuang dan pesan BARU
+       *     tetap masuk, dengan pemberitahuan (dulu: tak ada batas sama sekali);
+       *   * barisnya ditulis ke `antrians[composerId]` - daftar yang dirender
+       *     panel - dan dicerminkan ke `antrian` untuk permukaan utama, sama
+       *     seperti aksi antrean lain. Jadi pesan yang diketik selagi sibuk
+       *     SEKARANG terlihat di daftar antrean panel (dulu hanya masuk daftar
+       *     datar yang tidak dirender).
+       */
+      const kunciAntrean = composerId || COMPOSER_AKTIF;
+      const barisAntrean: AntrianPesan = { id: idAntrian(), teks: diketik, images: imgs };
+      /*
+       * Baris TANPA teks (hanya gambar yang ditempel) tetap lewat jalur lama:
+       * `kirim()` di antreanPesan.ts menolak pesan kosong, sedangkan panel
+       * menerima baris bergambar. Menolaknya di sini akan menghilangkan gambar
+       * yang sudah ditempel user - keluhan yang justru sedang diperbaiki - jadi
+       * aturan antrean hanya berlaku untuk baris berteks.
+       */
+      if (diketik.trim().length === 0) {
+        set((s) => ({ antrian: [...s.antrian, barisAntrean] }));
+        set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
         return true;
       }
-      return get().sendAgent(raw, imgs, tampil, composerId);
-    }
-    if (get().pending) {
-      // Same rule in chat mode: queue it rather than dropping the text.
-      set((s) => ({ antrian: [...s.antrian, { id: idAntrian(), teks: diketik, images: imgs }] }));
-      set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
+      const keputusan = rencanaMasukSaatSibuk(get().antrians[kunciAntrean] ?? [], diketik, imgs);
+      if (!keputusan.ok || !keputusan.item) {
+        // Draft sengaja TIDAK dikosongkan: user harus bisa memperbaiki teksnya.
+        set({ toast: keputusan.pesan ?? tx('Message could not be queued') });
+        return false;
+      }
+      const penuh = keputusan.buangIndeks !== null;
+      set((s) => {
+        const sekarang = (s.antrians[kunciAntrean] ?? []).slice();
+        if (keputusan.buangIndeks !== null) sekarang.splice(keputusan.buangIndeks, 1);
+        const sesudah = [...sekarang, { ...barisAntrean, teks: keputusan.item!.teks }];
+        return {
+          antrians: { ...s.antrians, [kunciAntrean]: sesudah },
+          ...(kunciAntrean === '' ? { antrian: sesudah } : {}),
+        };
+      });
+      set((s) => ({
+        drafts: { ...s.drafts, [composerId]: '' },
+        draftImages: [],
+        toast: penuh
+          ? tf('Queue full ({n}): the oldest queued message was dropped, yours is in', {
+              n: keputusan.keadaan.batas,
+            })
+          : tx('Added to the queue'),
+      }));
       return true;
     }
+    if (modeAgent) return get().sendAgent(raw, imgs, tampil, composerId);
 
     let content = raw;
     if (raw.length > MSG_LIMIT) {
