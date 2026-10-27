@@ -125,6 +125,11 @@ const PROBE_KELAS = [
   { kelas: 'galat', pesan: 'ekstensiku crash dan gagal dimuat, lihat log-nya' },
   { kelas: 'keamanan', pesan: 'di mana aku menyimpan kunci SSH dan sandi itu' },
   { kelas: 'subagent', pesan: 'pakai subagent paralel untuk audit berkas' },
+  /* Dua kelas ini sudah lama ada di produk tetapi tidak pernah punya probe, jadi
+     gate "kelas terdaftar tanpa pemicu" melaporkannya sebagai MERAH padahal
+     bloknya benar. Teks probe harus memicu HANYA kelasnya sendiri. */
+  { kelas: 'patch', pesan: 'apply_patch untuk memindahkan berkas konfigurasi' },
+  { kelas: 'eksekusi', pesan: 'jalankan code mode untuk urutan panjang sekaligus' },
 ];
 
 /** Kata kunci yang HANYA memicu satu kelas: untuk mengukur panjang blok per kelas. */
@@ -660,8 +665,18 @@ for (const [lang, d] of [
   const bocorKelas = d.luar.filter((p) => p.kelas.length > 0).map((p) => `"${p.pesan}" -> ${p.kelas.join('+')}`);
   const bocorTeks = d.luar.filter((p) => p.teks.length > 0).map((p) => `"${p.pesan}" = ${p.teks.length} char`);
   const bocorJudul = d.luar.filter((p) => JUDUL_BLOK.some((j) => p.prompt.includes(j))).map((p) => p.pesan);
+  /*
+   * C.4 menguji bahwa blok KONDISIONAL tidak menyuntik bullet fakta on-demand.
+   *
+   * Versi lama mencarinya di `p.prompt` (blok inti + blok kondisional), padahal
+   * bullet itu MEMANG ada di blok inti - itulah tujuan perubahan "seluruh fakta
+   * selalu ada" (uji-blok-inti B.6). Akibatnya cek ini mustahil lulus begitu
+   * produknya benar. Yang diuji sekarang: bullet itu tidak ikut lewat BLOK
+   * KONDISIONAL, yaitu `teks` milik kelas - satu-satunya jalur yang memang
+   * boleh kosong saat pesannya di luar topik.
+   */
   const onDemand = [M.faktaOnDemand('model'), M.faktaOnDemand('galat')].filter(Boolean);
-  const bocorOnDemand = d.luar.filter((p) => onDemand.some((od) => p.prompt.includes(od))).map((p) => p.pesan);
+  const bocorOnDemand = d.luar.filter((p) => onDemand.some((od) => p.teks.includes(od))).map((p) => p.pesan);
   uji('C', `1 ${lang}`, bocorKelas.length === 0, `${d.luar.length} pesan luar topik -> NOL kelas${bocorKelas.length ? ` - BOCOR: ${bocorKelas.join(' | ')}` : ''}`);
   uji('C', `2 ${lang}`, bocorTeks.length === 0, `blok kondisional 0 char untuk semua pesan luar topik${bocorTeks.length ? ` - BOCOR: ${bocorTeks.join(' | ')}` : ''}`);
   uji('C', `3 ${lang}`, bocorJudul.length === 0, `tidak ada judul blok tambahan di rakitan${bocorJudul.length ? ` - BOCOR: ${bocorJudul.join(' | ')}` : ''}`);

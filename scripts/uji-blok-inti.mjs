@@ -46,18 +46,27 @@ import * as esbuild from 'esbuild';
 const AKAR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const KERJA = join(AKAR, 'scratch', 'uji-blok-inti');
 /*
- * Disalin dari AMBANG_TOKEN_INTI (systemPrompt.ts) dan HARUS ikut berubah
- * bersamanya. Dinaikkan 2.000 -> 3.000 ketika blok inti mulai membawa seluruh
- * 129 kunci setelan: kunci yang tidak ada di kepala model membuatnya menjawab
- * "tidak ada setelan itu" untuk setelan yang benar-benar ada.
+ * Ambang dibaca dari KODE, bukan disalin ke sini.
+ *
+ * Dulu angka ini ditulis tangan di sini dengan catatan "HARUS ikut berubah
+ * bersama AMBANG_TOKEN_INTI". Catatan itu tidak cukup: ketika ambang produk
+ * naik 3.400 -> 3.500 (aturan ke-11, berhenti-dan-tanya), salinan ini tetap
+ * 3.400 dan harness GAGAL pada blok inti yang justru masih di bawah ambang
+ * produk. Laporannya jadi salah arah - yang terlihat rusak adalah produknya.
+ *
+ * Sumber kebenarannya cuma satu, jadi ia dibaca dari sana; kalau konstantanya
+ * hilang atau berganti nama, harness GAGAL keras, bukan diam-diam memakai angka
+ * karangan.
  */
-/*
- * 3.400 token: blok inti kini memuat SELURUH fakta Zephyr (tidak ada lagi
- * bagian yang ditahan untuk blok kondisional), jadi anggarannya dinaikkan
- * mengikuti isinya - 3.000 -> 3.400. Angka ini HARUS sama dengan
- * AMBANG_TOKEN_INTI di systemPrompt.ts.
- */
-const AMBANG_TOKEN = 3400;
+const AMBANG_TOKEN = (() => {
+  const sumber = readFileSync(join(AKAR, 'src', 'lib', 'systemPrompt.ts'), 'utf8');
+  const cocok = sumber.match(/export const AMBANG_TOKEN_INTI = (\d+)/);
+  if (!cocok) {
+    console.error('GAGAL: AMBANG_TOKEN_INTI tidak ditemukan di src/lib/systemPrompt.ts');
+    process.exit(1);
+  }
+  return Number(cocok[1]);
+})();
 const AMBANG_CHAR = AMBANG_TOKEN * 4;
 /* Cara hitung tunggal yang dipakai seluruh harness ini: 4 karakter = 1 token. */
 const charTok = (n) => Math.ceil(n / 4);

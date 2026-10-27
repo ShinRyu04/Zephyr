@@ -1,7 +1,0 @@
-WORKING TREE
-  catalog    : true
-  builtins   : true
-  deskripsi  : true
-  labelAksi  : true
-HEAD catalog has ask_user: true
-HEAD commit: cac0b2d

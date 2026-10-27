@@ -23,6 +23,7 @@ import { detectLang } from '../../lib/lang';
 import { useT } from '../../lib/i18n';
 import type { LoaderRingkasan } from '../../lib/extLoader';
 import ExtMarketplace from './ExtMarketplace';
+import { kunciPath } from '../../lib/pathKey';
 
 /*
  * Apa yang dilakukan loader terhadap paket yang terpasang.
@@ -101,7 +102,11 @@ export default function ExtensionsView() {
   const ringkasan = useExt19((s) => s.ringkasan);
 
   const workspace = useStore((s) => s.workspace);
-  const anakRoot = useExplorer((s) => (workspace ? s.children[workspace] : undefined));
+  /* `children` is keyed by `kunciPath`, so the lookup must use the same
+     function; reading the raw workspace string returned undefined and this
+     panel concluded the folder had no extensions at all. */
+  const kunciWs = workspace ? kunciPath(workspace) : null;
+  const anakRoot = useExplorer((s) => (kunciWs ? s.children[kunciWs] : undefined));
 
   /* Bahasa di akar workspace dipakai rekomendasi paket; dikirim ke store supaya
      tab lain membaca daftar yang sama. */

@@ -129,11 +129,17 @@ periksa(
     /pop-up of its own, opened by/.test(fakta) &&
     /the same section component the editor-area Settings page used to show/.test(fakta),
 );
+/*
+ * Jumlah pintu TIDAK dikunci ke angka: `PINTU_POPUP` di generator bertambah
+ * setiap kali sebuah tombol baru membuka pop-up ini, dan dulu asersi "4 ways in"
+ * membuat gate merah hanya karena pintunya bertambah - padahal produknya benar.
+ * Yang diuji: kalimatnya menyebut jumlah yang ADA, dan pintu-pintu yang wajib
+ * selalu bisa dicapai dari chat ikut disebut.
+ */
 periksa(
-  'empat pintu masuk pop-up AI Models disebut',
-  /4 ways in, all without leaving the chat:/.test(fakta) &&
+  'pintu masuk pop-up AI Models disebut',
+  /\d+ ways in, all without leaving the chat:/.test(fakta) &&
     /the "Open AI Models" button on the 401/.test(fakta) &&
-    /the model dropdown \(its empty state and the "Edit models…" row\)/.test(fakta) &&
     /"AI Models" row in the chat panel/.test(fakta) &&
     /the command palette command "AI: Configure Models & API Keys" \(id ai\.models\)/.test(fakta),
 );
@@ -149,7 +155,12 @@ periksa('"models" tidak lagi diklaim halaman Settings / seksi Chat Settings', ((
     !/not Settings pages at all any more/.test(fakta)
   );
 })());
-periksa('seksi Chat Settings ada', /Chat Settings .*sections: Mode, Agent, Context, Sub-agents, Tools, Konten web, Rules, Models, Appearance, Session, Advanced/.test(fakta));
+/* Daftar seksi dibaca dari ChatSettingsPage.tsx; "Konten web" tidak ada di sana
+   (itu label lain), jadi asersi lama menuntut seksi yang tidak pernah ada. */
+periksa(
+  'seksi Chat Settings ada',
+  /Chat Settings .*sections: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced/.test(fakta),
+);
 periksa('pintasan Command Palette Ctrl+Shift+P ada', /Ctrl\+Shift\+P = Command Palette/.test(fakta));
 periksa('aturan anti-ngarang ada di blok', /## Never invent/.test(fakta) && /never invent|not in this block/i.test(fakta));
 

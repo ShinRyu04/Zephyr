@@ -1090,6 +1090,16 @@ export const TOOL_WEB: AgentTool[] = [
          or the download is invisible to "put back what this turn changed". */
       await (await import('../checkpoint')).catat(dest);
       await cmd.fsWrite(dest, konten, undefined, undefined, { allowMissing: true });
+      /* A download is a new file on disk like any other, so the tree has to
+         hear about it. Same reason as the builtins' write path: relying on
+         the watcher left the file missing from Explorer until a refresh. */
+      try {
+        const { useExplorer } = await import('../explorerStore');
+        const dir = dest.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '');
+        await useExplorer.getState().refreshDir(dir || dest);
+      } catch {
+        /* Redrawing the tree must not fail the download. */
+      }
       return `File from ${url} downloaded successfully to ${dest} (${ukuran} bytes).`;
     },
   },

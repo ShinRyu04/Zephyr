@@ -5,6 +5,7 @@ import { hunkUnified, terapkanUnifiedKeIsi } from '../../lib/hunkUnified';
 import type { PetaStatus, StatusHunk } from '../../lib/hunkUnified';
 import { useT } from '../../lib/i18n';
 import { useStore } from '../../lib/store';
+import { kunciPath } from '../../lib/pathKey';
 
 type Kind = 'add' | 'del' | 'hunk' | 'meta' | 'ctx';
 
@@ -107,8 +108,14 @@ export default function DiffViewer() {
     }
     /* Tab editor yang masih punya perubahan belum disimpan akan menimpa hasil ini
        saat disimpan, jadi penulisan ditolak lebih dulu, dengan alasannya. */
-    const kunci = diff.path.toLowerCase();
-    const tab = useStore.getState().tabs.find((t) => t.path?.toLowerCase() === kunci);
+    /* `diff.path` is whatever git reported; `t.path` is what our own tree opened.
+       toLowerCase() alone does not absorb a forward-slash spelling, so the open
+       tab was missed and the guard below let the write proceed over unsaved
+       edits. */
+    const kunci = kunciPath(diff.path);
+    const tab = useStore
+      .getState()
+      .tabs.find((t) => !!t.path && kunciPath(t.path) === kunci);
     if (tab?.unsaved) {
       setPesan('Berkas ini sedang terbuka dengan perubahan belum disimpan: simpan atau tutup tabnya dulu.');
       return;

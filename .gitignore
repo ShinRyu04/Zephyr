@@ -127,3 +127,7 @@ secrets.json
 
 # Catatan kerja pribadi (bukan bagian produk)
 TODO-BELUM-SELESAI.txt
+
+# Ruang kerja sementara: hasil uji, potongan teks, cadangan berkas.
+# Bukan bagian produk, dan isinya berganti tiap sesi.
+scratch/

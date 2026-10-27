@@ -200,12 +200,22 @@ export function onSettingsChanged(cb: (key: string) => void): Promise<UnlistenFn
   return listen<{ key: string }>(EV.settingsChanged, (e) => cb(e.payload.key));
 }
 
-export function onFsChanged(
-  cb: (p: { path: string; dir: string; kind: FsChangeKind }) => void,
-): Promise<UnlistenFn> {
-  return listen<{ path: string; dir: string; kind: FsChangeKind }>(EV.fsChanged, (e) =>
-    cb(e.payload),
-  );
+/*
+ * `message` only rides along on `kind: 'error'`: the watcher could not be
+ * installed for this folder, so nothing will be reported from it again. The
+ * payload shape is shared rather than forked because the listener keeps one
+ * subscription for both — but an error event carries no `dir`, and callers must
+ * check the kind before touching it.
+ */
+export interface FsChange {
+  path: string;
+  dir: string;
+  kind: FsChangeKind;
+  message?: string;
+}
+
+export function onFsChanged(cb: (p: FsChange) => void): Promise<UnlistenFn> {
+  return listen<FsChange>(EV.fsChanged, (e) => cb(e.payload));
 }
 
 export function onPtyOutput(cb: (id: string, data: string) => void): Promise<UnlistenFn> {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useExplorer } from '../../lib/explorerStore';
+import { kunciPath } from '../../lib/pathKey';
 
 const dirOfPath = (p: string) => p.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, '');
 
@@ -43,7 +44,7 @@ export default function ContextMenu() {
 
   const newItem = async (kind: 'new-file' | 'new-folder') => {
     
-    if (menu.isDir && !expanded[menu.path]) await toggleExpand(menu.path);
+    if (menu.isDir && !expanded[kunciPath(menu.path)]) await toggleExpand(menu.path);
     startInline({
       kind,
       target: parentDir,

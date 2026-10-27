@@ -568,7 +568,15 @@ function __zhVscode() {
   };
   EventEmitter.prototype.fire = function (d) {
     for (var i = 0; i < this._l.length; i++) {
-      try { this._l[i](d); } catch (e) {}
+      /*
+       * One throwing listener must not stop the others, but the failure has
+       * to leave a trace. An empty catch made a broken extension event handler
+       * completely invisible: its feature just stopped working, with nothing
+       * in the log and no message anywhere, and the handler that threw was
+       * never named. console.warn matches how the rest of this shim reports
+       * a shim-level failure (see the process.env builder above).
+       */
+      try { this._l[i](d); } catch (e) { console.warn('[ext-shim] event listener threw', e); }
     }
   };
 

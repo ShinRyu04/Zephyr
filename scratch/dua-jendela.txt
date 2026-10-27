@@ -1,2 +1,0 @@
-EDITOR  {"root":"app-root","agMenubar":false,"aiHeadDisp":"flex","aiHeadH":38,"inputRowR":"10px","inputRowBg":"rgb(13, 17, 23)","inputRowBorder":"0.8px"}
-AGENTS  {"root":"agents-window-root","menubar":[0,0,1536,56],"chat":[381,56,520,848],"right":[905,56,623,848],"chatHead":[382,57,518,48],"composerR":"16px"}

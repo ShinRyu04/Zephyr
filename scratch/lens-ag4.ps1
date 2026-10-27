@@ -1,2 +1,0 @@
-﻿powershell -ExecutionPolicy Bypass -File "C:\Users\Zyrex\.config\opencode\skills\modlens\scripts\run.ps1" -i "D:\Referensi TRAE Agent Window\agents zephyr 3.png" --prompt "Is there a 'New chat' label or a horizontal divider line ABOVE the big heading? Answer yes or no for each. Then: is the heading the FIRST thing in the centre column? Is the composer centred vertically? Is there a Local row inside the box? Be literal." -o "D:\Zephyr\scratch\lens-ag4.json" 2>&1 | Out-Null
-node -e "const o=require('D:/Zephyr/scratch/lens-ag4.json');console.log(o.result.summary)"
