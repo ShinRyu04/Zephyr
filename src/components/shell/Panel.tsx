@@ -6,7 +6,6 @@ import ProblemsView from './ProblemsView';
 import OutputView from './OutputView';
 import DebugConsoleView from './DebugConsoleView';
 import PortsView from './PortsView';
-import SubAgentView from './SubAgentView';
 import TerminalArea from './TerminalArea';
 import { useT } from '../../lib/i18n';
 
@@ -81,7 +80,6 @@ export default function Panel() {
         {activeTab === 'output' && <OutputView />}
         {activeTab === 'debug' && <DebugConsoleView />}
         {activeTab === 'ports' && <PortsView />}
-        {activeTab === 'subagents' && <SubAgentView />}
 
         {/* Terminal: stays mounted (see the note above), hidden while
             another tab is active. HTML `hidden` is not used because xterm needs an

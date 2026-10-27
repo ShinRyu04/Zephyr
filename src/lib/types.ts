@@ -340,6 +340,24 @@ export interface ChatMsg extends AiMessage {
   reasoningMs?: number;
 
   /*
+   * Reasoning per langkah, satu segmen per fase "pikir" di loop agent.
+   *
+   * Isi totalnya sama dengan `reasoning` (yang tetap dipelihara untuk echo ke
+   * provider dan blok reasoning lama), tetapi terpotong per posisi tool, jadi
+   * transcript bisa menampilkan "Thought · 3s" di antara baris tool seperti
+   * produk rujukan. `undefined` pada transkrip lama = satu blok saja.
+   */
+  reasoningSegmen?: ReasoningSegmen[];
+
+  /*
+   * Turn ini diproduksi dalam run mode 'plan': agen diminta menyusun rencana
+   * dan BERHENTI sebelum mengubah apa pun. Di permukaan Agent window, pesan
+   * dengan tanda ini dirender sebagai kartu "Plan" (header + salin + badan
+   * ter-clamp + "View full plan"), bukan jawaban biasa.
+   */
+  plan?: boolean;
+
+  /*
    * Token counts the provider reported for THIS turn.
    *
    * Kept on the message (not only in the HydraFusion receipt) because the Task
@@ -407,6 +425,25 @@ export interface ChatMsg extends AiMessage {
   };
 }
 
+/*
+ * Satu fase reasoning dalam satu giliran agent, untuk timeline kronologis.
+ *
+ * Frame reasoning datang per langkah loop (pikir -> teks -> tool -> pikir …).
+ * `hinggaTool` menandai posisi segmen: 0 = pikiran pembuka, k = pikiran di
+ * antara tool k-1 dan tool k, `tools.length` = pikiran terakhir sebelum
+ * jawaban akhir. Renderer menyisipkannya ke garis waktu di posisi itu.
+ */
+export interface ReasoningSegmen {
+  hinggaTool: number;
+  teks: string;
+  /*
+   * Konvensi jam yang sama dengan `reasoningMs`: epoch ms selama segmen masih
+   * mengalir (di atas 1e12), lalu membeku menjadi durasi saat teks langkah
+   * itu mulai datang atau giliran tamat.
+   */
+  ms: number;
+}
+
 export interface AgentToolRun {
   name: string;
   args: string;
@@ -414,7 +451,6 @@ export interface AgentToolRun {
   ok: boolean;
 
   at: number;
-
   /*
    * How long the call took, in milliseconds.
    *
@@ -1076,6 +1112,8 @@ export interface Tab {
     | 'extensions'
     | 'tools'
     | 'diff-view'
+    | 'plan'
+    | 'subagent'
     | 'browser';
 
   /*
@@ -1780,6 +1818,17 @@ export interface Settings {
   };
 
   /*
+   * Computer Use — kontrol desktop oleh agent. ENGINE-nya BELUM ada: yang
+   * hidup di batch ini hanya pengaturannya (Agent Customizations > Computer
+   * Use) dan tombol di composer. Field ini disiapkan supaya engine yang akan
+   * datang tinggal membaca flag yang sama.
+   */
+  computerUse: {
+    enabled: boolean;
+    showButton: boolean;
+  };
+
+  /*
    * HydraFusion — adaptive model orchestration for the main chat.
    *
    * Off by default: it spends MORE requests than a plain turn when it escalates
@@ -1901,6 +1950,9 @@ export interface Settings {
    * and "open a public link in my browser" are different promises.
    */
   browser?: {
+    /* Engine kontrol browser oleh agent (tool browser_open/read/click/type).
+       Off = tool browser ditolak di gerbang katalog. */
+    enabled?: boolean;
     bawaan?: 'builtin' | 'sistem';
     autoScreenshot?: boolean;
     urlLokal?: 'builtin' | 'sistem';
@@ -2078,6 +2130,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agents: { maxPanes: 6, order: [], startCommands: {}, attachActiveFile: false, customInstructions: '' },
 
   subagent: { maxParallel: 4, maxSteps: 15, allowWrite: false, showPanel: true, autoCollapse: true, model: '', provider: '', idleSecs: 90 },
+  computerUse: { enabled: false, showButton: false },
 
   /*
    * HydraFusion defaults. `enabled: false` and `maxRequests: 3` must match

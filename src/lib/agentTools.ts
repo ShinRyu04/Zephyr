@@ -274,6 +274,11 @@ export function agentToolSpecs(
     }
     if (optsOrWhitelist.mcp) mcpIzin = optsOrWhitelist.mcp;
   }
+  /* Gerbang "Enable built-in browser control" (Agent Customizations > Browser
+     Use): mati = tool browser_* tidak dikirim ke model sama sekali. */ 
+  if (useStore.getState().settings.browser?.enabled === false) {
+    daftar = daftar.filter((t) => !t.spec.name.startsWith('browser_'));
+  }
   /*
    * Progressive disclosure: only the CORE tools are sent every request.
    *

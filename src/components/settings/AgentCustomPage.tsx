@@ -8,6 +8,8 @@ import AgcAgents from './AgcAgents';
 import AgcRulesMemories from './AgcRulesMemories';
 import AgcHooks from './AgcHooks';
 import AgcBrowser from './AgcBrowser';
+import AgcSubagents from './AgcSubagents';
+import AgcComputerUse from './AgcComputerUse';
 import AgcConversations from './AgcConversations';
 import AgcSkills from './AgcSkills';
 import { AgcPlugins, AgcMigrations, AgcPermissions } from './AgcSections';
@@ -85,6 +87,18 @@ const NAV: NavItem[] = [
     label: 'Agents',
     icon: 'robot',
     desc: 'Create specialized agents for focused development tasks. Control their instructions, tools, and behavior.',
+  },
+  {
+    id: 'computer',
+    label: 'Computer Use',
+    icon: 'terminal',
+    desc: 'Let the agent see and control the desktop. Its engine and skills live behind one switch.',
+  },
+  {
+    id: 'subagents',
+    label: 'Subagents',
+    icon: 'robot',
+    desc: 'Create dedicated workers the agent can delegate to. Built-in roles and your own custom workers.',
   },
   {
     id: 'hooks',
@@ -177,6 +191,10 @@ function Isi({ section, mintaBaru }: { section: AgentCustomSection; mintaBaru?: 
       return <AgcSkills />;
     case 'hooks':
       return <AgcHooks />;
+    case 'subagents':
+      return <AgcSubagents />;
+    case 'computer':
+      return <AgcComputerUse />;
     case 'browser':
       return <AgcBrowser />;
     case 'conversations':

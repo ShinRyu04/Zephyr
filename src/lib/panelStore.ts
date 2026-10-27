@@ -9,7 +9,7 @@ export type PanelTabId =
   | 'debug'
   | 'terminal'
   | 'ports'
-  | 'subagents';
+ ;
 
 const TAB_LAMA: PanelTabId[] = ['problems', 'output', 'debug', 'terminal', 'ports'];
 
@@ -20,7 +20,6 @@ export const PANEL_TABS: { id: PanelTabId; label: string; command: string }[] = 
   { id: 'terminal', label: 'Terminal', command: 'terminalPanel.focus' },
   { id: 'ports', label: 'Ports', command: 'portsPanel.focus' },
 
-  { id: 'subagents', label: 'Subagents', command: 'subagentsPanel.focus' },
 ];
 
 const SEMUA: PanelTabId[] = PANEL_TABS.map((t) => t.id);

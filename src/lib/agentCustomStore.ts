@@ -30,6 +30,8 @@ export type AgentCustomSection =
   | 'conversations'
   | 'permissions'
   | 'tools'
+  | 'subagents'
+  | 'computer'
   | 'migrations';
 
 interface AgentCustomState {

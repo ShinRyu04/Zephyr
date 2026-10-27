@@ -9,6 +9,7 @@ import {
   type SkillInfo,
   type SkillKatalog,
 } from './commands';
+import { bacaNonaktif, setAktifNama } from './skillAktif';
 
 /*
  * Skills, read from and written to DISK through the Rust backend.
@@ -56,9 +57,20 @@ interface SkillsState {
    */
   katalog: SkillKatalog[];
 
+  /**
+   * Names (lower-cased) of the skills the reader switched OFF on the Skills
+   * page. `skillAktif.ts` owns the storage; this copy exists so every row
+   * re-renders from one list and two switches can never disagree.
+   */
+  nonaktif: string[];
+
   muat: () => Promise<void>;
   /** Reload both the installed list and the catalogue. */
   muatKatalog: () => Promise<void>;
+  /** Read the off list back into state (on mount). */
+  muatNonaktif: () => void;
+  /** Switch one skill on or off. Returns the new off list. */
+  setAktif: (name: string, aktif: boolean) => string[];
   /** Plant one bundled skill on disk. Returns false when it already existed. */
   pasang: (name: string) => Promise<boolean>;
   buka: (name: string | null) => Promise<void>;
@@ -80,6 +92,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
   isi: '',
   memuatIsi: false,
   katalog: [],
+  nonaktif: bacaNonaktif(),
 
   muat: async () => {
     set({ sibuk: true, galat: null });
@@ -113,6 +126,22 @@ export const useSkills = create<SkillsState>((set, get) => ({
     } catch (e) {
       set({ galat: String(e) });
     }
+  },
+
+  muatNonaktif: () => set({ nonaktif: bacaNonaktif() }),
+
+  /*
+   * Switching a skill off does NOT touch the context cache on purpose.
+   *
+   * `konteksAgent()` caches the RAW Rust block for a minute and filters it on
+   * every read, so the switch takes effect on the very next turn without
+   * dropping the cache - and without a `resetCacheKonteks()` dance that the
+   * reader would have to reason about.
+   */
+  setAktif: (name, aktif) => {
+    const nonaktif = setAktifNama(name, aktif);
+    set({ nonaktif });
+    return nonaktif;
   },
 
   pasang: async (name) => {

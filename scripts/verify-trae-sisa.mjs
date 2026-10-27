@@ -189,8 +189,18 @@ const b = await J(`(() => {
   const p = document.querySelector('#uji-br [data-testid="agx-browser"]');
   return {
     ada: !!p,
-    kartu: p ? p.querySelectorAll('.agx-kartu-setelan').length : 0,
-    baris: p ? p.querySelectorAll('.agx-kartu-baris').length : 0,
+    /*
+     * Browser memakai bahasa kartu ZCode yang sama dengan Skills dan Computer
+     * Use (agc-zc-daftar + agc-zc-kartu), bukan baris agset-* lagi. Hitungan
+     * mengikuti produk yang sekarang.
+     *
+     * Tanpa tanda petik dalam apa pun di komentar ini: blok ini hidup di dalam
+     * template literal, dan backtick di sini MENUTUP template lebih awal -
+     * seluruh ekspresi J(...) berubah jadi NaN dan ujinya merah tanpa pesan
+     * yang berguna.
+     */
+    kartu: p ? p.querySelectorAll('.agc-zc-kartu').length : 0,
+    baris: p ? p.querySelectorAll('.agc-zc-isi').length : 0,
     adaLokal: !!p?.querySelector('[data-testid="agx-br-lokal"]'),
     adaLuar: !!p?.querySelector('[data-testid="agx-br-luar"]'),
     adaRingkas: !!p?.querySelector('[data-testid="agx-br-ringkas"]'),
@@ -214,17 +224,34 @@ await unmount('uji-br');
 /* ── C: Conversations ───────────────────────────────────────────────────── */
 out.mountConv = await mount('uji-conv', '/src/components/settings/AgcConversations.tsx');
 
+/*
+ * The tab is `agx-conv-riwayat` ("History"), not `agx-conv-percakapan`: this
+ * page's first tab is the conversation SETTINGS form, so the old name matched
+ * nothing and C1/C2 were red even though the page was right.
+ */
 const c = await J(`(() => {
   const p = document.querySelector('#uji-conv [data-testid="agx-conv"]');
   return {
     ada: !!p,
-    adaTabPercakapan: !!p?.querySelector('[data-testid="agx-conv-percakapan"]'),
+    adaTabRiwayat: !!p?.querySelector('[data-testid="agx-conv-riwayat"]'),
     adaTabNotif: !!p?.querySelector('[data-testid="agx-conv-notifikasi"]'),
     baris: p ? p.querySelectorAll('[data-testid^="agx-conv-"]').length : 0,
-    adaKosong: !!p?.querySelector('[data-testid="agx-conv-kosong"]'),
   };
 })()`);
 out.conv = typeof c === 'string' ? JSON.parse(c) : c;
+
+/* C2: the session list only exists on the History tab. */
+await klik('#uji-conv [data-testid="agx-conv-riwayat"]');
+await new Promise((r) => setTimeout(r, 600));
+const c2 = await J(`(() => {
+  const p = document.querySelector('#uji-conv [data-testid="agx-conv"]');
+  return {
+    adaDaftar: !!p?.querySelector('[data-testid="agx-conv-daftar"]'),
+    sesi: p ? p.querySelectorAll('[data-testid="agx-conv-daftar"] > [data-testid^="agx-conv-"]').length : 0,
+    adaKosong: !!p?.querySelector('[data-testid="agx-conv-kosong"]'),
+  };
+})()`);
+out.c2 = typeof c2 === 'string' ? JSON.parse(c2) : c2;
 
 await klik('#uji-conv [data-testid="agx-conv-notifikasi"]');
 await new Promise((r) => setTimeout(r, 800));
@@ -252,8 +279,7 @@ const m = await J(`(() => {
     grupBuiltin: !!p?.querySelector('[data-testid="aim-grup-builtin"]'),
     grupCustom: !!p?.querySelector('[data-testid="aim-grup-custom"]'),
     jmlBaris: p ? p.querySelectorAll('[data-testid="aim-table-row"]').length : 0,
-    adaDeteksi: !!p?.querySelector('[data-testid="aim-deteksi"]'),
-    chipDeteksi: p ? p.querySelectorAll('[data-testid^="aim-deteksi-"]').length : 0,
+    adaTambah: !!p?.querySelector('[data-testid="aim-tambah"]'),
     adaTambah: !!p?.querySelector('[data-testid="aim-tambah"]'),
   };
 })()`);
@@ -280,7 +306,12 @@ await new Promise((r) => setTimeout(r, 700));
 const m4 = await J(`(() => {
   const d = document.querySelector('#uji-models [data-testid="aim-add-modal"]');
   const url = d?.querySelector('[data-testid="aim-add-url"]');
-  return { adaForm: !!d?.querySelector('[data-testid="aim-add-id"]'), url: url ? url.value : null };
+  return {
+    adaForm: !!d?.querySelector('[data-testid="aim-add-id"]'),
+    url: url ? url.value : null,
+    adaRefresh: !!d?.querySelector('[data-testid="aim-add-refresh"]'),
+    adaKey: !!d?.querySelector('[data-testid="aim-add-key"]'),
+  };
 })()`);
 out.m4 = typeof m4 === 'string' ? JSON.parse(m4) : m4;
 
@@ -314,7 +345,7 @@ const m5 = await J(`(() => {
 })()`);
 out.m5 = typeof m5 === 'string' ? JSON.parse(m5) : m5;
 
-/* Clean up the test model from settings. */
+/* Clean up the test model and test rule from settings/disk. */
 await cdp.eval(
   `(() => {
   const S = window.__ZEPHYR__.getState();
@@ -324,6 +355,14 @@ await cdp.eval(
   return 'ok';
 })()`,
 );
+await J(`await (async () => {
+  const m = await import('/src/lib/instructionsStore.ts');
+  const g = m.useInstructions.getState();
+  await g.muat();
+  const ada = (m.useInstructions.getState().daftar || []).filter((x) => x.name === 'uji-aturan-bebas');
+  for (const a of ada) await g.hapus(a.name);
+  return ada.length;
+})()`);
 await unmount('uji-models');
 
 /* ── P: plugin catalogue ────────────────────────────────────────────────── */
@@ -383,17 +422,17 @@ cek(
 );
 
 console.log('\nBukti — Conversations:');
-cek('C1 dua tab: percakapan + notifikasi', out.conv?.ada === true && out.conv?.adaTabPercakapan === true && out.conv?.adaTabNotif === true, '');
+cek('C1 tab riwayat + notifikasi tersedia', out.conv?.ada === true && out.conv?.adaTabRiwayat === true && out.conv?.adaTabNotif === true, '');
 cek(
   'C2 daftar sesi memakai sesi nyata dari store',
-  out.conv?.ada === true && ((out.conv?.baris ?? 0) > 0 || out.conv?.adaKosong === true),
-  `baris=${out.conv?.baris} kosong=${out.conv?.adaKosong}`,
+  out.conv?.ada === true && ((out.c2?.sesi ?? 0) > 0 || out.c2?.adaKosong === true),
+  `sesi=${out.c2?.sesi} kosong=${out.c2?.adaKosong}`,
 );
 cek('C3 tab notifikasi menjelaskan gate 20 detik + fokus', out.c3?.sebutGate === true, '');
 
 console.log('\nBukti — AI Models ala TRAE:');
 cek('M1 grup Built-in / Custom ada', out.models?.ada === true && out.models?.grupBuiltin === true && out.models?.grupCustom === true, `baris=${out.models?.jmlBaris}`);
-cek('M2 baris deteksi per provider ada', out.models?.adaDeteksi === true && (out.models?.chipDeteksi ?? 0) > 0, `chip=${out.models?.chipDeteksi}`);
+cek('M2 Add Model menyediakan deteksi dan field provider', out.m4?.adaRefresh === true && out.m4?.adaKey === true && out.m4?.adaForm === true, `refresh=${out.m4?.adaRefresh} key=${out.m4?.adaKey}`);
 cek(
   'M3 Add Model membuka grid preset',
   out.m3?.adaDialog === true && out.m3?.adaGrid === true && (out.m3?.preset ?? 0) >= 8 && out.m3?.adaCustom === true,

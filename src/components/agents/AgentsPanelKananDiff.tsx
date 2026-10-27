@@ -769,9 +769,16 @@ export default function AgentsPanelKananDiff({ bar }: { bar?: ReactNode | null }
     el.addEventListener('pointercancel', naik);
   };
 
+  /* File yang dibuang Discard: ikut ceklis, sama seperti Commit; kalau tidak
+     ada yang dicentang, semua file (konvensi yang sama dengan jalankanCommit). */
+  const pilihanDiscard = useMemo(
+    () => (terpilih.size > 0 ? [...terpilih] : daftar.map(([p]) => p)),
+    [terpilih, daftar],
+  );
+
   const discard = async () => {
     setTanyaDiscard(false);
-    setConfirm({ kind: 'discard-all', paths: perubahan.map((c) => c.path) });
+    setConfirm({ kind: 'discard-all', paths: pilihanDiscard });
     await resolveConfirm();
   };
 
@@ -1596,7 +1603,7 @@ export default function AgentsPanelKananDiff({ bar }: { bar?: ReactNode | null }
                 Selected changes will be restored to HEAD and cannot be recovered.
               </p>
               <div className="agx-dv-dialog-daftar" data-testid="agx-dv-discard-daftar">
-                {daftar.map(([p]) => {
+                {pilihanDiscard.map((p) => {
                   const [plus, min] = numstat[p] ?? [0, 0];
                   const ikon = ikonFile(p);
                   const nm = p.split(/[\\/]/).pop() ?? p;

@@ -383,23 +383,6 @@ export default function LayoutMenu({ onTutup }: { onTutup: () => void }) {
                     ))}
                   </div>
                 </Baris>
-
-                {/* Only meaningful while the chat is a column. */}
-                {aiPos === 'right' && (
-                  <Baris label={tr('Subagent info to the right of chat')}>
-                    <button
-                      className={`lm-toggle${L.subKanan ? ' is-aktif' : ''}`}
-                      data-testid="lm-subKanan"
-                      aria-pressed={L.subKanan}
-                      onClick={() => {
-                        L.setSubKanan(!L.subKanan);
-                        void useLayoutCustom.getState().simpan();
-                      }}
-                    >
-                      <span className="lm-toggle-knob" aria-hidden="true" />
-                    </button>
-                  </Baris>
-                )}
               </div>
             )}
 
