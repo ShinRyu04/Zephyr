@@ -1,1 +1,0 @@
-4fbdff5 fix(ext): kartu Extensions pakai logo ASLI, bukan inisial

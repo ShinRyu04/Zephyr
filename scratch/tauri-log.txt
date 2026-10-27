@@ -1,231 +1,0 @@
-﻿
-> zephyr@1.1.14 tauri:dev
-> tauri dev
-
-     Running BeforeDevCommand (`npm run dev`)
-
-> zephyr@1.1.14 dev
-> vite
-
-
-  VITE v6.4.3  ready in 743 ms
-
-  âžœ  Local:   http://localhost:5173/
-  âžœ  Network: use --host to expose
-     Running DevCommand (`cargo  run --no-default-features --color always --`)
-        Info Watching D:\Zephyr\src-tauri for changes...
-   Compiling zephyr v1.1.14 (D:\Zephyr\src-tauri)
-    Building [=======================> ] 537/539: zephyr                                                              warning: named argument `log` is not used by name
-   --> src\dev_update.rs:315:9
-    |
-290 | function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-    |                         --- this formatting argument uses named argument `log` by position
-...
-315 |         log = log.to_string_lossy().replace('\'', "''"),
-    |         ^^^ this named argument is referred to by position in formatting string
-    |
-    = note: `#[warn(named_arguments_used_positionally)]` on by default
-help: use the named argument by name to avoid ambiguity
-    |
-290 - function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-290 + function Catat($m) {{ "[{log}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-    |
-
-warning: named argument `pid` is not used by name
-   --> src\dev_update.rs:316:9
-    |
-290 | function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-    |                              --- this formatting argument uses named argument `pid` by position
-...
-316 |         pid = pid,
-    |         ^^^ this named argument is referred to by position in formatting string
-    |
-help: use the named argument by name to avoid ambiguity
-    |
-290 - function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-290 + function Catat($m) {{ "[{0}] {pid}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
-    |
-
-warning: named argument `log` is not used by name
-   --> src\dev_update.rs:410:9
-    |
-395 | function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-    |                         --- this formatting argument uses named argument `log` by position
-...
-410 |         log = log.to_string_lossy().replace('\'', "''"),
-    |         ^^^ this named argument is referred to by position in formatting string
-    |
-help: use the named argument by name to avoid ambiguity
-    |
-395 - function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-395 + function Catat($m) {{ "[{log}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-    |
-
-warning: named argument `pid` is not used by name
-   --> src\dev_update.rs:411:9
-    |
-395 | function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-    |                              --- this formatting argument uses named argument `pid` by position
-...
-411 |         pid = pid,
-    |         ^^^ this named argument is referred to by position in formatting string
-    |
-help: use the named argument by name to avoid ambiguity
-    |
-395 - function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-395 + function Catat($m) {{ "[{0}] {pid}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
-    |
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: unused import: `Path`
- --> src\agent_patch.rs:4:17
-  |
-4 | use std::path::{Path, PathBuf};
-  |                 ^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: unused import: `std::os::windows::process::CommandExt`
-  --> src\agent_exec.rs:69:13
-   |
-69 |         use std::os::windows::process::CommandExt;
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: unused variable: `s`
-   --> src\history.rs:198:13
-    |
-198 |     for (f, s) in &list {
-    |             ^ help: if this is intentional, prefix it with an underscore: `_s`
-    |
-    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `butuh_budget` is never used
-  --> src\adapters\anthropic.rs:53:8
-   |
-53 | pub fn butuh_budget(model: &str) -> bool {
-   |        ^^^^^^^^^^^^
-   |
-   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: function `mungkin_awal_tag` is never used
-   --> src\adapters\xml_tools.rs:319:8
-    |
-319 | pub fn mungkin_awal_tag(teks: &str) -> bool {
-    |        ^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `claude_text_from_line` is never used
-   --> src\cli_chat.rs:201:4
-    |
-201 | fn claude_text_from_line(line: &str) -> Option<String> {
-    |    ^^^^^^^^^^^^^^^^^^^^^
-
-warning: function `claude_events_from_line` is never used
-   --> src\cli_chat.rs:241:4
-    |
-241 | fn claude_events_from_line(line: &str) -> Vec<Value> {
-    |    ^^^^^^^^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `tambah` is never used
-   --> src\cron.rs:225:8
-    |
-225 | pub fn tambah(
-    |        ^^^^^^
-
-warning: function `terlewat_belum_dilapor` is never used
-   --> src\cron.rs:343:8
-    |
-343 | pub fn terlewat_belum_dilapor(state: &AppState) -> Vec<CronJob> {
-    |        ^^^^^^^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: field `datadir` is never read
-   --> src\devenv.rs:345:5
-    |
-325 | struct KandidatService {
-    |        --------------- field in this struct
-...
-345 |     datadir: &'static str,
-    |     ^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `exe_di` is never used
-   --> src\devenv.rs:537:4
-    |
-537 | fn exe_di(base: &Path, rel: &[&str]) -> Option<PathBuf> {
-    |    ^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: constant `IKON_BULAT` is never used
-   --> src\ext_bundled.rs:197:7
-    |
-197 | const IKON_BULAT: &str = r##"{
-    |       ^^^^^^^^^^
-
-warning: constant `IKON_BULAT_JSON` is never used
-   --> src\ext_bundled.rs:210:7
-    |
-210 | const IKON_BULAT_JSON: &str = r##"{
-    |       ^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: field `version` is never read
-  --> src\ext_registry.rs:51:5
-   |
-49 | struct IndexRoot {
-   |        --------- field in this struct
-50 |     #[serde(default)]
-51 |     version: u64,
-   |     ^^^^^^^
-   |
-   = note: `IndexRoot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `parse_index_pub` is never used
-  --> src\ext_registry.rs:71:8
-   |
-71 | pub fn parse_index_pub(teks: &str) -> Vec<IndexEntry> {
-   |        ^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `matikan` is never used
-   --> src\mcp_stdio.rs:317:8
-    |
-317 | pub fn matikan(id: &str) -> bool {
-    |        ^^^^^^^
-
-warning: function `jumlah_sesi_hidup` is never used
-   --> src\mcp_stdio.rs:333:8
-    |
-333 | pub fn jumlah_sesi_hidup() -> usize {
-    |        ^^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: struct `SftpHostInfo` is never constructed
-  --> src\sftp.rs:30:12
-   |
-30 | pub struct SftpHostInfo {
-   |            ^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `args_umum` is never used
-  --> src\sftp.rs:85:4
-   |
-85 | fn args_umum(host: &str, port: u16, user: &str) -> Vec<String> {
-   |    ^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `periksa_url_pane` is never used
-   --> src\web.rs:318:8
-    |
-318 | pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
-    |        ^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `langkah_redirect` is never used
-   --> src\web.rs:397:8
-    |
-397 | pub fn langkah_redirect(dasar: &str, location: &str, hop_selesai: u32) -> ZResult<tauri::Url> {
-    |        ^^^^^^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `ambil` is never used
-   --> src\web.rs:437:4
-    |
-437 | fn ambil(url: &str) -> ZResult<String> {
-    |    ^^^^^
-
-    Building [=======================> ] 537/539: zephyr                                                              warning: function `ambil_batas` is never used
-   --> src\web.rs:449:4
-    |
-449 | fn ambil_batas(url: &str, batas_byte: usize) -> ZResult<String> {
-    |    ^^^^^^^^^^^
-
-    Building [=======================> ] 537/539: zephyr  

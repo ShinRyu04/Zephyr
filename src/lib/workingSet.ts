@@ -17,6 +17,8 @@
  * is exactly the scrolling it was meant to remove.
  */
 
+import { kunciPath } from './pathKey';
+
 const MAKS = 12;
 
 export interface EntriKerja {
@@ -117,7 +119,12 @@ export function catatKerja(root: string, path: string): void {
   muat();
   const k = akarData(root);
   const arr = data.perRoot[k] ? [...data.perRoot[k]] : [];
-  const i = arr.findIndex((e) => e.path === path);
+  /* Keyed compare: the same file reaches here as `D:\a\b.ts` from a palette
+     pick and `d:/a/b.ts` from a tree drop or an agent proposal, and the raw
+     compare counted those as two files - the list showed the same file twice
+     with its use count split between them. */
+  const kunci = kunciPath(path);
+  const i = arr.findIndex((e) => kunciPath(e.path) === kunci);
   if (i >= 0) {
     arr[i] = { ...arr[i], count: arr[i].count + 1, last: Date.now() };
   } else {
@@ -134,7 +141,8 @@ export function hapusKerja(root: string, path: string): void {
   const k = akarData(root);
   const arr = data.perRoot[k];
   if (!arr) return;
-  data.perRoot[k] = arr.filter((e) => e.path !== path);
+  const kunci = kunciPath(path);
+  data.perRoot[k] = arr.filter((e) => kunciPath(e.path) !== kunci);
   simpan();
   kabari();
 }
@@ -146,7 +154,7 @@ export function sematKerja(root: string, path: string, pinned: boolean): void {
   const arr = data.perRoot[k];
   if (!arr) return;
   data.perRoot[k] = potong(
-    arr.map((e) => (e.path === path ? { ...e, pinned, last: Date.now() } : e)),
+    arr.map((e) => (kunciPath(e.path) === kunciPath(path) ? { ...e, pinned, last: Date.now() } : e)),
   );
   simpan();
   kabari();

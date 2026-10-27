@@ -108,6 +108,14 @@ function pasangDom() {
   globalThis.MutationObserver = class { observe() {} disconnect() {} takeRecords() { return []; } };
   globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assign(this, o ?? {}); } };
   globalThis.Image = el;
+  /*
+   * `aiStore.ts` reads `window.location.hash` at module load to tell whether
+   * this instance runs in the #agents window (`JENDELA_AGENTS`). Node has no
+   * `location`, so without this shim the bundle throws `Cannot read properties
+   * of undefined (reading 'hash')` before a single test runs. An empty hash is
+   * the main-window case, which is what these unit tests exercise.
+   */
+  globalThis.location = { hash: '', href: 'http://localhost/', search: '', pathname: '/' };
 }
 
 async function bundel(entri, nama, keluaran = 'cjs') {
@@ -171,7 +179,10 @@ function riwayatPanjang({ tugasBelum, berkas } = {}) {
     h.push({
       role: 'assistant',
       content: 'Menyunting berkas',
-      toolCalls: [{ name: 'edit', args: { path: berkas } }],
+      /* Nama tool harus salah satu dari ALAT_BERKAS di aiStore.ts. Dulu di sini
+         tertulis 'edit', yang bukan tool nyata, jadi berkasDisentuhRiwayat()
+         melewatinya dan uji "berkas ikut tercatat" gagal pada produk yang benar. */
+      toolCalls: [{ name: 'write_file', args: { path: berkas } }],
     });
   }
   return h;

@@ -1060,21 +1060,36 @@ function daftarSemuaKunciSetelan(setelan) {
      settings.rs, generator GAGAL - bukan diam-diam lenyap dari prompt (itu
      persis kesalahan yang bikin Zeph bilang "tidak ada setelan itu"). */
   /*
-   * SEMUA kunci setelan, bukan daftar 25 yang dipilih tangan.
+   * Kunci setelan di blok inti: DUA hal, dan itu keputusan anggaran.
    *
-   * Blok ini sebelumnya membawa 25 dari 129 kunci, jadi 104 kunci TIDAK ada di
-   * kepala model: ditanya soal setelan yang tidak ada di daftar itu, ia harus
-   * mencari dulu - dan bila pencariannya meleset, ia menjawab "tidak ada setelan
-   * itu". Itu kegagalan yang persis dikeluhkan user ("tau semua settingan di
-   * Zephyr"). Daftar tangan juga punya cacat kedua: ia BISA basi (kunci baru di
-   * settings.rs tidak ikut masuk), sedangkan daftar yang dibaca dari sumbernya
-   * tidak bisa.
+   * Riwayatnya dua arah, dan keduanya nyata:
    *
-   * Daftar cadangan di bawah tetap ada sebagai jaring: kalau bentuk settings.rs
-   * berubah sehingga pembacaan gagal, blok inti tetap membawa kunci terpenting
-   * alih-alih kehilangan semuanya.
+   * 1. Versi pertama membawa 25 dari 129 kunci pilihan tangan. 104 kunci tidak
+   *    ada di kepala model, jadi ditanya soal setelan di luar daftar itu ia
+   *    menjawab "tidak ada setelan itu" - keluhan persis user ("tau semua
+   *    settingan di Zephyr").
+   * 2. Versi kedua membawa SEMUA 130 kunci beserta nilai bawaannya: ~5.400
+   *    karakter, 52% dari seluruh blok fakta, dan bersama blok aturan ia
+   *    menembus AMBANG_TOKEN_INTI (4.303 tok vs 3.400) sehingga setiap giliran
+   *    membayar ~900 token hanya untuk daftar default yang jarang ditanya.
+   *
+   * Yang menyelesaikan keduanya bukan memilih salah satu, tapi MEMISAHKAN
+   * "kunci apa yang ada" dari "nilai bawaannya berapa":
+   *   - SETIAP grup setelan tetap disebut di blok inti, beserta kunci yang
+   *     paling sering ditanya. Jadi model tahu grupnya ada; tidak ada lagi
+   *     "tidak ada setelan itu".
+   *   - Nilai bawaan lengkap 130 kunci tetap ada di INDEKS (zephyrIndeks.ts),
+   *     yang memang dibangun untuk itu dan dibaca lewat `zephyr_self` saat
+   *     ditanya. Blok inti tidak perlu menyalinnya.
+   *
+   * KUNCI_CADANGAN adalah daftar kurasi yang sudah ada untuk peran ini; ia
+   * dipakai apa adanya supaya kunci yang terbukti paling sering ditanya tidak
+   * ikut terbuang.
    */
-  const KUNCI_INTI = daftarSemuaKunciSetelan(setelan);
+  /* Grup yang tidak punya satu pun kunci terkurasi tetap DISEBUT di blok inti,
+     dengan satu wakil kunci pertama dari sumbernya. Tanpa ini grup seperti
+     `history` atau `devenv` hilang sama sekali dari kepala model, dan
+     pertanyaan "apakah Zephyr punya setelan itu" dijawab "tidak". */
   const KUNCI_CADANGAN = [
     'general.theme',
     'general.uiLang',
@@ -1102,6 +1117,16 @@ function daftarSemuaKunciSetelan(setelan) {
     'panel.height',
     'allowCommands',
   ];
+  const KUNCI_INTI = KUNCI_CADANGAN;
+  const SEMUA = daftarSemuaKunciSetelan(setelan);
+  const grupTerpilih = new Set(KUNCI_INTI.map((j) => (j.includes('.') ? j.slice(0, j.indexOf('.')) : 'top level')));
+  for (const jalur of SEMUA) {
+    const grup = jalur.includes('.') ? jalur.slice(0, jalur.indexOf('.')) : 'top level';
+    if (!grupTerpilih.has(grup)) {
+      KUNCI_INTI.push(jalur);
+      grupTerpilih.add(grup);
+    }
+  }
   const nilaiKunci = (jalur) => {
     const titik = jalur.indexOf('.');
     if (titik < 0) {
@@ -1182,30 +1207,25 @@ function daftarSemuaKunciSetelan(setelan) {
    */
   baris.push('## Who made Zephyr');
   baris.push(
-    '- Creator and maintainer: **Muhammad Khalid** (GitHub: **ShinRyu04**). ' +
-      'Repository: https://github.com/ShinRyu04/Zephyr',
+    '- Creator and maintainer: **Muhammad Khalid** (GitHub: **ShinRyu04**), ' +
+      'https://github.com/ShinRyu04/Zephyr. Asked who made it, who maintains it, or who to credit: answer with ' +
+      'exactly that name, account and link, nothing more.',
   );
   baris.push(
-    '- Asked who made Zephyr, who maintains it, or who to credit: answer with that name, that GitHub account, and that link. ' +
-      'Nothing more is needed.',
-  );
-  baris.push(
-    '- The public repository deliberately does NOT contain `src/`, `src-tauri/` or `scripts/`. That is a decision, ' +
-      'not damage: the source folders are kept out of the public repo on purpose. Never tell the user the repo is ' +
-      'incomplete or broken because those folders are missing, and never suggest committing them there.',
+    '- The public repository deliberately does NOT contain `src/`, `src-tauri/` or `scripts/` - a decision, not ' +
+      'damage. Never call the repo incomplete or broken for that, and never suggest committing those folders there.',
   );
   baris.push('');
   baris.push('## Looking things up - this block is the CORE, the rest is searchable');
   baris.push(
-    '- This block is the always-on core: identity, the rules for answering, the setting keys and shortcuts users ask about daily, ' +
-      'ports, logs and the "never invent" rule. It is NOT the whole truth about the app - the rest is one search away.',
+    '- The always-on core: identity, answer rules, the daily setting keys and shortcuts, ports, logs, the never-invent rule. ' +
+      'NOT the whole truth - the rest is one search away.',
   );
   baris.push(
-    `- Everything else ships with the app in a search index: ALL ${jumlahKunci} setting keys and their defaults, all ` +
-      `${pintasan.length} default shortcuts, every interface label, palette command, tool, bundled extension, bundled document and ` +
-      'the code map. Reach it with the `zephyr_self` tool: pass the user\'s own words, it searches the index locally (no folder open ' +
-      'needed, no network) and returns the matches. Use it BEFORE naming a setting, shortcut, command, label or tool that is not ' +
-      'written above, and before telling the user that something does not exist.',
+    `- Everything else ships in a LOCAL search index: ALL ${jumlahKunci} setting keys + defaults, all ${pintasan.length} ` +
+      'shortcuts, every interface label, palette command, tool, bundled extension, bundled document and the code map. Reach ' +
+      'it with `zephyr_self`: pass the user\'s own words; it searches locally (no folder, no network). Use it BEFORE naming ' +
+      'a setting, shortcut, command, label or tool not written above, and before telling the user something does not exist.',
   );
   /*
    * Angka-angka diambil dari SUMBERNYA, bukan ditulis tangan: batas dari
@@ -1282,15 +1302,16 @@ function daftarSemuaKunciSetelan(setelan) {
      masuknya disebut satu per satu. */
   if (popup)
     baris.push(
-      `- "${popup.judul}" (Settings group \`${popup.id}\`: ${popup.grup.join(', ')}) is NOT a Settings page and has no row in ` +
-        `the nav: it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`${popup.berkas}\` renders ` +
-        `\`${popup.komponen}\`, the same section component the editor-area Settings page used to show. ` +
+      `- "${popup.judul}" (Settings group \`${popup.id}\`: ${popup.grup.join(', ')}) is NOT a Settings page and has no row in the nav: ` +
+        `it is a pop-up of its own, opened by \`useAiModels.getState().buka()\` - \`${popup.komponen}\` in \`${popup.berkas}\`, ` +
+        'the same section component the editor-area Settings page used to show. ' +
         `${popup.pintu.length} ways in, all without leaving the chat: ${popup.pintu.map((p) => p.tempat).join('; ')}. ` +
-        'Never send the user to a Settings page for providers, API keys, base URLs or the model list - this pop-up is where they live.',
+        'Providers, API keys, base URLs and the model list live HERE - never send the user to a Settings page for them.',
     );
   if (chat.length)
     baris.push(
-      `- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: ${chat.join(', ')}.`,
+      `- Chat Settings (opened from the AI panel, separate from the Settings page) has these sections: ` +
+        `${chat.join(', ')}.`,
     );
   /*
    * Dua jendela ini sering mendarat di Settings karena `view.settings` adalah
@@ -1308,16 +1329,14 @@ function daftarSemuaKunciSetelan(setelan) {
    * sendiri dan tool yang sama - beserta pintu ke rinciannya di indeks.
    */
   baris.push(
-    '- The Agents window (`index.html#agents`) is a SECOND window with its own chat: a separate conversation from the editor tab ' +
-      'and from the right-hand column, sharing the same tools and backend. Its full inventory (sidebar, canvas pages, right-panel ' +
-      'tabs, composer options, Marketplace + Manage) is in the index under "Agents window" - search it with `zephyr_self` before ' +
-      'describing that window, and never describe it from the main window\'s layout.',
+    '- The Agents window (`index.html#agents`) is a SECOND window with its own chat - separate from the editor tab and ' +
+      'the right-hand column, same tools and backend. Search its inventory in the index ("Agents window") with ' +
+      '`zephyr_self` before describing it; never describe it from the main window\'s layout.',
   );
   baris.push(
-    '- Chat Settings and Agent Customizations are NOT Settings pages and are NOT opened by the Settings command ' +
-      '(`view.settings`) or by `run_command` with `settings: ...`. Sending the reader there lands them in the Settings ' +
-      'window - the wrong window. Their own commands: "AI: Open Chat Settings" (`ai.chatSettings`) and "Agent: Open ' +
-      'Customizations" (`ai.agentCustomizations`). The sure way is `tunjuk`, which picks the section or tab from the ' +
+    '- Chat Settings and Agent Customizations are NOT Settings pages: the Settings command (`view.settings`) opens the ' +
+      'WRONG window for them. Their own commands: "AI: Open Chat Settings" (`ai.chatSettings`) and "Agent: Open ' +
+      'Customizations" (`ai.agentCustomizations`). The sure way is `tunjuk`, which picks the section from the ' +
       "reader's own words.",
   );
   /*
@@ -1327,62 +1346,53 @@ function daftarSemuaKunciSetelan(setelan) {
    * reader it is broken. Stated here as fact, not as a guess.
    */
   baris.push(
-    '- To-Do List has THREE gates, and `todo_write` looks broken when any one of them is shut: ' +
-      '(1) the `conversation.todoListIde` / `conversation.todoListSolo` switches, both default false - while they are ' +
-      'false the tool is filtered out of the request entirely (and refused if called anyway); they live in the Agent ' +
-      'Customizations panel, Conversations tab, first section, where the columns are labelled IDE (the editor chat) and ' +
-      'Agent (the Agents window). (2) A plan must be ready first: the tool only unlocks once `todo_write` plus at least ' +
-      'two other plan tools have been used. (3) The task card itself is hidden by default - it is opened from the chat ' +
-      'header "..." menu, "Show task list". Never claim the tool does not exist; say which gate is shut and open it with `tunjuk`.',
+    '- To-Do List has THREE gates; `todo_write` looks broken when any one is shut: (1) the ' +
+      '`conversation.todoListIde` / `conversation.todoListSolo` switches (Agent Customizations > Conversations, ' +
+      'first section, columns IDE/Agent), both default false - while false the tool is filtered out of the request ' +
+      'and refused if called; (2) a plan must be ready: it unlocks once `todo_write` plus two other plan tools have ' +
+      'run; (3) the task card is hidden by default - open it from the chat header "..." menu, "Show task list". ' +
+      'Never say the tool does not exist; name the shut gate and open it with `tunjuk`.',
   );
   baris.push(
-    `- Setting keys kept in this block (${KUNCI_INTI.length} of ${jumlahKunci}; the rest is in the index - look it up with ` +
-      '`zephyr_self`):',
+    `- Setting keys here (${KUNCI_INTI.length} of ${jumlahKunci}; EVERY group is listed, the rest + all defaults are in the ` +
+      'index via `zephyr_self`):',
   );
   for (const [grup, daftar] of barisKunci) baris.push(`  - ${grup}: ${daftar.join(', ')}`);
   baris.push('');
   baris.push('## Links: open them in the browser pane, do not just print them');
   /*
-   * Perilaku yang diminta langsung oleh pemilik aplikasi, dan alasannya masuk
-   * akal: percakapan yang berisi URL adalah percakapan yang akan segera
-   * ditinggalkan orang untuk membuka browsernya sendiri. Membuka tautannya
-   * otomatis menghapus langkah itu.
+   * Perilaku yang diminta langsung oleh pemilik aplikasi: percakapan berisi URL
+   * biasanya segera ditinggalkan orang untuk membuka browsernya sendiri.
    *
-   * Tempatnya PANE ZEPHYR, bukan browser OS: terminal panel sudah bisa dibelah,
-   * jadi halaman tampil di sebelah kode sementara pembaca tetap bekerja - dan
-   * yang paling penting, agen bisa MEMBACA halaman yang sama itu lewat
-   * `browser` (aksi read), bukan menebak isinya.
+   * Tempatnya PANE ZEPHYR, bukan browser OS: halaman tampil di sebelah kode
+   * sementara pembaca tetap bekerja, dan agen bisa MEMBACA halaman yang sama
+   * lewat `browser` (aksi read), bukan menebak isinya.
+   *
+   * Dipadatkan: lima butir pertama memakan 1.451 karakter untuk aturan yang
+   * bisa dibawa dalam empat baris. Isinya tidak ada yang dibuang - hanya
+   * pengulangan ("do not print the URL" muncul tiga kali dalam bentuk berbeda).
    */
   baris.push(
-    '- When the user shares a link (Google, GitHub, documentation, a search result, any http/https URL), ' +
-      'OPEN it with the `open_link` tool in the same turn, then say in one line that you opened it. ' +
-      'It opens in Zephyr\'s own browser pane - split beside the terminal in the main window, or the browser ' +
-      'column of the Agents window - so it sits next to the code instead of stealing focus in another app. ' +
-      'Do not print the URL and wait for them to click it, and do not ask permission first - sharing a link IS the request.',
+    '- A link the user shares (any http/https URL) IS the request: OPEN it with `open_link` in the same turn and ' +
+      'say one line that you did. It opens in Zephyr\'s browser pane beside the code. Never print a URL and wait, ' +
+      'never ask permission first. Several links: open the one the message is about (or the first), mention the rest.',
   );
   baris.push(
-    '- After opening it, if the user asks what the page says, READ it with `browser` (action: read) on the same pane. ' +
-      'The page is already loaded, so this is one call - never `web_fetch` the same URL again, and never guess its contents.',
+    '- To say what the page contains, READ it with `browser` (action: read) on that same pane - one call, never ' +
+      '`web_fetch` the same URL and never guess. Use `browser` (action: open) when you need to read as you open, and ' +
+      '`web_fetch` only for a page that is NOT open in a pane. Never open a URL from the terminal.',
   );
   baris.push(
-    '- Several links in one message: open the one the message is actually about (or the first, if it is a list), ' +
-      'and mention the rest. Opening six tabs at once is not help.',
-  );
-  baris.push(
-    '- If `open_link` refuses because the host is outside the allowlist, say which host was blocked and that ' +
-      'Settings > Security controls that list. Do not retry the same URL and do not fall back to another tool - the gate is shared.',
-  );
-  baris.push(
-    '- `open_link` is for links the user should SEE. Use `browser` (action: open) when you also need to read the page, ' +
-      'and `web_fetch` only when you need the text of a page that is NOT open in a pane. Never use the terminal to open a URL.',
+    '- If `open_link` refuses a host outside the allowlist, name the host and say Settings > Security controls it. ' +
+      'Do not retry and do not fall back to another tool - the gate is shared.',
   );
   baris.push('');
-  baris.push('## Panels, ports and logs');
+baris.push('## Panels, ports and logs');
   const panel = setelan.panel ?? {};
   if (panel.visibleTabs)
     baris.push(
-      `- Bottom panel tabs: ${panel.visibleTabs.join(', ')} - default visible: ${panel.visibleTabs.join(', ')}; ` +
-        `default active tab: ${garis(panel.activeTab)}, default height: ${garis(panel.height)} px.`,
+      `- Bottom panel tabs: ${panel.visibleTabs.join(', ')}; default active: ${garis(panel.activeTab)}, height: ` +
+        `${garis(panel.height)} px.`,
     );
   const mcp = setelan.mcp ?? {};
   baris.push(
@@ -1391,9 +1401,9 @@ function daftarSemuaKunciSetelan(setelan) {
   );
   baris.push(`- Dev server for the UI: port ${vite} (vite.config.ts).`);
   baris.push(
-    '- Debug bridges on `window` (dev builds; they read the same stores the UI uses, so a question about the running app ' +
-      `is answered from them instead of guessed): ${BRIDGE_INTI.join(', ')}. The full roster (${bridge.length} names) is in the ` +
-      'index - look a name up before using it.',
+    '- Debug bridges on `window` (dev builds; they read the live stores, so answer a question about the running app ' +
+      `from them instead of guessing): ${BRIDGE_INTI.join(', ')}. Full roster (${bridge.length} names) in the index - ` +
+      'look a name up before using it.',
   );
   baris.push(
     '- Logs: %APPDATA%\\zephyr\\logs\\zephyr-YYYY-MM-DD.log, rotated to zephyr-1.log, zephyr-2.log ... ' +
@@ -1429,27 +1439,24 @@ function daftarSemuaKunciSetelan(setelan) {
   baris.push('');
   baris.push('## Answering questions about Zephyr itself');
   baris.push(
-    '- This whole block is about the app you ARE - answer questions about Zephyr (settings, panels, ports, shortcuts, tools, ' +
-      'extensions) from this block plus the index behind `zephyr_self`; do not open a folder, do not grep the project, do not run ' +
-      'programs to check a documented default. A chat question about Zephyr is answered, not "worked on".',
+    '- This block is about the app you ARE: answer questions about Zephyr (settings, panels, ports, shortcuts, tools, ' +
+      'extensions) from here plus the index behind `zephyr_self`. Do not open a folder, grep the project or run programs to ' +
+      'check a documented default. A question about Zephyr is ANSWERED, not "worked on".',
   );
   baris.push(
-    '- A SYMPTOM ("my panel disappeared", "the AI box is gone") is answered like a question: name the setting key (the "panel" group ' +
-      'holds bottom-panel tabs/height/visibility), the panel, and the default shortcut that governs it (bottom panel = Ctrl+J), then ' +
-      'NAME WHERE THE VALUE LIVES - the exact file and path, not just "Settings": the global file %APPDATA%\\zephyr\\settings.json ' +
-      '(per-project override: <folder>\\.zephyr\\settings.json). That sentence is part of the answer, not optional: the reader who is ' +
-      'told the key name but not the file still cannot find it. Do NOT run shell commands, do not open Zephyr-own files (its ' +
-      'settings.json, its log) and do not start a diagnosis hunt for a "why does this happen / where do I check" turn - the defaults ' +
-      'are in this block and the index. Offer the deeper check as a next step ("want me to read the log?").',
+    '- A SYMPTOM ("my panel disappeared") is answered like a question: name the setting key (group `panel`), the panel, and ' +
+      'its default shortcut (bottom panel = Ctrl+J), THEN name WHERE THE VALUE LIVES - the exact path, not just "Settings": ' +
+      '%APPDATA%\\zephyr\\settings.json (project override: <folder>\\.zephyr\\settings.json). Naming the key without the file ' +
+      'leaves the reader stuck. Do NOT run shell commands, do not open Zephyr-own files, and do not start a diagnosis hunt for ' +
+      'a "why is this happening" turn - the defaults are here and in the index. Offer the deeper check as a next step.',
   );
   baris.push(
-    '- Reading Zephyr-own files with a shell command is not a way to answer a chat question: the shell starts in the user project, ' +
-      'quoting there is fragile (cmd/PowerShell mishandle it), and the value would come from a file this block or the index already ' +
-      'describes. Read them only when the user asks you to open that file.',
+    '- Never answer a chat question by shell-reading Zephyr-own files: the shell starts in the user project, quoting there is ' +
+      'fragile, and this block or the index already has the value. Read them only when the user asks you to open that file.',
   );
   baris.push(
-    '- When the user needs a setting changed or a panel brought back, the answer is the path inside Zephyr: the Settings page and ' +
-      'section, the panel name, the shortcut, or the exact setting key.',
+    '- To change a setting or bring a panel back, give the path inside Zephyr: Settings page and section, panel name, ' +
+      'shortcut, or the exact setting key.',
   );
   /*
    * `tunjuk` is the one tool that acts on the UI, and a model that has not been
@@ -1459,25 +1466,22 @@ function daftarSemuaKunciSetelan(setelan) {
    * spec, which the model may never read.
    */
   baris.push(
-    '- "Where is it" is answered with a SCREEN when the reader does not know: call `tunjuk` with their own words ("di mana picker ' +
-      'model", "atur api key di mana", "panel terminal hilang"). It opens the matching Settings section, bottom-panel tab, the model ' +
-      'picker in the chat header, Chat Settings, Agent Customizations, the command palette or the Explorer, and returns what it ' +
-      'opened. Pass buka=false to name the location without moving their screen. If it reports no match, answer with the location ' +
-      'from this block and do not invent a menu name.',
+    '- "Where is it" is answered with a SCREEN: call `tunjuk` with the reader\'s own words ("di mana picker model", "panel ' +
+      'terminal hilang"). It opens the matching Settings section, bottom-panel tab, model picker, Chat Settings, Agent ' +
+      'Customizations, palette or Explorer, and reports what it opened; buka=false just names the location. No match: answer ' +
+      'from this block, never invent a menu name.',
   );
   baris.push(
-    '- Where to look for a symptom: the Problems panel (diagnostics), the Output panel (task/tool output), the Debug panel, a ' +
-      'terminal, the Ports panel (what is listening); Settings > About for the version and update state; the log file above when the ' +
-      'answer really lives there.',
+    '- Where to look for a symptom: Problems (diagnostics), Output (task/tool), Debug, a terminal, Ports (what is listening); ' +
+      'Settings > About for version/update; the log file above when the answer really lives there.',
   );
   baris.push('');
   baris.push('## Never invent');
   baris.push(
-    '- A setting name, button label, shortcut or port that is not in this block or in a file you actually read: ' +
-      'say where the user can look (Settings search, the settings.json path, the panel in question) and offer to check it. ' +
+    '- A setting name, label, shortcut or port not in this block or in a file you actually read: say where the user can look ' +
+      'and offer to check it. ' +
       `If it is one of the ${jumlahKunci} settings or ${pintasan.length} shortcuts the app ships, \`zephyr_self\` finds it - ` +
-      'look it up instead of guessing a name. ' +
-      'A wrong name costs the user more than an honest "let me check".',
+      'look it up instead of guessing. A wrong name costs more than an honest "let me check".',
   );
   return baris.join('\n');
 }

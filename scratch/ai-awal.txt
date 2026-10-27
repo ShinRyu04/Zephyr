@@ -1,8 +1,0 @@
-﻿{
- "model": "deepseek-v4.1-flash",
- "provider": "custom",
- "agentBusy": false,
- "workspace": "D:\\ZephyrDesktop",
- "adaKey": true,
- "providers": []
-}

@@ -241,8 +241,10 @@ export default function AgcConversations() {
     todoListSolo: false,
     autoFixIde: false,
     autoFixSolo: false,
-    questioningIde: false,
-    questioningSolo: false,
+    /* Jatuhan saat setelan belum pernah ditulis: sama dengan default di
+       `types.ts` - bertanya itu sikap aman, bukan fitur yang harus dicari. */
+    questioningIde: true,
+    questioningSolo: true,
     reviewScope: 'all' as const,
     reviewJump: true,
     terminalEnv: 'efficient' as const,

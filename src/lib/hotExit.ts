@@ -2,6 +2,7 @@ import { fsExists } from './commands';
 import { useStore } from './store';
 import { useNotif } from './notificationStore';
 import type { Encoding, LineEnding } from './types';
+import { kunciPath } from './pathKey';
 
 /*
  * Hot exit.
@@ -182,7 +183,12 @@ export async function pulihkanHotExit(): Promise<number> {
       await s.openPath(b.path, { preview: false });
       const tab = useStore
         .getState()
-        .tabs.find((t: { path: string | null }) => t.path === b.path);
+        .tabs.find(
+          /* The restore list is written by an earlier process and may hold a
+             different spelling than the tab this run just opened; a raw compare
+             reported the file as "failed to restore" while it was in fact open. */
+          (t: { path: string | null }) => !!t.path && kunciPath(t.path) === kunciPath(b.path),
+        );
       if (!tab) {
         gagal.push(b.name);
         continue;

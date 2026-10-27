@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import type { GitBlameLine, GitStashEntry } from './commands';
 import { useStore } from './store';
+import { kunciPath } from './pathKey';
 import type {
   GhStatus,
   GitProgress,
@@ -215,7 +216,12 @@ export const useGit = create<GitStore>((set, get) => ({
       
       const d = get().diff;
       if (d && d.source !== 'history' && status.isRepo) {
-        const still = status.changes.some((c) => c.path === d.path);
+        /* `d.path` was opened from our own tree while `status.changes` is
+           parsed from git's output (`git status --porcelain`), which spells the
+           same file with forward slashes. A raw compare never matched, so the
+           open diff closed itself on every refresh. */
+        const kunci = kunciPath(d.path);
+        const still = status.changes.some((c) => kunciPath(c.path) === kunci);
         if (!still) set({ diff: null });
       }
     } catch (e) {

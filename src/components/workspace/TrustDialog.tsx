@@ -1,5 +1,6 @@
 import { useT } from '../../lib/i18n';
 import { useWs } from '../../lib/workspaceStore';
+import { kunciPath } from '../../lib/pathKey';
 
 import { useFocusTrap } from '../../lib/useFocusTrap';
 
@@ -14,7 +15,15 @@ export default function TrustDialog() {
 
   if (!tanyaUntuk) return null;
 
-  const root = roots.find((r) => r.path.toLowerCase() === tanyaUntuk.toLowerCase());
+  /*
+   * Compared through `kunciPath`, like every other path comparison that can
+   * meet a value from the backend. `toLowerCase()` alone treated `D:/galeri`
+   * and `D:\galeri\` as different folders, so the dialog that asks for trust
+   * could not find the root it was asking about and silently showed a
+   * dialog with no matching folder behind it.
+   */
+  const kunci = kunciPath(tanyaUntuk);
+  const root = roots.find((r) => kunciPath(r.path) === kunci);
   const sudahRestricted = root?.trust === 'restricted';
 
   return (
