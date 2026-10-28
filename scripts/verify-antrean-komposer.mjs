@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Bukti: mengetik di KOMPOSER saat giliran sibuk = MASUK ANTREAN.
  *
  *   Q1  mode agent sibuk: Enter di komposer mengantre, run TIDAK dibatalkan
@@ -98,6 +98,43 @@ const q6 = await J(`await (async () => {
   return { barisKartu, kirimKartu };
 })()`);
 
+/* Q7: DUA drain bersamaan tidak boleh mengirim baris yang sama dua kali. */
+const q7 = await J(`await (async () => {
+  const Ai = window.__ZEPHYR_AI__.store;
+  await Ai.getState().cancel();
+  for (let i = 0; i < 40 && (Ai.getState().agentBusy || Ai.getState().pending); i++) await wait(150);
+  Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
+  Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false }, pending: null, pendings: { '': null }, antrian: [] });
+  await wait(250);
+  const sesi = Ai.getState().sessions.find((x) => x.id === Ai.getState().activeId);
+  const tandai = 'DUP-UJI-' + Date.now().toString(36);
+  Ai.setState({ agentBusys: { ...Ai.getState().agentBusys, '': true }, agentBusy: true });
+  await wait(80);
+  await Ai.getState().kirimSekarang(tandai, undefined, '');
+  await wait(400);
+  Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false } });
+  await wait(120);
+  /* dua drain serentak, persis pola race: akhir-run + chunk selesai */
+  const dua = await Promise.allSettled([
+    Ai.getState().kirimAntrian(0, ''),
+    Ai.getState().kirimAntrian(0, ''),
+  ]);
+  await wait(800);
+  const s = Ai.getState();
+  const ses = s.sessions.find((x) => x.id === s.activeId) ?? sesi;
+  const hasil = {
+    tandai,
+    diterima: dua.filter((r) => r.status === 'fulfilled' && r.value === true).length,
+    jumlahDiTranscript: (ses?.messages ?? []).filter((m) => m.role === 'user' && String(m.content).includes(tandai)).length,
+  };
+  await Ai.getState().cancel();
+  for (let i = 0; i < 30 && (Ai.getState().agentBusy || Ai.getState().pending); i++) await wait(150);
+  Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
+  Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false }, pending: null, pendings: { '': null }, antrian: [] });
+  await wait(300);
+  return hasil;
+})()`);
+
 /* Q4: mode chat (pending) - lewat store, permukaan utama. */
 const q4 = await J(`await (async () => {
   const Ai = window.__ZEPHYR_AI__.store;
@@ -143,7 +180,7 @@ await J(`await (async () => {
   return 'ok';
 })()`);
 
-console.log(JSON.stringify({ awal, q1, q4, q5, q6 }, null, 1));
+console.log(JSON.stringify({ awal, q1, q4, q5, q6, q7 }, null, 1));
 
 let lulus = 0;
 let gagal = 0;
@@ -178,6 +215,11 @@ cek(
   'Q6 tiap baris kartu review punya tombol kirim saat sibuk',
   (q6?.barisKartu ?? 0) > 0 && q6?.kirimKartu === q6?.barisKartu,
   `baris=${q6?.barisKartu} tombol=${q6?.kirimKartu}`,
+);
+cek(
+  'Q7 dua drain bersamaan mengirim baris SEKALI (tidak duplikat)',
+  q7?.diterima === 1 && q7?.jumlahDiTranscript === 1,
+  `diterima=${q7?.diterima} diTranscript=${q7?.jumlahDiTranscript}`,
 );
 
 console.log(`\n== ${lulus}/${lulus + gagal} lulus ==`);
