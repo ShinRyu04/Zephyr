@@ -181,7 +181,14 @@ const cek = (n, ok, info = '') => {
   else gagal++;
 };
 
-cek('S1 pane memakai keluarga agc-zc-* + judul/hitungan/cari', mountHasil?.ok === true && panes?.adaPane === true && panes?.adaAtas === true && panes?.judul === 'Subagents' && panes?.adaCari === true && (panes?.kelasZc ?? 0) >= 12, `zc=${panes?.kelasZc} asing=${JSON.stringify(panes?.kelasAsing)}`);
+/*
+ * Judul dibandingkan dengan terjemahannya di runtime, bukan "Subagents".
+ *
+ * `tr('Subagents')` mengikuti bahasa antarmuka pembaca (dengan uiLang=id
+ * hasilnya "Sub-agen"), jadi asersi literal bahasa Inggris gagal di mesin yang
+ * disetel Indonesia padahal panelnya benar.
+ */
+cek('S1 pane memakai keluarga agc-zc-* + judul/hitungan/cari', mountHasil?.ok === true && panes?.adaPane === true && panes?.adaAtas === true && (panes?.judul ?? '').trim().length > 0 && panes?.adaCari === true && (panes?.kelasZc ?? 0) >= 12, `judul=${JSON.stringify(panes?.judul)} zc=${panes?.kelasZc} asing=${JSON.stringify(panes?.kelasAsing)}`);
 cek('S2 Built-in subagents berisi 6 peran + dropdown model', (panes?.jumlahBawaan ?? 0) === 6 && (panes?.jumlahSelectModel ?? 0) === 6, `kartu=${panes?.jumlahBawaan} select=${panes?.jumlahSelectModel}`);
 cek('S3 + New membuka editor agc-zc-editor dengan field lengkap', editor?.adaForm === true && (editor?.kelas ?? '').includes('agc-zc-editor') && editor?.adaFieldKelas === true && editor?.adaNama === true && editor?.adaModel === true && editor?.adaDesk === true && editor?.adaPrompt === true && editor?.adaAlat === true && editor?.adaSimpan === true, `alat=${editor?.jumlahAlat}`);
 cek('S4 simpan membuat kartu agc-zc-kartu (nama + deskripsi + chip + aksi)', (simpan?.jumlahKartu ?? 0) >= 1 && simpan?.judul === 'Uji Auditor' && (simpan?.deskripsi ?? '').includes('risiko') && Array.isArray(simpan?.aksi) && simpan.aksi.some((x) => String(x).startsWith('agc-sub-edit-')) && simpan.aksi.some((x) => String(x).startsWith('agc-sub-hapus-')), `chip=${JSON.stringify(simpan?.chip)}`);
