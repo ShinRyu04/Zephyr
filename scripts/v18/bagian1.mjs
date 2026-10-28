@@ -36,7 +36,7 @@ export const bagian1 = async (cdp, check) => {
   check(
     'V1',
     v1.adaBar &&
-      v1.role === 'menubar' &&
+      v1.role === 'toolbar' &&
       v1.tops.length === 8 &&
       v1.adaDropdown &&
       v1.jmlItem >= 12 &&

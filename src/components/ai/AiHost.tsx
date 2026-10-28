@@ -68,28 +68,34 @@ export default function AiHost({ composerId = '' }: { composerId?: string }) {
    * would be two of every tab in the tab order.
    */
   const strip = (
-    <div className="ai-host-tabs" role="tablist" data-testid="ai-host-tabs">
-      <button
-        role="tab"
-        aria-selected={current === 'chat'}
-        className={`ai-host-tab${current === 'chat' ? ' is-on' : ''}`}
-        data-testid="ai-host-tab-chat"
-        onClick={() => setActive('chat')}
-      >
-        {tr('Agent')}
-      </button>
-      {cliTabs.map((c) => (
+    <div className="ai-host-tabs">
+      {/* role=tablist hanya mengurung TAB (ARIA: tablist tak boleh berisi
+          spacer/action). Elemen pembungkus ini display:contents supaya tata
+          letak flex di .ai-host-tabs tidak berubah, tapi pohon aksesibilitas
+          melihat tablist yang bersih. */}
+      <div className="ai-host-tablist" role="tablist" data-testid="ai-host-tabs">
         <button
-          key={c.id}
           role="tab"
-          aria-selected={current === c.id}
-          className={`ai-host-tab${current === c.id ? ' is-on' : ''}`}
-          data-testid={`ai-host-tab-${c.id}`}
-          onClick={() => setActive(c.id)}
+          aria-selected={current === 'chat'}
+          className={`ai-host-tab${current === 'chat' ? ' is-on' : ''}`}
+          data-testid="ai-host-tab-chat"
+          onClick={() => setActive('chat')}
         >
-          {c.label}
+          {tr('Agent')}
         </button>
-      ))}
+        {cliTabs.map((c) => (
+          <button
+            key={c.id}
+            role="tab"
+            aria-selected={current === c.id}
+            className={`ai-host-tab${current === c.id ? ' is-on' : ''}`}
+            data-testid={`ai-host-tab-${c.id}`}
+            onClick={() => setActive(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <span className="ai-host-tabs-spacer" aria-hidden="true" />
       {/* COMPACT only: when expanded, the trail lives in the top control row
           (App renders it there) and must not also be down here. */}

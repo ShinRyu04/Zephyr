@@ -949,7 +949,9 @@ const main = async () => {
    */
   const toastV2 = v2.toast ?? '';
   const bentukPindah = /No key for .+ switched to .+, which has one/i.test(toastV2);
-  const bentukIsiKey = /Add an API key for .+ in Settings/i.test(toastV2);
+  // Teks produk sekarang "in AI Models" (pengaturan model pindah ke jendela AI
+  // Models, bukan lagi Settings) - tes mengikuti produk.
+  const bentukIsiKey = /Add an API key for .+ in AI Models/i.test(toastV2);
   check(
     'V2',
     v2.toastAda &&
@@ -1201,6 +1203,18 @@ const main = async () => {
        * saat provider masih gemini hanya mengganti model di gemini.
        */
       await X.setKey('anthropic', '');
+      /*
+       * Gemini juga dikosongkan.
+       *
+       * providerEfektif() (modelCatalog.tsx) sengaja memilih provider ber-key
+       * pertama kalau provider eksplisit tidak punya key - jadi selama gemini
+       * (mock, ber-key) masih terpasang, anthropic TANPA key tidak pernah
+       * bertahan sebagai provider aktif dan kaki "tolak ramah" uji ini
+       * mustahil tercapai. Mengosongkan keduanya membuat anthropic dipakai apa
+       * adanya, persis keadaan "belum punya key" yang ingin diuji. V6 memasang
+       * kembali key gemini di awal bloknya.
+       */
+      await X.setKey('gemini', '');
       await AS().loadKeys();
       await wait(220);
       /*
@@ -1378,9 +1392,22 @@ const main = async () => {
       await wait(200);
 
       await klik('[data-testid="ai-run-last"]');
-      await wait(2500);
+      /*
+       * Toast hanya hidup 1000ms (efek [toast] di AiPanel.tsx), jadi dibaca
+       * SEGERA setelah klik - bukan setelah menunggu 2500ms untuk output
+       * terminal. runInTerminal baru menyetelnya sesudah writeChunked, karena
+       * itu sampel diambil berulang (±1,4 detik) dan jejaknya direkam supaya
+       * "tidak pernah muncul" tetap bisa dibedakan dari "muncul lalu hilang".
+       */
+      const jejakToastKirim = [];
+      let toastKirim = '';
+      for (let i = 0; i < 12 && !toastKirim; i++) {
+        await wait(120);
+        toastKirim = q('[data-testid="ai-toast"]')?.textContent ?? '';
+        if (!toastKirim) jejakToastKirim.push('');
+      }
+      await wait(2200);
       const layar = P.read(paneId, 40);
-      const toastKirim = q('[data-testid="ai-toast"]')?.textContent ?? '';
 
       // 2) perintah destruktif -> dialog konfirmasi, TIDAK langsung jalan
       await kirim('hapus dist RMCMD TEXTONLY');
@@ -1396,7 +1423,7 @@ const main = async () => {
       const dialogSetelahBatal = !!q('[data-testid="ai-confirm"]');
 
       return JSON.stringify({
-        tombolBar, tombolBlok, cmdBar, toastKirim,
+        tombolBar, tombolBlok, cmdBar, toastKirim, jejakToastKirim,
         adaOutput: layar.includes('ZEPHYR-RUN-OK'),
         layarEkor: layar.split('\\n').filter(Boolean).slice(-4),
         cmdDestruktif, dialog, isiDialog, dialogSetelahBatal,
@@ -1419,7 +1446,7 @@ const main = async () => {
       v6.rmTidakJalan &&
       v6.destruktifTerdeteksi === true &&
       v6.amanTidakTerdeteksi === false,
-    `tombol "Jalankan di Terminal" muncul (bar: ${v6.tombolBar}, blok: ${v6.tombolBlok}); klik -> shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; toast kirim = "${v6.toastKirim}"; perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi (dialog=${v6.dialog}, isiDialog="${v6.isiDialog}", dialogSetelahBatal=${v6.dialogSetelahBatal}, rmTidakJalan=${v6.rmTidakJalan}, deteksi: destruktif=${v6.destruktifTerdeteksi}, aman=${v6.amanTidakTerdeteksi}, pane=${v6.paneId})`,
+    `tombol "Jalankan di Terminal" muncul (bar: ${v6.tombolBar}, blok: ${v6.tombolBlok}); klik -> shell menjalankan perintah, layar: ${JSON.stringify(v6.layarEkor)}; toast kirim = "${v6.toastKirim}" (jejak ${v6.jejakToastKirim?.length ?? 0} sampel kosong); perintah destruktif "${v6.cmdDestruktif}" DITAHAN dialog konfirmasi & batal = tidak dieksekusi (dialog=${v6.dialog}, isiDialog="${v6.isiDialog}", dialogSetelahBatal=${v6.dialogSetelahBatal}, rmTidakJalan=${v6.rmTidakJalan}, deteksi: destruktif=${v6.destruktifTerdeteksi}, aman=${v6.amanTidakTerdeteksi}, pane=${v6.paneId})`,
   );
 
   // 笏笏笏笏笏笏笏笏笏 V7: cancel streaming benar-benar berhenti 笏笏笏笏笏笏笏笏笏

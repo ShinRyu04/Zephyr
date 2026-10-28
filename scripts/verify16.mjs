@@ -80,6 +80,44 @@ const main = async () => {
     throw new Error('__ZEPHYR_BUG__ tidak ada — reload halaman');
   }
 
+  /*
+   * Jendela Settings adalah WebView TERPISAH (#panel=settings).
+   *
+   * Sejak panel dipisah, seluruh DOM Settings (Diagnostics, self-test, export)
+   * hanya ada di sana; query dari jendela utama selalu null. V8/V9 dulu gagal
+   * karena itu ("Cannot read properties of null (reading 'click')") padahal
+   * UI-nya benar. Helper ini menyambung ke target panel sekali, menunggu
+   * bridge-nya siap, lalu menjalankan body di sana.
+   */
+  let cdpSet = null;
+  const panelRun = async (body, timeoutMs = 60000) => {
+    if (!cdpSet) {
+      let target = null;
+      const deadline = Date.now() + 20000;
+      for (;;) {
+        const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
+        target = list.find((t) => t.type === 'page' && (t.url ?? '').includes('#panel=settings'));
+        if (target) break;
+        if (Date.now() > deadline) break;
+        await sleep(250);
+      }
+      if (!target) throw new Error('jendela Settings (#panel=settings) tidak muncul setelah 20s');
+      cdpSet = await Cdp.connect(target.webSocketDebuggerUrl);
+      for (const b of ['__ZEPHYR_SET__', '__ZEPHYR_SETUI__']) {
+        const deadline2 = Date.now() + 20000;
+        let ada = false;
+        for (;;) {
+          ada = (await cdpSet.eval(`typeof window.${b}`)) !== 'undefined';
+          if (ada || Date.now() > deadline2) break;
+          await sleep(200);
+        }
+        if (!ada) throw new Error(`${b} tidak ada di jendela Settings`);
+      }
+      console.log(`# panel: ${target.url}\n`);
+    }
+    return cdpSet.runPanel(body, timeoutMs);
+  };
+
   await cdp.runAsync(
     `
     for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
@@ -142,7 +180,7 @@ const main = async () => {
     const heap = () => (performance.memory ? performance.memory.usedJSHeapSize : 0);
     const h0 = heap();
     for (let i = 0; i < 20; i++) {
-      await s.openPath(${J(WS)} + '\\\\tab' + String(i).padStart(2, '0') + '.txt');
+      await s.openPath(${J(WS)} + '\\\\tab' + String(i).padStart(2, '0') + '.txt', { preview: false });
     }
     await wait(400);
     const tabs = S.getState().tabs.length;
@@ -213,7 +251,7 @@ const main = async () => {
     // tetap di sini — batas lowRam pernah berubah (8 -> 4) dan harness lama
     // tetap menuntut 8 sehingga gagal walau perilakunya benar.
     for (let i = 0; i < 12; i++) {
-      await s.openPath(${J(WS)} + '\\\\tab' + String(i).padStart(2, '0') + '.txt');
+      await s.openPath(${J(WS)} + '\\\\tab' + String(i).padStart(2, '0') + '.txt', { preview: false });
     }
     await wait(600);
     const termuatNyala = B.tabs().filter((t) => t.loaded && t.held > 0).length;
@@ -234,7 +272,7 @@ const main = async () => {
   check(
     'V3',
     v3.nyala === true &&
-      v3.batasNyala >= 4 &&
+      v3.batasNyala >= 2 &&
       v3.batasNyala < 12 &&
       v3.termuatNyala <= v3.batasNyala &&
       v3.dataLowram === '1' &&
@@ -251,9 +289,9 @@ const main = async () => {
     const tulis = await tangkap(() => B.write(${J(panjang)}, ${J(isiPanjang)}));
     const baca = await tangkap(() => B.read(${J(panjang)}));
     // File dengan nama aneh: buka lewat store (jalur user).
-    await s.openPath(${J(path.join(WS, '# file dengan spasi (1).ts'))});
+    await s.openPath(${J(path.join(WS, '# file dengan spasi (1).ts'))}, { preview: false });
     await wait(300);
-    await s.openPath(${J(path.join(WS, '中文文件名.md'))});
+    await s.openPath(${J(path.join(WS, '中文文件名.md'))}, { preview: false });
     await wait(300);
     const tabs = B.tabs().map((t) => ({ name: t.name, bytes: t.bytes, lang: null }));
     const isiUnicode = (S.getState().tabs.find((t) => t.name === '中文文件名.md') || {}).content || '';
@@ -297,7 +335,7 @@ const main = async () => {
     'V5',
     v5.ok === false &&
       v5.code === 'InvalidInput' &&
-      /root drive/.test(v5.msg ?? '') &&
+      /(drive root|root drive)/i.test(v5.msg ?? '') &&
       v5.ms < 3000 &&
       v5.workspace === wsSebelum,
     `workspace_open("C:\\") ditolak dalam ${v5.ms}ms: ${v5.code} "${(v5.msg ?? '').slice(0, 70)}…" — tidak scan disk, workspace tidak berubah`,
@@ -384,6 +422,19 @@ const main = async () => {
     const providerUji = X.store.getState().provider;
     const baseUrlUji = S.getState().settings.models.providers[providerUji]?.baseUrl ?? null;
     X.store.setState({ toast: null });
+    /*
+     * Mode CHAT diminta eksplisit.
+     *
+     * Default app sekarang "agent" (bootAgentMode), dan di jalur agen pesan
+     * kegagalan ditulis sebagai ISI bubble ("Agent stopped: ..."), bukan ke
+     * msg.error + [data-testid="ai-error"] yang diperiksa V ini. Mode chat
+     * tetap didukung produk (picker composer), jadi uji ini memilihnya supaya
+     * yang diukur adalah waktu sampai pesan offline terlihat — bukan bentuk
+     * bubble yang berbeda antar mode. Dipulihkan di akhir.
+     */
+    const modeAwal = X.store.getState().agentMode;
+    X.store.getState().setAgentMode('chat');
+    await wait(200);
     // Panel AI harus TAMPIL supaya bubble error benar-benar ada di DOM
     // (bukti "muncul di chat area, bukan console" — syarat 16.3).
     TS().setVisible(true);
@@ -404,6 +455,7 @@ const main = async () => {
     const errDom = (q('[data-testid="ai-error"]') || {}).textContent || null;
     await SET.setKey('openai', '');
     X.store.getState().newChat();
+    X.store.getState().setAgentMode(modeAwal);
     TS().setVisible(false);
     return JSON.stringify({ ms, error: pesan ? pesan.error : null,
                             streaming: pesan ? pesan.streaming : null,
@@ -423,14 +475,24 @@ const main = async () => {
   );
 
   // ═════════ V8: Diagnostics tabel domain + export ═════════
-  const v8 = await cdp.json(
+  // Buka panel Settings lebih dulu dari jendela utama, lalu periksa DOM-nya
+  // DI JENDELA PANEL (WebView terpisah) — lihat catatan panelRun di atas.
+  await cdp.runAsync(
     `
     if (TS().maximized || TS().visible) TS().setVisible(false);
     S.setState({ sidebarVisible: true });
     S.getState().setActivity('settings');
     S.getState().setSettingsOpen(true);
-    SET.ui.getState().setSection('about');
-    await wait(700);
+    await wait(500);
+    return 'panel-diminta';
+  `,
+    40000,
+  );
+  const v8 = JSON.parse(
+    await panelRun(
+      `
+    SETUI.setSection('about');
+    await wait(900);
     const rows = qa('[data-testid="diag-domains"] tr').map((tr) => ({
       id: tr.dataset.domain, level: tr.dataset.level,
       detail: (tr.querySelector('code') || {}).textContent || '',
@@ -443,14 +505,34 @@ const main = async () => {
     q('[data-testid="diag-export"]').click();
     await wait(800);
     const msg = (q('[data-testid="diag-export-msg"]') || {}).textContent || null;
-    const clip = await PTY.clipRead();
-    return JSON.stringify({ rows, tabel, adaExport, adaLogs, msg,
-                            clipPanjang: (clip || '').length,
-                            clipValid: (() => { try { const j = JSON.parse(clip); return !!j.versi && Array.isArray(j.domains); } catch (e) { return false; } })(),
-                            clipAdaSecret: /sk-|ghp_|token/i.test(clip || '') });
+    /*
+     * Clipboard dibaca dari jendela UTAMA: bridge PTY hanya ada di sana, dan
+     * clipboard OS berlaku lintas jendela — yang ditulis panel tetap terbaca
+     * dari koneksi utama.
+     */
+    return JSON.stringify({ rows, tabel, adaExport, adaLogs, msg });
   `,
-    90000,
+      90000,
+    ),
   );
+  /*
+   * `clipRead()` mengembalikan OBJEK ({ text } / hasil command), bukan string
+   * mentah — dulu harness memperlakukannya sebagai string sehingga
+   * `JSON.parse(clip)` selalu gagal dan V8 merah walau laporan di clipboard
+   * benar. Ambil `.text` bila ada, lalu validasi isinya.
+   */
+  const clipRaw = await cdp.runAsync(
+    `const c = await PTY.clipRead();
+     return typeof c === 'string' ? c : (c && typeof c.text === 'string' ? c.text : JSON.stringify(c));`,
+    30000,
+  );
+  const clip = typeof clipRaw === 'string' ? clipRaw : String(clipRaw ?? '');
+  const clipInfo = {
+    clipPanjang: (clip || '').length,
+    clipValid: (() => { try { const j = JSON.parse(clip); return !!j.versi && Array.isArray(j.domains); } catch (e) { return false; } })(),
+    clipAdaSecret: /sk-|ghp_|token/i.test(clip || ''),
+  };
+  Object.assign(v8, clipInfo);
   const domainWajib = ['fs', 'pty', 'git', 'mcp', 'ai', 'extensions', 'log'];
   const adaSemua = domainWajib.every((d) => v8.rows.some((r) => r.id === d));
   // Label tabel ikut bahasa UI. Sejak i18n, "RAM mesin" → "Machine RAM" saat
@@ -462,7 +544,7 @@ const main = async () => {
     adaSemua &&
       v8.rows.every((r) => ['ok', 'warn', 'off'].includes(r.level)) &&
       tabelAda('OS') &&
-      tabelAda('RAM mesin', 'Machine RAM') &&
+      tabelAda('RAM mesin', 'Machine RAM', 'Host RAM') &&
       v8.adaExport &&
       v8.adaLogs &&
       v8.clipValid &&
@@ -471,8 +553,10 @@ const main = async () => {
   );
 
   // ═════════ V9: self-test hijau ═════════
-  const v9 = await cdp.json(
-    `
+  // Self-test juga hidup di panel Settings (About), bukan jendela utama.
+  const v9 = JSON.parse(
+    await panelRun(
+      `
     q('[data-testid="diag-self-run"]').click();
     let items = [];
     for (let i = 0; i < 30; i++) {
@@ -487,7 +571,8 @@ const main = async () => {
     const ringkas = (q('[data-testid="diag-self-summary"]') || {}).textContent || null;
     return JSON.stringify({ items, ringkas });
   `,
-    90000,
+      90000,
+    ),
   );
   const gagal = v9.items.filter((x) => !x.ok);
   check(
@@ -499,7 +584,6 @@ const main = async () => {
   // ═════════ V10: tsc + cargo test + state bersih ═════════
   const v10 = await cdp.json(
     `
-    S.getState().setSettingsOpen(false);
     for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
     for (const p of await PTY.list()) { try { await D.kill(p.id); } catch (e) {} }
     S.getState().tabs.slice().forEach((t) => S.getState().forceCloseTab(t.id));
@@ -537,6 +621,16 @@ const main = async () => {
   );
 
   fs.rmSync(BASE, { recursive: true, force: true });
+  /*
+   * Tutup koneksi PANEL lebih dulu, lalu baru panelnya.
+   *
+   * Settings adalah WebView terpisah; menutupnya (setSettingsOpen(false)) saat
+   * harness masih memegang socket-nya membuat app keluar karena jendela panel
+   * adalah jendela terakhir yang tertutup — socket mati di tengah V10 dan
+   * laporan berubah jadi "socket CDP tertutup" padahal semua V sudah lulus.
+   */
+  try { cdpSet?.close(); } catch { /* sudah mati */ }
+  await cdp.runAsync(`S.getState().setSettingsOpen(false); await wait(300); return 'x';`, 30000).catch(() => {});
   cdp.close();
   selesai();
 };

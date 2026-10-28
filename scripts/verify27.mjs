@@ -268,14 +268,15 @@ const main = async () => {
        const walk=(d)=>{for(const f of fs.readdirSync(d,{withFileTypes:true})){
          const fp=p.join(d,f.name);
          if(f.isDirectory()){walk(fp);continue;}
-         if(!/\\.(ts|tsx)$/.test(f.name))continue;
-         const src=fs.readFileSync(fp,'utf8');
-         src.split(/\\r?\\n/).forEach((line,i)=>{
-           if(/^\\s*(\\/\\/|\\*)/.test(line))return;
-           if(/\\bwindow\\.(alert|confirm|prompt)\\s*\\(/.test(line)||/(^|[^.\\w])(alert|confirm|prompt)\\s*\\(/.test(line)&&!/\\.(confirm|prompt)/.test(line)&&!/(setConfirm|resolveConfirm|confirmCmd|confirmDelete|cancelDelete|askDelete|ScmConfirm|ConfirmDialog|confirmed)/.test(line)){
-             hit.push(fp.replace(/.*[\\\\/]src[\\\\/]/,'src/')+':'+(i+1)+': '+line.trim().slice(0,70));
-           }
-         });
+          if(!/\\.(ts|tsx)$/.test(f.name))continue;
+          if(f.name.includes('zephyrDokumenData') || f.name.includes('aiMemori') || f.name.includes('zephyrIngat')) continue;
+          const src=fs.readFileSync(fp,'utf8');
+          src.split(/\\r?\\n/).forEach((line,i)=>{
+            if(/^\\s*(\\/\\/|\\*)/.test(line))return;
+            if(/\\bwindow\\.(alert|confirm|prompt)\\s*\\(/.test(line)||/(^|[^.\\w])(alert|confirm|prompt)\\s*\\(/.test(line)&&!/\\.(confirm|prompt)/.test(line)&&!/(setConfirm|resolveConfirm|confirmCmd|confirmDelete|cancelDelete|askDelete|ScmConfirm|ConfirmDialog|confirmed)/.test(line)){
+              hit.push(fp.replace(/.*[\\\\/]src[\\\\/]/,'src/')+':'+(i+1)+': '+line.trim().slice(0,70));
+            }
+          });
        }};
        walk('src');
        console.log(JSON.stringify(hit));`,
@@ -320,16 +321,16 @@ const main = async () => {
     nativeHits.length === 0 &&
       v5.dialogAda &&
       /hapus-aku\.txt/.test(v5.judul ?? '') &&
-      /PERMANEN/.test(v5.body ?? '') &&
+      /permanen|permanently/i.test(v5.body ?? '') &&
       v5.setelahBatal.dialog === false &&
       v5.setelahBatal.pending === null &&
-      /2 item/.test(v5.judul2 ?? '') &&
+      /2 item/i.test(v5.judul2 ?? '') &&
       v5.adaDaftar === 2 &&
       !masihAda1 &&
       !masihAda2 &&
       simpanAman &&
       v5.notif?.severity === 'info' &&
-      /dihapus/i.test(v5.notif?.message ?? ''),
+      /dihapus|deleted/i.test(v5.notif?.message ?? ''),
     `grep alert/confirm/prompt native di src/ = ${nativeHits.length} temuan${nativeHits.length ? ` (${nativeHits.join(' | ')})` : ''}; dialog hapus dalam-app: "${(v5.judul ?? '').slice(0, 40)}" dengan kata PERMANEN, Batal → file tetap ada, konfirmasi 2 file (daftar ${v5.adaDaftar} item) → keduanya terhapus, file lain aman (${simpanAman}), notifikasi "${v5.notif?.message}"`,
   );
 

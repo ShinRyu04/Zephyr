@@ -494,6 +494,55 @@ export class Cdp {
   }
 
   /**
+   * runAsync untuk jendela PANEL (Settings / Extensions / AI Models).
+   *
+   * Panel adalah WebView kedua dengan origin sama dan judul sama; hanya hash
+   * `#panel=` yang membedakannya. DOM Settings TIDAK ada di jendela utama, jadi
+   * harness yang memeriksa Diagnostics/self-test/Export harus memakai koneksi
+   * ini. Prelude sengaja kecil: bridge panel (SET, SETUI, EXT) + util DOM.
+   */
+  async runPanel(body, timeoutMs = 60000) {
+    const slot = `__ZVPANEL_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await this.eval(`(() => {
+      window[${JSON.stringify(slot)}] = { done: false, value: null, error: null };
+      (async () => {
+        const S = window.__ZEPHYR__;
+        const s = S ? S.getState() : null;
+        const SET = window.__ZEPHYR_SET__;
+        const SETUI = window.__ZEPHYR_SETUI__;
+        const X = window.__ZEPHYR_EXT__;
+        const errMsg = (e) => (e && (e.message || e.code)) ? String(e.message || e.code) : String(e);
+        const q = (sel) => document.querySelector(sel);
+        const qa = (sel) => [...document.querySelectorAll(sel)];
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        ${body}
+      })().then(
+        (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
+        (e) => { window[${JSON.stringify(slot)}] = { done: true, value: null,
+                  error: (e && e.stack) ? String(e.stack).slice(0, 400)
+                       : (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
+      );
+      return 'started';
+    })()`);
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      await sleep(150);
+      const mentah = await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`);
+      if (mentah === undefined || mentah === 'undefined') {
+        if (Date.now() > deadline) throw new Error(`timeout panel: halaman panel reload — ${body.slice(0, 60)}…`);
+        continue;
+      }
+      const st = JSON.parse(mentah);
+      if (st.done) {
+        await this.eval(`(() => { delete window[${JSON.stringify(slot)}]; return 'x'; })()`);
+        if (st.error) throw new Error(st.error);
+        return st.value;
+      }
+      if (Date.now() > deadline) throw new Error(`timeout panel: ${body.slice(0, 70)}…`);
+    }
+  }
+
+  /**
    * Tutup koneksi, tapi KEMBALIKAN dulu settings yang diubah harness.
    *
    * KENAPA di sini: harness ditulis cepat dan sering lupa membersihkan; akibatnya

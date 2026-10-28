@@ -559,8 +559,24 @@ fn kirim_dengan_ulang(
                  */
                 let teks = e.to_string();
                 let low = teks.to_lowercase();
-                let permanen =
-                    low.contains("dns") || low.contains("resolve") || low.contains("invalid url");
+                /*
+                 * A CONNECT timeout is permanent for this turn, not a blip.
+                 *
+                 * The 15 s connect timeout already means the TCP handshake got
+                 * no answer at all - the network is down or the Base URL points
+                 * at an address that never replies. Retrying that three more
+                 * times multiplied one dead endpoint into a minute of silence,
+                 * and the frontend's own ladder multiplied it again (~3 min
+                 * before the reader saw a message). A reset mid-body or a 5xx
+                 * still gets the ladder; a handshake that never happened does
+                 * not, because the second attempt sees exactly the same wall.
+                 */
+                let connect_timeout = low.contains("connect") && low.contains("timeout")
+                    || low.contains("timed out") && low.contains("connect");
+                let permanen = low.contains("dns")
+                    || low.contains("resolve")
+                    || low.contains("invalid url")
+                    || connect_timeout;
                 if permanen || percobaan_reguler >= batas_percobaan {
                     return Err(teks);
                 }

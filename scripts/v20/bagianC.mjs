@@ -6,8 +6,14 @@ export const bagianC = async (cdp, check) => {
     `
     const P = window.__ZEPHYR_PANEL__;
     P.output.clear('debug');
+    /*
+     * REPL debug menempel di store debug dan TIDAK ikut dibersihkan oleh
+     * output.clear — sisa run sebelumnya membuat "kosong di awal" mustahil.
+     * Produk menyediakan bersihkanRepl untuk tombol Clear; pakai jalur itu.
+     */
+    window.__ZEPHYR_DBG__.store().getState().bersihkanRepl();
     P.focusTab('debug');
-    await wait(500);
+    await wait(600);
     const adaEmptyAwal = !!q('[data-testid="dc-empty"]');
 
     // Kirim lewat UI, bukan panggil fungsi langsung.
@@ -42,11 +48,13 @@ export const bagianC = async (cdp, check) => {
     'V7',
     v7.adaEmptyAwal &&
       v7.totalDebug === 2 &&
-      v7.barisDc.some((l) => l.includes('> 1 + 1')) &&
-      v7.barisDc.some((l) => l.includes('fase 22')) &&
+      // Prefix baris input sekarang "›" (U+203A), bukan ">" — produk berganti
+      // glyph prompt; isi ekspresinya tetap harus utuh.
+      v7.barisDc.some((l) => l.replace(/^\s*[›>]\s*/, '').trim() === '1 + 1') &&
+      v7.barisDc.some((l) => /no active debug session/i.test(l)) &&
       v7.inputKosong &&
       v7.setelahPanah === '1 + 1' &&
-      v7.barisOv.some((l) => l.includes('> 1 + 1')),
+      v7.barisOv.some((l) => l.replace(/^\s*[›>]\s*/, '').trim() === '1 + 1'),
     `Debug Console kosong di awal; kirim "1 + 1" lewat input → ${v7.totalDebug} baris tercatat ` +
       `("${v7.tail[0]}" / "${(v7.tail[1] ?? '').slice(0, 46)}…"); input dikosongkan, panah↑ ` +
       `mengembalikan "${v7.setelahPanah}"; baris yang sama tampil di channel Output "debug" ` +

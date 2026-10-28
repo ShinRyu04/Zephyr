@@ -86,7 +86,7 @@ class Cdp {
   /** Async di halaman + polling (WebView2 sering membuang promise). */
   async runAsync(body, timeoutMs = 60000) {
     const slot = `__ZV11_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    await this.eval(`(() => {
+    const mulai = `(() => {
       window[${JSON.stringify(slot)}] = { done: false, value: null, error: null };
       (async () => {
         const S = window.__ZEPHYR__;
@@ -100,13 +100,18 @@ class Cdp {
         const q = (sel) => document.querySelector(sel);
         const qa = (sel) => [...document.querySelectorAll(sel)];
         const wait = (ms) => new Promise(r => setTimeout(r, ms));
-        /** Buka Settings → MCP seperti user (ActivityBar + nav sidebar). */
+        /**
+         * Pindah ke halaman MCP di jendela Settings.
+         *
+         * Halaman MCP BUKAN section nav Settings biasa (tidak ada di
+         * SECTION_ORDER): ia tab di Agent Customizations, dan SectionBody
+         * merendernya saat section Settings = 'mcp'. Karena itu jalurnya lewat
+         * store UI Settings, bukan klik nav - nav tidak punya barisnya.
+         */
         const bukaMcp = async () => {
-          const st = S.getState();
-          st.setActivity('settings');
-          st.setSettingsOpen(true);
-          if (!S.getState().sidebarVisible) st.toggleSidebar();
-          window.__ZEPHYR_AGCC__?.getState().setSection('mcp');
+          const batas = Date.now() + 15000;
+          while (!window.__ZEPHYR_SETUI__ && Date.now() < batas) await wait(150);
+          window.__ZEPHYR_SETUI__?.setSection('mcp');
           await wait(250);
         };
         const tunggu = async (ms = 20000) => {
@@ -123,11 +128,30 @@ class Cdp {
                        : (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
       );
       return 'started';
-    })()`);
+    })()`;
+    await this.eval(mulai);
     const deadline = Date.now() + timeoutMs;
+    let hilang = 0;
     for (;;) {
       await sleep(150);
-      const st = JSON.parse(await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`));
+      const raw = await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`);
+      /*
+       * `undefined` berarti konteks halaman baru dimuat ulang (jendela panel
+       * yang baru dibuka, Vite reload, atau WebView2 membuang konteks): variabel
+       * slot ikut hilang. Dulu ini mati sebagai "undefined is not valid JSON" -
+       * pesan yang tidak menyebut sebabnya. Pasang ulang badannya; konteks lama
+       * sudah tidak ada, jadi tidak ada efek ganda.
+       */
+      if (raw === undefined) {
+        if (++hilang >= 4) {
+          await this.eval(mulai);
+          hilang = 0;
+        }
+        if (Date.now() > deadline) throw new Error(`timeout: ${body.slice(0, 70)}…`);
+        continue;
+      }
+      hilang = 0;
+      const st = JSON.parse(raw);
       if (st.done) {
         await this.eval(`(() => { delete window[${JSON.stringify(slot)}]; return 'x'; })()`);
         if (st.error) throw new Error(st.error);
@@ -236,6 +260,59 @@ const TMP = path.join(process.env.LOCALAPPDATA ?? os.tmpdir(), 'Temp');
 const HOME = process.env.USERPROFILE ?? os.homedir();
 const OPENCODE = path.join(HOME, '.config', 'opencode', 'opencode.json');
 
+/**
+ * Buka (atau buka ulang) jendela Settings dan sambungkan CDP ke sana.
+ *
+ * Sejak panel punya jendela sendiri, kontrol MCP hanya dirender di WebView
+ * `#panel=settings`; jendela utama tidak lagi merender halaman Settings
+ * (setSettingsOpen hanya membuka jendela lain). Membaca DOM MCP dari jendela
+ * utama karena itu selalu null - persis kegagalan yang dulu terjadi.
+ *
+ * Penutupan memakai tutupPanelWindow (Tauri close), BUKAN window.close():
+ * menutup dari dalam WebView menghapus target CDP tetapi registri Tauri masih
+ * menganggap jendela hidup, sehingga pembukaan berikutnya hanya memfokuskan
+ * webview yang sudah mati.
+ */
+async function siapkanPanelMcp(cdpUtama) {
+  await cdpUtama.runAsync(
+    `
+    const { tutupPanelWindow, bukaPanelWindow } = await import('/src/lib/panelWindow.ts');
+    await tutupPanelWindow('settings');
+    await wait(500);
+    await bukaPanelWindow('settings', 'mcp');
+    return 'panel-dibuka';
+  `,
+    60000,
+  );
+
+  const batas = Date.now() + 25000;
+  let target = null;
+  while (Date.now() < batas) {
+    const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
+    target = list.find((t) => t.type === 'page' && /#panel=settings(&|$)/.test(t.url ?? ''));
+    if (target) break;
+    await sleep(400);
+  }
+  if (!target) throw new Error('jendela Settings (#panel=settings) tidak muncul');
+
+  const cdpMcp = await Cdp.connect(target.webSocketDebuggerUrl);
+  const siap = await cdpMcp.runAsync(
+    `
+    await bukaMcp();
+    for (let i = 0; i < 120; i++) {
+      if (document.querySelector('[data-testid="mcp-status"]')) return 'mcp-siap';
+      await wait(150);
+    }
+    return 'mcp-tidak-muncul';
+  `,
+    60000,
+  );
+  if (siap !== 'mcp-siap') {
+    throw new Error(`panel MCP tidak tampil di jendela Settings: ${siap}`);
+  }
+  return cdpMcp;
+}
+
 // ───────────────────────── main ─────────────────────────
 
 const main = async () => {
@@ -249,27 +326,35 @@ const main = async () => {
     throw new Error('__ZEPHYR_MCP__ tidak ada — reload halaman (devBridge fase 11)');
   }
 
+  const cdpMcp = await siapkanPanelMcp(cdp);
+  const runMcp = (body, timeout) => cdpMcp.runAsync(body, timeout);
+
   // Kondisi awal: server MATI, panel MCP terbuka, tidak ada tab/pane sisa.
-  const awal = JSON.parse(
-    await cdp.runAsync(`
+  const awalPanel = JSON.parse(
+    await runMcp(`
       await M.toggle(false);
       await tunggu();
+      await M.refresh();
+      await bukaMcp();
+      window.__ZEPHYR_ERRORS__.length = 0;
+      const st = MS().status;
+      return JSON.stringify({ token: st?.token ?? null, port: st?.port ?? null });
+    `),
+  );
+  const awalUtama = JSON.parse(
+    await cdp.runAsync(`
       s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
       for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
       await wait(300);
-      await bukaMcp();
-      await M.refresh();
       window.__ZEPHYR_ERRORS__.length = 0;
-      const st = MS().status;
       return JSON.stringify({
-        token: st?.token ?? null,
-        port: st?.port ?? null,
         uiLang: s.settings.general.uiLang,
         ws: S.getState().workspace,
         izinTerminal: s.settings.mcp?.allow_terminal_control === true,
       });
     `),
   );
+  const awal = { ...awalPanel, ...awalUtama };
   const TOKEN = awal.token;
   const PORT = awal.port ?? 9222;
   if (!TOKEN || TOKEN.length < 16) throw new Error('token MCP tidak ada di mcp.json');
@@ -289,7 +374,7 @@ const main = async () => {
   const h0 = await getJson(`http://127.0.0.1:${PORT}/health`);
   const listen0 = await portListening(PORT);
   const v1dom = JSON.parse(
-    await cdp.runAsync(`
+    await runMcp(`
       const el = q('[data-testid="mcp-status"]');
       return JSON.stringify({
         running: el?.dataset.running ?? null,
@@ -309,7 +394,7 @@ const main = async () => {
 
   // ───────── V2: nyalakan → /health ok, tanpa token 401, dengan token OK ─────────
   const v2ui = JSON.parse(
-    await cdp.runAsync(`
+    await runMcp(`
       q('[data-testid="mcp-enable"]').click();
       await tunggu();
       await wait(600);
@@ -633,17 +718,26 @@ const main = async () => {
   const sesudahPane = (await rpc(livePort, 'list_panes', {}, TOKEN, 14)).body?.result ?? [];
   const paneBaru = rc.body?.result?.paneId;
   const rcBad = await rpc(livePort, 'run_command', { id: 'tidak.ada' }, TOKEN, 15);
-  const v7 = JSON.parse(
+  /* Pane dibaca di jendela utama; hitungan MCP dibaca di jendela Settings
+     (dua WebView = dua store, jadi keduanya diukur di tempatnya). */
+  const v7utama = JSON.parse(
     await cdp.runAsync(`
       const ada = TS().findPane(${JSON.stringify(paneBaru)});
       return JSON.stringify({
         ada: !!ada, status: ada?.status ?? null,
         panelTerlihat: TS().visible,
+      });
+    `),
+  );
+  const v7mcp = JSON.parse(
+    await runMcp(`
+      return JSON.stringify({
         aksiTerakhir: MS().lastAction?.type ?? null,
         dilayani: MS().served,
       });
     `),
   );
+  const v7 = { ...v7utama, ...v7mcp };
   check(
     'V7',
     rc.status === 200 &&
@@ -673,9 +767,9 @@ const main = async () => {
     ),
   );
 
-  await cdp.runAsync(`
-    // editor_open menutup halaman Settings (biar tab terlihat) — buka lagi
-    // supaya panel MCP ada di DOM sebelum tombolnya diklik.
+  await runMcp(`
+    // editor_open hanya menutup flag Settings di jendela utama; jendela panel
+    // ini tetap hidup, tapi pastikan halaman MCP masih yang tampil.
     await bukaMcp();
     M.setChecked(['opencode']);
     await wait(150);
@@ -688,7 +782,7 @@ const main = async () => {
   const bakAda = fs.existsSync(bakPath);
   const bakIsi = bakAda ? JSON.parse(fs.readFileSync(bakPath, 'utf8')) : null;
   const v8ui = JSON.parse(
-    await cdp.runAsync(`
+    await runMcp(`
       await M.refreshClis();
       await wait(200);
       const badge = q('[data-testid="mcp-reg-opencode"]')?.textContent?.trim() ?? null;
@@ -700,7 +794,7 @@ const main = async () => {
     `),
   );
 
-  await cdp.runAsync(`
+  await runMcp(`
     q('[data-testid="mcp-unwrite"]').click();
     await tunggu();
     await wait(300);
@@ -738,7 +832,7 @@ const main = async () => {
   await cekTitik('V8', livePort);
   // ───────── V9: matikan di tengah sesi → 503, hidupkan lagi → normal ─────────
   const sebelumMati = await rpc(livePort, 'get_window', {}, TOKEN, 16);
-  await cdp.runAsync(`
+  await runMcp(`
     q('[data-testid="mcp-enable"]').click();
     await tunggu();
     await wait(500);
@@ -747,7 +841,7 @@ const main = async () => {
   const matiHealth = await getJson(`http://127.0.0.1:${livePort}/health`);
   const matiRpc = await rpc(livePort, 'get_window', {}, TOKEN, 17);
   const matiListen = await portListening(livePort);
-  await cdp.runAsync(`
+  await runMcp(`
     q('[data-testid="mcp-enable"]').click();
     await tunggu();
     await wait(700);
@@ -771,7 +865,7 @@ const main = async () => {
   await cekTitik('V9', livePort);
   // ───────── V10: port utama dipakai → fallback ke 9223 + terlihat di UI ─────────
   // Matikan server, blokir port utama dengan proses lain, nyalakan lagi.
-  await cdp.runAsync(`
+  await runMcp(`
     await M.toggle(false);
     await tunggu();
     await wait(400);
@@ -783,7 +877,7 @@ const main = async () => {
   try {
     hog = await hogPort(wantPort);
     const ui = JSON.parse(
-      await cdp.runAsync(`
+      await runMcp(`
         await M.toggle(true);
         await tunggu();
         await wait(700);
@@ -822,7 +916,7 @@ const main = async () => {
 
   // Kembalikan port ke 9222 lalu restart server di port itu.
   const finalPort = JSON.parse(
-    await cdp.runAsync(`
+    await runMcp(`
       await M.toggle(false);
       await tunggu();
       await s.applySettings({ mcp: { port: ${wantPort} } });
@@ -851,12 +945,16 @@ const main = async () => {
   }
   const hasil = await Promise.all(jobs);
   await sleep(600);
-  const v11 = JSON.parse(
+  const v11utama = JSON.parse(
     await cdp.runAsync(`
       const tab = s.tabs.find(t => t.id === ${JSON.stringify(tab2)});
-      return JSON.stringify({ isi: tab?.content ?? '', errors: window.__ZEPHYR_ERRORS__.length, dilayani: MS().served });
+      return JSON.stringify({ isi: tab?.content ?? '', errors: window.__ZEPHYR_ERRORS__.length });
     `),
   );
+  const v11mcp = JSON.parse(
+    await runMcp(`return JSON.stringify({ dilayani: MS().served });`),
+  );
+  const v11 = { ...v11utama, ...v11mcp };
   const semuaAda = Array.from({ length: 12 }, (_, i) => `${(i + 1) % 2 === 0 ? 'B' : 'A'}${i + 1};`);
   const hilang = semuaAda.filter((tok) => !String(v11.isi).includes(tok));
   const semua200 = hasil.every((r) => r.status === 200 && r.body?.result?.tabId === tab2);
@@ -906,13 +1004,17 @@ const main = async () => {
   // `set_setting` menulis settings.json lalu app memuat ulang lewat pemantau
   // berkas: nilainya TIDAK selalu sudah terlihat dalam 500 ms (check ini dulu
   // kadang merah hanya karena itu). Tunggu sampai masuk, dengan batas jelas.
-  const v12 = JSON.parse(
+  const v12utama = JSON.parse(
     await cdp.runAsync(`
       let n = 0;
       while (S.getState().settings.editor.tabSize !== 8 && n < 25) { await wait(200); n++; }
-      return JSON.stringify({ tabSize: S.getState().settings.editor.tabSize, tungguMs: n * 200, shot: MS().lastShot });
+      return JSON.stringify({ tabSize: S.getState().settings.editor.tabSize, tungguMs: n * 200 });
     `),
   );
+  const v12mcp = JSON.parse(
+    await runMcp(`return JSON.stringify({ shot: MS().lastShot });`),
+  );
+  const v12 = { ...v12utama, ...v12mcp };
   check(
     'V12',
     setBoleh.status === 200 &&
@@ -946,9 +1048,6 @@ const main = async () => {
     s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
     for (const t of TS().terminalTabs.slice()) await TS().closeTab(t.id);
     await s.applySettings({ editor: { tabSize: 2 }, mcp: { writeToCli: [], allow_terminal_control: ${awal.izinTerminal === true} } });
-    M.setChecked([]);
-    MS().setError(null);
-    MS().setInfo(null);
     await wait(300);
     // Workspace sandbox ditutup SEBELUM foldernya dihapus: kalau foldernya
     // lenyap saat masih terbuka, explorer membaca folder yang sudah tidak ada.
@@ -960,6 +1059,13 @@ const main = async () => {
     S.getState().setActivity('explorer');
     await wait(200);
     return 'bersih';
+  `);
+  /* Store MCP hidup di jendela Settings (WebView terpisah): bersihkan di sana. */
+  await runMcp(`
+    M.setChecked([]);
+    MS().setError(null);
+    MS().setInfo(null);
+    return 'bersih-mcp';
   `);
   // Windows: handle berkas (watcher / index pencarian) kadang belum lepas
   // tepat setelah workspace ditutup -> hapus gagal EPERM. Coba beberapa kali,
@@ -977,6 +1083,7 @@ const main = async () => {
   if (shotPath) fs.rmSync(shotPath, { force: true });
 
   cdp.close();
+  cdpMcp.close();
 
   const lulus = results.filter((r) => r.ok).length;
   console.log(`\n== ${lulus}/${results.length} lulus ==`);
