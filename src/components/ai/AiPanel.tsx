@@ -2244,17 +2244,26 @@ const bukaModels = () => bukaPanel('models');
                         * because the queue is read as a numbered list.
                         */}
                       <span className="ai-cq-aksi">
-                        {!sibuk && (
-                          <button
-                            className="ai-cq-send"
-                            data-testid={`ai-antrian-kirim-${i}`}
-                            title={tr('Send this now')}
-                            aria-label={tr('Send this now')}
-                            onClick={() => void kirimAntrian(i, composerId)}
-                          >
-                            <AiIkon name="send" size={11} />
-                          </button>
-                        )}
+                        {/*
+                          * Kirim SELALU ada, termasuk saat giliran masih jalan.
+                          *
+                          * Dulu tombol ini disembunyikan selama `sibuk`, padahal
+                          * itulah satu-satunya keadaan di mana antrean berisi -
+                          * jadi tombol kirim praktis tidak pernah terlihat.
+                          * Sekarang menekannya memotong giliran yang berjalan
+                          * lalu mengirim baris itu (`sekarang: true`), sama
+                          * seperti tombol kirim pada umumnya; drain otomatis
+                          * tetap memakai jalur tanpa potong.
+                          */}
+                        <button
+                          className={`ai-cq-send${sibuk ? ' is-sibuk' : ''}`}
+                          data-testid={`ai-antrian-kirim-${i}`}
+                          title={sibuk ? tr('Send now (stops the current turn)') : tr('Send this now')}
+                          aria-label={sibuk ? tr('Send now (stops the current turn)') : tr('Send this now')}
+                          onClick={() => void kirimAntrian(i, composerId, { sekarang: true })}
+                        >
+                          <AiIkon name="send" size={11} />
+                        </button>
                         <button
                           className="ai-cq-move"
                           data-testid={`ai-antrian-naik-${i}`}

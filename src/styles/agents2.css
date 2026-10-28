@@ -4505,6 +4505,88 @@ body.agx-dragging-kolom {
   display: block;
 }
 
+/*
+ * Ukuran strip antrean = ukuran KOTAK KETIK.
+ *
+ * Di jendela utama strip ini menumpang lebar kolom AI (~340px); di canvas
+ * `.agx-chat` ia melebar penuh 1242px dan terbaca sebagai panel raksasa yang
+ * mendorong transkrip - bukan antrean kecil di atas komposer. Batas 880px dan
+ * posisi tengah adalah angka yang SAMA dengan `.agx-chat .ai-input-row`, jadi
+ * tepi kiri-kanannya sejajar persis dengan kotak ketik di bawahnya (dan dengan
+ * baris pesan `.agx-chat .ai-row`, yang memakai lebar baca yang sama).
+ *
+ * Container `.ai-work-stack` ikut dibatasi karena ia pembungkus strip - kalau
+ * hanya section-nya yang menyempit, border kiri/kanan stack tetap penuh dan
+ * garisnya menggantung di luar isi.
+ */
+.agx-chat .ai-work-stack:has(> [data-testid='ai-work-stack-queue']) {
+  width: 100%;
+  max-width: 880px;
+  margin: 10px auto 0;
+}
+
+/*
+ * Tinggi ditekan supaya antrean panjang tidak mendorong komposer keluar layar:
+ * baris lebih rapat (min-height 20px, padding vertikal 1px), teks satu baris
+ * dengan elipsis (judul penuh tetap di `title`), dan daftar dibatasi ±5 baris
+ * lalu menggulir sendiri.
+ */
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-work-summary {
+  padding: 4px 10px;
+  min-height: 26px;
+}
+
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-list {
+  max-height: 106px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-row {
+  min-height: 20px;
+  padding: 1px 8px;
+  gap: 6px;
+}
+
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-t {
+  font-size: 11.5px;
+  line-height: 1.3;
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/*
+ * Tombol per baris SELALU terlihat di jendela ini.
+ *
+ * Aturan dasar menyembunyikan `.ai-cq-aksi` sampai baris di-hover (pelajaran
+ * dari panel sempit: tiga tombol di tiap baris mengalahkan teks pesannya).
+ * Di canvas lebar ini barisnya sepi, dan "disembunyikan sampai hover" membuat
+ * tombol kirim yang diminta pembaca tidak pernah terlihat. Hanya opacity yang
+ * dilonggarkan - ukuran, urutan, dan jarak tetap sama.
+ */
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-aksi {
+  opacity: 0.65;
+}
+
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-row:hover .ai-cq-aksi,
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-aksi:focus-within {
+  opacity: 1;
+}
+
+/* Tombol kirim sedikit lebih besar + berwarna aksen: ini aksi utama baris. */
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-send {
+  width: 17px;
+  height: 17px;
+  color: var(--accent);
+}
+
+.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-send.is-sibuk {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
 .agx-chat .ai-input-row {
   /*
    * `width: 100%` + `align-self: center`, BUKAN `margin-inline: auto`.

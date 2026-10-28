@@ -789,6 +789,33 @@
   cursor: pointer;
 }
 
+/*
+ * Kirim satu baris antrean dari kartu review.
+ *
+ * Bentuknya sepasang dengan tombol buang (18px, radius 5) dan selalu terlihat:
+ * antrean muncul justru saat giliran sibuk, jadi tombol yang hanya tampil saat
+ * hover sama saja dengan tidak ada. Warna aksen menandainya sebagai aksi
+ * utama; buang tetap redup karena destruktif.
+ */
+.ai-review-antrian-kirim {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.ai-review-antrian-kirim:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
 .ai-review-antrian-buang:hover {
   color: var(--text);
   background: var(--surface-3, var(--surface-2));

@@ -3611,7 +3611,16 @@ interface AiActions {
    * the queue and goes through the same send() path as a typed one, so it
    * cannot bypass the busy check — it just reorders what was already lined up.
    */
-  kirimAntrian: (idx: number | string, composerId?: string) => Promise<boolean>;
+  /**
+   * Kirim satu baris antrean.
+   *
+   * `sekarang` = tombol kirim per baris: kalau giliran masih berjalan, ia
+   * MEMOTONG run itu (cancel + tunggu flags, sama seperti semantik lama
+   * `kirimSekarang`) lalu mengirim barisnya. Tanpa `sekarang`, baris hanya
+   * dikirim kalau permukaannya sedang bebas - dipakai drain otomatis, yang
+   * tidak boleh memotong apa pun.
+   */
+  kirimAntrian: (idx: number | string, composerId?: string, opts?: { sekarang?: boolean }) => Promise<boolean>;
   /**
    * Move one queued message one place up or down the line.
    *
@@ -4549,10 +4558,55 @@ export const useAi = create<AiStore>((set0, get) => {
     await get().send(cp.teks, cp.images);
     return true;
   },
-  kirimAntrian: async (idx, composerId = '') => {
+  kirimAntrian: async (idx, composerId = '', opts) => {
     const pos = posisiAntrian(get().antrians[composerId] ?? [], idx);
     const item = (get().antrians[composerId] ?? [])[pos];
     if (!item) return false;
+
+    /*
+     * Tombol kirim per baris (`sekarang`): kalau giliran permukaan ini masih
+     * jalan, POTONG dulu - itu yang dimaksud pembaca saat menekan kirim pada
+     * satu baris, dan satu-satunya jalan supaya "kirim" tidak berubah jadi
+     * no-op yang diam. Drain otomatis TIDAK memakai ini: ia hanya jalan saat
+     * permukaan bebas, jadi ia tidak boleh membatalkan apa pun.
+     *
+     * Sinyal sibuk dibaca dari permukaan yang menekan, bukan flat global -
+     * run di jendela lain tidak boleh membuat tombol ini memotong run itu.
+     */
+    if (opts?.sekarang) {
+      const sibuk =
+        !!(get().pendings[composerId] ?? (composerId === '' ? get().pending : null)) ||
+        !!(get().agentBusys[composerId] ?? (composerId === '' ? get().agentBusy : false));
+      if (sibuk) {
+        COMPOSER_AKTIF = composerId;
+        await get().cancel();
+        const batas = Date.now() + 8000;
+        while (
+          (!!(get().pendings[composerId] ?? (composerId === '' ? get().pending : null)) ||
+            !!(get().agentBusys[composerId] ?? (composerId === '' ? get().agentBusy : false))) &&
+          Date.now() < batas
+        ) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        /*
+         * Run yang menolak berhenti (provider menggantung) tidak boleh membuat
+         * tombol ini mati: lepaskan flags permukaan ini lalu kirim. Percobaan
+         * yang masih tertahan dibuang `retiredAgentAttempts`, sama seperti jalur
+         * force-release lainnya.
+         */
+        set((s) => ({
+          ...(composerId === ''
+            ? { pending: null, agentBusy: false, agentBusys: { ...s.agentBusys, '': false } }
+            : {
+                pendings: { ...s.pendings, [composerId]: null },
+                agentBusys: { ...s.agentBusys, [composerId]: false },
+              }),
+          ...(COMPOSER_AKTIF === composerId
+            ? { agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStartedAt: null }
+            : {}),
+        }));
+      }
+    }
 
     /*
      * Whether the message went out is taken from `send`'s RETURN VALUE, not
