@@ -2146,29 +2146,32 @@ const bukaModels = () => bukaPanel('models');
                   * stack - where the chip had it trailing after two reorder
                   * arrows.
                   */}
-                <div className="ai-cq-list" id="ai-work-queue-body" data-testid="ai-antrian">
+                <div className="ai-cq-list ai-review-queue" id="ai-work-queue-body" data-testid="ai-antrian">
                   {antrian.map((a, i) => (
-                    <div className="ai-cq-row" key={a.id ?? i} data-testid={`ai-antrian-${i}`}>
-                      <button
-                        className="ai-cq-x"
-                        data-testid={`ai-antrian-hapus-${i}`}
-                        title={tr('Remove from the queue')}
-                        aria-label={tr('Remove from the queue')}
-                        onClick={() => buangAntrian(a.id ?? i, composerId)}
-                      >
-                        ✕
-                      </button>
-                      <span className="ai-cq-glyph" aria-hidden="true">
-                        <AiIkon name="comment" size={12} />
+                    <div
+                      className="ai-cq-row ai-review-antrian"
+                      key={a.id ?? i}
+                      data-testid={`ai-antrian-${i}`}
+                    >
+                      {/*
+                        * Bentuk baris = bentuk tab Queue di kartu review jendela
+                        * utama: nomor urut, teks, chip gambar, lalu aksi di kanan.
+                        * Dua tampilan untuk antrean yang sama membuat pembaca
+                        * harus belajar dua kali; kelasnya sekarang dibagi, dan
+                        * testid lama dipertahankan supaya harness tetap sah.
+                        */}
+                      <span className="ai-review-antrian-no" aria-hidden="true">
+                        {i + 1}
                       </span>
                       {a.images.length > 0 && (
                         <span
-                          className="ai-cq-images"
+                          className="ai-review-antrian-img"
                           data-testid={`ai-antrian-images-${i}`}
                           title={tf('{n} image attachments', { n: a.images.length })}
                           aria-label={tf('{n} image attachments', { n: a.images.length })}
                         >
-                          <AiIkon name="image" size={11} /> {a.images.length}
+                          <AiIkon name="image" size={11} />
+                          {a.images.length}
                         </span>
                       )}
                       {cqEdit === (a.id ?? String(i)) ? (
@@ -2213,7 +2216,7 @@ const bukaModels = () => bukaPanel('models');
                         />
                       ) : (
                         <span
-                          className="ai-cq-t"
+                          className="ai-cq-t ai-review-antrian-teks"
                           data-testid={`ai-antrian-teks-${i}`}
                           title={a.teks}
                           role="button"
@@ -2245,15 +2248,11 @@ const bukaModels = () => bukaPanel('models');
                         */}
                       <span className="ai-cq-aksi">
                         {/*
-                          * Kirim SELALU ada, termasuk saat giliran masih jalan.
-                          *
-                          * Dulu tombol ini disembunyikan selama `sibuk`, padahal
-                          * itulah satu-satunya keadaan di mana antrean berisi -
-                          * jadi tombol kirim praktis tidak pernah terlihat.
-                          * Sekarang menekannya memotong giliran yang berjalan
-                          * lalu mengirim baris itu (`sekarang: true`), sama
-                          * seperti tombol kirim pada umumnya; drain otomatis
-                          * tetap memakai jalur tanpa potong.
+                          * Aksi baris = aksi tab Queue kartu review: kirim lalu
+                          * buang, selalu terlihat (bukan hanya saat hover).
+                          * Urutan panah dipertahankan karena antrean dibaca
+                          * sebagai daftar bernomor, tetapi ikonnya dikecilkan
+                          * agar sama tenangnya dengan kartu review.
                           */}
                         <button
                           className={`ai-cq-send${sibuk ? ' is-sibuk' : ''}`}
@@ -2283,6 +2282,15 @@ const bukaModels = () => bukaPanel('models');
                           onClick={() => turunkanAntrian(a.id ?? i, composerId)}
                         >
                           <AiIkon name="chev-down" size={11} />
+                        </button>
+                        <button
+                          className="ai-review-antrian-buang"
+                          data-testid={`ai-antrian-hapus-${i}`}
+                          title={tr('Remove from the queue')}
+                          aria-label={tr('Remove from the queue')}
+                          onClick={() => buangAntrian(a.id ?? i, composerId)}
+                        >
+                          <AiIkon name="close" size={10} />
                         </button>
                       </span>
                     </div>
