@@ -74,6 +74,23 @@ const main = async () => {
     await KB.resetAll();
     window.__ZEPHYR_NOTIF__.clear();
     document.body.click();
+    /*
+     * Workspace HARUS repo ini: FILE_TAB hidup di <repo>/testfiles, dan sejak
+     * app menolak membuka path di luar workspace (WorkspaceOutside), harness
+     * mati di langkah pertama bila app masih memegang folder uji lain dari
+     * harness sebelumnya. Percayakan dulu supaya gerbang trust tidak menahan.
+     */
+    const repo = ${JSON.stringify(path.resolve(import.meta.dirname, '..').replace(/\\/g, '/'))};
+    await window.__ZEPHYR_WS__.setTrust(repo, true);
+    await S.getState().openWorkspace(repo);
+    await wait(900);
+    /*
+     * setTrust memunculkan toast "Zephyr trusted - ..." (severity info). V8
+     * memeriksa notifikasi terakhir setelah chord stub dan mensyaratkan
+     * warn/error bila ada, jadi toast sisa persiapan ini harus dibuang dulu —
+     * kalau tidak, V8 merah karena efek samping harness, bukan produk.
+     */
+    window.__ZEPHYR_NOTIF__.clear();
     await s.openPath(${JSON.stringify(FILE_TAB.replace(/\\/g, '/'))});
     await wait(700);
     return 'siap';

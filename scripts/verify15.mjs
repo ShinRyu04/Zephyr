@@ -47,6 +47,9 @@ const main = async () => {
     s.setSettingsOpen(false);
     S.getState().setSaveIssue(null);
     G.setConfirm(null);
+    // Sandbox baru belum pernah dipercaya; gerbang kendali terminal MCP memakai
+    // ensure_trusted (src-tauri/src/workspace.rs:156), jadi percayakan dulu.
+    await window.__ZEPHYR_WS__.setTrust(${J(WS)}, true);
     await S.getState().openWorkspace(${J(WS)});
     await wait(500);
     await G.refresh();
@@ -212,7 +215,7 @@ const main = async () => {
     v3a.existed === true &&
       v3.hasil === false &&
       v3.kind === 'missing' &&
-      /sudah tidak ada di disk/.test(v3.judul ?? '') &&
+      /(no longer exists on disk|sudah tidak ada di disk)/i.test(v3.judul ?? '') &&
       !adaSetelahDialog &&
       !adaSetelahBatal &&
       /isi baru dari editor/.test(isiBaru) &&
@@ -256,7 +259,7 @@ const main = async () => {
   );
   check(
     'V4',
-    /dihentikan/.test(v4.label) && v4.msFrame < 400 && v4.msCari < 4000,
+    /(stopped|dihentikan)/i.test(v4.label) && v4.msFrame < 400 && v4.msCari < 4000,
     `regex "a*" pada 60.000 karakter: label "${v4.label}" (batas 20.000 langkah), selesai ${v4.msCari}ms, frame setelahnya ${v4.msFrame}ms — UI tidak menggantung`,
   );
 
@@ -485,7 +488,7 @@ const main = async () => {
   );
   check(
     'V7b',
-    v7b.behind >= 1 && v7b.kind === 'pull-first' && /commit baru/.test(v7b.judul ?? ''),
+    v7b.behind >= 1 && v7b.kind === 'pull-first' && /(new commits?|commit baru)/i.test(v7b.judul ?? ''),
     `behind=${v7b.behind} dari remote (upstream ${v7b.upstream}) → klik Push memunculkan dialog "${(v7b.judul ?? '').slice(0, 48)}" (kind=${v7b.kind}), bukan error non-fast-forward mentah`,
   );
   await cdp.runAsync(`G.setConfirm(null); await wait(150); return 'x';`);
@@ -516,12 +519,34 @@ const main = async () => {
     40000,
   );
 
+  // Izin kendali terminal = opt-in (mcp.allow_terminal_control, deny by
+  // default: src-tauri/src/mcp_server.rs:263-280). Tanpa ini terminal_write
+  // ditolak -32000 (permission) SEBELUM batas 64KB sempat diuji — jadi
+  // nyalakan dulu lalu pulihkan, sama seperti verify11 V4.
+  const v8izin = await cdp.json(
+    `
+    const asal = S.getState().settings.mcp?.allow_terminal_control === true;
+    await S.getState().applySettings({ mcp: { allow_terminal_control: true } });
+    await wait(700);
+    return JSON.stringify({ asal, kini: S.getState().settings.mcp.allow_terminal_control });
+  `,
+    40000,
+  );
+
   const besar1MB = 'x'.repeat(1024 * 1024 + 64);
   const besar64KB = 'y'.repeat(64 * 1024 + 16);
   const rEditor = await rpc(PORT, 'editor_write', { tabId: v8tab.id, content: besar1MB }, TOKEN, 81);
   const rInsert = await rpc(PORT, 'editor_insert', { tabId: v8tab.id, text: besar1MB }, TOKEN, 82);
   const rTerm = await rpc(PORT, 'terminal_write', { paneId: 'apa-saja', data: besar64KB }, TOKEN, 83);
   const rKecil = await rpc(PORT, 'editor_write', { tabId: v8tab.id, content: 'dari MCP\n' }, TOKEN, 84);
+  await cdp.json(
+    `
+    await S.getState().applySettings({ mcp: { allow_terminal_control: ${v8izin.asal} } });
+    await wait(700);
+    return JSON.stringify({ pulih: S.getState().settings.mcp.allow_terminal_control });
+  `,
+    40000,
+  );
   const isiKodeDiDisk = fs.readFileSync(fKode, 'utf8');
   const v8buf = await cdp.json(
     `
@@ -541,7 +566,7 @@ const main = async () => {
       v8buf.isi === 'dari MCP\n' &&
       v8buf.unsaved === true &&
       !/dari MCP/.test(isiKodeDiDisk),
-    `editor_write 1MB+ → ${rEditor.body?.error?.code} "${(rEditor.body?.error?.message ?? '').slice(0, 54)}"; editor_insert & terminal_write 64KB+ juga ditolak; payload kecil tetap berhasil dan HANYA mengubah buffer (unsaved=${v8buf.unsaved}, disk masih "${isiKodeDiDisk.trim().split('\n')[0]}")`,
+    `editor_write 1MB+ → ${rEditor.body?.error?.code} "${(rEditor.body?.error?.message ?? '').slice(0, 54)}"; editor_insert & terminal_write 64KB+ juga ditolak (izin terminal ${v8izin.kini ? 'nyala' : 'mati'}, dipulihkan ${v8izin.asal}); payload kecil tetap berhasil dan HANYA mengubah buffer (unsaved=${v8buf.unsaved}, disk masih "${isiKodeDiDisk.trim().split('\n')[0]}")`,
   );
 
   // V8b: stop MCP saat ada permintaan menggantung → error terstruktur, bukan hang.

@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import WebSocket from 'ws';
-import { keluarBersih, tungguBridge } from './lib-cdp.mjs';
+import { keluarBersih, pilihJendelaUtama, tungguBridge } from './lib-cdp.mjs';
 
 const CDP_PORT = process.argv[2] ?? '9223';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -169,6 +169,47 @@ class Cdp {
     }
   }
 
+  /**
+   * Async di jendela Settings (#panel=settings).
+   *
+   * Sejak Settings menjadi WebView terpisah, halaman Ekstensi/Tema/MCP HANYA
+   * ada di sana; query DOM dari jendela utama selalu null (V5/V7/V8 dulu gagal
+   * karena itu, padahal testid-nya ada di SectionsExtensions.tsx). Prelude di
+   * sini sengaja ringkas: hanya bridge yang memang dipakai halaman Settings.
+   */
+  async runPanel(body, timeoutMs = 60000) {
+    const slot = `__ZV13P_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await this.eval(`(() => {
+      window[${JSON.stringify(slot)}] = { done: false, value: null, error: null };
+      (async () => {
+        const SET = window.__ZEPHYR_SET__;
+        const X = window.__ZEPHYR_EXT__;
+        const errMsg = (e) => (X.asErr ? X.asErr(e).message : (e && e.message) || String(e));
+        const q = (sel) => document.querySelector(sel);
+        const qa = (sel) => [...document.querySelectorAll(sel)];
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        ${body}
+      })().then(
+        (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
+        (e) => { window[${JSON.stringify(slot)}] = { done: true, value: null,
+                  error: (e && e.stack) ? String(e.stack).slice(0, 400)
+                       : (e && (e.message || e.code)) ? JSON.stringify(e) : String(e) }; },
+      );
+      return 'started';
+    })()`);
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      await sleep(150);
+      const st = JSON.parse(await this.eval(`JSON.stringify(window[${JSON.stringify(slot)}])`));
+      if (st.done) {
+        await this.eval(`(() => { delete window[${JSON.stringify(slot)}]; return 'x'; })()`);
+        if (st.error) throw new Error(st.error);
+        return st.value;
+      }
+      if (Date.now() > deadline) throw new Error(`timeout panel: ${body.slice(0, 70)}…`);
+    }
+  }
+
   close() {
     this.#ws.close();
   }
@@ -252,6 +293,35 @@ const main = async () => {
   if (!page) throw new Error('target Zephyr tidak ditemukan');
   const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
   console.log(`# target: ${page.title}\n`);
+
+  /*
+   * Jendela Settings adalah target CDP KEDUA. Semua uji yang membaca halaman
+   * Settings (V5, V7, V8) WAJIB lewat sini — melihat DOM dari jendela utama
+   * hanya menghasilkan null walau UI-nya benar.
+   */
+  let cdpSet = null;
+  const panelRun = async (body, timeoutMs = 60000) => {
+    if (!cdpSet) {
+      let target = null;
+      const deadline = Date.now() + 20000;
+      for (;;) {
+        const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
+        target = list.find((t) => t.type === 'page' && (t.url ?? '').includes('#panel=settings'));
+        if (target) break;
+        if (Date.now() > deadline) break;
+        await sleep(250);
+      }
+      if (!target) throw new Error('jendela Settings (#panel=settings) tidak muncul setelah 20s — bukaSet tidak membuka panel?');
+      cdpSet = await Cdp.connect(target.webSocketDebuggerUrl);
+      for (const b of ['__ZEPHYR_SET__', '__ZEPHYR_EXT__']) {
+        if (!(await tungguBridge(cdpSet, b, 20000))) {
+          throw new Error(`${b} tidak ada di jendela Settings`);
+        }
+      }
+      console.log(`# panel: ${target.url}\n`);
+    }
+    return cdpSet.runPanel(body, timeoutMs);
+  };
 
   for (const b of ['__ZEPHYR_THEME__', '__ZEPHYR_EXT__', '__ZEPHYR_SET__']) {
     /*
@@ -512,11 +582,14 @@ const main = async () => {
   );
 
   // ───────── V5: ekstensi bawaan "git provider" ada & aktif ─────────
+  await cdp.runAsync(`await bukaSet('extensions'); return 'ok';`);
   const v5 = JSON.parse(
-    await cdp.runAsync(`
-      await bukaSet('extensions');
+    await panelRun(`
+      SET.ui.getState().setSection('extensions');
+      await wait(600);
       await X.refresh();
-      await wait(500);
+      await wait(700);
+      for (let i = 0; i < 20 && !q('[data-ext="git-provider"]'); i++) await wait(200);
       const list = X.list();
       const git = list.find(e => e.id === 'git-provider');
       const kartu = q('[data-ext="git-provider"]');
@@ -539,7 +612,9 @@ const main = async () => {
       v5.kartuAda &&
       v5.ariaChecked === 'true' &&
       v5.provider.length === 3,
-    `extensions_list mengembalikan ${v5.total} ekstensi (${v5.builtin} bawaan); "Git Provider" tampil di daftar dengan toggle aria-checked=true, dan tiga provider bawaan (file-icon/git/ai) semuanya aktif`,
+    `extensions_list mengembalikan ${v5.total} ekstensi (${v5.builtin} bawaan); "Git Provider" tampil di daftar Settings dengan toggle aria-checked=${v5.ariaChecked}, dan tiga provider bawaan (file-icon/git/ai) semuanya aktif` +
+      `
+         kondisi: kartu=${v5.kartuAda} nama=${JSON.stringify(v5.namaDiKartu)} gitEnabled=${v5.git?.enabled} providerAktif=${v5.provider.length}/3`,
   );
 
   // ───────── V6: ekstensi dummy → toggle → command "Zephyr: Halo" di palette ─────────
@@ -610,7 +685,7 @@ const main = async () => {
 
   // ───────── V7: ekstensi >20MB ditolak dengan pesan ─────────
   const bigBytes = fs.statSync(path.join(bigDir, 'index.js')).size;
-  const v7 = JSON.parse(
+  const v7a = JSON.parse(
     await cdp.runAsync(`
       await X.refresh();
       await wait(500);
@@ -628,12 +703,9 @@ const main = async () => {
       await wait(600);
       const setelah = X.list().find(e => e.id === 'zephyr-kebesaran-test');
       const cmdIds = X.extCommands().map(c => c.id);
-      await bukaSet('extensions');
-      const errDom = q('[data-testid="ext-err-zephyr-kebesaran-test"]')?.textContent?.trim() ?? null;
-      const kartuRusak = q('[data-ext="zephyr-kebesaran-test"]')?.dataset.extError ?? null;
       return JSON.stringify({
         info, pesan, enabledSetelah: setelah?.enabled ?? null,
-        errorSetelah: setelah?.error ?? null, cmdIds, errDom, kartuRusak,
+        errorSetelah: setelah?.error ?? null, cmdIds,
         bytes: setelah?.mainBytes ?? null,
         // Bukti diagnosa: nilai mentah supaya kegagalan bisa dibaca.
         adaAsErr: typeof X.asErr,
@@ -643,6 +715,24 @@ const main = async () => {
       });
     `),
   );
+  /*
+   * Kartu rusak + pesan di UI dibaca di jendela Settings. Store ekstensi di
+   * sana adalah instance sendiri, jadi ia harus refresh() dulu — toggle di
+   * jendela utama hanya mengubah backend, bukan state tampilan panel.
+   */
+  const v7b = JSON.parse(
+    await panelRun(`
+      SET.ui.getState().setSection('extensions');
+      await wait(500);
+      await X.refresh();
+      await wait(700);
+      for (let i = 0; i < 25 && !q('[data-ext="zephyr-kebesaran-test"]'); i++) await wait(200);
+      const errDom = q('[data-testid="ext-err-zephyr-kebesaran-test"]')?.textContent?.trim() ?? null;
+      const kartuRusak = q('[data-ext="zephyr-kebesaran-test"]')?.dataset.extError ?? null;
+      return JSON.stringify({ errDom, kartuRusak });
+    `),
+  );
+  const v7 = { ...v7a, ...v7b };
   check(
     'V7',
     v7.info?.error?.includes('20 MB') &&
@@ -657,61 +747,96 @@ const main = async () => {
          kondisi: infoErr=${JSON.stringify(v7.infoError)} pesanMB=${String(v7.pesan).includes('20 MB')} enabled=${v7.enabledSetelah} errDomMB=${String(v7.errDom).includes('20 MB')} kartuRusak=${JSON.stringify(v7.kartuRusak)} bytesCocok=${v7.bytes === bigBytes} adaAsErr=${v7.adaAsErr} errMentah=${JSON.stringify(v7.errStringMentah)}`,
   );
 
-  // ───────── V8: marketplace placeholder tampil rapi ─────────
+  // ───────── V8: Marketplace (Plugins | Skills | MCP) tampil & menutup ─────────
+  /*
+   * Marketplace BUKAN lagi grid 8 nama hard-coded dengan tombol "Buka" —
+   * sekarang halaman tiga tab yang membaca sumber nyata (plugin registry,
+   * folder skill, server MCP). Uji lama mencari `market-grid`/`market-close`
+   * yang sudah tidak ada; yang diuji sekarang: halaman tampil, tiga tab
+   * benar-benar berganti, chip + pencarian ada, dan tombol Marketplace
+   * menutupnya lagi. Semua di jendela Settings.
+   */
   const v8 = JSON.parse(
-    await cdp.runAsync(`
-      await bukaSet('extensions');
-      // Pastikan tertutup dulu: tombolnya TOGGLE, jadi kalau state marketplace
-      // masih terbuka dari uji sebelumnya, klik ini justru menutupnya (pernah
-      // membuat market-close = null → TypeError).
+    await panelRun(`
+      SET.ui.getState().setSection('extensions');
+      await wait(500);
+      // Tombolnya toggle store; pastikan tertutup dulu supaya klik berikutnya
+      // membuka, bukan menutup (pernah membuat q(...)=null → TypeError).
       X.market(false);
-      await wait(200);
-      q('[data-testid="ext-market"]').click();
-      await wait(450);
-      const grid = q('[data-testid="market-grid"]');
-      const kartu = qa('[data-market-card]');
-      const tombol = kartu.map(k => k.querySelector('button'));
+      await wait(250);
+      const buka = q('[data-testid="ext-market"]');
+      if (!buka) throw new Error('tombol Marketplace tidak ada di halaman Ekstensi');
+      buka.click();
+      await wait(700);
+      for (let i = 0; i < 20 && !q('[data-testid="marketplace"]'); i++) await wait(200);
+      const mkt = q('[data-testid="marketplace"]');
+      const judul = q('.mkt-judul')?.textContent?.trim() ?? '';
+      const tab = qa('[data-testid^="mkt-tab-"]');
+      const grid = q('[data-testid="mkt-grid"]');
+      const kosong = q('[data-testid="mkt-kosong"]');
+      const chips = qa('[data-testid^="mkt-chip-"]');
+      const cari = q('[data-testid="mkt-cari"]');
+      const kartu = qa('[data-testid="mkt-grid"] [data-testid^="mkt-kartu-"]');
       const gaya = grid ? getComputedStyle(grid) : null;
       const kolom = gaya ? gaya.gridTemplateColumns.split(' ').filter(Boolean).length : 0;
       const r = kartu[0]?.getBoundingClientRect();
-      const teks = q('.market-title')?.textContent?.trim() ?? '';
-      const hasil = {
-        tampil: !!grid,
+      const logoKartu = kartu.map(k => (k.querySelector('.mkt-logo')?.textContent ?? '').trim());
+      const namaDepan = kartu[0]?.querySelector('.mkt-nama')?.textContent?.trim() ?? '';
+      // Ketiga tab harus benar-benar berganti (aria-selected + isi).
+      const tabSkills = q('[data-testid="mkt-tab-skills"]');
+      tabSkills?.click();
+      await wait(350);
+      const skillsOn = tabSkills?.getAttribute('aria-selected') === 'true';
+      const tabMcp = q('[data-testid="mkt-tab-mcp"]');
+      tabMcp?.click();
+      await wait(350);
+      const mcpOn = tabMcp?.getAttribute('aria-selected') === 'true';
+      // Tutup lewat tombol yang sama (toggle).
+      q('[data-testid="ext-market"]').click();
+      await wait(450);
+      return JSON.stringify({
+        tampil: !!mkt,
+        judul,
+        tabs: tab.map((t) => (t.textContent ?? '').trim()),
+        chips: chips.length,
+        adaCari: !!cari,
+        adaGrid: !!grid,
+        adaKosong: !!kosong,
         kartu: kartu.length,
-        semuaDisabled: tombol.every(b => b?.disabled === true),
-        semuaAktif: tombol.every(b => b && b.disabled !== true),
-        adaLogo: kartu.every(k => (k.querySelector('.market-logo')?.textContent ?? '').length > 0),
-        adaDesc: kartu.every(k => (k.querySelector('.market-desc')?.textContent ?? '').length > 10),
+        namaDepan,
+        adaLogo: kartu.every((k) => (k.querySelector('.mkt-logo')?.textContent ?? '').trim().length > 0),
+        adaDesc: kartu.every((k) => (k.querySelector('.mkt-ket')?.textContent ?? '').trim().length > 2),
+        logoKartu: logoKartu.slice(0, 3),
         kolom,
         lebar: r ? Math.round(r.width) : 0,
         tinggi: r ? Math.round(r.height) : 0,
-        judul: teks,
-        overflow: kartu.some(k => k.scrollWidth > k.clientWidth + 2),
-      };
-      q('[data-testid="market-close"]').click();
-      await wait(250);
-      hasil.tertutup = !q('[data-testid="market-grid"]');
-      return JSON.stringify(hasil);
+        skillsOn,
+        mcpOn,
+        tertutup: !q('[data-testid="marketplace"]'),
+      });
     `),
   );
+  const tabsOk =
+    v8.tabs.length === 3 &&
+    ['Plugins', 'Skills', 'MCP'].every((x) => v8.tabs.includes(x));
   check(
     'V8',
     v8.tampil &&
-      v8.kartu === 8 &&
-      // Marketplace sekarang pintasan ke registry Open VSX, jadi tombolnya
-      // aktif ("Buka") — bukan lagi placeholder dengan tombol disabled.
-      v8.semuaAktif &&
+      v8.judul === 'Marketplace' &&
+      tabsOk &&
+      v8.chips >= 5 &&
+      v8.adaCari &&
+      (v8.adaGrid || v8.adaKosong) &&
       v8.adaLogo &&
       v8.adaDesc &&
-      v8.kolom >= 2 &&
-      v8.lebar > 150 &&
-      v8.tinggi > 40 &&
-      v8.overflow === false &&
-      v8.judul.includes('Marketplace') &&
+      v8.kolom >= 1 &&
+      (v8.kartu === 0 || (v8.lebar > 150 && v8.tinggi > 40)) &&
+      v8.skillsOn &&
+      v8.mcpOn &&
       v8.tertutup,
-    `Marketplace: ${v8.kartu} kartu (logo + nama + deskripsi) dalam grid ${v8.kolom} kolom, kartu ${v8.lebar}×${v8.tinggi}px tanpa overflow, semua tombol aktif (pintasan ke Open VSX), judul "${v8.judul}"; tombol Tutup benar-benar menutup` +
+    `Marketplace: judul "${v8.judul}", tab ${JSON.stringify(v8.tabs)}, ${v8.chips} chip kategori + kotak cari; ${v8.kartu} kartu plug-in (nama depan "${v8.namaDepan}", logo ${JSON.stringify(v8.logoKartu)}) dalam grid ${v8.kolom} kolom, kartu ${v8.lebar}×${v8.tinggi}px; tab Skills & MCP berganti isi; tombol Marketplace menutup halaman lagi` +
       `
-         kondisi: tampil=${v8.tampil} kartu=${v8.kartu} aktif=${v8.semuaAktif} logo=${v8.adaLogo} desc=${v8.adaDesc} kolom=${v8.kolom} lebar=${v8.lebar} tinggi=${v8.tinggi} overflow=${v8.overflow} judulOk=${v8.judul.includes('Marketplace')} tertutup=${v8.tertutup}`,
+         kondisi: tampil=${v8.tampil} tabsOk=${tabsOk} chips=${v8.chips} cari=${v8.adaCari} grid=${v8.adaGrid} kosong=${v8.adaKosong} kartu=${v8.kartu} logo=${v8.adaLogo} desc=${v8.adaDesc} kolom=${v8.kolom} skillsOn=${v8.skillsOn} mcpOn=${v8.mcpOn} tertutup=${v8.tertutup}`,
   );
 
   // ───────── V9: tsc 0 error, tanpa console error, state bersih ─────────
@@ -793,6 +918,7 @@ const main = async () => {
   fs.rmSync(dummyDir, { recursive: true, force: true });
   fs.rmSync(bigDir, { recursive: true, force: true });
   fs.rmSync(SANDBOX, { recursive: true, force: true });
+  cdpSet?.close();
   cdp.close();
 
   const lulus = results.filter((r) => r.ok).length;

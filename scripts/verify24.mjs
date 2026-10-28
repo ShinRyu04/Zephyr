@@ -163,8 +163,41 @@ const main = async () => {
     90000,
   );
 
+  /*
+   * Halaman Settings hidup di WebView panel (#panel=settings) sejak panel
+   * dipisah. V6 perlu mengklik toggle di sana, jadi sediakan jembatan: main
+   * meminta panel membuka section Editor, lalu panel mengembalikan aria-checked
+   * sebelum/sesudah klik + keberadaan 9 baris setting.
+   */
+  let cdpSet = null;
+  const panelRun = async (body, timeoutMs = 60000) => {
+    if (!cdpSet) {
+      let target = null;
+      const deadline = Date.now() + 20000;
+      for (;;) {
+        const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
+        target = list.find((t) => t.type === 'page' && (t.url ?? '').includes('#panel=settings'));
+        if (target) break;
+        if (Date.now() > deadline) break;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      if (!target) throw new Error('jendela Settings (#panel=settings) tidak muncul');
+      cdpSet = await Cdp.connect(target.webSocketDebuggerUrl);
+      for (const b of ['__ZEPHYR_SET__', '__ZEPHYR_SETUI__']) {
+        const dl = Date.now() + 20000;
+        let ada = false;
+        for (;;) {
+          ada = (await cdpSet.eval(`typeof window.${b}`)) !== 'undefined';
+          if (ada || Date.now() > dl) break;
+          await new Promise((r) => setTimeout(r, 200));
+        }
+        if (!ada) throw new Error(`${b} tidak ada di jendela Settings`);
+      }
+    }
+    return cdpSet.runPanel(body, timeoutMs);
+  };
   await bagianA(cdp, check, FILE_UJI, FILE_BESAR);
-  await bagianB(cdp, check, FILE_UJI);
+  await bagianB(cdp, check, FILE_UJI, panelRun);
 
   // Kembalikan default.
   await cdp.runAsync(

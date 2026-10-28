@@ -206,7 +206,8 @@ export default function MenuBar() {
       className="menubar"
       ref={rootRef}
       data-testid="menubar"
-      role="menubar"
+      role="toolbar"
+      aria-label={tr('Application menu')}
       data-tauri-drag-region
     >
       {/* Revision 1.1.10: the Z logo on the left of the menubar, next to "File". The
@@ -243,8 +244,7 @@ export default function MenuBar() {
               className={`mb-top${buka === i ? ' is-open' : ''}`}
               data-testid="mb-top"
               data-menu={m.label}
-              role="menuitem"
-              aria-haspopup="true"
+              aria-haspopup="menu"
               aria-expanded={buka === i}
               onClick={() => {
                 if (buka === i) tutup();

@@ -295,7 +295,7 @@ const main = async () => {
     v1.adaTab &&
       v1b.code === 'NotFound' &&
       /sudah-dihapus\.txt/.test(v1b.msg) &&
-      /dihapus atau dipindah/.test(v1b.msg) &&
+      /deleted or moved/i.test(v1b.msg) &&
       v1b.masihHidup,
     `file dihapus dari luar → fs_read = ${v1b.code}: "${v1b.msg.slice(0, 78)}" (menyebut nama file), app tetap hidup`,
   );
@@ -457,7 +457,7 @@ const main = async () => {
       await wait(300);
       const files = ${JSON.stringify(tabFiles)};
       const d0 = await D.get();
-      for (const f of files) { await s.openPath(f); await wait(120); }
+      for (const f of files) { await s.openPath(f, { preview: false }); await wait(120); }
       await wait(400);
       const tabsSetelahBuka = D.tabs().length;
       // pindah cepat 3x putaran: hanya SATU EditorView boleh hidup
@@ -527,7 +527,7 @@ const main = async () => {
       s.tabs.slice().forEach((t) => s.forceCloseTab(t.id));
       await wait(300);
       const files = ${JSON.stringify(banyakFiles)};
-      for (const f of files) { await s.openPath(f); await wait(70); }
+      for (const f of files) { await s.openPath(f, { preview: false }); await wait(70); }
       await wait(600);
       const t = D.tabs();
       const dimuat = t.filter((x) => x.loaded).length;
@@ -580,7 +580,7 @@ const main = async () => {
     await cdp.runAsync(`const d = await D.get(); return JSON.stringify(d);`, 30000),
   );
   const punyaStart = /application start/.test(logIsi);
-  const punyaWorkspace = /workspace dibuka/.test(logIsi);
+  const punyaWorkspace = /workspace opened/.test(logIsi);
   const punyaPenanda = logIsi.includes(penanda);
   const punyaLevel = /(INFO|WARN|DEBUG|ERROR)/.test(logIsi);
   check(

@@ -282,7 +282,9 @@ export const bagian1 = async (cdp, check, F) => {
   const adaLive = nodes.some(
     (n) => roleDari(n) === 'status' || roleDari(n) === 'alert' || roleDari(n) === 'log',
   );
-  const skipAx = nodes.find((n) => namaDari(n).includes('Lompat ke editor'));
+  // Label skip link ikut bahasa UI: "Lompat ke editor" (ID) atau
+  // "Skip to editor" (EN). Terima keduanya supaya tidak rapuh terhadap bahasa.
+  const skipAx = nodes.find((n) => /Lompat ke editor|Skip to editor/i.test(namaDari(n)));
 
   // Live region: umumkan lewat jalur produk, lalu baca isi DOM-nya.
   const v3live = await cdp.json(`

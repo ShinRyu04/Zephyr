@@ -93,9 +93,22 @@ class Cdp {
   static async connect(wsUrl) {
     const c = new Cdp();
     c.#ws = new WebSocket(wsUrl, { perMessageDeflate: false });
+    /*
+     * Batas waktu saat menyambung. Target CDP bisa "ada" di /json/list tetapi
+     * soketnya tidak pernah terbuka (jendela panel yang baru saja ditutup),
+     * dan `new Promise` tanpa batas membuat seluruh harness berhenti tanpa
+     * satu baris pun - persis kegagalan senyap yang dulu terjadi di V13.
+     */
     await new Promise((res, rej) => {
-      c.#ws.once('open', res);
-      c.#ws.once('error', rej);
+      const jaring = setTimeout(() => rej(new Error('CDP connect timeout: ' + wsUrl)), 15000);
+      c.#ws.once('open', () => {
+        clearTimeout(jaring);
+        res();
+      });
+      c.#ws.once('error', (e) => {
+        clearTimeout(jaring);
+        rej(e);
+      });
     });
     c.#ws.on('message', (raw) => {
       const msg = JSON.parse(raw.toString());
@@ -110,18 +123,42 @@ class Cdp {
 
   #send(method, params = {}) {
     const id = ++this.#id;
-    return new Promise((res) => {
-      this.#pending.set(id, res);
+    return new Promise((res, rej) => {
+      /*
+       * Setiap panggilan CDP WAJIB punya batas waktu.
+       *
+       * Renderer yang berhenti menjawab (mis. sedang memproses fokus jendela
+       * atau di-reload) membuat `Runtime.evaluate` tidak pernah dibalas. Dulu
+       * promise-nya menggantung selamanya, sehingga `runAsync` tidak pernah
+       * sampai ke pemeriksaan deadline dan seluruh proses harus dibunuh dari
+       * luar - tanpa galat, tanpa ringkasan, dan settings.json tertinggal
+       * dalam keadaan default.
+       */
+      const jaring = setTimeout(() => {
+        this.#pending.delete(id);
+        rej(new Error('CDP timeout 20s: ' + method));
+      }, 20000);
+      this.#pending.set(id, (msg) => {
+        clearTimeout(jaring);
+        res(msg);
+      });
       this.#ws.send(JSON.stringify({ id, method, params }));
     });
   }
 
   async eval(expr) {
-    const r = await this.#send('Runtime.evaluate', {
-      expression: expr,
-      returnByValue: true,
-      userGesture: true,
-    });
+    let r;
+    try {
+      r = await this.#send('Runtime.evaluate', {
+        expression: expr,
+        returnByValue: true,
+        userGesture: true,
+      });
+    } catch (e) {
+      /* `#send` hanya tahu nama metode; ekspresinya dicatat di sini supaya
+         pesan timeout menunjuk langkah yang macet, bukan sekadar "evaluate". */
+      throw new Error(`${e.message} :: ${String(expr).replace(/\s+/g, ' ').slice(0, 140)}`);
+    }
     if (r.error) throw new Error(`RPC: ${JSON.stringify(r.error)}`);
     if (r.result?.exceptionDetails) {
       throw new Error(r.result.exceptionDetails.exception?.description ?? 'eval error');
@@ -166,10 +203,20 @@ class Cdp {
         // sengaja membersihkan flag itu) - dulu itu membuat setiap uji berikut
         // mengukur layar tanpa halaman Settings.
         const bukaSettings = async (sec) => {
-          const st = S.getState();
-          st.setActivity('settings');
-          if (!S.getState().sidebarVisible) S.getState().toggleSidebar();
-          await new Promise(r => setTimeout(r, 260));
+          /*
+           * JANGAN memanggil setActivity('settings') DI SINI.
+           *
+          * Fungsi ini berjalan di jendela Settings, dan setActivity juga
+          * memanggil bukaPanel('settings'). Dari dalam panel itu berarti
+          * meminta jendelanya sendiri difokuskan lewat IPC Tauri - dan
+          * permintaan fokus ke WebView yang sedang mengeksekusi skrip ini
+          * menggantung: runAsync menunggu selamanya, V13 tidak pernah
+          * mencetak hasil, dan satu-satunya yang terlihat adalah proses yang
+          * berhenti setelah ringkasan V12.
+           *
+           * Panel sudah menjadi jendela Settings; yang perlu diatur hanya
+           * section-nya.
+           */
           if (sec) {
             /*
              * Section dipilih lewat STORE, bukan dengan mengklik nav.
@@ -252,11 +299,34 @@ const main = async () => {
   const utama = pilihJendelaUtama(await daftar());
   if (!utama) throw new Error('jendela utama Zephyr tidak ditemukan');
   const cdpUtama = await Cdp.connect(utama.webSocketDebuggerUrl);
+  /*
+   * Panel dibuka lewat `setSettingsOpen(true)`, BUKAN `setActivity('settings')`.
+   *
+   * Sejak panel jadi jendela sendiri, keduanya menulis `activity` lalu memanggil
+   * `bukaPanel('settings')` - dan `bukaPanel` memanggil `setSettingsOpen(false)`
+   * untuk membersihkan flag popup lama. Akibatnya `setActivity('settings')`
+   * memantulkan activity kembali ke 'explorer' (jejaknya: settings -> explorer
+   * dari `setSettingsOpen` di `bukaPanel`), sehingga rail tidak pernah
+   * menyala dan harness mengukur jendela yang sedang tidak menampilkan apa pun.
+   * `setSettingsOpen(true)` adalah jalur yang dipakai UI sendiri dan tidak
+   * memantul.
+   */
   await cdpUtama.eval(`(() => {
-    window.__ZEPHYR__.getState().setActivity('settings');
+    window.__ZEPHYR__.getState().setSettingsOpen(true);
     return 'ok';
   })()`);
 
+  /*
+   * Panel yang sudah hidup dipakai apa adanya.
+   *
+   * Jangan ditutup dari sini: `window.close()` di dalam WebView menghilangkan
+   * target CDP tetapi TIDAK menghapus jendela dari registri Tauri, sehingga
+   * `bukaPanelWindow` menganggapnya masih ada, hanya memfokuskannya, dan
+   * panel yang sudah mati tidak pernah dimuat ulang (target CDP berikutnya
+   * tidak muncul sama sekali). Harness lalu gagal dengan "jendela Settings
+   * tidak muncul" padahal aplikasinya baik-baik saja. Yang benar - dan yang
+   * dipakai produk - adalah `WebviewWindow.close()` dari jendela pembuka.
+   */
   let panel = null;
   for (let i = 0; i < 60 && !panel; i++) {
     await sleep(250);
@@ -397,7 +467,15 @@ const main = async () => {
     // dipegang mayoritas uji adalah Settings; kembalikan itu.
     if (cdpAktif === cdp) return cdp;
     cdpAktif.close();
-    cdpAktif = await Cdp.connect(panel.webSocketDebuggerUrl);
+    /*
+     * `panel` dipegang dari awal run, tetapi jendelanya bisa sudah diganti
+     * (ditutup lalu dibuka ulang). Cari ulang target dengan URL yang sama
+     * supaya koneksi selalu menuju WebSocket yang masih hidup.
+     */
+    const segar =
+      (await daftar()).find((t) => (t.url ?? '').includes('#panel=settings')) ?? panel;
+    panel = segar;
+    cdpAktif = await Cdp.connect(segar.webSocketDebuggerUrl);
     cdpTerbuka = cdpAktif;
     return cdpAktif;
   };
@@ -1300,20 +1378,40 @@ const main = async () => {
    * dan `eval` tidak memakai `awaitPromise`, jadi yang kembali adalah promise
    * itu sendiri ("[object Object]"), bukan JSON-nya.
    */
+  /*
+   * `runAsync` menempelkan isi `body` sebagai PERNYATAAN di dalam fungsi async,
+   * bukan memanggilnya. Bentuk `async () => { ... }` karena itu hanya
+   * MENDEFINISIKAN fungsi dan tidak pernah menjalankannya: hasilnya null,
+   * `JSON.parse(null)` mengembalikan null, dan V13 mati dengan "Cannot read
+   * properties of null (reading 'zoom')" - pesan yang menunjuk baris yang
+   * salah. Tulis langkahnya sebagai pernyataan biasa.
+   */
   const diskZoom = JSON.parse(
-    await (await mulaiPanel()).runAsync(`async () => {
+    await (await mulaiPanel()).runAsync(`
       const disk = await SET.settingsFromDisk();
       return JSON.stringify({ zoom: disk.general.zoom });
-    }`),
+    `),
   );
+  /*
+   * `cdpZoom` TIDAK boleh dipakai lagi di sini.
+   *
+   * `mulaiPanel()` di atas memanggil `kePanel()`, dan helper itu menutup
+   * koneksi jendela yang sedang dipegang - yaitu `cdpZoom` (jendela utama).
+   * Mengirim `Runtime.evaluate` lewat soket yang sudah ditutup tidak pernah
+   * dijawab, jadi versi lama berkas ini menggantung tepat di baris ini:
+   * ringkasan V12 sudah tercetak, V13 tidak pernah selesai, dan prosesnya
+   * harus dibunuh dari luar. Ambil koneksi utama yang baru lewat `keUtama()`.
+   */
+  const cdpErr = await keUtama();
   const errors = JSON.parse(
-    await cdpZoom.eval(`JSON.stringify(window.__ZEPHYR_ERRORS__ ?? [])`),
+    await cdpErr.eval(`JSON.stringify(window.__ZEPHYR_ERRORS__ ?? [])`),
   );
+  /* Sama seperti `diskZoom`: pernyataan, bukan definisi fungsi. */
   const keySisa = JSON.parse(
-    await (await mulaiPanel()).runAsync(`async () => {
+    await (await mulaiPanel()).runAsync(`
       const m = await SET.publicModels();
       return JSON.stringify({ hasKey: m.find(x => x.provider === 'gemini')?.hasKey });
-    }`),
+    `),
   );
   Object.assign(v13, {
     zoomAwal: sebelumZoom.root,

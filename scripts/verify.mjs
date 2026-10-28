@@ -263,10 +263,10 @@ const main = async () => {
       emptyState: !!document.querySelector('.empty-state'),
     })`),
   );
-  // 8 = tujuh view (explorer/search/scm/debug/extensions/terminal/tools) plus
-  // Settings di dasar rel. Tombol dev-build dan avatar GitHub juga `.ab-btn`
+  // 9 = delapan view (explorer/search/scm/browser/debug/extensions/terminal/tools)
+  // plus Settings di dasar rel. Tombol dev-build dan avatar GitHub juga `.ab-btn`
   // tetapi TIDAK punya `data-activity`, jadi tidak ikut dihitung.
-  check('F02-V4a', sh.activityButtons === 8, `ActivityBar ${sh.activityButtons} ikon`);
+  check('F02-V4a', sh.activityButtons === 9, `ActivityBar ${sh.activityButtons} ikon`);
   check('F02-V6a', /Zephyr v\d+\.\d+\.\d+/.test(sh.statusbar), `StatusBar "${sh.statusbar}"`);
   /*
    * The terminal resizer only exists while the panel is open, so the harness
@@ -419,7 +419,19 @@ const main = async () => {
    * berikutnya CRASH di `tabs.find(...).id` karena sample.py sudah tidak ada.
    * Yang diuji di sini adalah "lima berkas jadi lima tab", jadi tab-nya harus
    * dibuka seperti user yang benar-benar ingin berkasnya tetap terbuka.
+   *
+   * Tab `browser` ditutup lebih dulu: langkah F02-V4b MENKLIK setiap ikon rail,
+   * termasuk ikon Browser yang memang membuka tab editor (bukan view sidebar).
+   * Tab itu tidak punya path, jadi tidak ikut dipulihkan sesi dan tidak bisa
+   * dibedakan dari tab berkas oleh hitungan di bawah - tanpa pembersihan ini
+   * uji membaca "6 tab" pada aplikasi yang benar.
    */
+  await cdp.runAsync(`
+    const b = window.__ZEPHYR__.getState();
+    b.tabs.filter((t) => t.view === 'browser').forEach((t) => b.forceCloseTab(t.id));
+    await wait(200);
+    return 'ok';
+  `);
   await cdp.runAsync(`
     for (const f of ${JSON.stringify(['sample.tsx', 'sample.py', 'sample.json', 'sample-bom.txt', 'sample-ansi.txt'])}) {
       await window.__ZEPHYR__.getState().openPath(${JSON.stringify(TESTDIR)} + '\\\\' + f, { preview: false });

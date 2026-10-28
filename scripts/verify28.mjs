@@ -78,7 +78,7 @@ async function main() {
   const v1ok =
     /^zephyr \d+\.\d+\.\d+$/.test(versiPlain) &&
     !adaAnsi(versiPlain) &&
-    helpOut.includes('Pakai: zephyr') &&
+    helpOut.includes('Usage: zephyr') &&
     helpOut.includes('--diff') &&
     helpOut.includes('--wait') &&
     helpOut.includes('core.editor') &&

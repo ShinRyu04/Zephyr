@@ -77,6 +77,13 @@ const BERSIH = `{
   const ids = (S.getState().tabs || []).filter((t) => t && t.view === 'browser').map((t) => t.id);
   for (const id of ids) S.getState().forceCloseTab(id);
   await wait(250);
+  /*
+   * Closing the tab unmounts BrowserTab, whose cleanup tells Rust to drop the
+   * child webview on a later turn - so the store can be clean while the host is
+   * still painted. The flush round-trip is the only way to wait for that turn
+   * from here; it is also what makes a later V7c ("host gone") honest.
+   */
+  if (ids.length && typeof window.__ZEPHYR_FLUSH__ === 'function') await window.__ZEPHYR_FLUSH__();
   return { ditutup: ids.length };
 }`;
 
@@ -213,6 +220,15 @@ async function main() {
       const teks = String(tutup || '');
       R.check('V7a', !teks.startsWith('ERR'), `aksi close tidak melempar (${teks.slice(0, 90)})`);
       R.check('V7b', s.jumlah === 0, `tab browser tertutup (sisa ${s.jumlah})`);
+      /*
+       * `close` drops the tab; the webview itself goes away when the unmounted
+       * BrowserTab's cleanup reaches Rust. Poll instead of asserting on the
+       * frame that happens to follow the click.
+       */
+      for (let i = 0; i < 20 && s.host; i++) {
+        await sleep(250);
+        s = await cdp.runAsync(`return ${SNAP};`);
+      }
       R.check('V7c', s.host === false, 'host .bp-tab-host ikut hilang dari stage');
     }
 

@@ -1905,7 +1905,12 @@ body.is-resizing-v {
 }
 
 /* The folder path is the disambiguator (two `index.ts`), so it is dimmed but
-   never the thing that gets cut first. */
+   never the thing that gets cut first.
+
+   Kontras: dulu `--text-muted` + opacity 0.75 di 10px = 3.12:1, di bawah
+   ambang WCAG AA 4.5:1 untuk teks kecil (ditemukan axe-core di fase 31).
+   `--text-secondary` tanpa opacity memberi ~5.3:1 — masih lebih redup dari
+   nama berkas, tapi terbaca. */
 .ws-dir {
   flex: 1 1 auto;
   min-width: 0;
@@ -1915,8 +1920,7 @@ body.is-resizing-v {
   direction: rtl;
   text-align: right;
   font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.75;
+  color: var(--text-secondary);
 }
 
 .ws-pin,

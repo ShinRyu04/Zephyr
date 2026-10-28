@@ -38,8 +38,13 @@ export const bagian1 = async (cdp, check, { FILE_UJI }) => {
     const tl = HS.timeline();
     const daftar = await HS.list(${F});
 
-    // Timeline HARUS terbuka sebelum barisnya diperiksa: header-nya toggle,
-    // dan V2 sebelumnya membaca 0 item padahal store punya 28 entri.
+    // Timeline hidup di dalam SectionLipat ("sec-timeline") di ExplorerPanel;
+    // buka section-nya dulu supaya TimelineView dirender ke DOM.
+    const secHead = q('[data-testid="sec-timeline-head"]');
+    if (secHead && secHead.getAttribute('aria-expanded') !== 'true') {
+      secHead.click();
+      await wait(600);
+    }
     const tg = q('[data-testid="timeline-toggle"]');
     if (tg && tg.getAttribute('aria-expanded') !== 'true') {
       tg.click();
@@ -97,9 +102,11 @@ export const bagian1 = async (cdp, check, { FILE_UJI }) => {
 
     // Klik entri Timeline → DiffViewer terpasang (jalur UI sungguhan).
     // Panel wajib terbuka dulu — kalau tidak, .tl-main tidak ada di DOM.
-    // (Jangan pakai backtick di komentar ini: ia berada DI DALAM template
-    // literal, jadi backtick menutupnya lebih awal dan sisa kode jadi
-    // ekspresi aneh — pernah bikin error "main is not defined".)
+    const secHead = q('[data-testid="sec-timeline-head"]');
+    if (secHead && secHead.getAttribute('aria-expanded') !== 'true') {
+      secHead.click();
+      await wait(600);
+    }
     const tg = q('[data-testid="timeline-toggle"]');
     if (tg && tg.getAttribute('aria-expanded') !== 'true') {
       tg.click();

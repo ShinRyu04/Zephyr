@@ -571,6 +571,44 @@ const main = async () => {
       `(tab aktif view "${v5.tabAktifView}"); xterm & stage browser dua-duanya ter-mount`,
   );
 
+  /*
+   * Jaringan lokal adalah OPT-IN (default MATI). Gerbang
+   * `periksa_url_pane_dengan` (web.rs) menolak loopback dan port di luar
+   * 80/443 SEBELUM child WebView2 lahir. Server uji hidup di
+   * 127.0.0.1:${TEST_PORT}, jadi tanpa izin ini V6/V8 tidak akan pernah
+   * memuat halaman apa pun — pane hanya menampilkan halaman error/lama.
+   * Harness lama lolos karena pane browser masih <iframe>, dan iframe tidak
+   * melewati gerbang Rust.
+   *
+   * Nilai asli disimpan dulu dan dipulihkan apa adanya di akhir. `null` pada
+   * applySettings MENGHAPUS key (RFC 7386), jadi user yang belum pernah
+   * menyetelnya kembali ke keadaan semula, bukan tertinggal `false`.
+   */
+  // Nilai mentah dari FILE, bukan dari store: `get_settings` sudah men-deep-merge
+  // default Rust, jadi store selalu memperlihatkan false/[80,443] walau user
+  // belum pernah menulis key-nya. Yang perlu dipulihkan adalah "ada/tidak ada".
+  const setelanPath = path.join(process.env.APPDATA ?? '', 'zephyr', 'settings.json');
+  let setelanMentah = {};
+  try {
+    setelanMentah = JSON.parse(fs.readFileSync(setelanPath, 'utf8'));
+  } catch {
+    // File belum ada / rusak: anggap user belum pernah menyetel apa pun.
+  }
+  const punyaKey = (k) => Object.prototype.hasOwnProperty.call(setelanMentah, k);
+  const jaringanAsli = {
+    izin: punyaKey('izinJaringanLokal') ? setelanMentah.izinJaringanLokal : null,
+    port: punyaKey('portWeb') ? setelanMentah.portWeb : null,
+  };
+  await cdp.runAsync(`
+    const port = Array.isArray(s.settings.portWeb) ? s.settings.portWeb.slice() : [];
+    if (!port.includes(${TEST_PORT})) port.push(${TEST_PORT});
+    await s.applySettings({ izinJaringanLokal: true, portWeb: port });
+    // applySettings menulis dengan debounce 350ms; gerbang Rust baru membaca
+    // settings.json setelah flush, jadi tunggu lebih dari itu.
+    await wait(800);
+    return 'ok';
+  `);
+
   // ───────── V6: URL localhost dev server tampil live ─────────
   const before = hits.length;
   const v6 = JSON.parse(
@@ -805,7 +843,14 @@ const main = async () => {
   }
   if (!target9) throw new Error('jendela Settings (#panel=settings) tidak muncul untuk V9');
   const cdp9 = await Cdp.connect(target9.webSocketDebuggerUrl);
-  await cdp9.eval(`(() => { window.__ZEPHYR_AGCC__?.getState().setSection('mcp'); return 'ok'; })()`);
+  // Halaman MCP dirender dari section SETTINGS 'mcp' (SectionBody case 'mcp'
+  // -> AgentCustomPage seksiAwal="mcp"), BUKAN dari section Agent
+  // Customizations. __ZEPHYR_AGCC__ tidak punya .getState() sama sekali
+  // (devBridge: { store, section(), setSection() }); versi lama memanggil
+  // getState() dan seluruh run mati sebelum V9 tercatat. Setelah diperbaiki ke
+  // AGCC.setSection pun kontrol mcp-* tetap tidak ada, karena section yang
+  // benar milik store settings.
+  await cdp9.eval(`(() => { window.__ZEPHYR_SETUI__?.setSection('mcp'); return 'ok'; })()`);
   await sleep(800);
   const v9a = JSON.parse(
     await cdp9.runAsync(
@@ -1060,6 +1105,33 @@ const main = async () => {
   `,
     30000,
   );
+  /*
+   * Pulihkan settings.json PERSIS seperti semula.
+   *
+   * Bukan lewat applySettings({ izinJaringanLokal: null }): merge lokalnya
+   * membuang nilai null saat pending kosong, sehingga patch menjadi {} dan
+   * flushSetelan berhenti di `if (!Object.keys(patch).length) return` — delete
+   * tidak pernah sampai ke file. Key yang sejak awal tidak ada harus HILANG,
+   * bukan berubah jadi false, kalau tidak file user tercemar default.
+   */
+  {
+    let isi = {};
+    try {
+      isi = JSON.parse(fs.readFileSync(setelanPath, 'utf8'));
+    } catch {
+      // tetap tulis objek kosong: file rusak tidak mungkin dipulihkan sebagian
+    }
+    if (jaringanAsli.izin === null) delete isi.izinJaringanLokal;
+    else isi.izinJaringanLokal = jaringanAsli.izin;
+    if (jaringanAsli.port === null) delete isi.portWeb;
+    else isi.portWeb = jaringanAsli.port;
+    fs.writeFileSync(setelanPath, `${JSON.stringify(isi, null, 2)}\n`);
+    await cdp.runAsync(`
+      await s.reloadSettings();
+      await wait(400);
+      return 'ok';
+    `);
+  }
   fs.rmSync(SANDBOX, { recursive: true, force: true });
   cdp.close();
 

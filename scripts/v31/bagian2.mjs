@@ -76,6 +76,29 @@ export const bagian2 = async (cdp, check, F, { fs, spawnSync, path }) => {
     const a = st.settings.accessibility || {};
     const zoomAwal = st.settings.general.zoom;
 
+    /*
+     * Temukan elemen yang BENAR-BENAR punya transisi SEKARANG (reduced motion
+     * masih sesuai setelan user), sebelum apa pun diubah. .btn di app ini
+     * tidak diberi transition di CSS, jadi menebaknya menghasilkan "0s" di
+     * KEDUA keadaan — dulu itu membuat V5 gagal seolah reduced-motion tidak
+     * bekerja. Kita ukur satu elemen yang sama pada kedua keadaan.
+     */
+    const cariBertransisi = () => {
+      for (const e of [...document.querySelectorAll('*')].slice(0, 5000)) {
+        const d = getComputedStyle(e).transitionDuration;
+        if (d && d !== '0s' && parseFloat(d) > 0.01) return e;
+      }
+      return null;
+    };
+    const el = cariBertransisi();
+    await st.applySettings({
+      accessibility: { ...a, reducedMotion: false, screenReader: false,
+                       autoFocusDialog: true, toastDurasiMin: 3200 },
+    });
+    await wait(400);
+    const attrOff = AY.atribut();
+    const durOff = el ? getComputedStyle(el).transitionDuration : null;
+
     // ── 5a. setelan app menyalakan atribut + mematikan transisi ──
     await st.applySettings({
       accessibility: { ...a, reducedMotion: true, screenReader: false,
@@ -83,19 +106,13 @@ export const bagian2 = async (cdp, check, F, { fs, spawnSync, path }) => {
     });
     await wait(400);
     const attrOn = AY.atribut();
-
-    // Ukur transition-duration NYATA pada elemen yang punya transisi.
-    // .btn dipilih karena index.css memberinya transition.
-    const btn = q('.btn') || q('button');
-    const durOn = btn ? getComputedStyle(btn).transitionDuration : null;
+    const durOn = el ? getComputedStyle(el).transitionDuration : null;
 
     await st.applySettings({
       accessibility: { ...a, reducedMotion: false, screenReader: false,
                        autoFocusDialog: true, toastDurasiMin: 3200 },
     });
-    await wait(400);
-    const attrOff = AY.atribut();
-    const durOff = btn ? getComputedStyle(btn).transitionDuration : null;
+    await wait(300);
 
     // ── 5b. mode screen reader menyalakan xterm SR-mode ──
     await st.applySettings({
@@ -126,6 +143,9 @@ export const bagian2 = async (cdp, check, F, { fs, spawnSync, path }) => {
       };
     };
 
+    const lAwal = ukurLayout();
+    await st.applySettings({ general: { zoom: 100 } });
+    await wait(500);
     const l100 = ukurLayout();
     await st.applySettings({ general: { zoom: 200 } });
     await wait(500);
@@ -142,6 +162,7 @@ export const bagian2 = async (cdp, check, F, { fs, spawnSync, path }) => {
       durOn, durOff, srAttr,
       osReduced: AY.osReducedMotion(),
       l100, l200, l50, lBalik, zoomAwal,
+      fontDiharapBalik: String(Math.round((Math.max(50, Math.min(200, zoomAwal)) / 100) * 16)) + 'px',
     })
   `);
 
@@ -166,8 +187,9 @@ export const bagian2 = async (cdp, check, F, { fs, spawnSync, path }) => {
     // Font root benar-benar berubah (bukti zoom terpakai).
     v5.l200.fontRoot !== v5.l100.fontRoot &&
     v5.l50.fontRoot !== v5.l100.fontRoot &&
-    // Layout kembali normal setelah zoom dipulihkan.
-    v5.lBalik.fontRoot === v5.l100.fontRoot;
+    // Layout kembali normal setelah zoom dipulihkan: font mengikuti zoom awal
+    // yang benar-benar aktif (zoomAwal bisa != 100 bila run lain meninggalkannya).
+    v5.lBalik.fontRoot === v5.fontDiharapBalik;
   check(
     'F31-V5',
     v5ok,
