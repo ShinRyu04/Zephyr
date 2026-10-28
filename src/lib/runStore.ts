@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import {
   asZephyrError,
@@ -35,6 +35,17 @@ export interface RunState {
   phase: 'compile' | 'program' | null;
   status: RunStatus;
   runId: string | null;
+  /**
+   * Terminal pane that owns the current INTERACTIVE run, or null for a piped
+   * run in the Output panel. Stop closes this pane (which kills the program
+   * with it) instead of asking Rust for a run id it never had.
+   */
+  paneId: string | null;
+  /**
+   * Random end marker written into the pane after the program exits. The pane
+   * keeps its shell alive, so this - not `pty-exit` - is what ends the run.
+   */
+  penanda: string | null;
   /** Absolute path of the file the current run belongs to. */
   path: string | null;
   recipe: RunRecipe | null;
@@ -167,6 +178,8 @@ export const useRun = create<RunState & RunActions>((set, get) => ({
   phase: null,
   status: 'idle',
   runId: null,
+  paneId: null,
+  penanda: null,
   path: null,
   recipe: null,
   startedMs: null,
@@ -222,6 +235,96 @@ export const useRun = create<RunState & RunActions>((set, get) => ({
     const O = useOutput.getState();
     O.addChannel(ch, `Run: ${nama}`);
     O.clear(ch);
+
+    /*
+     * INTERACTIVE TERMINAL PATH.
+     *
+     * The reader's complaint was exact: a C++ program run from here shows its
+     * output but cannot be typed into - the Output panel's input box is not a
+     * console, and `cin`/`input()`/`scanf` prompts expect one. VS Code answers
+     * this by running every language in the integrated terminal, and so does
+     * this path: the compile+run command is typed into a real shell pane, whose
+     * console the program inherits. Typing then works exactly as if the reader
+     * had run it by hand.
+     *
+     * The Output panel keeps the non-interactive path below (and the same
+     * channel is used for failures), so nothing that worked before is lost.
+     */
+    const { perintahTerminal } = await import('./runLanguages');
+    const { useTerminal } = await import('./terminalStore');
+    const { usePanel: panelStore } = await import('./panelStore');
+    /* Unique per run, so program output can never fake the end marker. */
+    const penanda = `__ZEPHYR_RUN_${Math.random().toString(36).slice(2, 10)}__`;
+    const perintah = perintahTerminal(rencana, penanda);
+    if (perintah) {
+      const T = useTerminal.getState();
+      const paneId = await T.addPane('shell', { cwd: rencana.cwd });
+      if (paneId) {
+        O.append(ch, `[zephyr] ${perintah}`);
+        panelStore.getState().focusTab('terminal');
+        T.setVisible(true);
+        const tabId = T.activeTabId;
+        if (tabId) T.setActivePane(tabId, paneId);
+        set({
+          runId: null,
+          paneId,
+          path: berkas,
+          recipe: rencana.recipe,
+          status: 'running',
+          phase: rencana.compile ? 'compile' : 'program',
+          startedMs: Date.now(),
+          endedMs: null,
+          lines: 0,
+          exitCode: null,
+          error: null,
+        });
+        const { ptyWrite } = await import('./commands');
+        const { readBuffer } = await import('./xtermRegistry');
+        const { onPtyExit } = await import('./events');
+
+        /*
+         * Two end signals, both needed:
+         *
+         *   * the marker line, printed after the program exits - the normal
+         *     case, since the pane's shell stays alive and never emits
+         *     `pty-exit` per command;
+         *   * `pty-exit`, for the reader closing the pane mid-run (or the shell
+         *     dying), which the marker can never report.
+         */
+        set({ penanda });
+        const selesai = (kode: number | null) => {
+          const s2 = get();
+          if (s2.paneId !== paneId || s2.status !== 'running') return;
+          set({
+            status: kode === 0 || kode === null ? 'ok' : 'run-failed',
+            phase: null,
+            paneId: null,
+            penanda: null,
+            exitCode: kode,
+            endedMs: Date.now(),
+          });
+        };
+        void onPtyExit((id, code) => {
+          if (id === paneId) selesai(code ?? null);
+        }).catch(() => {});
+        void (async () => {
+          for (let i = 0; i < 7200; i += 1) {
+            await new Promise((r) => setTimeout(r, 500));
+            const st2 = get();
+            if (st2.status !== 'running' || st2.penanda !== penanda) return;
+            const teks = readBuffer(paneId, 60) || '';
+            if (teks.includes(penanda)) {
+              selesai(0);
+              return;
+            }
+          }
+        })();
+        await ptyWrite(paneId, perintah + '\r');
+        return true;
+      }
+      /* No pane could be created: fall through to the piped run. */
+      O.append(ch, '[zephyr] terminal tidak bisa dibuka; menjalankan tanpa terminal interaktif.');
+    }
 
     const runId = idBaru();
     // Errors of the previous build belong to the previous source; drop them
@@ -301,6 +404,23 @@ export const useRun = create<RunState & RunActions>((set, get) => ({
   },
 
   hentikan: async () => {
+    /*
+     * Interactive runs own a terminal pane, not a Rust run id: the program is
+     * a child of the pane's shell, so closing the pane is what stops it.
+     * (Killing the shell alone would orphan a program that ignores SIGHUP.)
+     */
+    const { paneId } = get();
+    if (paneId && get().status === 'running') {
+      try {
+        const { useTerminal } = await import('./terminalStore');
+        await useTerminal.getState().closePane(paneId);
+      } catch {
+        /* pane already gone */
+      }
+      set({ status: 'killed', phase: null, paneId: null, endedMs: Date.now() });
+      return true;
+    }
+
     const id = get().runId;
     if (!id || get().status !== 'running') return false;
     try {
@@ -364,11 +484,24 @@ export const useRun = create<RunState & RunActions>((set, get) => ({
   reset: () => {
     const id = get().runId;
     if (id) void runSelesai(id).catch(() => {});
+    /*
+     * A terminal run's pane outlives the store reset: without closing it here,
+     * `reset()` followed by another Run leaves the first program running in a
+     * pane nothing points at any more (and `addPane` then hits the pane cap).
+     */
+    const paneLama = get().paneId;
+    if (paneLama) {
+      void import('./terminalStore')
+        .then((m) => m.useTerminal.getState().closePane(paneLama))
+        .catch(() => {});
+    }
     mulaiDiag();
     set({
       phase: null,
       status: 'idle',
       runId: null,
+      paneId: null,
+      penanda: null,
       path: null,
       recipe: null,
       startedMs: null,

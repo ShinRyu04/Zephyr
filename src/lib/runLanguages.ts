@@ -427,3 +427,64 @@ export function rencanaJalan(path: string, workspace: string | null): RencanaJal
     cwd,
   };
 }
+
+/**
+ * Quote one argument for a PowerShell command line.
+ *
+ * `D:/a/b.cpp` needs no quotes, but any argument with a space, a `(`, `;` or a
+ * backtick does - and the previous version of this helper quoted only when it
+ * saw whitespace, so a path like `D:/My (notes)/x.cpp` split the command. The
+ * conservative version quotes everything that is not plainly safe, and escapes
+ * the two characters PowerShell still treats specially inside double quotes
+ * (`` ` `` and `"`).
+ */
+export function kutipArg(a: string): string {
+  if (a === '') return '""';
+  /*
+   * Plain-safe set: letters, digits and the punctuation that appears in real
+   * flags and paths (`-std=c++17`, `-O0`, `D:/a/b.cpp`, `@file`). `=` and `+`
+   * MUST be here - quoting `-std=c++17` produced `"-std=c++17"`, and the
+   * compiler then reported an unknown option.
+   */
+  if (/^[A-Za-z0-9_./:\\=+@,%-]+$/.test(a)) return a;
+  return `"${a.replace(/`/g, '``').replace(/"/g, '`"')}"`;
+}
+
+/**
+ * One command line that compiles (when needed) and then runs the file, ready to
+ * be typed into a REAL terminal pane.
+ *
+ * Why this exists next to `rencanaJalan`: the Run panel gives the program a
+ * pipe and an input box, which is fine for a script that reads one line but is
+ * not a terminal - `cin`, interactive prompts, arrow keys and Ctrl+C in the
+ * program all expect the console the reader is looking at. The terminal path
+ * (what VS Code does for every language) hands the program the pane's own
+ * console, so typing works exactly as it does in a shell.
+ *
+ * PowerShell, not cmd: the pane's default shell here is PowerShell, and the
+ * first version of this line used `_()` (a cmd construct) which PowerShell
+ * rejected with "The term '_' is not recognized". `$?` after the compile is
+ * the PowerShell way to ask "did that succeed", and `if (...) {...}` keeps the
+ * line on one row so the whole command lands as ONE line in the pane - a
+ * multi-line string would be executed line by line, and the second line would
+ * arrive as a command of its own.
+ */
+export function perintahTerminal(rencana: RencanaJalan, penanda?: string): string {
+  const kutip = (cmd: { tool: string; args: string[] }) =>
+    [kutipArg(cmd.tool), ...cmd.args.map(kutipArg)].join(' ');
+
+  const jalan = kutip(rencana.run);
+  const inti = !rencana.compile
+    ? jalan
+    : `${kutip(rencana.compile)}; if ($?) { ${jalan} }`;
+
+  /*
+   * Penanda selesai. Program dijalankan DI DALAM shell pane, jadi tidak ada
+   * `pty-exit` untuk tiap perintah - pane hidup terus. Tanpa penanda, status
+   * Run menggantung "running" selamanya (tombol Run berikutnya jadi Stop).
+   * Baris penanda dicetak SESUDAH program keluar, dan pemanggil memantaunya
+   * dari buffer pane; string acak supaya output program tidak bisa memicunya.
+   */
+  if (!penanda) return inti;
+  return `${inti}; Write-Output "${penanda}"`;
+}
