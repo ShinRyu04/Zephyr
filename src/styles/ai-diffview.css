@@ -17,6 +17,20 @@
  * than a hard-coded hue that clashes with half of them.
  */
 
+/*
+ * Wadah tab di editor (`SplitEditor`) TIDAK punya tinggi pasti: `.ai-view-tab`
+ * sengaja `position: static` dan hanya setinggi isinya, sedangkan `.dv`
+ * memakai `height: 100%` - jadi persentasenya jatuh ke `auto` dan seluruh diff
+ * mengalir keluar dari area editor tanpa penggulir (persis keluhan "diff-nya
+ * jelek dan tidak bisa di-scroll"). Dipin ke host yang `position: relative`
+ * supaya `.dv` benar-benar mendapat tinggi kotak editor.
+ */
+[data-testid='ai-view-tab-diff-view'] {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+
 .dv {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
