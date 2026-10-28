@@ -35,6 +35,13 @@
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
 }
+/* Wrapper ARIA untuk tablist murni (spacer/aksi ada di luar). Flex sendiri
+   supaya tab tetap sebaris dan jaraknya sama seperti sebelumnya. */
+.ai-host-tablist {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
 .ai-host-tab {
   padding: 5px 12px;
   font-size: 12px;

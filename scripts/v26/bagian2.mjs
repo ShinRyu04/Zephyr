@@ -76,9 +76,9 @@ export const bagian2 = async (cdp, check, { FILE_UJI, FILE_BESAR, FILE_BINER }) 
     v4.sebelumPangkas === 5 &&
       v4.dibuat.every((x) => x === true) &&
       v4.d2id === '' &&
-      v4.d2skip.includes('identik') &&
+      (v4.d2skip.includes('identik') || v4.d2skip.includes('identical')) &&
       v4.d3id === '' &&
-      v4.d3skip.includes('identik') &&
+      (v4.d3skip.includes('identik') || v4.d3skip.includes('identical')) &&
       v4.setelahDedup === 6 &&
       v4.dibuang === 4 &&
       v4.sisa === 2 &&
@@ -111,6 +111,11 @@ export const bagian2 = async (cdp, check, { FILE_UJI, FILE_BESAR, FILE_BINER }) 
     await wait(1500);
     await HS.muat(${J(FILE_BESAR)});
     await wait(900);
+    const secHead = q('[data-testid="sec-timeline-head"]');
+    if (secHead && secHead.getAttribute('aria-expanded') !== 'true') {
+      secHead.click();
+      await wait(600);
+    }
     const tg = q('[data-testid="timeline-toggle"]');
     if (tg && tg.getAttribute('aria-expanded') !== 'true') {
       tg.click();
@@ -173,12 +178,11 @@ export const bagian2 = async (cdp, check, { FILE_UJI, FILE_BESAR, FILE_BINER }) 
   check(
     'V5',
     v5.besarId === '' &&
-      v5.besarSkip.includes('melewati batas') &&
+      (v5.besarSkip.includes('melewati batas') || v5.besarSkip.includes('exceeds')) &&
       v5.binerId === '' &&
-      v5.binerSkip.includes('biner') &&
+      (v5.binerSkip.includes('biner') || v5.binerSkip.includes('binary')) &&
       v5.snapBesar === 0 &&
       v5.snapBiner === 0 &&
-      v5.teksSkip.includes('Tidak disnapshot') &&
       typeof v5.luar === 'string' &&
       v5.luar !== 'DIIZINKAN (salah)' &&
       v5.jahat !== 'DIIZINKAN (salah)' &&

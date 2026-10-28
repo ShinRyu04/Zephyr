@@ -249,12 +249,6 @@ export function applyTheme(
     terapkanEkstensi?.('');
   }
 
-  if (theme.accent && /^#[0-9a-f]{6}$/i.test(theme.accent)) {
-    root.style.setProperty('--accent', theme.accent);
-    root.style.setProperty('--accent-hover', theme.accent);
-    root.style.setProperty('--accent-subtle', hexToRgba(theme.accent, 0.16));
-  }
-
   // Theme extensions write their palette variables above. Apply the user layer last so
   // a base/extension theme refresh can never replace the current custom background.
   // Passing an empty image deliberately clears every related variable, so reset remains
@@ -310,12 +304,27 @@ export function applyTheme(
     const v = ov[t];
     if (typeof v === 'string' && v.trim()) root.style.setProperty(t, v.trim());
   }
-  /* The derived accent shades follow the override when there is one, so a custom
-     accent does not leave the hover state on the theme's own colour. */
+  /*
+   * Accent LAST — and the whole triplet, not just the derived shades.
+   *
+   * `--accent` is a member of `TOKEN_OVERRIDE`, so the clearing pass above wipes
+   * the custom accent written earlier in this function. The old code re-applied
+   * only `--accent-hover`/`--accent-subtle` when an override existed, so a
+   * reader's accent set in Settings silently fell back to the theme's own
+   * colour on every reload. Apply the whole triplet after the clearing pass;
+   * an explicit override outranks the user accent, matching the precedence
+   * documented above.
+   */
   const ovAksen = ov['--accent'];
-  if (typeof ovAksen === 'string' && ovAksen.trim()) {
-    root.style.setProperty('--accent-hover', ovAksen.trim());
-    root.style.setProperty('--accent-subtle', hexToRgba(ovAksen.trim(), 0.16));
+  const aksen = typeof ovAksen === 'string' && ovAksen.trim()
+    ? ovAksen.trim()
+    : theme.accent && /^#[0-9a-f]{6}$/i.test(theme.accent)
+      ? theme.accent
+      : '';
+  if (aksen) {
+    root.style.setProperty('--accent', aksen);
+    root.style.setProperty('--accent-hover', aksen);
+    root.style.setProperty('--accent-subtle', hexToRgba(aksen, 0.16));
   }
 
   return id;

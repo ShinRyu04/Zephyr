@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: 1fb62d048b8c8f44
+ * Versi app: 1.1.15 · hash sumber: 40dfc9d987a56313
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '1fb62d048b8c8f44' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '40dfc9d987a56313' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -784,12 +784,12 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/cmTheme.ts","2 baris · tanpa ekspor"],
   ["kode","src/lib/codexStore.ts","233 baris · ekspor: ApprovalPolicy, WorkLocation, APPROVAL_POLICIES, WORK_LOCATIONS, CODEX_EFFORTS, CodexEffort, EFFORT_FROM_CONFIG, CODEX_EFFORT_LABELS, CODEX_MODELS, CodexSettings, useCodex"],
   ["kode","src/lib/commandIds.ts","30 baris · Leaf module: the id set of commands that exist. · ekspor: COMMAND_IDS, daftarkanCommandId, commandIdAda"],
-  ["kode","src/lib/commandRegistry.ts","2821 baris · ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
+  ["kode","src/lib/commandRegistry.ts","2828 baris · ekspor: CmdGroup, CommandDef, COMMANDS, taskCommands, extensionCommands, snippetCommands, availableCommands, COMMAND_BY_ID, findCommand, runCommand"],
   ["kode","src/lib/commands.ts","1995 baris · ekspor: asZephyrError, getAppInfo, getSettings, setSettings, setWindowSize, NAMA_PERINTAH_TANGKAP, HasilTangkapLayar, captureWindow, extRegistryList, extRegistryRead, extRegistrySave, extRegistryInstalled, extRegistryUrlDiizinkan, listRecents, takeBrokenConfig, getKeybindings, setKeybindings, DevUpdateInfo, DevUpdateHasil, secretsSnapshot, aiArchiveToolOutput, aiReadToolOutput, devUpdateInfo, devUpdateBuild, devUpdateApply, devUpdateLog, devUpdateRollback, lspStart, lspRequest, lspNotify, lspStop, lspStopAll, lspStatus, lspReap, lspSetIdle, lspProbe, lspPenghalang, lspResep, LspJenisResep, lspJenisResep, …(+365)"],
   ["kode","src/lib/contextBudget.ts","526 baris · Context budget: one place for the token estimate and the window size. · ekspor: kiraToken, jendelaKonteks, perkiraanKonteks, PAYLOAD_MAX_CHARS, ukuranPayload, ringkasUkuran, pilihModelCadangan, AUTO_COMPACT_AT, ambangAutoCompact, setelAmbangAutoCompact, batasAutoCompact, AUTO_COMPACT_KEEP, AUTO_COMPACT_COOLDOWN_STEPS"],
   ["kode","src/lib/contextRefs.ts","452 baris · ekspor: FileRef, JenisRef, RefItem, SaringanJenis, QueryRef, MAKS_RECENT, tulisRef, URUTAN_JENIS, LABEL_JENIS, tokenAt, uraiToken, saringRef, ratakan, muatRef, lupakanRef, catatRefTerakhir, refTerakhir"],
   ["kode","src/lib/cronRunner.ts","181 baris · ekspor: pasangPendengarCron"],
-  ["kode","src/lib/debugDetect.ts","201 baris · Which debugger (if any) can start a given file. · ekspor: DeteksiDebug, deteksiDebug"],
+  ["kode","src/lib/debugDetect.ts","211 baris · Which debugger (if any) can start a given file. · ekspor: DeteksiDebug, deteksiDebug"],
   ["kode","src/lib/debugInline.ts","154 baris · Debugger inline values — the locals, shown at the line execution stopped on. · ekspor: VariabelDebug, debugInlineField, setNilaiEffect, clearNilaiEffect"],
   ["kode","src/lib/debugStore.ts","1084 baris · ekspor: Breakpoint, StackFrame, Scope, Variable, WatchItem, ReplLine, DebugState, useDebug, bindDebugListeners, catatExceptionKeProblems"],
   ["kode","src/lib/devBridge.ts","2518 baris · ekspor: installDevBridge"],
@@ -886,8 +886,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/rulesCatalog.ts","179 baris · The rules the write-time check runs. · ekspor: RULES_BAWAAN"],
   ["kode","src/lib/rulesEngine.ts","248 baris · A mechanical check that runs before text is written. · ekspor: Severity, Rule, Finding, RuleDef, compileRule, compileRules, checkText, shouldBlock, blockMessage, bahasaDariPath"],
   ["kode","src/lib/rulesRuntime.ts","82 baris · The active rule set, kept separate from the engine and the catalog. · ekspor: aturanBawaan, aturanAktif, aturanMenyala, setAturanAktif, setKatalog, katalogAktif, jumlahAturan"],
-  ["kode","src/lib/runLanguages.ts","430 baris · ekspor: RunStep, RunRecipe, RESEP, SHELL_ALTERNATIF, BAHASA_RUN, bashWsl, resepUntuk, isiArg, RencanaJalan, rencanaJalan"],
-  ["kode","src/lib/runStore.ts","487 baris · ekspor: RunStatus, RunState, SUMBER_RUN, kanalRun, useRun, bindRunListeners, bahasaBisaRun"],
+  ["kode","src/lib/runLanguages.ts","491 baris · ekspor: RunStep, RunRecipe, RESEP, SHELL_ALTERNATIF, BAHASA_RUN, bashWsl, resepUntuk, isiArg, RencanaJalan, rencanaJalan, kutipArg, perintahTerminal"],
+  ["kode","src/lib/runStore.ts","620 baris · ekspor: RunStatus, RunState, SUMBER_RUN, kanalRun, useRun, bindRunListeners, bahasaBisaRun"],
   ["kode","src/lib/schedStore.ts","125 baris · ekspor: useSched, INTERVAL, useSchedBuka"],
   ["kode","src/lib/searchEditor.ts","128 baris · Search Editor — search results as an editable document. · ekspor: HasilSearch, KONTEKS, Petikan, petikanUntuk, keMarkdown"],
   ["kode","src/lib/searchStore.ts","341 baris · ekspor: GrupFile, useSearch, bindSearchListeners"],

@@ -16,6 +16,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const WS = String.raw`D:\Zephyr\testfiles\ws-a`;
 const WS_B = String.raw`D:\Zephyr\testfiles\ws-b`;
 const ROOT = String.raw`D:\Zephyr`;
+/*
+ * Kunci `children` explorer adalah path yang sudah di-LOWERCASE-kan (lihat
+ * `loadDir` di explorerStore). Membaca dengan path berhuruf besar selalu kosong
+ * dan uji melaporkan "tidak muncul di tree" pada aplikasi yang benar.
+ */
+const ROOT_KUNCI = ROOT.toLowerCase();
 
 class Cdp {
   #ws;
@@ -90,6 +96,8 @@ class Cdp {
         const s = window.__ZEPHYR__.getState();
         const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         const ex = window.__ZEPHYR_EX__.getState();
+        ${'/* kunci children = path ter-lowercase */'}
+        const keyRoot = ${JSON.stringify(ROOT.toLowerCase())};
         ${body}
       })().then(
         (v) => { window[${JSON.stringify(slot)}] = { done: true, value: v ?? null, error: null }; },
@@ -170,7 +178,7 @@ const main = async () => {
   const treeInfo = JSON.parse(
     await cdp.eval(`(() => {
       const ex = window.__ZEPHYR_EX__.getState();
-      const kids = ex.children[${JSON.stringify(ROOT)}] ?? [];
+      const kids = ex.children[${JSON.stringify(ROOT.toLowerCase())}] ?? [];
       const names = kids.map(k => k.name);
       const rows = [...document.querySelectorAll('.tree-row')].map(r => r.textContent.trim());
       return JSON.stringify({
@@ -204,7 +212,7 @@ const main = async () => {
   const expanded = JSON.parse(
     await cdp.eval(`(() => {
       const ex = window.__ZEPHYR_EX__.getState();
-      const kids = ex.children[${JSON.stringify(SRC)}] ?? [];
+      const kids = ex.children[${JSON.stringify(SRC.toLowerCase())}] ?? [];
       const row = document.querySelector('.tree-row[title=' + JSON.stringify(${JSON.stringify(SRC)}) + ']');
       return JSON.stringify({
         n: kids.length,
@@ -265,7 +273,7 @@ const main = async () => {
       await new Promise(r => setTimeout(r, 900));
       const st = window.__ZEPHYR__.getState();
       const tab = st.tabs.find(t => t.name === ${JSON.stringify(newFileName)});
-      const inTree = (window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT)}] ?? [])
+      const inTree = (window.__ZEPHYR_EX__.getState().children[keyRoot] ?? [])
         .some(n => n.name === ${JSON.stringify(newFileName)});
       return JSON.stringify({ inputExists, inTree, opened: !!tab, tabId: tab?.id });
     `),
@@ -308,7 +316,7 @@ const main = async () => {
       await new Promise(r => setTimeout(r, 300));
       await window.__ZEPHYR_EX__.getState().commitInline(${JSON.stringify(folderName)});
       await new Promise(r => setTimeout(r, 700));
-      const node = (window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT)}] ?? [])
+      const node = (window.__ZEPHYR_EX__.getState().children[keyRoot] ?? [])
         .find(n => n.name === ${JSON.stringify(folderName)});
       return JSON.stringify({ ada: !!node, isDir: node?.isDir });
     `),
@@ -331,7 +339,7 @@ const main = async () => {
       await window.__ZEPHYR_EX__.getState().commitInline(${JSON.stringify(renamed)});
       await new Promise(r => setTimeout(r, 800));
       const st = window.__ZEPHYR__.getState();
-      const kids = window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT)}] ?? [];
+      const kids = window.__ZEPHYR_EX__.getState().children[keyRoot] ?? [];
       return JSON.stringify({
         hasInput,
         lamaHilang: !kids.some(n => n.name === ${JSON.stringify(newFileName)}),
@@ -352,7 +360,7 @@ const main = async () => {
     await cdp.runAsync(`
       await ex.deletePaths([${JSON.stringify(renamedPath)}]);
       await new Promise(r => setTimeout(r, 800));
-      const kids = window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT)}] ?? [];
+      const kids = window.__ZEPHYR_EX__.getState().children[keyRoot] ?? [];
       const st = window.__ZEPHYR__.getState();
       return JSON.stringify({
         treeBersih: !kids.some(n => n.name === ${JSON.stringify(renamed)}),
@@ -447,7 +455,7 @@ const main = async () => {
   for (let i = 0; i < 20; i++) {
     await sleep(150);
     const found = await cdp.eval(
-      `(window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT)}] ?? []).some(n => n.name === ${JSON.stringify(watchName)})`,
+      `(window.__ZEPHYR_EX__.getState().children[${JSON.stringify(ROOT.toLowerCase())}] ?? []).some(n => n.name === ${JSON.stringify(watchName)})`,
     );
     if (found) {
       appeared = true;

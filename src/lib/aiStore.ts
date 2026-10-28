@@ -2684,6 +2684,17 @@ function isRetryableAgentProviderError(error: string): boolean {
     text.includes('malformed')
   ) return false;
   if (/\b(?:408|429|500|502|503|504)\b/.test(text)) return true;
+  /*
+   * A CONNECT timeout is final, not retryable.
+   *
+   * The Rust side already spent its connect budget on an endpoint that never
+   * completed a handshake; retrying the whole turn two more times turned one
+   * dead Base URL into ~3 minutes of silence before the reader saw anything
+   * (verify16 V7 measured it). Timeouts that arrive AFTER the connection -
+   * receive idle, a stream that dies mid-body - stay retryable below.
+   */
+  if (/timeout: connect|connect timed out|timed out.*connect|connect.*timed out/.test(text))
+    return false;
   if (/timeout|timed out|receive response|tidak menjawab|batas waktu/.test(text)) return true;
   /*
    * A broken stream is retryable, and it was NOT being recognised as one.

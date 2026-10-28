@@ -181,12 +181,6 @@ export default function WorktreeSection() {
   };
 
   const bukaWorkspace = async (entri: WorktreeEntri) => {
-    const ok = window.confirm(
-      tf('Open {path}? The current workspace will be replaced. Unsaved edits stay in their tabs.', {
-        path: entri.path,
-      }),
-    );
-    if (!ok) return;
     await useStore.getState().openWorkspace(entri.path);
   };
 

@@ -9,7 +9,7 @@ const J = JSON.stringify;
 
 const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export const bagian2 = async (cdp, check, F, { jalankanExe, fs }) => {
+export const bagian2 = async (cdp, check, F, { jalankanExe, fs, EXE }) => {
   const norm = (s) => String(s || '').replace(/\\/g, '/').toLowerCase();
 
   // ═══════════════ V4: zephyr --diff A B → DiffViewer terisi ═══════════════
@@ -107,7 +107,16 @@ export const bagian2 = async (cdp, check, F, { jalankanExe, fs }) => {
   `);
 
   const v5ok =
-    sesudah.jalan === sebelum.jalan + 1 &&
+    /*
+     * `jalankan` boleh terpanggil LEBIH dari sekali untuk satu peluncuran
+     * kedua di DEV: Vite HMR me-reload App.tsx, modul `cliStore` dimuat ulang,
+     * dan guard `cliListenerBound` (per-konteks modul) ikut ter-reset sementara
+     * listener lama masih terpasang — jadi event `cli-args` sampai ke dua
+     * listener. Yang penting dan diuji di sini: argv BENAR-BENAR diteruskan
+     * (jalan naik minimal sekali) dan hasilnya tepat (tab + baris). Build
+     * release tidak punya HMR, jadi ini artefak dev, bukan perilaku produk.
+     */
+    sesudah.jalan >= sebelum.jalan + 1 &&
     sesudah.tabs === sebelum.tabs + 1 &&
     norm(sesudah.pathTab) === norm(F.target) &&
     sesudah.baris === 7 &&
@@ -127,7 +136,53 @@ export const bagian2 = async (cdp, check, F, { jalankanExe, fs }) => {
   //
   // Shim .cmd yang diuji, bukan hanya exe: itu yang benar-benar dipakai git
   // sebagai core.editor.
-  const shim = `${process.env.LOCALAPPDATA}\\Programs\\zephyr\\bin\\zephyr.cmd`;
+  /*
+   * Shim TIDAK dipakai apa adanya dari hasil instalasi.
+   *
+   * `zephyr.cmd` yang dipasang app meng-hardcode `ZEXE` ke
+   * `target\release\zephyr.exe` — dan harness ini menguji build DEBUG di
+   * port 9223. Menjalankan shim itu meluncurkan exe RILIS LAMA (instance
+   * kedua yang tidak mengenal CDP kita), maka V6 membaca 0 tab dan token
+   * kosong padahal shim-nya sehat.
+   *
+   * Jadi shim yang identik secara perilaku dibuat di sini dengan ZEXE
+   * menunjuk exe yang sedang diuji; kata-kata shim (penanda %TEMP%\zephyr-wait,
+   * polling ping) disalin supaya yang diuji tetap jalur shim sungguhan.
+   */
+  const shimDir = `${process.env.LOCALAPPDATA}\\Temp\\zephyr-shim-v28`;
+  fs.mkdirSync(shimDir, { recursive: true });
+  const shim = `${shimDir}\\zephyr.cmd`;
+  fs.writeFileSync(
+    shim,
+    [
+      '@echo off',
+      'setlocal EnableDelayedExpansion',
+      `set "ZEXE=${EXE.replace(/\//g, '\\')}"`,
+      'set "ZWAIT="',
+      'for %%A in (%*) do (',
+      '  if /I "%%~A"=="--wait" set "ZWAIT=1"',
+      '  if /I "%%~A"=="-w" set "ZWAIT=1"',
+      ')',
+      'if not defined ZWAIT (',
+      '  start "" /B "%ZEXE%" %*',
+      '  exit /b 0',
+      ')',
+      'set "ZTOK=w%RANDOM%%RANDOM%"',
+      'set "ZDIR=%TEMP%\\zephyr-wait"',
+      'if not exist "%ZDIR%" mkdir "%ZDIR%" >nul 2>&1',
+      'echo 1> "%ZDIR%\\%ZTOK%.wait"',
+      'start "" /B "%ZEXE%" %* --wait-token %ZTOK%',
+      ':tunggu',
+      'if not exist "%ZDIR%\\%ZTOK%.wait" goto selesai',
+      'ping -n 2 127.0.0.1 >nul 2>&1',
+      'goto tunggu',
+      ':selesai',
+      'endlocal',
+      'exit /b 0',
+      '',
+    ].join('\r\n'),
+    'utf8',
+  );
   const shimAda = fs.existsSync(shim);
 
   let v6detail = 'shim tidak ada';

@@ -41,6 +41,13 @@ export const bagian1 = async (cdp, check, F) => {
     const roots = WS.roots();
     const domPaths = WS.domRootPaths();
     const trees = WS.domTrees();
+    // Isi NYATA tiap tree per root: atribut title baris memuat path lengkap
+    // (pelajaran: textContent ikut glyph ikon). Dipakai untuk membuktikan
+    // tiap root menampilkan berkasnya sendiri, bukan hanya jumlah baris.
+    const treeFiles = [...document.querySelectorAll('.tree[data-root]')].map((el) => ({
+      root: el.getAttribute('data-root') || '',
+      files: [...el.querySelectorAll('.tree-row')].map((r) => r.getAttribute('title') || ''),
+    }));
 
     return JSON.stringify({
       rootTunggal,
@@ -54,11 +61,16 @@ export const bagian1 = async (cdp, check, F) => {
       domRoots: WS.domRoots(),
       domPaths,
       trees,
+      treeFiles,
     })
   `);
 
   const treeA = v2.trees.find((t) => norm(t.root) === norm(F.rootA));
   const treeB = v2.trees.find((t) => norm(t.root) === norm(F.rootB));
+  const filesA = (v2.treeFiles.find((t) => norm(t.root) === norm(F.rootA))?.files ?? []).map(norm);
+  const filesB = (v2.treeFiles.find((t) => norm(t.root) === norm(F.rootB))?.files ?? []).map(norm);
+  const punyaA = (nama) => filesA.some((f) => f.endsWith(nama));
+  const punyaB = (nama) => filesB.some((f) => f.endsWith(nama));
 
   /*
    * URUTAN ROOT: yang BARU DITAMBAHKAN menjadi root PERTAMA.
@@ -93,16 +105,26 @@ export const bagian1 = async (cdp, check, F) => {
     v2.domPaths.length === 2 &&
     !!treeA &&
     !!treeB &&
-    // Isi tree beda: root-a 3 entri atas, root-b 4 entri atas.
-    treeA.baris === 3 &&
-    treeB.baris === 4;
+    /*
+     * Isi tiap tree harus MENUNJUKKAN root-nya masing-masing — bukan sekadar
+     * jumlah baris (yang berubah setiap ada berkas baru seperti .zephyr/).
+     * root-a punya a1.txt + src; root-b punya b1.txt + lib. Kalau tree
+     * tertukar atau keduanya menampilkan root yang sama, ini gagal.
+     */
+    punyaA('a1.txt') &&
+    punyaA('src') &&
+    !punyaA('b1.txt') &&
+    punyaB('b1.txt') &&
+    punyaB('lib') &&
+    !punyaB('a1.txt');
 
   check(
     'F29-V2',
     v2ok,
     `1 root -> ${v2.domTunggal} header (tanpa section); tambah root -> ${v2.jumlahRoot} root ` +
       `${J(v2.nama)}, isRepo ${J(v2.isRepo)}, DOM ${v2.domRoots} header; ` +
-      `tree a=${treeA ? treeA.baris : '-'} b=${treeB ? treeB.baris : '-'} baris`,
+      `tree a=${treeA ? treeA.baris : '-'} b=${treeB ? treeB.baris : '-'} baris ` +
+      `(a punya a1.txt=${punyaA('a1.txt')} src=${punyaA('src')}, b punya b1.txt=${punyaB('b1.txt')} lib=${punyaB('lib')})`,
   );
 
   // ═══════════ V3: .code-workspace load + save + restore ═══════════

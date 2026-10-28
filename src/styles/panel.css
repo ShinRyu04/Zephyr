@@ -514,11 +514,12 @@ html[data-bg='solid'] .panel-area {
 .sb-prob-warn {
   color: var(--warning);
 }
-/* Nol bukan masalah: jangan beri warna peringatan saat tidak ada isinya. */
+/* Nol bukan masalah: jangan beri warna peringatan saat tidak ada isinya.
+   Dulu --text-muted + opacity 0.65 di bawah ambang AA (axe fase 31); sekarang
+   --text-secondary tanpa opacity supaya badge "0" tetap redup TAPI terbaca. */
 .sb-prob-err.is-kosong,
 .sb-prob-warn.is-kosong {
-  color: var(--text-muted);
-  opacity: 0.65;
+  color: var(--text-secondary);
 }
 
 /*

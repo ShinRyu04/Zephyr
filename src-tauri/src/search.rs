@@ -467,7 +467,7 @@ fn grep_internal(
     let exclude = bangun_glob(&opts.exclude);
 
     let mut files: Vec<PathBuf> = Vec::new();
-    kumpulkan_internal(root, &mut files, 0, opts.include_hidden);
+    kumpulkan_internal(root, &mut files, 0, opts.include_hidden, opts.respect_gitignore, Vec::new());
 
     let mut total = 0usize;
     let mut jml_file = 0usize;
@@ -565,8 +565,8 @@ fn grep_internal(
                         continue;
                     }
                 }
-                let col = bersih[..m.start()].chars().count() as u32 + 1;
-                let len = m.as_str().chars().count() as u32;
+                let col = byte_ke_kolom(bersih, m.start());
+                let len = byte_ke_kolom(bersih, m.end()).saturating_sub(col);
                 ranges.push((col, len));
             }
             if ranges.is_empty() {
@@ -625,9 +625,97 @@ fn kirim_internal(app: &AppHandle, file: &str, hits: &mut Vec<RgHit>) {
     hits.clear();
 }
 
-fn kumpulkan_internal(root: &Path, out: &mut Vec<PathBuf>, depth: usize, hidden: bool) {
+#[derive(Clone)]
+struct GitignoreRule {
+    base_dir: PathBuf,
+    matcher: globset::GlobMatcher,
+    is_relative: bool,
+    is_dir_only: bool,
+    negated: bool,
+}
+
+fn muat_gitignore(dir: &Path) -> Vec<GitignoreRule> {
+    let mut rules = Vec::new();
+    let gi_path = dir.join(".gitignore");
+    if let Ok(content) = std::fs::read_to_string(&gi_path) {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            let (negated, pat_str) = if trimmed.starts_with('!') {
+                (true, &trimmed[1..])
+            } else {
+                (false, trimmed)
+            };
+            let (is_dir_only, pat_clean) = if pat_str.ends_with('/') {
+                (true, &pat_str[..pat_str.len() - 1])
+            } else {
+                (false, pat_str)
+            };
+            if pat_clean.is_empty() {
+                continue;
+            }
+            let is_relative = pat_clean.contains('/');
+            let glob_pattern = if is_relative {
+                pat_clean.strip_prefix('/').unwrap_or(pat_clean).to_string()
+            } else {
+                pat_clean.to_string()
+            };
+            if let Ok(glob) = globset::GlobBuilder::new(&glob_pattern)
+                .literal_separator(is_relative)
+                .build()
+            {
+                rules.push(GitignoreRule {
+                    base_dir: dir.to_path_buf(),
+                    matcher: glob.compile_matcher(),
+                    is_relative,
+                    is_dir_only,
+                    negated,
+                });
+            }
+        }
+    }
+    rules
+}
+
+fn is_ignored(path: &Path, is_dir: bool, file_name: &str, rules: &[GitignoreRule]) -> bool {
+    let mut ignored = false;
+    for rule in rules {
+        if rule.is_dir_only && !is_dir {
+            continue;
+        }
+        let matched = if rule.is_relative {
+            if let Ok(rel) = path.strip_prefix(&rule.base_dir) {
+                let rel_str = rel.to_string_lossy().replace('\\', "/");
+                rule.matcher.is_match(&rel_str)
+            } else {
+                false
+            }
+        } else {
+            rule.matcher.is_match(file_name)
+        };
+        if matched {
+            ignored = !rule.negated;
+        }
+    }
+    ignored
+}
+
+fn kumpulkan_internal(
+    root: &Path,
+    out: &mut Vec<PathBuf>,
+    depth: usize,
+    hidden: bool,
+    respect_gitignore: bool,
+    mut active_rules: Vec<GitignoreRule>,
+) {
     if depth > MAX_DEPTH_INTERNAL || out.len() > 50_000 {
         return;
+    }
+    if respect_gitignore {
+        let mut local = muat_gitignore(root);
+        active_rules.append(&mut local);
     }
     let rd = match std::fs::read_dir(root) {
         Ok(r) => r,
@@ -639,13 +727,17 @@ fn kumpulkan_internal(root: &Path, out: &mut Vec<PathBuf>, depth: usize, hidden:
             continue;
         }
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir && SKIP_DIR_INTERNAL.contains(&nama.as_str()) {
+            continue;
+        }
+        let p = entry.path();
+        if respect_gitignore && is_ignored(&p, is_dir, &nama, &active_rules) {
+            continue;
+        }
         if is_dir {
-            if SKIP_DIR_INTERNAL.contains(&nama.as_str()) {
-                continue;
-            }
-            kumpulkan_internal(&entry.path(), out, depth + 1, hidden);
+            kumpulkan_internal(&p, out, depth + 1, hidden, respect_gitignore, active_rules.clone());
         } else {
-            out.push(entry.path());
+            out.push(p);
         }
     }
 }

@@ -34,7 +34,7 @@ const CTRL = 2;
 const ALT = 1;
 const SHIFT = 8;
 
-export const bagianB = async (cdp, check, FILE) => {
+export const bagianB = async (cdp, check, FILE, panelRun) => {
   // ═════════ V4: swatch warna + ubah via picker mengubah teks ═════════
   const v4 = await cdp.json(
     `
@@ -258,25 +258,53 @@ export const bagianB = async (cdp, check, FILE) => {
     S.getState().setSettingsOpen(true);
     window.__ZEPHYR_SET__.ui.getState().setSection('editor');
     await wait(800);
+    /*
+     * Halaman Editor hidup di WebView PANEL, bukan jendela utama — q() di sini
+     * selalu null sejak Settings dipisah (V6 dulu merah karena itu). Bagian
+     * panel dijalankan lewat callback yang disuntikkan harness.
+     */
+    return JSON.stringify({
+      awalSet, awalAda, awalHitung, matiSet, matiAda, matiHitung, diskEditor,
+    });
+  `,
+    180000,
+  );
+  /*
+   * Langkah panel: dibuka dari Node karena halaman Editor ada di WebView lain.
+   * Dijalankan TEPAT setelah blok di atas (yang sudah mematikan 6 toggle dan
+   * memverifikasi disk), lalu hasilnya digabung ke objek V6.
+   */
+  const panelUI = JSON.parse(
+    await panelRun(
+      `
+    SETUI.setSection('editor');
+    await wait(900);
     const tombol = q('[data-testid="editor-breadcrumbs"]');
     const ariaSebelum = tombol ? tombol.getAttribute('aria-checked') : null;
     if (tombol) tombol.click();
-    await wait(800);
+    await wait(900);
     const tombol2 = q('[data-testid="editor-breadcrumbs"]');
     const ariaSesudah = tombol2 ? tombol2.getAttribute('aria-checked') : null;
-    const setelahKlikUI = bacaSet();
-
-    // Baris UI untuk SEMUA kunci baru harus ada (UI-nya lengkap).
     const idUI = ['editor-breadcrumbs','editor-sticky','editor-sticky-max','editor-minimap',
       'editor-minimap-chars','editor-indent-guides','editor-color-dec','editor-unicode',
       'editor-bracket-color'];
     const barisUI = idUI.map((id) => !!q('[data-testid="' + id + '"]'));
-
+    return JSON.stringify({ ariaSebelum, ariaSesudah, barisUI });
+  `,
+      60000,
+    ),
+  );
+  Object.assign(v6, panelUI);
+  const v6b = await cdp.json(
+    `
+    const setelahKlikUI = {
+      breadcrumbs: S.getState().settings.editor.breadcrumbs,
+      minimap: S.getState().settings.editor.minimap,
+      indentGuides: S.getState().settings.editor.indentGuides,
+    };
     S.getState().setSettingsOpen(false);
     await wait(600);
     const kembaliAda = EX.ada();
-
-    // 4) Menu View → Appearance benar-benar menunjuk command TERDAFTAR.
     const menuIds = ['editor.breadcrumbs.toggle','editor.stickyScroll.toggle',
       'editor.minimap.toggle','editor.indentGuides.toggle','editor.colorDecorators.toggle',
       'editor.unicodeHighlight.toggle','editor.bracketPairColorization.toggle'];
@@ -288,15 +316,11 @@ export const bagianB = async (cdp, check, FILE) => {
     const semuaDiMenu = menuIds.every((id) => anakCmd.includes(id));
     const semuaPunyaCmd = anak.filter((c) => menuIds.includes(c.command))
                               .every((c) => c.hasCommand === true);
-
-    return JSON.stringify({
-      awalSet, awalAda, awalHitung, matiSet, matiAda, matiHitung, diskEditor,
-      ariaSebelum, ariaSesudah, setelahKlikUI, barisUI, kembaliAda,
-      anakCmd, semuaDiMenu, semuaPunyaCmd,
-    });
+    return JSON.stringify({ setelahKlikUI, kembaliAda, anakCmd, semuaDiMenu, semuaPunyaCmd });
   `,
-    180000,
+    60000,
   );
+  Object.assign(v6, v6b);
   const matiSemua = Object.values(v6.matiSet ?? {}).filter((x) => x === false).length;
   check(
     'V6',
