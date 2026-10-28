@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7458 entri
- * (bridge=1, dokumen=124, ekstensi=21, kode=541, label=3233, layar=2920, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7472 entri
+ * (bridge=1, dokumen=124, ekstensi=21, kode=541, label=3233, layar=2934, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: d48fa53bea75527e
+ * Versi app: 1.1.15 · hash sumber: 1fb62d048b8c8f44
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'd48fa53bea75527e' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '1fb62d048b8c8f44' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -547,7 +547,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AgentMapPanel.tsx","506 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiHost.tsx","136 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiIkon.tsx","885 baris · Icon set for the AI panel header. · ekspor: NamaAiIkon"],
-  ["kode","src/components/ai/AiPanel.tsx","3354 baris · tanpa ekspor"],
+  ["kode","src/components/ai/AiPanel.tsx","3374 baris · tanpa ekspor"],
   ["kode","src/components/ai/AskUserCard.tsx","328 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
@@ -591,7 +591,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/SubAgentTab.tsx","10 baris · tanpa ekspor"],
   ["kode","src/components/ai/ThinkingBar.tsx","53 baris · ekspor: ThinkingBarProps"],
   ["kode","src/components/ai/ToolGatePanel.tsx","357 baris · tanpa ekspor"],
-  ["kode","src/components/ai/UbahReview.tsx","382 baris · tanpa ekspor"],
+  ["kode","src/components/ai/UbahReview.tsx","431 baris · tanpa ekspor"],
   ["kode","src/components/ai/UpdateBtn.tsx","196 baris · tanpa ekspor"],
   ["kode","src/components/ai/claudeCodeUi.tsx","831 baris · ekspor: toolGlyph, toolKind, ikonSasaran, IkonBerkas, imageOutput, unifiedFromHalves, looksLikeUnified, halvesFromUnified, DIFF_PEEK, pairForSplit, EditDiff, diffStat, ToolRowProps, ToolRow"],
   ["kode","src/components/api/ApiClientView.tsx","335 baris · tanpa ekspor"],
@@ -653,7 +653,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/settings/AgcRulesMemories.tsx","377 baris · Rules & Memories — the TRAE-shaped page inside Agent Customizations. · tanpa ekspor"],
   ["kode","src/components/settings/AgcSections.tsx","2041 baris · ekspor: AgcSkills, AgcInstructions, AgcHooks, AgcPlugins, AgcMigrations, AgcPermissions"],
   ["kode","src/components/settings/AgcSkills.tsx","550 baris · Skills — the page inside Agent Customizations, in the ZCode shape. · tanpa ekspor"],
-  ["kode","src/components/settings/AgcSubagents.tsx","215 baris · tanpa ekspor"],
+  ["kode","src/components/settings/AgcSubagents.tsx","315 baris · tanpa ekspor"],
   ["kode","src/components/settings/AgcToolList.tsx","190 baris · tanpa ekspor"],
   ["kode","src/components/settings/AgentCustomPage.tsx","330 baris · tanpa ekspor"],
   ["kode","src/components/settings/AiModelsDialog.tsx","801 baris · \"Add Model\" — the TRAE-shaped dialog, and the ONLY place a provider is · ekspor: BarisModel, slugProvider, namaProvider, AddModelDialog"],
@@ -753,7 +753,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","41 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","12201 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
+  ["kode","src/lib/aiStore.ts","12338 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
   ["kode","src/lib/aiTabsStore.ts","157 baris · ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -4282,7 +4282,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AgcRulesMemories","src/components/settings/AgcRulesMemories.tsx · 30 label: A name is required., Cancel, Control the context the agent loads, the rules it follows, and what it may remember., Could not save the rule., Create, Decisions and preferences are stored in a file you can read and edit., Delete, Dismiss, Edit Rule, Enable Zephyr to remember relevant context from your chat history, Global, Import Settings, Memory, Name, New Rule, No Rules Yet. Click Create to add your first rule, No project rules yet. Click Create to add one for this workspace, Project, Rule, Rules, Rules & Memories, Save, Saving…, This rule applies to every workspace., This rule applies to the current workspace only., User Memory, What the agent reads before it answers., Write anything the agent should always keep in mind…, e.g. rust-style, rules · 15 data-testid: agx-mem-tab, agx-mem-toggle, agx-rule-batal, agx-rule-editor, agx-rule-galat, agx-rule-isi, agx-rule-nama, agx-rule-simpan, agx-rules, agx-rules-create, agx-rules-daftar, agx-rules-galat, agx-rules-kosong, agx-rules-tab, agx-user-memory"],
   ["layar","AgcSections","src/components/settings/AgcSections.tsx · 111 label: (no description), (no event set), (no pattern set), (not active yet), A plugin is a package that brings skills, rules, hooks, agents and MCP servers together. Enabling one writes the skills and rules it carries, registers its MCP servers, and adds its hooks (switched off) and agents to the sections that own them., Action, Add a rule, Add skills, hooks, or plugins first — then you can export them., Allow, Allow, confirm or block a tool call by pattern. Rules are checked top to bottom and the FIRST match decides — so a rule that should always apply belongs at the top. With no matching rule, the approval mode above decides as before., Any tool, Applies to (glob), Available, Block, Browse catalog, Cancel, Close, Command, Command to run, e.g. npm run lint, Commands run automatically at key points in the agent lifecycle to validate, format, or coordinate work., Confirm, Could not save the skill. See the message above., Create with AI, Customizations copied to the clipboard as JSON., Customizations exported as a download., Delete, Describe it in plain language, Description, Disable, Discard draft, Dismiss, Draft a hook from a description, Draft a skill from a description, Enable, Enabled, Enabled: its skills, rules, hooks, agents and MCP servers are in place., Export customizations, Folders of instructions and workflows the agent l…"],
   ["layar","AgcSkills","src/components/settings/AgcSkills.tsx · 27 label: (no description), Built-in, Cancel, Could not save the skill. See the message above., Delete, Dismiss, Edit, Install, Installed, Instructions, Loading…, Name, New, New skill, Nothing here yet., Nothing matches that search., Refresh, Save, Saved under the new name, but the old folder could not be removed., Scope, Search skills…, Short description (when the agent should use it), Skills, This workspace, User · This computer, When the agent should use this, files · 14 data-testid: agx-skill-body, agx-skill-desc, agx-skill-editor, agx-skill-nama, agx-skill-scope, agx-skill-simpan, agx-skills, agx-skills-baru, agx-skills-cari, agx-skills-galat, agx-skills-installed-kosong, agx-skills-kosong, agx-skills-scope, agx-skills-segarkan"],
-  ["layar","AgcSubagents","src/components/settings/AgcSubagents.tsx · 22 label: Allowed tools, Built-in subagents, Built-in worker role, Cancel, Delete, Description, Edit, Follow chat, Inherit, Inherit default, Installed, Model, Name, New, No subagents found, Save, Search subagents…, Short description shown to the model, Subagents, System prompt, items, tools · placeholder: code-reviewer · 2 data-testid: agc-sub-form, agc-subagents"],
+  ["layar","AgcSubagents","src/components/settings/AgcSubagents.tsx · 26 label: (no description), Allowed tools, Built-in subagents, Cancel, Dedicated workers the agent can delegate to. Built-in roles, plus workers you define., Delete, Description, Edit, Follow chat, Inherit, Inherit default, Installed, Model, Name, New, New subagent, No subagents yet., Nothing matches that search., Save, Search subagents…, Short description shown to the model, Subagent, Subagents, System prompt, off, tools · placeholder: code-reviewer · 13 data-testid: agc-sub-alat, agc-sub-baru, agc-sub-bawaan, agc-sub-cari, agc-sub-daftar, agc-sub-deskripsi, agc-sub-form, agc-sub-kosong, agc-sub-model, agc-sub-nama, agc-sub-prompt, agc-sub-simpan, agc-subagents"],
   ["layar","AgcToolList","src/components/settings/AgcToolList.tsx · 6 label: All off, All on, Filter tools, No tool matches that filter., section, {n} of {total} on · 5 data-testid: agc-tool-list, agc-tools-all-off, agc-tools-all-on, agc-tools-cari, agc-tools-total"],
   ["layar","Agent Customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
   ["layar","Agent Customizations…","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ChatHeadActions.tsx"],
@@ -4320,7 +4320,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AiHost","src/components/ai/AiHost.tsx · 1 label: Agent · 4 data-testid: ai-host, ai-host-pane-chat, ai-host-tab-chat, ai-host-tabs"],
   ["layar","AiModelsDialog","src/components/settings/AiModelsDialog.tsx · 49 label: (saved — type to replace), A model id is required., API Format, API key, Add Model, Advanced Settings, All, Anthropic Messages, Cancel, Change, Close, Context size, Custom Model, Custom Request URL, Defaults to Model ID if not set, Delete, Detecting…, Display Name, Edit Model, Enter the OpenAI-compatible API endpoint. Do not end with a slash. /chat/completions will be appended to the URL you provide., Full URL, Google, Hide, Input Display Name, Input Model ID, Model ID, None, OpenAI Chat Completions, OpenAI Responses API, Pick a provider first., Pick a provider. The endpoint is filled in for you., Provider Name, Refresh, Saved as, Saving…, Show, Stored by Rust in %APPDATA%\\zephyr\\secrets.json, encrypted. This window only sees a mask., The URL is used exactly as typed; nothing is appended., This gateway lists no models, so the ID you type here is saved as-is and sent verbatim in every request., Tick the models to add · placeholder: 128000, https://api.openai.com/v1 · 24 data-testid: aim-add-advanced, aim-add-advanced-isi, aim-add-batal, aim-add-ctx, aim-add-durasi, aim-add-format, aim-add-full-url, aim-add-galat, aim-add-ganti-prov, aim-add-hapus-key, aim-add-hasil, aim-add-id, aim-add-jumlah, aim-add-key, aim-add-kosong, aim-add-label, aim-add-modal, aim-add-provider-name, aim-add-refresh, aim-add-simpan, aim-add-url, aim-…"],
   ["layar","AiModelsPage","src/components/settings/AiModelsPage.tsx · 25 label: (not set), Active model set to, Active provider, Add Model, Add or manage available models. Built-in models use the default stable version. Configure an API to access other models., Added, Built-in, Context size, Custom, Delete, Delete provider, In use, Model added., Model removed., Models, No built-in model matches that search., No custom models yet. Press Add Model, paste a key, then Refresh., Provider removed:, Research preview, Search models…, Use, active, detected, model(s)., the app picks the model and the workflow per task · 8 data-testid: aim-aktif-pil, aim-cari, aim-custom-kosong, aim-page, aim-page-content, aim-pesan, aim-table-row, aim-tambah"],
-  ["layar","AiPanel","src/components/ai/AiPanel.tsx · 94 label: \"{name}\" is larger than 3.5 MB - skipped, 1 step done, @ for context, / for commands, Add a file, an image or dictate, Add an API key for, Agent, Agent is working…, Allow, Attach, Attached {name}, Aturan, Berkas, Cadence, Cancel, Cari rujukan konteks, Checking the result, Clear the queue, Close, Computer Use is off, Computer Use is on, Context for this message, Continue from where it stopped, Could not read that folder, Could not read {name}, Deep understanding of complex tasks, Delete, Deny, Edit the queued message, Files…, Folder, Folder…, Fork chat, Go to the newest, Image attachment {n}, Images…, Keeps every change reviewable before it lands, Kembali ke kategori, Ketik untuk mencari…, Masukkan nama untuk mencari, Message for the AI · 66 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-cu-chip, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-intro, ai-jump-bottom, ai-nokey, ai-nokey-dismiss, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus · teks: Computer Use"],
+  ["layar","AiPanel","src/components/ai/AiPanel.tsx · 95 label: \"{name}\" is larger than 3.5 MB - skipped, 1 step done, @ for context, / for commands, Add a file, an image or dictate, Add an API key for, Agent, Agent is working…, Allow, Attach, Attached {name}, Aturan, Berkas, Cadence, Cancel, Cari rujukan konteks, Checking the result, Clear the queue, Close, Computer Use is off, Computer Use is on, Context for this message, Continue from where it stopped, Could not read that folder, Could not read {name}, Deep understanding of complex tasks, Delete, Deny, Edit the queued message, Files…, Folder, Folder…, Fork chat, Go to the newest, Image attachment {n}, Images…, Keeps every change reviewable before it lands, Kembali ke kategori, Ketik untuk mencari…, Masukkan nama untuk mencari, Message for the AI · 66 data-testid: ai-actions, ai-agent-confirm, ai-agent-confirm-no, ai-agent-confirm-yes, ai-agent-tanya, ai-antrian, ai-antrian-clear, ai-branch-chip, ai-chat, ai-chat-name, ai-confirm, ai-confirm-no, ai-confirm-yes, ai-cq-toggle, ai-cu-chip, ai-empty, ai-file-list, ai-imgpreview, ai-imgremove, ai-imgstrip, ai-input, ai-intro, ai-jump-bottom, ai-nokey, ai-nokey-dismiss, ai-nokey-open, ai-panel, ai-photo, ai-photo-input, ai-plus · teks: Computer Use"],
   ["layar","AiWindow","src/AiWindow.tsx · 1 data-testid: ai-window-root"],
   ["layar","All active MCP servers","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcAgents.tsx"],
   ["layar","All changes undone","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/UbahReview.tsx"],
@@ -4529,6 +4529,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","DebugToolbar","src/components/debug/DebugToolbar.tsx · tooltip: Restart (Ctrl+Shift+F5), Step Into (F11), Step Out (Shift+F11), Step Over (F10), Stop (Shift+F5) · aria-label: Debug · 6 data-testid: dbg-tb-next, dbg-tb-restart, dbg-tb-stepin, dbg-tb-stepout, dbg-tb-stop, dbg-toolbar"],
   ["layar","DebugView","src/components/debug/DebugView.tsx · 21 label: (no launch.json), Available while the program is paused., Click the editor gutter to set a breakpoint., Collapse, Copy value, Delete, Expand, No session yet., Open a folder first to debug., Program is running - not paused., Remove breakpoint, build failed, building…, exited with an error, inactive, not verified, paused ({alasan}), preparing adapter…, run finished, run stopped, running · tooltip: Restart (Ctrl+Shift+F5), Start Debugging (F5), Stop (Shift+F5) · aria-label: Debug configuration · placeholder: Watch expression… · 25 data-testid: dbg-adapter-hint, dbg-bp, dbg-bp-dot, dbg-bp-hapus, dbg-bp-hapus-semua, dbg-config, dbg-error, dbg-frame, dbg-invalid, dbg-restart, dbg-run, dbg-run-status, dbg-scope, dbg-scope-head, dbg-src, dbg-start, dbg-status, dbg-stop, dbg-var, dbg-var-copy, dbg-var-input, dbg-var-nilai, dbg-watch, dbg-watch-input, debug-view · teks: Run &amp; Debug · remove all · Available when the adapter supports loadedSources."],
   ["layar","Decisions and preferences are stored in a file you can read and edit.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcRulesMemories.tsx"],
+  ["layar","Dedicated workers the agent can delegate to. Built-in roles, plus workers you define.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
   ["layar","Deep understanding of complex tasks","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","DeepSeek Harness","aria-label di layar · dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
   ["layar","Default Browser for AI Tasks","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcBrowser.tsx"],
@@ -4817,6 +4818,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","New name","teks elemen di layar · dirender 1 berkas: src/components/editor/LspOverlay.tsx"],
   ["layar","New slash command","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","New sub-agent","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/SectionsAdvanced.tsx"],
+  ["layar","New subagent","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
   ["layar","New tab","aria-label di layar · dirender 1 berkas: src/components/editor/EditorTabBar.tsx"],
   ["layar","New tab (Ctrl+N)","tooltip title di layar · dirender 1 berkas: src/components/editor/EditorTabBar.tsx"],
   ["layar","New task in this project","aria-label di layar · dirender 1 berkas: src/components/agents/AgentsSidebar.tsx"],
@@ -5057,6 +5059,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Select a model","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Select model","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexChat.tsx"],
   ["layar","Semua","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
+  ["layar","Send now (stops the current turn)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","Send shortcut","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Separate window","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/SectionsBasic.tsx"],
   ["layar","Servers","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
@@ -5182,7 +5185,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Type part of a name to search the whole workspace.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/CommandPalette.tsx"],
   ["layar","Type to search for files","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexChat.tsx"],
   ["layar","URL Link Opening","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcBrowser.tsx"],
-  ["layar","UbahReview","src/components/ai/UbahReview.tsx · 16 label: 1 file to review, All changes undone, Changes kept, Files, Hapus dari antrian, Keep All, Kosongkan antrian, Misi selesai, Queue, Task list, Tutup kartu ini, Undo All, Undoing…, {n} files could not be undone, {n} files to review, {n} pesan mengantre · 8 data-testid: ai-review, ai-review-baris, ai-review-berkas, ai-review-keep, ai-review-queue, ai-review-todos, ai-review-tutup, ai-review-undo"],
+  ["layar","UbahReview","src/components/ai/UbahReview.tsx · 17 label: 1 file to review, All changes undone, Changes kept, Files, Hapus dari antrian, Keep All, Kosongkan antrian, Misi selesai, Queue, Send this now, Task list, Tutup kartu ini, Undo All, Undoing…, {n} files could not be undone, {n} files to review, {n} pesan mengantre · 8 data-testid: ai-review, ai-review-baris, ai-review-berkas, ai-review-keep, ai-review-queue, ai-review-todos, ai-review-tutup, ai-review-undo"],
   ["layar","Ultracode","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Ultracode is the toggle in the model picker","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Undo All","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/UbahReview.tsx"],
@@ -5335,7 +5338,18 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","agc-skill-simpan","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","agc-skills-error","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","agc-skills-kosong","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
+  ["layar","agc-sub-alat","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-baru","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-bawaan","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-cari","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-daftar","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-deskripsi","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
   ["layar","agc-sub-form","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-kosong","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-model","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-nama","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-prompt","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
+  ["layar","agc-sub-simpan","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
   ["layar","agc-subagents","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSubagents.tsx"],
   ["layar","agc-tool-list","data-testid di layar · dirender 1 berkas: src/components/settings/AgcToolList.tsx"],
   ["layar","agc-tools-all-off","data-testid di layar · dirender 1 berkas: src/components/settings/AgcToolList.tsx"],
