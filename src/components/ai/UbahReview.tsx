@@ -60,6 +60,7 @@ export default function UbahReview({
   const antrianStore = useAi((s) => s.antrians[composerId]);
   const buangAntrian = useAi((s) => s.buangAntrian);
   const kosongkanAntrian = useAi((s) => s.kosongkanAntrian);
+  const kirimAntrian = useAi((s) => s.kirimAntrian);
 
   const [sibuk, setSibuk] = useState(false);
   const [buka, setBuka] = useState(false);
@@ -312,6 +313,23 @@ export default function UbahReview({
                         {a.images.length}
                       </span>
                     )}
+                    {/*
+                      * Kirim per baris - aksi yang dicari lebih dulu daripada
+                      * hapus, jadi ia di depan tombol buang. `sekarang: true`
+                      * memotong giliran yang sedang jalan dan mengirim baris ini
+                      * (lihat `kirimAntrian` di aiStore); tanpa itu, menekan
+                      * kirim saat sibuk tidak melakukan apa pun.
+                      */}
+                    <button
+                      type="button"
+                      className="ai-review-antrian-kirim"
+                      data-testid={`ai-review-antrian-kirim-${i}`}
+                      title={tr('Send this now')}
+                      aria-label={tr('Send this now')}
+                      onClick={() => void kirimAntrian(i, composerId, { sekarang: true })}
+                    >
+                      <AiIkon name="send" size={11} />
+                    </button>
                     <button
                       type="button"
                       className="ai-review-antrian-buang"
