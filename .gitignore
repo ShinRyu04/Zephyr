@@ -110,3 +110,21 @@ ZEPHYR-UJI-COBA.txt
 testfiles/zephyr-v18-tab-*
 testfiles/zephyr-th-*
 testfiles/zephyr-cp-*
+
+# Artefak debug/probe sekali pakai (jangan dilacak)
+_dbg*.mjs
+_probe*.mjs
+_dev-*.bat
+_dev-*.vbs
+_t*.out
+_v*.stdout
+v7-watcher-*.txt
+zephyr-v3-*.txt
+blocks.pkl
+.probe-eca/
+.tmp-bukt*/
+.uji-ikon-live/
+.uji-snippet-js/
+.uji-snippet-live/
+.zephyr-tmp/
+tmp/
