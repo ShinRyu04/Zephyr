@@ -71,6 +71,33 @@ const q1 = await J(`await (async () => {
   };
 })()`);
 
+/* Q6: tombol kirim per baris SELALU ada saat sibuk (agent window + kartu review). */
+const q6 = await J(`await (async () => {
+  const Ai = window.__ZEPHYR_AI__.store;
+  S.getState().setAiKolomVisible(true);
+  S.getState().setSettingsOpen(false);
+  await wait(400);
+  /* Mulai dari antrean kosong: sisa langkah sebelumnya bukan bagian bukti ini. */
+  Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
+  Ai.setState({ antrian: [] });
+  await wait(250);
+  /* kartu review (main window, permukaan utama) */
+  Ai.setState({ agentBusys: { ...Ai.getState().agentBusys, '': true }, agentBusy: true });
+  await wait(100);
+  await Ai.getState().kirimSekarang('TOMBOL-1', undefined, '');
+  await Ai.getState().kirimSekarang('TOMBOL-2', undefined, '');
+  await wait(700);
+  const kartu = document.querySelector('[data-testid="ai-review"]');
+  const qtab = kartu?.querySelector('[data-testid="ai-review-tab-queue"]');
+  if (kartu?.getAttribute('data-open') !== '1' && qtab) { qtab.click(); await wait(400); }
+  const barisKartu = document.querySelectorAll('[data-testid="ai-review-queue"] .ai-review-antrian').length;
+  const kirimKartu = document.querySelectorAll('[data-testid^="ai-review-antrian-kirim-"]').length;
+  Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
+  Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false }, antrian: [] });
+  await wait(300);
+  return { barisKartu, kirimKartu };
+})()`);
+
 /* Q4: mode chat (pending) - lewat store, permukaan utama. */
 const q4 = await J(`await (async () => {
   const Ai = window.__ZEPHYR_AI__.store;
@@ -116,7 +143,7 @@ await J(`await (async () => {
   return 'ok';
 })()`);
 
-console.log(JSON.stringify({ awal, q1, q4, q5 }, null, 1));
+console.log(JSON.stringify({ awal, q1, q4, q5, q6 }, null, 1));
 
 let lulus = 0;
 let gagal = 0;
@@ -146,6 +173,11 @@ cek(
   'Q5 permukaan editor punya lane sendiri (tidak bocor ke utama)',
   (q5?.laneEditor ?? []).length === 1 && (q5?.laneUtama ?? []).length === 0,
   `editor=${JSON.stringify(q5?.laneEditor)} utama=${JSON.stringify(q5?.laneUtama)}`,
+);
+cek(
+  'Q6 tiap baris kartu review punya tombol kirim saat sibuk',
+  (q6?.barisKartu ?? 0) > 0 && q6?.kirimKartu === q6?.barisKartu,
+  `baris=${q6?.barisKartu} tombol=${q6?.kirimKartu}`,
 );
 
 console.log(`\n== ${lulus}/${lulus + gagal} lulus ==`);
