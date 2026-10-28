@@ -2307,7 +2307,10 @@ const bukaModels = () => bukaPanel('models');
         * long transcript first. Destination of its rows follows the surface -
         * editor tab in the main window, right panel in the Agents window.
         */}
-      <UbahReview permukaan={composerId === 'agents' ? 'agents' : 'main'} />
+      <UbahReview
+        permukaan={composerId === 'agents' ? 'agents' : 'main'}
+        composerId={composerId}
+      />
 
       <div className="ai-input-row">
         {/*

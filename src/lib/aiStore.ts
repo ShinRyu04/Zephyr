@@ -4590,81 +4590,91 @@ export const useAi = create<AiStore>((set0, get) => {
     return terkirim;
   },
 
-  /**
-   * Send immediately, cutting short whatever is running.
+/**
+   * Kirim dari KOMPOSER.
    *
-   * The queue answers "run this after the current answer"; this answers "I
-   * do not want that answer, start mine now". Two things have to be true
-   * before the new message goes out, and neither is instant:
+   * Dulu fungsi ini berarti "kirim sekarang, potong jawaban yang sedang jalan":
+   * saat sibuk ia memanggil `cancel()`, menunggu flags turun, lalu mengirim
+   * pesan sebagai giliran BARU. Akibat nyatanya berlawanan dengan yang dibaca
+   * pengguna - menekan Enter saat agen bekerja MEMBUNUH pekerjaan yang sedang
+   * jalan, dan pesannya tidak pernah masuk antrean (dilaporkan sebagai "pesan
+   * tidak masuk queue" dan "agen tiba-tiba berhenti").
    *
-   *   1. `cancel()` sets a flag in Rust, and Rust only looks at that flag
-   *      between packets from the provider. A hung provider leaves the old
-   *      thread alive until its read timeout. That thread is harmless — it
-   *      holds its own request id — but the UI must not start a second send
-   *      while `pending`/`agentBusy` still describe the old one, or the busy
-   *      guard in `send()` would simply queue the new message instead.
+   * Aturannya sekarang SAMA dengan `send()`: sibuk = mengantre ke
+   * `antrians[composerId]` lewat `rencanaMasukSaatSibuk` (tolak kosong/terlalu
+   * panjang dengan sebab, penuh -> buang yang TERLAMA), draft dikosongkan, dan
+   * pesan diambil otomatis begitu giliran selesai (`kirimAntrian`). Memotong
+   * jawaban yang sedang jalan tetap mungkin - itu tugas tombol Stop, bukan
+   * efek samping dari mengetik.
    *
-   *   2. In agent mode `agentBusy` is cleared by the loop's own exit path,
-   *      not by `cancel()`, so it has to be waited for.
-   *
-   * Hence the poll below: cancel, then wait for the flags to go quiet, with a
-   * ceiling so a pathological provider cannot wedge the button forever. If the
-   * ceiling is hit the run is FORCE-RELEASED and the message is still sent -
-   * queuing it silently is what turned a stuck run into a composer that looked
-   * dead, because the reader got no request, no error and no reply.
+   * Sinyal sibuk memakai permukaan yang MENGETIK: `pendings[composerId]`
+   * (fallback `pending` untuk permukaan utama) atau `agentBusys[composerId]`
+   * (fallback `agentBusy`). `agentBusys` per-permukaan penting di sini: dulu
+   * hanya flat `agentBusy` yang dibaca, jadi run di jendela lain membuat
+   * komposer permukaan ini ikut "sibuk".
    */
   kirimSekarang: async (teks, images, composerId = '') => {
     /* This surface owns the run it is about to start. */
     COMPOSER_AKTIF = composerId;
     const teksBersih = (teks ?? '').trim();
+    const sibuk =
+      !!(get().pendings[composerId] ?? (composerId === '' ? get().pending : null)) ||
+      !!(get().agentBusys[composerId] ?? (composerId === '' ? get().agentBusy : false));
     // "lanjut" with a pending checkpoint continues the interrupted run from
     // where it stopped instead of starting a new one on top of the failure.
-    if (/^\s*lanjut(kan)?\s*[.!?…]*\s*$/i.test(teksBersih ?? '') && get().agentResume && !get().agentBusy && !get().pending) {
+    if (/^\s*lanjut(kan)?\s*[.!?…]*\s*$/i.test(teksBersih ?? '') && get().agentResume && !sibuk) {
       await get().lanjutkanAgent();
       return;
     }
     await tungguGambar();
     const imgs = images ?? get().draftImages;
-    if (!teksBersih && imgs.length === 0) return;    if (!get().pending && !get().agentBusy) {
+    if (!teksBersih && imgs.length === 0) return;
+    if (!sibuk) {
       await get().send(teksBersih, imgs, composerId);
       return;
     }
-    await get().cancel();
-    const batas = Date.now() + 8000;
-    while ((get().pending || get().agentBusy) && Date.now() < batas) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    if (get().pending || get().agentBusy) {
-      /*
-       * The old run refused to unwind in time.
-       *
-       * Sending is refused while the previous run is live, so that two answers
-       * never write the same session. That rule stands - but a run that ignores
-       * `cancel()` must not be able to block the composer FOREVER, which is
-       * what it did: `agentBusy` stayed true, every later message took this
-       * branch, and the reader saw a send that produced no request, no error
-       * and no reply ("it just thinks forever"). The Rust side never even
-       * received the call, so nothing upstream could recover it either.
-       *
-       * After `cancel()` and an 8s grace period the run has demonstrably failed
-       * to stop, and by then keeping the UI locked protects nothing: the run is
-       * already broken. So force the flags down and send, rather than queue
-       * silently. Whatever the stalled attempt still holds is discarded by
-       * `retiredAgentAttempts`, which is exactly what it exists for.
-       */
+    /*
+     * Sibuk -> ANTRE, jangan potong. Baris bergambar tanpa teks tetap lewat
+     * jalur lama (panel menerima baris bergambar, `rencanaMasukSaatSibuk`
+     * menolak pesan kosong tanpa gambar) - sama dengan cabang antre di `send`.
+     */
+    const kunciAntrean = composerId || COMPOSER_AKTIF;
+    const barisAntrean: AntrianPesan = { id: idAntrian(), teks: teksBersih, images: imgs };
+    if (teksBersih.length === 0) {
       set((s) => ({
-        pending: null,
-        agentBusy: false,
-        agentBusys: { ...s.agentBusys, '': false },
-        agentPhase: 'idle',
-        agentCurrentTool: null,
-        agentStepIndex: 0,
-        agentStartedAt: null,
-        antrian: [],
-        toast: tf('The previous run did not stop; it was released so this message can be sent.', {}),
+        antrians: { ...s.antrians, [kunciAntrean]: [...(s.antrians[kunciAntrean] ?? []), barisAntrean] },
+        ...(kunciAntrean === '' ? { antrian: [...s.antrian, barisAntrean] } : {}),
+        drafts: { ...s.drafts, [composerId]: '' },
+        draftImages: [],
+        toast: tx('Added to the queue'),
       }));
+      return;
     }
-    await get().send(teksBersih, imgs);
+    const keputusan = rencanaMasukSaatSibuk(get().antrians[kunciAntrean] ?? [], teksBersih, imgs);
+    if (!keputusan.ok || !keputusan.item) {
+      // Draft sengaja TIDAK dikosongkan: user harus bisa memperbaiki teksnya.
+      set({ toast: keputusan.pesan ?? tx('Message could not be queued') });
+      return;
+    }
+    const penuh = keputusan.buangIndeks !== null;
+    set((s) => {
+      const sekarang = (s.antrians[kunciAntrean] ?? []).slice();
+      if (keputusan.buangIndeks !== null) sekarang.splice(keputusan.buangIndeks, 1);
+      const sesudah = [...sekarang, { ...barisAntrean, teks: keputusan.item!.teks }];
+      return {
+        antrians: { ...s.antrians, [kunciAntrean]: sesudah },
+        ...(kunciAntrean === '' ? { antrian: sesudah } : {}),
+      };
+    });
+    set((s) => ({
+      drafts: { ...s.drafts, [composerId]: '' },
+      draftImages: [],
+      toast: penuh
+        ? tf('Queue full ({n}): the oldest queued message was dropped, yours is in', {
+            n: keputusan.keadaan.batas,
+          })
+        : tx('Added to the queue'),
+    }));
   },
     setAttachActive: (v) => set({ attachActive: v }),
     addDraftImage: (dataUrl) => {
