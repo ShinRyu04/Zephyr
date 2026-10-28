@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAi } from '../../lib/aiStore';
 import type { AntrianPesan } from '../../lib/aiStore';
 import { useDiff, useDiffBerkas } from '../../lib/diffStore';
@@ -38,15 +38,24 @@ const KOSONG_ANTRIAN: AntrianPesan[] = [];
 
 export default function UbahReview({
   permukaan = 'main',
+  composerId = '',
 }: {
   permukaan?: 'main' | 'agents';
+  /**
+   * Permukaan yang PUNYA kartu ini.
+   *
+   * Dulu nilainya di-hardcode `''` (permukaan utama), sehingga antrean yang
+   * diketik dari tab editor (`composerId="editor"`) ditulis ke lane `editor`
+   * tetapi kartu di tab itu membaca lane `''`: pesannya terkirim oleh drain,
+   * namun tidak pernah muncul di tab Queue mana pun - terbaca sebagai "tidak
+   * masuk antrean". Sekarang kartu membaca lane permukaannya sendiri.
+   */
+  composerId?: string;
 }) {
   const tr = useT();
   const todos = useAi((s) => s.agentTodos);
   const berkas = useDiffBerkas();
   const turnId = useDiff((s) => s.turnId);
-
-  const composerId = '';
 
   const antrianStore = useAi((s) => s.antrians[composerId]);
   const buangAntrian = useAi((s) => s.buangAntrian);
@@ -63,6 +72,28 @@ export default function UbahReview({
   useEffect(() => {
     setDitutup(false);
   }, [turnId]);
+
+  /*
+   * Tunjukkan antrean SAAT pesan masuk.
+   *
+   * Kartu ini sengaja terlipat (satu strip tipis) sampai pembaca membukanya -
+   * bentuk yang benar untuk berkas/todo yang bisa menunggu. Antrean tidak bisa
+   * menunggu: pesannya baru diketik, dan pembaca yang tidak melihat apa pun
+   * menyimpulkan pesannya hilang. Karena itu setiap kali jumlah baris antrean
+   * BERTAMBAH, kartu membuka tab Queue sendiri - sekali, bukan tiap render.
+   * Penambahan dilacak lewat panjang sebelumnya (ref), bukan efek pada array:
+   * selector tetap mengembalikan nilai primitif dan tidak ada re-render loop.
+   */
+  const jumlahAntrian = antrianStore?.length ?? 0;
+  const jumlahSebelumRef = useRef(jumlahAntrian);
+  useEffect(() => {
+    if (jumlahAntrian > jumlahSebelumRef.current) {
+      setTabDipilih('queue');
+      setBuka(true);
+      setDitutup(false);
+    }
+    jumlahSebelumRef.current = jumlahAntrian;
+  }, [jumlahAntrian]);
 
   /* Agent window: kartu ini tidak dirender - Task Summary panel kanan yang
      mengurus todos dan perubahan secara otomatis. Gerbangnya SETELAH semua
