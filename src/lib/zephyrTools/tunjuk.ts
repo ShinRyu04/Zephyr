@@ -338,7 +338,7 @@ const CATATAN_PERMUKAAN: Record<string, string> = {
   'chat-settings':
     'Yang terbuka adalah JENDELA Chat Settings dan bagian di dalamnya sudah saya pilih sesuai niat. Bagian yang ada: Mode, Agent, Context, Sub-agents, Tools, Rules, Models, Appearance, Session, Advanced - isinya milik pembaca, jangan mengklaim sudah mengubah setelannya.',
   'agent-todo':
-    'Yang saya buka adalah panel Agent Customizations, tab Conversations, tempat saklar To-Do List. Mengaktifkannya (saklar IDE untuk panel chat di jendela utama, Agent untuk jendela Agents) adalah keputusan pembaca. Kalau yang dia cari kartu tugas yang tampil saat agen bekerja, itu dibuka dari menu … di header chat → "Show task list" (default tersembunyi) - setelan saklar di atas hanya mengizinkan agen memakainya.',
+    'Yang saya buka adalah panel Agent Customizations, tab Conversations, tempat saklar To-Do List. Mengaktifkannya (saklar IDE untuk panel chat di jendela utama, Agent untuk jendela Agents) adalah keputusan pembaca. Kartu tugas yang tampil saat agen bekerja TIDAK lagi dibuka dari menu mana pun: ia muncul sendiri sebagai tab "Task list" pada kartu review di atas kotak ketik begitu agen menulis tugas - tidak ada perintah "Show task list" untuk ditunjukkan. Saklar di atas hanya mengizinkan agen memakai daftar tugas itu.',
   'agent-mcp':
     'Yang terbuka adalah tab MCP di panel Agent Customizations. Isi server, port dan token milik pembaca - jangan mengklaim sudah mengubahnya.',
   explorer: 'Yang terbuka adalah bilah Explorer di kiri; berkas yang dia cari tetap dia yang membuka.',
