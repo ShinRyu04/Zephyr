@@ -267,6 +267,19 @@ const posisiAntrian = (arr: AntrianPesan[], idx: number | string): number => {
 const cocokAntrian = (a: AntrianPesan, i: number, idx: number | string) =>
   typeof idx === 'string' ? a.id === idx : i === idx;
 
+/**
+ * Permukaan yang sedang MENGIRIM satu baris antreannya.
+ *
+ * Drain dipanggil dari TIGA tempat (akhir run agen, sisa antrean datar, dan
+ * chunk selesai mode chat) dan `send` di dalamnya berjalan async. Baris dulu
+ * baru dihapus SETELAH `send` selesai, sehingga drain kedua yang datang selama
+ * penantian membaca kepala antrean yang SAMA lalu mengirimnya lagi: pesan
+ * keluar dua kali ("queue selalu duplikat saat dikirim"). Penjaga ini membuat
+ * pengiriman antrean satu-per-permukaan, dan barisnya kini diambil SEBELUM
+ * dikirim (dikembalikan kalau `send` menolak).
+ */
+const sedangKirimAntrian = new Set<string>();
+
 /* ── LANE ANTREAN-LIVE (item C): giliran berikutnya dari antrean pesan ────── */
 
 /**
@@ -3621,6 +3634,17 @@ interface AiActions {
    * tidak boleh memotong apa pun.
    */
   kirimAntrian: (idx: number | string, composerId?: string, opts?: { sekarang?: boolean }) => Promise<boolean>;
+
+  /**
+   * Implementasi satu baris antrean (internal `kirimAntrian`). Diekspos di tipe
+   * supaya pembungkus penjaga bisa memanggilnya lewat `get()`; bukan API publik
+   * yang dipanggil komponen.
+   */
+  _kirimAntrianSatu: (
+    idx: number | string,
+    composerId?: string,
+    opts?: { sekarang?: boolean },
+  ) => Promise<boolean>;
   /**
    * Move one queued message one place up or down the line.
    *
@@ -4559,9 +4583,46 @@ export const useAi = create<AiStore>((set0, get) => {
     return true;
   },
   kirimAntrian: async (idx, composerId = '', opts) => {
-    const pos = posisiAntrian(get().antrians[composerId] ?? [], idx);
-    const item = (get().antrians[composerId] ?? [])[pos];
+    /* Satu pengiriman per permukaan (lihat `sedangKirimAntrian`). */
+    if (sedangKirimAntrian.has(composerId)) return false;
+    sedangKirimAntrian.add(composerId);
+    try {
+      return await get()._kirimAntrianSatu(idx, composerId, opts);
+    } finally {
+      sedangKirimAntrian.delete(composerId);
+    }
+  },
+
+  /**
+   * Kirim SATU baris antrean untuk satu permukaan.
+   *
+   * Baris DIAMBIL dari antrean lebih dulu, baru dikirim, lalu dikembalikan ke
+   * depan kalau `send` menolak - bukan dihapus setelah `send`, yang membuka
+   * jendela balapan antar-drain (pesan terkirim dua kali).
+   */
+  _kirimAntrianSatu: async (
+    idx: number | string,
+    composerId = '',
+    opts?: { sekarang?: boolean },
+  ): Promise<boolean> => {
+    const daftar = get().antrians[composerId] ?? [];
+    const pos = posisiAntrian(daftar, idx);
+    const item = pos >= 0 ? daftar[pos] : undefined;
     if (!item) return false;
+
+    /*
+     * AMBIL DULU, kirim belakangan.
+     *
+     * Inilah perbaikan duplikat: selama baris masih duduk di antrean, drain
+     * berikutnya (chunk selesai, akhir run, atau klik pengguna) membacanya
+     * sebagai kepala dan mengirim teks yang sama untuk kedua kalinya. Dengan
+     * diambil di sini, baris itu hanya bisa dikirim oleh pemanggil ini.
+     */
+    const sisaAwal = daftar.filter((entry) => entry !== item);
+    set((s) => ({
+      antrians: { ...s.antrians, [composerId]: sisaAwal },
+      ...(composerId === '' ? { antrian: sisaAwal } : {}),
+    }));
 
     /*
      * Tombol kirim per baris (`sekarang`): kalau giliran permukaan ini masih
@@ -4630,16 +4691,20 @@ export const useAi = create<AiStore>((set0, get) => {
      * queued it and its reply does not surface in the other panel.
      */
     const terkirim = await get().send(item.teks, item.images, composerId);
-    if (terkirim) {
-      /* Removed by IDENTITY, so two identical texts in the queue do not both
-         disappear when only one of them was sent. */
-      set((s) => {
-        const sisa = (s.antrians[composerId] ?? []).filter((entry) => entry !== item);
-        return {
-          antrians: { ...s.antrians, [composerId]: sisa },
-          ...(composerId === '' ? { antrian: sisa } : {}),
-        };
-      });
+    if (!terkirim) {
+      /*
+       * GAGAL (mis. belum ada API key): kembalikan ke DEPAN antrean, jangan
+       * hilang. Baris sudah diambil sebelum `send`, jadi tanpa ini kegagalan
+       * kirim akan menghapus pesan pengguna diam-diam.
+       */
+      const kini = get().antrians[composerId] ?? [];
+      if (!kini.includes(item)) {
+        const pulang = [item, ...kini];
+        set((s) => ({
+          antrians: { ...s.antrians, [composerId]: pulang },
+          ...(composerId === '' ? { antrian: pulang } : {}),
+        }));
+      }
     }
     return terkirim;
   },
