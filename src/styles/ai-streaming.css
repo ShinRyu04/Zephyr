@@ -719,7 +719,15 @@
   gap: 2px;
   flex-shrink: 0;
   margin-left: auto;
-  opacity: 0;
+  /*
+   * 0.6, bukan 0.
+   *
+   * Tombol kirim per baris adalah aksi yang dicari pembaca saat antrean berisi;
+   * menyembunyikannya total sampai hover membuatnya "tidak ada" di layar sentuh
+   * dan di mata yang tidak menyapu barisnya. Redup tapi terlihat, penuh saat
+   * baris disentuh - keseimbangan yang sama dengan kontrol baris lain.
+   */
+  opacity: 0.6;
   transition: opacity 120ms ease;
 }
 
