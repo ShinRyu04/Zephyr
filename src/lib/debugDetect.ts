@@ -71,6 +71,16 @@ const C_CPP: DeteksiDebug = {
     name: 'Debug Current File (C/C++)',
     program: path.replace(/\.[^./\\]+$/, '.exe'),
     cwd: path.replace(/[\\/][^\\/]+$/, ''),
+    /*
+     * `integratedTerminal`, not the default REPL console.
+     *
+     * The debug console shows program output but is NOT the program's stdin:
+     * typing there only reaches the debugger as an expression, so a beginner
+     * program that does `cin >>` sits forever with no way to answer it (the
+     * exact complaint "output tidak bisa diketik"). With this, the debuggee
+     * gets a real console and typing works - the same default VS Code uses.
+     */
+    console: 'integratedTerminal',
   }),
 };
 

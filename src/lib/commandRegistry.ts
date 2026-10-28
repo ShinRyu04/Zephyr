@@ -1768,8 +1768,15 @@ export const COMMANDS: CommandDef[] = [
       return resepUntuk(tab?.path ?? null) !== null;
     },
     run: async () => {
-      usePanel.getState().focusTab('output');
-      await useRun.getState().jalankan();
+      /*
+       * `jalankan()` decides the path: a program that may need a keyboard runs
+       * in a terminal pane and focuses the TERMINAL itself, so focusing Output
+       * here first would steal the focus back from the pane it just opened -
+       * and the reader would type into a read-only log again.
+       */
+      const ok = await useRun.getState().jalankan();
+      if (!ok) return;
+      if (!useRun.getState().paneId) usePanel.getState().focusTab('output');
     },
   },
   {
