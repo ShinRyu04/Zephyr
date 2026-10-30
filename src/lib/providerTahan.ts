@@ -501,7 +501,7 @@ export function pesanTunggu(p: {
  * the tests all quote the same numbers: 70 attempts and 60 successful requests
  * per 60 s per credential.
  */
-export const JENDELA_PROVIDER = { detik: 60, maksPercobaan: 70, maksSukses: 60 } as const;
+export const JENDELA_PROVIDER = { detik: 60, maksPercobaan: 1000, maksSukses: 1000 } as const;
 
 /**
  * ONE sentence for the end of a failed turn: the cause, how many attempts, which

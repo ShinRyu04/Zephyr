@@ -22,6 +22,8 @@ const SearchEditorView = lazy(() => import('../explorer/SearchEditorView'));
 const DiffViewTab = lazy(() => import('../ai/DiffViewTab'));
 const PlanTab = lazy(() => import('../ai/PlanTab'));
 const SubAgentTab = lazy(() => import('../ai/SubAgentTab'));
+const ExpertsTaskTab = lazy(() => import('../ai/ExpertsTaskTab'));
+const ExpertsCanvas = lazy(() => import('../ai/ExpertsCanvas'));
 /*
  * The Browser is a tab, not a pane. It is deliberately NOT lazy: the child
  * webview it owns is created from a measured rect, and a chunk that arrives a
@@ -226,6 +228,26 @@ function EditorPane({ gid }: { gid: string }) {
             <ErrorBoundary nama="SubAgentTab">
               <Suspense fallback={null}>
                 <SubAgentTab />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'experts-task' ? (
+          /*
+           * Tab "Task N: <judul>" — satu tab per tugas worker Experts;
+           * `ekspertId` di tab-lah yang menentukan isinya, bukan view.
+           */
+          <div className="ai-view-tab" data-testid="ai-view-tab-experts-task">
+            <ErrorBoundary nama="ExpertsTaskTab">
+              <Suspense fallback={null}>
+                <ExpertsTaskTab ekspertId={tab.ekspertId ?? ''} />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        ) : tab?.view === 'experts-canvas' ? (
+          <div className="ai-view-tab" data-testid="ai-view-tab-experts-canvas">
+            <ErrorBoundary nama="ExpertsCanvas">
+              <Suspense fallback={null}>
+                <ExpertsCanvas runId={tab.ekspertId ?? ''} />
               </Suspense>
             </ErrorBoundary>
           </div>

@@ -4,7 +4,6 @@ import {
   extractCommand,
   isDestructive,
   IMAGE_MAX_BYTES,
-  type AntrianPesan,
   type AgentSurfaceState,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
@@ -42,28 +41,29 @@ import AskUserCard from './AskUserCard';
 import { activeSelection } from '../../lib/editorRegistry';
 import ChatMessage from './ChatMessage';
 import PerubahanBerkas from './PerubahanBerkas';
-import UbahReview from './UbahReview';
+/* Kartu-kartu review DI DALAM alur chat: antrean, todos, dan subagent hidup
+   (menggantikan work-stack lama yang menumpuk di atas composer). */
+import KartuAntrean from './KartuAntrean';
+import KartuTodos from './KartuTodos';
+import KartuProgresExperts from './KartuProgresExperts';
+import SubAgenHidup from './SubAgenHidup';
+import { useExperts } from '../../lib/expertsStore';
+import { IkonAhli } from './expertsBuka';
 import { DayDivider } from './ChatStamp';
 import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import BrowserContextChip from './BrowserContextChip';
-import { ModeMenu, PermissionMenu } from './ModeMenu';
+import { ModeMenu, PermissionMenu, TierMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
 import { useDragPopup } from '../../lib/useDragPopup';
 import AiIkon from './AiIkon';
 import ZephyrLogo from '../shell/ZephyrLogo';
-import { useSched, useSchedBuka } from '../../lib/schedStore';
-import { useSubAgent } from '../../lib/subagentStore';
+import { useSchedBuka } from '../../lib/schedStore';
 import { useGit } from '../../lib/gitStore';
 import { runCommand } from '../../lib/commandRegistry';
-/* `SubAgentInfo` tidak diimpor lagi: popover subagent di kepala panel sudah
-   dibuang, dan isinya kini tampil di tumpukan status atas kotak input. Berkas
-   komponennya sengaja TIDAK dihapus - ia masih dipakai di tempat lain. */
-import ThinkingBar from './ThinkingBar';
-import StatusArea from './StatusArea';
 
 
 /*
@@ -94,16 +94,15 @@ const PESAN_KOSONG: ChatMsg[] = [];
 function kartuPesan(m: ChatMsg, permukaan: 'main' | 'agents'): React.ReactNode {
   if (!m.perubahan || m.perubahan.length === 0) return null;
   return (
-    <PerubahanBerkas key={`ubah-${m.id}`} daftar={m.perubahan} permukaan={permukaan} />
+    <PerubahanBerkas
+      key={`ubah-${m.id}`}
+      daftar={m.perubahan}
+      permukaan={permukaan}
+      checkpoint={m.checkpoint}
+      cardKey={m.id}
+    />
   );
 }
-
-/*
- * Same trick for the per-surface queue: a stable empty array, so the selector's
- * output does not change identity on every store write. A panel that has never
- * queued anything reads this on every render.
- */
-const ANTRIAN_KOSONG: AntrianPesan[] = [];
 
 /*
  * A surface with no run at all. A frozen constant, not an object literal inside
@@ -277,6 +276,12 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    */
   const activeId = useAi((s) => s.activeIds[composerId] ?? null);
   /*
+   * Sesi aktif dengan fallback ke sesi UTAMA store untuk panel kolom kanan
+   * (`activeIds['']` belum tentu terisi). Ini yang dipakai mengikat batch
+   * subagent ke sesi yang memulainya (lihat `SubAgenHidup`).
+   */
+  const sid = useAi((s) => s.activeIds[composerId] ?? (composerId === '' ? s.activeId : null));
+  /*
    * This SURFACE's run state. The three flat values are the primary surface's
    * mirror; each panel reads its own record so a run started in the editor does
    * not put the column's Send button into Stop or fill the column's queue.
@@ -294,8 +299,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const draftImages = useAi((s) => s.draftImages);
   const toast = useAi((s) => s.toast);
   const confirmCmd = useAi((s) => s.confirmCmd);
-  /* The "Thinking … 12s" strip. OFF by default; see aiStore. */
-  const showThinkingBar = useAi((s) => s.showThinkingBar);
 
   /*
    * Bound to THIS instance's composer id, so every `setDraft` call below writes
@@ -312,23 +315,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   const removeDraftImage = useAi((s) => s.removeDraftImage);
   const setToast = useAi((s) => s.setToast);
   const setConfirmCmd = useAi((s) => s.setConfirmCmd);
-  const antrian = useAi((s) => s.antrians[composerId] ?? ANTRIAN_KOSONG);
-  const buangAntrian = useAi((s) => s.buangAntrian);
-  const kosongkanAntrian = useAi((s) => s.kosongkanAntrian);
-  const kirimAntrian = useAi((s) => s.kirimAntrian);
-  const naikkanAntrian = useAi((s) => s.naikkanAntrian);
-  const turunkanAntrian = useAi((s) => s.turunkanAntrian);
-  /*
-   * Whether the task list has anything to show.
-   *
-   * Read as a primitive count rather than the array itself: zustand v5
-   * compares selector results with `===`, and returning `s.agentTodos` is fine
-   * only because the store keeps that array identity stable. A count is immune
-   * to the phase-09 trap either way, and it is all this needs - the stack is
-   * kept on screen when the plan exists even if nothing else is running, so a
-   * plan does not vanish the moment the run pauses.
-   */
-  const todosAda = (useAi((s) => s.agentStates[composerId]?.todos.length) ?? 0) > 0;
   /*
    * The branch the workspace is on, shown in the composer.
    *
@@ -340,7 +326,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * chip rather than printing an empty one.
    */
   const gitBranch = useGit((s) => (s.status?.isRepo ? s.status?.branch ?? null : null));
-  const ubahAntrian = useAi((s) => s.ubahAntrian);
   const cancel = useAi((s) => s.cancel);
   const lanjutkanAgent = useAi((s) => s.lanjutkanAgent);
   /* A checkpoint belongs to one conversation; the surface showing that
@@ -387,12 +372,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
    * panel on every store write.
    */
   const kosong = useAi((s) => s.agentStates[composerId]) ?? AGENT_KOSONG;
-  const agentPhase = kosong.phase;
-  const agentCurrentTool = kosong.currentTool;
-  const agentStepIndex = kosong.stepIndex;
-  const agentStepLimit = kosong.stepLimit;
-  const agentLastProgressAt = kosong.lastProgressAt;
-  const agentStartedAt = kosong.startedAt;
   const agentConfirm = kosong.confirm;
   /* Dispatch is the agent, always - chat was retired, so this panel no longer
      switches on the mode; it only reads the run's own record (above). */
@@ -419,99 +398,6 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   }, [agentTanya]);
 
   const sibuk = pending || agentBusy;
-  const [progressNow, setProgressNow] = useState(() => Date.now());
-  const [loopBuka, setLoopBuka] = useState(false);
-  const [backgroundBuka, setBackgroundBuka] = useState(false);
-  /*
-   * The queue opens expanded.
-   *
-   * It used to start collapsed, which kept the composer short but meant a
-   * queued message was invisible until you clicked the header - the count said
-   * "3 Queued" while the three messages stayed hidden. Hermes shows the queued
-   * items themselves (`session-control-queue.tsx` renders the chip rail, not
-   * just a count), and the point of parking a message is being able to see it
-   * is parked. Collapsing is still one click away for a long queue.
-   */
-  const [cqLipat, setCqLipat] = useState(false);
-  /*
-   * `subagentsSibuk` tidak lagi dipakai header.
-   *
-   * Popover subagent di kepala panel sudah dibuang - isinya pindah ke
-   * tumpukan status di atas kotak input. Jadi yang tersisa di sini hanya daftar
-   * agennya, untuk menghitung berapa yang sedang jalan.
-   */
-  const subagents = useSubAgent((s) => s.agents);
-  const jadwal = useSched((s) => s.daftar);
-  const muatJadwal = useSched((s) => s.muat);
-  const subagentsAktif = subagents.filter((a) => a.status === 'jalan' || a.status === 'menunggu');
-  const jadwalAktif = jadwal.filter((j) => j.enabled);
-  const backgroundCount = subagentsAktif.length + jadwalAktif.length;
-  /*
-   * The HydraFusion stage running right now, if any.
-   *
-   * Read from the store rather than passed down: the runner reports it from
-   * inside the send path, which has no access to this component's props - and
-   * a prop would have to be threaded through every render between them.
-   */
-  const hydraTahap = useAi((s) => s.hydraTahap);
-  /*
-   * Prompt and cadence for the loop section.
-   *
-   * Hermes shows the loop's own prompt and cadence inside the section body
-   * (apps/desktop/src/app/chat/composer/status-stack/session-control-loop.tsx):
-   * the reader asked for this run and should see WHAT it was asked to do, not
-   * just that a loop exists. Zephyr has no loop scheduler yet, so the prompt is
-   * the message that started the current run and the cadence is self-paced by
-   * definition - the agent works until its task list is done rather than on a
-   * timer. Reading them from real state keeps the row honest: when a scheduled
-   * loop arrives, only `cadence` changes.
-   */
-  /* Jejak tool: hanya beberapa terakhir yang dirender, sisanya diringkas. */
-  /*
-   * Gelombang 3: the status stack used to render even when every counter was
-   * zero. `stackKosong` lets the whole block leave the DOM instead of drawing
-   * four rows that only say "nothing is happening".
-   *
-   * The loop row is excluded on purpose after a run ends. It used to linger as
-   * "Loop finished · 1 runs" above the composer, occupying a full row to say
-   * that something had stopped - the reader can see that from the transcript
-   * itself, and the finished bar pushed the composer down for no information.
-   * The row (and its step detail) now exists only while the loop is running,
-   * which is when the progress it shows is still news.
-   */
-  const stackKosong = !sibuk && backgroundCount === 0 && antrian.length === 0;
-
-  useEffect(() => {
-    if (!sibuk || !agentLastProgressAt) return;
-    setProgressNow(Date.now());
-    const timer = window.setInterval(() => setProgressNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [sibuk, agentLastProgressAt]);
-
-  useEffect(() => {
-    void muatJadwal();
-  }, [muatJadwal]);
-
-  const agentPhaseLabel = tr({
-    idle: pending ? 'Waiting for answer' : 'Ready',
-    thinking: 'Thinking',
-    'running-tool': 'Running tool',
-    'waiting-confirmation': 'Waiting for confirmation',
-    cancelling: 'Cancelling',
-  }[agentPhase]);
-  const progressElapsed = agentLastProgressAt ? Math.max(0, Math.floor((progressNow - agentLastProgressAt) / 1000)) : 0;
-  // Elapsed wall time since the run started, plus a rough ETA from the mean
-  // step cost so far. Uses completed steps only: dividing by the in-flight
-  // step would drag the average toward zero at the start of every step.
-  const runElapsedSec = sibuk && agentStartedAt ? Math.max(0, Math.floor((progressNow - agentStartedAt) / 1000)) : 0;
-  const doneSteps = Math.max(0, agentStepIndex - 1);
-  const avgStepSec = sibuk && agentStartedAt && doneSteps > 0
-    ? Math.max(1, Math.round((progressNow - agentStartedAt) / 1000 / doneSteps))
-    : 0;
-  const etaSec = avgStepSec > 0 ? avgStepSec * Math.max(0, agentStepLimit - agentStepIndex) : 0;
-  const fmtDur = (detik: number) => detik >= 3600
-    ? `${Math.floor(detik / 3600)}:${String(Math.floor(detik % 3600 / 60)).padStart(2, '0')}:${String(detik % 60).padStart(2, '0')}`
-    : `${Math.floor(detik / 60)}:${String(detik % 60).padStart(2, '0')}`;
 
   const provider = useAi((s) => s.provider);
   const keys = useAi((s) => s.keys);
@@ -622,6 +508,27 @@ const bukaModels = () => bukaPanel('models');
   const jumlahPesan = useAi((s) => s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.messages.length ?? 0);
 
   /*
+   * Dunia mode yang sedang aktif. Experts Mode adalah ruang kerja TIM: isinya
+   * hanya kartu rencana, timeline, Task Progress, dan Canvas. Kartu status
+   * permukaan (antrean, To-dos, fold subagent) milik Agent/Chat dan TIDAK boleh
+   * ikut tampil di sana. Dua nilai ini primitif supaya selector tidak membuat
+   * objek baru (aturan zustand v5).
+   */
+  const expertsAktif = useStore((s) => s.settings.agents?.agentAktif === 'experts');
+  const antrianAda = useAi((s) => (s.antrians[composerId] ?? []).length > 0);
+  /*
+   * True = pesan berikutnya menjadi ARAHAN untuk tim yang sedang jalan, bukan
+   * goal baru. Primitif (boolean) supaya selector tidak membuat objek baru.
+   *
+   * Tanpa indikator ini `send()` diam-diam mengubah pesan jadi steering dan
+   * user tidak punya cara tahu — pesannya masuk chat, worker yang sudah
+   * berjalan tidak menerimanya, dan yang terlihat hanya "kok tidak dikerjakan".
+   */
+  const runDiSteer = useExperts((s) =>
+    s.runs.some((r) => r.sessionId === sid && r.status === 'jalan'),
+  );
+
+  /*
    * Derived values that only decide WHICH action a button offers. Each is a
    * PRIMITIVE (string / number), so zustand v5's `===` comparison re-renders
    * the panel only when the value actually changes - not on every streamed
@@ -632,18 +539,8 @@ const bukaModels = () => bukaPanel('models');
   const judulSesi = useAi(
     (s) => s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.title ?? '',
   );
-  /* The last user message's text, for the loop strip. */
-  const loopPrompt = useAi((s) => {
-    const m = s.sessions.find((x) => x.id === (s.activeIds[composerId] ?? null))?.messages;
-    if (!m) return '';
-    for (let i = m.length - 1; i >= 0; i -= 1) {
-      if (m[i].role === 'user') return (m[i].content ?? '').trim();
-    }
-    return '';
-  });
-  /*
-   * The command from the newest assistant answer, for the "Run in Terminal"
-   * bar. Extracted inside the selector so the panel subscribes to a STRING:
+  /* The command from the newest assistant answer, for the "Run in Terminal"
+     bar. Extracted inside the selector so the panel subscribes to a STRING:
    * the derived command is stable while the answer streams (it only changes
    * when a fenced bash block is complete), so this does not re-render per
    * token the way subscribing to the message object would.
@@ -958,23 +855,6 @@ const bukaModels = () => bukaPanel('models');
    * "@" and only appeared after an unrelated re-render.
    */
   const [kursor, setKursor] = useState(0);
-  /*
-   * The chip being edited, and the text in its field.
-   *
-   * Clicking a chip's text swaps it for an input in place, so the queue does not
-   * have to be torn down to fix one word. The index is held rather than a flag
-   * per chip because only one chip may be open at a time — turning a second one
-   * into an input while the first is still open would leave two fields
-   * competing for the same commit. -1 means "none".
-   */
-  /*
-   * Identitas baris antrian memakai id stabil milik item, bukan indeks array.
-   * Dulu `cqEdit` menyimpan indeks: begitu baris dinaikkan/diturunkan, indeks
-   * yang sama menunjuk pesan lain sehingga draft bisa tersimpan ke pesan yang
-   * salah. Item lama yang belum punya id jatuh ke indeks sebagai cadangan.
-   */
-  const [cqEdit, setCqEdit] = useState<number | string | null>(null);
-  const [cqDraft, setCqDraft] = useState('');
   /*
    * When the draft grows, the caret is assumed to be at the end unless the
    * textarea has reported otherwise. Without this the first "@" typed by any
@@ -1629,20 +1509,53 @@ const bukaModels = () => bukaPanel('models');
              * three lines are Zephyr's own - they describe what this agent
              * actually does here rather than repeating the reference's list.
              */}
-            <div className="ai-intro" data-testid="ai-intro">
-              <div className="ai-intro-head">
+            {expertsAktif ? (
+              /*
+               * Hero Experts Mode (Qoder "Ship with Experts"): mark di atas,
+               * judul besar, satu paragraf, lalu tiga use case berikon. Rata
+               * kiri seperti produk rujukan — bukan tengah seperti hero Agent.
+               */
+              <div className="ai-intro is-experts" data-testid="ai-intro">
                 <span className="ai-intro-z" aria-hidden="true">
-                  <ZephyrLogo size={22} glyphOnly />
+                  <ZephyrLogo size={26} glyphOnly />
                 </span>
-                <span className="ai-intro-judul">{tr('Agent')}</span>
+                <span className="ai-intro-judul">{tr('Ship with Experts')}</span>
+                <p className="ai-intro-tagline">
+                  {tr(
+                    'Deliver your code seamlessly with Zephyr Experts, ensuring top-notch quality and efficiency.',
+                  )}
+                </p>
+                <ul className="ai-intro-poin is-usecase">
+                  <li>
+                    <IkonAhli id="fullstack" size={13} />
+                    {tr('Full-stack feature development')}
+                  </li>
+                  <li>
+                    <IkonAhli id="researcher" size={13} />
+                    {tr('Technical solution research')}
+                  </li>
+                  <li>
+                    <IkonAhli id="debug" size={13} />
+                    {tr('Complex issue diagnosis & fix')}
+                  </li>
+                </ul>
               </div>
-              <p className="ai-intro-tagline">{tr('Deep understanding of complex tasks')}</p>
-              <ul className="ai-intro-poin">
-                <li>{tr('Reads your workspace and works in real files')}</li>
-                <li>{tr('Runs commands, tests and fixes in one turn')}</li>
-                <li>{tr('Keeps every change reviewable before it lands')}</li>
-              </ul>
-            </div>
+            ) : (
+              <div className="ai-intro" data-testid="ai-intro">
+                <div className="ai-intro-head">
+                  <span className="ai-intro-z" aria-hidden="true">
+                    <ZephyrLogo size={22} glyphOnly />
+                  </span>
+                  <span className="ai-intro-judul">{tr('Agent')}</span>
+                </div>
+                <p className="ai-intro-tagline">{tr('Deep understanding of complex tasks')}</p>
+                <ul className="ai-intro-poin">
+                  <li>{tr('Reads your workspace and works in real files')}</li>
+                  <li>{tr('Runs commands, tests and fixes in one turn')}</li>
+                  <li>{tr('Keeps every change reviewable before it lands')}</li>
+                </ul>
+              </div>
+            )}
           </div>
         ) : (
           /*
@@ -1713,6 +1626,21 @@ const bukaModels = () => bukaPanel('models');
           <AskUserCard tanya={agentTanya} onJawab={jawabTanya} tr={tr} tf={tf} />
         )}
 
+        {/*
+          * Fold "Bekerja untuk Ns" — subagent yang HIDUP untuk sesi ini,
+          * DI DALAM alur chat (gaya ZCode). Bukan di atas composer: dia
+          * memang bagian dari percakapan yang sedang berlangsung.
+          */}
+        {!expertsAktif && (
+          <SubAgenHidup permukaan={composerId === 'agents' ? 'agents' : 'main'} sessionId={sid} />
+        )}
+
+        {/*
+          * Pembagian zona (ala Qoder): fold subagent DI DALAM alur chat — dia
+          * bagian dari percakapan; antrean + To-dos DI ATAS COMPOSER — mereka
+          * status permukaan, bukan isi percakapan (lihat mount di bawah,
+          * sebelum .ai-input-row).
+          */}
       </div>
 
       {/*
@@ -1749,585 +1677,67 @@ const bukaModels = () => bukaPanel('models');
       )}
 
       {/*
-        * Gelombang 3: the status stack only exists while something is actually
-        * happening. Before this it always rendered four rows of zeroes ("Loop
-        * idle, 0 runs", "0 Background, 0 running subagents, 0 scheduled jobs",
-        * "0 Queued"), which read as broken instead of idle. Each section keeps
-        * its own guard so one active row cannot drag the empty ones back.
-        */}
-      {/*
-        * One stack, one card.
-        *
-        * Hermes keeps every status group - the session loop, the todo tree,
-        * subagents, background processes, the queue - inside a SINGLE stack
-        * (apps/desktop/src/app/chat/composer/status-stack/index.tsx pushes each
-        * group into one `sections` array and renders them in one surface). The
-        * stack owns the rounded top and the composer below owns the body, so
-        * the two read as one card.
-        *
-        * Zephyr rendered the task list as its own separate card above the
-        * composer (`<TodoPanel />` as a sibling), so the panel showed two
-        * unrelated boxes stacked on top of each other. The task list is now a
-        * section INSIDE this stack, which is what makes it fold together with
-        * the loop above it.
-        */}
-
-      {(!stackKosong || todosAda) && (
-      <div className="ai-work-stack" data-testid="ai-work-stack">
-        {sibuk && (
-        <section className="ai-work-section" data-testid="ai-work-stack-loop">
-          {/*
-            * Header row: trigger + action menu on ONE line.
-            *
-            * Hermes' `status-section.tsx` does exactly this - the header is
-            * `flex items-center gap-1 pr-1`, the trigger is
-            * `flex min-w-0 flex-1`, and the accessory (the ellipsis menu) is
-            * `shrink-0` at the end of the same row. Without the row wrapper the
-            * trigger hugged its text and the menu dropped to a line of its own,
-            * so the header showed a wide empty band with a stray `⋯` floating
-            * at its right edge.
-            */}
-          <div className="ai-work-head">
-          <button
-            className="ai-work-summary"
-            aria-expanded={loopBuka}
-            aria-controls="ai-work-loop-body"
-            onClick={() => setLoopBuka((v) => !v)}
-          >
-            {/*
-             * Chevron PINDAH ke kanan teks, dan judulnya menyatu dengan
-             * jumlahnya.
-             *
-             * Dulu chevronnya menempel di ujung kanan baris, jauh dari teks
-             * yang dibukanya - sehingga hubungan antara panah dan judulnya
-             * hilang, dan baris selebar panel terbaca sebagai tiga hal
-             * terpisah yang kebetulan sebaris. Pola Hermes
-             * (`components/chat/disclosure-row.tsx`) menaruh caret tepat di
-             * sebelah judulnya, di dalam tombol yang lebarnya mengikuti
-             * teksnya: "max-w-fit so the click target hugs the title text
-             * width - no background fill, just the cursor + the affordance
-             * caret".
-             *
-             * Yang membuatnya terbaca sebagai satu kesatuan: caret duduk di
-             * sebelah kanan judul, judul dan jumlahnya berbagi satu baris tanpa
-             * pemisah terpisah, dan hover-nya hanya selebar teks itu.
-             */}
-            {/*
-              * Header row shaped like Hermes', left to right:
-              * caret, status icon, label, then the count.
-              *
-              * Hermes' StatusSection (components/chat/status-section.tsx) puts
-              * the disclosure caret FIRST, then the glyph, then the label, and
-              * colours the glyph by state - muted when the loop is done,
-              * emerald while it runs (session-control-loop.tsx `iconClass`).
-              * Zephyr had the caret on the right and a status dot on the left,
-              * which reads as a different widget next to the Background and
-              * Queue rows. Matching the order and the icon is what makes the
-              * three rows scan as one stack.
-              */}
-            <span className="ai-work-caret" aria-hidden="true">
-              {loopBuka ? '▾' : '▸'}
-            </span>
-            <span
-              /* Inside the `sibuk` guard above, so there is no finished state to
-                 paint here: the row does not outlive the run. */
-              className="ai-work-glyph is-running"
-              aria-hidden="true"
-            >
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9L14 6m0-4v4h-4" />
-              </svg>
-            </span>
-            <span className="ai-work-title">
-              {/* Ada loop sungguhan maupun tidak, baris ini berarti "satu run
-                  sedang jalan" - jadi labelnya pun begitu. Versi lama menulis
-                  "Loop running" pada SETIAP run biasa, dan menghitung langkah
-                  sebagai "runs", sehingga user mengira ada loop terjadwal. */}
-              {tr('Thinking')}
-            </span>
-          </button>
-          </div>
-          {/*
-            * Which HydraFusion stage is running RIGHT NOW.
-            *
-            * The layered-streaming problem: a critique-and-revise run is three
-            * requests, and only the last one streams into the transcript. Two
-            * of the three produce nothing the reader can see, so without this
-            * row the panel looks idle for the length of two whole answers - it
-            * is the same "is it stuck or is it working" question the loop timer
-            * answers for a normal run. It carries the honest denominator
-            * (`total`) rather than the cost cap, and it exists only while the
-            * run does: it is a state, not a receipt.
-            */}
-          {hydraTahap && (
-            <div
-              className="ai-work-hydra"
-              data-testid="ai-work-hydra"
-              title={[
-                `HydraFusion phase: ${tf(hydraTahap.peran === 'draft' ? 'Main pass' : hydraTahap.peran === 'kritik' ? 'Review' : 'Revision', {})}`,
-                `Phase is running`,
-                `Model: ${hydraTahap.model}`,
-                `Route: ${hydraTahap.jalur} (${hydraTahap.request} of ${hydraTahap.total})`,
-                hydraTahap.catatan,
-              ]
-                .filter(Boolean)
-                .join('\n')}
-            >
-              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M8 1.8 14 5 8 8.2 2 5z" />
-                <path d="M2.6 8.4 8 11.4l5.4-3" />
-                <path d="M2.6 11.4 8 14.4l5.4-3" />
-              </svg>
-              <span data-testid="ai-work-hydra-tahap">
-                {`${tf(hydraTahap.peran === 'draft' ? 'Main pass' : hydraTahap.peran === 'kritik' ? 'Review' : 'Revision', {})} · ${hydraTahap.model}`}
-              </span>
-              <span className="ai-work-meta" data-testid="ai-work-hydra-peran">
-                {`${tf('Stage {n} of {m}', { n: hydraTahap.request, m: hydraTahap.total })}${runElapsedSec > 0 ? ` · ${fmtDur(runElapsedSec)}` : ''}`}
-              </span>
-            </div>
-          )}
-          {loopBuka && (
-            <div id="ai-work-loop-body" className="ai-work-body" role="status" data-testid={sibuk ? 'ai-agent-progress' : undefined}>
-              {/*
-               * Gelombang 4: bar ini menggantikan baris teks diam yang hanya
-               * menuliskan 'ThinkingStep 4/120'. Ia menyala HANYA saat sibuk,
-               * memutar status yang bisa dibaca manusia setiap 6 detik, dan
-               * menghitung detik berjalan supaya user tahu ia masih hidup -
-               * bukan macet.
-               */}
-              {sibuk && showThinkingBar && (
-                <ThinkingBar
-                  active
-                  startedAt={agentLastProgressAt ?? undefined}
-                  statuses={[
-                    tr('Reading the files that matter'),
-                    tr('Planning the next step'),
-                    tr('Working through the workspace'),
-                    tr('Writing the change'),
-                    tr('Checking the result'),
-                  ]}
-                  tr={tr}
-                  tf={tf}
-                />
-              )}
-              {/*
-                * The loop's own prompt, then its cadence.
-                *
-                * Hermes renders both rows inside the loop section
-                * (session-control-loop.tsx): a `comment` row with the prompt and
-                * a `clock` row with `Cadence: self-paced`. Without the prompt
-                * the section only says a loop happened; the reader cannot tell
-                * WHAT it was working on without scrolling up to find the
-                * message that started it. Self-paced is the accurate cadence
-                * here - this loop runs until the agent's task list is done, not
-                * on a timer - so it is stated rather than left blank.
-                */}
-              {loopPrompt && (
-                <div className="ai-work-prompt" data-testid="ai-work-prompt">
-                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-                    <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />
-                  </svg>
-                  <span>{loopPrompt}</span>
-                </div>
-              )}
-              <div className="ai-work-cadence" data-testid="ai-work-cadence">
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-                  <circle cx="8" cy="8" r="5.5" />
-                  <path d="M8 5v3l2 1.5" />
-                </svg>
-                <span>{tr('Cadence')}: {tr('self-paced')}</span>
-              </div>
-              <div className="ai-work-detail">
-                <span>{agentPhaseLabel}</span>
-                {/*
-                  * "Progress 2 of 120" DIGANTI, bukan diterjemahkan.
-                  *
-                  * Angka itu adalah batas langkah internal agen, dan bagi user
-                  * tidak berarti apa-apa: "2 dari 120" membuat pekerjaan
-                  * terlihat seperti baru 2% selesai padahal langkah berikutnya
-                  * bisa jadi yang terakhir. Batas itu juga plafon keamanan,
-                  * bukan rencana - agen yang selesai di langkah 3 dari 120
-                  * sudah SELESAI, bukan 2,5% jadi.
-                  *
-                  * Yang berguna bagi user adalah sudah berapa langkah
-                  * DIKERJAKAN. Plafonnya hanya disebut kalau sudah mendekati,
-                  * karena di situ ia benar-benar jadi peringatan.
-                  */}
-                <span className="ai-work-step" data-testid="ai-work-step">
-                  {agentStepIndex === 0
-                    ? tr('Starting')
-                    : agentStepIndex === 1
-                      ? tr('1 step done')
-                      : tf('{n} steps done', { n: agentStepIndex })}
-                  {agentStepLimit > 0 && agentStepIndex >= Math.floor(agentStepLimit * 0.8)
-                    ? ' · ' + tf('{left} steps left', { left: Math.max(0, agentStepLimit - agentStepIndex) })
-                    : ''}
-                  {runElapsedSec > 0 ? ` · ${fmtDur(runElapsedSec)}` : ''}
-                  {etaSec > 0 ? ` · ~${fmtDur(etaSec)}` : ''}
-                </span>
-                {sibuk && <span>{tf('{n}s', { n: progressElapsed })}</span>}
-              </div>
-              {agentCurrentTool && <code className="ai-work-tool">{agentCurrentTool}</code>}
-              {/*
-                * The step list moved INTO the transcript (see JejakKerja below,
-                * rendered right after PesanList). It used to live here, inside
-                * the work panel next to the composer, which split the story in
-                * two: the answer scrolled in the chat while the steps and the
-                * file diffs scrolled somewhere else. Copilot/Claude Code keep
-                * them together - the steps ARE the answer as it is being
-                * written - so the panel is shown in the conversation now.
-                */}
-            </div>
-          )}
-        </section>
-        )}
-
-        {backgroundCount > 0 && (
-        <section className="ai-work-section" data-testid="ai-work-stack-background">
-          <div className="ai-work-head">
-          <button
-            className="ai-work-summary"
-            aria-expanded={backgroundBuka}
-            aria-controls="ai-work-background-body"
-            onClick={() => setBackgroundBuka((v) => !v)}
-          >
-            <span className="ai-work-caret" aria-hidden="true">{backgroundBuka ? '▾' : '▸'}</span>
-            <span className={`ai-work-glyph${subagentsAktif.length ? ' is-running' : ' is-done'}`} aria-hidden="true">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2.5" width="12" height="5" rx="1.5" />
-                <rect x="2" y="9" width="12" height="5" rx="1.5" />
-              </svg>
-            </span>
-            <span className="ai-work-title">{tf('{n} Background', { n: backgroundCount })}</span>
-            {subagentsAktif.length > 0 && (
-              <span className="ai-work-meta">
-                · {tf('{n} running subagents', { n: subagentsAktif.length })}
-              </span>
-            )}
-            {jadwalAktif.length > 0 && (
-              <span className="ai-work-meta">
-                · {tf('{n} scheduled jobs', { n: jadwalAktif.length })}
-              </span>
-            )}
-          </button>
-          </div>
-          {backgroundBuka && (
-            <div id="ai-work-background-body" className="ai-work-body">
-              {/*
-                * Gelombang 4: one StatusArea replaces the two hand-rolled job
-                * rows. It reads the REAL subagent records (name, the task it was
-                * given, when it started, its live status) and the real scheduled
-                * jobs, and it renders nothing at all when both are empty - the
-                * section above is already gated on backgroundCount, so this can
-                * never contribute an empty shell.
-                */}
-              <StatusArea
-                subagents={{
-                  active: subagentsAktif.length > 0,
-                  items: subagentsAktif.map((agent) => ({
-                    id: agent.id,
-                    name: agent.nama,
-                    description: agent.tugas,
-                    durationMs: Date.now() - agent.mulai,
-                    status: agent.status === 'jalan' ? ('running' as const) : ('pending' as const),
-                  })),
-                }}
-                background={{
-                  active: jadwalAktif.length > 0,
-                  items: jadwalAktif.map((job) => ({
-                    id: job.id,
-                    /*
-                     * The command the job actually runs, not a friendly alias.
-                     *
-                     * This used to send `every {n} minutes`, which told the user
-                     * the schedule but never what would run - so a list of jobs
-                     * was a list of intervals that could not be told apart. The
-                     * whole point of showing a background job is knowing what is
-                     * about to happen on your machine. The interval moves into
-                     * the name slot, where it reads as a subtitle.
-                     */
-                    name: tf('every {n} minutes', { n: job.every_minutes }),
-                    command: job.command,
-                    status: 'pending' as const,
-                  })),
-                }}
-                tr={tr}
-                tf={tf}
-              />
-            </div>
-          )}
-        </section>
-        )}
-
-        {antrian.length > 0 && (
-        <section className="ai-work-section" data-testid="ai-work-stack-queue">
-          <div className="ai-cq" data-testid="ai-antrian" data-collapsed={cqLipat ? '1' : '0'}>
-            {/*
-             * The queue folds away.
-             *
-             * Hermes collapses its queue header instead of hiding the strip, and
-             * the count stays visible either way: the queue is state the user
-             * needs to remember they set up, but a long queue should not push
-             * the composer off the screen while they read the answer. Collapsed
-             * it is a single header line; expanded it is the chip rail.
-             */}
-            {/*
-              * Queue header, drawn like the Background section above it.
-              *
-              * Hermes' status stack is one list of identical disclosure rows:
-              * a status glyph, a bold title, a dim count, then the caret
-              * (status-section.tsx + session-control-queue.tsx). Zephyr's queue
-              * used a different header shape with its own icon and no status
-              * dot, so the three sections read as three unrelated widgets
-              * instead of one stack. Matching the row shape is what makes the
-              * stack scan as a single object.
-              */}
-            <div className="ai-work-head">
-            <button
-              className="ai-work-summary"
-              data-testid="ai-cq-toggle"
-              aria-expanded={!cqLipat}
-              aria-controls="ai-work-queue-body"
-              onClick={() => setCqLipat((v) => !v)}
-            >
-              <span className="ai-work-caret" aria-hidden="true">
-                {cqLipat ? '▸' : '▾'}
-              </span>
-              <span className="ai-work-glyph is-done" aria-hidden="true">
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" />
-                </svg>
-              </span>
-              <span className="ai-work-title">
-                {tf('{n} Queued', { n: antrian.length })}
-              </span>
-            </button>
-            {/*
-              * Clear-all, on the trailing edge of the header.
-              *
-              * It used to be a lone `✕` below the list, which made a row of its
-              * own and left a band of empty space under the last queued message.
-              * Hermes puts a section's bulk action in the header's accessory
-              * slot instead (`StatusSection`'s `accessory`, used by
-              * queue-panel.tsx for its Resume button), where it costs no extra
-              * height and sits with the count it acts on.
-              */}
-            <button
-              className="ai-work-menu ai-cq-clear"
-              data-testid="ai-antrian-clear"
-              title={tr('Clear the queue')}
-              aria-label={tr('Clear the queue')}
-              onClick={() => kosongkanAntrian(composerId)}
-            >
-              ✕
-            </button>
-            </div>
-            {!cqLipat && (
-              <>
-                {/*
-                  * One row per queued message, shaped like Hermes' StatusRow.
-                  *
-                  * Hermes renders each queued prompt as a full-width row
-                  * (`queue-panel.tsx`): the dismiss `✕` sits on the LEADING edge,
-                  * then a comment glyph, then the text, and the actions
-                  * (edit / send-now / reorder) sit on the trailing edge where
-                  * they only appear on hover. The queue reads top-to-bottom like
-                  * a list of sentences.
-                  *
-                  * Zephyr drew each entry as a horizontal chip in a scrolling
-                  * rail. That works for two or three short entries but breaks
-                  * down as soon as a message is long: the chip is a fixed-width
-                  * pill, so the text is clipped mid-word and the reader has to
-                  * hover to find out what they queued. A row gives the text the
-                  * whole width and wraps to a second line when it needs to.
-                  *
-                  * The row order also matches the dismissal affordance the eye
-                  * expects - `✕` first, like every other removable row in the
-                  * stack - where the chip had it trailing after two reorder
-                  * arrows.
-                  */}
-                <div className="ai-cq-list ai-review-queue" id="ai-work-queue-body" data-testid="ai-antrian">
-                  {antrian.map((a, i) => (
-                    <div
-                      className="ai-cq-row ai-review-antrian"
-                      key={a.id ?? i}
-                      data-testid={`ai-antrian-${i}`}
-                    >
-                      {/*
-                        * Bentuk baris = bentuk tab Queue di kartu review jendela
-                        * utama: nomor urut, teks, chip gambar, lalu aksi di kanan.
-                        * Dua tampilan untuk antrean yang sama membuat pembaca
-                        * harus belajar dua kali; kelasnya sekarang dibagi, dan
-                        * testid lama dipertahankan supaya harness tetap sah.
-                        */}
-                      <span className="ai-review-antrian-no" aria-hidden="true">
-                        {i + 1}
-                      </span>
-                      {a.images.length > 0 && (
-                        <span
-                          className="ai-review-antrian-img"
-                          data-testid={`ai-antrian-images-${i}`}
-                          title={tf('{n} image attachments', { n: a.images.length })}
-                          aria-label={tf('{n} image attachments', { n: a.images.length })}
-                        >
-                          <AiIkon name="image" size={11} />
-                          {a.images.length}
-                        </span>
-                      )}
-                      {cqEdit === (a.id ?? String(i)) ? (
-                        /*
-                         * Inline edit of one queued message.
-                         *
-                         * The field replaces the row's text rather than opening
-                         * a dialog: the queue is a list of short lines, and the
-                         * cheapest way to fix one is to type over it where it
-                         * sits. Enter or blur commits, Escape cancels, and a
-                         * blank commit keeps the original so the message cannot
-                         * be erased by clearing the box.
-                         */
-                        <input
-                          className="ai-cq-edit"
-                          data-testid={`ai-antrian-edit-${i}`}
-                          autoFocus
-                          value={cqDraft}
-                          aria-label={tr('Edit the queued message')}
-                          onChange={(e) => setCqDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            /*
-                             * The composer listens for Enter on its textarea to
-                             * send; this field is not that textarea, so the key
-                             * has to be kept from bubbling up to it or editing a
-                             * queued message would fire a whole new send.
-                             */
-                            e.stopPropagation();
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              ubahAntrian(a.id ?? i, cqDraft, composerId);
-                              setCqEdit(null);
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault();
-                              setCqEdit(null);
-                            }
-                          }}
-                          onBlur={() => {
-                            ubahAntrian(a.id ?? i, cqDraft, composerId);
-                            setCqEdit(null);
-                          }}
-                        />
-                      ) : (
-                        <span
-                          className="ai-cq-t ai-review-antrian-teks"
-                          data-testid={`ai-antrian-teks-${i}`}
-                          title={a.teks}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={tr('Edit the queued message')}
-                          onClick={() => {
-                            setCqEdit(a.id ?? String(i));
-                            setCqDraft(a.teks);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key !== 'Enter' && e.key !== ' ') return;
-                            e.preventDefault();
-                            setCqEdit(a.id ?? String(i));
-                            setCqDraft(a.teks);
-                          }}
-                        >
-                          {a.teks}
-                        </span>
-                      )}
-                      {/*
-                        * Row actions, revealed on hover - the same rule Hermes
-                        * uses for its `trailing` slot (`status-row.tsx`:
-                        * `opacity-0 group-hover/status-row:opacity-100`). Two
-                        * reorder arrows and a send arrow on every row would
-                        * out-shout the message text; hidden until the row is
-                        * hovered, they are there when wanted and invisible when
-                        * reading. Reordering is still one step at a time,
-                        * because the queue is read as a numbered list.
-                        */}
-                      <span className="ai-cq-aksi">
-                        {/*
-                          * Aksi baris = aksi tab Queue kartu review: kirim lalu
-                          * buang, selalu terlihat (bukan hanya saat hover).
-                          * Urutan panah dipertahankan karena antrean dibaca
-                          * sebagai daftar bernomor, tetapi ikonnya dikecilkan
-                          * agar sama tenangnya dengan kartu review.
-                          */}
-                        <button
-                          className={`ai-cq-send${sibuk ? ' is-sibuk' : ''}`}
-                          data-testid={`ai-antrian-kirim-${i}`}
-                          title={sibuk ? tr('Send now (stops the current turn)') : tr('Send this now')}
-                          aria-label={sibuk ? tr('Send now (stops the current turn)') : tr('Send this now')}
-                          onClick={() => void kirimAntrian(i, composerId, { sekarang: true })}
-                        >
-                          <AiIkon name="send" size={11} />
-                        </button>
-                        <button
-                          className="ai-cq-move"
-                          data-testid={`ai-antrian-naik-${i}`}
-                          title={tr('Move up in the queue')}
-                          aria-label={tr('Move up in the queue')}
-                          disabled={i === 0}
-                          onClick={() => naikkanAntrian(a.id ?? i, composerId)}
-                        >
-                          <AiIkon name="chev-up" size={11} />
-                        </button>
-                        <button
-                          className="ai-cq-move"
-                          data-testid={`ai-antrian-turun-${i}`}
-                          title={tr('Move down in the queue')}
-                          aria-label={tr('Move down in the queue')}
-                          disabled={i === antrian.length - 1}
-                          onClick={() => turunkanAntrian(a.id ?? i, composerId)}
-                        >
-                          <AiIkon name="chev-down" size={11} />
-                        </button>
-                        <button
-                          className="ai-review-antrian-buang"
-                          data-testid={`ai-antrian-hapus-${i}`}
-                          title={tr('Remove from the queue')}
-                          aria-label={tr('Remove from the queue')}
-                          onClick={() => buangAntrian(a.id ?? i, composerId)}
-                        >
-                          <AiIkon name="close" size={10} />
-                        </button>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-        )}
-
-        {/*
-          * The agent's todo list moved INTO the turn review card (`UbahReview`
-          * below, next to the composer): one card carries both the plan and the
-          * files the turn wrote, so this dock would have duplicated it.
-          */}
-      </div>
-      )}
-
-      {/*
         * The job strips sit between the work stack and the composer: a loop
-        * that is running and a goal that is set are both facts about the
+        * that is running and a goal that are both facts about the
         * session, and they stay visible while the conversation scrolls.
+        * PENTING: strip-strip ini di ATAS kartu status — bukan di antara
+        * kartu dan composer. Kalau nyelip di tengah, kartu status terdorong
+        * naik dan muncul celah misterius (pernah 39px) yang memutus
+        * sambungan kartu → composer.
         */}
       <GoalStrip composerId={composerId} />
       <LoopStrip composerId={composerId} />
 
       {/*
-        * The keep/undo decision for the turn that just finished, right above the
-        * message box: the reader answers "do I keep this?" without scrolling a
-        * long transcript first. Destination of its rows follows the surface -
-        * editor tab in the main window, right panel in the Agents window.
+        * Zona kartu status DI ATAS COMPOSER — SATU SLOT (ala Qoder).
+        *
+        * Ada pesan mengantre -> kartu Queue. Tidak ada -> kartu To-dos.
+        * Dua-duanya kosong -> tidak ada apa pun. Dulu dua kartu dipasang
+        * sekaligus, jadi satu baris status bertumpuk dua header.
+        *
+        * Experts Mode memakai slot yang SAMA, tetapi isinya Task Progress:
+        * progress tim adalah "todos"-nya Experts dan tinggal di atas composer,
+        * bukan di dalam alur chat. To-dos/Queue Agent tidak dirender di sini.
         */}
-      <UbahReview
-        permukaan={composerId === 'agents' ? 'agents' : 'main'}
-        composerId={composerId}
-      />
+      {expertsAktif ? (
+        <>
+          {/*
+            * Chip steering (C5): saat run Experts berstatus 'jalan', send()
+            * mengubah pesan berikutnya jadi ARAHAN untuk worker — bukan goal
+            * baru. Tanpa chip ini pemutasan itu tak terlihat. Ditempel di
+            * atas kartu Task Progress lewat margin (bukan kartu baru di slot
+            * status) supaya slotnya tetap SATU dan composer tidak bergeser
+            * lebih dari kartu yang memang sudah ada.
+            */}
+          {runDiSteer && (
+            <div
+              className="ai-steer-chip"
+              data-testid="ai-steer-chip"
+              title={tr('Pesan berikutnya diteruskan ke worker yang sedang berjalan')}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="10"
+                height="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2.5 8h10M9.5 5l3 3-3 3" />
+              </svg>
+              <span>{tr('Steering · run berjalan')}</span>
+            </div>
+          )}
+          <KartuProgresExperts sessionId={sid} />
+        </>
+      ) : antrianAda ? (
+        <KartuAntrean composerId={composerId} />
+      ) : (
+        <KartuTodos />
+      )}
 
       <div className="ai-input-row">
         {/*
@@ -2805,9 +2215,13 @@ const bukaModels = () => bukaPanel('models');
           data-testid="ai-input"
           rows={1}
           placeholder={
-            sibuk
-              ? tr('Agent is working…')
-              : tr('@ for context, / for commands')
+            runDiSteer
+              ? tr('Steering the team — this goes to the running workers')
+              : sibuk
+                ? tr('Agent is working…')
+                : expertsAktif
+                  ? tr('You ask, Experts deliver. @ for context, / for commands')
+                  : tr('Plan and build, @ for context, / for commands')
           }
           value={draft}
           spellCheck={false}
@@ -3177,7 +2591,7 @@ const bukaModels = () => bukaPanel('models');
             * Left group: approval, then who runs it — packed tight.
             */}
           <PermissionMenu />
-          <ModeMenu />
+          <ModeMenu composerId={composerId} />
           {(() => {
             const cu = cuSet;
             if (!cu?.showButton) return null;
@@ -3199,6 +2613,13 @@ const bukaModels = () => bukaPanel('models');
           })()}
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
+
+          {/* Tier model (D1): Auto/Efficient/Fast/Ultimate — dipetakan ke
+              model konkret per provider sebelum request keluar. Duduk di
+              sebelah ModelSelector karena keduanya menjawab pertanyaan yang
+              sama ("model mana yang keluar"), tier di depan sebagai kelas,
+              model spesifik di belakangnya. */}
+          <TierMenu />
 
           {/* The model sits directly beside Send, at the trailing edge. */}
           <ModelSelector />

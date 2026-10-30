@@ -469,7 +469,7 @@
  * pill around every control competes with the text you are typing.
  */
 .ai-input-row {
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--bg);
 }
 
@@ -1428,8 +1428,8 @@
      measured at 340px the row overflowed its own box by 111px. */
   container-type: inline-size;
   container-name: composer;
-  --ai-dock-radius: 16px;
-  border-radius: 16px;
+  --ai-dock-radius: 12px;
+  border-radius: 12px;
   /* Measured on the reference: the box is LIGHTER than the page behind it
      (#202124 on #1A1B1D, a 6-step lift) and its border is a mid grey
      (#3F4046), not a near-invisible hairline. Drawn here as a lift off

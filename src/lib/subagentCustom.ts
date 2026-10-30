@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { tx } from './i18n';
 import { useStore } from './store';
 import type { PeranId } from './subagentRoles';
 
@@ -275,7 +276,9 @@ export function arahanCustom(d: SubagentCustom, total: number): string {
     inti,
     '',
     `You may call ONLY these tools: ${alat}. Anything else is rejected.`,
-    'You cannot write or edit any file. Report findings in your final answer.',
+    d.alat.includes('multi_edit')
+      ? 'You may edit files within the scope of your task only.'
+      : 'You cannot write or edit any file. Report findings in your final answer.',
     `${total} subagent(s) are running at the same time; stay on your own task.`,
   ]
     .filter((l) => l !== '')
@@ -312,22 +315,29 @@ export const useSubagentCustom = create<CustomState>((set, get) => ({
      * while the name is still in front of them - instead of discovering later
      * that a task ran under the wrong brief.
      */
-    const namaBersih = String(data.nama ?? '').trim().toLowerCase();
+    const namaMentah = String(data.nama ?? '').trim();
+    if (namaMentah.includes(']')) {
+      useStore.getState().setStatus(tx('A custom sub-agent name cannot contain "]".'));
+      return;
+    }
+    const namaSimpan = namaMentah.slice(0, 40);
+    const dataSimpan = { ...data, nama: namaSimpan };
+    const namaBersih = namaSimpan.toLowerCase();
     if (PERAN_BAWAAN.includes(namaBersih)) {
-      useStore.getState().setStatus(`"${data.nama}" is a built-in role name - a custom sub-agent cannot take it.`);
+      useStore.getState().setStatus(`"${namaSimpan}" is a built-in role name - a custom sub-agent cannot take it.`);
       return;
     }
 
     /* Two custom workers under one name are equally ambiguous: `cariCustom`
        returns the first match, so the second is unreachable by name. */
     if (daftar.some((x) => x.id !== sunting && String(x.nama ?? '').trim().toLowerCase() === namaBersih)) {
-      useStore.getState().setStatus(`Another custom sub-agent is already called "${data.nama}".`);
+      useStore.getState().setStatus(`Another custom sub-agent is already called "${namaSimpan}".`);
       return;
     }
 
     const next = sunting
-      ? daftar.map((x) => (x.id === sunting ? { ...data, id: sunting } : x))
-      : [...daftar, { ...data, id: idBaru() }];
+      ? daftar.map((x) => (x.id === sunting ? { ...dataSimpan, id: sunting } : x))
+      : [...daftar, { ...dataSimpan, id: idBaru() }];
     // Optimistic: the list is local state the modal already reflects, so the
     // panel does not wait on the settings round trip to show the new row.
     set({ daftar: next, sunting: null, baru: false });

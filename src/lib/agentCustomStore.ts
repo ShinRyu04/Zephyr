@@ -31,6 +31,7 @@ export type AgentCustomSection =
   | 'permissions'
   | 'tools'
   | 'subagents'
+  | 'experts'
   | 'computer'
   | 'migrations';
 

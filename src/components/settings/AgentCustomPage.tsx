@@ -9,6 +9,7 @@ import AgcRulesMemories from './AgcRulesMemories';
 import AgcHooks from './AgcHooks';
 import AgcBrowser from './AgcBrowser';
 import AgcSubagents from './AgcSubagents';
+import AgcExperts from './AgcExperts';
 import AgcComputerUse from './AgcComputerUse';
 import AgcConversations from './AgcConversations';
 import AgcSkills from './AgcSkills';
@@ -99,6 +100,12 @@ const NAV: NavItem[] = [
     label: 'Subagents',
     icon: 'robot',
     desc: 'Create dedicated workers the agent can delegate to. Built-in roles and your own custom workers.',
+  },
+  {
+    id: 'experts',
+    label: 'Experts',
+    icon: 'goal',
+    desc: 'A built-in expert team: the Lead Agent splits your goal, specialists run in parallel. Disable experts, pin models, add standing instructions.',
   },
   {
     id: 'hooks',
@@ -193,6 +200,8 @@ function Isi({ section, mintaBaru }: { section: AgentCustomSection; mintaBaru?: 
       return <AgcHooks />;
     case 'subagents':
       return <AgcSubagents />;
+    case 'experts':
+      return <AgcExperts />;
     case 'computer':
       return <AgcComputerUse />;
     case 'browser':

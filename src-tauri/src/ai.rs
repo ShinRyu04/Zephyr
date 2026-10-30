@@ -381,10 +381,8 @@ fn kirim_dengan_ulang(
     prepared: &Prepared,
     attempts: usize,
 ) -> Result<ureq::http::Response<ureq::Body>, String> {
-    /* Backoff between attempts: 400ms, then 1.2s. Short enough that a healthy
-    retry is invisible, long enough that a rate-limited node has a chance to
-    clear. */
-    const JEDA_MS: [u64; 2] = [400, 1200];
+    /* Backoff between attempts: 2.0s, then 4.0s agar gateway proxy punya waktu bernapas dan tidak menembakkan 429 */
+    const JEDA_MS: [u64; 2] = [2000, 4000];
 
     let batas_percobaan = attempts.max(1);
     let retry_reasoning_deepseek = request_deepseek_tool_call(prepared);

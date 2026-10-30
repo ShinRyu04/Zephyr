@@ -174,13 +174,33 @@ interface StoreActions {
    * twice focuses rather than stacking duplicates.
    */
   bukaViewAi: (
-    view: 'ai-chat' | 'chat-settings' | 'search-editor' | 'extensions' | 'tools' | 'diff-view' | 'plan' | 'subagent' | 'browser',
+    view:
+      | 'ai-chat'
+      | 'chat-settings'
+      | 'search-editor'
+      | 'extensions'
+      | 'tools'
+      | 'diff-view'
+      | 'plan'
+      | 'subagent'
+      | 'browser'
+      | 'experts-task'
+      | 'experts-canvas',
     /*
      * `url` is only read by the `browser` view. It is how a caller says WHICH
      * page the one Browser tab should be showing; without it the tab keeps
      * whatever it already had.
+     *
+     * `ekspertId`/`judul` only mean something on `experts-task`: that view is
+     * MULTI-instance (one tab per worker task, like the reference product's
+     * "Task 1..N" tabs), so the reuse key is view+ekspertId, and `judul`
+     * names the tab ("Task 2: Perbesar kotak daftar model").
+     *
+     * On `experts-canvas` the view stays single-instance but `ekspertId` names
+     * the RUN it shows — like the browser address, asking for another run must
+     * retarget the open tab instead of silently leaving the old map on screen.
      */
-    opts?: { url?: string },
+    opts?: { url?: string; ekspertId?: string; judul?: string },
   ) => void;
 
   setActiveTab: (id: string) => void;
@@ -1182,8 +1202,14 @@ export const useStore = create<Store>((set, get) => ({
   bukaViewAi: (view, opts) => {
     /* Already open: just bring it forward. Reopening must not add a second tab
        — the reader pressed a button they already pressed, and two chat tabs
-       would be two conversations pretending to be one. */
-    const ada = get().tabs.find((t) => t.view === view);
+       would be two conversations pretending to be one.
+       `experts-task` is the one multi-instance view: the reuse key is the
+       worker task id, not the view, so Task 1 and Task 2 can both be open. */
+    const ada = get().tabs.find(
+      (t) =>
+        t.view === view &&
+        (view !== 'experts-task' || t.ekspertId === (opts?.ekspertId ?? '')),
+    );
     if (ada) {
       /*
        * The Browser is the one view whose reuse has to be honest about the
@@ -1194,12 +1220,21 @@ export const useStore = create<Store>((set, get) => ({
        */
       const urlBaru = view === 'browser' ? opts?.url : undefined;
       const perluUrl = !!urlBaru && urlBaru !== ada.url;
+      /* Same rule for the canvas run: a canvas opened for run B while it is
+         showing run A must switch, not just come forward. */
+      const runBaru = view === 'experts-canvas' ? opts?.ekspertId : undefined;
+      const perluRun = !!runBaru && runBaru !== ada.ekspertId;
       set({ activeTabId: ada.id });
       const fokus = useLayout.getState().fokus;
       set((s) => ({
         tabs: s.tabs.map((t) =>
           t.id === ada.id
-            ? { ...t, groupId: fokus, ...(perluUrl ? { url: urlBaru } : {}) }
+            ? {
+                ...t,
+                groupId: fokus,
+                ...(perluUrl ? { url: urlBaru } : {}),
+                ...(perluRun ? { ekspertId: runBaru } : {}),
+              }
             : t,
         ),
       }));
@@ -1226,7 +1261,11 @@ export const useStore = create<Store>((set, get) => ({
                       ? 'SubAgent'
                       : view === 'browser'
                     ? 'Browser'
-                    : 'Search Results',
+                    : view === 'experts-task'
+                      ? opts?.judul || 'Task'
+                      : view === 'experts-canvas'
+                        ? 'Experts Canvas'
+                        : 'Search Results',
       encoding: 'utf8' as Encoding,
       lineEnding: 'crlf' as LineEnding,
       unsaved: false,
@@ -1235,6 +1274,8 @@ export const useStore = create<Store>((set, get) => ({
       loaded: true,
       view,
       ...(view === 'browser' && opts?.url ? { url: opts.url } : {}),
+      ...(view === 'experts-task' && opts?.ekspertId ? { ekspertId: opts.ekspertId } : {}),
+      ...(view === 'experts-canvas' && opts?.ekspertId ? { ekspertId: opts.ekspertId } : {}),
       groupId: useLayout.getState().fokus,
     };
 
