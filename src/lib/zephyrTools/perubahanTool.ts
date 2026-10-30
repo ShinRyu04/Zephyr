@@ -42,7 +42,11 @@ const TOOL_TULIS = new Set([
 ]);
 
 /** Paths a call will write, best-effort, before it runs. */
-function pathTersentuh(nama: string, args: Record<string, unknown>): string[] {
+/** Diekspor: `pathDitulis` di subagentStore mendelegasikan ke sini supaya
+    daftar nama tool penulis hanya hidup di SATU tempat — dulu subagent
+    memegang salinannya sendiri dan kehilangan `edit` + `apply_patch`, sehingga
+    dua worker bisa saling menimpa berkas yang sama tanpa klaim. */
+export function pathTersentuh(nama: string, args: Record<string, unknown>): string[] {
   const satu = (k: string): string[] => (typeof args[k] === 'string' ? [args[k] as string] : []);
 
   if (nama === 'multi_edit' || nama === 'edit' || nama === 'write_file' || nama === 'delete_file')

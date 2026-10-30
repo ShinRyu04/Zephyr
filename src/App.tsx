@@ -175,6 +175,12 @@ import './styles/ai-tanya.css';
 import './styles/ai-composer-trae.css';
 import './styles/ai-mention.css';
 /*
+ * Experts Mode (kartu rencana, strip task, tab "Task N", canvas, config
+ * page). Setelah ai.css + ai-composer-trae.css supaya menang kaskade untuk
+ * nama kelas yang kebetulan sama — pola yang sama dengan file di atasnya.
+ */
+import './styles/ai-experts.css';
+/*
  * `<Tip>` needs this one. Its rules used to live in `notes-todos.css`, which
  * stopped being imported when the Notes & todos panel was removed — leaving
  * every title-bar tooltip as a flow-level inline box that grew the bar upward

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zephyr Agent</title>
+  <style>
+    :root {
+      --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --bg: var(--vscode-sideBar-background, #18181b);
+      --fg: var(--vscode-foreground, #e4e4e7);
+      --border: var(--vscode-panel-border, #27272a);
+      --input-bg: var(--vscode-input-background, #202023);
+      --input-border: var(--vscode-input-border, #3f3f46);
+      --btn-bg: var(--vscode-button-background, #2563eb);
+      --btn-fg: var(--vscode-button-foreground, #ffffff);
+      --btn-hover: var(--vscode-button-hoverBackground, #1d4ed8);
+      --card-bg: var(--vscode-editor-background, #121214);
+      --accent: #8b5cf6;
+      --diff-add-bg: rgba(34, 197, 94, 0.15);
+      --diff-add-fg: #4ade80;
+      --diff-del-bg: rgba(239, 68, 68, 0.15);
+      --diff-del-fg: #f87171;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--vscode-font-family);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Cline-style Task Header */
+    .task-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge-mode {
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-tool {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--fg);
+      opacity: 0.75;
+      border-radius: 4px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .btn-tool:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--border);
+    }
+
+    .select-model {
+      width: 100%;
+      background: var(--input-bg);
+      color: var(--fg);
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Chat Messages Container */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Cline Message Row */
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      border-radius: 8px 8px 2px 8px;
+      padding: 10px 12px;
+      max-width: 90%;
+      line-height: 1.5;
+    }
+
+    .msg-assistant {
+      align-self: flex-start;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px 8px 8px 2px;
+      padding: 12px;
+      width: 100%;
+      line-height: 1.5;
+    }
+
+    /* Cline Thinking / Reasoning Collapsible */
+    .thinking-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .thinking-header {
+      padding: 6px 10px;
+      background: rgba(139, 92, 246, 0.08);
+      color: #c4b5fd;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    .thinking-body {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #a1a1aa;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: var(--vscode-editor-font-family, monospace);
+    }
+
+    /* Cline Tool Execution Box */
+    .tool-box {
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-left: 3px solid #38bdf8;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tool-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-args {
+      font-family: var(--vscode-editor-font-family, monospace);
+      font-size: 11px;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    /* Cline Diff Preview */
+    .diff-container {
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-top: 6px;
+      overflow: hidden;
+      font-family: var(--vscode-editor-font-family, monospace);
+      font-size: 11px;
+    }
+    .diff-header {
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .diff-del {
+      background: var(--diff-del-bg);
+      color: var(--diff-del-fg);
+      padding: 2px 8px;
+      white-space: pre-wrap;
+    }
+    .diff-add {
+      background: var(--diff-add-bg);
+      color: var(--diff-add-fg);
+      padding: 2px 8px;
+      white-space: pre-wrap;
+    }
+
+    /* Cline Floating Action Footer */
+    .chat-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .textarea-wrapper {
+      position: relative;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      transition: border-color 0.15s ease;
+    }
+    .textarea-wrapper:focus-within {
+      border-color: #3b82f6;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 55px;
+      max-height: 160px;
+      background: transparent;
+      color: var(--fg);
+      border: none;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .context-status {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--btn-bg);
+      color: var(--btn-fg);
+      border: none;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn-primary:hover {
+      background: var(--btn-hover);
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <!-- Cline Task Header -->
+  <header class="task-header">
+    <div class="task-row-top">
+      <div class="badge-mode">
+        <span>⚡</span> Zephyr Agent (Autonomous)
+      </div>
+      <div class="header-actions">
+        <button class="btn-tool" id="btnSettings" title="Provider & Model Settings">⚙</button>
+        <button class="btn-tool" id="btnClear" title="New Task Session">＋</button>
+      </div>
+    </div>
+    <select class="select-model" id="modelSelect">
+      <option value="cartethyia:kerja">Cartethyia / Kerja (Semua Jalur)</option>
+      <option value="cartethyia:cepat">Cartethyia / Cepat</option>
+      <option value="cartethyia:best">Cartethyia / Best (Pintar)</option>
+      <option value="opencode2api:glm-5.3-flash-free">OpenCode2API / GLM-5.3 Flash (Free)</option>
+      <option value="geraikita:deepseek-v4-flash">Geraikita / DeepSeek V4 Flash</option>
+    </select>
+  </header>
+
+  <!-- Messages List -->
+  <div id="messages">
+    <div class="msg-row">
+      <div class="msg-assistant">
+        <strong>Zephyr Autonomous Agent</strong><br>
+        Halo! Gua siap mengeksekusi tugas coding di workspace lu dengan <strong>7 Core Tools</strong> (Read, List, Glob, Grep, Write, Multi-Edit, Ask).<br><br>
+        Berikan tugas atau instruksi apa yang mau dikerjakan hari ini.
+      </div>
+    </div>
+  </div>
+
+  <!-- Cline Footer Input -->
+  <footer class="chat-footer">
+    <div class="textarea-wrapper">
+      <textarea id="promptInput" placeholder="Ketik tugas coding lu di sini (Enter untuk kirim, Shift+Enter baris baru)..."></textarea>
+      <div class="footer-bottom">
+        <div class="context-status" id="agentStatus">
+          <span>●</span> Siap (Idle)
+        </div>
+        <div>
+          <button class="btn-danger" id="btnStop">Stop Task</button>
+          <button class="btn-primary" id="btnSend">Kirim Tugas</button>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{scriptUri}}"></script>
+</body>
+</html>

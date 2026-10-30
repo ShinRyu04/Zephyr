@@ -34,6 +34,7 @@ import {
 } from './repeatDetect';
 import * as cmd from './commands';
 import { useStore } from './store';
+import { useExperts } from './expertsStore';
 import { kunciPath } from './pathKey';
 import {
   deteksiKemampuan,
@@ -41,6 +42,7 @@ import {
   idProviderNyata,
   isPlaceholderModel,
   MODEL_FALLBACK,
+  modelUntukTier,
   PROVIDER_AUTO,
   PROVIDER_BY_ID,
   providerEfektif,
@@ -84,7 +86,7 @@ import {
   PAYLOAD_MAX_CHARS,
   ukuranPayload,
 } from './contextBudget';
-import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, PublicModel, ReasoningSegmen, SesiLatar } from './types';
+import type { AiChunk, AiMessage, AgentMsg, AgentToolCall, AgentToolRun, ApprovalMode, ChatMsg, ChatSession, ModelTier, PublicModel, ReasoningSegmen, SesiLatar } from './types';
 import { TOOL_CATALOG } from './zephyrTools/catalog';
 import { agentStopMessage, type AgentFailureCategory, type AgentStopReason } from './agentStop';
 
@@ -658,7 +660,7 @@ export const BATAS_BROWSER_MUTER = 3;
  * membaca ulang. Lima membuat sodokan datang saat pembaca SUDAH melihat
  * agennya diam, bukan setengah menit sesudahnya.
  */
-const BATAS_TANPA_KEMAJUAN = 5;
+const BATAS_TANPA_KEMAJUAN = 15;
 /*
  * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
  * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai.
@@ -700,7 +702,7 @@ const BATAS_LANJUT_TANPA_TOOL = 10;
  * investigasi panjang yang jujur; loop sungguhan tetap ditangkap guard
  * sidik-jari (BATAS_AKSI_SAMA / BATAS_BACA_SAMA) jauh lebih cepat.
  */
-const BATAS_MANDEK = 20;
+const BATAS_MANDEK = 40;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -1214,7 +1216,7 @@ export function resetKonteksAgent(): void {
 
 export async function oneShot(prompt: string): Promise<string> {
   const st = useAi.getState();
-  const def = findModel(st.model, st.provider);
+  const def = findModel(modelUntukTier(st.provider, st.modelTier, st.model), st.provider);
   const cfg = useStore.getState().settings.models.providers[def.provider] ?? {};
   const res = await cmd.aiToolChat({
     provider: def.provider,
@@ -3376,6 +3378,13 @@ interface AiState {
   reasoningEffort: ReasoningEffort | null;
 
   reasoningText: string | null;
+
+  /*
+   * Tier model (D1): Auto/Efficient/Fast/Ultimate. `null` = Auto = model yang
+   * dipilih user menang; tier hanya menimpa kalau user memilihnya eksplisit
+   * (dipetakan ke id model konkret di `modelUntukTier` sebelum request).
+   */
+  modelTier: ModelTier | null;
 }
 
 interface AiActions {
@@ -3546,7 +3555,28 @@ interface AiActions {
 
   setReasoningEffort: (e: ReasoningEffort | null) => void;
 
+  setModelTier: (t: ModelTier | null) => void;
+
   sendAgent: (text: string, images?: string[], tampilBubble?: string, composerId?: string) => Promise<boolean>;
+
+  /*
+   * Jalur kirim Experts Mode (agentAktif === 'experts'): menambahkan pesan
+   * user, memanggil Lead untuk menyusun rencana, lalu menempelkan pesan
+   * rencana (expertsPlan = runId). Rencana berhenti di GERBANG konfirmasi
+   * (kartu rencana: Edit / Start / Discard); eksekusi baru mulai saat user
+   * menyetujuinya, kecuali opsi auto-run dinyalakan di Experts Settings.
+   */
+  sendExperts: (text: string, images?: string[], tampilBubble?: string, composerId?: string) => Promise<boolean>;
+
+  /*
+   * Tempelkan satu pesan jadi ke sesi tanpa streaming — dipakai pesan rencana
+   * dan sintesis akhir Experts Mode. `sebagian.role` dan `sebagian.content`
+   * wajib; id dan `at` diisi di sini supaya bentuk pesan konsisten.
+   */
+  tambahPesanSesi: (
+    sessionId: string,
+    sebagian: Partial<ChatMsg> & { role: ChatMsg['role']; content: string },
+  ) => string;
 
   /**
    * Manually compact the active session's context.
@@ -3847,6 +3877,7 @@ function bootRunMode(): 'interactive' | 'plan' | 'autopilot' {
 }
 
 const EFFORT_KEY = 'zephyr.ai.effort';
+const TIER_KEY = 'zephyr.ai.tier';
 
 /**
  * Reasoning effort, remembered across restarts.
@@ -3874,6 +3905,24 @@ function bootEffort(): ReasoningEffort | null {
     /* storage unavailable — fall through to the default */
   }
   return 'medium';
+}
+
+/*
+ * Tier model (D1), remembered across restarts — pola yang sama dengan effort.
+ *
+ * Beda sengaja: default-nya NULL, bukan nilai pilihan. Tier yang tidak pernah
+ * dipilih tidak boleh mengganti model apa pun ("Auto" = model pilihan user
+ * menang), jadi hanya tiga tier eksplisit yang diterima dari localStorage;
+ * nilai lain/'auto' jatuh ke null.
+ */
+function bootTier(): ModelTier | null {
+  try {
+    const v = localStorage.getItem(TIER_KEY);
+    if (v === 'efficient' || v === 'fast' || v === 'ultimate') return v;
+  } catch {
+    /* storage unavailable — fall through to the default */
+  }
+  return null;
 }
 
 /*
@@ -4068,6 +4117,7 @@ export const useAi = create<AiStore>((set0, get) => {
    */
   reasoningEffort: bootEffort(),
   reasoningText: null,
+  modelTier: bootTier(),
 
   init: async () => {
 
@@ -4918,6 +4968,28 @@ export const useAi = create<AiStore>((set0, get) => {
     } catch {
       /* diabaikan */
     }
+    /*
+     * Model DISIMPAN PER MODE (Qoder): pindah Agent ↔ Experts menyimpan
+     * model mode lama ke slotnya dan memuat model mode tujuan — pilihan
+     * DeepSeek di Agent tidak bocor ke Experts dan sebaliknya. Pertama kali
+     * masuk mode, slotnya mewarisi model sekarang.
+     */
+    try {
+      const sebelumExperts = useStore.getState().settings.agents?.agentAktif === 'experts';
+      const jadiExperts = pilih === 'experts';
+      if (sebelumExperts !== jadiExperts) {
+        const kunciLama = sebelumExperts ? 'zephyr.ai.model.experts.v1' : 'zephyr.ai.model.agent.v1';
+        const kunciBaru = jadiExperts ? 'zephyr.ai.model.experts.v1' : 'zephyr.ai.model.agent.v1';
+        localStorage.setItem(kunciLama, JSON.stringify({ model: get().model, provider: get().provider }));
+        const tersimpan = JSON.parse(localStorage.getItem(kunciBaru) ?? 'null') as
+          | { model: string; provider: string }
+          | null;
+        if (tersimpan?.model) set({ model: tersimpan.model, provider: tersimpan.provider });
+        else localStorage.setItem(kunciBaru, JSON.stringify({ model: get().model, provider: get().provider }));
+      }
+    } catch {
+      /* slot model per-mode: gagal LS tidak boleh menggagalkan ganti mode */
+    }
     void useStore.getState().applySettings({ agents: { agentAktif: pilih } } as never);
   },
   setTipsVisible: (v) => {
@@ -5216,6 +5288,17 @@ export const useAi = create<AiStore>((set0, get) => {
     }
     set({ reasoningEffort: e });
   },
+
+  setModelTier: (t) => {
+    /* Diingat lintas restart; null disimpan 'auto' agar pilihan eksplisit
+       tetap terbedakan dari "belum pernah memilih" (baca bootTier). */
+    try {
+      localStorage.setItem(TIER_KEY, t ?? 'auto');
+    } catch {
+      /* storage unavailable: the setting still applies for this session */
+    }
+    set({ modelTier: t });
+  },
   setAgentProgress: (progress) => set((s) => {
     const mulai = progress.agentStartedAt !== undefined
       ? progress.agentStartedAt
@@ -5513,6 +5596,23 @@ export const useAi = create<AiStore>((set0, get) => {
       ...(composerId === '' ? { approvalMode: s?.approval ?? get().approvalMode } : {}),
     }));
     persist(get());
+    /*
+     * Chat lama MENGINGAT mode-nya (Qoder).
+     *
+     * Membuka chat yang dulu dikirim dalam Experts Mode mengembalikan chip ke
+     * Experts; tanpa ini chip tetap menampilkan mode terakhir dan pesan
+     * berikutnya diam-diam pindah dunia. `setAgentAktif` dipanggil langsung —
+     * TIDAK lewat `newChat` — karena membuka percakapan lama tidak boleh
+     * mereset isinya. Custom agent dihitung sebagai dunia 'agent' supaya
+     * pilihan itu tidak ditimpa saat membuka chat agent biasa.
+     */
+    if (s?.mode) {
+      const sekarangId = useStore.getState().settings.agents?.agentAktif ?? '';
+      const sekarang =
+        sekarangId === 'experts' ? 'experts' : sekarangId === 'chat' ? 'chat' : 'agent';
+      const tujuan = s.mode === 'experts' ? 'experts' : s.mode === 'chat' ? 'chat' : 'agent';
+      if (sekarang !== tujuan) get().setAgentAktif(tujuan);
+    }
   },
 
   deleteChat: (id) => {
@@ -6173,7 +6273,14 @@ export const useAi = create<AiStore>((set0, get) => {
       }));
       return true;
     }
-    if (modeAgent) return get().sendAgent(raw, imgs, tampil, composerId);
+    if (modeAgent) {
+      /* Experts Mode dipilih lewat ModeMenu (agentAktif === 'experts'):
+         alurnya sendiri — Lead menyusun rencana dulu, bukan loop agent. */
+      if (useStore.getState().settings.agents?.agentAktif === 'experts') {
+        return get().sendExperts(raw, imgs, tampil, composerId);
+      }
+      return get().sendAgent(raw, imgs, tampil, composerId);
+    }
 
     let content = raw;
     if (raw.length > MSG_LIMIT) {
@@ -6528,6 +6635,8 @@ export const useAi = create<AiStore>((set0, get) => {
           ? {
               ...x,
 
+              /* Sesi INGAT mode yang mengirim turn ini (Chat). */
+              mode: 'chat',
               title: x.messages.length === 0 ? judulDari(content) : x.title,
               messages: [...x.messages, userMsg, botMsg].slice(-MAX_MSGS),
             }
@@ -6565,7 +6674,12 @@ export const useAi = create<AiStore>((set0, get) => {
       return true;
     }
 
-    let def = findModel(get().model, get().provider);
+    /*
+     * Tier (D1) diterapkan DI SINI — titik masuk model untuk seluruh jalur
+     * chat: pilihan tier eksplisit menimpa model yang dipilih user, Auto
+     * membiarkannya. Hydra yang memilih tangganya sendiri tidak disentuh.
+     */
+    let def = findModel(modelUntukTier(get().provider, get().modelTier, get().model), get().provider);
     /*
      * The same sentinel resolution as the agent path: `hydrafusion` is a
      * routing signal, not a model any provider serves. Resolve it to the
@@ -6771,6 +6885,140 @@ export const useAi = create<AiStore>((set0, get) => {
     return true;
   },
 
+  /*
+   * Experts Mode. Pesan user dicatat lebih dulu (supaya transcript hidup selagi
+   * Lead masih menyusun rencana — strip Experts menampilkan "Lead Agent sedang
+   * menyusun rencana…"), baru panggilan Lead dijalankan. Gagal menyusun
+   * (model tak mengembalikan JSON, key kosong) tidak membatalkan pesan user:
+   * toast yang menerangkan, dan user bisa kirim ulang.
+   */
+  sendExperts: async (raw, explicitImages, tampilBubble, composerId = '') => {
+    COMPOSER_AKTIF = composerId;
+    get().sinkronProvider();
+    const goal = (raw ?? '').trim();
+    if (!goal) {
+      return gagalKirimToast('Experts Mode butuh instruksi berteks — kirim gambar saja tidak cukup');
+    }
+    const images = explicitImages ?? [];
+    await get().loadKeys();
+    if (!get().hasKey()) {
+      const label = PROVIDER_BY_ID.get(get().provider)?.label ?? get().provider;
+      return gagalKirimToast(
+        tf('Add an API key for {name} in AI Models first', { name: label }),
+      );
+    }
+
+    let sessionId = get().activeIds[composerId] ?? (composerId === '' ? get().activeId : null);
+    if (!sessionId) sessionId = get().newChat(composerId);
+
+    /*
+     * STEERING: selagi tim berjalan, pesan berikutnya adalah arahan untuk run
+     * yang sama — BUKAN goal baru. Tanpa cabang ini `buka()` menolak karena
+     * masih ada run, lalu pesan user menggantung tanpa jawaban.
+     */
+    const runAktif = useExperts
+      .getState()
+      .runs.find(
+        (r) =>
+          r.sessionId === sessionId &&
+          (r.status === 'jalan' || r.status === 'menyusun' || r.status === 'rencana'),
+      );
+    if (runAktif) {
+      if (runAktif.status === 'menyusun') {
+        return gagalKirimToast('Lead masih menyusun rencana — tunggu sebentar');
+      }
+      if (runAktif.status === 'rencana') {
+        return gagalKirimToast('Konfirmasi atau buang rencana dulu sebelum mengirim pesan baru');
+      }
+      if (images.length > 0) {
+        return gagalKirimToast('Steering saat tim berjalan hanya menerima teks');
+      }
+      const steerMsg: ChatMsg = {
+        id: nextId('m'),
+        role: 'user',
+        content: tampilBubble ?? goal,
+        at: Date.now(),
+      };
+      set((s) => ({
+        sessions: s.sessions.map((x) =>
+          x.id === sessionId
+            ? { ...x, messages: [...x.messages, steerMsg].slice(-MAX_MSGS) }
+            : x,
+        ),
+        drafts: { ...s.drafts, [composerId]: '' },
+        draftImages: [],
+      }));
+      useExperts.getState().steer(runAktif.id, goal);
+      return true;
+    }
+
+    const userMsg: ChatMsg = {
+      id: nextId('m'),
+      role: 'user',
+      content: tampilBubble ?? goal,
+      at: Date.now(),
+      images: images.length > 0 ? images : undefined,
+      image: images[0],
+    };
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId
+          ? {
+              ...x,
+              title: x.messages.length === 0 ? judulDari(goal) : x.title,
+              mode: 'experts',
+              messages: [...x.messages, userMsg].slice(-MAX_MSGS),
+            }
+          : x,
+      ),
+      drafts: { ...s.drafts, [composerId]: '' },
+      draftImages: [],
+    }));
+
+    /*
+     * Placeholder `streaming` dulu, kartu rencana nanti. Selama Lead menyusun,
+     * chat Experts terasa persis seperti Agent (typing dots); kartu Experts
+     * hanya dipasang ketika Lead benar-benar mengembalikan tugas. Pertanyaan
+     * dijawab sebagai bubble biasa, tugas berhenti di gerbang konfirmasi.
+     */
+    const sesi = get().sessions.find((x) => x.id === sessionId);
+    const riwayat = (sesi?.messages ?? [])
+      .slice(-8)
+      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${(m.content ?? '').slice(0, 300)}`)
+      .join('\n');
+    const runId = useExperts.getState().buka({ sessionId, goal, riwayat });
+    if (!runId) return false;
+    /*
+     * Placeholder ber-`streaming` = bubble Agent biasa dengan typing dots,
+     * BUKAN kartu rencana. Kartu Experts baru dipasang proses Lead ketika
+     * benar-benar ada tugas; percakapan biasa tetap terasa seperti chat.
+     */
+    const pesanId = get().tambahPesanSesi(sessionId, {
+      role: 'assistant',
+      content: '',
+      streaming: true,
+      model: get().model,
+    });
+    useExperts.setState((s) => ({
+      runs: s.runs.map((r) => (r.id === runId ? { ...r, pesanId } : r)),
+    }));
+    return true;
+  },
+
+  tambahPesanSesi: (sessionId, sebagian) => {
+    const msg: ChatMsg = {
+      id: nextId('m'),
+      at: Date.now(),
+      ...sebagian,
+    };
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId ? { ...x, messages: [...x.messages, msg].slice(-MAX_MSGS) } : x,
+      ),
+    }));
+    return msg.id;
+  },
+
   sendAgent: async (raw, explicitImages, tampilBubble, composerId = '') => {
     COMPOSER_AKTIF = composerId;
     get().sinkronProvider();
@@ -6924,6 +7172,12 @@ export const useAi = create<AiStore>((set0, get) => {
         x.id === sessionId
           ? {
               ...x,
+              /*
+               * Sesi INGAT mode yang mengirim turn ini (Agent). Dibaca
+               * `selectChat` saat chat lama dibuka kembali: chip mode ikut
+               * pindah tanpa membuat sesi baru.
+               */
+              mode: 'agent',
               title: x.messages.length === 0 ? judulDari(content) : x.title,
               messages: [...x.messages, userMsg, botMsg].slice(-MAX_MSGS),
             }
@@ -6983,7 +7237,13 @@ export const useAi = create<AiStore>((set0, get) => {
     agentStopReason = null;
     resetAutoCompact();
 
-    let def = findModel(get().model, get().provider);
+    /*
+     * Tier (D1) diterapkan di sini juga untuk jalur agent: setiap langkah
+     * (`defLangkah`/`activeDef`) menurunkan dari `def`, jadi satu resolusi
+     * ini mencakup seluruh run. Tangga HydraFusion tetap memilih modelnya
+     * sendiri — tier hanya mengganti model dasar pilihan user.
+     */
+    let def = findModel(modelUntukTier(get().provider, get().modelTier, get().model), get().provider);
     /*
      * HydraFusion is a PICKER ENTRY, not a hidden switch.
      *

@@ -25,10 +25,13 @@
   margin: 0 10px 12px;
   padding: 0;
   gap: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--ai-dock-radius, 10px);
-  background: var(--surface);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 3%) inset;
+  /* Kotak ala produk rujukan: latarnya HITAM, satu nada dengan panel —
+     produk rujukan memakai latar nyaris sama dengan panelnya, yang
+     memisahkan hanyalah border samar (45%). */
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-radius: var(--ai-dock-radius, 12px);
+  background: var(--bg);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 2%) inset;
   overflow: visible;
   transition: border-color 120ms ease;
 }
@@ -52,7 +55,7 @@
 }
 
 .ai-input-row:focus-within {
-  border-color: var(--text-muted);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 /* ── The field ────────────────────────────────────────────────────────── */
@@ -69,10 +72,10 @@
    * the floor only has to be the comfortable one-line height plus the caret
    * breathing room.
    */
-  min-height: 58px;
+  min-height: 48px;
   max-height: 220px;
   field-sizing: content;
-  padding: 10px 14px 2px;
+  padding: 9px 12px 2px;
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.55;
@@ -118,7 +121,7 @@
   /* The control row's outer padding matches the field's, so the "+" sits under
      the first character and Send's right edge lines up with the text column
      instead of hanging 8px further out. */
-  padding: 2px 10px 8px 8px;
+  padding: 2px 9px 6px 6px;
   border-top: 0;
   background: transparent;
 }

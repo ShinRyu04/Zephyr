@@ -4,7 +4,7 @@ import { agentToolSpecs, TOOL_TULIS } from './agentTools';
 import { findModel, daftarProvider, modelTersedia, providerSiap } from './modelCatalog';
 import { routeSubagentModel, type SubagentModelSource, type SubagentModelCandidate } from './subagentRouter';
 import { useStore } from './store';
-import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, pisahPipeline, type PeranId } from './subagentRoles';
+import { infoPeran, tebakPeran, peranDariPrefix, modelDariPrefix, mcpDariTeks, effortDariTeks, tokenDariTeks, pisahPipeline, PERAN, type PeranId } from './subagentRoles';
 import { arahanCustom, cariCustom, bacaDaftar, pisahCustom } from './subagentCustom';
 import { faktaInti, petaFitur } from './systemPrompt';
 import { useAi, isDestructive, fullUrlProvider } from './aiStore';
@@ -12,6 +12,7 @@ import type { SesiLatar } from './types';
 import { useSettingsUi } from './settingsStore';
 import { TOOL_DISK_TULIS } from './toolGate';
 import { TOOL_BY_NAME } from './zephyrTools/catalog';
+import { pathTersentuh } from './zephyrTools/perubahanTool';
 
 export const MAX_PARALLEL = 4;
 
@@ -71,6 +72,13 @@ export function batasLangkah(): number {
 }
 
 export function bolehTulis(): boolean {
+  /*
+   * Gerbang tulis subagent. Selain setelan eksplisit, mode persetujuan
+   * Full Access ('auto') MEMBUKA tulis otomatis: user yang sudah memberi
+   * akses penuh tidak boleh masih ditanya-dua kali ("butuh allow") —
+   * keluhannya nyata di Experts Mode yang jalan di atas gerbang ini.
+   */
+  if (useAi.getState().approvalMode === 'auto') return true;
   return useStore.getState().settings.subagent?.allowWrite === true;
 }
 
@@ -126,7 +134,7 @@ export function kemampuanTulis(): KemampuanTulis {
 }
 
 /** Gerbang mana yang menutup, supaya UI bisa menerjemahkan sebabnya. */
-export type AlasanTolakTulis = 'setelan-mati' | 'perlu-persetujuan';
+export type AlasanTolakTulis = 'setelan-mati' | 'perlu-persetujuan' | 'peran-readonly' | 'tak-ditawarkan';
 
 export interface PutusanTulis {
   boleh: boolean;
@@ -157,10 +165,28 @@ export interface PutusanTulis {
  */
 export function putusanTulis(
   namaTool: string,
-  opts: { bahayaShell?: boolean } = {},
+  opts: { bahayaShell?: boolean; bolehTulisPeran?: boolean } = {},
 ): PutusanTulis {
   const k = kemampuanTulis();
   const tulisTool = TOOL_TULIS.has(namaTool);
+
+  /*
+   * GERBANG PERAN (B2). Dulu pembatasan peran hanya berupa daftar tawaran
+   * tool yang dikirim ke provider — provider tidak wajib memvalidasi nama
+   * tool_call terhadap daftar itu, jadi peran read-only bisa menulis/menghapus
+   * dengan menyebut `write_file` secara langsung. Eksekusi kini mengecek peran
+   * yang sama dengan yang menyusun daftar tawaran: satu ekspresi
+   * `bolehTulis() && butuhTulis`, dua tempat, tidak bisa berbeda cerita lagi.
+   * `undefined` = pemanggil di luar mesin subagent (main agent) — perilaku lama.
+   */
+  if (opts.bolehTulisPeran === false && (tulisTool || opts.bahayaShell)) {
+    return {
+      boleh: false,
+      alasan: 'peran-readonly',
+      pesan: `(refused: ${namaTool} was NOT run - this role is read-only by design (Researcher/QA/Reviewer only read). ` +
+        'Report the exact change (file and lines) in your final answer instead; the main agent or a writing expert will apply it.)',
+    };
+  }
 
   if (!k.setelan && (tulisTool || opts.bahayaShell)) {
     return {
@@ -287,6 +313,30 @@ export interface SubAgent {
   /** Icon id from `subagentIcons.ts`, for a custom worker's own choice. */
   customIkon: string | null;
 
+  /**
+   * MCP server ids this worker may use (tag `[mcp:...]`). Kosong = semua server
+   * aktif, sama seperti agen biasa; ini allowlist per tugas dari Experts.
+   */
+  mcpIzin?: string[];
+
+  /**
+   * Reasoning effort this worker asked for (tag `[effort:...]`).
+   *
+   * `undefined` = ikut chip Reasoning global di composer, which is the
+   * behaviour every task had before Experts could pin it per expert. Stored
+   * on the row (not read at call time) so a restart or a re-render cannot
+   * silently change the depth a finished worker ran at.
+   */
+  effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+
+  /**
+   * Id tugas Experts yang melahirkan baris ini (token `[#t3]` di ujung baris
+   * tugas, dicopot dari teks yang dilihat worker). Pemetaan tugas → agentId
+   * memakai token ini, bukan teks brief: dua tugas dengan brief identik
+   * membuat pemetaan teks saling menimpa dan satu tugas "Pending" selamanya.
+   */
+  tokenTugas?: string | null;
+
   status: SubStatus;
   langkah: SubStep[];
 
@@ -367,13 +417,28 @@ interface SubAgentState {
   sesiId: string | null;
 
   jalankan: (
-    tugas: string[],
+    /** Satu entri = satu rantai: teks `a -> b -> c`, ATAU array langkah
+        terstruktur (Experts) yang boleh berisi '' sebagai celah kedalaman. */
+    tugas: ReadonlyArray<string | string[]>,
     opts?: {
       bersarang?: boolean;
       kedalaman?: number;
       routing?: 'auto' | 'manual';
       /** Identitas batch; dipakai memisahkan dua batch yang jalan bersamaan. */
       delegasiId?: string;
+      /**
+       * Batas rantai paralel untuk batch ini saja (Experts Mode memakainya
+       * supaya rencana 5-6 tugas tidak terpotong senyap oleh
+       * `settings.subagent.maxParallel`). Tidak pernah MENGURANGI batas
+       * setelan — hanya bisa melonggarkannya, dan tetap di-plafon 8.
+       */
+      batasOverride?: number;
+      /**
+       * Batas langkah tool per agent untuk batch ini saja. Worker Experts
+       * mengerjakan satu perubahan utuh (baca → ubah → cek), yang butuh
+       * lebih banyak langkah daripada riset satu-pertanyaan.
+       */
+      langkahOverride?: number;
     },
   ) => Promise<number>;
 
@@ -390,6 +455,17 @@ interface SubAgentState {
   ulangi: (id: string) => void;
 
   batalSemua: () => void;
+
+  /**
+   * Batalkan hanya batch dengan delegasiId ini — bukan seluruh mesin.
+   *
+   * `batalSemua` itu global:Experts yang memanggilnya untuk run-nya ikut
+   * membunuh batch lain kalau suatu saat dua batch bisa hidup bersamaan, dan
+   * di jendela sintesis (worker sudah selesai, run masih 'jalan') ia membunuh
+   * apa-apa tapi tetap menimpa status. Ter-scope per delegasi membuat Stop
+   * Experts hanya menyentuh worker miliknya.
+   */
+  batalDelegasi: (delegasiId: string) => void;
 
   bersihkan: () => void;
 
@@ -481,32 +557,104 @@ function lepasFileAgen(agentId: string): void {
  *
  * The write tools are classified from the catalog's effect (`fsWrite` /
  * `appWrite`) rather than a hand-kept name list, because a list written by hand
- * drifts the moment the catalog gains or renames a tool. The explicit real
- * names below are the readable fallback for anything the catalog map has not
- * loaded yet: read_file/list_directory carry no write path, so they fall
- * through to null.
+ * drifts the moment the catalog gains or renames a tool. The path EXTRACTION
+ * itself is delegated to `pathTersentuh` (perubahanTool) so the two surfaces
+ * can never disagree again: the copy kept here had already drifted once and
+ * silently dropped `edit` and `apply_patch` — both classified as writes by the
+ * catalog, both fell through the old switch to `null`, so no file claim was
+ * taken, "Changed Files" stayed empty, and `buktiCukup` marked the task
+ * Unproven even though the file really changed. move/copy now claim BOTH ends,
+ * which the old comment promised but the old code never delivered.
  */
-function pathDitulis(namaTool: string, args: Record<string, unknown>): string | null {
+function pathDitulis(namaTool: string, args: Record<string, unknown>): string[] {
   const p = (v: unknown) => String(v ?? '').trim();
   const efek = TOOL_BY_NAME.get(namaTool)?.effect;
   const menulis = efek === 'fsWrite' || efek === 'appWrite';
-  const menulisEksplisit = new Set([
-    'write_file', 'multi_edit', 'delete_file', 'move_file', 'copy_file', 'replace_in_files',
-  ]).has(namaTool);
-  if (!menulis && !menulisEksplisit) return null;
-  switch (namaTool) {
-    case 'write_file':
-    case 'multi_edit':
-    case 'delete_file':
-      return p(args.path) || null;
-    case 'move_file':
-    case 'copy_file':
-      return p(args.to) || p(args.destination) || p(args.path) || null;
-    case 'replace_in_files':
-      return p(args.root) || null;
-    default:
-      return null;
+  if (!menulis) return [];
+  const daftar = pathTersentuh(namaTool, args).map((t) => t.trim()).filter(Boolean);
+  if (daftar.length) return daftar;
+  /* `replace_in_files` finds its own targets while running, so its paths are
+     not known up front; the search root stands in as the claimed path. */
+  if (namaTool === 'replace_in_files') {
+    const root = p(args.root);
+    return root ? [root] : [];
   }
+  return [];
+}
+
+/**
+ * Satu persiapan untuk SATU tool call, dipakai kedua loop eksekusi (gelombang
+ * dan lanjutan) supaya keduanya tidak bisa berbeda keputusan lagi.
+ *
+ * Tiga penegakan yang dulu hilang:
+ *   1. Nama tool yang tidak ada di daftar tawaran DITOLAK — provider tidak
+ *      wajib memvalidasi `tool_calls[].name` terhadap `tools` yang dikirim,
+ *      jadi daftar tawaran saja bukan penegakan.
+ *   2. `tool_call` DIBONGKAR: tool di dalamnya melewati gerbang tulis, klaim
+ *      berkas, dan pencatatan bukti — padahal jalur discovery
+ *      (tool_search → tool_call) adalah jalur yang memang didesain dipakai.
+ *      Kini tool dalamnya melewati putusanTulis + klaim + fileDitulis yang
+ *      sama; `tool_call` bersarang ditolak.
+ *   3. Gerbang PERAN (lihat putusanTulis `bolehTulisPeran`).
+ */
+function siapkanTool(
+  nama: string,
+  argsObj: Record<string, unknown>,
+  opts: { agentId: string; ditawarkan: ReadonlySet<string>; bolehTulisPeran: boolean },
+): {
+  namaTampil: string;
+  namaJalan: string;
+  args: Record<string, unknown>;
+  putusan: PutusanTulis;
+  targets: string[];
+  konflik: string | null;
+  tulisDitolak: boolean;
+} {
+  const bungkus = nama === 'tool_call';
+  const namaJalan = bungkus ? String(argsObj.name ?? '').trim() : nama;
+  const args = bungkus
+    ? ((argsObj.args && typeof argsObj.args === 'object' ? argsObj.args : {}) as Record<string, unknown>)
+    : argsObj;
+  const perintahSub = String(args.command ?? '');
+  const shellBahaya = isToolShell(namaJalan) && isDestructive(perintahSub);
+  const sarang = bungkus && (!namaJalan || namaJalan === 'tool_call');
+  const takDitawarkan = !bungkus && !opts.ditawarkan.has(nama);
+  let putusan: PutusanTulis;
+  if (sarang) {
+    putusan = {
+      boleh: false,
+      alasan: 'tak-ditawarkan',
+      pesan: '(refused: nested tool_call is not supported - call the tool directly, or discover it with tool_search first.)',
+    };
+  } else if (takDitawarkan) {
+    putusan = {
+      boleh: false,
+      alasan: 'tak-ditawarkan',
+      pesan: `(refused: ${nama} was NOT offered to this agent - it is outside your role's tool list. ` +
+        'Use tool_search to see what is available, and report anything else instead of calling it.)',
+    };
+  } else {
+    putusan = putusanTulis(namaJalan, { bahayaShell: shellBahaya, bolehTulisPeran: opts.bolehTulisPeran });
+  }
+  const targets = putusan.boleh ? pathDitulis(namaJalan, args) : [];
+  const konflik = putusan.boleh
+    ? (targets.map((p) => pemilikSaatIni(p)).find((k) => k && k !== opts.agentId) ?? null)
+    : null;
+  /* Penolakan yang BUKAN soal tulis (nama tidak ditawarkan untuk tool baca)
+     tidak boleh menambah hitungan "write attempts refused". */
+  const tulisDitolak =
+    putusan.alasan === 'tak-ditawarkan'
+      ? TOOL_TULIS.has(namaJalan) || shellBahaya
+      : !!putusan.alasan;
+  return {
+    namaTampil: bungkus && namaJalan ? `tool_call:${namaJalan}` : nama,
+    namaJalan,
+    args,
+    putusan,
+    targets,
+    konflik,
+    tulisDitolak,
+  };
 }
 
 /**
@@ -597,7 +745,8 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
    * yang akan ditolak gerbangnya sendiri.
    */
   const kt = kemampuanTulis();
-  const mintaTulis = p?.butuhTulis ?? false;
+  /* Worker kustom yang diberi `multi_edit` boleh menulis; tanpa itu read-only. */
+  const mintaTulis = custom ? custom.alat.includes('multi_edit') : p?.butuhTulis ?? false;
   const tulis = !kt.setelan
     ? inggris
       ? 'READ-ONLY SESSION: you cannot write files. write_file/edit/multi_edit/delete_file are not offered and would be refused; anything that deletes or overwrites is refused too. Read, search, run read-only commands, and in your report say exactly what should change and where.'
@@ -649,6 +798,11 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
   return baris.filter(Boolean).join('\n');
 }
 
+/* Prefix peran @cari/@kerja/... diturunkan dari daftar PERAN, bukan regex
+   yang diketik tangan: salinan regex pernah menjadi sederet kegagalan senyap
+   "Pending selamanya" begitu ada peran yang berubah tanpa regex ikut diubah. */
+const POLA_PERAN_AWAL = new RegExp(`^\\s*@(${PERAN.map((p) => p.id).join('|')})\\b\\s*`, 'i');
+
 export const useSubAgent = create<SubAgentState>((set, get) => ({
   agents: [],
   sibuk: false,
@@ -656,15 +810,16 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
   sesiId: null,
 
   jalankan: async (tugas, opts) => {
-    // Each line may be a chain: `a -> b -> c`. Split every line, then group by
-    // position: all step-1 tasks run together, then all step-2 tasks, and so on.
-    // A step after `->` receives the run's earlier results as context.
+    // Each entry may be a chain: `a -> b -> c` (text, split on `->`), or an
+    // ALREADY-SPLIT array of steps (Experts passes structured chains so `->`
+    // inside a task brief can never be mistaken for a separator, and a missing
+    // depth slot is an empty string, which the wave builder skips below).
     const rantai = tugas
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, batasParalel())
-      .map((t) => pisahPipeline(t))
-      .filter((langkah) => langkah.length > 0);
+      .map((t) =>
+        Array.isArray(t) ? t.map((s) => s.trim()) : pisahPipeline(t.trim()),
+      )
+      .filter((langkah) => langkah.length > 0)
+      .slice(0, Math.max(batasParalel(), Math.min(8, opts?.batasOverride ?? 0)));
     if (rantai.length === 0) return 0;
     // `bersarang` is for a subagent that calls another subagent: it must not be
     // blocked by the global busy flag (which its own caller set).
@@ -724,30 +879,66 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
         ? findModel(custom.model, custom.provider || undefined)
         : undefined;
       const { model, provider, sisa } = modelDariPrefix(tanpaPrefix);
+      const { mcp, sisa: sisaTanpaMcp } = mcpDariTeks(sisa);
+      /*
+       * Tag `[effort:...]` dipotong SEBELUM teks tugas dibersihkan, supaya
+       * `teksKeId` di expertsStore mencocokkan teks yang sama persis dengan
+       * yang dikirim. Tanpa ini, baris tugas Experts tidak akan pernah
+       * menemukan agentId-nya dan kartu task tetap "Pending" selamanya.
+       */
+      const { effort: effortTugas, sisa: sisaTanpaEffort } = effortDariTeks(sisaTanpaMcp);
+      /* Token tugas Experts ([#tN]) dicopot SETELAH tag lain dan disimpan di
+         baris: pemetaan tugas → agentId kini memakai token ini, karena teks
+         brief dua tugas yang identik membuat pencocokan teks saling menimpa
+         dan satu tugas tidak pernah kebagian agentId ("Pending" selamanya). */
+      const { token: tokenTugas, sisa: sisaTanpaToken } = tokenDariTeks(sisaTanpaEffort);
       const tugasBersih =
-        (custom ? sisa : sisa).replace(/^\s*@(cari|telaah|rencana|audit|kerja|jelajah)\b\s*/i, '').trim() ||
+        sisaTanpaToken.replace(POLA_PERAN_AWAL, '').trim() ||
         teks;
       const routed = routeSubagentModel({
         task: tugasBersih,
         candidates: configuredCandidates,
         chatFallback: { provider: ai.provider, model: ai.model },
       });
+      /*
+       * `[model:auto]` = model dipilih router, BUKAN model batch. Tanpa cabang
+       * ini, setting Subagents (subModel) akan menang dan opsi Auto di Experts
+       * hanya jadi label kosong.
+       */
+      const autoRoute = model?.trim().toLowerCase() === 'auto';
       const manualSource: SubagentModelSource = defModel
         ? 'manual-worker'
-        : model
-          ? 'manual-task'
-          : subModel
-            ? 'manual-batch'
-            : routed.source;
-      const def = defModel ?? (model ? findModel(model, provider ?? undefined) : subModel ? defDefault : findModel(routed.model, routed.provider));
+        : autoRoute
+          ? 'auto'
+          : model
+            ? 'manual-task'
+            : subModel
+              ? 'manual-batch'
+              : routed.source;
+      const def =
+        defModel ??
+        (autoRoute
+          ? findModel(routed.model, routed.provider)
+          : model
+            ? findModel(model, provider ?? undefined)
+            : subModel
+              ? defDefault
+              : findModel(routed.model, routed.provider));
       return {
         id: `sub-${i}-${Math.random().toString(36).slice(2, 8)}`,
         nama: NAMA[i % NAMA.length],
         tugas: tugasBersih,
-        peran: custom ? peran ?? 'cari' : peran ?? tebakPeran(tugasBersih),
+        peran: custom
+          ? custom.alat.includes('multi_edit')
+            ? 'kerja'
+            : peran ?? 'cari'
+          : peran ?? tebakPeran(tugasBersih),
         customId: custom?.id ?? null,
         customNama: custom?.nama ?? null,
         customIkon: custom?.ikon ?? null,
+        mcpIzin: mcp,
+        effort: effortTugas ?? undefined,
+        tokenTugas: tokenTugas ?? null,
         status: 'menunggu' as SubStatus,
         langkah: [],
         hasil: '',
@@ -838,8 +1029,9 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             model: a.model,
             baseUrl: cfg.baseUrl || undefined,
             maxTokens: defA.maxOut ?? 2048,
-            effort: ai.reasoningEffort ?? undefined,
+            effort: a.effort ?? ai.reasoningEffort ?? undefined,
             konteks,
+            langkahOverride: opts?.langkahOverride,
             set,
             get,
           });
@@ -932,6 +1124,14 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
   batalSemua: () => {
     for (const a of get().agents) {
       if (a.status === 'jalan' || a.status === 'menunggu') get().batal(a.id);
+    }
+  },
+
+  batalDelegasi: (delegasiId) => {
+    for (const a of get().agents) {
+      if (a.delegasiId === delegasiId && (a.status === 'jalan' || a.status === 'menunggu')) {
+        get().batal(a.id);
+      }
     }
   },
 
@@ -1051,6 +1251,17 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     try {
       const maksLangkah = batasLangkah();
       let terakhir = '';
+      /* Daftar tawaran dibekukan sekali per lanjutan: penegakan "nama tidak
+         ditawarkan = ditolak" membandingkan dengan SET yang sama dengan yang
+         dikirim ke provider, bukan daftar yang bisa berbeda tiap langkah. */
+      const bolehTulisPeran = bolehTulis() && (infoPeran(agent.peran)?.butuhTulis ?? false);
+      const specDitawarkan = agentToolSpecs({
+        bolehTulis: bolehTulisPeran,
+        kedalaman: agent.kedalaman ?? 0,
+        alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
+        mcp: agent.mcpIzin?.length ? agent.mcpIzin : undefined,
+      });
+      const ditawarkan = new Set(specDitawarkan.map((s) => s.name));
       for (let langkah = 0; langkah < maksLangkah; langkah++) {
         if (batalSet.has(id)) {
           catat((a) => ({ ...a, status: 'batal', selesai: Date.now() }));
@@ -1066,14 +1277,10 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             provider: pilih.provider,
             model: pilih.id,
             messages: history as never,
-            tools: agentToolSpecs({
-              bolehTulis: bolehTulis() && (infoPeran(agent.peran)?.butuhTulis ?? false),
-              kedalaman: agent.kedalaman ?? 0,
-              alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
-            }),
+            tools: specDitawarkan,
             fullUrl: fullUrlProvider(pilih.provider),
             maxTokens: setSub?.maxSteps ? 8192 : 8192,
-            effort: undefined,
+            effort: agent.effort ?? useAi.getState().reasoningEffort ?? undefined,
           });
         });
         const attemptId = activeAttempts.get(id);
@@ -1119,40 +1326,37 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             return true;
           }
           const argsObj = (tc.args ?? {}) as Record<string, unknown>;
-          const perintahSub = String(argsObj.command ?? '');
-          const shellBahaya = isToolShell(tc.name) && isDestructive(perintahSub);
           /*
            * Satu gerbang untuk kedua loop: alasan penolakannya dibawa ke langkah
            * supaya UI bisa menyebut "ditolak izin", bukan "gagal" - dan supaya
            * jumlah penolakan sampai ke ringkasan yang dibaca agen utama.
            */
-          const putusan = putusanTulis(tc.name, { bahayaShell: shellBahaya });
-          const fileTarget = pathDitulis(tc.name, argsObj);
-          const konflik = fileTarget ? pemilikSaatIni(fileTarget) : null;
-          const fileMilikLain = !!konflik && konflik !== id;
-
+          const ctxT = siapkanTool(tc.name, argsObj, { agentId: id, ditawarkan, bolehTulisPeran });
           let hasil: string;
           let ok = true;
-          if (!putusan.boleh) {
-            hasil = putusan.pesan;
+          if (!ctxT.putusan.boleh) {
+            hasil = ctxT.putusan.pesan;
             ok = false;
-          } else if (fileMilikLain) {
-            const pemilik = get().agents.find((a) => a.id === konflik);
+          } else if (ctxT.konflik) {
+            const pemilik = get().agents.find((a) => a.id === ctxT.konflik);
+            const disenggol =
+              ctxT.targets.find((t) => pemilikSaatIni(t) === ctxT.konflik) ?? ctxT.targets[0];
             hasil =
-              `(refused: ${fileTarget} is being worked on by subagent "${pemilik?.nama ?? konflik}". ` +
+              `(refused: ${disenggol} is being worked on by subagent "${pemilik?.nama ?? ctxT.konflik}". ` +
               'Work on another file or wait for that subagent to finish.)';
             ok = false;
           } else {
-            if (fileTarget) klaimFile(id, fileTarget);
+            for (const p of ctxT.targets) klaimFile(id, p);
             try {
               const { jalankanAgentTool } = await import('./agentTools');
-              hasil = await jalankanAgentTool(tc.name, argsObj);
-              if (fileTarget) {
+              hasil = await jalankanAgentTool(ctxT.namaJalan, ctxT.args);
+              if (ctxT.targets.length) {
                 catat((a) => ({
                   ...a,
-                  fileDitulis: a.fileDitulis.includes(fileTarget)
-                    ? a.fileDitulis
-                    : [...a.fileDitulis, fileTarget],
+                  fileDitulis: ctxT.targets.reduce(
+                    (daftar, p) => (daftar.includes(p) ? daftar : [...daftar, p]),
+                    a.fileDitulis,
+                  ),
                 }));
               }
             } catch (e) {
@@ -1164,16 +1368,16 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
           catat((a) => ({
             ...a,
             nTool: a.nTool + 1,
-            tulisDitolak: putusan.alasan ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
+            tulisDitolak: ctxT.tulisDitolak ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
             langkah: [
               ...a.langkah,
               {
                 kind: 'tool',
-                nama: tc.name,
+                nama: ctxT.namaTampil,
                 args: JSON.stringify(argsObj).slice(0, 300),
                 hasil: hasil.slice(0, 2000),
                 ok,
-                ditolakTulis: !!putusan.alasan,
+                ditolakTulis: ctxT.tulisDitolak,
                 at: Date.now(),
               },
             ],
@@ -1270,6 +1474,8 @@ async function jalankanSatu(
     effort?: 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
     /** Results of earlier pipeline steps that this task depends on. */
     konteks?: string;
+    /** Batas langkah khusus batch ini (Experts); kosong = setelan global. */
+    langkahOverride?: number;
     set: (fn: (s: SubAgentState) => Partial<SubAgentState>) => void;
     get: () => SubAgentState;
   },
@@ -1303,7 +1509,18 @@ async function jalankanSatu(
   ];
 
   try {
-    const maksLangkah = batasLangkah();
+    const maksLangkah = ctx.langkahOverride ?? batasLangkah();
+    /* Daftar tawaran + gerbang peran dibekukan sekali per agent: penegakan
+       "nama tidak ditawarkan = ditolak" membandingkan dengan SET yang sama
+       dengan yang dikirim ke provider. */
+    const bolehTulisPeran = bolehTulis() && (infoPeran(agent.peran)?.butuhTulis ?? false);
+    const specDitawarkan = agentToolSpecs({
+      bolehTulis: bolehTulisPeran,
+      kedalaman: agent.kedalaman ?? 0,
+      alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
+      mcp: agent.mcpIzin?.length ? agent.mcpIzin : undefined,
+    });
+    const ditawarkan = new Set(specDitawarkan.map((s) => s.name));
     for (let langkah = 0; langkah < maksLangkah; langkah++) {
       if (batalSet.has(agent.id)) {
         ubah((a) => ({ ...a, status: 'batal', selesai: Date.now() }));
@@ -1311,32 +1528,32 @@ async function jalankanSatu(
       }
 
       const res = await new Promise<AgentStepResult>((resolve) => {
-        const attemptId = providerAttempt(agent.id);
-        activeAttempts.set(agent.id, attemptId);
-        resolvers.set(attemptId, resolve);
-        armWatchdog(attemptId);
+        const coba = providerAttempt(agent.id);
+        activeAttempts.set(agent.id, coba);
+        resolvers.set(coba, resolve);
+        armWatchdog(coba);
         cmd
           .aiToolChatStream({
-            id: attemptId,
+            id: coba,
             provider: ctx.provider,
             model: ctx.model,
             messages: history as never,
             // Offer only the tools this agent may use: a read-only role never
             // sees a write tool, so it cannot spend a turn calling one.
-            tools: agentToolSpecs({
-              bolehTulis: bolehTulis() && (infoPeran(agent.peran)?.butuhTulis ?? false),
-              kedalaman: agent.kedalaman ?? 0,
-              alat: agent.customId ? cariCustom(agent.customId)?.alat : undefined,
-            }),
+            tools: specDitawarkan,
             baseUrl: ctx.baseUrl,
             fullUrl: fullUrlProvider(ctx.provider),
             maxTokens: ctx.maxTokens,
             effort: ctx.effort,
           })
           .catch((e) => {
-            if (resolvers.get(agent.id) === resolve) {
-              resolvers.delete(agent.id);
-              disarmWatchdog(agent.id);
+            /* Kunci resolver = attemptId (kunci `resolvers`), BUKAN agent.id —
+               dulu `.catch` membaca kunci yang salah, sehingga error transport
+               tidak pernah me-resolve janjinya: langkah menggantung sampai
+               watchdog, lalu dilaporkan "idle timeout" alih-alih error aslinya. */
+            if (resolvers.get(coba) === resolve) {
+              resolvers.delete(coba);
+              disarmWatchdog(coba);
               resolve({
                 content: '',
                 toolCalls: [],
@@ -1382,34 +1599,43 @@ async function jalankanSatu(
           return;
         }
         const argsObj = (tc.args ?? {}) as Record<string, unknown>;
-        const perintahSub = String(argsObj.command ?? '');
-        const shellBahaya = isToolShell(tc.name) && isDestructive(perintahSub);
-        // Gerbang yang sama dengan loop gelombang - satu keputusan, dua tempat.
-        const putusan = putusanTulis(tc.name, { bahayaShell: shellBahaya });
-        // Claim the file for this agent. A second agent handed the same file is
-        // refused rather than allowed to overwrite the first agent's work.
-        const fileTarget = pathDitulis(tc.name, argsObj);
-        const konflik = fileTarget ? pemilikSaatIni(fileTarget) : null;
-        const fileMilikLain = !!konflik && konflik !== agent.id;
+        // Gerbang yang sama dengan loop lanjutan (siapkanTool): satu keputusan,
+        // satu tempat — termasuk bongkar tool_call, tolak nama tak ditawarkan,
+        // dan gerbang peran.
+        const ctxT = siapkanTool(tc.name, argsObj, {
+          agentId: agent.id,
+          ditawarkan,
+          bolehTulisPeran,
+        });
         let hasil: string;
         let ok = true;
-        if (!putusan.boleh) {
-          hasil = putusan.pesan;
+        if (!ctxT.putusan.boleh) {
+          hasil = ctxT.putusan.pesan;
           ok = false;
-        } else if (fileMilikLain) {
-          const pemilik = get().agents.find((a) => a.id === konflik);
+        } else if (ctxT.konflik) {
+          const pemilik = get().agents.find((a) => a.id === ctxT.konflik);
+          const disenggol =
+            ctxT.targets.find((t) => pemilikSaatIni(t) === ctxT.konflik) ?? ctxT.targets[0];
           hasil =
-            `(refused: ${fileTarget} is being worked on by subagent "${pemilik?.nama ?? konflik}". ` +
+            `(refused: ${disenggol} is being worked on by subagent "${pemilik?.nama ?? ctxT.konflik}". ` +
             'Work on another file or wait for that subagent to finish.)';
           ok = false;
         } else {
-          if (fileTarget) klaimFile(agent.id, fileTarget);
+          // Claim EVERY path this call touches. A second agent handed the same
+          // file is refused rather than allowed to overwrite the first's work.
+          for (const p of ctxT.targets) klaimFile(agent.id, p);
           try {
             const { jalankanAgentTool } = await import('./agentTools');
-            hasil = await jalankanAgentTool(tc.name, argsObj);
+            hasil = await jalankanAgentTool(ctxT.namaJalan, ctxT.args);
             // A write tool that actually succeeded is evidence for the verdict.
-            if (fileTarget) {
-              ubah((a) => ({ ...a, fileDitulis: a.fileDitulis.includes(fileTarget) ? a.fileDitulis : [...a.fileDitulis, fileTarget] }));
+            if (ctxT.targets.length) {
+              ubah((a) => ({
+                ...a,
+                fileDitulis: ctxT.targets.reduce(
+                  (daftar, p) => (daftar.includes(p) ? daftar : [...daftar, p]),
+                  a.fileDitulis,
+                ),
+              }));
             }
           } catch (e) {
             hasil = `ERROR: ${cmd.asZephyrError(e).message}`;
@@ -1419,17 +1645,17 @@ async function jalankanSatu(
 
         tambahLangkah({
           kind: 'tool',
-          nama: tc.name,
+          nama: ctxT.namaTampil,
           args: JSON.stringify(argsObj).slice(0, 300),
           hasil: hasil.slice(0, 2000),
           ok,
-          ditolakTulis: !!putusan.alasan,
+          ditolakTulis: ctxT.tulisDitolak,
           at: Date.now(),
         });
         ubah((a) => ({
           ...a,
           nTool: a.nTool + 1,
-          tulisDitolak: putusan.alasan ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
+          tulisDitolak: ctxT.tulisDitolak ? (a.tulisDitolak ?? 0) + 1 : (a.tulisDitolak ?? 0),
         }));
 
         history.push({

@@ -20,6 +20,8 @@ import { useStore } from '../../lib/store';
 import { useSubAgent } from '../../lib/subagentStore';
 import { bukaPanelAgx } from '../../lib/agxPanel';
 import { useExplorer } from '../../lib/explorerStore';
+import ExpertsPlanCard from './ExpertsPlanCard';
+import ExpertsTimeline from './ExpertsTimeline';
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -1785,7 +1787,20 @@ function ChatMessageInner({
                   <ReasoningBlock teks={msg.reasoning} ms={msg.reasoningMs} berjalan={msg.streaming} />
                 </div>
               )}
-              {isPlan && teksJawaban.trim() ? (
+              {/*
+                * Kartu rencana Experts Mode: pesan dengan `expertsPlan` = runId
+                * dirender sebagai kartu persetujuan (daftar tugas + Mulai).
+                * Di semua permukaan, bukan hanya Agent window — rencana tim
+                * adalah bagian dari percakapan, bukan mode khusus satu sisi.
+                */}
+              {msg.expertsPlan && !msg.streaming ? (
+                <>
+                  <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
+                  {/* Kartu task per worker ikut ALUR chat, tepat di bawah
+                      rencananya — bentuk Qoder, bukan ditumpuk di composer. */}
+                  <ExpertsTimeline runId={msg.expertsPlan} />
+                </>
+              ) : isPlan && teksJawaban.trim() ? (
                 <>
                 <div className={`ai-plan${planBuka ? ' is-open' : ''}`} data-testid="ai-plan">
                   <div className="ai-plan-kepala">

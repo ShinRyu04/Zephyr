@@ -1,6 +1,14 @@
 export type Encoding = 'utf8' | 'utf8-bom' | 'ansi' | 'utf16le' | 'utf16be';
 export type LineEnding = 'crlf' | 'lf';
 
+/*
+ * Tier model di composer (D1, parity Qoder): Auto / Efficient / Fast /
+ * Ultimate. Bukan nama model — tiap tier dipetakan ke model konkret milik
+ * provider aktif di `modelCatalog.tsx` SEBELUM request keluar. "Auto" tidak
+ * disimpan sebagai apa pun (null di store): model pilihan user yang menang.
+ */
+export type ModelTier = 'auto' | 'efficient' | 'fast' | 'ultimate';
+
 export type ErrorCode =
   | 'NotFound'
   | 'InvalidInput'
@@ -358,6 +366,16 @@ export interface ChatMsg extends AiMessage {
   plan?: boolean;
 
   /*
+   * Pesan ini adalah RENCANA Experts Mode (id run-nya disimpan di sini).
+   *
+   * Dirender sebagai kartu rencana ala Qoder: daftar tugas + tombol mulai.
+   * Data tugasnya hidup di `expertsStore` (dipersist ke localStorage), bukan
+   * di pesan — pesan hanya membawa penunjuknya, jadi kartu yang sama tetap
+   * hidup setelah reload tanpa menduplikasi state ke dua tempat.
+   */
+  expertsPlan?: string;
+
+  /*
    * Token counts the provider reported for THIS turn.
    *
    * Kept on the message (not only in the HydraFusion receipt) because the Task
@@ -505,6 +523,13 @@ export interface ChatSession {
   provider: string;
   messages: ChatMsg[];
   createdAt: number;
+
+  /*
+   * Mode yang MENEMANI sesi ini ('agent' | 'experts' | 'chat') — dicap saat
+   * pesan dikirim di mode tersebut. Qoder: tiap chat mengingat mode-nya —
+   * membuka chat lama memindahkan chip mode kembali ke mode chat itu.
+   */
+  mode?: string;
   /**
    * The workspace the conversation belongs to, recorded when the session is
    * created or first used.
@@ -1114,7 +1139,19 @@ export interface Tab {
     | 'diff-view'
     | 'plan'
     | 'subagent'
-    | 'browser';
+    | 'browser'
+    | 'experts-task'
+    | 'experts-canvas';
+
+  /*
+   * Alamat satu tugas Experts ("Task N: <judul>").
+   *
+   * Berbeda dari view view lain, `experts-task` TIDAK satu-instance: tiap
+   * worker dalam satu run Experts boleh membuka tabnya sendiri bersamaan,
+   * seperti Qoder yang menamparkan Task 1..N sebaris di bar tab. Tab yang
+   * sama (view + ekspertId sama) tetap dipakai ulang, bukan ditumpuk.
+   */
+  ekspertId?: string;
 
   /*
    * The address a `browser` tab is showing. Only meaningful on `view:'browser'`

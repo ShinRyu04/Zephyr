@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { BRAND_MARKS } from './modelBrandIcons';
+import type { ModelTier } from './types';
 
 export type LogoId =
   | 'gemini'
@@ -70,6 +71,15 @@ export interface ProviderModel {
 
   /** True when the provider serves this model for free. */
   gratis?: boolean;
+
+  /**
+   * Kelas tier (D1) yang dipakai `modelUntukTier` memetakan
+   * Auto/Efficient/Fast/Ultimate ke model konkret. Kosong = model ini tidak
+   * mewakili tier mana pun. Provider yang tidak punya kandidat untuk tier
+   * yang diminta JATUH ke model pilihan user — bukan diam-diam memakai
+   * model tier yang salah.
+   */
+  tier?: ModelTier;
 }
 
 export interface ProviderInfo {
@@ -94,12 +104,12 @@ export const PROVIDERS: ProviderInfo[] = [
     envKey: 'GEMINI_API_KEY',
     logo: 'gemini',
     models: [
-          { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', note: 'terbaru, agentik', ctx: 1_048_576, maxOut: 65536 },
+          { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', note: 'terbaru, agentik', ctx: 1_048_576, maxOut: 65536, tier: 'fast' },
           { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', note: 'coding + agent', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', note: 'fast, cheap', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', note: 'multimodal', ctx: 1_048_576, maxOut: 65536 },
-          { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', note: 'hemat', ctx: 1_048_576, maxOut: 65536 },
-          { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', note: 'penalaran dalam', ctx: 1_048_576, maxOut: 65536 },
+          { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', note: 'hemat', ctx: 1_048_576, maxOut: 65536, tier: 'efficient' },
+          { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', note: 'penalaran dalam', ctx: 1_048_576, maxOut: 65536, tier: 'ultimate' },
           { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', note: 'cheap, fast', ctx: 1_048_576, maxOut: 65536 },
           { id: 'gemini-3.1-flash-image', label: 'Nano Banana 2 (gambar)', note: 'generate/edit gambar', ctx: 1_000_000, maxOut: 65536 },
           { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', note: 'penalaran panjang', ctx: 2_000_000, maxOut: 65536 },
@@ -115,12 +125,12 @@ export const PROVIDERS: ProviderInfo[] = [
         envKey: 'OPENAI_API_KEY',
         logo: 'openai',
         models: [
-                  { id: 'gpt-6-astra', label: 'GPT-6 Astra', note: 'flagship, agentik', ctx: 1_050_000, maxOut: 128000 },
+                  { id: 'gpt-6-astra', label: 'GPT-6 Astra', note: 'flagship, agentik', ctx: 1_050_000, maxOut: 128000, tier: 'ultimate' },
                   { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', note: 'profesional', ctx: 1_050_000, maxOut: 128000 },
                   { id: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', note: 'seimbang', ctx: 1_050_000, maxOut: 128000 },
-                  { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', note: 'hemat', ctx: 1_050_000, maxOut: 128000 },
+                  { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', note: 'hemat', ctx: 1_050_000, maxOut: 128000, tier: 'fast' },
                   { id: 'gpt-5.2', label: 'GPT-5.2', note: 'kualitas tinggi', ctx: 400_000, maxOut: 16384 },
-                  { id: 'gpt-5.1-mini', label: 'GPT-5.1 mini', note: 'hemat', ctx: 400_000, maxOut: 16384 },
+                  { id: 'gpt-5.1-mini', label: 'GPT-5.1 mini', note: 'hemat', ctx: 400_000, maxOut: 16384, tier: 'efficient' },
                   { id: 'o4-mini', label: 'o4-mini', note: 'reasoning, hemat', ctx: 200_000, maxOut: 100_000 },
                                                       { id: 'gpt-5', label: 'GPT-5', note: 'lama', ctx: 400_000, maxOut: 16384 },
                                                       { id: 'gpt-5-mini', label: 'GPT-5 mini', note: 'hemat', ctx: 400_000, maxOut: 16384 },
@@ -134,11 +144,11 @@ export const PROVIDERS: ProviderInfo[] = [
         envKey: 'ANTHROPIC_API_KEY',
         logo: 'anthropic',
         models: [
-                  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', note: 'terbaru, terbaik', ctx: 1_000_000, maxOut: 65536 },
+                  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', note: 'terbaru, terbaik', ctx: 1_000_000, maxOut: 65536, tier: 'ultimate' },
                   { id: 'claude-fable-5', label: 'Claude Fable 5', note: 'frontier', ctx: 1_000_000, maxOut: 65536 },
                   { id: 'claude-opus-5', label: 'Claude Opus 5', note: 'agentik coding', ctx: 1_000_000, maxOut: 128000 },
                   { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', note: 'reasoning', ctx: 1_000_000, maxOut: 128000 },
-                  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', note: 'seimbang', ctx: 1_000_000, maxOut: 128000 },
+                  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', note: 'seimbang', ctx: 1_000_000, maxOut: 128000, tier: 'fast' },
                   /* 4.6 sits where a router is likely to expose a real Claude
                      model: it still accepts the extended-thinking form that the
                      4.7+ generation rejects, so it is the one that works with
@@ -146,7 +156,7 @@ export const PROVIDERS: ProviderInfo[] = [
                   { id: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6', note: 'seimbang (router)', ctx: 200_000, maxOut: 64000 },
                   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', note: 'seimbang (lama)', ctx: 200_000, maxOut: 8192 },
                   { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', note: 'reasoning (router)', ctx: 200_000, maxOut: 64000 },
-                  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'fast, efficient', ctx: 200_000, maxOut: 64000 },
+                  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'fast, efficient', ctx: 200_000, maxOut: 64000, tier: 'efficient' },
                                   ],
       },
       {
@@ -156,9 +166,9 @@ export const PROVIDERS: ProviderInfo[] = [
               envKey: 'DEEPSEEK_API_KEY',
               logo: 'deepseek',
               models: [
-                        { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', note: 'terbaru, coding', ctx: 1_000_000, maxOut: 65536 },
-                        { id: 'deepseek-flash', label: 'DeepSeek Flash (V4.1)', note: 'terbaru, default', ctx: 1_000_000, maxOut: 65536 },
-                        { id: 'deepseek-chat', label: 'DeepSeek Chat (V3.2)', note: 'general, older version', ctx: 128_000, maxOut: 8192 },
+                        { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', note: 'terbaru, coding', ctx: 1_000_000, maxOut: 65536, tier: 'ultimate' },
+                        { id: 'deepseek-flash', label: 'DeepSeek Flash (V4.1)', note: 'terbaru, default', ctx: 1_000_000, maxOut: 65536, tier: 'fast' },
+                        { id: 'deepseek-chat', label: 'DeepSeek Chat (V3.2)', note: 'general, older version', ctx: 128_000, maxOut: 8192, tier: 'efficient' },
                                                 { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1/V3.2)', note: 'reasoning, older version', ctx: 128_000, maxOut: 8192 },
                                               ],
       },
@@ -773,6 +783,28 @@ export function modelTersedia(
 
 export function isPlaceholderModel(id: string | null | undefined): boolean {
   return !!id && PLACEHOLDER_MODEL_IDS.has(id.trim());
+}
+
+/*
+ * Tier model (D1, parity Qoder) → id model konkret.
+ *
+ * Pemetaan per provider dibaca dari field `tier` katalog di atas, bukan dari
+ * tebakan nama: nama model berganti antar generasi, sedangkan kurasi di sini
+ * satu-satunya tempat yang tahu model mana flagship dan mana hemat di
+ * provider itu. `modelAktif` (pilihan user) menang di tiga keadaan: tier
+ * kosong/'auto', provider tidak dikenal, atau provider tidak punya model
+ * untuk tier itu — jatuh ke model spesifik, BUKAN diam-diam memakai model
+ * tier yang salah. Dipanggil di aiStore SEBELUM request dibangun, jadi Rust
+ * tidak perlu tahu konsep tier.
+ */
+export function modelUntukTier(
+  providerId: string,
+  tier: ModelTier | null | undefined,
+  modelAktif: string,
+): string {
+  if (!tier || tier === 'auto') return modelAktif;
+  const kandidat = PROVIDER_BY_ID.get(providerId)?.models.find((m) => m.tier === tier);
+  return kandidat?.id ?? modelAktif;
 }
 
 /**
