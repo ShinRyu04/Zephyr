@@ -214,10 +214,18 @@ export default function SubagentCustomModal({ awal }: Props) {
     };
   }, [menuBuka]);
 
+  const namaBersih = nama.trim();
   const namaTerpakai = useSubagentCustom((s) =>
-    s.daftar.some((x) => x.nama.toLowerCase() === nama.trim().toLowerCase() && x.id !== awal?.id),
+    s.daftar.some((x) => x.nama.toLowerCase() === namaBersih.toLowerCase() && x.id !== awal?.id),
   );
-  const bisaSimpan = nama.trim().length > 0 && alat.length > 0 && !namaTerpakai;
+  const namaTerlaluPanjang = namaBersih.length > 40;
+  const namaPunyaKurungTutup = nama.includes(']');
+  const bisaSimpan =
+    namaBersih.length > 0 &&
+    alat.length > 0 &&
+    !namaTerpakai &&
+    !namaTerlaluPanjang &&
+    !namaPunyaKurungTutup;
 
   const toggleAlat = (id: AlatId) => {
     setAlat((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
@@ -297,6 +305,16 @@ export default function SubagentCustomModal({ awal }: Props) {
             {namaTerpakai && (
               <span className="subagent-warn" data-testid="sc-nama-bentrok">
                 {tr('Another sub-agent already uses that name.')}
+              </span>
+            )}
+            {namaTerlaluPanjang && (
+              <span className="subagent-warn" data-testid="sc-nama-panjang">
+                {tr('A sub-agent name can contain at most 40 characters.')}
+              </span>
+            )}
+            {namaPunyaKurungTutup && (
+              <span className="subagent-warn" data-testid="sc-nama-kurung">
+                {tr('A sub-agent name cannot contain "]".')}
               </span>
             )}
           </label>

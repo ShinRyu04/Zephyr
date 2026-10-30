@@ -1,0 +1,73 @@
+{
+  "name": "zephyr-ai-agent",
+  "displayName": "Zephyr AI Agent",
+  "description": "Autonomous AI Agent for VS Code & Trae with 7 Core Tools, Multi-Model Provider, and Diff Editor",
+  "version": "1.0.0",
+  "publisher": "zephyr",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "zephyr",
+    "cartethyia",
+    "copilot",
+    "cline",
+    "coding"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "zephyr-ai-sidebar",
+          "title": "Zephyr AI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "zephyr-ai-sidebar": [
+        {
+          "type": "webview",
+          "id": "zephyr.aiView",
+          "name": "Zephyr Agent",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "zephyr.openChat",
+        "title": "Zephyr AI: Open Chat",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "zephyr.newSession",
+        "title": "Zephyr AI: New Task Session",
+        "icon": "$(add)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build": "node esbuild.js",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0"
+  }
+}

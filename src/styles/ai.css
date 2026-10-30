@@ -11403,26 +11403,18 @@
  */
 
 /*
- * 3. Composer: cincin fokus yang sama dengan kontrol di seluruh aplikasi.
+ * 3. Composer: fokus cukup MENYALA PELAN di border — tanpa cincin.
  *
- * `:focus-within` dipakai, bukan `:focus`, karena yang menerima fokus adalah
- * textarea di dalamnya - dan yang harus terlihat "sedang aktif" adalah kotak
- * yang dibaca pengguna, bukan kotak yang lebih kecil di dalamnya.
+ * Dulu rule ini menggambar ring 3px + bayangan di sekeliling kotak composer;
+ * di layar itu tampil sebagai glow tebal yang membuat kotak terasa berat
+ * (produk rujukan cuma menghaluskan bordernya saat fokus). Border berubah
+ * warna, titik; tidak ada apa pun yang bergerak atau membesar.
  */
 .ai-input-row:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
-
-/* Mode gelap dan terang sama-sama butuh bayangan yang terlihat; `--bg` di tema
-   terang jauh lebih terang dari hitam, jadi bayangan bawaan hilang di sana. */
-:root[data-theme='light'] .ai-input-row:focus-within,
 .theme-light .ai-input-row:focus-within {
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
 /* ── Per-tool permission rules ────────────────────────────────────────────

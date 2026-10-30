@@ -2238,3 +2238,22 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * Pas panel AI di-MAXIMIZE (`.ai-side-col.is-max`, flag `aiMax`), composer
+ * JANGAN ikut melebar memenuhi panel: bentuknya tetap yang sekarang, lebarnya
+ * dibatasi dan rata tengah — berlaku untuk composer Agent, Claude Code
+ * (`.cli-native-composer`), dan Codex (`.cdx-composer`). Ukuran di luar
+ * maximize tidak berubah sama sekali.
+ */
+.ai-side-col.is-max .ai-input-row,
+.ai-side-col.is-max .cli-native-composer,
+.ai-side-col.is-max .cdx-composer {
+  /* width:100% WAJIB sebelum margin auto: di parent flex, margin auto tanpa
+     width menyerap SEMUA ruang bebas dan menyusutkan composer ke lebar
+     minimum — itulah kotak sempit yang terlihat saat maximize. */
+  width: 100%;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}

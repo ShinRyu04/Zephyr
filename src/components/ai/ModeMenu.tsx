@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
-import type { ApprovalMode } from '../../lib/types';
+import type { ApprovalMode, ModelTier } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
 import { useStore } from '../../lib/store';
 import { useAgentCustom } from '../../lib/agentCustom';
@@ -81,6 +81,19 @@ const EFFORT: { id: string; label: string; hint: string }[] = [
   { id: 'ultra', label: 'Ultra', hint: 'Maximum - slowest' },
 ];
 
+/*
+ * Tier model (D1, parity Qoder). Bukan daftar model: tiap tier dipetakan ke
+ * id model konkret milik provider aktif oleh `modelUntukTier` (modelCatalog)
+ * sebelum request keluar — jadi daftar di sini sengaja tetap empat kelas
+ * abstrak. '' = Auto = model pilihan user yang menang.
+ */
+const TIER: { id: string; label: string; hint: string }[] = [
+  { id: '', label: 'Auto', hint: 'Model you picked stays in charge' },
+  { id: 'efficient', label: 'Efficient', hint: 'Cheapest capable model' },
+  { id: 'fast', label: 'Fast', hint: 'Quicker turns, lighter work' },
+  { id: 'ultimate', label: 'Ultimate', hint: 'The best this provider has' },
+];
+
 /** Closes the menu on an outside click or Escape. */
 function useTutupOtomatis(ref: React.RefObject<HTMLElement | null>, tutup: () => void) {
   useEffect(() => {
@@ -123,7 +136,7 @@ function useTutupOtomatis(ref: React.RefObject<HTMLElement | null>, tutup: () =>
  * reference has no such control there. The setting still exists and still works
  * - it is set in Chat Settings - but it is no longer a chip beside Send.
  */
-export function ModeMenu() {
+export function ModeMenu({ composerId = '' }: { composerId?: string } = {}) {
   const tr = useT();
   const [buka, setBuka] = useState(false);
   const ref = useRef<HTMLSpanElement | null>(null);
@@ -177,7 +190,26 @@ export function ModeMenu() {
    * stored id is the source of truth; it falls back through the legacy empty
    * value to whichever built-in the mode names.
    */
+  /*
+   * Experts Mode: pilihan bawaan ketiga. `agentAktif === 'experts'` adalah
+   * id khusus — setAgentAktif memetakannya ke agentMode 'agent' (jadi semua
+   * gerbang izin tetap jalan), dan cabang kirim di aiStore meneruskannya ke
+   * sendExperts alih-alih sendAgent.
+   */
+  const expertsAktif = agentAktif === 'experts';
   const idAktif = agentAktif || (modeAktif === 'chat' ? 'chat' : 'agent');
+
+  /*
+   * Ganti mode = sesi BARU, dua arah (Qoder). Menekan mode yang sudah aktif
+   * hanya menutup menu — bukan memulai percakapan kosong yang tidak diminta.
+   * Sesi lama tetap utuh dan mengingat mode-nya (dipulihkan oleh selectChat).
+   */
+  const gantiMode = (id: 'chat' | 'agent' | 'experts') => {
+    const sudah = id === 'experts' ? expertsAktif : idAktif === id;
+    setAgentAktif(id);
+    if (!sudah) useAi.getState().newChat(composerId);
+    setBuka(false);
+  };
 
   /* The list may not be loaded yet on a cold start, so the popup falls back to
      describing the row generically rather than rendering an empty label. */
@@ -218,6 +250,14 @@ export function ModeMenu() {
               strokeLinejoin="round"
             />
           </svg>
+        ) : expertsAktif ? (
+          /* Dua figur: kerja tim, bukan satu agen. */
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+            <circle cx="5.6" cy="6" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M1.8 13.4c0-2.1 1.7-3.4 3.8-3.4s3.8 1.3 3.8 3.4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            <circle cx="11.4" cy="6.6" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M10.9 9.9c1.9 0 3.3 1.2 3.3 3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
         ) : agentKustomAktifChip ? (
           /* A custom agent's own mark, so the chip names the one that answers. */
           <AgenAvatar agent={agentKustomAktifChip} size={12} />
@@ -231,7 +271,11 @@ export function ModeMenu() {
             <circle cx="9.8" cy="9" r="0.95" fill="currentColor" stroke="none" />
           </svg>
         )}
-        {agentKustomAktifChip ? agentKustomAktifChip.nama : tr(modeAktif === 'chat' ? 'Chat' : 'Agent')}
+        {expertsAktif
+          ? tr('Experts')
+          : agentKustomAktifChip
+            ? agentKustomAktifChip.nama
+            : tr(modeAktif === 'chat' ? 'Chat' : 'Agent')}
         <span className="pick-caret">▾</span>
       </button>
 
@@ -250,10 +294,7 @@ export function ModeMenu() {
             className={`mode-item${idAktif === 'chat' ? ' is-on' : ''}`}
             data-testid="ai-mode-chat"
             title={tr('Ask questions and talk - no tools, no file changes')}
-            onClick={() => {
-              setAgentAktif('chat');
-              setBuka(false);
-            }}
+            onClick={() => gantiMode('chat')}
           >
             <span className="mode-item-ikon" aria-hidden="true">
               <svg viewBox="0 0 16 16" width="13" height="13">
@@ -278,10 +319,7 @@ export function ModeMenu() {
             aria-checked={idAktif === 'agent'}
             className={`mode-item${idAktif === 'agent' ? ' is-on' : ''}`}
             data-testid="ai-persona-aktif"
-            onClick={() => {
-              setAgentAktif('agent');
-              setBuka(false);
-            }}
+            onClick={() => gantiMode('agent')}
           >
             <span className="mode-item-ikon" aria-hidden="true">
               {/* The robot head, as the reference draws the agent. */}
@@ -297,6 +335,34 @@ export function ModeMenu() {
               <b>{tr('Agent')}</b>
             </span>
             {idAktif === 'agent' && <span className="pick-check">✓</span>}
+          </button>
+
+          {/*
+            * Experts Mode: satu tujuan, tim mengerjakan. Lead menyusun
+            * rencana, user meninjau/mengubahnya lalu menekan Start; auto-run
+            * tetap tersedia sebagai opsi di Agent Customizations -> Experts.
+            */}
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={expertsAktif}
+            className={`mode-item${expertsAktif ? ' is-on' : ''}`}
+            data-testid="ai-mode-experts"
+            title={tr('A team of experts: Lead plans, workers run in parallel')}
+            onClick={() => gantiMode('experts')}
+          >
+            <span className="mode-item-ikon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="13" height="13">
+                <circle cx="5.6" cy="6" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M1.8 13.4c0-2.1 1.7-3.4 3.8-3.4s3.8 1.3 3.8 3.4" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <circle cx="11.4" cy="6.6" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M10.9 9.9c1.9 0 3.3 1.2 3.3 3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="mode-item-teks">
+              <b>{tr('Experts')}</b>
+            </span>
+            {expertsAktif && <span className="pick-check">✓</span>}
           </button>
 
           {/*
@@ -538,6 +604,83 @@ export function ReasoningMenu() {
                 <i>{tr(e.hint)}</i>
               </span>
               {e.id === (effort ?? '') && <span className="pick-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+/* ── Model tier (D1) ──────────────────────────────────────────────────── */
+
+/*
+ * Pola persis ReasoningMenu: satu pemicu, satu popover yang membuka KE ATAS
+ * (composer menempel di dasar panel — dropdown ke bawah terpotong), satu
+ * baris per pilihan. Yang berbeda cuma store-nya dan artinya: ini bukan
+ * seberapa keras model berpikir, tapi MODEL MANA yang keluar — tiap tier
+ * dipetakan ke id model konkret per provider oleh `modelUntukTier`
+ * (modelCatalog) sebelum request dibangun, bukan di Rust.
+ */
+export function TierMenu() {
+  const tr = useT();
+  const [buka, setBuka] = useState(false);
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useTutupOtomatis(ref, () => setBuka(false));
+
+  const tier = useAi((s) => s.modelTier);
+  const setTier = useAi((s) => s.setModelTier);
+  const tierAktif = TIER.find((t) => t.id === (tier ?? '')) ?? TIER[0];
+
+  return (
+    <span className="izin-wrap" ref={ref}>
+      <button
+        className="mode-btn"
+        data-testid="ai-tier-menu"
+        data-tier={tier ?? ''}
+        aria-expanded={buka}
+        aria-haspopup="menu"
+        title={`${tr('Model tier')}: ${tr(tierAktif.label)} — ${tr(tierAktif.hint)}`}
+        onClick={() => setBuka((v) => !v)}
+      >
+        {/* Dua chevron naik: kelas kemampuan, bukan nama model. */}
+        <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+          <path
+            d="M4.5 9.2 8 5.7l3.5 3.5M4.5 13 8 9.5l3.5 3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {tr(tierAktif.label)}
+        <span className="pick-caret">▾</span>
+      </button>
+
+      {buka && (
+        <div className="mode-pop is-naik" data-testid="ai-tier-pop" role="menu">
+          <div className="pick-seksi">{tr('Model tier')}</div>
+          {TIER.map((t) => (
+            <button
+              key={t.id || 'auto'}
+              type="button"
+              role="menuitemradio"
+              aria-checked={t.id === (tier ?? '')}
+              className={`mode-item${t.id === (tier ?? '') ? ' is-on' : ''}`}
+              data-testid={`ai-tier-${t.id || 'auto'}`}
+              onClick={() => {
+                // Store memodelkan "tidak dipilih" sebagai null; '' hanya id
+                // tampilan untuk opsi Auto — pola yang sama dengan effort.
+                setTier(t.id === '' ? null : (t.id as ModelTier));
+                setBuka(false);
+              }}
+            >
+              <span className="mode-item-teks">
+                <b>{tr(t.label)}</b>
+                <i>{tr(t.hint)}</i>
+              </span>
+              {t.id === (tier ?? '') && <span className="pick-check">✓</span>}
             </button>
           ))}
         </div>

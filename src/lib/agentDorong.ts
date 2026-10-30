@@ -179,10 +179,7 @@ export function permintaanMajemuk(teks: string | null | undefined): boolean {
 
 /**
  * Langkah hanya-baca sebelum menulis dipaksa.
- *
- * Delapan mengikuti bukti dari run toko: pada 40+ berkas, model menghabiskan
- * belasan langkah pertama untuk membaca dan tidak pernah menulis berkas
- * berikutnya. Di bawah delapan, run yang sehat (membaca 3-4 berkas lalu menulis)
- * masih aman.
+ * Dinaikkan ke 30 agar agen bisa leluasa meneliti codebase besar dan membaca banyak berkas
+ * sebelum memutuskan menulis, tanpa terpotong di tengah investigasi.
  */
-export const BATAS_TULIS_PAKSA = 8;
+export const BATAS_TULIS_PAKSA = 30;

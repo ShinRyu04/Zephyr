@@ -174,6 +174,30 @@ pub fn cc_plugins_catalog() -> ZResultT<Vec<CatalogPlugin>> {
         })
         .collect();
 
+    // Pastikan plugin yang terpasang lokal tapi gak ada di official catalog tetap nongol
+    for id in &installed {
+        if !out.iter().any(|p| &p.id == id) {
+            let (name, market) = id.split_once('@').unwrap_or((id.as_str(), "custom"));
+            out.push(CatalogPlugin {
+                id: id.clone(),
+                name: name.to_string(),
+                marketplace: market.to_string(),
+                description: "Custom / local plugin".to_string(),
+                author: "".to_string(),
+                category: "Custom".to_string(),
+                homepage: "".to_string(),
+                installs: 0,
+                commands: 0,
+                agents: 0,
+                skills: 0,
+                hooks: 0,
+                mcp: 0,
+                installed: true,
+                enabled: enabled.contains(id),
+            });
+        }
+    }
+
     /* Most-installed first: a browse list is read from the top and the reader
     is usually after something known-good rather than something obscure. */
     out.sort_by(|a, b| b.installs.cmp(&a.installs).then(a.name.cmp(&b.name)));

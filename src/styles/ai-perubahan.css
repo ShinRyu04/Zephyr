@@ -1,17 +1,22 @@
 /* ai-perubahan.css — the "files changed" card that closes a chat transcript.
  *
- * The reference's shape, rebuilt from the user's screenshots:
+ * The Qoder reference's shape, compact scale:
  *
- *   ┌─────────────────────────────────────────────────────────────┐
- *   │ [doc] 2 files changed ⌄              +107 −48        [↗]    │
- *   ├─────────────────────────────────────────────────────────────┤
- *   │ [TS] WorkingSet     .src/components/explorer/…  +10 −7      │
- *   └─────────────────────────────────────────────────────────────┘
+ *   ┌───────────────────────────────────────────────────────────────────┐
+ *   │ ⌄ [doc] 2 Changed Files            +107 −48  Accepted      [↗]   │
+ *   ├───────────────────────────────────────────────────────────────────┤
+ *   │ [TS] WorkingSet   .src/components/explorer/…  +10 −7  Accepted   │
+ *   ├───────────────────────────────────────────────────────────────────┤
+ *   │ [Discard all] [Keep all]                                         │
+ *   └───────────────────────────────────────────────────────────────────┘
  *
  * One bordered card, one row per FILE, the full relative path dimmed beside the
- * name. The folder-group rows this file used to style are gone - the reference
- * does not group, and repeating the same directory four times cost more height
- * than it saved.
+ * name, a quiet green "Accepted" verdict beside every stat, and - only while
+ * the card is expanded - a footer with the turn's two verdicts: "Discard all"
+ * restores the checkpoint (the card disappears on success), "Keep all"
+ * collapses and dims the card. The folder-group rows this file used to style
+ * are gone - the reference does not group, and repeating the same directory
+ * four times cost more height than it saved.
  *
  * Two animations, both pure CSS:
  *   - the body expands via `grid-template-rows: 0fr -> 1fr`, so the height is
@@ -26,9 +31,16 @@
   width: 100%;
   margin: 4px 0 6px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--surface, var(--surface-1));
   overflow: hidden;
+  transition: opacity 140ms ease;
+}
+
+/* Keep all dims the whole card: the changes are accepted and the card no
+   longer asks for a decision, but it stays readable and re-openable. */
+.ai-ubah.is-terima {
+  opacity: 0.55;
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
@@ -36,8 +48,8 @@
 .ai-ubah-kepala {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 10px;
+  gap: 6px;
+  padding: 6px 10px;
 }
 
 /*
@@ -48,7 +60,7 @@
 .ai-ubah-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
   padding: 0;
@@ -73,9 +85,9 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   background: var(--surface-3, var(--surface-2));
   color: var(--text-secondary);
 }
@@ -83,7 +95,7 @@
 .ai-ubah-judul {
   flex: 0 1 auto;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -116,6 +128,20 @@
 }
 
 /*
+ * The green "Accepted" verdict, header and per-row alike: 10px, token green,
+ * deliberately quiet - a status label, never a control.
+ */
+.ai-ubah-badge {
+  flex: 0 0 auto;
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+/*
  * Open-in-editor, the diagonal arrow in the reference.
  *
  * Quiet until hovered: it is the way OUT of the card, not the main action, and a
@@ -126,8 +152,8 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -176,7 +202,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 4px;
+  padding: 2px 4px 4px;
   max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -190,8 +216,9 @@
   align-items: center;
   gap: 4px;
   width: 100%;
-  min-height: 30px;
-  padding: 0 4px;
+  min-height: 22px;
+  padding: 4px 10px;
+  font-size: 11.5px;
   border-radius: 6px;
   color: var(--text-secondary);
 
@@ -214,7 +241,7 @@
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
-  padding: 4px 0;
+  padding: 0;
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -246,7 +273,7 @@
 .ai-ubah-nama {
   flex: 0 0 auto;
   max-width: 45%;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -258,7 +285,7 @@
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -279,8 +306,8 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   color: var(--text-muted);
   background: transparent;
@@ -320,6 +347,7 @@
 /* ── Motion off ───────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
+  .ai-ubah,
   .ai-ubah-isi,
   .ai-ubah-caret {
     transition: none;
@@ -328,6 +356,61 @@
   .ai-ubah-baris {
     animation: none;
   }
+}
+
+/* ── Footer: Discard all / Keep all ───────────────────────────────────── */
+
+/*
+ * Only rendered while the card is expanded (the component mounts it beside the
+ * body, OUTSIDE the folding grid - a second row inside the `0fr -> 1fr` grid
+ * would never collapse). Ghost buttons, left-aligned: the verdicts matter, but
+ * they must not shout louder than the file list above them.
+ */
+.ai-ubah-kaki {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-ubah-kaki-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ai-ubah-kaki-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Discard is destructive: its hover tints toward the warning token instead of
+   the accent, so a mouse landing on it by feel cannot mistake the verdict. */
+.ai-ubah-kaki-btn.is-buang:hover:not(:disabled) {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.ai-ubah-kaki-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ai-ubah-kaki-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ── Review bar above the composer ────────────────────────────────────── *

@@ -270,6 +270,63 @@ export function modelDariPrefix(tugas: string): { model: string | null; provider
   return { model, provider, sisa };
 }
 
+/**
+ * Optional per-task MCP allowlist: `[mcp:<serverId>,<serverId>]`.
+ *
+ * Dipakai Experts untuk pengaturan Skills & MCP per ahli. Tag dicopot dari
+ * teks tugas dan diteruskan ke `agentToolSpecs({ mcp })`, sehingga worker itu
+ * hanya ditawari tool dari server yang dicentang. Kosong = semua server aktif
+ * (perilaku lama), jadi baris tugas tanpa tag tidak berubah sama sekali.
+ */
+export function mcpDariTeks(tugas: string): { mcp: string[]; sisa: string } {
+  const m = tugas.match(/\[\s*mcp\s*:\s*([^\]]*?)\s*\]/i);
+  if (!m) return { mcp: [], sisa: tugas };
+  const mcp = [...new Set(m[1].split(',').map((s) => s.trim()).filter(Boolean))];
+  const sisa = (tugas.slice(0, m.index) + ' ' + tugas.slice((m.index ?? 0) + m[0].length))
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { mcp, sisa };
+}
+
+/**
+ * Optional per-task reasoning effort: `[effort:low]`.
+ *
+ * Dipakai Experts untuk pengaturan "Thinking effort" per ahli. Tag dicopot
+ * dari teks tugas (supaya tidak muncul di laporan worker) dan nilainya
+ * diteruskan ke `aiToolChat({ effort })`. Kosong = ikut chip Reasoning global
+ * di composer, jadi baris tanpa tag berperilaku persis seperti sebelumnya.
+ */
+export type EffortTugas = 'minimal' | 'low' | 'medium' | 'high' | 'ultra';
+
+const EFFORT_SAH: readonly EffortTugas[] = ['minimal', 'low', 'medium', 'high', 'ultra'];
+
+export function effortDariTeks(tugas: string): { effort: EffortTugas | null; sisa: string } {
+  const m = tugas.match(/\[\s*effort\s*:\s*([^\]]*?)\s*\]/i);
+  if (!m) return { effort: null, sisa: tugas };
+  const nilai = m[1].trim().toLowerCase();
+  const effort = (EFFORT_SAH as readonly string[]).includes(nilai) ? (nilai as EffortTugas) : null;
+  const sisa = (tugas.slice(0, m.index) + ' ' + tugas.slice((m.index ?? 0) + m[0].length))
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { effort, sisa };
+}
+
+/**
+ * Token identitas tugas di UJUNG baris: `[#t3]`.
+ *
+ * Dipakai Experts memetakan baris agent kembali ke tugas rencananya. Dulu
+ * pemetaan mengandalkan TEKS brief — dua tugas dengan brief identik membuat
+ * tugas pertama tidak pernah kebagian agentId (diam-diam "Pending" selamanya).
+ * Token ini unik per tugas, dicopot dari teks tugas oleh `buatAgent`
+ * (supaya worker tidak melihatnya), dan disimpan di baris SubAgent sebagai
+ * `tokenTugas` untuk pencocokan yang tidak mungkin tabrakan.
+ */
+export function tokenDariTeks(tugas: string): { token: string | null; sisa: string } {
+  const m = tugas.match(/\s*\[#([A-Za-z0-9_-]+)\]\s*$/);
+  if (!m) return { token: null, sisa: tugas };
+  return { token: m[1], sisa: tugas.slice(0, m.index).trim() };
+}
+
 /** True kalau `id` bukan salah satu peran bawaan (termasuk undefined/kosong). */
 export function peranTidakDikenal(id: string | undefined): boolean {
   return !id || !PERAN_BY_ID.has(id as PeranId);

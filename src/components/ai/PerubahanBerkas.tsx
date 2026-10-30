@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { AgentToolRun } from '../../lib/types';
+import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
 import { useDiff, useDiffBerkas } from '../../lib/diffStore';
 import { bukaPanelAgx } from '../../lib/agxPanel';
-import { tf, useT } from '../../lib/i18n';
+import { tx, tf, useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import FileIkon from './FileIkon';
 import '../../styles/ai-perubahan.css';
@@ -22,12 +23,22 @@ import '../../styles/ai-perubahan.css';
  * with the same path and a fifth of the numbers. The map arrives pre-built from
  * `AiPanel`, which walks the message list once.
  *
- * Shape, following the reference (the user's screenshots of TRAE):
+ * Shape, following the Qoder reference - compact card, caret BEFORE the doc
+ * icon, a green "Accepted" verdict beside every stat, and a footer with the
+ * turn's two verdicts while the card is expanded:
  *
- *   [doc] 2 files changed  ⌄                    +107 -48   [↗]
- *   ─────────────────────────────────────────────────────────────
- *   [TS] WorkingSet     .src/components/explorer/WorkingSet.tsx  +10 -7
- *   [TS] ExplorerPanel  .src/components/explorer/ExplorerPanel.tsx  +97 -41
+ *   ⌄ [doc] 2 Changed Files                  +107 -48  Accepted   [↗]
+ *   ─────────────────────────────────────────────────────────────────
+ *   [TS] WorkingSet     .src/components/explorer/WorkingSet.tsx  +10 -7  Accepted
+ *   [TS] ExplorerPanel  .src/components/explorer/ExplorerPanel.tsx  +97 -41  Accepted
+ *   ─────────────────────────────────────────────────────────────────
+ *   [Discard all] [Keep all]
+ *
+ * The footer: "Keep all" marks the card accepted - it collapses and dims, the
+ * changes stay on disk. "Discard all" runs the checkpoint restore (same flow as
+ * ChatMessage's review bar) and, on full success, removes the card entirely -
+ * there is nothing left to review. It only renders when the card carries a
+ * checkpoint; without one the reader still gets "Keep all".
  *
  * ONE card, one row per file, full relative path dimmed beside the name. The
  * folder-group rows this card used to draw are gone: the reference does not
@@ -91,10 +102,22 @@ function susun(peta: Map<string, AgentToolRun[]>): Berkas[] {
   return berkas;
 }
 
+/*
+ * Keep/Discard decisions per card, keyed by `cardKey` (the owning message id).
+ *
+ * Module-level, like ChatMessage's PLAN_IZIN_TUTUP: a card the reader has
+ * already decided about must not spring back when the transcript re-renders the
+ * same message. 'keep'    = accepted: the card stays, collapsed and dimmed.
+ * 'discard' = undone: the card is removed from the transcript entirely.
+ */
+const KEPUTUSAN_UBAH = new Map<string, 'keep' | 'discard'>();
+
 export default function PerubahanBerkas({
   peta,
   daftar,
   permukaan = 'main',
+  checkpoint,
+  cardKey,
 }: {
   /** Live tool rows for the SESSION (legacy: the pinned-end-of-chat card). */
   peta?: Map<string, AgentToolRun[]>;
@@ -119,9 +142,34 @@ export default function PerubahanBerkas({
    * same click, different destination.
    */
   permukaan?: 'main' | 'agents';
+  /**
+   * The turn's checkpoint, when the message carries one.
+   *
+   * "Discard all" needs it: restoring means replaying the checkpoint against
+   * the disk. Optional because old messages (and the legacy `peta` call site)
+   * have none - the footer then degrades to "Keep all" only.
+   */
+  checkpoint?: import('../../lib/checkpoint').Checkpoint;
+  /**
+   * Identity of the card = the id of the message it belongs to.
+   *
+   * Key for the module-level KEPUTUSAN_UBAH map, so a Keep/Discard decision
+   * survives every re-render of the same message. Without it the decision only
+   * lives in component state and a remount would bring the card back.
+   */
+  cardKey?: string;
 }) {
   const tr = useT();
+  const setToast = useAi((s) => s.setToast);
   const [terbuka, setTerbuka] = useState(false);
+  /* The reader's verdict on this card, seeded from the module map so a
+     re-mount of the same message does not resurrect a decided card. */
+  const [keputusan, setKeputusan] = useState<'keep' | 'discard' | null>(() =>
+    cardKey ? (KEPUTUSAN_UBAH.get(cardKey) ?? null) : null,
+  );
+  /* While the checkpoint restore runs both footer buttons are disabled - a
+     second click mid-restore would race the first one's file writes. */
+  const [memulihkan, setMemulihkan] = useState(false);
 
   const berkas = useMemo(
     () => daftar ?? (peta ? susun(peta) : []),
@@ -158,6 +206,10 @@ export default function PerubahanBerkas({
   /* Nothing was written: no card. A read-only session has nothing to summarise. */
   if (berkas.length === 0) return null;
 
+  /* The turn was discarded: the card has nothing left to show. Module map keeps
+     it gone across re-renders, exactly like ChatMessage's dismissed plan card. */
+  if (keputusan === 'discard') return null;
+
   const totalTambah = berkas.reduce((n, b) => n + (angka.get(b.path)?.tambah ?? 0), 0);
   const totalHapus = berkas.reduce((n, b) => n + (angka.get(b.path)?.hapus ?? 0), 0);
 
@@ -178,9 +230,67 @@ export default function PerubahanBerkas({
     useStore.getState().bukaViewAi('diff-view');
   };
 
+  /*
+   * Keep all: accept every change this turn made. No disk action - the card
+   * collapses and dims, and the decision is remembered so it does not ask
+   * again. The reader can still unfold it to look at the numbers.
+   */
+  const simpanSemua = () => {
+    if (cardKey) KEPUTUSAN_UBAH.set(cardKey, 'keep');
+    setKeputusan('keep');
+    setTerbuka(false);
+  };
+
+  /**
+   * Discard all: put every file this turn changed back the way it was.
+   *
+   * The restore + report flow is ChatMessage's `pulihkan`, verbatim: a clean
+   * restore says how many files moved (toast); a PARTIAL one names the
+   * failures (notification), because a reader who thinks everything was undone
+   * and finds one file still edited has lost the very thing the button
+   * promised. A partial failure keeps the card up - there are still changes
+   * on disk to decide about. On full success the card dismisses itself.
+   */
+  const buangSemua = async () => {
+    if (!checkpoint || memulihkan) return;
+    setMemulihkan(true);
+    try {
+      const { pulihkanCheckpoint } = await import('../../lib/checkpoint');
+      const hasil = await pulihkanCheckpoint(checkpoint, async (path) => {
+        const { fsDelete } = await import('../../lib/commands');
+        await fsDelete([path], false);
+      });
+      const jumlah = hasil.dipulihkan.length + hasil.dihapus.length;
+      if (hasil.gagal.length === 0) {
+        setToast(tf('{x} file dikembalikan', { x: String(jumlah) }));
+        if (cardKey) KEPUTUSAN_UBAH.set(cardKey, 'discard');
+        setKeputusan('discard');
+      } else {
+        const { useNotif } = await import('../../lib/notificationStore');
+        useNotif.getState().notify({
+          severity: 'error',
+          message: tx('Sebagian berkas gagal dikembalikan'),
+          detail: hasil.gagal.map((g) => `${g.path}: ${g.pesan}`).join('\n'),
+          source: 'Checkpoint',
+        });
+      }
+    } finally {
+      setMemulihkan(false);
+    }
+  };
+
   return (
-    <div className="ai-ubah" data-testid="ai-perubahan" data-open={terbuka ? '1' : '0'}>
+    <div
+      className={`ai-ubah${keputusan === 'keep' ? ' is-terima' : ''}`}
+      data-testid="ai-perubahan"
+      data-open={terbuka ? '1' : '0'}
+    >
       <div className="ai-ubah-kepala">
+        {/*
+         * The whole left side is the fold toggle: caret, icon and title. The
+         * "Accepted" badge, the totals and the open control stay OUTSIDE it, so
+         * clicking them cannot fold the card by accident.
+         */}
         <button
           type="button"
           className="ai-ubah-toggle"
@@ -189,18 +299,24 @@ export default function PerubahanBerkas({
           title={terbuka ? tr('Hide files') : tr('Show files')}
           onClick={() => setTerbuka(!terbuka)}
         >
-          <span className="ai-ubah-ikon-kartu" aria-hidden="true">
-            <AiIkon name="doc" size={14} />
-          </span>
-          <span className="ai-ubah-judul">{tf('{n} files changed', { n: berkas.length })}</span>
           <span className="ai-ubah-caret" aria-hidden="true">
             <AiIkon name={terbuka ? 'chev-up' : 'chev-down'} size={12} />
           </span>
+          <span className="ai-ubah-ikon-kartu" aria-hidden="true">
+            <AiIkon name="doc" size={14} />
+          </span>
+          <span className="ai-ubah-judul">{tf('{n} Changed Files', { n: berkas.length })}</span>
         </button>
         <span className="ai-ubah-stat">
           <span className="ai-ubah-tambah">+{totalTambah}</span>
           <span className="ai-ubah-hapus">−{totalHapus}</span>
         </span>
+        {/*
+         * The green verdict of the Qoder reference, beside the totals: this
+         * turn's writes landed and are readable as accepted. A status label,
+         * not a control - it never catches clicks meant for the toggle.
+         */}
+        <span className="ai-ubah-badge">{tr('Accepted')}</span>
         {/*
          * The open-in-editor control, drawn as the reference's diagonal arrow.
          * A sibling of the toggle, never a child of it: a button cannot contain
@@ -259,6 +375,11 @@ export default function PerubahanBerkas({
                   <span className="ai-ubah-tambah">+{angka.get(b.path)?.tambah ?? 0}</span>
                   <span className="ai-ubah-hapus">−{angka.get(b.path)?.hapus ?? 0}</span>
                 </span>
+                {/*
+                 * Per-row verdict, right-aligned after the stats: the file's
+                 * write is accepted. Same quiet green as the header badge.
+                 */}
+                <span className="ai-ubah-badge">{tr('Accepted')}</span>
               </button>
               <button
                 type="button"
@@ -274,6 +395,37 @@ export default function PerubahanBerkas({
           ))}
         </div>
       </div>
+
+      {/*
+       * Footer actions, only while the card is expanded. "Discard all" needs a
+       * checkpoint to restore, so without one the footer degrades to a lone
+       * "Keep all". Both are ghost buttons: the verdicts matter, but they must
+       * not shout louder than the file list above them.
+       */}
+      {terbuka && (
+        <div className="ai-ubah-kaki">
+          {checkpoint && (
+            <button
+              type="button"
+              className="ai-ubah-kaki-btn is-buang"
+              data-testid="ai-ubah-buang"
+              disabled={memulihkan}
+              onClick={() => void buangSemua()}
+            >
+              {tr('Discard all')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="ai-ubah-kaki-btn"
+            data-testid="ai-ubah-simpan"
+            disabled={memulihkan}
+            onClick={simpanSemua}
+          >
+            {tr('Keep all')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
