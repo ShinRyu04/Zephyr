@@ -105,7 +105,3 @@ real header is shown as the reason, not a generic failure message.
 - Vulnerabilities in the WebView2 Runtime itself; those are patched via Windows
   Update.
 - Behavior of third-party AI providers toward data you send them.
-
-## License
-
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
