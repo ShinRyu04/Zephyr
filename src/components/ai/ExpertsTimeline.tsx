@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useExperts, jumlahLangkahCari } from '../../lib/expertsStore';
+import { useExperts, jumlahLangkahCari, type CatatanLead } from '../../lib/expertsStore';
 import { useSubAgent, type SubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
@@ -202,6 +202,15 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
         </p>
       ))}
 
+      {/*
+        * Catatan Lead di tengah jalan (acuan: "⟳ Updating task approach ⌄" +
+        * paragraf pikirannya). Judul aksi + reasoning NYATA dari model Lead —
+        * yang terakhir terbuka, yang lama terlipat.
+        */}
+      {(run.catatan ?? []).map((c, i, semua) => (
+        <FoldCatatan key={c.id} catatan={c} bukaDefault={i === semua.length - 1} />
+      ))}
+
       {totalCari > 0 && (
         <>
           <button
@@ -304,6 +313,32 @@ function Bagian({ terakhir, children }: { terakhir: boolean; children: ReactNode
     <div className="experts-run-bagian" data-terakhir={terakhir ? '1' : undefined}>
       {children}
     </div>
+  );
+}
+
+/*
+ * Lipatan satu catatan Lead: judul aksi ("Validating dubious claims") + isi
+ * pikirannya. Bukaannya mengikuti posisi — catatan terbaru terbuka supaya
+ * pembaca melihat Lead sedang berpikir apa, yang lama terlipat rapi.
+ */
+function FoldCatatan({ catatan, bukaDefault }: { catatan: CatatanLead; bukaDefault: boolean }) {
+  const [buka, setBuka] = useState(bukaDefault);
+  return (
+    <>
+      <button
+        type="button"
+        className={`experts-run-fold${buka ? ' is-buka' : ''}`}
+        aria-expanded={buka}
+        onClick={() => setBuka((v) => !v)}
+      >
+        <AiIkon name="refresh" size={12} />
+        <span>{catatan.judul}</span>
+        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+      </button>
+      {buka && catatan.pikir && (
+        <p className="experts-run-catatan-pikir">{catatan.pikir}</p>
+      )}
+    </>
   );
 }
 

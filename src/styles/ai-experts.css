@@ -328,6 +328,15 @@ button.experts-run-fold-baris:hover {
   line-height: 1.5;
   margin: 8px 2px 0;
 }
+/* Isi pikiran Lead di dalam lipatan catatan aksi — menjorok mengikuti lipatan. */
+.experts-run-catatan-pikir {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0 0 2px;
+  padding: 0 6px 4px 26px;
+  word-break: break-word;
+}
 .experts-run-bawah {
   display: flex;
   align-items: baseline;

@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: bdb9807948bbfaa5
+ * Versi app: 1.1.15 · hash sumber: 0c844ce6da7bd35f
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'bdb9807948bbfaa5' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '0c844ce6da7bd35f' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -562,9 +562,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/DragonIcon.tsx","62 baris · The dragon mark - Zeph's own icon. · tanpa ekspor"],
   ["kode","src/components/ai/EditorKunci.tsx","102 baris · ekspor: EditorKunci"],
   ["kode","src/components/ai/ExpertsCanvas.tsx","424 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsPlanCard.tsx","54 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsPlanCard.tsx","53 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsTaskTab.tsx","221 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsTimeline.tsx","384 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsTimeline.tsx","419 baris · tanpa ekspor"],
   ["kode","src/components/ai/FileIkon.tsx","47 baris · tanpa ekspor"],
   ["kode","src/components/ai/IkonAgen.tsx","55 baris · One renderer for every agent mark. · ekspor: IkonAgen, IkonAgenId"],
   ["kode","src/components/ai/JobStrips.tsx","167 baris · The two job strips that sit between the transcript and the composer: the · ekspor: LoopStrip, GoalStrip"],
@@ -801,7 +801,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/editorRegistry.ts","60 baris · ekspor: setActiveView, getActiveView, activeLine, activeSelection, registerFlush, unregisterFlush, flushTab, flushAll, revealPosition"],
   ["kode","src/lib/emmet.ts","331 baris · Emmet (HTML/CSS) — ekspansi singkatan, tanpa paket eksternal. · ekspor: HasilEmmet, expandHtml, expandCss, expandEmmet"],
   ["kode","src/lib/events.ts","339 baris · ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onOpenFileInEditor, onSettingsChanged, FsChange, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
-  ["kode","src/lib/expertsStore.ts","1749 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, pesanTanya, jumlahLangkahCari, useExperts"],
+  ["kode","src/lib/expertsStore.ts","1874 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, CatatanLead, pesanTanya, jumlahLangkahCari, useExperts"],
   ["kode","src/lib/explorerFilter.ts","83 baris · Name filter for the Explorer tree. · ekspor: HasilCari, cariNamaDiPohon"],
   ["kode","src/lib/explorerStore.ts","531 baris · ekspor: CtxMenu, InlineEdit, ExplorerStore, useExplorer"],
   ["kode","src/lib/extApprovalStore.ts","58 baris · ekspor: ExtApproval, useExtApproval"],
