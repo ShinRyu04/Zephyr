@@ -5,31 +5,35 @@ import { useT } from '../../lib/i18n';
 import { IkonAhli, bukaTabTugas, statusTugas } from './expertsBuka';
 
 /*
- * Experts Canvas — peta run ala produk rujukan: Lead Agent di puncak, worker
- * menggantung di bawahnya per kedalaman dependensi, sambungan melengkung
- * (kurva Bézier vertikal), latar titik-titik, zoom + pan + tombol fit.
+ * Experts Canvas — salinan kanvas produk rujukan (Qoder): Lead Agent di puncak,
+ * worker menggantung di bawahnya per kedalaman dependensi, sambungan melengkung
+ * (kurva Bézier vertikal), latar titik-titik, zoom + pan + fit + reset.
  *
- * Tata letaknya deterministik tanpa pustaka graf: kedalaman = panjang rantai
- * `setelah`, node dalam satu jenjang disebar rata. Sumbu dunia tetap
- * (LEBAR_DUNIA x TINGGI_DUNIA) supaya edge dan node memakai satu koordinat;
- * zoom/pan cuma transform pada pembungkusnya.
+ * Bentuk kartu MENGIKUTI acuan: kartu VERTIKAL — kepala (avatar + nama/judul),
+ * garis pemisah, lalu baris status dengan ikon (centang hijau = Done). Kanvas
+ * mengisi penuh editor; TIDAK ada panel ringkasan di kiri (di acuan daftar tugas
+ * hidup di panel chat kanan, bukan di kanvas).
  *
- * Sejak tab canvas menyimpan `runId`, kanvas menampilkan run YANG DIMINTA —
- * dulu ia selalu membaca `runs[0]`, jadi membuka canvas dari run lama
- * menampilkan run terbaru seolah-olah itu isi tombolnya.
+ * Tata letak deterministik tanpa pustaka graf: kedalaman = panjang rantai
+ * `setelah`, node satu jenjang disebar rata. Zoom/pan hanya transform pada
+ * pembungkusnya. Tab canvas menyimpan `runId`, jadi kanvas menampilkan run yang
+ * DIMINTA, bukan selalu runs[0].
  */
 
-const LEBAR_DUNIA = 1200;
+const LEBAR_DUNIA = 1280;
+/** Jarak pusat-ke-pusat antar jenjang. */
 const TINGGI_LANGKAH = 150;
-const ATAS_LANGKAH = 150;
+/** Pusat jenjang pertama (anak Lead). */
+const ATAS_LANGKAH = 200;
 
 /** Lebar kartu node. Satu-satunya sumber: CSS tidak lagi menetapkan width. */
-const LEBAR_NODE = 230;
-
-/** Tinggi visual kartu Lead — titik awal sambungan ke akar. */
-const BAWAH_LEAD = 84;
-/** Setengah tinggi kartu; dipakai untuk menaruh titik sambung. */
-const SETENGAH_NODE = 28;
+const LEBAR_NODE = 280;
+/** Tinggi visual kartu (kepala + pemisah + status) — titik sambung edge. */
+const TINGGI_KARTU = 82;
+/** Setengah tinggi kartu; menaruh titik sambung atas/bawah. */
+const SETENGAH_NODE = TINGGI_KARTU / 2;
+/** Dasar kartu Lead (top tetap 12) — awal sambungan ke akar. */
+const BAWAH_LEAD = 12 + TINGGI_KARTU;
 
 interface Titik {
   tugas: TugasAhli;
@@ -80,12 +84,87 @@ function tataLetak(run: EkspertRun): Titik[][] {
   return Array.from({ length: tingkatMaks + 1 }, (_, d) => perJenjang.get(d) ?? []);
 }
 
-/** Label + kelas status untuk sebuah run (batal bukan "Working"). */
+/** Label + kelas status untuk kepala run (batal bukan "Working"). */
 function statusRun(status: EkspertRun['status']): { teks: string; kelas: string } {
   if (status === 'selesai') return { teks: 'Done', kelas: 'is-selesai' };
   if (status === 'gagal') return { teks: 'Failed', kelas: 'is-gagal' };
   if (status === 'batal') return { teks: 'Cancelled', kelas: 'is-batal' };
   return { teks: 'Working', kelas: 'is-jalan' };
+}
+
+/** Glyph status di baris bawah kartu: centang/selesai, silang/gagal, titik. */
+function IkonStatus({ kelas }: { kelas: string }) {
+  if (kelas === 'is-jalan') return <span className="experts-spin" aria-hidden="true" />;
+  if (kelas === 'is-selesai')
+    return (
+      <svg className="experts-canvas-node-statusikon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.18" />
+        <path
+          d="m4.9 8.2 2.1 2.1 4.1-4.6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  if (kelas === 'is-gagal')
+    return (
+      <svg className="experts-canvas-node-statusikon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.18" />
+        <path
+          d="m5.7 5.7 4.6 4.6M10.3 5.7l-4.6 4.6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  return <span className="experts-canvas-node-statusdot" aria-hidden="true" />;
+}
+
+interface KartuProps {
+  ahli: string;
+  nama: string;
+  judul: string;
+  kelas: string;
+  teks: string;
+  className: string;
+  style: React.CSSProperties;
+  testId: string;
+  title?: string;
+  onClick?: () => void;
+}
+
+/** Satu kartu node: kepala (avatar + nama/judul) → pemisah → baris status. */
+function KartuNode({ ahli, nama, judul, kelas, teks, className, style, testId, title, onClick }: KartuProps) {
+  return (
+    <button
+      type="button"
+      className={`experts-canvas-node ${className}`}
+      style={style}
+      data-testid={testId}
+      title={title}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={onClick}
+    >
+      <span className="experts-canvas-node-kepala">
+        <span className="experts-canvas-node-avatar" data-ahli={ahli} aria-hidden="true">
+          <IkonAhli id={ahli} size={16} />
+        </span>
+        <span className="experts-canvas-node-badan">
+          <span className="experts-canvas-node-ahli">{nama}</span>
+          <span className="experts-canvas-node-judul">{judul}</span>
+        </span>
+      </span>
+      <span className={`experts-canvas-node-status ${kelas}`}>
+        <IkonStatus kelas={kelas} />
+        {teks}
+      </span>
+    </button>
+  );
 }
 
 export default function ExpertsCanvas({ runId }: { runId?: string }) {
@@ -102,10 +181,9 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
   const tinggiDunia = ATAS_LANGKAH + jenjang.length * TINGGI_LANGKAH + 40;
 
   /*
-   * Kotak ISI, bukan kotak dunia. Dunia selalu 1200px, sedangkan tiga tugas
-   * dalam satu rantai hanya memakai ~230px di tengahnya; fit ke dunia
-   * mengecilkan kanvas ke 40% dan teks kartu jadi tak terbaca. Fit ke isi
-   * memperbesar sampai isinya pas — perilaku yang sama dengan kanvas rujukan.
+   * Kotak ISI, bukan kotak dunia. Dunia selalu LEBAR_DUNIA, sedangkan beberapa
+   * tugas hanya memakai sebagian tengahnya; fit ke dunia mengecilkan kanvas dan
+   * teks kartu jadi tak terbaca. Fit ke isi memperbesar sampai isinya pas.
    */
   const kotak = useMemo(() => {
     const semua = jenjang.flat();
@@ -113,15 +191,11 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
     const x0 = Math.min(...semua.map((t) => t.x - LEBAR_NODE / 2));
     const x1 = Math.max(...semua.map((t) => t.x + LEBAR_NODE / 2));
     const y0 = 12;
-    const y1 = Math.max(...semua.map((t) => t.y + SETENGAH_NODE)) + SETENGAH_NODE;
+    const y1 = Math.max(...semua.map((t) => t.y + SETENGAH_NODE)) + 12;
     return { x0, y0, x1, y1 };
   }, [jenjang, tinggiDunia]);
 
-  /*
-   * Fit: isi ditarik ke tengah pane dan diskalakan sampai pas (dengan sisa 16px
-   * di tiap sisi), maksimum 120% — kartu yang direntangkan lebih dari itu
-   * hanya membesar tanpa menambah informasi.
-   */
+  /* Fit: isi ditarik ke tengah pane dan diskalakan sampai pas (maks 120%). */
   const muatFit = useCallback(() => {
     const el = panggungRef.current;
     if (!el) return;
@@ -129,10 +203,7 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
     const tinggi = el.clientHeight || 600;
     const lebarIsi = Math.max(1, kotak.x1 - kotak.x0);
     const tinggiIsi = Math.max(1, kotak.y1 - kotak.y0);
-    const k = Math.max(
-      0.4,
-      Math.min(1.2, (lebar - 32) / lebarIsi, (tinggi - 32) / tinggiIsi),
-    );
+    const k = Math.max(0.4, Math.min(1.2, (lebar - 40) / lebarIsi, (tinggi - 40) / tinggiIsi));
     setKamera({
       x: lebar / 2 - ((kotak.x0 + kotak.x1) / 2) * k,
       y: tinggi / 2 - ((kotak.y0 + kotak.y1) / 2) * k,
@@ -156,18 +227,14 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
     return () => ro.disconnect();
   }, [muatFit, run?.id]);
 
-  /*
-   * Roda mouse zoom ke arah KURSOR, bukan ke tengah: titik di bawah penunjuk
-   * harus tetap di bawah penunjuk, kalau tidak setiap zoom "melempar" node
-   * yang sedang diperiksa keluar layar.
-   */
+  /* Roda mouse zoom ke ARAH KURSOR, bukan ke tengah. */
   const tanganiWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     const el = panggungRef.current;
     if (!el) return;
-    const kotak = el.getBoundingClientRect();
-    const px = e.clientX - kotak.left;
-    const py = e.clientY - kotak.top;
+    const kotakEl = el.getBoundingClientRect();
+    const px = e.clientX - kotakEl.left;
+    const py = e.clientY - kotakEl.top;
     autoRef.current = false;
     setKamera((c) => {
       const nk = Math.min(1.8, Math.max(0.4, c.k * (e.deltaY < 0 ? 1.08 : 0.93)));
@@ -211,85 +278,36 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
       t.buktian,
     );
 
-  const ringkasan = run.tugas.map((t) => {
-    const st = statusDari(t);
-    return { tugas: t, teks: st.teks === 'Completed' ? tr('Done') : st.teks, kelas: st.kelas };
-  });
-  const selesai = ringkasan.filter((r) => r.kelas === 'is-selesai').length;
   const kepala = statusRun(run.status);
 
-  /** Bawa satu node ke tengah pane tanpa mengubah zoom. */
-  const pusatkan = (id: string) => {
-    const t = posisi.get(id);
-    const el = panggungRef.current;
-    if (!t || !el) return;
+  const zoom = (delta: number) => {
     autoRef.current = false;
-    setKamera((c) => ({
-      ...c,
-      x: el.clientWidth / 2 - t.x * c.k,
-      y: el.clientHeight / 2 - (t.y + SETENGAH_NODE) * c.k,
-    }));
+    setKamera((k) => ({ ...k, k: Math.min(1.8, Math.max(0.4, Number((k.k + delta).toFixed(2)))) }));
+  };
+
+  /* Reset: zoom 100%, isi dipusatkan horizontal, puncak sedikit di bawah tepi. */
+  const reset = () => {
+    const el = panggungRef.current;
+    if (!el) return;
+    autoRef.current = false;
+    setKamera({
+      x: el.clientWidth / 2 - (kotak.x0 + kotak.x1) / 2,
+      y: 24 - kotak.y0,
+      k: 1,
+    });
   };
 
   return (
     <div className="experts-canvas" data-testid="experts-canvas">
-      <aside className="experts-canvas-overview" aria-label={tr('Task overview')}>
-        <div className="experts-canvas-overview-kepala">
-          <span className="experts-canvas-overview-judul-besar">{tr('Team overview')}</span>
-          <span className={`experts-canvas-overview-ringkas ${kepala.kelas}`}>
-            {selesai}/{ringkasan.length} {tr('Done')}
-          </span>
-        </div>
-        <div className="experts-canvas-overview-daftar" data-testid="experts-canvas-overview">
-          {ringkasan.map((r, i) => (
-            <button
-              key={r.tugas.id}
-              type="button"
-              className={`experts-canvas-overview-baris ${r.kelas}`}
-              title={r.tugas.deskripsi}
-              onClick={() => pusatkan(r.tugas.id)}
-            >
-              <span className="experts-canvas-overview-ikon" data-ahli={r.tugas.ahli} aria-hidden="true">
-                {r.kelas === 'is-jalan' ? (
-                  <span className="experts-spin" />
-                ) : (
-                  <IkonAhli id={r.tugas.ahli} size={12} />
-                )}
-              </span>
-              <span className="experts-canvas-overview-teks">
-                <span className="experts-canvas-overview-baris-judul">
-                  Task {i + 1}: {r.tugas.judul}
-                </span>
-                <span className="experts-canvas-overview-baris-ahli">{r.tugas.nama}</span>
-              </span>
-              <span className="experts-canvas-overview-baris-status">{r.teks}</span>
-            </button>
-          ))}
-        </div>
-      </aside>
-
       <div className="experts-canvas-alat">
-        <button
-          type="button"
-          title={tr('Zoom out')}
-          onClick={() => {
-            autoRef.current = false;
-            setKamera((k) => ({ ...k, k: Math.max(0.4, Number((k.k - 0.15).toFixed(2))) }));
-          }}
-        >
+        <button type="button" title={tr('Zoom out')} onClick={() => zoom(-0.15)}>
           −
         </button>
         <span className="experts-canvas-zoom">{Math.round(kamera.k * 100)}%</span>
-        <button
-          type="button"
-          title={tr('Zoom in')}
-          onClick={() => {
-            autoRef.current = false;
-            setKamera((k) => ({ ...k, k: Math.min(1.8, Number((k.k + 0.15).toFixed(2))) }));
-          }}
-        >
+        <button type="button" title={tr('Zoom in')} onClick={() => zoom(0.15)}>
           +
         </button>
+        <span className="experts-canvas-alat-pemisah" aria-hidden="true" />
         <button
           type="button"
           title={tr('Fit view')}
@@ -299,6 +317,9 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
           }}
         >
           ⛶
+        </button>
+        <button type="button" title={tr('Reset view')} onClick={reset}>
+          ⟳
         </button>
       </div>
 
@@ -331,7 +352,7 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
           }}
         >
           <svg className="experts-canvas-edge" width={LEBAR_DUNIA} height={tinggiDunia}>
-            {/* Lead -> akar */}
+            {/* Lead -> akar (jenjang 0) */}
             {jenjang[0]?.map((t) => {
               const x1 = LEBAR_DUNIA / 2;
               const y1 = BAWAH_LEAD;
@@ -351,7 +372,7 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
               const induk = posisi.get(t.tugas.setelah);
               if (!induk) return null;
               const x1 = induk.x;
-              const y1 = induk.y + 30;
+              const y1 = induk.y + SETENGAH_NODE;
               const x2 = t.x;
               const y2 = t.y - SETENGAH_NODE;
               const b = Math.max(34, (y2 - y1) / 2);
@@ -365,52 +386,34 @@ export default function ExpertsCanvas({ runId }: { runId?: string }) {
           </svg>
 
           {/* Kartu Lead */}
-          <button
-            type="button"
-            className={`experts-canvas-node is-lead${run.status === 'jalan' ? ' is-jalan' : ''}`}
+          <KartuNode
+            ahli="lead"
+            nama="Lead Agent"
+            judul={tr('Orchestrating expert tasks')}
+            kelas={kepala.kelas}
+            teks={tr(kepala.teks)}
+            className={`is-lead${run.status === 'jalan' ? ' is-jalan' : ''}`}
             style={{ left: LEBAR_DUNIA / 2 - LEBAR_NODE / 2, top: 12, width: LEBAR_NODE }}
-            data-testid="experts-canvas-lead"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <span className="experts-canvas-node-avatar is-lead" aria-hidden="true">
-              <IkonAhli id="lead" size={15} />
-            </span>
-            <span className="experts-canvas-node-badan">
-              <span className="experts-canvas-node-ahli">Lead Agent</span>
-              <span className="experts-canvas-node-judul">{tr('Orchestrating expert tasks')}</span>
-            </span>
-            <span className={`experts-canvas-node-status ${kepala.kelas}`}>
-              {kepala.kelas === 'is-jalan' ? <span className="experts-spin" aria-hidden="true" /> : null}
-              {tr(kepala.teks)}
-            </span>
-          </button>
+            testId="experts-canvas-lead"
+          />
 
           {/* Kartu worker */}
           {jenjang.flat().map((t) => {
             const st = statusDari(t.tugas);
             return (
-              <button
+              <KartuNode
                 key={t.tugas.id}
-                type="button"
-                className={`experts-canvas-node${st.kelas !== 'is-selesai' ? ` ${st.kelas}` : ''}`}
+                ahli={t.tugas.ahli}
+                nama={t.tugas.nama}
+                judul={t.tugas.judul}
+                kelas={st.kelas}
+                teks={st.teks === 'Completed' ? tr('Done') : st.teks}
+                className={st.kelas !== 'is-selesai' ? st.kelas : ''}
                 style={{ left: t.x - LEBAR_NODE / 2, top: t.y - SETENGAH_NODE, width: LEBAR_NODE }}
-                data-testid={`experts-canvas-node-${t.tugas.id}`}
+                testId={`experts-canvas-node-${t.tugas.id}`}
                 title={t.tugas.deskripsi}
-                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => bukaTabTugas(t.tugas, t.indeks)}
-              >
-                <span className="experts-canvas-node-avatar" data-ahli={t.tugas.ahli} aria-hidden="true">
-                  <IkonAhli id={t.tugas.ahli} size={15} />
-                </span>
-                <span className="experts-canvas-node-badan">
-                  <span className="experts-canvas-node-ahli">{t.tugas.nama}</span>
-                  <span className="experts-canvas-node-judul">{t.tugas.judul}</span>
-                </span>
-                <span className={`experts-canvas-node-status ${st.kelas}`}>
-                  {st.kelas === 'is-jalan' ? <span className="experts-spin" aria-hidden="true" /> : null}
-                  {st.teks === 'Completed' ? tr('Done') : st.teks}
-                </span>
-              </button>
+              />
             );
           })}
         </div>
