@@ -9,9 +9,7 @@ import {
   ATURAN_MAKS_CHAR,
   MAKS_INSTRUKSI,
   bacaCfgAhli,
-  bacaOpsiExperts,
   simpanCfgAhli,
-  simpanOpsiExperts,
   type AhliId,
 } from '../../lib/expertsStore';
 import { customAktif } from '../../lib/subagentCustom';
@@ -48,7 +46,6 @@ const EFFORT_AHLI: { id: string; label: string }[] = [
 export default function AgcExperts() {
   const tr = useT();
   const [cfg, setCfg] = useState(bacaCfgAhli);
-  const [opsi, setOpsi] = useState(bacaOpsiExperts);
   const [terbuka, setTerbuka] = useState<AhliId | null>(null);
   const modelSesi = useAi((s) => s.model);
   const skills = useSkills((s) => s.daftar);
@@ -71,11 +68,6 @@ export default function AgcExperts() {
     setCfg(bacaCfgAhli());
   };
 
-  const ubahOpsi = (sebagian: Partial<typeof opsi>) => {
-    simpanOpsiExperts(sebagian);
-    setOpsi(bacaOpsiExperts());
-  };
-
   const toggleDaftar = (id: AhliId, kunci: 'skills' | 'mcp', nilai: string) => {
     const ada = cfg[id][kunci] ?? [];
     ubah(id, {
@@ -91,26 +83,6 @@ export default function AgcExperts() {
           'A built-in expert team. The Lead Agent breaks your goal into tasks; each expert runs with its own tools. Disable experts you never want picked, pin models (or let Auto route them), and choose which skills and MCP servers each expert may use.',
         )}
       </p>
-
-      <div className="agc-experts-opsi" data-testid="agc-experts-opsi">
-        <span className="agc-experts-opsi-teks">
-          <b>{tr('Auto-run plan')}</b>
-          <i>
-            {tr(
-              'Off: you review, adjust, then start the team. On: the plan runs immediately after the Lead writes it.',
-            )}
-          </i>
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={opsi.autoRun}
-          aria-label={tr('Auto-run plan')}
-          className={`agc-zc-switch${opsi.autoRun ? ' is-on' : ''}`}
-          data-testid="agc-experts-autorun"
-          onClick={() => ubahOpsi({ autoRun: !opsi.autoRun })}
-        />
-      </div>
 
       <div className="agc-experts-daftar">
         {AHLI.map((a) => {

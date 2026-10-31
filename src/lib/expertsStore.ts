@@ -1717,9 +1717,13 @@ async function prosesLead(
      * konfirmasi user di antara rencana dan eksekusi; auto-run tetap hidup
      * untuk pembaca yang memang menginginkannya lewat Experts Settings.
      */
-    if (bacaOpsiExperts().autoRun) {
-      await useExperts.getState().setujui(runId);
-    }
+    /*
+     * Ala acuan, TANPA gerbang: Lead selesai menulis rencana, tim LANGSUNG
+       jalan (Creating research task → Created N tasks → kartu muncul satu-satu).
+       Toggle Auto-run + tombol Start/Edit/Discard dihapus — keputusan user:
+       Qoder tidak punya persetujuan manual.
+     */
+    await useExperts.getState().setujui(runId);
   } catch (e) {
     /* B1: kegagalan setelah Stop tidak boleh menimpa status 'batal'. */
     if (useExperts.getState().runs.find((r) => r.id === runId)?.status === 'batal') return;

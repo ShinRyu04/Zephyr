@@ -216,6 +216,12 @@
 .experts-run-fold:not(.is-buka) .experts-progress-caret {
   transform: rotate(-90deg);
 }
+/* Baris tunggu "Creating research task" — bukan tombol, cuma status. */
+.experts-run-fold.is-tunggu,
+.experts-run-fold.is-tunggu:hover {
+  cursor: default;
+  background: transparent;
+}
 .experts-run-fold-daftar {
   display: flex;
   flex-direction: column;
