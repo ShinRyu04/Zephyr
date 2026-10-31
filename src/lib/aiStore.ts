@@ -6989,14 +6989,15 @@ export const useAi = create<AiStore>((set0, get) => {
     const runId = useExperts.getState().buka({ sessionId, goal, riwayat });
     if (!runId) return false;
     /*
-     * Placeholder ber-`streaming` = bubble Agent biasa dengan typing dots,
-     * BUKAN kartu rencana. Kartu Experts baru dipasang proses Lead ketika
-     * benar-benar ada tugas; percakapan biasa tetap terasa seperti chat.
+     * Placeholder ber-`streaming` + `expertsPlan`: selagi Lead menyusun, chat
+     * menampilkan baris "Creating research task" (bukan typing dots kosong).
+     * Kartu penuh baru digambar ketika rencana selesai ditulis.
      */
     const pesanId = get().tambahPesanSesi(sessionId, {
       role: 'assistant',
       content: '',
       streaming: true,
+      expertsPlan: runId,
       model: get().model,
     });
     useExperts.setState((s) => ({

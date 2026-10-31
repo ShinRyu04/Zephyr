@@ -1793,13 +1793,24 @@ function ChatMessageInner({
                 * Di semua permukaan, bukan hanya Agent window — rencana tim
                 * adalah bagian dari percakapan, bukan mode khusus satu sisi.
                 */}
-              {msg.expertsPlan && !msg.streaming ? (
-                <>
-                  <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
-                  {/* Kartu task per worker ikut ALUR chat, tepat di bawah
-                      rencananya — bentuk Qoder, bukan ditumpuk di composer. */}
-                  <ExpertsTimeline runId={msg.expertsPlan} />
-                </>
+              {msg.expertsPlan ? (
+                msg.streaming ? (
+                  /*
+                   * Selagi Lead menyusun rencana — baris "Creating research
+                   * task" ala acuan (110050), bukan typing dots kosong.
+                   */
+                  <div className="experts-run-fold is-buka is-tunggu" data-testid="experts-creating">
+                    <span className="experts-spin" aria-hidden="true" />
+                    <span>{tr('Creating research task')}</span>
+                  </div>
+                ) : (
+                  <>
+                    <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
+                    {/* Kartu task per worker ikut ALUR chat, tepat di bawah
+                        rencananya — bentuk Qoder, bukan ditumpuk di composer. */}
+                    <ExpertsTimeline runId={msg.expertsPlan} />
+                  </>
+                )
               ) : isPlan && teksJawaban.trim() ? (
                 <>
                 <div className={`ai-plan${planBuka ? ' is-open' : ''}`} data-testid="ai-plan">

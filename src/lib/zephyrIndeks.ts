@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7569 entri
- * (bridge=1, dokumen=104, ekstensi=21, kode=552, label=3233, layar=3040, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7544 entri
+ * (bridge=1, dokumen=104, ekstensi=21, kode=552, label=3233, layar=3015, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: 43ce853ddfb19af9
+ * Versi app: 1.1.15 · hash sumber: bdb9807948bbfaa5
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '43ce853ddfb19af9' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'bdb9807948bbfaa5' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -541,7 +541,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AskUserCard.tsx","328 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ChatMessage.tsx","1974 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ChatMessage.tsx","1985 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatSettingsPage.tsx","1447 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatStamp.tsx","139 baris · ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode","src/components/ai/ClearChatsDialog.tsx","89 baris · tanpa ekspor"],
@@ -562,7 +562,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/DragonIcon.tsx","62 baris · The dragon mark - Zeph's own icon. · tanpa ekspor"],
   ["kode","src/components/ai/EditorKunci.tsx","102 baris · ekspor: EditorKunci"],
   ["kode","src/components/ai/ExpertsCanvas.tsx","424 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsPlanCard.tsx","365 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsPlanCard.tsx","54 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsTaskTab.tsx","221 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsTimeline.tsx","384 baris · tanpa ekspor"],
   ["kode","src/components/ai/FileIkon.tsx","47 baris · tanpa ekspor"],
@@ -647,7 +647,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/settings/AgcBrowser.tsx","265 baris · Browser — halaman di dalam Agent Customizations, bentuk ZCode. · tanpa ekspor"],
   ["kode","src/components/settings/AgcComputerUse.tsx","103 baris · tanpa ekspor"],
   ["kode","src/components/settings/AgcConversations.tsx","877 baris · Conversations â€” the page TRAE calls \"Conversation\", inside Agent Customizations. · tanpa ekspor"],
-  ["kode","src/components/settings/AgcExperts.tsx","431 baris · tanpa ekspor"],
+  ["kode","src/components/settings/AgcExperts.tsx","403 baris · tanpa ekspor"],
   ["kode","src/components/settings/AgcHooks.tsx","234 baris · Hooks — the TRAE-shaped page inside Agent Customizations. · tanpa ekspor"],
   ["kode","src/components/settings/AgcMcpDialogs.tsx","406 baris · ekspor: HasilPasang, sumberMcp, McpMarket, parseMcpManual, McpManual, pasangDariKatalog, pasangManual"],
   ["kode","src/components/settings/AgcRulesMemories.tsx","377 baris · Rules & Memories — the TRAE-shaped page inside Agent Customizations. · tanpa ekspor"],
@@ -753,7 +753,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","41 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","12609 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
+  ["kode","src/lib/aiStore.ts","12610 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
   ["kode","src/lib/aiTabsStore.ts","157 baris · ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -801,7 +801,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/editorRegistry.ts","60 baris · ekspor: setActiveView, getActiveView, activeLine, activeSelection, registerFlush, unregisterFlush, flushTab, flushAll, revealPosition"],
   ["kode","src/lib/emmet.ts","331 baris · Emmet (HTML/CSS) — ekspansi singkatan, tanpa paket eksternal. · ekspor: HasilEmmet, expandHtml, expandCss, expandEmmet"],
   ["kode","src/lib/events.ts","339 baris · ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onOpenFileInEditor, onSettingsChanged, FsChange, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
-  ["kode","src/lib/expertsStore.ts","1745 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, pesanTanya, jumlahLangkahCari, useExperts"],
+  ["kode","src/lib/expertsStore.ts","1749 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, pesanTanya, jumlahLangkahCari, useExperts"],
   ["kode","src/lib/explorerFilter.ts","83 baris · Name filter for the Explorer tree. · ekspor: HasilCari, cariNamaDiPohon"],
   ["kode","src/lib/explorerStore.ts","531 baris · ekspor: CtxMenu, InlineEdit, ExplorerStore, useExplorer"],
   ["kode","src/lib/extApprovalStore.ts","58 baris · ekspor: ExtApproval, useExtApproval"],
@@ -4273,7 +4273,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Add rule","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","Add server","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/CliSlashPanel.tsx, src/components/ai/CodexSettings.tsx"],
   ["layar","Add skills, hooks, or plugins first — then you can export them.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-  ["layar","Add task","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Add worktree","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
   ["layar","Add your custom instructions...","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Added","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsPage.tsx"],
@@ -4283,7 +4282,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","AgcBrowser","src/components/settings/AgcBrowser.tsx · 26 label: Any other address the agent opens, such as documentation or a repository., Auto Screenshot, Automatically capture a screenshot after browser actions, for display only., Browser, Browser Data, Browser data cleared in, Built-in Browser, Choose how Zephyr opens links and captures pages for AI tasks., Clear, Clearing…, Could not clear browser data:, Default Browser for AI Tasks, Enable built-in browser control, Enable the official Browser Use plugin so new sessions can access and control web pages in the built-in browser., Every link opens in your system browser., Every link opens inside Zephyr., External URL, For example localhost:3000, the dev server you are working on., General, Local URL, Local and external links open in different places., Local links open in Zephyr; external links open in your system browser., No browser pane has been opened this session, so there was nothing to clear., URL Link Opening, Website data stored in the built-in browser, such as cookies and local storage., pane(s). · 7 data-testid: agc-browser-enable, agc-browser-enable-baris, agx-br-autoshot, agx-br-clear, agx-br-pesan, agx-br-ringkas, agx-browser"],
   ["layar","AgcComputerUse","src/components/settings/AgcComputerUse.tsx · 6 label: Computer Use, Enable Computer Use, General, Show Computer Use button in the composer, Turning this on enables Computer Use — its MCP server and skills., When off, the composer button is hidden. · 3 data-testid: agc-computer, agc-computer-enable, agc-computer-show"],
   ["layar","AgcConversations","src/components/settings/AgcConversations.tsx · 78 label: (Active), = the Agents window, = the editor, AI-generated code is written to disk. During review you choose to keep or undo the changes., Abnormally Stopped, Agent, Agent Questioning Proactively, All conversations cleared., Allow the agent to use lists to track progress., Allows the agent to proactively ask you questions when the task is unclear, clarify requirement details, and guide execution accordingly., Always, Any task, Assistant, Auto Fix Lints, Auto Open Original Terminal on Command Execution, Banner, Bell, Chime, Clear All, Clear all conversations, Code Review, Configure the terminal environment used when the agent executes commands., Conversation, Conversation copied to the clipboard., Conversation deleted., Copy this conversation as Markdown, Default, Delete, Efficient Terminal, Export, Export as Markdown, Faster startup, no user intervention required, more stable execution., Get alerted when a task is completed or fails. Turn on notifications in Windows Settings for them to appear., How a conversation behaves, in the editor and in the Agents window., Jump to next change after review, Longer than 20 seconds, Longer than 5 seconds, Never, No Review Needed, No conversations yet. · 14 data-testid: agx-conv, agx-conv-cari, agx-conv-clear-all, agx-conv-daftar, agx-conv-detail, agx-conv-isi, agx-conv-kosong, agx-con…"],
-  ["layar","AgcExperts","src/components/settings/AgcExperts.tsx · 34 label: A built-in expert team. The Lead Agent breaks your goal into tasks; each expert runs with its own tools. Disable experts you never want picked, pin models (or let Auto route them), and choose which skills and MCP servers each expert may use., Add rule, Auto, Auto picks the provider, Auto-run plan, Custom workers available to the Lead, Enabled, Experts, Extra instructions, Fixed, Hard constraints this expert must follow. Attached to every task it receives., How hard this expert thinks before acting. \"Follow global\" uses the Reasoning chip in the composer., MCP servers, Model, New rule, No MCP servers, No active custom workers. Create one under Subagents and the Lead can assign it tasks., No skills installed yet., Nothing checked = every active server., Off: you review, adjust, then start the team. On: the plan runs immediately after the Lead writes it., Provider, Route each task to a suitable available model, Rules, Session model, Skills, Standing note attached to every task this expert receives…, The Lead Agent is fixed: it always uses the session model and the shipped orchestration prompt. It cannot be pinned, disabled, or given extra instructions., The worker reads these first with skill_view., Thinking effort, Underlying worker role, characters, click to remove, e.g. Never touch files under src-tauri/ without asking, empty …"],
+  ["layar","AgcExperts","src/components/settings/AgcExperts.tsx · 32 label: A built-in expert team. The Lead Agent breaks your goal into tasks; each expert runs with its own tools. Disable experts you never want picked, pin models (or let Auto route them), and choose which skills and MCP servers each expert may use., Add rule, Auto, Auto picks the provider, Custom workers available to the Lead, Enabled, Experts, Extra instructions, Fixed, Hard constraints this expert must follow. Attached to every task it receives., How hard this expert thinks before acting. \"Follow global\" uses the Reasoning chip in the composer., MCP servers, Model, New rule, No MCP servers, No active custom workers. Create one under Subagents and the Lead can assign it tasks., No skills installed yet., Nothing checked = every active server., Provider, Route each task to a suitable available model, Rules, Session model, Skills, Standing note attached to every task this expert receives…, The Lead Agent is fixed: it always uses the session model and the shipped orchestration prompt. It cannot be pinned, disabled, or given extra instructions., The worker reads these first with skill_view., Thinking effort, Underlying worker role, characters, click to remove, e.g. Never touch files under src-tauri/ without asking, empty = session provider · 3 data-testid: agc-experts, agc-experts-kustom, agc-experts-lead-terkunci"],
   ["layar","AgcHooks","src/components/settings/AgcHooks.tsx · 21 label: Commands the agent runs at points in its lifecycle., Configuration, Configured Hooks, Create, Delete, Enabled, Execution Log, Execution Mode, Global, Hide Logs, Hook name, Hook runs are recorded in the app log file. Nothing has been recorded for the hooks above yet., Hooks, Hooks Command Execution Mode, Import Hooks configuration in Claude, No hook has run yet., No hooks configured. Click Create to add your first hook, Project, Read hook definitions from ~/.claude/settings.json., View Logs, not wired up yet · 9 data-testid: agx-hooks, agx-hooks-create, agx-hooks-daftar, agx-hooks-impor, agx-hooks-kosong, agx-hooks-log, agx-hooks-log-isi, agx-hooks-mode, agx-hooks-tab"],
   ["layar","AgcMcpDialogs","src/components/settings/AgcMcpDialogs.tsx · 17 label: Add, Already installed, Cancel, Close, Configure Manually, Confirm, Confirm you trust the source before adding it., From repository, Installed, Local / built here, MCP Marketplace, No servers match that search., Not available, Review, Saving…, Search, These programs will be run · 9 data-testid: agx-mcp-manual-batal, agx-mcp-manual-galat, agx-mcp-manual-konfirmasi, agx-mcp-manual-konfirmasi-tombol, agx-mcp-manual-periksa, agx-mcp-manual-teks, agx-mcp-market-batal, agx-mcp-market-cari, agx-mcp-market-daftar"],
   ["layar","AgcRulesMemories","src/components/settings/AgcRulesMemories.tsx · 30 label: A name is required., Cancel, Control the context the agent loads, the rules it follows, and what it may remember., Could not save the rule., Create, Decisions and preferences are stored in a file you can read and edit., Delete, Dismiss, Edit Rule, Enable Zephyr to remember relevant context from your chat history, Global, Import Settings, Memory, Name, New Rule, No Rules Yet. Click Create to add your first rule, No project rules yet. Click Create to add one for this workspace, Project, Rule, Rules, Rules & Memories, Save, Saving…, This rule applies to every workspace., This rule applies to the current workspace only., User Memory, What the agent reads before it answers., Write anything the agent should always keep in mind…, e.g. rust-style, rules · 15 data-testid: agx-mem-tab, agx-mem-toggle, agx-rule-batal, agx-rule-editor, agx-rule-galat, agx-rule-isi, agx-rule-nama, agx-rule-simpan, agx-rules, agx-rules-create, agx-rules-daftar, agx-rules-galat, agx-rules-kosong, agx-rules-tab, agx-user-memory"],
@@ -4362,7 +4361,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Auto picks the provider","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","Auto-compact at {n} tokens (default would be {d})","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Auto-compact at {n} tokens — 80% of this model’s window","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
-  ["layar","Auto-run plan","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","Automatically capture a screenshot after browser actions, for display only.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcBrowser.tsx"],
   ["layar","Automation channel","teks elemen di layar · dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar","Available","label/label tanpa kamus di layar · dirender 2 berkas: src/components/extensions/ExtMarketplace.tsx, src/components/settings/AgcSections.tsx"],
@@ -4409,7 +4407,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Changed Files","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/ExpertsTimeline.tsx, src/components/ai/KartuProgresExperts.tsx"],
   ["layar","Channel \"{name}\" is still empty.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/OutputView.tsx"],
   ["layar","ChatHeadActions","src/components/ai/ChatHeadActions.tsx · 16 label: Agent Customizations…, Chat Settings, Dock Chat to Right, More actions, Move Chat into Editor Area, Move Chat into New Window, New Chat, New Chat in Editor, New Chat in Window, New chat, New chat options, Redo Last Edit, Show Chat Debug View, Show tips, Undo Last Edit, settings.models · 18 data-testid: ai-more, ai-more-menu, ai-move-editor, ai-move-right, ai-move-window, ai-newchat, ai-newchat-editor, ai-newchat-here, ai-newchat-menu, ai-newchat-menu-pop, ai-newchat-window, ai-open-chat-settings, ai-open-customize, ai-open-models, ai-redo-last, ai-toggle-debug, ai-toggle-tips, ai-undo-last"],
-  ["layar","ChatMessage","src/components/ai/ChatMessage.tsx · 55 label: Approve, Bekerja selama {d}, Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy the answer contents, Dismiss, Done, Enter your answer…, Exit code {n}, Exit plan mode and start implementation., Fork the chat from this answer, Forked - this chat now continues separately, Found {n} files, Found {n} matches in {m} files, Implementation plan, Insert the code at the cursor position, Kamu, Lanjutkan eksekusi rencananya., Lihat rencana lengkap, No active editor tab, No active tab to insert into, No files matched, No results found, Permission required, Plan, Put back every file this turn changed, Read {n} lines, Reference, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Salin rencana, Sebagian berkas gagal dikembalikan, Selesai dalam {d}, Send to the active terminal pane, Show less, Show more · 41 data-testid: ai-anak-hasil, ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-fork-msg, ai-gariswaktu, ai-gariswaktu-narasi, ai-gariswaktu-subagent, ai-gariswaktu-tool, ai-insert-code, ai-kerja, ai-kerja-baris, ai-kerja-durasi, ai-kerja-isi, ai-kerja-narasi, ai-kerja-toggle, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-plan, ai-plan-izin, ai-regenerate, ai-restor…"],
+  ["layar","ChatMessage","src/components/ai/ChatMessage.tsx · 56 label: Approve, Bekerja selama {d}, Buat ulang jawaban ini, Click to open, Code copied, Code inserted at the cursor, Copied, Copy the answer contents, Creating research task, Dismiss, Done, Enter your answer…, Exit code {n}, Exit plan mode and start implementation., Fork the chat from this answer, Forked - this chat now continues separately, Found {n} files, Found {n} matches in {m} files, Implementation plan, Insert the code at the cursor position, Kamu, Lanjutkan eksekusi rencananya., Lihat rencana lengkap, No active editor tab, No active tab to insert into, No files matched, No results found, Permission required, Plan, Put back every file this turn changed, Read {n} lines, Reference, Replace the active editor tab contents with this code, Risky command - will ask for confirmation, Run in Terminal, Salin rencana, Sebagian berkas gagal dikembalikan, Selesai dalam {d}, Send to the active terminal pane, Show less · 42 data-testid: ai-anak-hasil, ai-apply-code, ai-attach-chip, ai-copy-code, ai-copy-msg, ai-diff, ai-diff-cancel, ai-diff-ok, ai-error, ai-file-ref, ai-fork-msg, ai-gariswaktu, ai-gariswaktu-narasi, ai-gariswaktu-subagent, ai-gariswaktu-tool, ai-insert-code, ai-kerja, ai-kerja-baris, ai-kerja-durasi, ai-kerja-isi, ai-kerja-narasi, ai-kerja-toggle, ai-kotak, ai-msg-hydra, ai-msg-img, ai-msg-imgs, ai-plan, ai-plan-izin, ai-regenera…"],
   ["layar","ChatSettingsPage","src/components/ai/ChatSettingsPage.tsx · 36 label: Agent mode - the AI reads files and runs commands, Anything the AI should always know or always do…, Auto (from the model list), Chat Settings, Clear all chats…, Close, Detailed, Every change is already stored, Follow interface, Manage personas & sub-agents, Modified, No HydraFusion run yet in this session., No chat settings match., No workspace settings yet, Normal, Open in Editor, Open in the editor area, Open tool sets…, Opens the persona editor, Project name, Put {n} changed setting(s) back to their defaults., Reset, Reset this section, Save ({n}), Saved, Scope, Search chat settings…, Short, User, Workspace, Zephyr keeps its chat settings for the whole app, not per folder. Everything on the User tab applies to every project., found, request(s), the provider reported no token usage, tokens, {n} changes - close the page and they stay · placeholder: http://localhost:7777 · 23 data-testid: cset-agentcustom, cset-clear, cset-close, cset-empty, cset-hydralast, cset-hydralast-meta, cset-hydralast-model, cset-hydralast-tahap, cset-hydralast-token, cset-hydralast-why, cset-hydratiers, cset-instr, cset-mode, cset-open-editor, cset-page, cset-save, cset-scope-user, cset-scope-workspace, cset-search, cset-search-n, cset-toolcount, cset-tools, cset-workspace-empty"],
   ["layar","ChatStamp","src/components/ai/ChatStamp.tsx · 3 label: Today, Tomorrow, Yesterday · 2 data-testid: ai-day-div, ai-msg-time"],
   ["layar","Check all","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/ToolchainPanel.tsx"],
@@ -4478,7 +4476,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Composer","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","ComposerTip","src/components/ai/ComposerTip.tsx · 7 label: Hide tips, Start a new chat to run another task in parallel, Tip:, adds your message to the queue, for slash commands, to reference files inline, type · 2 data-testid: ai-tip-dismiss, ai-tip-strip · teks: Ctrl+Enter"],
   ["layar","Computer Use","label/label tanpa kamus/teks elemen di layar · dirender 3 berkas: src/components/agents/AgentsComposer.tsx, src/components/ai/AiPanel.tsx, src/components/settings/AgcComputerUse.tsx"],
-  ["layar","Concrete brief: what to do, which files, how to verify","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Configuration","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/CodexSettings.tsx, src/components/settings/AgcHooks.tsx"],
   ["layar","Configure Manually","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcMcpDialogs.tsx"],
   ["layar","Configure approval policy and sandbox settings","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
@@ -4525,7 +4522,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Create memories from chats on Local and use them to personalize future chats on Local","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Create the branch from HEAD if it does not exist","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
   ["layar","Create with AI","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-  ["layar","Created","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/ExpertsPlanCard.tsx, src/components/ai/ExpertsTimeline.tsx"],
+  ["layar","Created","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
+  ["layar","Creating research task","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","Ctrl+P to search files","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/CommandPalette.tsx"],
   ["layar","Ctrl+P to search files · Ctrl+Shift+P for commands","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/CommandPalette.tsx"],
   ["layar","Ctrl+Shift+P for commands","label/label tanpa kamus di layar · dirender 1 berkas: src/components/shell/CommandPalette.tsx"],
@@ -4564,7 +4562,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Delete {n} items","label/label tanpa kamus di layar · dirender 1 berkas: src/components/explorer/DeleteConfirmDialog.tsx"],
   ["layar","DeleteConfirmDialog","src/components/explorer/DeleteConfirmDialog.tsx · 3 label: Cancel, Delete, Delete {n} items · 5 data-testid: del-body, del-cancel, del-list, del-ok, del-title"],
   ["layar","Deliver your code seamlessly with Zephyr Experts, ensuring top-notch quality and efficiency.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
-  ["layar","Depends on","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Describe it in plain language","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","Describe the agent in one or two sentences. It writes a draft you can edit.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcAgentDialogs.tsx"],
   ["layar","Describe the role, the tone, and what this agent should always do.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcAgents.tsx"],
@@ -4585,7 +4582,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","DiffViewTab","src/components/ai/DiffViewTab.tsx · 7 label: After, Before, Changes, Next file (Alt+F5), No changes from the AI in this turn yet., Open file, Previous file (Alt+Shift+F5) · 11 data-testid: diffview, diffview-berkas, diffview-buka, diffview-daftar, diffview-isi, diffview-kosong, diffview-lipat, diffview-nav, diffview-next, diffview-pane, diffview-prev · teks: t.jenis === null ? ( · p.jenis === 'lipat' ? ("],
   ["layar","DiffViewer","src/components/scm/DiffViewer.tsx · 2 label: Discard changes to this file (permanent), No differences for this file. · 16 data-testid: diff-binary, diff-close, diff-hunks, diff-hunks-catatan, diff-hunks-pesan, diff-hunks-ringkas, diff-hunks-terapkan, diff-hunks-terima-semua, diff-hunks-tolak-semua, diff-path, diff-pre, diff-revert, diff-side, diff-stage-toggle, diff-stat, diff-view · teks: binary file · Revert file · Terima semua · Tolak semua"],
   ["layar","Disabled","label/label tanpa kamus di layar · dirender 1 berkas: src/components/extensions/ExtMarketplace.tsx"],
-  ["layar","Discard","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Discard All…","teks elemen di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar","Discard all","aria-label/label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/PerubahanBerkas.tsx, src/components/scm/SourceControlPanel.tsx"],
   ["layar","Discard changes?","teks elemen di layar · dirender 1 berkas: src/components/agents/AgentsPanelKananDiff.tsx"],
@@ -4602,7 +4598,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Edit Agent","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcAgents.tsx"],
   ["layar","Edit Model","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsDialog.tsx"],
   ["layar","Edit Rule","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcRulesMemories.tsx"],
-  ["layar","Edit plan","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Edit project memory","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","Edit the AGENTS.md file on the selected machine. Repository instructions may also apply.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Edit user memory","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
@@ -4637,10 +4632,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Execution Log","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcHooks.tsx"],
   ["layar","Execution Mode","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcHooks.tsx"],
   ["layar","Expand all files","aria-label/tooltip title di layar · dirender 1 berkas: src/components/agents/AgentsPanelKananDiff.tsx"],
-  ["layar","Expert","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Experts","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/ModeMenu.tsx, src/components/settings/AgcExperts.tsx"],
   ["layar","ExpertsCanvas","src/components/ai/ExpertsCanvas.tsx · 7 label: Done, Fit view, No Experts run yet — pick “Experts” in the composer and give the team a goal., Orchestrating expert tasks, Reset view, Zoom in, Zoom out · 1 data-testid: experts-canvas"],
-  ["layar","ExpertsPlanCard","src/components/ai/ExpertsPlanCard.tsx · 18 label: Add task, Cancel, Concrete brief: what to do, which files, how to verify, Created, Depends on, Discard, Edit plan, Expert, Immediately (runs in parallel), Remove task, Review the plan, adjust it if needed, then start the team., Save plan, Start, Task brief, Task title, after, runs in parallel, tasks · 10 data-testid: experts-plan, experts-plan-add, experts-plan-cancel, experts-plan-discard, experts-plan-edit, experts-plan-editor, experts-plan-gate, experts-plan-save, experts-plan-start, experts-plan-tasks · teks: j === i ? null : ("],
+  ["layar","ExpertsPlanCard","src/components/ai/ExpertsPlanCard.tsx · 1 data-testid: experts-plan"],
   ["layar","ExpertsTaskTab","src/components/ai/ExpertsTaskTab.tsx · 5 label: Brief, Report, This report was shortened when the run was saved (2,000 characters). The full text only lived in this session., This task no longer has a live run or a stored snapshot., Working… · 3 data-testid: experts-tasktab, experts-tasktab-laporan, experts-tasktab-pendek · teks: Ran in terminal"],
   ["layar","ExpertsTimeline","src/components/ai/ExpertsTimeline.tsx · 13 label: Applied, Bad result, Changed Files, Copy summary, Created, Explored, Fork this run into a new chat, Good result, Reactions, Worked on it, actions, searches, tasks · 2 data-testid: experts-files, experts-timeline"],
   ["layar","Explore Customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
@@ -4729,7 +4723,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Image attachment {n}","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","Image preview","aria-label di layar · dirender 1 berkas: src/components/ai/Lightbox.tsx"],
   ["layar","ImagePreview","src/components/editor/ImagePreview.tsx · 4 label: Close preview, Failed to load image., Zoom in, Zoom out · 8 data-testid: img-close, img-el, img-error, img-reset, img-view, img-zoom, img-zoom-in, img-zoom-out"],
-  ["layar","Immediately (runs in parallel)","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Import","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/SectionsMisc.tsx"],
   ["layar","Import Hooks configuration in Claude","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcHooks.tsx"],
   ["layar","Import Settings","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcRulesMemories.tsx"],
@@ -4940,7 +4933,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Notify Only for Long Tasks","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","OAuth App Client ID (optional)","tooltip title di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar","OMP","aria-label di layar · dirender 1 berkas: src/components/terminal/PaneIcons.tsx"],
-  ["layar","Off: you review, adjust, then start the team. On: the plan runs immediately after the Lead writes it.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","On disk","label/label tanpa kamus di layar · dirender 1 berkas: src/components/extensions/ExtMarketplaceManage.tsx"],
   ["layar","One line, the AI reads it to decide when to delegate here","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/SubagentCustomModal.tsx"],
   ["layar","Only for background commands","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
@@ -5037,7 +5029,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Remove for good","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","Remove reference","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","Remove stale worktree records from git","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
-  ["layar","Remove task","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Remove this steering note from the list","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/KartuAntreanExperts.tsx"],
   ["layar","Remove this worktree","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
   ["layar","Remove worktree {nama}?","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
@@ -5063,7 +5054,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Review all changes","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","Review delivery","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Review latest changes","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
-  ["layar","Review the plan, adjust it if needed, then start the team.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Rewind","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","Rewind to here","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","RootSection","src/components/workspace/RootSection.tsx · 5 label: Folder is not trusted - click to manage trust, Make this the active root, Remove folder from workspace, This folder is a git repo, not trusted · 4 data-testid: root-activate, root-head, root-remove, root-restricted"],
@@ -5087,7 +5077,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Save a copy…","teks elemen di layar · dirender 1 berkas: src/components/editor/ReadOnlyBanner.tsx"],
   ["layar","Save as UTF-8","teks elemen di layar · dirender 1 berkas: src/components/editor/ReadOnlyBanner.tsx"],
   ["layar","Save automation","teks elemen di layar · dirender 1 berkas: src/components/agents/AgentsAutomation.tsx"],
-  ["layar","Save plan","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","SaveIssueDialog","src/components/shell/SaveIssueDialog.tsx · 1 label: Write as UTF-8 · 4 data-testid: save-issue-body, save-issue-cancel, save-issue-ok, save-issue-title"],
   ["layar","Saved as","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsDialog.tsx"],
   ["layar","Saved to","teks elemen di layar · dirender 1 berkas: src/components/agents/AgentsArtifacts.tsx"],
@@ -5200,8 +5189,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Task Completed","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","Task Progress","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/KartuProgresExperts.tsx"],
   ["layar","Task Status Notification","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
-  ["layar","Task brief","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","Task title","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Technical solution research","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","Terima semua","teks elemen di layar · dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
   ["layar","Terminal Environment","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
@@ -5381,10 +5368,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","agc-draft-nama","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","agc-draft-simpan","data-testid di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
   ["layar","agc-experts","data-testid di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
-  ["layar","agc-experts-autorun","data-testid di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","agc-experts-kustom","data-testid di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","agc-experts-lead-terkunci","data-testid di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
-  ["layar","agc-experts-opsi","data-testid di layar · dirender 1 berkas: src/components/settings/AgcExperts.tsx"],
   ["layar","agc-hero","data-testid di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
   ["layar","agc-hero-field","data-testid di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
   ["layar","agc-hero-send","data-testid di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
@@ -6406,17 +6391,9 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","exp-live-toggle","data-testid di layar · dirender 1 berkas: src/components/ai/SubAgenHidup.tsx"],
   ["layar","experts-antrean","data-testid di layar · dirender 2 berkas: src/components/ai/KartuAntrean.tsx, src/components/ai/KartuAntreanExperts.tsx"],
   ["layar","experts-canvas","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
+  ["layar","experts-creating","data-testid di layar · dirender 1 berkas: src/components/ai/ChatMessage.tsx"],
   ["layar","experts-files","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","experts-plan","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-add","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-cancel","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-discard","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-edit","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-editor","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-gate","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-save","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-start","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","experts-plan-tasks","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","experts-progress-canvas","data-testid di layar · dirender 1 berkas: src/components/ai/KartuProgresExperts.tsx"],
   ["layar","experts-progress-card","data-testid di layar · dirender 1 berkas: src/components/ai/KartuProgresExperts.tsx"],
   ["layar","experts-progress-files","data-testid di layar · dirender 1 berkas: src/components/ai/KartuProgresExperts.tsx"],
@@ -6528,7 +6505,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","inline-chat","data-testid di layar · dirender 1 berkas: src/components/editor/InlineChat.tsx"],
   ["layar","installs","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliSlashPanel.tsx"],
   ["layar","it === 'pemisah' ? (","teks elemen di layar · dirender 1 berkas: src/components/agents/AgentsTitleBar.tsx"],
-  ["layar","j === i ? null : (","teks elemen di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","kb-chord","data-testid di layar · dirender 1 berkas: src/components/shell/KeybindingsEditor.tsx"],
   ["layar","kb-chord-none","data-testid di layar · dirender 1 berkas: src/components/shell/KeybindingsEditor.tsx"],
   ["layar","kb-close","data-testid di layar · dirender 1 berkas: src/components/shell/KeybindingsEditor.tsx"],
@@ -6802,7 +6778,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","run finished","label/label tanpa kamus di layar · dirender 1 berkas: src/components/debug/DebugView.tsx"],
   ["layar","run stopped","label/label tanpa kamus di layar · dirender 1 berkas: src/components/debug/DebugView.tsx"],
   ["layar","run-tests","placeholder di layar · dirender 1 berkas: src/components/settings/AgcSections.tsx"],
-  ["layar","runs in parallel","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","runs programs","teks elemen di layar · dirender 1 berkas: src/components/workspace/TrustDialog.tsx"],
   ["layar","s.mark ? (","teks elemen di layar · dirender 1 berkas: src/components/explorer/SearchPanel.tsx"],
   ["layar","save-issue-body","data-testid di layar · dirender 1 berkas: src/components/shell/SaveIssueDialog.tsx"],
