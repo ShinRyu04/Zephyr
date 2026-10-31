@@ -56,53 +56,18 @@
 }
 
 /* ---------------------------------------------------------------- */
-/* Kartu rencana (gerbang persetujuan)                               */
+/* Kartu rencana (gerbang persetujuan) — TANPA bingkai, urutan acuan: */
+/* intro Lead polos → "Created N tasks" → daftar → Edit/Discard/Start */
 /* ---------------------------------------------------------------- */
 
 .experts-plan {
-  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-  border-radius: 9px;
-  background: var(--surface-2);
-  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
   margin: 4px 0;
   max-width: 560px;
 }
 .experts-plan.is-hilang {
   opacity: 0.8;
-}
-.experts-plan-kepala {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.experts-plan-kepala-ikon {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.experts-plan-kepala-judul {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
-  flex: 1;
-  min-width: 0;
-}
-.experts-plan-status {
-  font-size: 10px;
-  color: var(--text-muted);
-  flex: none;
-}
-.experts-plan-status.is-selesai {
-  color: var(--success);
-}
-.experts-plan-status.is-gagal {
-  color: var(--warn);
 }
 .experts-plan-intro {
   margin-top: 6px;
@@ -110,35 +75,38 @@
   color: var(--text);
   line-height: 1.45;
 }
-.experts-plan-menunggu {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
 .experts-plan-error {
   margin-top: 6px;
   font-size: 11px;
   color: var(--warn);
 }
-.experts-plan-daftar {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
+/* Baris rencana: avatar tinted + "Task N: judul" tebal + jadwal di bawahnya. */
+.experts-plan-baris {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 2px 6px;
+}
+.experts-plan-badan {
   display: flex;
   flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
-/* Baris plan TANPA kotak dalam (kaya produk rujukan): baris polos
-   dipisah hairline — kartu-dalam-kartu bikin rencana terlihat raksasa. */
-.experts-plan-tugas {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  padding: 4px 6px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+.experts-plan-badan b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.experts-plan-badan i {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+/* Ikon peran di baris EDITOR rencana (mode sunting) — tetap dipakai. */
 .experts-plan-tugas-ikon {
   width: 16px;
   height: 16px;
@@ -149,21 +117,6 @@
   background: var(--surface-3);
   color: var(--text-muted);
   flex: none;
-}
-.experts-plan-tugas-badan {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-}
-.experts-plan-tugas-badan b {
-  font-size: 11.5px;
-  color: var(--text);
-}
-.experts-plan-tugas-badan i {
-  font-style: normal;
-  font-size: 10px;
-  color: var(--text-muted);
 }
 .experts-plan-tulis {
   margin-top: 7px;
@@ -360,6 +313,14 @@ button.experts-run-fold-baris:hover {
 }
 .experts-run-status.is-jalan {
   color: var(--accent);
+}
+/* Narasi Lead sela ("Researcher Alex sedang membaca …") — teks polos di
+   antara kartu, seperti acuan. */
+.experts-run-narasi {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 8px 2px 0;
 }
 .experts-run-bawah {
   display: flex;

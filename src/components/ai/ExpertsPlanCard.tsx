@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useExperts, AHLI, AHLI_BY_ID, type EkspertRun, type TugasAhli } from '../../lib/expertsStore';
+import { useExperts, AHLI, AHLI_BY_ID, type TugasAhli } from '../../lib/expertsStore';
 import { customAktif } from '../../lib/subagentCustom';
 import { useT } from '../../lib/i18n';
+import AiIkon from './AiIkon';
 import { IkonAhli } from './expertsBuka';
 
 /*
@@ -129,8 +130,6 @@ export default function ExpertsPlanCard({
 
   return (
     <div className="experts-plan" data-testid="experts-plan" data-status={run.status}>
-      <KepalaRun run={run} />
-
       {run.error && <div className="experts-plan-error">{run.error}</div>}
 
       {sunting ? (
@@ -267,26 +266,44 @@ export default function ExpertsPlanCard({
         </div>
       ) : (
         <>
+          {/*
+            * Bentuk gerbang ala acuan Qoder: TANPA bingkai "Lead Agent —
+            * Orchestrating…" — kalimat pembuka Lead polos, lalu lipatan
+            * "Created N tasks" dengan daftar tugasnya. Info jadwal
+            * (runs in parallel / after Task N) tetap ada di sini karena ini
+            * satu-satunya tempat user meninjau rencana sebelum Start.
+            */}
+          {run.intro.trim() && <div className="experts-run-intro">{run.intro}</div>}
           {run.tugas.length > 0 && (
-            <ol className="experts-plan-daftar" data-testid="experts-plan-tasks">
-              {run.tugas.map((t, i) => {
-                const dep = t.setelah ? run.tugas.findIndex((x) => x.id === t.setelah) : -1;
-                return (
-                  <li key={t.id} className="experts-plan-tugas" data-testid={`experts-plan-task-${i + 1}`}>
-                    <span className="experts-plan-tugas-ikon" data-ahli={t.ahli}>
-                      <IkonAhli id={t.ahli} size={13} />
-                    </span>
-                    <span className="experts-plan-tugas-badan">
-                      <b>{t.judul}</b>
-                      <i>
-                        {t.nama}
-                        {dep >= 0 ? ` — ${tr('after')} Task ${dep + 1}` : ` — ${tr('runs in parallel')}`}
-                      </i>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            <>
+              <div className="experts-run-fold is-buka" aria-hidden="true">
+                <AiIkon name="queue" size={12} />
+                <span>
+                  {tr('Created')} <b>{run.tugas.length}</b> {tr('tasks')}
+                </span>
+              </div>
+              <div className="experts-run-fold-daftar is-gate" data-testid="experts-plan-tasks">
+                {run.tugas.map((t, i) => {
+                  const dep = t.setelah ? run.tugas.findIndex((x) => x.id === t.setelah) : -1;
+                  return (
+                    <div key={t.id} className="experts-plan-baris" data-testid={`experts-plan-task-${i + 1}`}>
+                      <span className="experts-run-avatar" data-ahli={t.ahli} aria-hidden="true">
+                        <IkonAhli id={t.ahli} size={11} />
+                      </span>
+                      <span className="experts-plan-badan">
+                        <b>
+                          Task {i + 1}: {t.judul}
+                        </b>
+                        <i>
+                          {t.nama} —{' '}
+                          {dep >= 0 ? `${tr('after')} Task ${dep + 1}` : tr('runs in parallel')}
+                        </i>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           {run.status === 'rencana' && (
@@ -344,39 +361,4 @@ function menungguSebelum(draft: TugasAhli[], dari: string, cari: string): boolea
     cur = byId.get(cur)?.setelah ?? null;
   }
   return false;
-}
-
-function KepalaRun({ run }: { run: EkspertRun | null }) {
-  const tr = useT();
-  const status =
-    run == null
-      ? tr('Plan')
-      : run.status === 'menyusun'
-        ? tr('Planning…')
-        : run.status === 'rencana'
-          ? tr('Ready to start')
-          : run.status === 'jalan'
-            ? tr('Running')
-            : run.status === 'selesai'
-              ? tr('Completed')
-              : run.status === 'gagal'
-                ? tr('Failed')
-                : tr('Cancelled');
-  return (
-    <div className="experts-plan-kepala">
-      <span className="experts-plan-kepala-ikon" aria-hidden="true">
-        <IkonAhli id="lead" size={14} />
-      </span>
-      <span className="experts-plan-kepala-judul">
-        {tr('Lead Agent')} — {run ? tr('Orchestrating expert tasks') : tr('Plan')}
-      </span>
-      <span
-        className={`experts-plan-status ${
-          run && (run.status === 'selesai' ? 'is-selesai' : run.status === 'gagal' ? 'is-gagal' : '')
-        }`}
-      >
-        {status}
-      </span>
-    </div>
-  );
 }
