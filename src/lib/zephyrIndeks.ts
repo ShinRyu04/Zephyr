@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7580 entri
- * (bridge=1, dokumen=124, ekstensi=21, kode=551, label=3233, layar=3032, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7577 entri
+ * (bridge=1, dokumen=124, ekstensi=21, kode=551, label=3233, layar=3029, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: cb0af8dbd3c4e352
+ * Versi app: 1.1.15 · hash sumber: e3972aadfae15519
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'cb0af8dbd3c4e352' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'e3972aadfae15519' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -580,7 +580,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/DiffViewTab.tsx","499 baris · tanpa ekspor"],
   ["kode","src/components/ai/DragonIcon.tsx","62 baris · The dragon mark - Zeph's own icon. · tanpa ekspor"],
   ["kode","src/components/ai/EditorKunci.tsx","102 baris · ekspor: EditorKunci"],
-  ["kode","src/components/ai/ExpertsCanvas.tsx","421 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsCanvas.tsx","424 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsPlanCard.tsx","368 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsTaskTab.tsx","143 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsTimeline.tsx","142 baris · tanpa ekspor"],
@@ -4655,7 +4655,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Expand all files","aria-label/tooltip title di layar · dirender 1 berkas: src/components/agents/AgentsPanelKananDiff.tsx"],
   ["layar","Expert","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Experts","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/ModeMenu.tsx, src/components/settings/AgcExperts.tsx"],
-  ["layar","ExpertsCanvas","src/components/ai/ExpertsCanvas.tsx · 8 label: Done, Fit view, No Experts run yet — pick “Experts” in the composer and give the team a goal., Orchestrating expert tasks, Task overview, Team overview, Zoom in, Zoom out · 3 data-testid: experts-canvas, experts-canvas-lead, experts-canvas-overview · teks: Lead Agent"],
+  ["layar","ExpertsCanvas","src/components/ai/ExpertsCanvas.tsx · 7 label: Done, Fit view, No Experts run yet — pick “Experts” in the composer and give the team a goal., Orchestrating expert tasks, Reset view, Zoom in, Zoom out · 1 data-testid: experts-canvas"],
   ["layar","ExpertsPlanCard","src/components/ai/ExpertsPlanCard.tsx · 25 label: Add task, Cancel, Cancelled, Completed, Concrete brief: what to do, which files, how to verify, Depends on, Discard, Edit plan, Expert, Failed, Immediately (runs in parallel), Lead Agent, Orchestrating expert tasks, Plan, Planning…, Ready to start, Remove task, Review the plan, adjust it if needed, then start the team., Running, Save plan, Start, Task brief, Task title, after, runs in parallel · 10 data-testid: experts-plan, experts-plan-add, experts-plan-cancel, experts-plan-discard, experts-plan-edit, experts-plan-editor, experts-plan-gate, experts-plan-save, experts-plan-start, experts-plan-tasks · teks: j === i ? null : ("],
   ["layar","ExpertsTaskTab","src/components/ai/ExpertsTaskTab.tsx · 5 label: Brief, Report, This report was shortened when the run was saved (2,000 characters). The full text only lived in this session., This task no longer has a live run or a stored snapshot., Working… · 3 data-testid: experts-tasktab, experts-tasktab-laporan, experts-tasktab-pendek"],
   ["layar","ExpertsTimeline","src/components/ai/ExpertsTimeline.tsx · 10 label: Cancelled, Canvas, Changed Files, Completed, Failed, Lead Agent — Orchestrating expert tasks, Running, Stop, after Task {n}, runs in parallel · 3 data-testid: experts-files, experts-timeline, experts-tl-batal"],
@@ -4784,7 +4784,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Language toolchains","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/ToolchainPanel.tsx"],
   ["layar","LanguageServersSection","src/components/settings/LanguageServersSection.tsx · 37 label: A running server gives you completion, go-to-definition, and errors while you type. With this off, the editor still opens and edits files: it just does not know your language., Check again, Checking..., Close, Copy, Documentation, Done, Enable IntelliSense (LSP), Enabled, Filter by language or extension, Found it. Switch this server on to use it., Install, Install failed, Install the language server, Install with Zephyr, Installed on this machine, Installing..., IntelliSense is off. Turn it on above to change the servers below., Language Servers, Needs this first, No server matches that filter., Re-check, Reset to the built-in command, Servers can be found but not started, Stop server, Zephyr cannot install this one automatically - run the command above yourself., Zephyr could not find, Zephyr downloads the release archive and unpacks it into its own folder. No PATH changes., Zephyr runs the toolchain's own install command. Depending on the toolchain this can take a minute; the log below shows what it said., Zephyr runs winget. The tool installs machine-wide and Zephyr looks for it in the WinGet folder afterwards - no restart needed., custom, idle, language server, not found, off, on your PATH. Install it, then check again to enable this server., running · 17 data-testid: lsp-cari, lsp-dialog-hasil, lsp-dialog-inst…"],
   ["layar","LayoutMenu","src/components/shell/LayoutMenu.tsx · 36 label: AI Chat, AI Sidebar, AI panel position, Breadcrumbs, Close, Compact, Customize Layout, Default, Editor, Hide every panel and keep only the text. Ctrl+K Z, Layout Density, Left, Maximize, Minimap, Panel Position, Panels, Primary Side Bar Position, Quick view options for the editor surface, without opening the full Settings page., Reset, Reset layout to default, Restore size, Right, Secondary Side Bar (AI), Show or hide each part of the window: menu bar, activity bar, side bars, panel and status bar., Surfaces, View, Where the chat lives: the right column, an editor tab, or its own window., Which edge each side bar takes, and how tightly the interface packs., Which edge the bottom panel and the activity bar take., Window, Window scale, and the full-window modes that hide every panel., Word Wrap, Zen Mode, Zoom, Zoom in, Zoom out · 23 data-testid: layout-menu, layout-menu-backdrop, lm-close, lm-content, lm-editor, lm-kerapatan, lm-max, lm-pane-chat, lm-pane-editor, lm-pane-panels, lm-pane-surfaces, lm-pane-view, lm-panel-pos, lm-posisi, lm-posisi-ai, lm-reset, lm-secondary, lm-visibility, lm-zen, lm-zoom, lm-zoom-in, lm-zoom-out, lm-zoom-reset"],
-  ["layar","Lead Agent","label/label tanpa kamus/teks elemen di layar · dirender 2 berkas: src/components/ai/ExpertsCanvas.tsx, src/components/ai/ExpertsPlanCard.tsx"],
+  ["layar","Lead Agent","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","Lead Agent — Orchestrating expert tasks","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","Learn more","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexChat.tsx"],
   ["layar","Learn {name}","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
@@ -5060,6 +5060,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Repository","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar","Requests served","teks elemen di layar · dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar","Reset now","teks elemen di layar · dirender 1 berkas: src/components/settings/SettingsNav.tsx"],
+  ["layar","Reset view","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
   ["layar","Restart (Ctrl+Shift+F5)","tooltip title di layar · dirender 2 berkas: src/components/debug/DebugToolbar.tsx, src/components/debug/DebugView.tsx"],
   ["layar","Restart Codex after editing to apply changes","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CodexSettings.tsx"],
   ["layar","Restore panel size","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/PanelWins.tsx"],
@@ -5210,9 +5211,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Task Progress","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/KartuProgresExperts.tsx"],
   ["layar","Task Status Notification","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","Task brief","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","Task overview","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
   ["layar","Task title","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
-  ["layar","Team overview","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
   ["layar","Technical solution research","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/AiPanel.tsx"],
   ["layar","Terima semua","teks elemen di layar · dirender 1 berkas: src/components/scm/DiffViewer.tsx"],
   ["layar","Terminal Environment","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
@@ -6417,8 +6416,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","exp-live-toggle","data-testid di layar · dirender 1 berkas: src/components/ai/SubAgenHidup.tsx"],
   ["layar","experts-antrean","data-testid di layar · dirender 1 berkas: src/components/ai/KartuAntrean.tsx"],
   ["layar","experts-canvas","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
-  ["layar","experts-canvas-lead","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
-  ["layar","experts-canvas-overview","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsCanvas.tsx"],
   ["layar","experts-files","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","experts-plan","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],
   ["layar","experts-plan-add","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsPlanCard.tsx"],

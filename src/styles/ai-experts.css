@@ -711,16 +711,20 @@
 .experts-canvas {
   position: absolute; /* alasan sama dengan .experts-tasktab di atas */
   inset: 0;
-  /* Lebar panel ringkasan tim; panggung bergeser sebesar ini. */
-  --exp-overview-w: 232px;
-  display: flex;
   background: var(--surface);
   overflow: hidden;
+  /* Token warna avatar per peran — dekoratif, sama di semua tema (mengikuti
+     acuan: Researcher pink, Full-Stack biru, QA hijau, Lead netral). */
+  --ahli-lead: var(--text-muted);
+  --ahli-researcher: #d982b7;
+  --ahli-fullstack: #5aa2f0;
+  --ahli-qa: #57c98a;
+  --ahli-reviewer: #c9a24a;
+  --ahli-ui: #9a7bf0;
+  --ahli-debug: #e0796b;
 }
 .experts-canvas-kosong {
   height: 100%;
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -733,116 +737,6 @@
   color: var(--accent);
 }
 
-/* Panel ringkasan tim di kiri panggung (bentuk produk rujukan: panel tugas
-   + kanvas dalam satu layar). Baris bisa diklik untuk memusatkan node yang
-   bersangkutan tanpa mengubah zoom. */
-.experts-canvas-overview {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--exp-overview-w);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-  background: var(--surface-2);
-}
-.experts-canvas-overview-kepala {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-}
-.experts-canvas-overview-judul-besar {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text);
-}
-.experts-canvas-overview-ringkas {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  flex: none;
-}
-.experts-canvas-overview-ringkas.is-selesai {
-  color: var(--success);
-}
-.experts-canvas-overview-ringkas.is-jalan {
-  color: var(--accent);
-}
-.experts-canvas-overview-ringkas.is-gagal {
-  color: var(--warn);
-}
-.experts-canvas-overview-daftar {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px;
-}
-.experts-canvas-overview-baris {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  border-radius: 7px;
-  padding: 6px 7px;
-  cursor: pointer;
-}
-.experts-canvas-overview-baris:hover {
-  background: var(--surface-3);
-}
-.experts-canvas-overview-ikon {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-}
-.experts-canvas-overview-teks {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-.experts-canvas-overview-baris-judul {
-  font-size: 11px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.experts-canvas-overview-baris-ahli {
-  font-size: 10px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.experts-canvas-overview-baris-status {
-  font-size: 10px;
-  color: var(--text-muted);
-  flex: none;
-}
-.experts-canvas-overview-baris.is-selesai .experts-canvas-overview-baris-status {
-  color: var(--success);
-}
-.experts-canvas-overview-baris.is-jalan .experts-canvas-overview-baris-status {
-  color: var(--accent);
-}
-.experts-canvas-overview-baris.is-gagal .experts-canvas-overview-baris-status {
-  color: var(--warn);
-}
 .experts-canvas-alat {
   position: absolute;
   top: 10px;
@@ -879,10 +773,16 @@
   min-width: 34px;
   text-align: center;
 }
+.experts-canvas-alat-pemisah {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 2px;
+  flex: none;
+}
 .experts-canvas-panggung {
   position: absolute;
-  /* Panggung TIDAK menutupi panel ringkasan; zoom/pan tetap milik kanvas. */
-  inset: 0 0 0 var(--exp-overview-w);
+  inset: 0;
   cursor: grab;
   touch-action: none;
 }
@@ -911,69 +811,100 @@
 .experts-canvas-node {
   position: absolute;
   /* Lebar DIATUR inline dari LEBAR_NODE di ExpertsCanvas.tsx — satu sumber
-     untuk posisi, sambungan, dan kotaknya. Dulu lebar 230 di sini dan offset
-     120 di TSX harus diubah bersama-sama. */
+     untuk posisi, sambungan, dan kotaknya. */
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface-2);
-  padding: 7px 9px;
+  padding: 0;
+  overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--text) 6%, transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--text) 8%, transparent);
 }
 .experts-canvas-node:hover {
-  border-color: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 .experts-canvas-node.is-jalan {
   border-color: var(--accent-soft);
 }
 .experts-canvas-node.is-lead {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+/* Kepala kartu: avatar + (nama di atas, judul di bawah). */
+.experts-canvas-node-kepala {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
 }
 .experts-canvas-node-avatar {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: var(--surface-3);
-  color: var(--accent);
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ahli, var(--accent)) 18%, var(--surface-3));
+  color: var(--ahli, var(--accent));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
 }
-.experts-canvas-node-avatar.is-lead {
-  background: var(--accent-soft);
+.experts-canvas-node-avatar[data-ahli="lead"] {
+  --ahli: var(--ahli-lead);
+}
+.experts-canvas-node-avatar[data-ahli="researcher"] {
+  --ahli: var(--ahli-researcher);
+}
+.experts-canvas-node-avatar[data-ahli="fullstack"] {
+  --ahli: var(--ahli-fullstack);
+}
+.experts-canvas-node-avatar[data-ahli="qa"] {
+  --ahli: var(--ahli-qa);
+}
+.experts-canvas-node-avatar[data-ahli="reviewer"] {
+  --ahli: var(--ahli-reviewer);
+}
+.experts-canvas-node-avatar[data-ahli="ui"] {
+  --ahli: var(--ahli-ui);
+}
+.experts-canvas-node-avatar[data-ahli="debug"] {
+  --ahli: var(--ahli-debug);
 }
 .experts-canvas-node-badan {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 1px;
   min-width: 0;
   flex: 1;
 }
 .experts-canvas-node-ahli {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .experts-canvas-node-judul {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Baris status: dipisah hairline dari kepala, ikon + teks rata kiri. */
 .experts-canvas-node-status {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  gap: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  padding: 6px 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  flex: none;
 }
 .experts-canvas-node-status.is-selesai {
   color: var(--success);
@@ -986,6 +917,16 @@
 }
 .experts-canvas-node-status.is-batal {
   color: var(--text-muted);
+}
+.experts-canvas-node-statusikon {
+  flex: none;
+}
+.experts-canvas-node-statusdot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  flex: none;
 }
 
 /* ---------------------------------------------------------------- */
@@ -1767,7 +1708,6 @@ button.exp-todo-baris:hover {
 .experts-mini:focus-visible,
 .experts-canvas-alat button:focus-visible,
 .experts-canvas-node:focus-visible,
-.experts-canvas-overview-baris:focus-visible,
 .experts-progress-kepala:focus-visible,
 .exp-todo-baris:focus-visible,
 .agc-experts-kepala:focus-visible,
