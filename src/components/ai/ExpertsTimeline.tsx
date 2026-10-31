@@ -4,7 +4,7 @@ import { useSubAgent, type SubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import { clipboardWrite } from '../../lib/clipboard';
-import { IkonAhli, bukaTabTugas, statusTugas } from './expertsBuka';
+import { IkonAhli, bukaTabTugas, statusTugas, jenisLangkah } from './expertsBuka';
 import type { TugasAhli } from '../../lib/expertsStore';
 
 /*
@@ -85,6 +85,19 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
   const berkasTulis = [...new Set(run.tugas.flatMap((t) => t.berkasTulis ?? []))];
   const berkasTampil =
     run.status === 'selesai' || run.status === 'gagal' || run.status === 'batal' ? berkasTulis : [];
+
+  /*
+   * Narasi berjalan ala acuan (gambar 2 Qoder): Lead "memberi tahu" apa yang
+   * sedang dikerjakan worker — kalimat polos di antara kartu. Dibangun dari
+   * langkah TERAKHIR baris worker, bukan panggilan AI tambahan; fold pikiran
+   * Lead di tengah jalan butuh perubahan mesin (Lead dipanggil ulang) — lain
+   * babak. Tanpa baris hidup, narasi pakai kalimat netral "menyiapkan".
+   */
+  const narasiJalan = jalan
+    ? tampil
+        .filter((x) => x.st.kelas === 'is-jalan')
+        .map((x) => ({ id: x.t.id, teks: narasiTugas(x.t.nama, x.row) }))
+    : [];
 
   const salinRingkas = () => {
     const isi = [
@@ -181,6 +194,12 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
             </div>
           )}
         </Bagian>
+      ))}
+
+      {narasiJalan.map((n) => (
+        <p key={n.id} className="experts-run-narasi">
+          {n.teks}
+        </p>
       ))}
 
       {totalCari > 0 && (
@@ -286,6 +305,38 @@ function Bagian({ terakhir, children }: { terakhir: boolean; children: ReactNode
       {children}
     </div>
   );
+}
+
+/*
+ * Kalimat narasi satu worker yang sedang berjalan, dari langkah terakhirnya:
+ * "Researcher Alex sedang membaca modelCatalog.tsx." — gaya Lead yang
+ * "memberi tahu" di acuan. Untuk 'pikir'/'lain' dipakai kalimat netral, karena
+ * isi pikiran worker bukan narrasi untuk user.
+ */
+function narasiTugas(nama: string, row: SubAgent | undefined): string {
+  const terakhir = row?.langkah[row.langkah.length - 1];
+  if (!terakhir) return `${nama} sedang menyiapkan langkah pertama.`;
+  const args = (() => {
+    try {
+      return JSON.parse(terakhir.args ?? '{}') as Record<string, unknown>;
+    } catch {
+      return {} as Record<string, unknown>;
+    }
+  })();
+  const dasar = (p: unknown) => String(p ?? '').split(/[\\/]/).pop() || '';
+  const jenis = terakhir.kind === 'pikir' ? 'pikir' : jenisLangkah(terakhir.nama);
+  switch (jenis) {
+    case 'baca':
+      return `${nama} sedang membaca ${dasar(args.path) || 'berkas terkait'}.`;
+    case 'cari':
+      return `${nama} sedang mencari "${String(args.pattern ?? args.query ?? '').slice(0, 60)}".`;
+    case 'tulis':
+      return `${nama} sedang menulis perubahan di ${dasar(args.path) || 'berkas'}.`;
+    case 'terminal':
+      return `${nama} sedang menjalankan perintah di terminal.`;
+    default:
+      return `${nama} sedang menyusun langkah berikutnya.`;
+  }
 }
 
 /** Ikon jempol 16px — suka/tidak, digambar sendiri gaya garis. */
