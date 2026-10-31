@@ -12,6 +12,24 @@
 /* Spin bersama                                                      */
 /* ---------------------------------------------------------------- */
 
+/*
+ * Token warna avatar per peran — dekoratif, sama di semua tema (mengikuti
+ * acuan: Researcher pink, Full-Stack biru, QA hijau, Lead netral). Tinggal di
+ * :root supaya dipakai lintas permukaan (chat, strip, tab, canvas) dari SATU
+ * sumber — dulu di-scope ke .experts-canvas dan kartu chat harus meniru.
+ */
+:root {
+  --ahli-lead: var(--text-muted);
+  --ahli-researcher: #d982b7;
+  --ahli-fullstack: #5aa2f0;
+  --ahli-qa: #57c98a;
+  --ahli-reviewer: #c9a24a;
+  --ahli-ui: #9a7bf0;
+  --ahli-debug: #e0796b;
+  /* Amber status "M" (modified) pada kartu diff — mengikuti acuan. */
+  --ahli-mod: #c9a24a;
+}
+
 .experts-spin {
   width: 10px;
   height: 10px;
@@ -26,6 +44,15 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/*
+ * Tab task Experts ("Task N: …" / "Experts Canvas"): underline tab aktif
+ * HIJAU, bukan accent umum — tanda visual tab riwayat kerja tim, mengikuti
+ * acuan (022702: garis bawah hijau di tab Task 2).
+ */
+.tab.is-experts.is-active::after {
+  background: var(--success);
 }
 
 /* ---------------------------------------------------------------- */
@@ -187,40 +214,242 @@
 }
 
 /* ---------------------------------------------------------------- */
-/* Timeline task INLINE DI CHAT (bentuk Qoder)                       */
+/* Run Experts INLINE DI CHAT — urutan Qoder asli                    */
+/*                                                                   */
+/* Tanpa bingkai besar: intro Lead = teks polos, lipatan "Created N  */
+/* tasks", kartu KECIL per-worker yang muncul satu-satu, pemisah     */
+/* "Worked on it · N actions", baris "Explored N searches", baris    */
+/* berkas yang ditulis, lalu tombol reaksi.                          */
 /* ---------------------------------------------------------------- */
 
-.experts-tl {
+.experts-run {
   display: flex;
   flex-direction: column;
-  gap: 1px;
   margin: 6px 0;
   max-width: 560px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: 12px;
-  background: var(--surface-2);
-  padding: 8px 10px 7px;
 }
-.experts-tl-kepala {
+.experts-run-intro {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 2px 2px 7px;
+}
+
+/* Lipatan umum: Created N tasks / Changed Files. */
+.experts-run-fold {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 1px 2px 6px;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
 }
-.experts-tl-lead-ikon {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: var(--accent-soft);
-  color: var(--accent);
+.experts-run-fold:hover {
+  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+}
+.experts-run-fold svg {
+  flex: none;
+}
+.experts-run-fold b {
+  color: var(--text);
+  font-weight: 600;
+}
+.experts-run-fold:not(.is-buka) .experts-progress-caret {
+  transform: rotate(-90deg);
+}
+.experts-run-fold-daftar {
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px 4px 26px;
+}
+.experts-run-fold-baris {
+  display: block;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: left;
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.experts-run-fold-baris:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+}
+.experts-run-fold-baris.is-teks {
+  cursor: default;
+}
+
+/*
+ * Kartu worker: baris atas = avatar tinted + nama muted + status kanan;
+ * baris bawah = └ + "Task N: judul" tebal. Persis acuan — kartu kecil
+ * yang duduk langsung di latar chat, tanpa bingkai induk.
+ */
+.experts-run-kartu {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 9px 12px 8px;
+  margin: 6px 0 0;
+  cursor: pointer;
+}
+.experts-run-kartu:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.experts-run-atas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.experts-run-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ahli, var(--accent)) 18%, var(--surface-3));
+  color: var(--ahli, var(--accent));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
 }
-.experts-tl-kepala > b {
-  font-size: 11.5px;
+.experts-run-avatar[data-ahli="lead"] { --ahli: var(--ahli-lead); }
+.experts-run-avatar[data-ahli="researcher"] { --ahli: var(--ahli-researcher); }
+.experts-run-avatar[data-ahli="fullstack"] { --ahli: var(--ahli-fullstack); }
+.experts-run-avatar[data-ahli="qa"] { --ahli: var(--ahli-qa); }
+.experts-run-avatar[data-ahli="reviewer"] { --ahli: var(--ahli-reviewer); }
+.experts-run-avatar[data-ahli="ui"] { --ahli: var(--ahli-ui); }
+.experts-run-avatar[data-ahli="debug"] { --ahli: var(--ahli-debug); }
+.experts-run-nama {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.experts-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: none;
+}
+.experts-run-status.is-selesai {
+  color: var(--success);
+}
+.experts-run-status.is-gagal {
+  color: var(--warn);
+}
+.experts-run-status.is-jalan {
+  color: var(--accent);
+}
+.experts-run-bawah {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.experts-run-sambung {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex: none;
+}
+.experts-run-judul {
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Pemisah antar kartu: kwitansi pekerja — "Worked on it · N actions". */
+.experts-run-kerja {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 7px 0 1px 8px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.experts-run-kerja svg {
+  flex: none;
+  opacity: 0.8;
+}
+.experts-run-kerja-n {
+  opacity: 0.85;
+}
+
+/* Baris "Explored N searches" — redup, lipatan bila ada daftar kuerinya. */
+.experts-run-cari {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.experts-run-cari:hover {
+  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
+}
+.experts-run-cari b {
+  color: var(--text);
+}
+.experts-run-cari:not(.is-buka) .experts-progress-caret {
+  transform: rotate(-90deg);
+}
+
+/* Berkas yang ditulis: baris kartu diff mini "# nama … M Applied". */
+.experts-run-berkas {
+  margin-top: 4px;
+}
+.experts-run-berkas .experts-run-fold {
+  margin-bottom: 3px;
+}
+.experts-run-berkas-baris {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  font-size: 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 8px;
+  background: var(--surface-2);
+  margin-bottom: 4px;
+  min-width: 0;
+}
+.experts-run-berkas-hash {
+  color: var(--accent);
+  font-weight: 600;
+  flex: none;
+}
+.experts-run-berkas-nama {
   color: var(--text);
   flex: 1;
   min-width: 0;
@@ -228,16 +457,48 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.experts-tl-run {
-  font-size: 10px;
-  color: var(--text-muted);
-  flex: none;
-}
-.experts-tl-lead-aksi {
+.experts-run-berkas-kanan {
   display: inline-flex;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   flex: none;
+  font-size: 10.5px;
 }
+.experts-run-berkas-kanan .is-mod {
+  color: var(--ahli-mod);
+  font-weight: 600;
+}
+.experts-run-berkas-kanan .is-applied {
+  color: var(--text-muted);
+}
+
+/* Reaksi di bawah kartu terakhir: copy / suka / tidak / fork. */
+.experts-run-reaksi {
+  display: flex;
+  gap: 2px;
+  margin: 6px 0 0 2px;
+}
+.experts-run-reaksi button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  width: 24px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.experts-run-reaksi button:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.experts-run-reaksi button.is-on {
+  color: var(--accent);
+}
+
+/* Tombol mungil Stop/Canvas — dipakai kartu Task Progress di atas composer. */
 .experts-mini {
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -255,125 +516,17 @@
   color: var(--warn);
   border-color: var(--warn);
 }
-/*
- * Baris tugas di dalam kartu Lead: ikon ahli polos (tanpa tile, seperti
- * referensi), judul tebal, subtitle "Nama Worker — runs in parallel / after
- * Task N", dan tanda status mungil di ujung kanan (spinner/✓/✕) — tanpa teks
- * supaya barisnya tetap seramping referensi.
- */
-.experts-tl-baris {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  padding: 5px 6px;
-  cursor: pointer;
-}
-.experts-tl-baris:hover {
-  background: color-mix(in srgb, var(--surface-3) 55%, transparent);
-}
-.experts-tl-ikon {
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.experts-tl-badan {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.experts-tl-judul {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.experts-tl-sub {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.experts-tl-tanda {
-  width: 14px;
-  margin-top: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10.5px;
-  color: var(--text-muted);
-  flex: none;
-}
-.experts-tl-tanda.is-selesai {
-  color: var(--success);
-}
-.experts-tl-tanda.is-gagal {
-  color: var(--warn);
-}
-.experts-tl-tanda.is-jalan {
-  color: var(--accent);
-}
 
 /* ---------------------------------------------------------------- */
 /* Kartu ringkas DI ATAS COMPOSER: Task Progress + Changed Files     */
+/*                                                                   */
+/* Dulu blok ini memuat kotak .experts-strip/.experts-progress yang   */
+/* TIDAK pernah dirender komponen mana pun (kartu aslinya memakai     */
+/* keluarga .exp-todo) — dibuang supaya tidak menyesatkan pembaca.    */
+/* Yang tersisa: caret & badge (dipakai strip), dan keluarga          */
+/* .experts-berkas untuk footer "N Changed Files" di dalam strip.     */
 /* ---------------------------------------------------------------- */
 
-.experts-strip {
-  /*
-   * SATU kotak untuk progress + changed files, seperti produk rujukan:
-   * dua baris dipisah garis tipis, bukan dua kartu terpisah. Marginnya
-   * disamakan dengan composer (0 10px) supaya kiri-kanannya lurus.
-   */
-  display: flex;
-  flex-direction: column;
-  margin: 0 10px 8px;
-}
-.experts-progress {
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 10px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-/* Baris kedua dalam kotak yang sama: sambung tanpa dobel garis. */
-.experts-strip .experts-berkas {
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  border-top: 0;
-  border-radius: 0 0 10px 10px;
-  background: var(--surface-2);
-  margin-top: -1px;
-  overflow: hidden;
-}
-.experts-progress-kepala {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 0;
-  color: var(--text);
-  font-size: 11px;
-  padding: 5px 9px;
-  cursor: pointer;
-}
-.experts-progress-kepala b {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
 .experts-progress-caret {
   color: var(--text-muted);
   font-size: 9px;
@@ -381,7 +534,6 @@
   display: inline-block;
   flex: none;
 }
-.experts-progress:not(.is-buka) .experts-progress-caret,
 .experts-berkas:not(.is-buka) .experts-progress-caret {
   transform: rotate(-90deg);
 }
@@ -401,80 +553,6 @@
   justify-content: center;
   padding: 0 4px;
   flex: none;
-}
-.experts-progress-daftar {
-  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-  display: flex;
-  flex-direction: column;
-  padding: 2px 0;
-}
-.experts-progress-baris {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  background: transparent;
-  border: 0;
-  color: var(--text);
-  font-size: 10.5px;
-  padding: 3px 10px;
-  cursor: pointer;
-  text-align: left;
-}
-.experts-progress-baris:hover {
-  background: var(--surface-3);
-}
-.experts-progress-titik {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  margin-top: 1px;
-}
-.experts-progress-titik.is-jalan {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.experts-progress-titik.is-selesai {
-  background: color-mix(in srgb, var(--success) 20%, transparent);
-  border-color: var(--success);
-  color: var(--success);
-}
-.experts-progress-titik.is-gagal {
-  background: color-mix(in srgb, var(--warn) 20%, transparent);
-  border-color: var(--warn);
-  color: var(--warn);
-}
-.experts-progress-badan {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.experts-progress-judul {
-  font-size: 11px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.experts-progress-ahli {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
-  color: var(--text-muted);
-}
-.experts-progress-ahli svg {
-  color: var(--accent);
 }
 
 /* Changed Files — terlipat default, seperti produk rujukan */
@@ -656,6 +734,70 @@
   color: var(--warn);
   flex: none;
 }
+/* Durasi "· 1s" dan hitungan "6 results" di ujung baris langkah. */
+.experts-langkah-durasi {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  flex: none;
+}
+.experts-langkah-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  flex: none;
+}
+/* Kartu penuh di transkrip: tulisan berkas & perintah terminal. */
+.experts-langkah.is-berkas,
+.experts-langkah.is-terminal {
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 7px 10px;
+  margin: 3px 0;
+  color: var(--text);
+}
+.experts-langkah.is-berkas .experts-langkah-ikon,
+.experts-langkah.is-terminal .experts-langkah-ikon {
+  color: var(--accent);
+}
+.experts-langkah.is-berkas.is-gagal,
+.experts-langkah.is-terminal.is-gagal {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+}
+.experts-langkah-nama-berkas {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.experts-langkah-kanan {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.experts-langkah-kanan .is-mod {
+  color: var(--ahli-mod);
+  font-weight: 600;
+}
+.experts-langkah-kanan .is-generating {
+  color: var(--accent);
+}
+.experts-langkah-kanan .is-bengkok {
+  color: var(--warn);
+}
+/* └ sebelum judul di header tab, seperti acuan. */
+.experts-tasktab-sambung {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-right: 2px;
+}
 .experts-tasktab-laporan {
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -713,15 +855,6 @@
   inset: 0;
   background: var(--surface);
   overflow: hidden;
-  /* Token warna avatar per peran — dekoratif, sama di semua tema (mengikuti
-     acuan: Researcher pink, Full-Stack biru, QA hijau, Lead netral). */
-  --ahli-lead: var(--text-muted);
-  --ahli-researcher: #d982b7;
-  --ahli-fullstack: #5aa2f0;
-  --ahli-qa: #57c98a;
-  --ahli-reviewer: #c9a24a;
-  --ahli-ui: #9a7bf0;
-  --ahli-debug: #e0796b;
 }
 .experts-canvas-kosong {
   height: 100%;
@@ -831,14 +964,16 @@
   border-color: var(--accent-soft);
 }
 .experts-canvas-node.is-lead {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  /* Acuan: bingkai Lead cuma BEDA TIPIS dari kartu biasa — dulu 55% accent
+     terlalu biru, membaca sebagai "kartu terpilih" padahal bukan. */
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
 }
 /* Kepala kartu: avatar + (nama di atas, judul di bawah). */
 .experts-canvas-node-kepala {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 .experts-canvas-node-avatar {
   width: 30px;
@@ -902,7 +1037,7 @@
   align-items: center;
   gap: 6px;
   border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-  padding: 6px 12px;
+  padding: 8px 14px;
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -1200,6 +1335,9 @@
 }
 
 /* To-dos: caret + judul tebal + badge jumlah selesai. */
+/* Dipakai dua cara: tombol tunggal (KartuTodos, KartuAntreanExperts) dan
+   WRAPPER div yang di dalamnya ada toggle + tombol Canvas/Stop (Task Progress
+   — anti button-in-button). Properti reset di sini aman untuk keduanya. */
 .exp-todo-kepala {
   width: 100%;
   display: flex;
@@ -1211,11 +1349,31 @@
   font-size: 11.5px;
   padding: 6px 10px;
   cursor: pointer;
+  text-align: left;
 }
 .exp-todo-kepala b {
   flex: 1;
   min-width: 0;
   text-align: left;
+}
+/* Kiri header: tombol toggle lipatan (flex:1) — header BUKAN satu tombol
+   besar karena ujung kanannya memuat tombol Canvas/Stop (anti button-in-button). */
+.exp-todo-kepala-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-size: 11.5px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.exp-todo-kepala-toggle b {
+  min-width: 0;
 }
 .exp-todo:not(.is-buka) .experts-progress-caret {
   transform: rotate(-90deg);
@@ -1267,6 +1425,158 @@
 }
 .exp-todo-baris.is-done .exp-todo-teks {
   color: var(--text-muted);
+}
+
+/* Baris dua tingkat ala acuan (110036): "Task N: judul" + avatar + nama
+   worker di bawahnya — dulu cuma judul + teks status di kanan. */
+.exp-todo-badan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.exp-todo-judul {
+  color: var(--text);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-todo-baris.is-done .exp-todo-judul {
+  color: var(--text-muted);
+}
+.exp-todo-ahli {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-todo-ava {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ahli, var(--accent)) 18%, var(--surface-3));
+  color: var(--ahli, var(--accent));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.exp-todo-ava[data-ahli="lead"] { --ahli: var(--ahli-lead); }
+.exp-todo-ava[data-ahli="researcher"] { --ahli: var(--ahli-researcher); }
+.exp-todo-ava[data-ahli="fullstack"] { --ahli: var(--ahli-fullstack); }
+.exp-todo-ava[data-ahli="qa"] { --ahli: var(--ahli-qa); }
+.exp-todo-ava[data-ahli="reviewer"] { --ahli: var(--ahli-reviewer); }
+.exp-todo-ava[data-ahli="ui"] { --ahli: var(--ahli-ui); }
+.exp-todo-ava[data-ahli="debug"] { --ahli: var(--ahli-debug); }
+
+/* Avatar worker AKTIF di ujung kanan header strip — kliknya membuka Canvas. */
+.exp-todo-kanan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  margin-left: auto;
+}
+.exp-todo-canvas {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ahli, var(--accent)) 18%, var(--surface-3));
+  color: var(--ahli, var(--accent));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.exp-todo-canvas[data-ahli="lead"] { --ahli: var(--ahli-lead); }
+.exp-todo-canvas[data-ahli="researcher"] { --ahli: var(--ahli-researcher); }
+.exp-todo-canvas[data-ahli="fullstack"] { --ahli: var(--ahli-fullstack); }
+.exp-todo-canvas[data-ahli="qa"] { --ahli: var(--ahli-qa); }
+.exp-todo-canvas[data-ahli="reviewer"] { --ahli: var(--ahli-reviewer); }
+.exp-todo-canvas[data-ahli="ui"] { --ahli: var(--ahli-ui); }
+.exp-todo-canvas[data-ahli="debug"] { --ahli: var(--ahli-debug); }
+.exp-todo-canvas:hover {
+  outline: 1px solid color-mix(in srgb, var(--ahli, var(--accent)) 55%, transparent);
+}
+
+/* Footer "N Changed Files / Accepted" DI DALAM strip — sambung tanpa dobel
+   garis, sudut bawah ikut kartu. */
+.exp-todo .experts-berkas {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-radius: 0;
+}
+.exp-todo .experts-berkas-kepala {
+  padding: 5px 11px;
+}
+.experts-berkas-badge {
+  font-size: 9.5px;
+  color: var(--success);
+  flex: none;
+}
+
+/* "Message queued N" versi Experts: arahan steer yang sudah diteruskan. */
+.exp-steer-daftar {
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  display: flex;
+  flex-direction: column;
+}
+.exp-steer-baris {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  min-width: 0;
+}
+.exp-steer-genggam {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex: none;
+  user-select: none;
+}
+.exp-steer-teks {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-steer-tanda {
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  flex: none;
+  user-select: none;
+}
+.exp-steer-buang {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.exp-steer-buang:hover {
+  color: var(--warn);
+  background: var(--surface-3);
 }
 
 /* Lipatan subagent hidup: ringan, tanpa bingkai kartu. */
@@ -1704,12 +2014,20 @@ button.exp-todo-baris:hover {
 .experts-plan-hapus:focus-visible,
 .experts-plan-input:focus-visible,
 .experts-plan-pilih:focus-visible,
-.experts-tl-baris:focus-visible,
+.experts-run-kartu:focus-visible,
+.experts-run-fold:focus-visible,
+.experts-run-cari:focus-visible,
+.experts-run-fold-baris:focus-visible,
+.experts-run-reaksi button:focus-visible,
 .experts-mini:focus-visible,
+.exp-todo-canvas:focus-visible,
 .experts-canvas-alat button:focus-visible,
 .experts-canvas-node:focus-visible,
-.experts-progress-kepala:focus-visible,
+.exp-todo-kepala-toggle:focus-visible,
+.exp-todo-kepala:focus-visible,
 .exp-todo-baris:focus-visible,
+.experts-berkas-kepala:focus-visible,
+.exp-steer-buang:focus-visible,
 .agc-experts-kepala:focus-visible,
 .agc-experts-rule-tambah button:focus-visible,
 .agc-experts-pil:focus-visible {

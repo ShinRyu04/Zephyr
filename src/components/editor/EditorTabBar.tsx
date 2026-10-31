@@ -37,6 +37,8 @@ export default function EditorTabBar({ gid, tanpaTabBaru = false }: { gid?: stri
              * reader has fixed in place.
              */
             className={`tab${t.id === activeTabId ? ' is-active' : ''}${
+              t.view === 'experts-task' || t.view === 'experts-canvas' ? ' is-experts' : ''
+            }${
               dragOver === i ? ' is-dragover' : ''
             }${t.preview ? ' is-preview' : ''}${t.pinned ? ' is-pinned' : ''}`}
             data-preview={t.preview ? '1' : undefined}
@@ -116,6 +118,29 @@ export default function EditorTabBar({ gid, tanpaTabBaru = false }: { gid?: stri
                   stroke="currentColor"
                   strokeWidth="1.2"
                 />
+              </svg>
+            ) : t.view === 'experts-task' || t.view === 'experts-canvas' ? (
+              /*
+               * Tab task Experts pakai ⟳ (panah memutar) — bukan FileIcon
+               * generik: tab ini bukan berkas, ia RIWAYAT kerja satu worker
+               * (acuan 022702). Underline aktifnya diwarnai hijau oleh
+               * `.tab.is-experts.is-active::after` di ai-experts.css.
+               */
+              <svg
+                className="tab-experts-ikon"
+                viewBox="0 0 16 16"
+                width={13}
+                height={13}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                style={{ flexShrink: 0 }}
+              >
+                <path d="M2.8 8a5.2 5.2 0 1 0 1.5-3.7" />
+                <path d="M4.1 1.9v2.7h2.7" />
               </svg>
             ) : (
               <FileIcon lang={t.lang} name={t.name} />

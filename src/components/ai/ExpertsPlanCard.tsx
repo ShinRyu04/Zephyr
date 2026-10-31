@@ -55,6 +55,21 @@ export default function ExpertsPlanCard({
     setSunting(true);
   };
 
+  /*
+   * Setelah gerbang lewat — run jalan/selesai/gagal DENGAN tugas — bingkai
+   * "Lead Agent — Orchestrating…" DIMUNDURKAN: permukaan chatnya sekarang
+   * urutan Qoder di `ExpertsTimeline` (kartu per-worker), dan menampilkan
+   * dua-duanya berarti dua sumber kebenaran untuk satu run. 'batal' dan run
+   * tanpa tugas tetap dirender di sini: timeline tidak punya apa pun untuk
+   * ditunjukkan, jadi kartu inilah satu-satunya jejak run di transcript.
+   */
+  if (
+    (run.status === 'jalan' || run.status === 'selesai' || run.status === 'gagal') &&
+    run.tugas.length > 0
+  ) {
+    return null;
+  }
+
   const simpanSunting = () => {
     ubahTugas(run.id, draft);
     setSunting(false);
