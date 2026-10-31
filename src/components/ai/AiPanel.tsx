@@ -44,6 +44,7 @@ import PerubahanBerkas from './PerubahanBerkas';
 /* Kartu-kartu review DI DALAM alur chat: antrean, todos, dan subagent hidup
    (menggantikan work-stack lama yang menumpuk di atas composer). */
 import KartuAntrean from './KartuAntrean';
+import KartuAntreanExperts from './KartuAntreanExperts';
 import KartuTodos from './KartuTodos';
 import KartuProgresExperts from './KartuProgresExperts';
 import SubAgenHidup from './SubAgenHidup';
@@ -1731,6 +1732,12 @@ const bukaModels = () => bukaPanel('models');
               <span>{tr('Steering · run berjalan')}</span>
             </div>
           )}
+          {/*
+            * "Message queued N" versi Experts (acuan 064955): daftar arahan
+            * steer yang dikirim selagi tim berjalan. Kartu sendiri guard
+            * kosongnya — tanpa steer ia merender null.
+            */}
+          <KartuAntreanExperts sessionId={sid} />
           <KartuProgresExperts sessionId={sid} />
         </>
       ) : antrianAda ? (
@@ -2220,7 +2227,7 @@ const bukaModels = () => bukaPanel('models');
               : sibuk
                 ? tr('Agent is working…')
                 : expertsAktif
-                  ? tr('You ask, Experts deliver. @ for context, / for commands')
+                  ? tr('Ask for follow up changes')
                   : tr('Plan and build, @ for context, / for commands')
           }
           value={draft}

@@ -30,7 +30,7 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import { useAi, fullUrlProvider } from './aiStore';
 import { useStore } from './store';
-import { useSubAgent, type SubStatus } from './subagentStore';
+import { useSubAgent, type SubStatus, type SubStep } from './subagentStore';
 import { petaFitur } from './systemPrompt';
 import type { PeranId } from './subagentRoles';
 import { customAktif } from './subagentCustom';
@@ -349,6 +349,12 @@ export interface TugasAhli {
    */
   hasilPendek?: boolean;
   nTool?: number;
+  /**
+   * Jumlah langkah pencarian (grep/glob/web) yang dilakukan worker — bahan
+   * baris "Explored N searches" di kartu chat. Disimpan seperti `nTool`
+   * supaya run lama setelah reload tetap bisa menunjukkan risetnya.
+   */
+  nCari?: number;
   /** Berkas yang BENAR-BENAR ditulis worker (bukti tool, bukan rencana). */
   berkasTulis?: string[];
 
@@ -540,6 +546,18 @@ function buktiCukup(
     if (KLAIM_UBAH.test(a.hasil)) return false;
   }
   return true;
+}
+
+/*
+ * Nama tool keluarga "cari" — bahan baris "Explored N searches" di kartu chat.
+ * Sengaja longgar (awalan, bukan daftar tertutup): tool MCP baru yang bernama
+ * search_* atau web_* ikut terhitung, dan itu memang riset juga.
+ */
+const AWALAN_CARI = /^(grep|glob|search|tool_search|find|cari|web|ambil_web|browsing|ingat)/i;
+
+/** Berapa langkah tool di `langkah` yang termasuk keluarga pencarian. */
+export function jumlahLangkahCari(langkah: SubStep[]): number {
+  return langkah.filter((l) => l.kind === 'tool' && AWALAN_CARI.test(l.nama ?? '')).length;
 }
 
 /**
@@ -758,6 +776,12 @@ interface ExpertsState {
    * jumlah yang benar-benar menerima arahan dikembalikan apa adanya.
    */
   steer: (runId: string, teks: string) => number;
+  /**
+   * Buang satu arahan dari daftar steer ("Message queued N" di composer).
+   * Hanya menghapus catatan: worker yang SUDAH menerima arahan ini lewat
+   * prompt-nya tidak bisa ditarik kembali — itu dinyatakan apa adanya.
+   */
+  hapusSteer: (runId: string, indeks: number) => void;
   /** Hentikan run yang sedang jalan (worker di-batalSemua). */
   batal: (runId: string) => void;
   muatTersimpan: () => void;
@@ -1010,6 +1034,7 @@ export const useExperts = create<ExpertsState>((set, get) => ({
             status: a.status,
             hasil: a.hasil || a.error || '',
             nTool: a.nTool,
+            nCari: jumlahLangkahCari(a.langkah),
             files: a.fileDitulis,
             verdict: a.verdict,
             tulisDitolak: a.tulisDitolak ?? 0,
@@ -1040,6 +1065,7 @@ export const useExperts = create<ExpertsState>((set, get) => ({
                     statusAkhir: snap.status,
                     hasil: snap.hasil,
                     nTool: snap.nTool,
+                    nCari: snap.nCari,
                     berkasTulis: snap.files,
                     verdictAkhir: snap.verdict,
                     inputTokens: snap.inputTokens,
@@ -1174,6 +1200,17 @@ export const useExperts = create<ExpertsState>((set, get) => ({
           : 'Arahan disimpan untuk laporan akhir — worker yang sudah berjalan tidak bisa diubah',
       );
     return terkena;
+  },
+
+  hapusSteer: (runId, indeks) => {
+    set((s) => ({
+      runs: s.runs.map((r) =>
+        r.id === runId
+          ? { ...r, steer: (r.steer ?? []).filter((_, i) => i !== indeks) }
+          : r,
+      ),
+    }));
+    simpanRuns(get().runs);
   },
 
   batal: (runId) => {

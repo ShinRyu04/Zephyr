@@ -7,8 +7,9 @@
  */
 
 import { useStore } from '../../lib/store';
-import type { SubStatus } from '../../lib/subagentStore';
+import type { SubStatus, SubStep } from '../../lib/subagentStore';
 import type { TugasAhli } from '../../lib/expertsStore';
+import AiIkon from './AiIkon';
 
 /**
  * Buka tab editor "Task N: <judul>" untuk satu tugas.
@@ -134,4 +135,72 @@ export function IkonAhli({ id, size = 14 }: { id: string; size?: number }) {
         </svg>
       );
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Langkah tool worker — bentuk acuan (022715/022721)                  */
+/* ------------------------------------------------------------------ */
+
+/** Jenis tampilan satu langkah: baris biasa atau kartu (berkas/terminal). */
+export type JenisLangkah = 'pikir' | 'baca' | 'cari' | 'tulis' | 'terminal' | 'lain';
+
+/** Nama tool Zephyr → jenis acuan Qoder. Longgar: MCP baru ikut kelompoknya. */
+export function jenisLangkah(nama: string | undefined): JenisLangkah {
+  const n = (nama ?? '').toLowerCase();
+  if (/^(read_file|read|baca)/.test(n)) return 'baca';
+  if (/^(grep|glob|search|tool_search|find|cari|web|ambil_web|browsing|ingat)/.test(n)) return 'cari';
+  if (/^(write_file|multi_edit|edit|replace_in_files|delete_file|move_file|copy_file|apply_patch|tulis)/.test(n))
+    return 'tulis';
+  if (/^(bash_run|bash_job|run_command|terminal)/.test(n)) return 'terminal';
+  return 'lain';
+}
+
+/** Label keterangan acuan: "Read", "Grepped code", "Searched files", … */
+export function labelLangkah(langkah: SubStep): string {
+  if (langkah.kind === 'pikir') return 'Thought';
+  const n = (langkah.nama ?? '').toLowerCase();
+  if (/^(read_file|read|baca)/.test(n)) return 'Read';
+  if (/^grep/.test(n)) return 'Grepped code';
+  if (/^(glob|find)/.test(n)) return 'Searched files';
+  if (/ingat|memory/.test(n)) return 'Searched memory';
+  if (/web|ambil|brows/.test(n)) return 'Searched the web';
+  if (/^(search|cari|tool_search)/.test(n)) return 'Searched codebase';
+  return langkah.nama ?? 'Tool';
+}
+
+/** Ikon per jenis langkah — set AiIkon, BUKAN IkonAhli peran (gap 16). */
+export function IkonLangkah({ langkah, size = 12 }: { langkah: SubStep; size?: number }) {
+  if (langkah.kind === 'pikir') return <AiIkon name="thought" size={size} />;
+  switch (jenisLangkah(langkah.nama)) {
+    case 'baca':
+      return <AiIkon name="doc" size={size} />;
+    case 'cari':
+      return <AiIkon name="search" size={size} />;
+    case 'tulis':
+      return <AiIkon name="doc-edit" size={size} />;
+    case 'terminal':
+      return <AiIkon name="terminal" size={size} />;
+    default:
+      return <AiIkon name="doc" size={size} />;
+  }
+}
+
+/*
+ * "Thought · 1s" — durasi = jarak `at` ke langkah BERIKUTNYA; langkah
+ * terakhir diukur ke waktu selesai worker (yang masih berjalan diukur ke
+ * sekarang, jadi angkanya tumbuh hidup seperti acuan).
+ */
+export function durasiLangkah(at: number, batas: number | null | undefined): string {
+  const ms = Math.max(0, (batas ?? Date.now()) - at);
+  const dtk = Math.max(1, Math.round(ms / 1000));
+  if (dtk < 90) return `${dtk}s`;
+  const mnt = Math.floor(dtk / 60);
+  return `${mnt}m ${dtk - mnt * 60}s`;
+}
+
+/** "6 results" dari teks hasil tool — hanya bila memang tertulis di sana. */
+export function jumlahHasil(hasil: string | undefined): string | null {
+  if (!hasil) return null;
+  const m = hasil.match(/\b(\d+)\s*(results?|matches?|hits?|files?)\b/i);
+  return m ? `${m[1]} results` : null;
 }
