@@ -146,7 +146,3 @@ Tauri 2, Rust, `portable-pty`, React 18, TypeScript, Vite, CodeMirror 6, xterm.j
 ## Contributing
 
 Issues and pull requests are welcome. Bug reports are most useful with the diagnostics report from **Settings → About** (no secrets are included).
-
-## License
-
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
