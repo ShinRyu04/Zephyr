@@ -30,7 +30,7 @@ import { create } from 'zustand';
 import * as cmd from './commands';
 import { useAi, fullUrlProvider } from './aiStore';
 import { useStore } from './store';
-import { useSubAgent, type SubStatus, type SubStep } from './subagentStore';
+import { useSubAgent, type SubAgent, type SubStatus, type SubStep } from './subagentStore';
 import { petaFitur } from './systemPrompt';
 import type { PeranId } from './subagentRoles';
 import { customAktif } from './subagentCustom';
@@ -405,6 +405,23 @@ export interface EkspertRun {
    * diubah di tengah langkah, dan itu dinyatakan apa adanya di toast.
    */
   steer?: string[];
+
+  /**
+   * Catatan Lead di tengah jalan (ala acuan Qoder: "Updating task approach ⌄"
+   * berisi pikirannya). Satu catatan per worker yang mencapai akhir — dipanggil
+   * ulang ke model Lead dengan prompt kecil; dibatasi MAKS_CATATAN per run.
+   */
+  catatan?: CatatanLead[];
+}
+
+/** Satu catatan aksi Lead di tengah run. */
+export interface CatatanLead {
+  id: string;
+  /** Judul aksi singkat, kata bentuk -ing: "Validating dubious claims". */
+  judul: string;
+  /** Paragraf reasoning Lead — isi lipatannya. */
+  pikir: string;
+  at: number;
 }
 
 const RUN_JALAN: RunStatus[] = ['menyusun', 'rencana', 'jalan'];
@@ -1013,7 +1030,11 @@ export const useExperts = create<ExpertsState>((set, get) => ({
       }));
       simpanRuns(get().runs);
 
+      /* Aktivitas Lead di tengah jalan — pasang pengamat sebelum menunggu. */
+      const tutupCatatan = pasangPengamatCatatan(runId, delegasiId);
+
       await janji;
+      tutupCatatan();
 
       /*
        * B1: Stop harus TETAP berhenti. `batal()` hanya menandai status — janji
@@ -1316,6 +1337,109 @@ export const useExperts = create<ExpertsState>((set, get) => ({
 /* Sintesis + persistensi                                              */
 /* ------------------------------------------------------------------ */
 
+/*
+ * CATATAN LEAD DI TENGAH JALAN — ala acuan Qoder ("Updating task approach ⌄"
+ * berisi pikirannya). Setiap worker mencapai akhir, Lead dipanggil ulang dengan
+ * prompt KECIL (maks MAKS_CATATAN per run, satu dalam-waktu) untuk menulis
+ * judul aksi + reasoning-nya. Tanpa panggilan ini fold hanya bisa label kosong;
+ * dengan batas ini kuota yang dipakai seadanya saja.
+ */
+const MAKS_CATATAN = 6;
+
+function pasangPengamatCatatan(runId: string, delegasiId: string): () => void {
+  const diproses = new Set<string>();
+  let sedangPanggil = false;
+  const lepas = useSubAgent.subscribe((s) => {
+    const run = useExperts.getState().runs.find((r) => r.id === runId);
+    if (!run || run.status !== 'jalan') {
+      lepas();
+      return;
+    }
+    if (sedangPanggil || (run.catatan?.length ?? 0) >= MAKS_CATATAN) return;
+    const baris = s.agents.find(
+      (a) =>
+        a.delegasiId === delegasiId &&
+        !diproses.has(a.id) &&
+        (a.status === 'selesai' || a.status === 'gagal' || a.status === 'batal'),
+    );
+    if (!baris) return;
+    diproses.add(baris.id);
+    sedangPanggil = true;
+    void catatLeadSatu(runId, baris).finally(() => {
+      sedangPanggil = false;
+    });
+  });
+  return lepas;
+}
+
+/** JSON pertama di dalam teks — jawaban model kadang dibungkus basa-basi. */
+function parseJsonAman(teks: string | undefined): { judul_aksi?: unknown; pikir?: unknown } {
+  const json = potongJson((teks ?? '').trim());
+  if (!json) return {};
+  try {
+    return JSON.parse(json) as { judul_aksi?: unknown; pikir?: unknown };
+  } catch {
+    return {};
+  }
+}
+
+async function catatLeadSatu(runId: string, baris: SubAgent): Promise<void> {
+  const run = useExperts.getState().runs.find((r) => r.id === runId);
+  if (!run || run.status !== 'jalan') return;
+  const ai = useAi.getState();
+  if (!ai.hasKey()) return;
+  try {
+    const cfg = bacaCfgAhli();
+    const tugasBaris = run.tugas.find((t) => t.agentId === baris.id);
+    const statusLain = run.tugas
+      .map((t) => `${t.judul}: ${t.statusAkhir ?? 'in progress or waiting'}`)
+      .join('; ');
+    const prompt = [
+      `You are the Lead Agent of an expert team. Goal: ${run.goal}`,
+      tugasBaris
+        ? `A worker just finished: "${tugasBaris.judul}" (${tugasBaris.nama}). Their report: ${(baris.hasil || '(empty)').slice(0, 600)}`
+        : 'A worker just finished.',
+      `All tasks now: ${statusLain}`,
+      run.steer?.length ? `User steering so far: ${run.steer.join(' | ')}` : '',
+      'Write your working note about this progress, in the same language as the user goal.',
+      'Answer ONLY compact JSON: {"judul_aksi": "2-4 words in -ing form, e.g. \\"Validating dubious claims\\"", "pikir": "1-3 sentences of your actual reasoning about what this result means and what the team should do next"}.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const provider = cfg.lead.provider || ai.provider;
+    const model = cfg.lead.model || ai.model;
+    const provCfg = useStore.getState().settings.models.providers[provider] ?? {};
+    const res = await cmd.aiToolChat({
+      provider,
+      model,
+      baseUrl: (provCfg as { baseUrl?: string }).baseUrl || undefined,
+      fullUrl: fullUrlProvider(provider),
+      messages: [{ role: 'user', content: prompt }] as never,
+      tools: [],
+      maxTokens: 300,
+    });
+    const parsed = parseJsonAman(res.content ?? '');
+    const pikir = typeof parsed.pikir === 'string' ? parsed.pikir.trim() : '';
+    if (!pikir) return;
+    const catatan: CatatanLead = {
+      id: `c${Date.now().toString(36)}`,
+      judul: typeof parsed.judul_aksi === 'string' && parsed.judul_aksi.trim()
+        ? parsed.judul_aksi.trim().slice(0, 60)
+        : 'Assessing progress',
+      pikir,
+      at: Date.now(),
+    };
+    useExperts.setState((s) => ({
+      runs: s.runs.map((r) =>
+        r.id === runId && r.status === 'jalan' ? { ...r, catatan: [...(r.catatan ?? []), catatan] } : r,
+      ),
+    }));
+    simpanRuns(useExperts.getState().runs);
+  } catch {
+    /* catatan gagal (kuota/jaringan): bukan kegagalan run — run tetap jalan */
+  }
+}
+
 async function sintesis(runId: string): Promise<void> {
   const run = useExperts.getState().runs.find((r) => r.id === runId);
   if (!run) return;
@@ -1391,6 +1515,7 @@ function simpanRuns(runs: EkspertRun[]): void {
   const ringkas = runs.slice(0, 20).map((r) => ({
     ...r,
     steer: r.steer?.map((s) => s.slice(0, 500)).slice(0, 20),
+    catatan: r.catatan?.slice(-8).map((c) => ({ ...c, pikir: c.pikir.slice(0, 500) })),
     tugas: r.tugas.map((t) => ({
       ...t,
       hasil: t.hasil ? t.hasil.slice(0, BATAK_HASIL_SIMPAN) : t.hasil,
