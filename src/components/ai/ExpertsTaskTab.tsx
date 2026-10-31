@@ -3,14 +3,15 @@ import remarkGfm from 'remark-gfm';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent, type SubStep } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
-import { IkonAhli, statusTugas } from './expertsBuka';
+import { IkonAhli, statusTugas, jenisLangkah, labelLangkah, IkonLangkah, durasiLangkah, jumlahHasil } from './expertsBuka';
 
 /*
- * Isi tab editor "Task N: <judul>" — laporan lengkap satu worker Experts.
- *
- * Bentuknya mengikuti produk rujukan: header agen (avatar, "Full-Stack
- * Engineer Felix", judul tugas, chip status) lalu transkrip langkah tool
- * (Read / Grep / Thought / edit berkas) dan laporan akhirnya dalam markdown.
+ * Isi tab editor "Task N: <judul>" — transkrip kerja satu worker Experts,
+ * bentuk acuan Qoder (022715/022721): header avatar + nama + └ judul + status
+ * kanan; langkah pakai IKON PER JENIS (Read/Thought/Grep/Terminal) dengan
+ * DURASI ("Thought · 1s") dan hitungan hasil ("6 results"); tulisan berkas
+ * jadi KARTU "# nama … M Applied/Generating"; perintah shell jadi kartu
+ * "… Ran in terminal". Lalu laporan akhirnya dalam markdown.
  *
  * Kalau baris subagentnya sudah tergantikan batch lain atau aplikasi baru
  * direstart, isi jatuh ke snapshot di TugasAhli — laporan tetap terbaca,
@@ -52,6 +53,7 @@ export default function ExpertsTaskTab({ ekspertId }: { ekspertId: string }) {
         <span className="experts-tasktab-badan">
           <span className="experts-tasktab-ahli">{tugas.nama}</span>
           <span className="experts-tasktab-judul">
+            <span className="experts-tasktab-sambung" aria-hidden="true">└</span>
             Task {indeks + 1}: {tugas.judul}
           </span>
         </span>
@@ -64,9 +66,17 @@ export default function ExpertsTaskTab({ ekspertId }: { ekspertId: string }) {
       <div className="experts-tasktab-tubuh">
         {row && row.langkah.length > 0 && (
           <div className="experts-tasktab-langkah">
-            {row.langkah.map((l, i) => (
-              <BarisLangkah key={i} langkah={l} />
-            ))}
+            {row.langkah.map((l, i) => {
+              /*
+               * Durasi langkah = jarak ke langkah berikutnya; langkah terakhir
+               * diukur ke waktu selesai (yang masih jalan → ke sekarang).
+               */
+              const batas =
+                i + 1 < row.langkah.length ? row.langkah[i + 1].at : row.selesai ?? (row.status === 'jalan' ? Date.now() : null);
+              const generating =
+                row.status === 'jalan' && i === row.langkah.length - 1 && jenisLangkah(l.nama) === 'tulis';
+              return <BarisLangkah key={i} langkah={l} durasi={batas} generating={generating} />;
+            })}
           </div>
         )}
         {laporan ? (
@@ -101,21 +111,38 @@ export default function ExpertsTaskTab({ ekspertId }: { ekspertId: string }) {
   );
 }
 
-/** Satu langkah tool/thought, gaya produk rujukan: ikon + kerja + sasaran. */
-function BarisLangkah({ langkah }: { langkah: SubStep }) {
+/**
+ * Satu langkah, bentuk acuan: baris ikon+label+target+durasi untuk
+ * baca/cari/pikir, KARTU penuh untuk tulis berkas dan perintah terminal.
+ */
+function BarisLangkah({
+  langkah,
+  durasi,
+  generating = false,
+}: {
+  langkah: SubStep;
+  /** Batas waktu pengukuran durasi (`at` langkah berikutnya / selesai run). */
+  durasi?: number | null;
+  /** True = tulisan berkas ini MASIH berjalan → badge "Generating". */
+  generating?: boolean;
+}) {
+  const jenis = jenisLangkah(langkah.nama);
+
+  /* Thought: ikon + "Thought · 1s" — teksnya jadi tooltip, bukan baris panjang. */
   if (langkah.kind === 'pikir') {
     const teks = (langkah.teks ?? '').trim();
     if (!teks) return null;
     return (
       <div className="experts-langkah is-pikir" title={teks}>
         <span className="experts-langkah-ikon" aria-hidden="true">
-          <IkonAhli id="lead" size={11} />
+          <IkonLangkah langkah={langkah} size={12} />
         </span>
         <span className="experts-langkah-label">Thought</span>
-        <span className="experts-langkah-target">{teks.slice(0, 120)}</span>
+        {durasi != null && <span className="experts-langkah-durasi">· {durasiLangkah(langkah.at, durasi)}</span>}
       </div>
     );
   }
+
   const args = (() => {
     try {
       return JSON.parse(langkah.args ?? '{}') as Record<string, unknown>;
@@ -123,20 +150,71 @@ function BarisLangkah({ langkah }: { langkah: SubStep }) {
       return {} as Record<string, unknown>;
     }
   })();
-  const sasaran = String(args.path ?? args.pattern ?? args.command ?? args.query ?? '')
+  const gagal = langkah.ok === false;
+
+  /* KARTU BERKAS: "# AiPanel.tsx … M Applied/Generating". */
+  if (jenis === 'tulis') {
+    const path = String(args.path ?? args.file ?? langkah.hasil ?? '').split('\n')[0];
+    const nama = path.split(/[\\/]/).pop() || langkah.nama || 'file';
+    return (
+      <div
+        className={`experts-langkah is-berkas${gagal ? ' is-gagal' : ''}${langkah.ditolakTulis ? ' is-ditolak' : ''}`}
+        title={langkah.hasil ?? ''}
+      >
+        <span className="experts-langkah-ikon" aria-hidden="true">
+          <IkonLangkah langkah={langkah} size={12} />
+        </span>
+        <span className="experts-langkah-nama-berkas">{nama}</span>
+        <span className="experts-langkah-kanan">
+          <span className="is-mod">M</span>
+          {generating ? (
+            <span className="is-generating">Generating</span>
+          ) : gagal || langkah.ditolakTulis ? (
+            <span className="is-applied is-bengkok">✕</span>
+          ) : (
+            <span className="is-applied">Applied</span>
+          )}
+        </span>
+      </div>
+    );
+  }
+
+  /* KARTU TERMINAL: "bash_run … Ran in terminal". */
+  if (jenis === 'terminal') {
+    const perintah = String(args.command ?? args.cmd ?? '').split('\n')[0].slice(0, 120);
+    return (
+      <div
+        className={`experts-langkah is-terminal${gagal ? ' is-gagal' : ''}`}
+        title={langkah.hasil ?? ''}
+      >
+        <span className="experts-langkah-ikon" aria-hidden="true">
+          <IkonLangkah langkah={langkah} size={12} />
+        </span>
+        <span className="experts-langkah-nama-berkas">{perintah || langkah.nama}</span>
+        <span className="experts-langkah-kanan">
+          <span className="is-applied">Ran in terminal</span>
+        </span>
+      </div>
+    );
+  }
+
+  /* Baris biasa: Read / Grepped code / Searched … + target + (N results). */
+  const sasaran = String(args.path ?? args.pattern ?? args.query ?? args.url ?? '')
     .split('\n')[0]
     .slice(0, 90);
+  const hitung = jumlahHasil(langkah.hasil);
   return (
     <div
-      className={`experts-langkah${langkah.ok === false ? ' is-gagal' : ''}${langkah.ditolakTulis ? ' is-ditolak' : ''}`}
+      className={`experts-langkah${gagal ? ' is-gagal' : ''}${langkah.ditolakTulis ? ' is-ditolak' : ''}`}
       title={langkah.hasil ?? ''}
     >
       <span className="experts-langkah-ikon" aria-hidden="true">
-        <IkonAhli id="fullstack" size={11} />
+        <IkonLangkah langkah={langkah} size={12} />
       </span>
-      <span className="experts-langkah-label">{langkah.nama}</span>
-      <span className="experts-langkah-target">{sasaran}</span>
-      {langkah.ok === false && <span className="experts-langkah-fail">✕</span>}
+      <span className="experts-langkah-label">{labelLangkah(langkah)}</span>
+      {sasaran && <span className="experts-langkah-target">{sasaran}</span>}
+      {hitung && <span className="experts-langkah-count">{hitung}</span>}
+      {gagal && <span className="experts-langkah-fail">✕</span>}
     </div>
   );
 }

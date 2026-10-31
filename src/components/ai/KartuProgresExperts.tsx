@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
-import { bukaTabTugas, statusTugas } from './expertsBuka';
+import { bukaTabTugas, bukaCanvas, statusTugas, IkonAhli } from './expertsBuka';
 
 /*
- * Task Progress Experts — "todos"-nya Experts, DI ATAS COMPOSER.
- *
- * Produk rujukan menaruh progress tim di kartu status permukaan (dekat input),
- * bukan di dalam alur percakapan. Kartu ini memakai bentuk yang sama dengan
- * `KartuTodos` (header caret + badge, baris status) dan menumpang kelas
- * `.experts-kartu`/`.exp-todo` supaya menyatu hitam dengan composer: border
- * bawah dan sudut atas composer dibuang oleh CSS yang sudah ada.
+ * Task Progress Experts — strip status tim DI ATAS COMPOSER, bentuk acuan
+ * (110036/110050): header caret + "Task Progress N/N Done", tiap baris DUA
+ * TINGKAT ("Task N: judul" + avatar & nama worker di bawahnya), dan footer
+ * "N Changed Files / Accepted" DI DALAM kartu yang sama. Avatar worker aktif
+ * di ujung kanan header membuka Experts Canvas (peran Canvas ala Qoder), dan
+ * saat run berjalan ada tombol Stop di sebelahnya — keduanya pindah dari kartu
+ * chat yang lama, supaya kartu chat benar-benar polos seperti acuan.
  *
  * Sumber kebenaran tetap run Experts; status tiap tugas dibaca dari baris
  * subagent hidup (fallback snapshot `statusAkhir`). Tugas tanpa bukti tampil
@@ -40,8 +40,10 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
         (r.status === 'jalan' || r.status === 'selesai' || r.status === 'gagal' || r.status === 'batal'),
     ),
   );
+  const batal = useExperts((s) => s.batal);
   const agents = useSubAgent((s) => s.agents);
   const [buka, setBuka] = useState(true);
+  const [berkasBuka, setBerkasBuka] = useState(false);
 
   /* Semua hook WAJIB dipanggil sebelum return apa pun: jumlah hook tidak boleh
      berubah antar-render. Guard sesi ditaruh setelah hook, bukan sebelumnya. */
@@ -54,6 +56,13 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
     return statusTugas(row?.status, t.statusAkhir, jalan, t.buktian);
   };
   const selesai = run.tugas.filter((_, i) => statusDari(i).teks === 'Completed').length;
+
+  /* Worker yang sedang mengerjakan → avatarnya jadi chip Canvas di header. */
+  const aktif = run.tugas.find((t) => {
+    const row = agents.find((a) => a.id === t.agentId);
+    return row?.status === 'jalan';
+  });
+  const berkasTulis = [...new Set(run.tugas.flatMap((t) => t.berkasTulis ?? []))];
 
   /*
    * Pemakaian token/biaya run ini.
@@ -95,29 +104,62 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
       data-testid="experts-progress-card"
       data-status={run.status}
     >
-      <button
-        type="button"
-        className="exp-todo-kepala"
-        data-testid="experts-progress-toggle"
-        aria-expanded={buka}
-        onClick={() => setBuka((v) => !v)}
-      >
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
-        <b>{tr('Task Progress')}</b>
-        <span className="experts-progress-badge" aria-hidden="true">
-          {selesai}/{run.tugas.length} {tr('Done')}
-        </span>
-        {adaToken && (
-          <span
-            className="experts-progress-token"
-            title={tr('Tokens reported by the provider for this run')}
-            data-testid="experts-progress-token"
-          >
-            {adaBiaya ? `$${totalBiaya.toFixed(4)} · ` : ''}
-            {ringkasAngka(totalMasuk)}↑ {ringkasAngka(totalKeluar)}↓
+      {/*
+        * Header = WRAPPER div, bukan satu tombol besar: tombol Canvas & Stop
+        * ada di ujung kanannya, dan button tidak boleh menumpuk di dalam
+        * button (axe: interactive descendant — pelajaran tab editor fase 31).
+        * Yang bisa diklik = bagian kiri (toggle lipatan) dan tombol kanan.
+        */}
+      <div className="exp-todo-kepala">
+        <button
+          type="button"
+          className="exp-todo-kepala-toggle"
+          data-testid="experts-progress-toggle"
+          aria-expanded={buka}
+          onClick={() => setBuka((v) => !v)}
+        >
+          <span className="experts-progress-caret" aria-hidden="true">▾</span>
+          <b>{tr('Task Progress')}</b>
+          <span className="experts-progress-badge" aria-hidden="true">
+            {selesai}/{run.tugas.length} {tr('Done')}
           </span>
-        )}
-      </button>
+          {adaToken && (
+            <span
+              className="experts-progress-token"
+              title={tr('Tokens reported by the provider for this run')}
+              data-testid="experts-progress-token"
+            >
+              {adaBiaya ? `$${totalBiaya.toFixed(4)} · ` : ''}
+              {ringkasAngka(totalMasuk)}↑ {ringkasAngka(totalKeluar)}↓
+            </span>
+          )}
+        </button>
+        <span className="exp-todo-kanan">
+          {aktif && (
+            <button
+              type="button"
+              className="exp-todo-canvas"
+              data-ahli={aktif.ahli}
+              title={tr('Open Experts Canvas')}
+              aria-label={tr('Open Experts Canvas')}
+              data-testid="experts-progress-canvas"
+              onClick={() => bukaCanvas(run.id)}
+            >
+              <IkonAhli id={aktif.ahli} size={11} />
+            </button>
+          )}
+          {jalan && (
+            <button
+              type="button"
+              className="experts-mini is-bahaya"
+              data-testid="experts-progress-stop"
+              onClick={() => batal(run.id)}
+            >
+              {tr('Stop')}
+            </button>
+          )}
+        </span>
+      </div>
       {buka && (
         <div className="exp-todo-daftar" data-testid="experts-progress-list">
           {run.tugas.map((t, i) => {
@@ -135,13 +177,54 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
                 onClick={() => bukaTabTugas(t, i)}
               >
                 <span className={`exp-todo-titik ${kelas}`} aria-hidden="true">
-                  {glyph}
+                  {kelas === 'is-jalan' ? <span className="experts-spin" /> : glyph}
                 </span>
-                <span className="exp-todo-teks">{t.judul}</span>
-                <span className="experts-progress-ahli-kecil">{st.teks}</span>
+                <span className="exp-todo-badan">
+                  <span className="exp-todo-judul">
+                    Task {i + 1}: {t.judul}
+                  </span>
+                  <span className="exp-todo-ahli">
+                    <span className="exp-todo-ava" data-ahli={t.ahli} aria-hidden="true">
+                      <IkonAhli id={t.ahli} size={9} />
+                    </span>
+                    {t.nama}
+                  </span>
+                </span>
+                {kelas === 'is-lain' && <span className="experts-progress-ahli-kecil">{st.teks}</span>}
               </button>
             );
           })}
+          {/*
+            * Changed Files MENEMANI daftar tugas di kartu yang sama (acuan
+            * 110036: "› 3 Changed Files … Accepted" di footer Task Progress),
+            * bukan di kartu chat — chat menampilkan kartu diff per berkas.
+            */}
+          {berkasTulis.length > 0 && (
+            <div className={`experts-berkas${berkasBuka ? ' is-buka' : ''}`} data-testid="experts-progress-files">
+              <button
+                type="button"
+                className="experts-berkas-kepala"
+                aria-expanded={berkasBuka}
+                onClick={() => setBerkasBuka((v) => !v)}
+              >
+                <span className="experts-progress-caret" aria-hidden="true">▾</span>
+                <b>
+                  {berkasTulis.length} {tr('Changed Files')}
+                </b>
+                <span className="experts-berkas-badge">{tr('Accepted')}</span>
+              </button>
+              {berkasBuka && (
+                <div className="experts-berkas-daftar">
+                  {berkasTulis.map((p) => (
+                    <div key={p} className="experts-berkas-baris" title={p}>
+                      <span className="experts-berkas-nama">{p.split(/[\\/]/).pop()}</span>
+                      <span className="experts-berkas-dir">{p}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </section>
