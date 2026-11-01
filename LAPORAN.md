@@ -7,6 +7,84 @@ apa yang **masih berbeda**, bukan klaim "sudah sama".
 
 ---
 
+## 0.1. Babak 2 — 2 Nov 2026 (sesi ini)
+
+Lanjutan atas 11 poin yang babak pertama selesaikan. Babak ini menutup sisa
+§3 babak pertama dan menyeterukan permukaan ke **referensi baru 1 Nov**
+(`Screenshot 2026-11-01 035349/035406/044850/044920/044947.png` — pola Lead
+kronologis: lipatan Creating → Created → kartu → Worked on it → catatan Lead
+"Updating task approach" TERBUKA).
+
+| Perubahan | Berkas | Acuan |
+| --- | --- | --- |
+| Ikon kartu berkas tab Task = ikon TIPE berwarna (material-icon-theme) | `ExpertsTaskTab.tsx` | 022709 `#` biru CSS, 022721 ikon React |
+| Kontainer langkah berlatar + garis atas-bawah halus; kartu berkas/terminal lebih terang lagi | `ai-experts.css` | 022709/022721 |
+| **Lipatan "Creating research task" permanen** — dulu hilang begitu streaming selesai; kini tampil sepanjang usia pesan (spinner → ikon statis), isi paragraf pikiran Lead | `ChatMessage.tsx` | 035349/044920 (run SUDAH berjalan, lipatan masih di atas) |
+| Catatan Lead TERAKHIR kronologis terbuka (dulu hanya catatan tanpa `tugasId` yang bisa terbuka) | `ExpertsTimeline.tsx` | 035349 "Updating task approach ⌄" terbuka |
+| Glyph caret `▾` 9px (tampak seperti titik) → **chevron SVG tipis** di semua lipatan Experts | `expertsBuka.tsx` + 4 pemakai | 035349 "⌄" |
+| Ikon langkah Thought = loop `⟳` (dulu sparkle) | `expertsBuka.tsx` | 022721 |
+| "✓ Completed" header tab Task = **hijau** (dulu aksen biru) | `ai-experts.css` | 022709/022721 |
+| Titik selesai strip = **hijau** (dulu biru; blok paritas menimpa aturan dasar — dua-duanya dibetulkan) | `ai-experts.css` | 110036 |
+| "Failed"/"Cancelled" kartu chat = abu terang (dulu kuning `--warn`) | `ai-experts.css` | 035406 "Failed" |
+| Badge "1/2 Done" = teks polos weight 400 | `ai-experts.css` | 035349 |
+| Target langkah abu menyatu; hitungan "N results" INLINE setelah target (dulu terang di ujung kanan) | `ai-experts.css` | 022721 |
+| Skrip bukti: setel mode `experts` sementara (dikembalikan), potret lipatan Creating + pesan Lead utuh | `scripts/bukti-experts.mjs` | — |
+
+`npx tsc --noEmit` → 0 error setelah setiap commit.
+
+### Bukti side-by-side (referensi kiri, Zephyr kanan) — dibangun ulang 2 Nov
+
+- `banding-created2.png` — **044920 vs pesan Lead utuh**: Creating research task
+  terbuka + paragraf → Created N tasks → kartu → Worked on it → catatan terbuka.
+- `banding-created.png` — 044850 vs lipatan Creating research task.
+- `banding-tasktab.png` — 022709 vs tab Task: kontainer langkah berlatar,
+  Thought ⟳ + durasi, Read + rentang, count inline, kartu berkas ikon tipe,
+  "✓ Completed" hijau.
+- `banding-strip.png` — 110036 vs Task Progress: titik hijau, judul selesai
+  redup, "1/2 Done" polos.
+- `banding-chat.png` (022540) dan `banding-queue.png` (064955) — dibangun ulang
+  dengan chevron baru.
+
+### Yang sengaja dibedakan (babak 2)
+
+- **Chip "Steering · run berjalan"** di atas Task Progress — Zephyr punya,
+  Qoder tidak menampilkannya sebagai chip. Dipertahankan: tanpa itu pesan
+  berikutnya diam-diam jadi steering dan user tidak punya penanda.
+- **Tombol Stop** di strip saat run jalan — acuan memotret run yang sudah
+  selesai, bukan larangan gaya.
+- **Teks narasi Lead** berbahasa Indonesia (font Zephyr) — pengecualian yang
+  disepakati.
+
+### Yang BUTUH KEPUTUSAN USER (babak 2, menambah §3 babak 1)
+
+1. **Token/biaya di header strip** (`↑/↓`, `$`) — TIDAK ada di acuan apa pun
+   (30 Okt maupun 1 Nov). Belum disentuh sampai user memutuskan: sembunyikan
+   (ikuti acuan penuh) atau pertahankan (data yang Qoder tidak punya).
+2. **Bukti stream reasoning dengan model hidup** — lipatan sudah terbukti
+   MERENDER paragraf (data store). Jalur Rust `ai_tool_chat_stream` → event →
+   `pikirMenyusun` belum terbukti dengan model nyata karena semua jalur uji
+   butuh kuota user ATAU menyetel provider mock (menyentuh Settings/secrets —
+   dilarang aturan keras #3). Kalau user setuju setel provider mock sementara
+   (`scripts/mock-ai.mjs` + `reasoning_content` di delta), bisa dibuktikan
+   tanpa kuota.
+3. **Dispatch tugas di TENGAH run** (035406: "Created 1 tasks" muncul KEDUA
+   kali untuk Task 2 di tengah transkrip) — mesin Zephyr mendispatch semua
+   tugas di awal run; fold kedua itu butuh perubahan MESIN (Lead boleh
+   menambah tugas di tengah), bukan permukaan. Belum dikerjakan — menunggu
+   keputusan karena mengubah perilaku run, bukan hanya tampilan.
+
+### Commit babak 2 (sandbox, belum di-merge/push)
+
+```
+4550906 fix(experts): ikon tipe berkas pada kartu berkas + kontainer langkah berlatar
+2bee77b feat(experts): lipatan Creating research task permanen + chevron SVG + Thought ⟳
+554bad5 fix(experts): warna & tata baris mengikuti acuan — hijau selesai, gagal abu
+9123234 fix(experts): titik selesai strip hijau — blok paritas menimpa aturan dasar
++ commit regen indeks & bukti babak 2
+```
+
+---
+
 ## 0. Keadaan lingkungan saat mulai (bukan bagian fitur)
 
 Tiga hal ditemukan rusak sebelum satu baris kode Experts diubah, dan diperbaiki

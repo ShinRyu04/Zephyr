@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7549 entri
- * (bridge=1, dokumen=104, ekstensi=21, kode=553, label=3233, layar=3019, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7548 entri
+ * (bridge=1, dokumen=104, ekstensi=21, kode=553, label=3233, layar=3018, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: b108ff25bfa168bf
+ * Versi app: 1.1.15 · hash sumber: 7985eb1af26dc86c
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'b108ff25bfa168bf' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '7985eb1af26dc86c' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -541,7 +541,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AskUserCard.tsx","328 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ChatMessage.tsx","2014 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ChatMessage.tsx","2026 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatSettingsPage.tsx","1447 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatStamp.tsx","139 baris · ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode","src/components/ai/ClearChatsDialog.tsx","89 baris · tanpa ekspor"],
@@ -563,14 +563,14 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/EditorKunci.tsx","102 baris · ekspor: EditorKunci"],
   ["kode","src/components/ai/ExpertsCanvas.tsx","424 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsPlanCard.tsx","53 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsTaskTab.tsx","239 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsTimeline.tsx","494 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsTaskTab.tsx","248 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsTimeline.tsx","510 baris · tanpa ekspor"],
   ["kode","src/components/ai/FileIkon.tsx","47 baris · tanpa ekspor"],
   ["kode","src/components/ai/IkonAgen.tsx","55 baris · One renderer for every agent mark. · ekspor: IkonAgen, IkonAgenId"],
   ["kode","src/components/ai/JobStrips.tsx","167 baris · The two job strips that sit between the transcript and the composer: the · ekspor: LoopStrip, GoalStrip"],
   ["kode","src/components/ai/KartuAntrean.tsx","248 baris · tanpa ekspor"],
-  ["kode","src/components/ai/KartuAntreanExperts.tsx","104 baris · tanpa ekspor"],
-  ["kode","src/components/ai/KartuProgresExperts.tsx","242 baris · tanpa ekspor"],
+  ["kode","src/components/ai/KartuAntreanExperts.tsx","105 baris · tanpa ekspor"],
+  ["kode","src/components/ai/KartuProgresExperts.tsx","245 baris · tanpa ekspor"],
   ["kode","src/components/ai/KartuTodos.tsx","83 baris · tanpa ekspor"],
   ["kode","src/components/ai/Lightbox.tsx","91 baris · tanpa ekspor"],
   ["kode","src/components/ai/ModeMenu.tsx","691 baris · ekspor: ModeMenu, PermissionMenu, ReasoningMenu, TierMenu"],
@@ -592,7 +592,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/ToolGatePanel.tsx","357 baris · tanpa ekspor"],
   ["kode","src/components/ai/UpdateBtn.tsx","196 baris · tanpa ekspor"],
   ["kode","src/components/ai/claudeCodeUi.tsx","831 baris · ekspor: toolGlyph, toolKind, ikonSasaran, IkonBerkas, imageOutput, unifiedFromHalves, looksLikeUnified, halvesFromUnified, DIFF_PEEK, pairForSplit, EditDiff, diffStat, ToolRowProps, ToolRow"],
-  ["kode","src/components/ai/expertsBuka.tsx","253 baris · Util UI bersama untuk Experts Mode: buka tab tugas + label status. · ekspor: bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, JenisLangkah, jenisLangkah, labelLangkah, IkonLangkah, rentangBaca, IkonCentang, durasiLangkah, jumlahHasil"],
+  ["kode","src/components/ai/expertsBuka.tsx","276 baris · Util UI bersama untuk Experts Mode: buka tab tugas + label status. · ekspor: bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, JenisLangkah, jenisLangkah, labelLangkah, IkonLangkah, rentangBaca, IkonCentang, IkonCaret, durasiLangkah, jumlahHasil"],
   ["kode","src/components/api/ApiClientView.tsx","335 baris · tanpa ekspor"],
   ["kode","src/components/debug/BreakpointOptionsDialog.tsx","149 baris · tanpa ekspor"],
   ["kode","src/components/debug/DebugToolbar.tsx","71 baris · tanpa ekspor"],
@@ -4636,7 +4636,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Experts","label/label tanpa kamus di layar · dirender 2 berkas: src/components/ai/ModeMenu.tsx, src/components/settings/AgcExperts.tsx"],
   ["layar","ExpertsCanvas","src/components/ai/ExpertsCanvas.tsx · 7 label: Done, Fit view, No Experts run yet — pick “Experts” in the composer and give the team a goal., Orchestrating expert tasks, Reset view, Zoom in, Zoom out · 1 data-testid: experts-canvas"],
   ["layar","ExpertsPlanCard","src/components/ai/ExpertsPlanCard.tsx · 1 data-testid: experts-plan"],
-  ["layar","ExpertsTaskTab","src/components/ai/ExpertsTaskTab.tsx · 5 label: Brief, Report, This report was shortened when the run was saved (2,000 characters). The full text only lived in this session., This task no longer has a live run or a stored snapshot., Working… · 3 data-testid: experts-tasktab, experts-tasktab-laporan, experts-tasktab-pendek · teks: Ran in terminal"],
+  ["layar","ExpertsTaskTab","src/components/ai/ExpertsTaskTab.tsx · 4 label: Brief, This report was shortened when the run was saved (2,000 characters). The full text only lived in this session., This task no longer has a live run or a stored snapshot., Working… · 3 data-testid: experts-tasktab, experts-tasktab-laporan, experts-tasktab-pendek · teks: Ran in terminal"],
   ["layar","ExpertsTimeline","src/components/ai/ExpertsTimeline.tsx · 15 label: Applied, Bad result, Changed Files, Copy summary, Created, Explored, Fork this run into a new chat, Good result, No tool steps recorded, Reactions, Worked on it, actions, searches, tasks, tool steps · 4 data-testid: experts-files, experts-timeline, experts-worked-on, experts-worked-on-isi"],
   ["layar","Explore Customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
   ["layar","Explored","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
@@ -5038,7 +5038,6 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","Rename Symbol","aria-label di layar · dirender 1 berkas: src/components/editor/LspOverlay.tsx"],
   ["layar","Rename Tab","teks elemen di layar · dirender 1 berkas: src/components/terminal/TerminalTabs.tsx"],
   ["layar","Replace all","teks elemen di layar · dirender 1 berkas: src/components/editor/FindBar.tsx"],
-  ["layar","Report","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTaskTab.tsx"],
   ["layar","Repository","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/SourceControlPanel.tsx"],
   ["layar","Requests served","teks elemen di layar · dirender 1 berkas: src/components/settings/McpPanel.tsx"],
   ["layar","Reset now","teks elemen di layar · dirender 1 berkas: src/components/settings/SettingsNav.tsx"],
