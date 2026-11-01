@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as cmd from './commands';
-import { notifyError, notifyInfo } from './notificationStore';
+import { notifyInfo } from './notificationStore';
+import { invoke } from '@tauri-apps/api/core';
 import { tf, tx, translate } from './i18n';
 import { useStore } from './store';
 
@@ -28,10 +29,19 @@ function notesUntukBahasa(
  * Plain English for now; a separate worker owns the translations, so this must
  * stay a normal UI status message rather than a key that does not exist yet.
  */
-const PESAN_PORTABLE =
-  'This is a portable copy, so the in-app installer cannot update it. ' +
-  'Download the new portable build and replace zephyr.exe while keeping data/ ' +
-  'and the portable marker.';
+/*
+ * Endpoint updater — SAMA dengan plugins.updater.endpoints di tauri.conf.json.
+ * Jalur PORTABLE tidak memakai plugin updater (installer NSIS bukan untuk
+ * portable), jadi ia membaca latest.json sendiri dan mencari field "portable":
+ *   { "version": ..., "platforms": {...}, "portable": { "url", "sha256" } }
+ * Field itu diisi scripts/buat-latest-json.mjs saat rilis. Berkas penanda
+ * "portable" di sebelah exe yang menentukan jalur mana yang dipakai.
+ */
+const PORTABLE_ENDPOINT =
+  'https://github.com/ShinRyu04/Zephyr/releases/latest/download/latest.json';
+
+/** Info unduhan portable dari field "portable" latest.json. */
+interface PortableRilis { url: string; sha256: string; versi: string }
 
 export type UpdateStatus =
   | 'idle'
@@ -57,6 +67,9 @@ interface UpdaterState {
   message: string | null;
 
   dialogOpen: boolean;
+
+  /** Unduhan portable yang tersedia (dari field "portable" latest.json). */
+  portableRilis: PortableRilis | null;
 }
 
 interface UpdaterActions {
@@ -90,6 +103,9 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   message: null,
   dialogOpen: false,
 
+  /** Unduhan portable yang tersedia (dari field "portable" latest.json). */
+  portableRilis: null,
+
   check: async (opts) => {
     if (get().status === 'checking' || get().status === 'downloading') return;
 
@@ -105,6 +121,47 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
       return;
     }
     set({ status: 'checking', message: null, progress: 0 });
+    /*
+     * JALUR PORTABLE: jangan pakai plugin updater — artifact-nya installer NSIS
+     * yang tidak berlaku untuk folder portable. Baca latest.json langsung dan
+     * ambil field "portable" (url + sha256) yang diisi saat rilis.
+     */
+    const info = await cmd.getAppInfo().catch(() => null);
+    if (info?.portable) {
+      try {
+        const res = await fetch(PORTABLE_ENDPOINT, { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        const latest = (await res.json()) as {
+          version?: string;
+          portable?: { url?: string; sha256?: string };
+        };
+        const baru = latest.version ?? '';
+        const p = latest.portable;
+        if (!baru || !p?.url || !p?.sha256) {
+          set({ status: 'up-to-date', message: tx('update.upToDate'), version: null, portableRilis: null });
+          return;
+        }
+        if (baru === info.version) {
+          set({ status: 'up-to-date', message: tx('update.upToDate'), version: null, portableRilis: null });
+          return;
+        }
+        set({
+          status: 'available',
+          version: baru,
+          pubDate: null,
+          notes: null,
+          dialogOpen: !opts?.senyap,
+          message: null,
+          portableRilis: { url: p.url, sha256: p.sha256, versi: baru },
+        });
+      } catch (e) {
+        set({
+          status: opts?.senyap ? 'idle' : 'error',
+          message: opts?.senyap ? null : tf('update.checkFailed', { e: String(e) }),
+        });
+      }
+      return;
+    }
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
       const upd = await check();
@@ -156,22 +213,37 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   },
 
   unduhDanPasang: async () => {
-    /*
-     * A portable copy must never run the installer.
-     *
-     * The NSIS update replaces the INSTALLED product under %LOCALAPPDATA%, so
-     * downloading and running it from the portable exe would silently update a
-     * different copy (or install one) and leave the running portable folder
-     * untouched, while the UI reported success. Blocking the install is the
-     * only honest answer; checking for updates stays allowed. The flag comes
-     * from get_app_info, which reads it from cli_ext::portable_aktif(), so no
-     * build profile can defeat it.
-     */
     const info = await cmd.getAppInfo().catch(() => null);
+
+    /*
+     * JALUR PORTABLE: unduh exe baru (sha256 diverifikasi Rust), lalu siapkan
+     * skrip swap yang menimpa zephyr.exe begitu app keluar dan menyalakan
+     * versi baru. Tombol Restart memanggil restart() yang mengeksekusi
+     * skrip itu. Tidak ada installer yang disentuh dari salinan portable.
+     */
     if (info?.portable) {
-      const pesan = PESAN_PORTABLE;
-      set({ status: 'error', message: pesan, progress: 0, dialogOpen: false });
-      notifyError(pesan, { source: 'update' });
+      const rilis = get().portableRilis;
+      if (!rilis) {
+        set({ status: 'error', message: tx('update.nothingToDownload'), progress: 0 });
+        return;
+      }
+      set({ status: 'downloading', progress: 0, dialogOpen: false, message: null });
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const lepas = await listen<{ persen?: number | null }>(
+          'portable-update-progress',
+          (ev) => {
+            const p = ev.payload?.persen ?? null;
+            if (p !== null) set({ progress: p });
+          },
+        );
+        await invoke('portable_update_unduh', { url: rilis.url, sha256Hex: rilis.sha256 });
+        lepas();
+        set({ status: 'ready', progress: 100, message: tx('update.restartToInstall') });
+        notifyInfo(tx('update.installed'), { source: 'update' });
+      } catch (e) {
+        set({ status: 'error', message: tf('update.installFailed', { e: cmd.asZephyrError(e).message }) });
+      }
       return;
     }
 
@@ -216,6 +288,19 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   },
 
   restart: async () => {
+    /* Portable: jalankan skrip swap (timpa exe saat keluar) lalu keluar;
+       skrip menyalakan Zephyr versi baru sendiri. */
+    const info = await cmd.getAppInfo().catch(() => null);
+    if (info?.portable) {
+      try {
+        await invoke('portable_update_siapkan');
+        const { exit } = await import('@tauri-apps/plugin-process');
+        await exit(0);
+      } catch (e) {
+        set({ message: tf('update.restartFailed', { e: cmd.asZephyrError(e).message }) });
+      }
+      return;
+    }
     try {
       const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();

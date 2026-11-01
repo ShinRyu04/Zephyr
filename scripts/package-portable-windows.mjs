@@ -95,13 +95,20 @@ writeFileSync(
     '',
     'Keep the zero-byte file named "portable" next to zephyr.exe.',
     'All application data is stored in the data directory next to the executable.',
-    'The in-app Tauri updater is not an in-place portable updater. Do not accept',
-    'an installer update expecting this folder to change. Download a new portable',
-    'zip and replace zephyr.exe while preserving data/ and the portable marker.',
+    '',
+    'UPDATES: this portable copy updates itself in-app. When the updater offers',
+    'a new version it downloads the new zephyr.exe, verifies its SHA-256, and',
+    'swaps it the moment the app exits - data/ and the "portable" marker are',
+    'kept untouched. Do not accept an INSTALLER (.exe setup / .msi) update for',
+    'this folder: installers only change the installed copy, never this one.',
     '',
   ].join('\r\n'),
   'utf8',
 );
+/* Salinan exe TUNGGAL untuk updater portable (updaterStore jalur PORTABLE):
+   latest.json menyebut nama ini + sha256-nya. Ditaruh di root folder release
+   — bukan di dalam zip — karena unduhannya satu berkas, bukan arsip. */
+copyFileSync(releaseExe, path.join(portableRoot, `Zephyr_${version}_x64-portable.exe`));
 
 // Compress only the allow-listed entries, not the directory: data/ must never
 // reach a published zip even if something dropped files into it.
