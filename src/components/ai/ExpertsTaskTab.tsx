@@ -84,8 +84,13 @@ export default function ExpertsTaskTab({ ekspertId }: { ekspertId: string }) {
           </div>
         )}
         {laporan ? (
-          <div className="experts-tasktab-laporan" data-testid="experts-tasktab-laporan">
-            <div className="experts-tasktab-laporan-kepala">{tr('Report')}</div>
+          /*
+           * Laporan = isi POLOS, tanpa bingkai maupun label (acuan 022715/
+           * 022653): di Qoder hasil kerja worker memang mengalir sebagai teks
+           * markdown, bukan kartu berjudul "Report". Bingkai + label di sini
+           * menambah permukaan yang tidak ada di acuan.
+           */
+          <div className="experts-tasktab-laporan is-polos" data-testid="experts-tasktab-laporan">
             <Markdown remarkPlugins={[remarkGfm]}>{laporan}</Markdown>
           </div>
         ) : row?.status === 'jalan' ? (
