@@ -84,15 +84,18 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
     const masuk = row ? row.inputTokens : (t.inputTokens ?? null);
     const keluar = row ? row.outputTokens : (t.outputTokens ?? null);
     const biaya = row ? row.costUsd : (t.costUsd ?? null);
-    if (masuk !== null) {
+    /* `typeof === 'number'`, BUKAN `!== null`: baris yang belum pernah
+       melaporkan pemakaian membawa `undefined`, dan `undefined !== null` lolos
+       lalu menjumlahkan NaN — strip sempat menampilkan "$NaN · NaNM↑ NaNM↓". */
+    if (typeof masuk === 'number') {
       totalMasuk += masuk;
       adaToken = true;
     }
-    if (keluar !== null) {
+    if (typeof keluar === 'number') {
       totalKeluar += keluar;
       adaToken = true;
     }
-    if (biaya !== null) {
+    if (typeof biaya === 'number') {
       totalBiaya += biaya;
       adaBiaya = true;
     }
