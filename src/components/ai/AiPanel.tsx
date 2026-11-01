@@ -1740,10 +1740,20 @@ const bukaModels = () => bukaPanel('models');
           <KartuAntreanExperts sessionId={sid} />
           <KartuProgresExperts sessionId={sid} />
         </>
-      ) : antrianAda ? (
-        <KartuAntrean composerId={composerId} />
       ) : (
-        <KartuTodos />
+        <>
+          {/*
+            * To-dos dan antrean TIDAK lagi bertaruh di satu slot (dulu
+            * ternary: antrean menang, to-dos hilang — "ketimbun" yang
+            * dilaporkan user). Qoder menampilkan keduanya berdampingan di
+            * atas composer (acuan 064955: "Message queued 1" + "To-dos 2/4"),
+            * jadi di sini keduanya dirender; masing-masing menyembunyikan
+            * dirinya sendiri kalau kosong, dan bisa dikecilkan lewat caret
+            * tanpa menghilangkan tetangganya.
+            */}
+          {antrianAda && <KartuAntrean composerId={composerId} />}
+          <KartuTodos />
+        </>
       )}
 
       <div className="ai-input-row">

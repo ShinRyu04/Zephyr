@@ -4985,6 +4985,32 @@ export const useAi = create<AiStore>((set0, get) => {
     dipangkasTodo = 0;
     const masukan = Array.isArray(list) ? list : [];
     let iMasuk = -1;
+    /*
+     * PENJAGA "KETIMBUN" (2 Nov). Keluhan nyata: rencana baru yang model susun
+     * di tengah run menumpuk DI ATAS rencana lama — tiap item lama yang tidak
+     * disebut selalu dipertahankan, jadi daftar membengkak berisi rencana basi
+     * dan entri dobel. Dua aturan menghentikannya tanpa membuka jendela
+     * kehilangan tugas:
+     *
+     * 1. RENCANA PENGGANTI: kalau SEMUA entri masuk membawa teks dan TIDAK
+     *    satu pun teksnya dikenali di daftar lama, model sedang menyusun
+     *    rencana baru — daftar lama DIGANTI, bukan ditumpuk. Update parsial
+     *    (yang teksnya masih dikenali, atau yang menunjuk lewat id/nomor)
+     *    tetap memakai jalur "yang tidak disebut dipertahankan".
+     * 2. DEDUP PER TEKS: dua entri berteks sama dalam satu panggilan menjadi
+     *    SATU baris (status entri terakhir yang menang).
+     *
+     * Pencocokan teks dinormalisasi (spasi rapat, huruf kecil) supaya rencana
+     * yang ditulis ulang persis tidak dianggap baru.
+     */
+    const kunciTeks = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+    const teksLama = new Set(sebelum.map((x) => kunciTeks(x.content)));
+    const semuaBawaTeks =
+      masukan.length > 0 &&
+      masukan.every((raw) => String((raw as { content?: unknown })?.content ?? '').trim().length > 0);
+    const gantiPenuh =
+      semuaBawaTeks &&
+      !masukan.some((raw) => teksLama.has(kunciTeks(String((raw as { content?: unknown }).content))));
     for (const raw of masukan) {
       iMasuk++;
       if (bersih.length >= MAX_TODOS) {
@@ -5122,6 +5148,19 @@ export const useAi = create<AiStore>((set0, get) => {
         prev?.id ??
         `td-${Date.now().toString(36)}-${bersih.length}-${Math.random().toString(36).slice(2, 7)}`;
 
+      /*
+       * Aturan 2 penjaga ketimbang: entri berteks sama yang sudah ada di daftar
+       * ini diperbarui, bukan ditambah lagi. Status entri TERAKHIR yang menang
+       * — itulah keadaan terbaru yang model tulis.
+       */
+      const kunci = kunciTeks(content);
+      const kembar = bersih.find((x) => kunciTeks(x.content) === kunci);
+      if (kembar) {
+        kembar.status = status;
+        kembar.startedAt = startedAt ?? kembar.startedAt;
+        kembar.endedAt = endedAt ?? kembar.endedAt;
+        continue;
+      }
       bersih.push({ id, content, status, startedAt, endedAt });
     }
 
@@ -5142,9 +5181,16 @@ export const useAi = create<AiStore>((set0, get) => {
      * yang cocok memang sudah dilewati di atas. Jadi daftar ini hanya bisa
      * bertambah dan berubah, tidak pernah menyusut diam-diam.
      */
-    const sudahAda = new Set(bersih.map((t) => t.id));
-    for (const lama of sebelum) {
-      if (!sudahAda.has(lama.id)) bersih.push(lama);
+    /*
+     * Aturan 1 penjaga ketimbang: yang tidak disebut dipertahankan HANYA pada
+     * update parsial. Rencana pengganti mulai dari daftar kosong — rencana
+     * lama tidak ikut menggantung di belakangnya.
+     */
+    if (!gantiPenuh) {
+      const sudahAda = new Set(bersih.map((t) => t.id));
+      for (const lama of sebelum) {
+        if (!sudahAda.has(lama.id)) bersih.push(lama);
+      }
     }
 
     set({ agentTodos: bersih });
