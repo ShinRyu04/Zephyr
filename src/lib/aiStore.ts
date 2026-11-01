@@ -7686,6 +7686,35 @@ let autoLanjut = 0;
          */
 
         /*
+         * PENGINGAT RENCANA BERKALA (anti-"bego", ala system-reminder Claude
+         * Code / checklist opencode). Model yang bekerja puluhan langkah
+         * kehilangan arah: mengulang bacaan, melupakan item rencana, atau
+         * menyimpulkan duluan. Setiap 12 langkah, bila masih ada todo yang
+         * belum `done`, satu pesan user singkat menegaskan ulang sisa kerja.
+         * Diletakkan di titik yang sama dengan hand-off: `history` berakhir
+         * dengan hasil tool, jadi giliran user di sini sah bagi gateway.
+         * Murah (tanpa panggilan ekstra) dan tidak pernah memutus pasangan
+         * assistant<->tool karena ditambahkan di EKOR riwayat.
+         */
+        if (langkah > 0 && langkah % 12 === 0 && !agentBatal) {
+          const sisaRencana = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
+          if (sisaRencana.length > 0) {
+            const daftarRencana = sisaRencana
+              .map((t) => `- [${t.status === 'in_progress' ? '~' : ' '}] ${t.content}`)
+              .join('\n');
+            history.push({
+              role: 'user',
+              content:
+                `Pengingat rencana (otomatis, tiap 12 langkah): masih ada ${sisaRencana.length} ` +
+                `tugas yang BELUM selesai:\n${daftarRencana}\n\n` +
+                `Kerjakan item berikutnya SEKARANG. Jangan mengulang pekerjaan yang sudah ` +
+                `selesai, jangan membaca ulang berkas yang isinya sudah kamu pegang, dan ` +
+                `tandai tugas \`done\` lewat \`todo_write\` begitu tuntas.`,
+            });
+          }
+        }
+
+        /*
          * Approaching the step cap: ask for a hand-off instead of cutting off.
          *
          * When the loop hits MAX_AGENT_STEPS it used to just fail with "step
@@ -10501,32 +10530,47 @@ let autoLanjut = 0;
           },
         });
         /*
-         * AUTO-RESUME, like opencode, but bounded.
+         * AUTO-RESUME, like opencode/Claude Code, but bounded.
          *
-         * A `protocol` stop (broken tool-call JSON) is the one failure where
-         * continuing is almost always the right answer: the plan is unfinished,
-         * the files written so far are real, and the next attempt has the error
-         * text in front of it. Making the reader press "Continue" to get their
-         * tenth file is exactly the papercut they reported.
+         * Tiga kategori boleh melanjutkan DIRINYA SENDIRI (2 Nov):
+         *   * `protocol`  — JSON tool rusak: percobaan berikutnya melihat teks
+         *     error di depannya, hampir selalu pulih.
+         *   * `timeout`   — watchdog/no-progress/hard-limit memotong SATU
+         *     langkah. Itu bukan akhir pekerjaan: berkas yang sudah ditulis
+         *     nyata, rencana masih terbuka. Dulu run "berhenti sendiri" di
+         *     sini dan user harus mengetik "lanjut" — keluhan yang paling
+         *     sering dilaporkan.
+         *   * `provider`  — gateway flaky (429/5xx/koneksi): transien.
          *
-         * Bounded on purpose: at most two automatic resumes per run, and never
-         * for a stop the reader caused. A run that keeps hitting the same wall
-         * must still end honestly instead of looping invisibly - which is the
-         * one thing worse than stopping.
+         * Bounded on purpose: at most AUTO_LANJUT_MAKS resumes per run, and
+         * never for a stop the reader caused (agentBatal / cancelled). A run
+         * that keeps hitting the same wall must still end honestly instead of
+         * looping invisibly - which is the one thing worse than stopping.
+         *
+         * Jeda sebelum melanjutkan: provider/timeout diberi 2 detik agar
+         * gateway sempat pulih; protocol langsung (600 ms) seperti sebelumnya.
          */
-        if (agentFailure.category === 'protocol' && autoLanjut < AUTO_LANJUT_MAKS && !agentBatal) {
+        const kategoriLanjut =
+          agentFailure.category === 'protocol' ||
+          agentFailure.category === 'timeout' ||
+          agentFailure.category === 'provider';
+        if (kategoriLanjut && autoLanjut < AUTO_LANJUT_MAKS && !agentBatal) {
           autoLanjut += 1;
           const jumlah = autoLanjut;
+          const jeda =
+            agentFailure.category === 'protocol'
+              ? 600
+              : 2_000;
           setTimeout(() => {
             const st = get();
             /* The reader may have started something else in the meantime; a
                background resume must never fight them for the composer. */
             if (st.agentBusy || st.pending || !st.agentResume) return;
             set({
-              toast: `Argumen tool rusak - melanjutkan otomatis (${jumlah}/${AUTO_LANJUT_MAKS}).`,
+              toast: `Melanjutkan otomatis (${jumlah}/${AUTO_LANJUT_MAKS}) setelah ${agentFailureLabel(agentFailure.category).toLowerCase()} — kerja berlanjut dari langkah terakhir.`,
             });
             void st.lanjutkanAgent();
-          }, 600);
+          }, jeda);
         }
       }
     }
