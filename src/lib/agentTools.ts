@@ -393,14 +393,27 @@ export function galatToolUntukModel(e: unknown, nama?: string): Error & { code?:
 
   if (err.code === 'WorkspaceOutside') {
     const ws = useStore.getState().workspace;
+    /*
+     * WorkspaceOutside TIDAK selalu berarti tulisan: grep/read/glob di luar
+     * folder terbuka juga kena galat ini. Dulu SEMUA dibungkus "tulisan
+     * ditolak" — model membaca "Tool grep tidak menulis apa pun" lalu
+     * mencoba lagi dan lagi (log: unhandledrejection berulang) hingga run
+     * berhenti tanpa sebab. Sekarang tool baca mendapat arahan yang benar.
+     */
+    const baca = /"(read_file|grep|glob|list_directory|stat|fs_realpath|search)"/.test(apa);
     const sebab = ws
-      ? `tulisan hanya boleh di dalam folder yang terbuka (${ws}), dan path absolut tidak bisa keluar dari batas itu`
-      : 'tidak ada folder yang terbuka, dan tanpa folder memang tidak ada tempat menulis sama sekali: tool tulis dan perintah shell ditolak dalam keadaan ini, seberapapun absolut path-nya (membaca berkas yang user sebut lewat path absolut tetap jalan)';
-    teks =
-      `ERROR: tulisan ditolak - ${sebab}. ${apa} tidak menulis apa pun. ` +
-      'Sebutkan batas ini ke user apa adanya, dan kalau tugasnya memang perlu menulis, minta dia membuka folder (File > Open Folder) atau memilih folder yang boleh ditulis; ' +
-      'jangan mengulang percobaan tulis yang sama dan jangan bilang berkas sudah ditulis. ' +
-      `(pesan asli: ${err.message})`;
+      ? `hanya folder yang terbuka (${ws}) dan folder yang ditunjuk user yang boleh diakses tool ini; path absolut lain di luar itu ditolak`
+      : 'tidak ada folder yang terbuka, jadi tool ber-scope folder tidak bisa dijalankan dalam keadaan ini';
+    teks = baca
+      ? `ERROR: akses BACA ditolak - ${sebab}. ${apa} tidak menulis apa pun, jadi ini murni batas jangkauan: ` +
+        'untuk SATU berkas yang user sebut, pakai read_file dengan path absolutnya; ' +
+        'untuk mencari di tempat lain, minta user membuka folder itu (File > Open Folder). ' +
+        'Jangan mengulang panggilan yang sama dengan path yang sama. ' +
+        `(pesan asli: ${err.message})`
+      : `ERROR: tulisan ditolak - ${sebab}. ${apa} tidak boleh menulis di luar. ` +
+        'Sebutkan batas ini ke user apa adanya, dan kalau tugasnya memang perlu menulis, minta dia membuka folder (File > Open Folder) atau memilih folder yang boleh ditulis; ' +
+        'jangan mengulang percobaan tulis yang sama dan jangan bilang berkas sudah ditulis. ' +
+        `(pesan asli: ${err.message})`;
   } else if (err.code === 'InvalidInput' && /butuh workspace terbuka/i.test(err.message)) {
     teks =
       `ERROR: ${err.message}. ${apa} tidak menjalankan apa pun. ` +

@@ -48,9 +48,18 @@ let jalur: string | null = null;
 async function jalurSecrets(): Promise<string | null> {
   if (jalur) return jalur;
   try {
-    const { appDataDir } = await import('@tauri-apps/api/path');
-    const base = await appDataDir();
-    jalur = `${base.replace(/[\\/]+$/, '')}\\zephyr\\secrets.json`;
+    /*
+     * Sumber kebenaran = data_dir dari app itu sendiri (get_app_info), BUKAN
+     * tebakan appDataDir() + "\zephyr\": sejak identifier build berubah
+     * (com.zephyr.editor) tebakan itu menghasilkan path dobel yang tidak pernah
+     * ada, fs_read menolaknya, dan seluruh app mengira tidak ada API key —
+     * agent jalan tanpa key (keluhan "agent bego / berhenti sendiri").
+     */
+    const { getAppInfo } = await import('./commands');
+    const info = await getAppInfo();
+    const dasar = (info.dataDir ?? '').replace(/[\\/]+$/, '');
+    if (!dasar) return null;
+    jalur = `${dasar}\\secrets.json`;
     return jalur;
   } catch {
     return null;
