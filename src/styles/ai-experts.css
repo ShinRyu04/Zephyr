@@ -22,7 +22,7 @@
   --ahli-lead: var(--text-muted);
   --ahli-researcher: #d982b7;
   --ahli-fullstack: #5aa2f0;
-  --ahli-qa: #57c98a;
+  --ahli-qa: var(--accent);
   --ahli-reviewer: #c9a24a;
   --ahli-ui: #9a7bf0;
   --ahli-debug: #e0796b;
