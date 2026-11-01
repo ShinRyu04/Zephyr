@@ -170,7 +170,8 @@ export function labelLangkah(langkah: SubStep): string {
 
 /** Ikon per jenis langkah — set AiIkon, BUKAN IkonAhli peran (gap 16). */
 export function IkonLangkah({ langkah, size = 12 }: { langkah: SubStep; size?: number }) {
-  if (langkah.kind === 'pikir') return <AiIkon name="thought" size={size} />;
+  /* Thought = loop ⟳ (acuan 022721), bukan sparkle. */
+  if (langkah.kind === 'pikir') return <AiIkon name="refresh" size={size} />;
   switch (jenisLangkah(langkah.nama)) {
     case 'baca':
       return <AiIkon name="doc" size={size} />;
@@ -212,8 +213,7 @@ export function rentangBaca(args: Record<string, unknown>): string | null {
  * Centang bulat untuk "✓ Completed" (acuan 022715/022721) — ikon, bukan teks
  * polos. Dipakai header tab Task dan titik status strip progres.
  */
-export function IkonCentang({ size = 12 }: { size?: number }) {
-  return (
+export function IkonCentang({ size = 12 }: { size?: number }) {  return (
     <svg
       viewBox="0 0 16 16"
       width={size}
@@ -227,6 +227,29 @@ export function IkonCentang({ size = 12 }: { size?: number }) {
     >
       <circle cx="8" cy="8" r="6.2" />
       <path d="m5.2 8.2 2.1 2.1 3.5-4.2" />
+    </svg>
+  );
+}
+
+/*
+ * Chevron lipatan ala acuan (035349: "Creating research task ⌄") — SVG tipis,
+ * bukan glyph "▾" yang di font app tampak seperti titik pada 9px. Pengganti
+ * class-nya tetap .experts-progress-caret supaya rotasi terlipat tetap jalan.
+ */
+export function IkonCaret({ size = 10 }: { size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m4 6.2 4 4 4-4" />
     </svg>
   );
 }
