@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
-import { bukaTabTugas, bukaCanvas, statusTugas, IkonAhli } from './expertsBuka';
+import { bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, IkonCentang } from './expertsBuka';
 
 /*
  * Task Progress Experts — strip status tim DI ATAS COMPOSER, bentuk acuan
@@ -166,7 +166,6 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
             const st = statusDari(i);
             const kelas =
               st.teks === 'Completed' ? 'is-done' : st.kelas === 'is-jalan' ? 'is-jalan' : st.kelas === 'is-pending' ? 'is-pending' : 'is-lain';
-            const glyph = kelas === 'is-done' ? '✓' : kelas === 'is-lain' ? '✕' : '';
             return (
               <button
                 key={t.id}
@@ -176,8 +175,18 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
                 data-testid={`experts-progress-row-${i + 1}`}
                 onClick={() => bukaTabTugas(t, i)}
               >
+                {/* Status = IKON, bukan teks: centang bulat hijau untuk selesai,
+                    lingkaran kosong untuk yang belum jalan (acuan 110036). */}
                 <span className={`exp-todo-titik ${kelas}`} aria-hidden="true">
-                  {kelas === 'is-jalan' ? <span className="experts-spin" /> : glyph}
+                  {kelas === 'is-jalan' ? (
+                    <span className="experts-spin" />
+                  ) : kelas === 'is-done' ? (
+                    <IkonCentang size={12} />
+                  ) : kelas === 'is-pending' ? (
+                    <span className="exp-todo-kosong-bulat" />
+                  ) : (
+                    <span className="exp-todo-silang">✕</span>
+                  )}
                 </span>
                 <span className="exp-todo-badan">
                   <span className="exp-todo-judul">
