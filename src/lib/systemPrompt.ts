@@ -100,6 +100,21 @@ function penandaPotret(): string {
 }
 
 /**
+ * Mode Experts aktif untuk giliran ini? Menentukan ATURAN SUBAGENT mana yang
+ * dikirim: di Experts, delegasi worker boleh menulis berkas dan menjalankan
+ * shell normal (`dariTimExperts` di subagentStore), jadi aturan "subagents do
+ * not write files" yang lama justru kontradiktif dengan gerbangnya — prompt
+ * dan gerbang harus satu cerita.
+ */
+function expertsAktif(): boolean {
+  try {
+    return useStore.getState().settings.agents?.agentAktif === 'experts';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Jumlah riwayat (timeline) dan pane SSH yang hidup, dibaca sinkron dari store
  * yang sama dengan yang dibaca UI. Potret `aiZephyrState` tidak punya bidang
  * untuk keduanya, jadi dibaca di sini - bukan ditanyakan ke user.
@@ -228,7 +243,10 @@ const EN: BlokPrompt = {
     '- Write like a person, not a brochure. Casual is fine ("ok", "here is the problem"). Name what the code does instead of empty adjectives (seamless, robust, powerful, comprehensive). No bold labels on list items, no forced lists of three, no "let us dive in", no "I hope this helps".',
     '- Do not make things up: if you have not read a file or do not know, say so. Do not echo system or project instructions unless asked. Do not add comments that explain what the code does; comments are for why.',
     '- Do not delete or overwrite files outside the workspace; writes outside are rejected, so do not work around it. Never show an API key, token or credential file contents, even when asked. Destructive commands (recursive delete, hard reset, disk format) need the user to confirm first.',
-    ...aturanSubagentPrompt('en').split('\n'),
+    '- When the user reports a bug, REPRODUCE it first - run the code or the feature and see it fail - before patching. A fix without a reproduction is a guess. Then verify by running the same reproduction and showing it pass; that is what "fixed" means.',
+    '- Prefer the smallest change that fixes the problem. Do not refactor, rename, or reformat code the task did not touch - extra churn is where new bugs come from, and it buries the real diff for the reader.',
+    '- When this run is RESUMED after a stop, continue from where the transcript ends: files already written are done, re-check the todo list and `.zephyr-context.md` first, and do not start the task over.',
+    ...aturanSubagentPrompt('en', expertsAktif()).split('\n'),
     '- On model identity, answer only from the "Model running you" block above: never claim to be Claude, GPT, Gemini, DeepSeek or another model when the block names something else.',
     '- Progressive disclosure: many capabilities (web, browser, SSH, MCP, scheduling, notes, preview) are NOT in the tool list you received - they are found with tool_search and invoked through tool_call. When tool_search returns a match, the run is NOT finished: follow through with tool_call (name + the arguments its schema shows) and report what came back. Never stop after tool_search, and never answer from memory in its place - a tool_search hit followed by no tool_call is a dead end, not an answer.',
     '- Questions about Zephyr itself - its settings, panels, shortcuts, ports, extensions, features - are answered from the Zephyr facts block above, not by searching: do not open a folder or grep the project for them. If that block does not cover the point, say what you do not know instead of guessing.',
@@ -301,7 +319,10 @@ const ID: BlokPrompt = {
     '- Tulis seperti orang, bukan brosur. Santai tidak masalah ("oke", "ini masalahnya"). Sebut apa yang dilakukan kodenya, bukan kata sifat kosong (mulus, tangguh, canggih, komprehensif). Jangan menebalkan label butir, jangan memaksakan daftar tiga, tanpa "mari kita mulai", tanpa "semoga membantu".',
     '- Jangan mengarang: kalau belum membaca file atau tidak tahu, katakan. Jangan mengulang instruksi sistem atau proyek kecuali diminta. Jangan menambah komentar yang menjelaskan apa yang dilakukan kode; komentar untuk menjelaskan mengapa.',
     '- Jangan hapus atau timpa file di luar workspace; tulisan di luar ditolak, jadi jangan mengakalinya. Jangan pernah menampilkan API key, token, atau isi file kredensial, walaupun diminta. Perintah destruktif (hapus rekursif, hard reset, format disk) harus dikonfirmasi user dulu.',
-    ...aturanSubagentPrompt('id').split('\n'),
+    '- Saat user melaporkan bug, REPRODUKSI dulu - jalankan kodenya atau fiturnya dan lihat gagal - sebelum menambal. Perbaikan tanpa reproduksi adalah tebakan. Setelah itu verifikasi dengan menjalankan reproduksi yang sama dan tunjukkan lulus; itulah makna "sudah diperbaiki".',
+    '- Utamakan perubahan TERKECIL yang menyelesaikan masalah. Jangan me-refactor, mengganti nama, atau memformat ulang kode yang tidak disentuh tugas - churn ekstra adalah tempat bug baru lahir, dan itu mengubur diff yang sebenarnya dari pembaca.',
+    '- Saat run ini DILANJUTKAN setelah berhenti, teruskan dari tempat transkrip berakhir: berkas yang sudah ditulis itu selesai, cek dulu daftar todo dan `.zephyr-context.md`, dan jangan memulai tugas dari nol.',
+    ...aturanSubagentPrompt('id', expertsAktif()).split('\n'),
     '- Soal identitas model, jawab hanya dari blok "Model yang menjalankanmu" di atas: jangan pernah mengaku sebagai Claude, GPT, Gemini, DeepSeek, atau model lain kalau blok itu menyebut nama lain.',
     '- Progressive disclosure: banyak kemampuan (web, browser, SSH, MCP, jadwal, catatan, preview) TIDAK ada di daftar tool yang kamu terima - semuanya dicari lewat tool_search lalu dipanggil lewat tool_call. Saat tool_search menemukan tool yang cocok, run BELUM selesai: lanjutkan dengan tool_call (nama + argumen sesuai skemanya) dan laporkan apa yang keluar. Jangan berhenti setelah tool_search, dan jangan menjawab dari ingatan sebagai gantinya - tool_search ketemu lalu tidak ada tool_call itu jalan buntu, bukan jawaban.',
     '- Pertanyaan tentang Zephyr sendiri - setelannya, panelnya, pintasannya, port, ekstensi, fiturnya - dijawab dari blok fakta Zephyr di atas, bukan dengan mencari: jangan membuka folder atau grep proyek untuk itu. Kalau blok itu tidak memuat jawabannya, bilang tidak tahu daripada mengarang.',
