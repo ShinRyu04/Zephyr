@@ -2247,6 +2247,30 @@ button.exp-todo-baris:hover {
 .experts-langkah-kanan {
   font-size: 11.5px;
 }
+/* Kontainer langkah: blok berlatar sedikit lebih terang dengan garis
+   atas-bawah halus; kartu berkas/terminal di dalamnya lebih terang lagi
+   (acuan 022709/022721). */
+.experts-tasktab-langkah {
+  padding: 5px 6px;
+  border-radius: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+}
+.experts-langkah.is-berkas,
+.experts-langkah.is-terminal {
+  background: var(--surface-3);
+}
+/* Ikon kartu berkas = ikon tipe berwarna; SVG tema 16px diskalakan ke 14px. */
+.experts-langkah.is-berkas .ai-fikon {
+  width: 14px;
+  height: 14px;
+}
+.experts-langkah.is-berkas .ai-fikon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .experts-langkah-kanan .is-plus {
   color: var(--accent);
 }

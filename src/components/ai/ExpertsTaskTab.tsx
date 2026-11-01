@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent, type SubStep } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
+import FileIkon from './FileIkon';
 import { IkonAhli, statusTugas, jenisLangkah, labelLangkah, IkonLangkah, durasiLangkah, jumlahHasil, rentangBaca, IkonCentang } from './expertsBuka';
 
 /*
@@ -170,8 +171,11 @@ function BarisLangkah({
         className={`experts-langkah is-berkas${gagal ? ' is-gagal' : ''}${langkah.ditolakTulis ? ' is-ditolak' : ''}`}
         title={langkah.hasil ?? ''}
       >
+        {/* Ikon kartu berkas = ikon TIPE berkas berwarna (acuan 022709: CSS
+            = `#` biru; 022721: TSX = ikon React) — satu-satunya tempat yang
+            memang berwarna di transkrip, persis tema ikon Qoder. */}
         <span className="experts-langkah-ikon" aria-hidden="true">
-          <IkonLangkah langkah={langkah} size={12} />
+          <FileIkon nama={nama} />
         </span>
         <span className="experts-langkah-nama-berkas">{nama}</span>
         <span className="experts-langkah-kanan">
