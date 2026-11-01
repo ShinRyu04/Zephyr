@@ -153,7 +153,6 @@ export function potongCatatan(teks: string, maks = CATATAN_MAKS_CHARS): string {
  *                          titik sisip `sisipKeDepanEkor`.
  */
 import { giliranSelesaiPanel, rencanaMasukSaatSibuk } from './antreanPesan';
-import { giliranAntreanKeRiwayat, sisipKeDepanEkor } from './suntikKonteks';
 
 /*
  * Read-only tools, derived from the catalog instead of typed out by hand.
@@ -284,92 +283,17 @@ const sedangKirimAntrian = new Set<string>();
 
 /* ── LANE ANTREAN-LIVE (item C): giliran berikutnya dari antrean pesan ────── */
 
-/**
- * Kepala pesan yang diketik SEMENTARA run berjalan.
- *
- * Dipertahankan dari jalur lama apa adanya: tanpa kalimat ini model memperlakukan
- * pesan yang datang di tengah pekerjaan sebagai permintaan baru yang menunggu run
- * kelar - persis kelakuan yang item C keluhkan.
+/*
+ * KEPUTUSAN ANTREAN (2 Nov): pesan yang diketik SEMENTARA run berjalan TIDAK
+ * lagi disuntikkan ke tengah run. Dulu helper suntikGiliranAntrean menguras
+ * antrean di awal tiap langkah — akibat yang terbaca user justru kebalikannya:
+ * pesan baru dikerjakan sebagai kelanjutan run LAMA ("chat sebelumnya yang
+ * lanjut"), kartu antrean sekejap kosong, dan antrean terasa tidak berguna.
+ * Sekarang antrean MENAHAN pesan sampai giliran selesai; yang mengirim adalah
+ * drain akhir giliran (kirimAntrian) — sebagai giliran BARU, perilaku yang
+ * sama dengan kartu antrean Qoder. Baris bergambar tetap aman: ia dikirim
+ * drain sebagai permintaan penuh, bukan potongan.
  */
-const KEPALA_PESAN_SEMENTARA =
-  'Pesan dari pengguna SEMENTARA kamu bekerja - baca SEKARANG, jangan tunggu run selesai:';
-
-/**
- * Suntikkan giliran dari antrean pesan ke `history` yang SEDANG berjalan.
- *
- * Dipanggil di awal tiap langkah, di titik yang sudah dipakai jalur lama: di situ
- * `history` berakhir dengan hasil tool langkah sebelumnya, dan satu giliran `user`
- * SESUDAH hasil tool tidak membelah pasangan assistant<->tool (yang memicu 400).
- *
- * Seluruh keputusannya DISERAHKAN ke modul murni yang sudah diuji: siapa yang
- * diproses dari `antreanPesan.giliranSelesaiPanel` (kepala antrean LANGSUNG
- * diproses, sisanya tetap menunggu), susunannya dari `suntikKonteks` (urutan
- * konteks -> riwayat -> antrean -> tugas -> permintaan, rahasia disensor, blok
- * wajib tidak pernah dipotong), titik sisipnya `sisipKeDepanEkor`. Tidak ada aturan
- * antrean atau penyusunan yang disalin ke berkas ini.
- *
- * `konteks`/`riwayat` sengaja TIDAK diisi: keduanya sudah ada di `history`
- * (konteks workspace dimuat jalurnya sendiri), jadi yang disuntikkan di sini hanya
- * pekerjaan yang BELUM selesai - pesan mengantre, tugas, dan permintaan giliran ini.
- * Menyuntik ulang riwayat akan menggandakan percakapan.
- */
-function suntikGiliranAntrean(
-  antri: readonly AntrianPesan[],
-  history: AgentMsg[],
-  todos: ReadonlyArray<{ content: string; status: string }>,
-): { kepala: string | null; ringkas: string } {
-  const giliran = giliranSelesaiPanel(antri, { sibuk: true });
-  if (!giliran.langsungDiproses) {
-    return { kepala: null, ringkas: giliran.laporan };
-  }
-  const kepala = giliran.langsungDiproses;
-  const adaTeks = kepala.teks.trim().length > 0;
-  const susunan = giliranAntreanKeRiwayat({
-    langsungDiproses: { id: kepala.id, teks: kepala.teks, images: kepala.images },
-    antrean: giliran.keadaan,
-    tugasBelumSelesai: tugasBelumSelesaiRiwayat(history, todos),
-    konteks: null,
-    riwayat: [],
-  });
-  const blok: AgentMsg[] = susunan.blok.map((p, i) => ({
-    role: p.peran,
-    content: i === 0 ? `${KEPALA_PESAN_SEMENTARA}\n${p.teks}` : p.teks,
-  }));
-  /*
-   * Catatan gambar dipertahankan dari jalur lama apa adanya: gambar yang ditempel
-   * pada pesan mengantre tidak ikut dikirim ke tengah run (`history` hanya membawa
-   * teks), dan model harus tahu itu supaya tidak mengaku sudah melihatnya.
-   *
-   * Dua jalur, karena `susunGiliran` tidak membuat blok dari permintaan tanpa teks
-   * (dan itu benar - blok kosong tidak ada gunanya): kalau baris antrean itu hanya
-   * berisi gambar, catatannya berdiri sendiri; kalau ada teks, catatannya menempel
-   * di blok permintaan yang jadi giliran ini.
-   */
-  const jumlahGambar = kepala.images.length;
-  if (!adaTeks && jumlahGambar > 0) {
-    blok.push({
-      role: 'user',
-      content:
-        `${KEPALA_PESAN_SEMENTARA}\n(gambar yang ditempel pada pesan selagi kamu bekerja TIDAK ` +
-        'diteruskan ke tengah run; sebut di ringkasan akhir kalau gambar itu masih perlu dilihat.)',
-    });
-  } else if (jumlahGambar > 0 && blok.length > 0) {
-    const terakhir = blok.length - 1;
-    blok[terakhir] = {
-      ...blok[terakhir],
-      content:
-        `${blok[terakhir].content}\n\n(${jumlahGambar} gambar terlampir TIDAK diteruskan ke tengah ` +
-        'run; sebut di ringkasan akhir kalau gambar itu masih perlu dilihat.)',
-    };
-  }
-  if (blok.length === 0) {
-    return { kepala: null, ringkas: susunan.ringkas };
-  }
-  const baru = sisipKeDepanEkor(history, blok, (m) => m.role === 'tool');
-  history.length = 0;
-  for (const m of baru) history.push(m);
-  return { kepala: adaTeks ? kepala.teks : '(baris antrean tanpa teks - hanya gambar)', ringkas: susunan.ringkas };
-}
 
 // Old session titles from versions before the UI was standardised to English — mapped
 // back when loaded so already-saved history also shows up in English.
@@ -7708,93 +7632,12 @@ let autoLanjut = 0;
         agentHardLimitArm();
 
         /*
-         * C: pesan yang diketik SEMENTARA run berjalan.
-         *
-         * Composer sudah menerima pesan itu sejak lama - ia diparkir di
-         * `antrian` - tetapi antrian baru dibaca setelah run SELESAI, jadi
-         * "tunggu dulu" adalah satu-satunya jawaban yang mungkin. Pada run
-         * berat 20 menit artinya praktis tidak bisa mengetik apa pun.
-         *
-         * Di sini antrian diambil di AWAL setiap langkah: pesannya muncul di
-         * transkrip supaya yang mengetik melihatnya benar-benar masuk, dan
-         * diteruskan ke model sebagai giliran user biasa - jadi koreksi yang
-         * datang di menit kedua masih terpakai, bukan menunggu run kelar.
-         *
-         * Kenapa di awal langkah, bukan di tengah: pada titik ini `history`
-         * berakhir dengan hasil tool langkah sebelumnya, dan giliran user
-         * SETELAH hasil tool aman bagi provider. Kebalikannya - user
-         * diselipkan di antara `assistant` yang meminta tool dan hasil
-         * tool-nya - yang memicu 400 (lihat catatan `catatanStatus`).
+         * Antrean TIDAK disentuh di tengah run (lihat komentar keputusan antrean
+         * di atas): pesan yang diketik selagi run jalan tetap duduk di
+         * antrians[composerId] sampai giliran selesai, lalu dikirim oleh drain
+         * akhir giliran. Model mengerjakan pekerjaan yang sedang berjalan dulu,
+         * baru arahan yang menunggu — bukan campuran keduanya.
          */
-        {
-          const kunciComposer = COMPOSER_AKTIF;
-          const antriComposer = get().antrians[kunciComposer] ?? [];
-          /*
-           * Satu baris bisa ada di DUA daftar sekaligus: aksi antrean lain (dan
-           * jalur pesan-selagi-sibuk di `send`) mencerminkan daftar per-composer ke
-           * `antrian` untuk permukaan utama, jadi referensi objeknya sama. Tanpa
-           * penyaringan di sini satu pesan bisa disuntikkan dua kali ke riwayat yang
-           * sama. Disaring lewat identitas objek, karena itulah yang sama persis
-           * saat dicerminkan.
-           */
-          const dipakai = new Set<AntrianPesan>();
-          const antri: AntrianPesan[] = [];
-          for (const a of [...get().antrian, ...antriComposer]) {
-            if (dipakai.has(a)) continue;
-            dipakai.add(a);
-            antri.push(a);
-          }
-          if (antri.length > 0) {
-            set((s) => ({
-              antrian: [],
-              antrians: { ...s.antrians, [kunciComposer]: [] },
-            }));
-            for (const a of antri) {
-              const gambar = a.images && a.images.length > 0 ? a.images : undefined;
-              set((s) => ({
-                sessions: s.sessions.map((x) =>
-                  x.id === sessionId
-                    ? {
-                        ...x,
-                        messages: [
-                          ...x.messages,
-                          {
-                            id: nextId('m'),
-                            role: 'user' as const,
-                            content: a.teks,
-                            at: Date.now(),
-                            images: gambar,
-                          },
-                        ].slice(-MAX_MSGS),
-                      }
-                    : x,
-                ),
-              }));
-            }
-            /*
-             * LANE ANTREAN-LIVE (item C): yang masuk `history` di sini bukan teks
-             * apa adanya, melainkan GILIRAN yang disusun `suntikKonteks.ts`
-             * (`giliranAntreanKeRiwayat` -> `susunGiliran`): antrean -> tugas ->
-             * permintaan, urutannya tetap konteks -> riwayat -> antrean -> tugas ->
-             * permintaan, rahasia disensor, dan blok wajib (pekerjaan yang belum
-             * selesai) tidak pernah dipotong. Siapa yang diproses diambil dari
-             * `antreanPesan.giliranSelesaiPanel` (kepala antrean LANGSUNG diproses,
-             * sisanya tetap menunggu) - aturan yang sama yang diuji
-             * `scripts/uji-antrean-pesan.mjs`, tidak disalin ke berkas ini.
-             *
-             * Transkrip di atas tetap memuat SETIAP pesan apa adanya, satu kali;
-             * giliran ini menambahkan pekerjaan yang belum selesai, bukan salinan
-             * percakapan (konteks/riwayat sudah ada di `history`).
-             */
-            const giliran = suntikGiliranAntrean(antri, history, get().agentTodos);
-            if (giliran.kepala === null) {
-              // Hanya mungkin kalau baris antrean tidak punya teks sama sekali, dan
-              // itu memang bisa terjadi pada baris bergambar. Dilaporkan, bukan
-              // didiamkan: pesan yang hilang tanpa jejak itu keluhan aslinya.
-              set({ toast: tx('A queued row had no text, so no turn was injected from it') });
-            }
-          }
-        }
 
         /*
          * Approaching the step cap: ask for a hand-off instead of cutting off.
