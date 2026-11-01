@@ -94,8 +94,10 @@ export function bolehTulis(): boolean {
  * tidak bisa ditinjau setelah terjadi.
  * `editor_write` tidak lewat sini: ia hanya mengubah buffer, bukan disk.
  */
-export function tulisDiskDilarang(namaTool: string): boolean {
+export function tulisDiskDilarang(namaTool: string, agentId?: string): boolean {
   if (!TOOL_DISK_TULIS.has(namaTool)) return false;
+  /* Delegasi Experts menulis disk tanpa sakelar (lihat `dariTimExperts`). */
+  if (dariTimExperts(agentId)) return false;
   return !bolehTulis();
 }
 
@@ -133,6 +135,25 @@ export function kemampuanTulis(): KemampuanTulis {
   return { setelan, persetujuanAuto, bisaTulis: setelan, bisaTulisDisk: setelan };
 }
 
+/**
+ * True = baris subagent ini lahir dari delegasi EXPERTS MODE (run tim ahli).
+ *
+ * Memulai tim Experts adalah perintah eksplisit untuk MENGHASILKAN pekerjaan:
+ * worker yang hanya boleh membaca menghasilkan laporan kosong dan sisa rencana
+ * tak dikerjakan — keluhan "Experts bego / tidak mengerjakan apa-apa" yang
+ * paling sering. Qoder memberi ahlinya izin menulis dan terminal senyap;
+ * Zephyr mengikuti untuk delegasi Experts TANPA mengubah makna sakelar
+ * `allowWrite` untuk subagent manual (jalur `/`), dan gerbang shell yang
+ * benar-benar merusak (`rm -rf` dst.) tetap butuh approval Auto seperti
+ * sebelumnya — Zephyr belum punya sandbox shell seperti Qoder, jadi lapisan
+ * itu sengaja tidak dibuka.
+ */
+export function dariTimExperts(agentId?: string): boolean {
+  if (!agentId) return false;
+  const baris = useSubAgent.getState().agents.find((a) => a.id === agentId);
+  return !!baris?.delegasiId?.startsWith('experts-');
+}
+
 /** Gerbang mana yang menutup, supaya UI bisa menerjemahkan sebabnya. */
 export type AlasanTolakTulis = 'setelan-mati' | 'perlu-persetujuan' | 'peran-readonly' | 'tak-ditawarkan';
 
@@ -165,9 +186,15 @@ export interface PutusanTulis {
  */
 export function putusanTulis(
   namaTool: string,
-  opts: { bahayaShell?: boolean; bolehTulisPeran?: boolean } = {},
+  opts: { bahayaShell?: boolean; bolehTulisPeran?: boolean; agentId?: string } = {},
 ): PutusanTulis {
   const k = kemampuanTulis();
+  /*
+   * Delegasi Experts menulis tanpa sakelar (lihat `dariTimExperts`): memulai
+   * tim ahli sudah eksplisit meminta pekerjaan yang menulis berkas. Sakelar
+   * `allowWrite` tetap memutus subagent manual.
+   */
+  const setelanEfektif = k.setelan || dariTimExperts(opts.agentId);
   const tulisTool = TOOL_TULIS.has(namaTool);
 
   /*
@@ -188,7 +215,7 @@ export function putusanTulis(
     };
   }
 
-  if (!k.setelan && (tulisTool || opts.bahayaShell)) {
+  if (!setelanEfektif && (tulisTool || opts.bahayaShell)) {
     return {
       boleh: false,
       alasan: 'setelan-mati',
@@ -208,7 +235,7 @@ export function putusanTulis(
    * subagent tidak punya kartu persetujuan untuk dimintai izin. Tuls BERKAS
    * tidak lagi lewat sini - setelan "Let sub-agents write" sudah jadi izinnya.
    */
-  if (opts.bahayaShell || tulisDiskDilarang(namaTool)) {
+  if (opts.bahayaShell || tulisDiskDilarang(namaTool, opts.agentId)) {
     return {
       boleh: false,
       alasan: 'perlu-persetujuan',
@@ -642,7 +669,11 @@ function siapkanTool(
         'Use tool_search to see what is available, and report anything else instead of calling it.)',
     };
   } else {
-    putusan = putusanTulis(namaJalan, { bahayaShell: shellBahaya, bolehTulisPeran: opts.bolehTulisPeran });
+    putusan = putusanTulis(namaJalan, {
+      bahayaShell: shellBahaya,
+      bolehTulisPeran: opts.bolehTulisPeran,
+      agentId: opts.agentId,
+    });
   }
   const targets = putusan.boleh ? pathDitulis(namaJalan, args) : [];
   const konflik = putusan.boleh
@@ -728,7 +759,13 @@ interface AgentStepResult {
   usage?: { input: number; output: number };
 }
 
-function promptSub(tugas: string, total: number, peran: PeranId, customId?: string | null): string {
+function promptSub(
+  tugas: string,
+  total: number,
+  peran: PeranId,
+  customId?: string | null,
+  agentId?: string,
+): string {
   /*
    * A custom worker's own persona replaces the shipped role prompt outright.
    *
@@ -753,9 +790,12 @@ function promptSub(tugas: string, total: number, peran: PeranId, customId?: stri
    * yang akan ditolak gerbangnya sendiri.
    */
   const kt = kemampuanTulis();
+  /* Kalimat izin = GERBANGNYA, termasuk pengecualian delegasi Experts
+     (`dariTimExperts`) — prompt dan gerbang tidak boleh berbeda cerita. */
+  const setelanEfektif = kt.setelan || dariTimExperts(agentId);
   /* Worker kustom yang diberi `multi_edit` boleh menulis; tanpa itu read-only. */
   const mintaTulis = custom ? custom.alat.includes('multi_edit') : p?.butuhTulis ?? false;
-  const tulis = !kt.setelan
+  const tulis = !setelanEfektif
     ? inggris
       ? 'READ-ONLY SESSION: you cannot write files. write_file/edit/multi_edit/delete_file are not offered and would be refused; anything that deletes or overwrites is refused too. Read, search, run read-only commands, and in your report say exactly what should change and where.'
       : 'SESI HANYA-BACA: kamu tidak bisa menulis berkas. write_file/edit/multi_edit/delete_file tidak ditawarkan dan akan ditolak; perintah yang menghapus atau menimpa juga ditolak. Baca, cari, jalankan perintah hanya-baca, lalu di laporanmu sebutkan persis apa yang harus diubah dan di mana.'
@@ -1234,7 +1274,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     if (history[0]?.role === 'system') {
       history[0] = {
         role: 'system',
-        content: promptSub(agent.tugas, get().agents.length, agent.peran, agent.customId),
+        content: promptSub(agent.tugas, get().agents.length, agent.peran, agent.customId, agent.id),
       };
     }
     history.push({ role: 'user', content: bersih });
@@ -1512,7 +1552,7 @@ async function jalankanSatu(
   }[] = [
     {
       role: 'system',
-      content: promptSub(agent.tugas, get().agents.length, agent.peran, agent.customId),
+      content: promptSub(agent.tugas, get().agents.length, agent.peran, agent.customId, agent.id),
     },
     {
       role: 'user',
