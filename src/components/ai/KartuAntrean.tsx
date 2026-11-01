@@ -117,15 +117,22 @@ export default function KartuAntrean({ composerId }: { composerId: string }) {
                   <span className="ai-review-antrian-no" aria-hidden="true">
                     {i + 1}
                   </span>
-                  {a.images.length > 0 && (
+                  {/*
+                    * `images` wajib dijaga: baris antrean dari versi lama (atau
+                    * dari jalur yang lupa mengisinya) tidak punya properti ini,
+                    * dan `a.images.length` tanpa penjaga membuat SELURUH panel
+                    * AI jatuh ke error boundary — antrean jadi "tidak berguna"
+                    * karena satu baris rusak. Baris tanpa images = tanpa lampiran.
+                    */}
+                  {(a.images?.length ?? 0) > 0 && (
                     <span
                       className="ai-review-antrian-img"
                       data-testid={`ai-antrian-images-${i}`}
-                      title={tf('{n} image attachments', { n: a.images.length })}
-                      aria-label={tf('{n} image attachments', { n: a.images.length })}
+                      title={tf('{n} image attachments', { n: a.images?.length ?? 0 })}
+                      aria-label={tf('{n} image attachments', { n: a.images?.length ?? 0 })}
                     >
                       <AiIkon name="image" size={11} />
-                      {a.images.length}
+                      {a.images?.length ?? 0}
                     </span>
                   )}
                   {cqEdit === (a.id ?? String(i)) ? (
