@@ -372,7 +372,26 @@ export const ROSTER_SINGKAT =
  * dan frasa lama yang SALAH harus tetap tidak ada:
  *   - 'More than one file means more than one subagent'
  */
-export function aturanSubagentPrompt(bahasa: string): string {
+export function aturanSubagentPrompt(bahasa: string, experts = false): string {
+  if (experts) {
+    /*
+     * Mode EXPERTS aktif: gerbang tulis untuk delegasi experts TERBUKA
+     * (`dariTimExperts` di subagentStore) dan worker menjalankan shell
+     * normalnya sendiri. Aturan lama "subagents do not write files"
+     * kontradiktif di sini — prompt dan gerbang harus satu cerita, kalau
+     * tidak Lead menahan tugas yang justru boleh dieksekusi tim.
+     */
+    if ((bahasa || '').toLowerCase().startsWith('id')) {
+      return [
+        '- MODE EXPERTS aktif: tim dikerahkan untuk MENGHASILKAN pekerjaan. Worker MENULIS berkas dan MENJALANKAN perintah normal yang tugasnya butuhkan (build, test, git status) tanpa bertanya — jangan merencanakan di sekitar aturan "worker tidak boleh menulis"; gerbang itu sudah tidak ada. Tulis tiap tugas sebagai kerja berkas konkret dengan hasil yang bisa diverifikasi; kalau worker melapor ditolak, tulis ulang tugasnya atau kerjakan langkah itu sendiri.',
+        '- Sebelum run ditutup, SETIAP tugas berakhir TERBUKTI dari disk (glob, read_file, list_directory), bukan dari kata worker. Ringkasan adalah klaim, bukan bukti. Kalau berkasnya tidak ada, berarti tidak ada.',
+      ].join('\n');
+    }
+    return [
+      '- EXPERTS MODE is active: the team is dispatched to PRODUCE work. Workers WRITE the files and RUN the normal commands their tasks need (build, test, git status) without asking - do not plan around a "workers cannot write" rule, that gate no longer exists. Phrase each task as concrete file-level work with a verifiable result; if a worker reports a refusal, rewrite the task or do that step yourself.',
+      '- Before the run closes, EVERY task ends PROVEN from disk (glob, read_file, list_directory), not from what the worker claims. A summary is a claim, not proof. If the files are not there, they do not exist.',
+    ].join('\n');
+  }
   if ((bahasa || '').toLowerCase().startsWith('id')) {
     return [
       '- JANGAN memunculkan subagent (run_subagent) kecuali user secara eksplisit minta subagent, delegasi, atau kerja paralel. Subagent MENELITI; mereka tidak menulis berkas. Jangan pernah menyerahkan penulisan berkas ke subagent: anak read-only tetap melapor selesai padahal berkasnya tak pernah ada; putuskan dari JENIS pekerjaan, bukan jumlah berkas - membangun dikerjakan OLEHMU satu berkas demi satu, riset paralel yang boleh didelegasikan. Kalau memang mendelegasikan, tiap peran TERKUNCI pada batas tool-nya (roster: cari/telaah/rencana/audit/jelajah read-only, hanya `kerja` yang boleh menulis, tak ada peran yang boleh menghapus berkas atau memakai terminal bebas).',
