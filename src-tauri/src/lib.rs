@@ -20,6 +20,7 @@ mod credentials;
 mod cron;
 mod dap;
 mod database;
+mod portable_update;
 mod dev_update;
 mod devenv;
 mod diagnostics;
@@ -286,6 +287,8 @@ pub fn run() {
             dev_update::dev_update_log,
             dev_update::dev_update_rollback,
             settings::get_app_info,
+            portable_update::portable_update_unduh,
+            portable_update::portable_update_siapkan,
             settings::get_settings,
             settings::set_settings,
             settings::settings_export,
