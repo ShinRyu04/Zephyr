@@ -2098,7 +2098,8 @@ button.exp-todo-baris:hover {
 .exp-todo-titik.is-done {
   background: transparent;
   border-color: transparent;
-  color: var(--accent);
+  /* Acuan 110036: titik selesai = centang bulat HIJAU kecil. */
+  color: var(--success);
 }
 .exp-todo-kosong-bulat {
   width: 9px;
