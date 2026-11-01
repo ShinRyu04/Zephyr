@@ -21,7 +21,7 @@
  * that can change a file, and a hit on a directory path simply fails to read
  * and is skipped.
  */
-import { useDiff } from '../diffStore';
+import { hitungBaris, useDiff } from '../diffStore';
 
 /**
  * Tool names that can change a file on disk.
@@ -143,6 +143,21 @@ function baca(p: string): Promise<string | null> {
   });
 }
 
+/**
+ * Angka diff SATU tulisan terakhir per path (+n/−n), untuk kartu berkas di
+ * transkrip tab "Task N" (acuan 022709: "# aim-models.css +1 -1 M Applied").
+ *
+ * Dihitung dari isi sebelum vs sesudah yang sudah dibaca di sini — bukan dari
+ * klaim tool. Path yang tidak bisa dibaca (direktori, hapus berkas yang memang
+ * sudah tidak ada) TIDAK punya entri, jadi kartunya tidak menampilkan angka
+ * karangan.
+ */
+const statTerkini = new Map<string, { tambah: number; hapus: number }>();
+
+export function ambilStatTerkini(path: string): { tambah: number; hapus: number } | null {
+  return statTerkini.get(path) ?? null;
+}
+
 export const perubahanTool: PerubahanTool = {
   jalankan: async (nama, args, eksekusi) => {
     if (!TOOL_TULIS.has(nama)) return eksekusi();
@@ -181,6 +196,15 @@ export const perubahanTool: PerubahanTool = {
          */
         const isiSekarang = kini.get(p) ?? null;
         if (sebelum.get(p) === null && isiSekarang === null) continue;
+        /* Angka diff per-tulisan. Salah satu sisi `null` = tidak ada
+           perbandingan yang jujur, jadi entri lama dibuang alih-alih dipertahankan
+           (angka langkah sebelumnya akan terbaca sebagai hasil langkah ini). */
+        const isiSebelum = sebelum.get(p) ?? null;
+        if (isiSebelum !== null && isiSekarang !== null) {
+          statTerkini.set(p, hitungBaris(isiSebelum, isiSekarang));
+        } else {
+          statTerkini.delete(p);
+        }
         useDiff.getState().catatSesudah(p, isiSekarang, gagal);
       }
     }

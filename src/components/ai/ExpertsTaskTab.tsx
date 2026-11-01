@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent, type SubStep } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
-import { IkonAhli, statusTugas, jenisLangkah, labelLangkah, IkonLangkah, durasiLangkah, jumlahHasil } from './expertsBuka';
+import { IkonAhli, statusTugas, jenisLangkah, labelLangkah, IkonLangkah, durasiLangkah, jumlahHasil, rentangBaca, IkonCentang } from './expertsBuka';
 
 /*
  * Isi tab editor "Task N: <judul>" — transkrip kerja satu worker Experts,
@@ -58,7 +58,11 @@ export default function ExpertsTaskTab({ ekspertId }: { ekspertId: string }) {
           </span>
         </span>
         <span className={`experts-tasktab-status ${st.kelas}`}>
-          {st.kelas === 'is-jalan' ? <span className="experts-spin" aria-hidden="true" /> : null}
+          {st.kelas === 'is-jalan' ? (
+            <span className="experts-spin" aria-hidden="true" />
+          ) : st.kelas === 'is-selesai' ? (
+            <IkonCentang size={13} />
+          ) : null}
           {st.teks}
         </span>
       </div>
@@ -166,6 +170,14 @@ function BarisLangkah({
         </span>
         <span className="experts-langkah-nama-berkas">{nama}</span>
         <span className="experts-langkah-kanan">
+          {/* Angka diff hanya bila ada perbandingan sah (perubahanTool mengukur
+              isi sebelum vs sesudah). Tanpa angka → tidak ditampilkan. */}
+          {(langkah.tambah !== undefined || langkah.hapus !== undefined) && (
+            <>
+              <span className="is-plus">+{langkah.tambah ?? 0}</span>
+              <span className="is-minus">-{langkah.hapus ?? 0}</span>
+            </>
+          )}
           <span className="is-mod">M</span>
           {generating ? (
             <span className="is-generating">Generating</span>
@@ -198,10 +210,16 @@ function BarisLangkah({
     );
   }
 
-  /* Baris biasa: Read / Grepped code / Searched … + target + (N results). */
-  const sasaran = String(args.path ?? args.pattern ?? args.query ?? args.url ?? '')
-    .split('\n')[0]
-    .slice(0, 90);
+  /*
+   * Baris biasa: Read / Grepped code / Searched … + target + (N results).
+   *
+   * Read menampilkan RENTANG BARIS seperti acuan ("expertsStore.ts (37 - 120)")
+   * — diambil dari args read_file, bukan ditebak dari isi hasil.
+   */
+  const mentah = String(args.path ?? args.pattern ?? args.query ?? args.url ?? '').split('\n')[0];
+  const rentang = jenis === 'baca' ? rentangBaca(args) : null;
+  const sasaran = (jenis === 'baca' ? (mentah.split(/[\\/]/).pop() ?? mentah) : mentah).slice(0, 90);
+  const labelSasaran = rentang && sasaran ? `${sasaran} ${rentang}` : sasaran;
   const hitung = jumlahHasil(langkah.hasil);
   return (
     <div
@@ -212,7 +230,7 @@ function BarisLangkah({
         <IkonLangkah langkah={langkah} size={12} />
       </span>
       <span className="experts-langkah-label">{labelLangkah(langkah)}</span>
-      {sasaran && <span className="experts-langkah-target">{sasaran}</span>}
+      {labelSasaran && <span className="experts-langkah-target">{labelSasaran}</span>}
       {hitung && <span className="experts-langkah-count">{hitung}</span>}
       {gagal && <span className="experts-langkah-fail">✕</span>}
     </div>

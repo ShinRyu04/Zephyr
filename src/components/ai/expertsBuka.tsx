@@ -185,6 +185,52 @@ export function IkonLangkah({ langkah, size = 12 }: { langkah: SubStep; size?: n
   }
 }
 
+/**
+ * Rendering RENTANG BARIS satu panggilan baca, ala acuan ("expertsStore.ts
+ * (37 - 120)").
+ *
+ * Sumbernya ARGS tool (`offset`/`limit`, atau `awal`/`akhir`), bukan isi hasil:
+ * membaca hasil untuk menebak nomor baris akan mengarang rentang yang tidak
+ * pernah diminta. Tanpa kedua ujung yang jelas → `null`, dan barisnya hanya
+ * menampilkan nama berkas (lebih jujur daripada angka tebakan).
+ */
+export function rentangBaca(args: Record<string, unknown>): string | null {
+  const angka = (v: unknown): number | null => {
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+  };
+  const awal = angka(args.offset) ?? angka(args.awal) ?? angka(args.start) ?? angka(args.from);
+  if (awal === null) return null;
+  const jumlah = angka(args.limit) ?? angka(args.count) ?? angka(args.jumlah);
+  const akhir =
+    angka(args.akhir) ?? angka(args.end) ?? angka(args.to) ?? (jumlah ? awal + jumlah - 1 : null);
+  if (akhir === null || akhir < awal) return null;
+  return `(${awal} - ${akhir})`;
+}
+
+/**
+ * Centang bulat untuk "✓ Completed" (acuan 022715/022721) — ikon, bukan teks
+ * polos. Dipakai header tab Task dan titik status strip progres.
+ */
+export function IkonCentang({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6.2" />
+      <path d="m5.2 8.2 2.1 2.1 3.5-4.2" />
+    </svg>
+  );
+}
+
 /*
  * "Thought · 1s" — durasi = jarak `at` ke langkah BERIKUTNYA; langkah
  * terakhir diukur ke waktu selesai worker (yang masih berjalan diukur ke
