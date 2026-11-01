@@ -23,17 +23,22 @@ import { useExplorer } from '../../lib/explorerStore';
 import ExpertsPlanCard from './ExpertsPlanCard';
 import ExpertsTimeline from './ExpertsTimeline';
 import { useExperts } from '../../lib/expertsStore';
+import { IkonCaret } from './expertsBuka';
 
 /**
- * Lipatan "Creating research task" (acuan 044850): header bergulir + caret,
+ * Lipatan "Creating research task" (acuan 044850/044920): header + caret,
  * isinya reasoning Lead yang sedang menyusun. Teksnya datang dari stream
  * `panggilLeadStream` (run.pikirMenyusun) — reasoning model itu sendiri, bukan
  * kalimat template.
  *
+ * Acuan menampilkan lipatan ini SEPANJANG run (035349/044920 memotret run
+ * yang sudah berjalan dan lipatannya masih di atas "Created N tasks"), jadi
+ * komponen ini juga dirender setelah fase menyusun: spinner berhenti menjadi
+ * ikon statis, isinya tetap terbaca sebagai kwitansi bagaimana Lead menyusun.
  * Selama belum ada reasoning, header tetap tampil sendiri: pembaca melihat
  * pekerjaan sedang berjalan, tanpa kotak kosong yang mengklaim sedang berpikir.
  */
-function CreatingResearchTask({ runId }: { runId: string }) {
+function CreatingResearchTask({ runId, berjalan = true }: { runId: string; berjalan?: boolean }) {
   const tr = useT();
   const pikir = useExperts((s) => s.runs.find((r) => r.id === runId)?.pikirMenyusun ?? '');
   const [buka, setBuka] = useState(true);
@@ -45,9 +50,13 @@ function CreatingResearchTask({ runId }: { runId: string }) {
         aria-expanded={buka}
         onClick={() => setBuka((v) => !v)}
       >
-        <span className="experts-spin" aria-hidden="true" />
+        {berjalan ? (
+          <span className="experts-spin" aria-hidden="true" />
+        ) : (
+          <AiIkon name="gear" size={12} />
+        )}
         <span>{tr('Creating research task')}</span>
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+        <IkonCaret />
       </button>
       {buka && pikir.trim() && <p className="experts-run-fold-isi">{pikir}</p>}
     </div>
@@ -1825,21 +1834,17 @@ function ChatMessageInner({
                 * adalah bagian dari percakapan, bukan mode khusus satu sisi.
                 */}
               {msg.expertsPlan ? (
-                msg.streaming ? (
-                  /*
-                   * Selagi Lead menyusun rencana — LIPATAN TERBUKA berisi
-                   * paragraf pikiran Lead yang sebenarnya (acuan 044850), bukan
-                   * baris status kosong.
-                   */
-                  <CreatingResearchTask runId={msg.expertsPlan} />
-                ) : (
-                  <>
-                    <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
-                    {/* Kartu task per worker ikut ALUR chat, tepat di bawah
-                        rencananya — bentuk Qoder, bukan ditumpuk di composer. */}
-                    <ExpertsTimeline runId={msg.expertsPlan} />
-                  </>
-                )
+                <>
+                  <CreatingResearchTask runId={msg.expertsPlan} berjalan={!!msg.streaming} />
+                  {msg.streaming ? null : (
+                    <>
+                      <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
+                      {/* Kartu task per worker ikut ALUR chat, tepat di bawah
+                          rencananya — bentuk Qoder, bukan ditumpuk di composer. */}
+                      <ExpertsTimeline runId={msg.expertsPlan} />
+                    </>
+                  )}
+                </>
               ) : isPlan && teksJawaban.trim() ? (
                 <>
                 <div className={`ai-plan${planBuka ? ' is-open' : ''}`} data-testid="ai-plan">

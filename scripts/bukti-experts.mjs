@@ -78,6 +78,10 @@ const info = await cdp.runAsync(`
 
   /* Simpan pilihan sesi user supaya bisa dikembalikan persis di akhir. */
   const zAwal = { activeId: zAi.getState().activeId, activeIds: { ...zAi.getState().activeIds } };
+  /* Strip Task Progress hanya dirender saat mode agent = experts — simpan
+     juga nilai awalnya untuk dikembalikan di akhir. */
+  const zSt = await import(zUrl('/src/lib/store.ts'));
+  const zModeAwal = zSt.useStore.getState().settings.agents?.agentAktif;
 
   const zNow = Date.now();
   const zSid = zAi.getState().newChat();
@@ -161,6 +165,7 @@ const info = await cdp.runAsync(`
     goal: 'Bandingkan Experts Zephyr dengan Qoder',
     status: 'jalan',
     intro: 'Saya akan riset kode notifikasi API key di AI panel, lalu langsung perbaiki.',
+    pikirMenyusun: "I need to dispatch some research since the investigation is quite complex. It seems the user is asking for a report, and I should consider creating a specific task for that. I think using TaskCreate would be a good approach, assigning the research task and then updating progress with TaskUpdate. After dispatching, it'll be important to finalize everything properly. Let's go ahead and create the task!",
     tugas: zTugas, error: null,
     mulai: zNow - 95000, selesai: null,
     steer: ['cpeta'],
@@ -185,8 +190,13 @@ const info = await cdp.runAsync(`
     activeId: zSid,
     activeIds: { ...st.activeIds, '': zSid, agents: zSid },
   }));
+  if (zModeAwal !== 'experts') {
+    zSt.useStore.setState((st) => ({
+      settings: { ...st.settings, agents: { ...st.settings.agents, agentAktif: 'experts' } },
+    }));
+  }
   S.getState().setAiKolomVisible(true);
-  return { ok: true, sid: zSid, pesanId: zPesanId, awal: zAwal };
+  return { ok: true, sid: zSid, pesanId: zPesanId, awal: zAwal, modeAwal: zModeAwal };
 `);
 console.log('INJEKSI', JSON.stringify({ ok: info?.ok, sid: info?.sid }));
 
@@ -236,6 +246,13 @@ if (!info?.ok) {
       activeId: zAwal2.activeId,
       activeIds: zAwal2.activeIds,
     }));
+    const zModeAwal2 = ${JSON.stringify(info.modeAwal)};
+    if (zModeAwal2 !== 'experts') {
+      const zSt2 = await import(zUrl2('/src/lib/store.ts'));
+      zSt2.useStore.setState((st) => ({
+        settings: { ...st.settings, agents: { ...st.settings.agents, agentAktif: zModeAwal2 ?? 'agents' } },
+      }));
+    }
     return { ok: true };
   `);
 
