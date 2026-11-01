@@ -22,6 +22,37 @@ import { bukaPanelAgx } from '../../lib/agxPanel';
 import { useExplorer } from '../../lib/explorerStore';
 import ExpertsPlanCard from './ExpertsPlanCard';
 import ExpertsTimeline from './ExpertsTimeline';
+import { useExperts } from '../../lib/expertsStore';
+
+/**
+ * Lipatan "Creating research task" (acuan 044850): header bergulir + caret,
+ * isinya reasoning Lead yang sedang menyusun. Teksnya datang dari stream
+ * `panggilLeadStream` (run.pikirMenyusun) — reasoning model itu sendiri, bukan
+ * kalimat template.
+ *
+ * Selama belum ada reasoning, header tetap tampil sendiri: pembaca melihat
+ * pekerjaan sedang berjalan, tanpa kotak kosong yang mengklaim sedang berpikir.
+ */
+function CreatingResearchTask({ runId }: { runId: string }) {
+  const tr = useT();
+  const pikir = useExperts((s) => s.runs.find((r) => r.id === runId)?.pikirMenyusun ?? '');
+  const [buka, setBuka] = useState(true);
+  return (
+    <div className="experts-menyusun" data-testid="experts-creating">
+      <button
+        type="button"
+        className={`experts-run-fold${buka ? ' is-buka' : ''}`}
+        aria-expanded={buka}
+        onClick={() => setBuka((v) => !v)}
+      >
+        <span className="experts-spin" aria-hidden="true" />
+        <span>{tr('Creating research task')}</span>
+        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+      </button>
+      {buka && pikir.trim() && <p className="experts-run-fold-isi">{pikir}</p>}
+    </div>
+  );
+}
 
 const SHELL_LANGS = new Set([
   'bash',
@@ -1796,13 +1827,11 @@ function ChatMessageInner({
               {msg.expertsPlan ? (
                 msg.streaming ? (
                   /*
-                   * Selagi Lead menyusun rencana — baris "Creating research
-                   * task" ala acuan (110050), bukan typing dots kosong.
+                   * Selagi Lead menyusun rencana — LIPATAN TERBUKA berisi
+                   * paragraf pikiran Lead yang sebenarnya (acuan 044850), bukan
+                   * baris status kosong.
                    */
-                  <div className="experts-run-fold is-buka is-tunggu" data-testid="experts-creating">
-                    <span className="experts-spin" aria-hidden="true" />
-                    <span>{tr('Creating research task')}</span>
-                  </div>
+                  <CreatingResearchTask runId={msg.expertsPlan} />
                 ) : (
                   <>
                     <ExpertsPlanCard runId={msg.expertsPlan} teks={teksJawaban} />
