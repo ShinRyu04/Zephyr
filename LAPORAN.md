@@ -4,6 +4,27 @@ Cabang: `feat/experts-qoder-ui` (worktree sandbox `D:\Zephyr-lab`).
 Repo utama `D:\Zephyr` **tidak disentuh** (tidak ada commit/merge/push).
 Keputusan akhir tetap milik user — laporan ini menyatakan apa yang berubah dan
 apa yang **masih berbeda**, bukan klaim "sudah sama".
+---
+
+## 0.-1. Babak 4 — 2 Nov (agent bekerja berat + experts menghasilkan + v1.1.16)
+
+Keluhan user: agent "sering bego", "sering berhenti sendiri", "sering macet
+sendiri"; Experts harus bener-bener seperti Qoder; versi naik ke v1.1.16.
+
+| Masalah | Akar | Perbaikan |
+| --- | --- | --- |
+| Berhenti sendiri | auto-lanjut hanya untuk protocol; timeout (watchdog/no-progress/hard-limit memotong SATU langkah) dan provider flaky mematikan run, user harus mengetik "lanjut" | auto-lanjut untuk protocol + timeout + provider (budget tetap 4/run, tidak untuk Stop user; jeda 2 dtk untuk provider/timeout) — ala opencode/Claude Code |
+| Bego di run panjang | model kehilangan arah setelah puluhan langkah | pengingat rencana otomatis tiap 12 langkah bila ada todo belum done (ala system-reminder Claude Code; di ekor riwayat, aman bagi gateway) |
+| Experts "bego / tidak mengerjakan apa-apa" | default allowWrite=false membuat worker hanya-baca (prompt-nya pun bilang READ-ONLY), dan shell butuh approval Auto yang worker tidak bisa minta | delegasi Experts dikecualikan dari gerbang itu (dariTimExperts): tulis berkas + shell normal jalan; subagent manual tetap patuh allowWrite; shell perusak tetap butuh Auto |
+| Panel mati saat antrean dipakai | a.images.length tanpa penjaga | images?.length ?? 0 |
+
+Bukti: scripts/uji-izin-experts.mjs via CDP — 4/4 LULUS (experts tulis ✓,
+subagent manual ditolak ✓, shell normal ✓, shell perusak ditolak ✓).
+tsc 0 error tiap commit.
+
+v1.1.16: package.json, src-tauri/tauri.conf.json, Cargo.toml, Cargo.lock.
+Release notes: D:/Zephyr/Release/1.1.16/Notes/RELEASE_NOTES.md (di luar git,
+mengikuti konvensi Release/<versi>/Notes).
 
 ---
 
