@@ -48,11 +48,11 @@
 
 /*
  * Tab task Experts ("Task N: …" / "Experts Canvas"): underline tab aktif
- * HIJAU, bukan accent umum — tanda visual tab riwayat kerja tim, mengikuti
- * acuan (022702: garis bawah hijau di tab Task 2).
+ * memakai AKSEN Zephyr (biru), bukan --success hijau: hijau bukan identitas
+ * warna Zephyr, dan garis ini dekorasi tab, bukan status selesai.
  */
 .tab.is-experts.is-active::after {
-  background: var(--success);
+  background: var(--accent);
 }
 
 /* ---------------------------------------------------------------- */
@@ -312,7 +312,7 @@ button.experts-run-fold-baris:hover {
   flex: none;
 }
 .experts-run-status.is-selesai {
-  color: var(--success);
+  color: var(--accent);
 }
 .experts-run-status.is-gagal {
   color: var(--warn);
@@ -518,9 +518,9 @@ button.experts-run-fold-baris:hover {
   font-weight: 600;
   /* Teks berwarna di atas latar tint — bukan teks "on-accent" di atas hijau
      penuh: pasangan lama bergantung pada token yang bisa berubah per tema. */
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success) 38%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
   border-radius: 8px;
   min-width: 16px;
   height: 15px;
@@ -557,7 +557,7 @@ button.experts-run-fold-baris:hover {
 }
 .experts-berkas-badge {
   font-size: 9.5px;
-  color: var(--success);
+  color: var(--accent);
   flex: none;
 }
 .experts-berkas-daftar {
@@ -646,7 +646,7 @@ button.experts-run-fold-baris:hover {
   flex: none;
 }
 .experts-tasktab-status.is-selesai {
-  color: var(--success);
+  color: var(--accent);
 }
 .experts-tasktab-status.is-gagal {
   color: var(--warn);
@@ -1018,7 +1018,7 @@ button.experts-run-fold-baris:hover {
   color: var(--text-muted);
 }
 .experts-canvas-node-status.is-selesai {
-  color: var(--success);
+  color: var(--accent);
 }
 .experts-canvas-node-status.is-gagal {
   color: var(--warn);
@@ -1381,9 +1381,9 @@ button.experts-run-fold-baris:hover {
   flex: none;
 }
 .exp-todo-titik.is-done {
-  background: color-mix(in srgb, var(--success) 20%, transparent);
-  border-color: var(--success);
-  color: var(--success);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .exp-todo-titik.is-jalan {
   background: var(--accent);
@@ -1496,7 +1496,7 @@ button.experts-run-fold-baris:hover {
 }
 .experts-berkas-badge {
   font-size: 9.5px;
-  color: var(--success);
+  color: var(--accent);
   flex: none;
 }
 
@@ -2094,7 +2094,7 @@ button.exp-todo-baris:hover {
 .exp-todo-titik.is-done {
   background: transparent;
   border-color: transparent;
-  color: var(--success);
+  color: var(--accent);
 }
 .exp-todo-kosong-bulat {
   width: 9px;
@@ -2248,7 +2248,7 @@ button.exp-todo-baris:hover {
   font-size: 11.5px;
 }
 .experts-langkah-kanan .is-plus {
-  color: var(--success);
+  color: var(--accent);
 }
 .experts-langkah-kanan .is-minus {
   color: var(--warn);
