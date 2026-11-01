@@ -1975,7 +1975,14 @@ function ChatMessageInner({
             * only difference between the panels is the colour, which comes
             * from `--think-accent` in CSS.
             */}
-          {!isUser && msg.streaming && !msg.content && !msg.reasoning && (
+          {/*
+            * `!msg.expertsPlan`: lipatan "Creating research task" SUDAH menjadi
+            * indikator tunggu untuk pesan Experts (acuan 044850 — di Qoder hanya
+            * ada satu baris tunggu, bukan dua). Tanpa penjaga ini keduanya muncul
+            * bertumpuk: "Creating research task" lalu "✻ Booping 7s", dua sinyal
+            * untuk satu keadaan yang sama.
+            */}
+          {!isUser && msg.streaming && !msg.content && !msg.reasoning && !msg.expertsPlan && (
             <div className="ai-think-wrap" data-testid="ai-think-body">
               <ThinkingLine />
               {/*
