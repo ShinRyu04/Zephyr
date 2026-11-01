@@ -3,12 +3,13 @@
 Add-Type -AssemblyName System.Drawing
 
 $root = Split-Path -Parent $PSScriptRoot          # D:\Zephyr-lab
-$ref  = Join-Path $root 'Referensi Qoder Expert'
+$ref  = 'D:/Zephyr/Referensi Qoder Expert'
 $out  = $PSScriptRoot
 
 $pasangan = @(
   @{ nama = 'banding-chat';     kiri = 'Screenshot 2026-10-30 022540.png'; kanan = 'app-chat.png';    tinggi = 420 },
-  @{ nama = 'banding-created';  kiri = 'Screenshot 2026-11-01 044920.png'; kanan = 'app-chat.png';    tinggi = 620 },
+  @{ nama = 'banding-created';  kiri = 'Screenshot 2026-11-01 044850.png'; kanan = 'app-creating.png'; tinggi = 300 },
+  @{ nama = 'banding-created2'; kiri = 'Screenshot 2026-11-01 044920.png'; kanan = 'app-chatfull.png'; tinggi = 620 },
   @{ nama = 'banding-tasktab';  kiri = 'Screenshot 2026-10-30 022709.png'; kanan = 'app-tasktab.png'; tinggi = 900 },
   @{ nama = 'banding-strip';    kiri = 'Screenshot 2026-10-30 110036.png'; kanan = 'app-strip.png';   tinggi = 900 },
   @{ nama = 'banding-queue';    kiri = 'Screenshot 2026-10-30 064955.png'; kanan = 'app-queue.png';   tinggi = 420 }
