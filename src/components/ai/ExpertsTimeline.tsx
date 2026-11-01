@@ -39,6 +39,8 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
   const [buatBuka, setBuatBuka] = useState(true);
   const [cariBuka, setCariBuka] = useState(false);
   const [berkasBuka, setBerkasBuka] = useState(false);
+  /* Lipatan "Worked on it" per tugas — terbuka/tertutup sendiri-sendiri. */
+  const [kerjaBuka, setKerjaBuka] = useState<Record<string, boolean>>({});
   /* Reaksi lokal (kayak Qoder): 1 = suka, -1 = tidak, 0 = netral. */
   const [reaksi, setReaksi] = useState(0);
 
@@ -178,21 +180,24 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
             </span>
           </button>
           {k !== kartu.length - 1 && (
-            <div className="experts-run-kerja" aria-hidden="true">
-              <AiIkon name="gear" size={11} />
-              <span>
-                {tr('Worked on it')}
-                {x.nAksi > 0 && (
-                  <>
-                    {' '}
-                    <span className="experts-run-kerja-n">
-                      {x.nAksi} {tr('actions')}
-                    </span>
-                  </>
-                )}
-              </span>
-            </div>
+            <KerjaFold
+              nAksi={x.nAksi}
+              langkah={x.row?.langkah ?? []}
+              berkas={x.row?.fileDitulis ?? x.t.berkasTulis ?? []}
+              buka={!!kerjaBuka[x.t.id]}
+              onToggle={() => setKerjaBuka((v) => ({ ...v, [x.t.id]: !v[x.t.id] }))}
+            />
           )}
+          {/*
+            * Catatan Lead untuk worker INI muncul persis setelah kartunya —
+            * kronologi, bukan tumpukan di bawah semua kartu. Catatan dibuat
+            * saat worker mencapai akhir, jadi `tugasId`-nya menunjuk kartu ini.
+            */}
+          {(run.catatan ?? [])
+            .filter((c) => c.tugasId === x.t.id)
+            .map((c) => (
+              <FoldCatatan key={c.id} catatan={c} bukaDefault={false} />
+            ))}
         </Bagian>
       ))}
 
@@ -207,9 +212,13 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
         * paragraf pikirannya). Judul aksi + reasoning NYATA dari model Lead —
         * yang terakhir terbuka, yang lama terlipat.
         */}
-      {(run.catatan ?? []).map((c, i, semua) => (
-        <FoldCatatan key={c.id} catatan={c} bukaDefault={i === semua.length - 1} />
-      ))}
+      {/* Catatan run LAMA (tersimpan sebelum `tugasId` ada) tidak punya posisi
+          kartu; dipasang di akhir supaya tetap terbaca, bukan dihilangkan. */}
+      {(run.catatan ?? [])
+        .filter((c) => !c.tugasId)
+        .map((c, i, semua) => (
+          <FoldCatatan key={c.id} catatan={c} bukaDefault={i === semua.length - 1} />
+        ))}
 
       {totalCari > 0 && (
         <>
@@ -313,6 +322,72 @@ function Bagian({ terakhir, children }: { terakhir: boolean; children: ReactNode
     <div className="experts-run-bagian" data-terakhir={terakhir ? '1' : undefined}>
       {children}
     </div>
+  );
+}
+
+/*
+ * "Worked on it" sebagai LIPATAN (acuan 044920: baris redup + caret).
+ *
+ * Isinya hanya yang benar-benar tercatat: jumlah langkah tool dan berkas yang
+ * disentuh worker itu. Tidak ada ringkasan karangan — kalau baris subagentnya
+ * sudah hilang (run lama setelah reload), fold tetap ada tapi isinya kosong
+ * dan itu dinyatakan apa adanya.
+ */
+function KerjaFold({
+  nAksi,
+  langkah,
+  berkas,
+  buka,
+  onToggle,
+}: {
+  nAksi: number;
+  langkah: { kind: string; nama?: string }[];
+  berkas: string[];
+  buka: boolean;
+  onToggle: () => void;
+}) {
+  const tr = useT();
+  const namaBerkas = (p: string) => p.split(/[\\/]/).pop() || p;
+  return (
+    <>
+      <button
+        type="button"
+        className={`experts-run-kerja${buka ? ' is-buka' : ''}`}
+        aria-expanded={buka}
+        onClick={onToggle}
+        data-testid="experts-worked-on"
+      >
+        <AiIkon name="gear" size={11} />
+        <span>
+          {tr('Worked on it')}
+          {nAksi > 0 && (
+            <>
+              {' '}
+              <span className="experts-run-kerja-n">
+                {nAksi} {tr('actions')}
+              </span>
+            </>
+          )}
+        </span>
+        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+      </button>
+      {buka && (
+        <div className="experts-run-kerja-isi" data-testid="experts-worked-on-isi">
+          {langkah.length > 0 ? (
+            <span className="experts-run-kerja-kepala">
+              {langkah.length} {tr('tool steps')}
+            </span>
+          ) : (
+            <span className="experts-run-kerja-kepala">{tr('No tool steps recorded')}</span>
+          )}
+          {berkas.map((p) => (
+            <span key={p} className="experts-run-kerja-baris" title={p}>
+              {namaBerkas(p)}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

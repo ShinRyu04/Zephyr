@@ -309,6 +309,8 @@ export function simpanCfgAhli(id: AhliId, sebagian: Partial<AhliCfg>): void {
   }
 }
 
+import { panggilLeadStream } from './expertsStream';
+
 /* ------------------------------------------------------------------ */
 /* Bentuk run                                                          */
 /* ------------------------------------------------------------------ */
@@ -412,6 +414,16 @@ export interface EkspertRun {
    * ulang ke model Lead dengan prompt kecil; dibatasi MAKS_CATATAN per run.
    */
   catatan?: CatatanLead[];
+
+  /**
+   * Reasoning Lead SELAGI ia menyusun rencana.
+   *
+   * Hanya hidup selama fase 'menyusun' dan hanya dipakai lipatan "Creating
+   * research task" (acuan 044850: lipatan terbuka berisi paragraf pikiran Lead
+   * yang sebenarnya). Sengaja TIDAK disimpan ke localStorage — ini potongan
+   * hidup, bukan bagian riwayat run.
+   */
+  pikirMenyusun?: string;
 }
 
 /** Satu catatan aksi Lead di tengah run. */
@@ -422,6 +434,15 @@ export interface CatatanLead {
   /** Paragraf reasoning Lead — isi lipatannya. */
   pikir: string;
   at: number;
+  /**
+   * Id tugas yang barusan selesai — penentu POSISI lipatan di chat.
+   *
+   * Catatan dibuat tepat saat satu worker mencapai akhir, jadi ia harus muncul
+   * persis setelah kartu worker itu, bukan ditumpuk di bawah semua kartu.
+   * Opsional karena catatan dari run tersimpan versi lama tidak memilikinya
+   * (dipasang di akhir daftar sebagai cadangan).
+   */
+  tugasId?: string;
 }
 
 const RUN_JALAN: RunStatus[] = ['menyusun', 'rencana', 'jalan'];
@@ -1428,6 +1449,7 @@ async function catatLeadSatu(runId: string, baris: SubAgent): Promise<void> {
         : 'Assessing progress',
       pikir,
       at: Date.now(),
+      tugasId: tugasBaris?.id,
     };
     useExperts.setState((s) => ({
       runs: s.runs.map((r) =>
@@ -1597,6 +1619,13 @@ function jawabLangsung(
   simpanRuns(useExperts.getState().runs);
 }
 
+/** Tulis/bersihkan reasoning hidup fase 'menyusun' untuk satu run. */
+function setPikirMenyusun(runId: string, teks: string): void {
+  useExperts.setState((s) => ({
+    runs: s.runs.map((r) => (r.id === runId ? { ...r, pikirMenyusun: teks } : r)),
+  }));
+}
+
 async function prosesLead(
   runId: string,
   o: { goal: string; riwayat?: string },
@@ -1648,7 +1677,15 @@ async function prosesLead(
      * untuk sekadar menjelaskan kemampuannya — lalu scheduler menjalankannya.
      */
     const tanya = pesanTanya(o.goal);
-    const res = await cmd.aiToolChat({
+    /*
+     * DI-STREAM, bukan sekali jalan: lipatan "Creating research task" harus
+     * berisi paragraf pikiran Lead SELAGI ia menyusun (acuan 044850). Reasoning
+     * hanya ada di jalur stream, jadi rencana diambil lewat `panggilLeadStream`.
+     * `pikirMenyusun` di-throttle 120 ms supaya satu delta tidak memicu satu
+     * render seluruh chat.
+     */
+    let tulisTerakhir = 0;
+    const stream = await panggilLeadStream({
       provider,
       model,
       baseUrl: (leadProvCfg as { baseUrl?: string }).baseUrl || undefined,
@@ -1664,11 +1701,18 @@ async function prosesLead(
             ? `CONVERSATION SO FAR:\n${o.riwayat}\n\nMESSAGE: ${o.goal}`
             : o.goal,
         },
-      ] as never,
-      tools: [],
+      ],
       maxTokens: 4096,
+      onPikir: (teks) => {
+        const kini = Date.now();
+        if (kini - tulisTerakhir < 120) return;
+        tulisTerakhir = kini;
+        setPikirMenyusun(runId, teks);
+      },
+      batal: () => useExperts.getState().runs.find((r) => r.id === runId)?.status === 'batal',
     });
-    const keluaran = res.content ?? '';
+    setPikirMenyusun(runId, '');
+    const keluaran = stream.isi;
 
     /*
      * B1 (jalur 'menyusun'): Stop saat Lead masih berpikir dulu tidak punya
