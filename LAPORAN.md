@@ -7,6 +7,43 @@ apa yang **masih berbeda**, bukan klaim "sudah sama".
 
 ---
 
+## 0.0. Babak 3 — 2 Nov (to-dos & antrean, permintaan langsung user)
+
+Keluhan user: (a) to-dos "sering ketimbun sendiri", apalagi saat kartu
+dikecilkan; (b) antrean: pesan yang dikirim "malah chat sebelumnya yang
+lanjut" dan antrean "kayak gada gunanya sama sekali".
+
+Akar & perbaikan (semua terbukti di app hidup, bukan tebakan):
+
+| Masalah | Akar | Perbaikan |
+| --- | --- | --- |
+| To-dos ketimbun | `setAgentTodos` sengaja "hanya bisa bertambah": rencana baru menumpuk di atas rencana lama, entri berteks sama jadi dua baris (simulasi: rencana 3 item jadi 8, entri dobel jadi 5) | Dedup per teks + deteksi rencana PENGGANTI (semua entri bawa teks baru → daftar lama diganti). Update parsial tetap aman — yang tidak disebut dipertahankan |
+| To-dos vs Queue "di 1 slot" | AiPanel ternary: antrean menang, to-dos hilang | Keduanya dirender berdampingan seperti Qoder (064955); masing-masing bisa dikecilkan tanpa menghilangkan tetangga |
+| "Chat sebelumnya yang lanjut" | Jalur antrean-live menyuntikkan pesan ke TENGAH run yang sedang jalan (di awal tiap langkah) | Jalur dihapus: antrean MENAHAN pesan sampai giliran selesai; drain akhir giliran mengirim sebagai giliran BARU. Run dibatalkan/gagal tetap tidak men-drain |
+| Panel mati saat antrean dipakai | `KartuAntrean.tsx` membaca `a.images.length` tanpa penjaga — baris antrean tanpa properti images menjatuhkan seluruh panel ke error boundary | `images?.length ?? 0`; baris tanpa lampiran = tanpa chip gambar |
+
+Commit: `6b28c34` (antrean menahan), `e205e38` (penjaga to-dos + slot
+berdampingan), `9370ed0` (penjaga images). `npx tsc --noEmit` 0 error.
+
+Bukti:
+- `bukti/app-todos-queue.png` — To-dos 2/6 + "Message queued 2" berdampingan.
+- `bukti/app-todos-kecil.png` — To-dos dikecilkan, antrean tetap tampil.
+- `scripts/uji-todos-cari.mjs` — simulasi S1–S4 via CDP; setelah perbaikan:
+  rencana baru = daftar bersih (3), entri dobel = 1 baris.
+- `scripts/bukti-todos-queue.mjs` — potret dengan sesi demo sendiri
+  (keadaan user dikembalikan apa adanya).
+
+Verifikasi tambahan:
+- `verify-antrean-komposer.mjs`: **5/7** lulus. Q1 (mengantre tidak membatalkan
+  run), Q3 (draft dikosongkan), Q4 (lane chat sama), Q5 (lane per permukaan),
+  Q7 (drain ganda tidak dobel) — jalur yang disentuh perubahan ini lulus.
+  **Q2 & Q6 GAGAL SEBELUM perubahan ini**: harness menunjuk
+  `[data-testid="ai-review"]`, panel review yang sudah TIDAK ADA di produk
+  (grep `src/` = nol). Harness kadaluarsa, bukan regresi — tidak diperbaiki
+  diam-diam, menunggu keputusan.
+
+---
+
 ## 0.1. Babak 2 — 2 Nov 2026 (sesi ini)
 
 Lanjutan atas 11 poin yang babak pertama selesaikan. Babak ini menutup sisa

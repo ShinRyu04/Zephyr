@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: 7985eb1af26dc86c
+ * Versi app: 1.1.15 · hash sumber: e07b0e091b958540
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '7985eb1af26dc86c' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'e07b0e091b958540' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -537,7 +537,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AgentMapPanel.tsx","506 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiHost.tsx","142 baris · tanpa ekspor"],
   ["kode","src/components/ai/AiIkon.tsx","885 baris · Icon set for the AI panel header. · ekspor: NamaAiIkon"],
-  ["kode","src/components/ai/AiPanel.tsx","2802 baris · tanpa ekspor"],
+  ["kode","src/components/ai/AiPanel.tsx","2812 baris · tanpa ekspor"],
   ["kode","src/components/ai/AskUserCard.tsx","328 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
@@ -568,7 +568,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/FileIkon.tsx","47 baris · tanpa ekspor"],
   ["kode","src/components/ai/IkonAgen.tsx","55 baris · One renderer for every agent mark. · ekspor: IkonAgen, IkonAgenId"],
   ["kode","src/components/ai/JobStrips.tsx","167 baris · The two job strips that sit between the transcript and the composer: the · ekspor: LoopStrip, GoalStrip"],
-  ["kode","src/components/ai/KartuAntrean.tsx","248 baris · tanpa ekspor"],
+  ["kode","src/components/ai/KartuAntrean.tsx","255 baris · tanpa ekspor"],
   ["kode","src/components/ai/KartuAntreanExperts.tsx","105 baris · tanpa ekspor"],
   ["kode","src/components/ai/KartuProgresExperts.tsx","245 baris · tanpa ekspor"],
   ["kode","src/components/ai/KartuTodos.tsx","83 baris · tanpa ekspor"],
@@ -753,7 +753,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","41 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","12610 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
+  ["kode","src/lib/aiStore.ts","12499 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
   ["kode","src/lib/aiTabsStore.ts","157 baris · ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
