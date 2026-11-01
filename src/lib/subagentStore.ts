@@ -12,7 +12,7 @@ import type { SesiLatar } from './types';
 import { useSettingsUi } from './settingsStore';
 import { TOOL_DISK_TULIS } from './toolGate';
 import { TOOL_BY_NAME } from './zephyrTools/catalog';
-import { pathTersentuh } from './zephyrTools/perubahanTool';
+import { ambilStatTerkini, pathTersentuh } from './zephyrTools/perubahanTool';
 
 export const MAX_PARALLEL = 4;
 
@@ -286,6 +286,14 @@ export interface SubStep {
    * jauh berbeda bagi pembaca.
    */
   ditolakTulis?: boolean;
+
+  /**
+   * Angka diff tulisan berkas ini (+n/−n), dihitung perubahanTool dari isi
+   * sebelum vs sesudah. Kosong = tidak ada perbandingan yang sah, dan kartu
+   * berkas memang tidak menampilkan angka.
+   */
+  tambah?: number;
+  hapus?: number;
 
   teks?: string;
   at: number;
@@ -1365,6 +1373,11 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             }
           }
 
+          /* Angka diff dibaca SETELAH tool selesai: perubahanTool mengisinya di
+             blok finally-nya, jadi statistik ini milik tulisan yang barusan. */
+          const statTulis =
+            ctxT.targets.map((p) => ambilStatTerkini(p)).find((s) => s !== null) ?? null;
+
           catat((a) => ({
             ...a,
             nTool: a.nTool + 1,
@@ -1378,6 +1391,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
                 hasil: hasil.slice(0, 2000),
                 ok,
                 ditolakTulis: ctxT.tulisDitolak,
+                ...(statTulis ? { tambah: statTulis.tambah, hapus: statTulis.hapus } : {}),
                 at: Date.now(),
               },
             ],
@@ -1643,6 +1657,10 @@ async function jalankanSatu(
           }
         }
 
+        /* Sama dengan loop lanjutan: statistik milik tulisan yang barusan. */
+        const statTulis =
+          ctxT.targets.map((p) => ambilStatTerkini(p)).find((s) => s !== null) ?? null;
+
         tambahLangkah({
           kind: 'tool',
           nama: ctxT.namaTampil,
@@ -1650,6 +1668,7 @@ async function jalankanSatu(
           hasil: hasil.slice(0, 2000),
           ok,
           ditolakTulis: ctxT.tulisDitolak,
+          ...(statTulis ? { tambah: statTulis.tambah, hapus: statTulis.hapus } : {}),
           at: Date.now(),
         });
         ubah((a) => ({
