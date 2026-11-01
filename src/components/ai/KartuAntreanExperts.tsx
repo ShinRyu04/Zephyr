@@ -19,6 +19,8 @@ export default function KartuAntreanExperts({ sessionId }: { sessionId: string |
   );
   const hapusSteer = useExperts((s) => s.hapusSteer);
   const [buka, setBuka] = useState(true);
+  /* Menu "…" per baris (acuan 064955). Satu yang terbuka dalam satu waktu. */
+  const [menu, setMenu] = useState<number | null>(null);
 
   if (!sessionId || !run || !run.steer?.length) return null;
 
@@ -57,6 +59,41 @@ export default function KartuAntreanExperts({ sessionId }: { sessionId: string |
               >
                 <AiIkon name="trash" size={12} />
               </button>
+              {/*
+                * Tombol "…" di ujung baris (acuan 064955). Isinya aksi yang
+                * sama dengan ikon yang sudah ada, ditambah hapus — jadi tidak
+                * ada janji yang belum dipegang tombol lain.
+                */}
+              <span className="exp-steer-menu">
+                <button
+                  type="button"
+                  className="exp-steer-more"
+                  title={tr('More actions')}
+                  aria-label={tr('More actions')}
+                  aria-expanded={menu === i}
+                  data-testid={`experts-antrean-more-${i + 1}`}
+                  onClick={() => setMenu(menu === i ? null : i)}
+                >
+                  <AiIkon name="more" size={13} />
+                </button>
+                {menu === i && (
+                  <span className="exp-steer-menu-daftar" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="exp-steer-menu-item is-bahaya"
+                      data-testid={`experts-antrean-menu-hapus-${i + 1}`}
+                      onClick={() => {
+                        hapusSteer(run.id, i);
+                        setMenu(null);
+                      }}
+                    >
+                      <AiIkon name="trash" size={12} />
+                      {tr('Remove')}
+                    </button>
+                  </span>
+                )}
+              </span>
             </div>
           ))}
         </div>
