@@ -55,7 +55,7 @@ import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
 import ModelSelector from './ModelSelector';
 import BrowserContextChip from './BrowserContextChip';
-import { ModeMenu, PermissionMenu, TierMenu } from './ModeMenu';
+import { ModeMenu, PermissionMenu } from './ModeMenu';
 import { clipboardReadImage } from '../../lib/clipboard';
 import { fileDialogOpen, folderDialogOpen, fsRead, scanDir, simpanGambarTemp } from '../../lib/commands';
 import { useT, useTf } from '../../lib/i18n';
@@ -2630,13 +2630,6 @@ const bukaModels = () => bukaPanel('models');
           })()}
 
           <span className="ai-toolbar-spacer" aria-hidden="true" />
-
-          {/* Tier model (D1): Auto/Efficient/Fast/Ultimate — dipetakan ke
-              model konkret per provider sebelum request keluar. Duduk di
-              sebelah ModelSelector karena keduanya menjawab pertanyaan yang
-              sama ("model mana yang keluar"), tier di depan sebagai kelas,
-              model spesifik di belakangnya. */}
-          <TierMenu />
 
           {/* The model sits directly beside Send, at the trailing edge. */}
           <ModelSelector />
