@@ -315,7 +315,9 @@ button.experts-run-fold-baris:hover {
   color: var(--accent);
 }
 .experts-run-status.is-gagal {
-  color: var(--warn);
+  /* Acuan 035406: "Failed"/"Cancelled" di kartu chat abu terang menyatu
+     dengan teks — bukan kuning/merah menyala. */
+  color: var(--text-muted);
 }
 .experts-run-status.is-jalan {
   color: var(--accent);
@@ -505,10 +507,10 @@ button.experts-run-fold-baris:hover {
 
 .experts-progress-caret {
   color: var(--text-muted);
-  font-size: 9px;
-  transition: transform 0.15s ease;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   flex: none;
+  transition: transform 0.15s ease;
 }
 .experts-berkas:not(.is-buka) .experts-progress-caret {
   transform: rotate(-90deg);
@@ -646,7 +648,9 @@ button.experts-run-fold-baris:hover {
   flex: none;
 }
 .experts-tasktab-status.is-selesai {
-  color: var(--accent);
+  /* "✓ Completed" header tab = hijau (acuan 022709/022721) — satu-satunya
+     tempat berwarna di tab, bersama ikon tipe berkas. */
+  color: var(--success);
 }
 .experts-tasktab-status.is-gagal {
   color: var(--warn);
@@ -1381,9 +1385,9 @@ button.experts-run-fold-baris:hover {
   flex: none;
 }
 .exp-todo-titik.is-done {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  border-color: var(--success);
+  color: var(--success);
 }
 .exp-todo-titik.is-jalan {
   background: var(--accent);
@@ -2271,6 +2275,17 @@ button.exp-todo-baris:hover {
   height: 100%;
   display: block;
 }
+/* Baris langkah (acuan 022709/022721): target abu menyatu setelah label
+   putih; hitungan "N results" INLINE setelah target — abu redup, bukan
+   terang di ujung kanan baris. */
+.experts-langkah-target {
+  color: var(--text-muted);
+}
+.experts-langkah-count {
+  margin-left: 8px;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
 .experts-langkah-kanan .is-plus {
   color: var(--accent);
 }
@@ -2378,7 +2393,7 @@ button.exp-todo-baris:hover {
   border: 0;
   padding: 0;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 400;
 }
 /* Laporan tab Task: isi polos seperti acuan — tanpa bingkai/label. */
 .experts-tasktab-laporan.is-polos {
