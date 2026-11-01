@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useExperts } from '../../lib/expertsStore';
 import { useSubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
-import { bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, IkonCentang } from './expertsBuka';
+import { bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, IkonCaret, IkonCentang } from './expertsBuka';
 
 /*
  * Task Progress Experts — strip status tim DI ATAS COMPOSER, bentuk acuan
@@ -121,7 +121,7 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
           aria-expanded={buka}
           onClick={() => setBuka((v) => !v)}
         >
-          <span className="experts-progress-caret" aria-hidden="true">▾</span>
+          <IkonCaret />
           <b>{tr('Task Progress')}</b>
           <span className="experts-progress-badge" aria-hidden="true">
             {selesai}/{run.tugas.length} {tr('Done')}
@@ -219,7 +219,7 @@ export default function KartuProgresExperts({ sessionId }: { sessionId: string |
                 aria-expanded={berkasBuka}
                 onClick={() => setBerkasBuka((v) => !v)}
               >
-                <span className="experts-progress-caret" aria-hidden="true">▾</span>
+                <IkonCaret />
                 <b>
                   {berkasTulis.length} {tr('Changed Files')}
                 </b>

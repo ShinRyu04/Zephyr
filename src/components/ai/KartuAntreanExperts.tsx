@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useExperts } from '../../lib/expertsStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
+import { IkonCaret } from './expertsBuka';
 
 /*
  * "Message queued N" versi EXPERTS (acuan 064955): daftar arahan yang dikirim
@@ -32,7 +33,7 @@ export default function KartuAntreanExperts({ sessionId }: { sessionId: string |
         aria-expanded={buka}
         onClick={() => setBuka((v) => !v)}
       >
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+        <IkonCaret />
         <b>
           {tr('Message queued')} {run.steer.length}
         </b>

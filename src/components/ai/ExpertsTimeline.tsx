@@ -4,7 +4,7 @@ import { useSubAgent, type SubAgent } from '../../lib/subagentStore';
 import { useT } from '../../lib/i18n';
 import AiIkon from './AiIkon';
 import { clipboardWrite } from '../../lib/clipboard';
-import { IkonAhli, bukaTabTugas, statusTugas, jenisLangkah } from './expertsBuka';
+import { IkonAhli, IkonCaret, bukaTabTugas, statusTugas, jenisLangkah } from './expertsBuka';
 import type { TugasAhli } from '../../lib/expertsStore';
 
 /*
@@ -89,6 +89,14 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
     run.status === 'selesai' || run.status === 'gagal' || run.status === 'batal' ? berkasTulis : [];
 
   /*
+   * Catatan Lead TERAKHIR secara kronologis terbuka (acuan 035349/035406: fold
+   * "Updating task approach" tampil terbuka dengan paragraf pikirannya, yang
+   * sebelumnya terlipat) — posisinya di kartu mana pun, mengikuti kronologi.
+   */
+  const catatanRun = run.catatan ?? [];
+  const idCatatanTerakhir = catatanRun.length > 0 ? catatanRun[catatanRun.length - 1].id : null;
+
+  /*
    * Narasi berjalan ala acuan (gambar 2 Qoder): Lead "memberi tahu" apa yang
    * sedang dikerjakan worker — kalimat polos di antara kartu. Dibangun dari
    * langkah TERAKHIR baris worker, bukan panggilan AI tambahan; fold pikiran
@@ -132,7 +140,7 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
         <span>
           {tr('Created')} <b>{run.tugas.length}</b> {tr('tasks')}
         </span>
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+        <IkonCaret />
       </button>
       {buatBuka && (
         <div className="experts-run-fold-daftar">
@@ -196,7 +204,11 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
           {(run.catatan ?? [])
             .filter((c) => c.tugasId === x.t.id)
             .map((c) => (
-              <FoldCatatan key={c.id} catatan={c} bukaDefault={false} />
+              <FoldCatatan
+                key={c.id}
+                catatan={c}
+                bukaDefault={c.id === idCatatanTerakhir}
+              />
             ))}
         </Bagian>
       ))}
@@ -216,8 +228,12 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
           kartu; dipasang di akhir supaya tetap terbaca, bukan dihilangkan. */}
       {(run.catatan ?? [])
         .filter((c) => !c.tugasId)
-        .map((c, i, semua) => (
-          <FoldCatatan key={c.id} catatan={c} bukaDefault={i === semua.length - 1} />
+        .map((c) => (
+          <FoldCatatan
+            key={c.id}
+            catatan={c}
+            bukaDefault={c.id === idCatatanTerakhir}
+          />
         ))}
 
       {totalCari > 0 && (
@@ -232,7 +248,7 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
             <span>
               {tr('Explored')} <b>{totalCari}</b> {tr('searches')}
             </span>
-            {kueriCari.length > 0 && <span className="experts-progress-caret" aria-hidden="true">▾</span>}
+            {kueriCari.length > 0 && <IkonCaret />}
           </button>
           {cariBuka && kueriCari.length > 0 && (
             <div className="experts-run-fold-daftar">
@@ -263,7 +279,7 @@ export default function ExpertsTimeline({ runId }: { runId: string }) {
             <span>
               <b>{berkasTampil.length}</b> {tr('Changed Files')}
             </span>
-            <span className="experts-progress-caret" aria-hidden="true">▾</span>
+            <IkonCaret />
           </button>
           {berkasBuka && (
             <div className="experts-run-fold-daftar">
@@ -369,7 +385,7 @@ function KerjaFold({
             </>
           )}
         </span>
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+        <IkonCaret />
       </button>
       {buka && (
         <div className="experts-run-kerja-isi" data-testid="experts-worked-on-isi">
@@ -408,7 +424,7 @@ function FoldCatatan({ catatan, bukaDefault }: { catatan: CatatanLead; bukaDefau
       >
         <AiIkon name="refresh" size={12} />
         <span>{catatan.judul}</span>
-        <span className="experts-progress-caret" aria-hidden="true">▾</span>
+        <IkonCaret />
       </button>
       {buka && catatan.pikir && (
         <p className="experts-run-catatan-pikir">{catatan.pikir}</p>
