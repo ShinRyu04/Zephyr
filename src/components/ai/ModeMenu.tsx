@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAi, type ReasoningEffort } from '../../lib/aiStore';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useT } from '../../lib/i18n';
-import type { ApprovalMode, ModelTier } from '../../lib/types';
+import type { ApprovalMode } from '../../lib/types';
 import { usePersona } from '../../lib/personaStore';
 import { useStore } from '../../lib/store';
 import { useAgentCustom } from '../../lib/agentCustom';
@@ -81,18 +81,7 @@ const EFFORT: { id: string; label: string; hint: string }[] = [
   { id: 'ultra', label: 'Ultra', hint: 'Maximum - slowest' },
 ];
 
-/*
- * Tier model (D1, parity Qoder). Bukan daftar model: tiap tier dipetakan ke
- * id model konkret milik provider aktif oleh `modelUntukTier` (modelCatalog)
- * sebelum request keluar — jadi daftar di sini sengaja tetap empat kelas
- * abstrak. '' = Auto = model pilihan user yang menang.
- */
-const TIER: { id: string; label: string; hint: string }[] = [
-  { id: '', label: 'Auto', hint: 'Model you picked stays in charge' },
-  { id: 'efficient', label: 'Efficient', hint: 'Cheapest capable model' },
-  { id: 'fast', label: 'Fast', hint: 'Quicker turns, lighter work' },
-  { id: 'ultimate', label: 'Ultimate', hint: 'The best this provider has' },
-];
+
 
 /** Closes the menu on an outside click or Escape. */
 function useTutupOtomatis(ref: React.RefObject<HTMLElement | null>, tutup: () => void) {
@@ -612,79 +601,3 @@ export function ReasoningMenu() {
   );
 }
 
-/* ── Model tier (D1) ──────────────────────────────────────────────────── */
-
-/*
- * Pola persis ReasoningMenu: satu pemicu, satu popover yang membuka KE ATAS
- * (composer menempel di dasar panel — dropdown ke bawah terpotong), satu
- * baris per pilihan. Yang berbeda cuma store-nya dan artinya: ini bukan
- * seberapa keras model berpikir, tapi MODEL MANA yang keluar — tiap tier
- * dipetakan ke id model konkret per provider oleh `modelUntukTier`
- * (modelCatalog) sebelum request dibangun, bukan di Rust.
- */
-export function TierMenu() {
-  const tr = useT();
-  const [buka, setBuka] = useState(false);
-  const ref = useRef<HTMLSpanElement | null>(null);
-  useTutupOtomatis(ref, () => setBuka(false));
-
-  const tier = useAi((s) => s.modelTier);
-  const setTier = useAi((s) => s.setModelTier);
-  const tierAktif = TIER.find((t) => t.id === (tier ?? '')) ?? TIER[0];
-
-  return (
-    <span className="izin-wrap" ref={ref}>
-      <button
-        className="mode-btn"
-        data-testid="ai-tier-menu"
-        data-tier={tier ?? ''}
-        aria-expanded={buka}
-        aria-haspopup="menu"
-        title={`${tr('Model tier')}: ${tr(tierAktif.label)} — ${tr(tierAktif.hint)}`}
-        onClick={() => setBuka((v) => !v)}
-      >
-        {/* Dua chevron naik: kelas kemampuan, bukan nama model. */}
-        <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-          <path
-            d="M4.5 9.2 8 5.7l3.5 3.5M4.5 13 8 9.5l3.5 3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        {tr(tierAktif.label)}
-        <span className="pick-caret">▾</span>
-      </button>
-
-      {buka && (
-        <div className="mode-pop is-naik" data-testid="ai-tier-pop" role="menu">
-          <div className="pick-seksi">{tr('Model tier')}</div>
-          {TIER.map((t) => (
-            <button
-              key={t.id || 'auto'}
-              type="button"
-              role="menuitemradio"
-              aria-checked={t.id === (tier ?? '')}
-              className={`mode-item${t.id === (tier ?? '') ? ' is-on' : ''}`}
-              data-testid={`ai-tier-${t.id || 'auto'}`}
-              onClick={() => {
-                // Store memodelkan "tidak dipilih" sebagai null; '' hanya id
-                // tampilan untuk opsi Auto — pola yang sama dengan effort.
-                setTier(t.id === '' ? null : (t.id as ModelTier));
-                setBuka(false);
-              }}
-            >
-              <span className="mode-item-teks">
-                <b>{tr(t.label)}</b>
-                <i>{tr(t.hint)}</i>
-              </span>
-              {t.id === (tier ?? '') && <span className="pick-check">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </span>
-  );
-}
