@@ -218,6 +218,26 @@ if (!info?.ok) {
 
   const chat = await potret('app-chat', `await wait(200);`, '.ai-side-col [data-testid="experts-timeline"]');
 
+  /* Lipatan "Creating research task" duduk DI ATAS timeline (di luar kotak
+     elemennya) — dipotret sendiri (acuan 044850/044920). */
+  await potret('app-creating', `await wait(200);`, '.ai-side-col [data-testid="experts-creating"]', 6);
+
+  /* Pesan Lead UTUH (lipatan Creating + timeline) — pembanding 044920. */
+  const kotakPenuh = await cdp.runAsync(`
+    await wait(300);
+    const semua = document.querySelectorAll('.ai-side-col .ai-msg.is-assistant');
+    const el = semua[semua.length - 1];
+    if (!el) return null;
+    el.scrollIntoView({ block: 'nearest' });
+    await wait(250);
+    const b = el.getBoundingClientRect();
+    return { x: b.x - 8, y: Math.max(0, b.y - 8), width: Math.min(innerWidth - b.x, b.width + 16), height: Math.min(innerHeight - b.y, b.height + 16) };
+  `);
+  if (kotakPenuh) {
+    simpan('app-chatfull', await cdp.screenshot({ x: kotakPenuh.x, y: kotakPenuh.y, width: kotakPenuh.width, height: kotakPenuh.height }));
+    console.log('SIMPAN bukti/app-chatfull.png');
+  }
+
   /* ---------------- 3. Tab Task N ----------------------------------- */
   await potret(
     'app-tasktab',
