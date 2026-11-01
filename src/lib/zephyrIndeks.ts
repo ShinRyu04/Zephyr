@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7544 entri
- * (bridge=1, dokumen=104, ekstensi=21, kode=552, label=3233, layar=3015, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7549 entri
+ * (bridge=1, dokumen=104, ekstensi=21, kode=553, label=3233, layar=3019, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.15 · hash sumber: 0c844ce6da7bd35f
+ * Versi app: 1.1.15 · hash sumber: b108ff25bfa168bf
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: '0c844ce6da7bd35f' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.15', hashSumber: 'b108ff25bfa168bf' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -541,7 +541,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/AskUserCard.tsx","328 baris · tanpa ekspor"],
   ["kode","src/components/ai/BrowserContextChip.tsx","88 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatHeadActions.tsx","213 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ChatMessage.tsx","1985 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ChatMessage.tsx","2014 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatSettingsPage.tsx","1447 baris · tanpa ekspor"],
   ["kode","src/components/ai/ChatStamp.tsx","139 baris · ekspor: jamSekarang, labelTanggal, DayDivider, MsgTime"],
   ["kode","src/components/ai/ClearChatsDialog.tsx","89 baris · tanpa ekspor"],
@@ -563,14 +563,14 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/EditorKunci.tsx","102 baris · ekspor: EditorKunci"],
   ["kode","src/components/ai/ExpertsCanvas.tsx","424 baris · tanpa ekspor"],
   ["kode","src/components/ai/ExpertsPlanCard.tsx","53 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsTaskTab.tsx","221 baris · tanpa ekspor"],
-  ["kode","src/components/ai/ExpertsTimeline.tsx","419 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsTaskTab.tsx","239 baris · tanpa ekspor"],
+  ["kode","src/components/ai/ExpertsTimeline.tsx","494 baris · tanpa ekspor"],
   ["kode","src/components/ai/FileIkon.tsx","47 baris · tanpa ekspor"],
   ["kode","src/components/ai/IkonAgen.tsx","55 baris · One renderer for every agent mark. · ekspor: IkonAgen, IkonAgenId"],
   ["kode","src/components/ai/JobStrips.tsx","167 baris · The two job strips that sit between the transcript and the composer: the · ekspor: LoopStrip, GoalStrip"],
   ["kode","src/components/ai/KartuAntrean.tsx","248 baris · tanpa ekspor"],
-  ["kode","src/components/ai/KartuAntreanExperts.tsx","67 baris · tanpa ekspor"],
-  ["kode","src/components/ai/KartuProgresExperts.tsx","233 baris · tanpa ekspor"],
+  ["kode","src/components/ai/KartuAntreanExperts.tsx","104 baris · tanpa ekspor"],
+  ["kode","src/components/ai/KartuProgresExperts.tsx","242 baris · tanpa ekspor"],
   ["kode","src/components/ai/KartuTodos.tsx","83 baris · tanpa ekspor"],
   ["kode","src/components/ai/Lightbox.tsx","91 baris · tanpa ekspor"],
   ["kode","src/components/ai/ModeMenu.tsx","691 baris · ekspor: ModeMenu, PermissionMenu, ReasoningMenu, TierMenu"],
@@ -592,7 +592,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/ai/ToolGatePanel.tsx","357 baris · tanpa ekspor"],
   ["kode","src/components/ai/UpdateBtn.tsx","196 baris · tanpa ekspor"],
   ["kode","src/components/ai/claudeCodeUi.tsx","831 baris · ekspor: toolGlyph, toolKind, ikonSasaran, IkonBerkas, imageOutput, unifiedFromHalves, looksLikeUnified, halvesFromUnified, DIFF_PEEK, pairForSplit, EditDiff, diffStat, ToolRowProps, ToolRow"],
-  ["kode","src/components/ai/expertsBuka.tsx","207 baris · Util UI bersama untuk Experts Mode: buka tab tugas + label status. · ekspor: bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, JenisLangkah, jenisLangkah, labelLangkah, IkonLangkah, durasiLangkah, jumlahHasil"],
+  ["kode","src/components/ai/expertsBuka.tsx","253 baris · Util UI bersama untuk Experts Mode: buka tab tugas + label status. · ekspor: bukaTabTugas, bukaCanvas, statusTugas, IkonAhli, JenisLangkah, jenisLangkah, labelLangkah, IkonLangkah, rentangBaca, IkonCentang, durasiLangkah, jumlahHasil"],
   ["kode","src/components/api/ApiClientView.tsx","335 baris · tanpa ekspor"],
   ["kode","src/components/debug/BreakpointOptionsDialog.tsx","149 baris · tanpa ekspor"],
   ["kode","src/components/debug/DebugToolbar.tsx","71 baris · tanpa ekspor"],
@@ -801,7 +801,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/editorRegistry.ts","60 baris · ekspor: setActiveView, getActiveView, activeLine, activeSelection, registerFlush, unregisterFlush, flushTab, flushAll, revealPosition"],
   ["kode","src/lib/emmet.ts","331 baris · Emmet (HTML/CSS) — ekspansi singkatan, tanpa paket eksternal. · ekspor: HasilEmmet, expandHtml, expandCss, expandEmmet"],
   ["kode","src/lib/events.ts","339 baris · ekspor: EV, CliEvent, CliChatChunk, onCliChatChunk, onLspEvent, onRamUsage, onWorkspaceOpened, onOpenFileInEditor, onSettingsChanged, FsChange, onFsChanged, onPtyOutput, onPtyExit, onAiChunk, onGhLogin, onMcpAction, onMcpScreenshot, onMcpConnect, onGitProgress, onWindowResized, onFileDropped"],
-  ["kode","src/lib/expertsStore.ts","1874 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, CatatanLead, pesanTanya, jumlahLangkahCari, useExperts"],
+  ["kode","src/lib/expertsStore.ts","1918 baris · Experts Mode — tim multi-agen ala Qoder, di atas mesin subagent Zephyr. · ekspor: AhliId, AhliDef, AHLI, AHLI_BY_ID, AhliCfg, TingkatEffort, OpsiExperts, bacaOpsiExperts, simpanOpsiExperts, ATURAN_MAKS_CHAR, ATURAN_MAKS, MAKS_INSTRUKSI, bacaCfgAhli, simpanCfgAhli, TugasAhli, VerdictBukti, RunStatus, EkspertRun, CatatanLead, pesanTanya, jumlahLangkahCari, useExperts"],
+  ["kode","src/lib/expertsStream.ts","105 baris · Satu panggilan Lead yang DI-STREAM untuk fase \"menyusun\" Experts. · ekspor: HasilLeadStream, panggilLeadStream"],
   ["kode","src/lib/explorerFilter.ts","83 baris · Name filter for the Explorer tree. · ekspor: HasilCari, cariNamaDiPohon"],
   ["kode","src/lib/explorerStore.ts","531 baris · ekspor: CtxMenu, InlineEdit, ExplorerStore, useExplorer"],
   ["kode","src/lib/extApprovalStore.ts","58 baris · ekspor: ExtApproval, useExtApproval"],
@@ -911,7 +912,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/subagentIcons.ts","236 baris · The icon set for custom sub-agents. · ekspor: SubagentIkonId, IkonDef, IKON_SUBAGENT, IKON_NAGA, IKON_LABEL, ikonSubagent, ikonPersona, IKON_AGEN_TERAX, IKON_AGEN_ZEPHYR"],
   ["kode","src/lib/subagentRoles.ts","387 baris · ekspor: PeranId, PeranIkon, Peran, BatasKategori, KATEGORI_BATAS, BATAS_UMUM, TOOL_KATEGORI, PERAN, PERAN_BY_ID, infoPeran, tebakPeran, peranDariPrefix, pisahPipeline, modelDariPrefix, mcpDariTeks, EffortTugas, effortDariTeks, tokenDariTeks, peranTidakDikenal, peranWajib, batasPeran, ROSTER_SINGKAT, aturanSubagentPrompt"],
   ["kode","src/lib/subagentRouter.ts","99 baris · ekspor: SubagentTaskCategory, SubagentModelSource, SubagentModelCandidate, RouteSubagentModelInput, RoutedSubagentModel, classifySubagentTask, capabilityScore, routeSubagentModel"],
-  ["kode","src/lib/subagentStore.ts","1748 baris · ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
+  ["kode","src/lib/subagentStore.ts","1767 baris · ekspor: MAX_PARALLEL, batasParalel, batasLangkah, bolehTulis, tulisDiskDilarang, KemampuanTulis, kemampuanTulis, AlasanTolakTulis, PutusanTulis, putusanTulis, catatanTulis, MAX_SUB_STEPS, SubStatus, SubStep, SubAgent, useSubAgent, subagentOnChunk, pemilikFileSnapshot"],
   ["kode","src/lib/subsetAlat.ts","245 baris · Subset alat per tugas - dan gerbang rencana pada langkah pertama. · ekspor: butuhAlatWeb, tugasButuhWeb, tugasBerat, TOOL_RENCANA_PERTAMA, alatRencanaPertama, gerbangRencanaSiap, ALAT_BUTUH_FOLDER, butuhFolder, TOOL_TULIS_BERKAS, alatUntukTugas, ALAT_TERAKHIR, catatAlatTerakhir"],
   ["kode","src/lib/subsetTugas.ts","899 baris · Subset tool PER KELAS TUGAS + paksa rencana pada tugas berat (LAMA-a1, LAMA-a4). · ekspor: BATAS_TOOL_TUGAS, TOOL_INTI_TUGAS, BUTUH_FOLDER_TUGAS, keluargaTool, keluargaDaftar, keluargaHilang, KelasTugas, URUTAN_KELAS, deteksiKelasTugas, rumahGantiTeks, rumahDelegasi, rumahPanel, Dipangkas, JejakPemilihan, jejakPemilihan, pilihToolTugas, jatahTool, KATA_BERAT, cocokKataBerat, KeputusanTodo, wajibTodo, keputusanTodo, ringkasKeputusanTodo"],
   ["kode","src/lib/suntikKonteks.ts","581 baris · suntikKonteks.ts — menyusun SATU giliran agen dari tiga sumber. · ekspor: BATAS_BYTE_GILIRAN, RINGKAS_RIWAYAT_BYTE, RINGKAS_KONTEKS_BYTE, BIAYA_PESAN, KEPALA_KONTEKS, AWALAN_TUGAS, AsalPesan, PeranPesan, PesanRiwayat, PesanMasuk, BahanGiliran, PesanGiliran, RingkasanPotong, ItemDibuang, LaporanSuntik, HasilSuntik, HasilPotongTeks, byteTeks, potongByte, susunGiliran, ringkasLaporan, blokWajib, BahanGiliranAntrean, HasilGiliranAntrean, giliranAntreanKeRiwayat, sisipKeDepanEkor"],
@@ -963,7 +964,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrTools/lsp.ts","181 baris · `lsp` — one tool, six language-server questions. · ekspor: LspBridge, LspAksi, buatLspTool"],
   ["kode","src/lib/zephyrTools/mcp.ts","715 baris · Tool MCP - implementasi untuk 14 tool kendali jendela aplikasi. · ekspor: resetPenjagaPerintahSama, TOOL_MCP"],
   ["kode","src/lib/zephyrTools/patch.ts","370 baris · `apply_patch` — many file edits in ONE call, in OpenCode's own patch format. · ekspor: PatchBridge, parsePatch, terapkanHunk, buatApplyPatchTool"],
-  ["kode","src/lib/zephyrTools/perubahanTool.ts","190 baris · Per-tool write tracking for the DiffView surface. · ekspor: pathTersentuh, PerubahanTool, pasangJembatanBacaDiff, perubahanTool"],
+  ["kode","src/lib/zephyrTools/perubahanTool.ts","214 baris · Per-tool write tracking for the DiffView surface. · ekspor: pathTersentuh, PerubahanTool, pasangJembatanBacaDiff, ambilStatTerkini, perubahanTool"],
   ["kode","src/lib/zephyrTools/peta.ts","134 baris · `peta` — \"where is X in Zephyr\", answered from the 6.300-entry fact index. · ekspor: petaTool"],
   ["kode","src/lib/zephyrTools/tulisBerkas.ts","73 baris · Which tool calls write files, and which paths each one touched. · ekspor: namaToolTulis, pathsDari"],
   ["kode","src/lib/zephyrTools/tunjuk.ts","524 baris · `tunjuk` — turn \"I can't find it\" into \"it is open now\". · ekspor: tunjukTool"],
@@ -4636,7 +4637,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","ExpertsCanvas","src/components/ai/ExpertsCanvas.tsx · 7 label: Done, Fit view, No Experts run yet — pick “Experts” in the composer and give the team a goal., Orchestrating expert tasks, Reset view, Zoom in, Zoom out · 1 data-testid: experts-canvas"],
   ["layar","ExpertsPlanCard","src/components/ai/ExpertsPlanCard.tsx · 1 data-testid: experts-plan"],
   ["layar","ExpertsTaskTab","src/components/ai/ExpertsTaskTab.tsx · 5 label: Brief, Report, This report was shortened when the run was saved (2,000 characters). The full text only lived in this session., This task no longer has a live run or a stored snapshot., Working… · 3 data-testid: experts-tasktab, experts-tasktab-laporan, experts-tasktab-pendek · teks: Ran in terminal"],
-  ["layar","ExpertsTimeline","src/components/ai/ExpertsTimeline.tsx · 13 label: Applied, Bad result, Changed Files, Copy summary, Created, Explored, Fork this run into a new chat, Good result, Reactions, Worked on it, actions, searches, tasks · 2 data-testid: experts-files, experts-timeline"],
+  ["layar","ExpertsTimeline","src/components/ai/ExpertsTimeline.tsx · 15 label: Applied, Bad result, Changed Files, Copy summary, Created, Explored, Fork this run into a new chat, Good result, No tool steps recorded, Reactions, Worked on it, actions, searches, tasks, tool steps · 4 data-testid: experts-files, experts-timeline, experts-worked-on, experts-worked-on-isi"],
   ["layar","Explore Customizations","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgentCustomPage.tsx"],
   ["layar","Explored","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","ExplorerPanel","src/components/explorer/ExplorerPanel.tsx · 15 label: Close workspace, New folder, No folder has been opened yet, No workspace yet - open a folder, Open File, Open Folder, Outline, Timeline, explorer.filter, explorer.filterClear, explorer.filterEmpty, explorer.filterHasil, explorer.filterJalan, explorer.filterTerpotong, explorer.workingSet · tooltip: Collapse all, New file, Refresh · aria-label: Collapse all, New file, Refresh · 6 data-testid: explorer-filter, explorer-filter-clear, explorer-filter-note, explorer-filter-toggle, recent-list, root-list"],
@@ -4751,7 +4752,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","JobStrips","src/components/ai/JobStrips.tsx · 8 label: Clear goal, Goal, Goal cleared, Goal marked done, Looping every {interval}. /loop stop to end it., Mark goal done, Stop loop, next in {n}m · 8 data-testid: ai-goal-clear, ai-goal-clock, ai-goal-done, ai-goal-strip, ai-goal-text, ai-loop-next, ai-loop-stop, ai-loop-strip"],
   ["layar","Jump to next change after review","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcConversations.tsx"],
   ["layar","KartuAntrean","src/components/ai/KartuAntrean.tsx · 9 label: Clear the queue, Edit the queued message, Message queued {n}, Move down in the queue, Move up in the queue, Remove from the queue, Send now (stops the current turn), Send this now, {n} image attachments · 4 data-testid: ai-antrian, ai-antrian-clear, ai-cq-toggle, experts-antrean"],
-  ["layar","KartuAntreanExperts","src/components/ai/KartuAntreanExperts.tsx · 3 label: Message queued, Remove this steering note from the list, Sent to workers that have not started yet, and to the final report. · 1 data-testid: experts-antrean"],
+  ["layar","KartuAntreanExperts","src/components/ai/KartuAntreanExperts.tsx · 5 label: Message queued, More actions, Remove, Remove this steering note from the list, Sent to workers that have not started yet, and to the final report. · 1 data-testid: experts-antrean"],
   ["layar","KartuProgresExperts","src/components/ai/KartuProgresExperts.tsx · 7 label: Accepted, Changed Files, Done, Open Experts Canvas, Stop, Task Progress, Tokens reported by the provider for this run · 7 data-testid: experts-progress-canvas, experts-progress-card, experts-progress-files, experts-progress-list, experts-progress-stop, experts-progress-toggle, experts-progress-token"],
   ["layar","KartuTodos","src/components/ai/KartuTodos.tsx · 1 label: To-dos · 3 data-testid: experts-todos, experts-todos-list, experts-todos-toggle"],
   ["layar","Keep all","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/PerubahanBerkas.tsx"],
@@ -4916,6 +4917,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","No support","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ModelDetailPanel.tsx"],
   ["layar","No task plan in this session yet","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/CliChat.tsx"],
   ["layar","No todos yet","label/label tanpa kamus di layar · dirender 1 berkas: src/components/agents/AgentsPanelKananSummary.tsx"],
+  ["layar","No tool steps recorded","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","No tools selected.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AgcAgents.tsx"],
   ["layar","No workspace folder","teks elemen di layar · dirender 1 berkas: src/components/agents/AgentsPanelKananFile.tsx"],
   ["layar","No worktrees yet.","label/label tanpa kamus di layar · dirender 1 berkas: src/components/scm/WorktreeSection.tsx"],
@@ -6408,6 +6410,8 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","experts-todos","data-testid di layar · dirender 1 berkas: src/components/ai/KartuTodos.tsx"],
   ["layar","experts-todos-list","data-testid di layar · dirender 1 berkas: src/components/ai/KartuTodos.tsx"],
   ["layar","experts-todos-toggle","data-testid di layar · dirender 1 berkas: src/components/ai/KartuTodos.tsx"],
+  ["layar","experts-worked-on","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
+  ["layar","experts-worked-on-isi","data-testid di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","explorer-filter","data-testid di layar · dirender 1 berkas: src/components/explorer/ExplorerPanel.tsx"],
   ["layar","explorer-filter-clear","data-testid di layar · dirender 1 berkas: src/components/explorer/ExplorerPanel.tsx"],
   ["layar","explorer-filter-note","data-testid di layar · dirender 1 berkas: src/components/explorer/ExplorerPanel.tsx"],
@@ -7105,6 +7109,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["layar","toast-msg","data-testid di layar · dirender 1 berkas: src/components/notifications/Toast.tsx"],
   ["layar","toast-stack","data-testid di layar · dirender 1 berkas: src/components/notifications/Toast.tsx"],
   ["layar","tokens, optional","label/label tanpa kamus di layar · dirender 1 berkas: src/components/settings/AiModelsDialog.tsx"],
+  ["layar","tool steps","label/label tanpa kamus di layar · dirender 1 berkas: src/components/ai/ExpertsTimeline.tsx"],
   ["layar","toolgate","data-testid di layar · dirender 1 berkas: src/components/ai/ToolGatePanel.tsx"],
   ["layar","toolgate-all-off","data-testid di layar · dirender 1 berkas: src/components/ai/ToolGatePanel.tsx"],
   ["layar","toolgate-all-on","data-testid di layar · dirender 1 berkas: src/components/ai/ToolGatePanel.tsx"],
