@@ -1,5 +1,6 @@
 type Dict = Record<string, string>;
 const ID: Dict = {
+  'New Skill': 'Skill baru',
   'All skills': 'Semua skill',
   'This workspace': 'Workspace ini',
   'User · This computer': 'User · Komputer ini',
@@ -2475,6 +2476,7 @@ const ID: Dict = {
 
 };
 const EN: Dict = {
+  'New Skill': 'New Skill',
   'All skills': 'All skills',
   'This workspace': 'This workspace',
   'User · This computer': 'User · This computer',
@@ -4927,6 +4929,7 @@ const EN: Dict = {
 
 };
 const JA: Dict = {
+  'New Skill': '新規スキル',
   'Open in the system browser': 'システムブラウザーで開く',
   'All skills': 'すべてのスキル',
   'This workspace': 'このワークスペース',
@@ -7380,6 +7383,7 @@ const JA: Dict = {
 
 };
 const KO: Dict = {
+  'New Skill': '새 스킬',
   'Open in the system browser': '시스템 브라우저에서 열기',
   'All skills': '모든 스킬',
   'This workspace': '이 작업 공간',
@@ -9833,6 +9837,7 @@ const KO: Dict = {
 
 };
 const ZH: Dict = {
+  'New Skill': '新建技能',
   'Open in the system browser': '在系统浏览器中打开',
   'All skills': '全部技能',
   'This workspace': '此工作区',
@@ -12286,6 +12291,7 @@ const ZH: Dict = {
 
 };
 const ES: Dict = {
+  'New Skill': 'Nueva skill',
   'Open in the system browser': 'Abrir en el navegador del sistema',
   'All skills': 'Todas las habilidades',
   'This workspace': 'Este espacio de trabajo',
@@ -14739,6 +14745,7 @@ const ES: Dict = {
 
 };
 const FR: Dict = {
+  'New Skill': 'Nouvelle skill',
   'Open in the system browser': 'Ouvrir dans le navigateur système',
   'All skills': 'Toutes les compétences',
   'This workspace': 'Cet espace de travail',
@@ -17192,6 +17199,7 @@ const FR: Dict = {
 
 };
 const DE: Dict = {
+  'New Skill': 'Neue Skill',
   'Open in the system browser': 'Im Systembrowser öffnen',
   'All skills': 'Alle Skills',
   'This workspace': 'Dieser Arbeitsbereich',
@@ -19645,6 +19653,7 @@ const DE: Dict = {
 
 };
 const PT: Dict = {
+  'New Skill': 'Nova skill',
   'Open in the system browser': 'Abrir no navegador do sistema',
   'All skills': 'Todas as habilidades',
   'This workspace': 'Este espaço de trabalho',
@@ -22098,6 +22107,7 @@ const PT: Dict = {
 
 };
 const AR: Dict = {
+  'New Skill': 'مهارة جديدة',
   'Open in the system browser': 'افتح في متصفح النظام',
   'All skills': 'كل المهارات',
   'This workspace': 'مساحة العمل هذه',
