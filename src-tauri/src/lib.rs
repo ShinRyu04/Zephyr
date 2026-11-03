@@ -21,6 +21,7 @@ mod cron;
 mod dap;
 mod database;
 mod portable_update;
+mod quick_swap;
 mod dev_update;
 mod devenv;
 mod diagnostics;
@@ -290,6 +291,8 @@ pub fn run() {
             settings::get_app_info,
             portable_update::portable_update_unduh,
             portable_update::portable_update_siapkan,
+            quick_swap::quick_swap_unduh,
+            quick_swap::quick_swap_siapkan,
             settings::get_settings,
             settings::set_settings,
             settings::settings_export,
