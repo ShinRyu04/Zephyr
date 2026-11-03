@@ -31,7 +31,9 @@ const PORT = Number(process.argv[2] ?? 8098);
 /** Dinaikkan tiap kali protokol/perilaku mock berubah. Harness menolak
  *  server versi lama yang masih nyangkut di port (sudah kena sekali:
  *  mock lama tanpa alt=sse membuat V3..V5 gagal padahal app benar). */
-const VERSION = 7;
+/* Versi 8: pemicu UPSTREAM_ERR_FRAME / UPSTREAM_ERR_CONTENT untuk
+   uji-upstream-error.mjs (error provider di tengah stream). */
+const VERSION = 8;
 const log = [];
 
 /** Argumen siap pakai per nama tool untuk mode TOOLCALL. */
@@ -263,6 +265,43 @@ const server = http.createServer(async (req, res) => {
   if (riwayatPenuh.includes('ERR401')) {
     res.writeHead(401, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: { message: 'kunci uji ditolak' } }));
+    return;
+  }
+
+  /*
+   * Dua pemicu uji error-upstream-mid-stream (uji-upstream-error.mjs):
+   *
+   * FRAME: HTTP 200 lalu frame SSE berisi objek error murni - bentuk yang
+   * dulu DIBIARKAN lewat oleh parser (extract_delta hanya membaca choices),
+   * sehingga langkah agen dianggap sukses kosong. Fix ai.rs mengenalinya dan
+   * meneruskan pesannya sebagai terminal error.
+   *
+   * CONTENT: HTTP 200 lalu error ditulis sebagai KONTEN chat biasa - bentuk
+   * yang terukur dari provider gratis nyata (run benchmark yang mati 8 detik).
+   * Fix aiStore mengenalinya lewat isUpstreamErrorAsContent().
+   */
+  if (riwayatPenuh.includes('UPSTREAM_ERR_FRAME')) {
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    res.write(
+      'data: {"error":{"message":"Requests have exceeded the throughput limit on your Provisioned-Managed deployment.","type":"too_many_requests"}}\n\n',
+    );
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  if (riwayatPenuh.includes('UPSTREAM_ERR_CONTENT')) {
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    const pesan = JSON.stringify({
+      type: 'error',
+      error: {
+        type: 'too_many_requests',
+        headers: { 'x-ms-is-spilled-over': 'false' },
+        message: 'Requests have exceeded the throughput limit.',
+      },
+    });
+    res.write(`data: {"choices":[{"delta":{"content":"[upstream: ${pesan.replace(/"/g, '\\"')}]"}},{"__selesai":true}]}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
     return;
   }
 

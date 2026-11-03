@@ -545,7 +545,7 @@ const mockReset = () => fetch(`http://127.0.0.1:${MOCK}/__reset`);
  * disamakan - penjaga versi tetap bermakna: mock lama yang nyangkut di port
  * tetap ditolak, bukan diam-diam diuji.
  */
-const MOCK_VERSION = 7;
+const MOCK_VERSION = 8;
 
 async function ensureMock() {
   try {
@@ -1805,4 +1805,5 @@ main().catch((e) => {
   }
   keluarBersih(2);
 });
+
 

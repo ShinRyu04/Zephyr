@@ -1187,6 +1187,14 @@ pub fn ai_chat(
         let mut reader = reader;
         let mut terminal_error: Option<String> = None;
         /*
+         * Error dari FRAME SSE eksplisit (`data: {"error":{...}}`), dipisah
+         * dari `terminal_error` karena sentinel `[DONE]` yang datang SETELAH
+         * frame error tidak boleh menghapusnya: provider yang gagal di tengah
+         * tetap menutup stream dengan `[DONE]`, dan menganggap itu sukses
+         * berarti run berat mati tanpa retry (terukur di uji-upstream-error).
+         */
+        let mut error_frame: Option<String> = None;
+        /*
          * The turn's reasoning, accumulated so the finished message can carry it.
          *
          * The live text is emitted below as it streams, but it was never KEPT:
@@ -1286,6 +1294,35 @@ pub fn ai_chat(
                 }
             };
 
+            /*
+             * A provider that fails MID-STREAM still answers HTTP 200 and puts
+             * the failure into an SSE frame of its own: `data:
+             * {"error":{"message":"...", "type":"..."}}`. Nothing below reads
+             * that field - `extract_delta` only looks at `choices`, so the
+             * frame was silently ignored and the stream ended "successfully"
+             * with whatever partial text had arrived. For a heavy agent run
+             * that is the worst outcome: hours of work cut off, no retry,
+             * no fallback, and the UI reporting a normal finish.
+             *
+             * Treat the frame as the terminal error it is. The frontend
+             * classifies the message (429/5xx => retry ladder + wait-recover +
+             * model fallback), so carrying the provider's own words through is
+             * what makes the recovery machinery fire. Only set when no error
+             * was already recorded - the first failure is the real one.
+             */
+            if error_frame.is_none() {
+                if let Some(err) = v.pointer("/error") {
+                    let pesan = err
+                        .pointer("/message")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| err.to_string());
+                    if !pesan.trim().is_empty() {
+                        error_frame = Some(format!("upstream error frame: {pesan}"));
+                    }
+                }
+            }
+
             if let Some(think) = adapters::extract_reasoning(&prov, &v) {
                 /*
                  * Accumulated as well as emitted.
@@ -1357,6 +1394,8 @@ pub fn ai_chat(
                 "The provider sent no text at all".into()
             });
         }
+        /* Frame error menang atas sentinel [DONE]: ia adalah penutup yang jujur. */
+        let terminal_error = terminal_error.or(error_frame);
         if let Some(err) = terminal_error_to_emit(cancelled, terminal_error) {
             emit_chunk(&handle, json!({ "id": req_id, "err": err }));
         }
@@ -1620,6 +1659,8 @@ pub fn ai_tool_chat_stream(
         let mut reader = BufReader::new(resp.into_body().into_reader());
         let mut buf_line = String::new();
         let mut terminal_error: Option<String> = None;
+        /* Sama dengan loop chat: frame error tidak boleh terhapus oleh [DONE]. */
+        let mut error_frame: Option<String> = None;
 
         loop {
             if cancel.load(Ordering::Relaxed) {
@@ -1690,6 +1731,24 @@ pub fn ai_tool_chat_stream(
                     break;
                 }
             };
+
+            /*
+             * Error frame di tengah stream tool-loop: penanganan yang sama
+             * dengan loop chat di atas - tanpa ini langkah agen yang gagal di
+             * tengah provider dianggap sukses kosong dan run berat mati diam.
+             */
+            if error_frame.is_none() {
+                if let Some(err) = v.pointer("/error") {
+                    let pesan = err
+                        .pointer("/message")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| err.to_string());
+                    if !pesan.trim().is_empty() {
+                        error_frame = Some(format!("upstream error frame: {pesan}"));
+                    }
+                }
+            }
 
             if let Some(capture) = &mut tool_call_capture {
                 capture.feed(&v);
@@ -1803,6 +1862,7 @@ pub fn ai_tool_chat_stream(
         let dibatalkan = cancel.load(Ordering::Relaxed);
         // A stream error is terminal, but tool consumers still need the
         // completion envelope to stop waiting for more chunks.
+        let terminal_error = terminal_error.or(error_frame);
         if let Some(err) = terminal_error_to_emit(dibatalkan, terminal_error) {
             emit_chunk(&handle, json!({ "id": req_id, "err": err }));
         }
