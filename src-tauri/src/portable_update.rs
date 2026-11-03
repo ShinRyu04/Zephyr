@@ -147,12 +147,11 @@ pub fn portable_update_siapkan(state: State<'_, AppState>) -> Result<String, Str
     );
     std::fs::write(&cmd_path, skrip).map_err(|e| format!("gagal menulis skrip swap: {e}"))?;
 
-    use std::os::windows::process::CommandExt;
-    std::process::Command::new("cmd.exe")
-        .args(["/C", &cmd_path.to_string_lossy()])
-        .creation_flags(0x0800_0000 | 0x0000_0008) // CREATE_NO_WINDOW | DETACHED_PROCESS
-        .spawn()
-        .map_err(|e| format!("gagal menjalankan skrip swap: {e}"))?;
+    /*
+     * Detached tanpa jendela (lihat quick_swap::spawn_detached): skrip harus
+     * hidup setelah app keluar, dan tanpa jendela konsol di Windows.
+     */
+    crate::quick_swap::spawn_detached("cmd.exe", &["/C", &cmd_path.to_string_lossy()])?;
 
     Ok(cmd_path.to_string_lossy().to_string())
 }
