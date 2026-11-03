@@ -17,10 +17,49 @@
  * HARUS SAMA dengan jumlah baris yang benar-benar dirender, dan keadaan dasar
  * harus dapat dipulihkan persis dengan All on lalu All off.
  */
-import { Cdp } from './lib-cdp.mjs';
+import { Cdp, pilihJendelaUtama } from './lib-cdp.mjs';
 
 const PORT = process.argv[2] ? String(process.argv[2]) : '9223';
-const { cdp } = await Cdp.attach(PORT);
+const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+const utama = pilihJendelaUtama(list);
+if (!utama) {
+  console.log('jendela utama tidak ditemukan');
+  process.exit(1);
+}
+const cUtama = await Cdp.connect(utama.webSocketDebuggerUrl);
+
+/* Chat Settings hidup di JENDELA TERPISAH (`#panel=chat-settings`) - webview
+   kedua dengan dokumen sendiri. Dulu harness ini mengasumsikan satu jendela
+   dan mencari `cset-nav-tools`/`cset-tools` di dokumen utama; sejak Chat
+   Settings jadi jendela, kedua elemen tidak pernah ada di sana dan seluruh
+   uji gagal senyap. Uji mengikuti produk: buka lewat menu di jendela utama,
+   lalu SAMBUNGKAN ke target jendela Chat Settings dan jalankan pemeriksaan
+   panel tool di sana. */
+await cUtama.runAsync(`
+  const klik = (s) => { const el = document.querySelector(s); if (!el) throw new Error('tidak ada: ' + s); el.click(); };
+  if (!document.querySelector('[data-testid="ai-open-chat-settings"]')) {
+    klik('[data-testid="ai-more"]');
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
+  if (!cs) throw new Error('menu "..." tidak punya item Chat Settings');
+  cs.click();
+  await new Promise((r) => setTimeout(r, 800));
+  return 'Chat Settings diminta';
+`);
+
+const tenggat = Date.now() + 10000;
+let targetCset = null;
+while (Date.now() < tenggat && !targetCset) {
+  const daftar = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+  targetCset = daftar.find((x) => x.type === 'page' && x.url.includes('#panel=chat-settings')) || null;
+  if (!targetCset) await new Promise((r) => setTimeout(r, 300));
+}
+if (!targetCset) {
+  console.log('jendela Chat Settings (#panel=chat-settings) tidak muncul');
+  process.exit(1);
+}
+const cdp = await Cdp.connect(targetCset.webSocketDebuggerUrl);
 
 const hasil = await cdp.json(`return JSON.stringify(await (async () => {
   const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -30,28 +69,22 @@ const hasil = await cdp.json(`return JSON.stringify(await (async () => {
     el.click();
   };
 
-  /* Buka picker lewat jalur UI yang dipakai user: tombol "..." di strip tab
-     (ai-more) -> menu -> "Chat Settings" (ai-open-chat-settings) -> nav Tools
-     (cset-nav-tools) -> tombol "Open tool sets…" (cset-tools). Entri menu lama
-     "Tool Sets" (ai-open-toolsets) dan tombol lama 'ai-toolgate' sudah tidak
-     ada di UI, jadi jalur inilah kontraknya. Kalau jalur ini putus, uji harus
-     gagal - bukan diam-diam "tidak menemukan panel". */
+  /* Jendela ini ADALAH Chat Settings (terpisah dari jendela utama). Jalur
+     UI yang diuji: nav Tools (cset-nav-tools) -> tombol "Open tool sets…"
+     (cset-tools). Kalau jalur ini putus, uji harus gagal - bukan diam-diam
+     "tidak menemukan panel". */
   const bukaLewatMenu = async () => {
     if (document.querySelector('[data-testid="toolgate"]')) return 'sudah terbuka';
-    klik('[data-testid="ai-more"]');
-    await tidur(250);
-    const cs = document.querySelector('[data-testid="ai-open-chat-settings"]');
-    if (!cs) throw new Error('menu "..." terbuka tapi item Chat Settings (ai-open-chat-settings) tidak ada');
-    cs.click();
-    await tidur(450);
     const navTools = document.querySelector('[data-testid="cset-nav-tools"]');
-    if (navTools) { navTools.click(); await tidur(350); }
+    if (!navTools) throw new Error('jendela Chat Settings terbuka tapi nav Tools (cset-nav-tools) tidak ada');
+    navTools.click();
+    await tidur(350);
     const item = document.querySelector('[data-testid="cset-tools"]');
-    if (!item) throw new Error('Chat Settings terbuka tapi tombol "Open tool sets…" (cset-tools) tidak ada');
+    if (!item) throw new Error('section Tools terbuka tapi tombol "Open tool sets…" (cset-tools) tidak ada');
     const label = (item.textContent || '').trim();
     item.click();
     await tidur(500);
-    return label ? 'Chat Settings -> Tools -> ' + label : 'Chat Settings -> Tools';
+    return 'Chat Settings -> Tools -> ' + label;
   };
   const jalurBuka = await bukaLewatMenu();
 
@@ -139,7 +172,14 @@ cek('MCP tidak berisi Web/Browser', !mcp?.groups.some((g) => g === 'Web' || g ==
  * dan tidak lagi menangkap kata turunan di dalam kalimat.
  */
 cek('tidak ada label Optional', !/\boptional\b/i.test(hasil.dasar.teks));
-cek('tidak ada nama aplikasi di picker', !/Zephyr/.test(hasil.dasar.teks));
+/* Dua tool self-knowledge (zephyr_self, zephyr_kode) SAH menyebut Zephyr -
+   mendeskripsikan aplikasi ini adalah fungsinya. Pengecualian hanya untuk
+   kedua baris itu; branding lain tetap terlarang. */
+const teksTanpaSelf = hasil.dasar.teks
+  .replace(/zephyr_self[^"]*?(?=\.|BUILT-IN|MCP|\n|$)/gi, '')
+  .replace(/zephyr_kode[^"]*?(?=\.|BUILT-IN|MCP|\n|$)/gi, '');
+const barisAplikasi = teksTanpaSelf.split(/[\n.]/).filter((l) => /zephyr/i.test(l)).map((l) => l.trim().slice(0, 90));
+cek('tidak ada nama aplikasi di picker (di luar tool self-knowledge)', barisAplikasi.length === 0, { barisAplikasi: barisAplikasi.slice(0, 4) });
 cek('nama MCP tampil polos', hasil.dasar.namaBaris.includes('inspect') && !hasil.dasar.namaBaris.some((n) => n.includes('mcp__')), {
   contoh: hasil.dasar.namaBaris.filter((n) => n.includes('inspect') || n.includes('mcp__')).slice(0, 5),
 });

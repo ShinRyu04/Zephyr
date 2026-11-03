@@ -80,6 +80,14 @@ export default function TrustDialog() {
           <button
             className="btn"
             data-testid="trust-no"
+            /* Fokus awal ada DI SINI, bukan di Trust: trap fokus mem-fokuskan
+               elemen pertama yang ber-autofocus, dan tombol ini adalah keputusan
+               yang aman. Terukur dari sesi benchmark nyata: folder bench
+               ter-catat trusted tanpa jejak klik - dialog muncul DI TENGAH run
+               (workspace baru dari harness), fokus mendarat di trust-yes, dan
+               tombol Enter/klik yang ditujukan ke UI lain mengklik Trust.
+               Keputusan destruktif tidak boleh jadi default tombol Enter. */
+            autoFocus
             onClick={() => void setTrust(tanyaUntuk, false)}
           >
             {tr('Open in Restricted Mode')}
