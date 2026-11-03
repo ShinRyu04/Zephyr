@@ -1,6 +1,6 @@
 /* BERKAS HASIL GENERATE - jangan disunting tangan.
- * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7573 entri
- * (bridge=1, dokumen=124, ekstensi=21, kode=554, label=3234, layar=3021, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
+ * Dihasilkan oleh scripts/gen-fakta-zephyr.mjs. Isinya 7574 entri
+ * (bridge=1, dokumen=124, ekstensi=21, kode=555, label=3234, layar=3021, menu=130, panel=23, perintah=192, pintasan=64, port=4, seksi=30, setelan=130, tool=45).
  *
  * Kenapa ada: pertanyaan soal Zephyr sendiri ("label tombol ini apa", "perintah
  * itu id-nya apa", "fitur X di berkas mana") tidak boleh dijawab dari ingatan
@@ -489,7 +489,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/history.rs","552 baris · ekspor: Snapshot, HistoryInfo, folder_untuk, tampak_biner, snapshot_internal, history_snapshot, history_list, history_read, history_clear, history_prune, history_stats"],
   ["kode","src-tauri/src/hooks.rs","476 baris · //! Hook execution: running the commands a reader configured at lifecycle points. · ekspor: HookRunResult, hook_run, FormatResult, format_text"],
   ["kode","src-tauri/src/instructions.rs","463 baris · //! Instructions: coding standards that apply to files matching a pattern. · ekspor: InstructionInfo, parse_instruction, instructions_list, instruction_read, instruction_write, instruction_delete, CatalogInstruction, instruction_catalog_list, instruction_catalog_body, instruction_install"],
-  ["kode","src-tauri/src/lib.rs","679 baris · ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
+  ["kode","src-tauri/src/lib.rs","682 baris · ekspor: run_credential_helper, run_cli_console, portable_aktif, dir_data_zephyr, run"],
   ["kode","src-tauri/src/lint_fix.rs","772 baris · Auto Fix Lints — run the project's own fixer on the files an agent changed. · ekspor: HasilFix, Alat, nama, deteksi_alat, fix, lint_fix_files"],
   ["kode","src-tauri/src/logging.rs","439 baris · ekspor: LogSink, write_line, path, LogWriter, init, attach_app, log_file_path, LOG_TAIL_N_BAWAAN, LOG_TAIL_N_MAKS, LOG_TAIL_BYTES_BAWAAN, LOG_TAIL_BYTES_MAKS, LOG_TAIL_BYTES_MIN, baca_ekor, log_tail, panicked, last_panic, sink_for_test, max_bytes_for_test, keep_for_test"],
   ["kode","src-tauri/src/lsp.rs","1614 baris · ekspor: ServerSpec, id_punya_resep, lsp_jenis_resep, lsp_start, path_to_uri, lsp_request, lsp_notify, lsp_stop, lsp_stop_all, LspInfo, lsp_status, lsp_reap, lsp_set_idle, lsp_resep, lsp_pasang, lsp_probe, lsp_penghalang"],
@@ -506,6 +506,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/portable_update.rs","159 baris · Portable self-update — dua command yang melengkapi `updaterStore` untuk · ekspor: portable_update_unduh, portable_update_siapkan"],
   ["kode","src-tauri/src/proc.rs","44 baris · ekspor: CREATE_NO_WINDOW, cmd, tokio_cmd"],
   ["kode","src-tauri/src/pty.rs","564 baris · ekspor: TailBuf, PtySession, info, terminate, tail_lines, PtyInfo, ShellInfo, list_shells, resolve_shell_for_test, pty_spawn, pty_write, pty_resize, pty_kill, pty_list, pty_tail, pty_set_paused, pty_interrupt"],
+  ["kode","src-tauri/src/quick_swap.rs","182 baris · Quick-swap self-update — update ala \"restart ganti versi\" untuk SEMUA · ekspor: quick_swap_unduh, quick_swap_siapkan"],
   ["kode","src-tauri/src/rag.rs","100 baris · ekspor: RagHit, rag_search"],
   ["kode","src-tauri/src/run.rs","832 baris · ekspor: RunOutput, RunDone, ToolStatus, RunRuntime, run_tool_status, run_start, run_stop, run_selesai, run_input, run_input_eof, run_active"],
   ["kode","src-tauri/src/search.rs","1224 baris · ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, MAKS_BERKAS_GANTI, search_replace, ganti_lintas_berkas"],
@@ -955,7 +956,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/types.ts","2494 baris · ekspor: Encoding, LineEnding, ModelTier, ErrorCode, ZephyrError, AppInfo, PerfMark, Diagnostics, DomainStatus, SelfTestItem, GitProgress, ReadResult, StatResult, RecentEntry, SessionTab, DirNode, SearchHit, SearchResult, QuickFile, QuickFolder, ProbeResult, FsChangeKind, PtyKind, PaneKind, ShellInfo, AgentInfo, PtyInfo, SshHost, SshConfigInput, PaneStatus, PaneMeta, TerminalTab, PublicModel, ModelTestResult, AiRole, AiMessage, ChatMsg, ReasoningSegmen, AgentToolRun, ChatSession, …(+86)"],
   ["kode","src/lib/unduhInstal.ts","719 baris · UNDUH-INSTAL - jalur \"unduh -> periksa -> pasang\" untuk paket EKSTENSI. · ekspor: IZIN_HOST, MAX_ZEXT_BYTE, TOLAK_PENANDA, VERSI_ZEPHYR, Tahap, Alasan, KontribItem, LaporanBukti, HasilGagal, HasilUnduh, HasilPasang, Baca, PaketTerbuka, Bongkar, BalasanTransport, Transport, OpsiUnduh, OpsiPasang, MANIFEST_NATIVE, MANIFEST_VSCODE, idAman, hostDari, periksaUrl, normalisasiHash, hashSha256, hashCocok, unduhKeSementara, hitung, hitungBinding, jumlahIkonDapatDigambar, skripUtama, ContributesPaket, ManifestPaket, pemicuKode, laporanBuktiPerubahan, bacaManifest, pesanBerkode, pesanTanpaKontribusi, alurUnduhInstal"],
   ["kode","src/lib/unreadSesi.ts","71 baris · ekspor: latarBerjalan, latarBelumDibaca, RingkasSesi, ringkasSesi, sesiPerluPerhatian"],
-  ["kode","src/lib/updaterStore.ts","336 baris · ekspor: UpdateStatus, useUpdater, labelStatus"],
+  ["kode","src/lib/updaterStore.ts","349 baris · ekspor: UpdateStatus, useUpdater, labelStatus"],
   ["kode","src/lib/useAiChunkListener.ts","48 baris · ekspor: useAiChunkListener"],
   ["kode","src/lib/useAturanTersambung.ts","76 baris · Wires the Rules SETTINGS to the Rules ENGINE. · ekspor: terapkanSetelanAturan, useAturanTersambung"],
   ["kode","src/lib/useDiAgen.ts","33 baris · ekspor: useDiAgen"],

@@ -122,12 +122,14 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
     }
     set({ status: 'checking', message: null, progress: 0 });
     /*
-     * JALUR PORTABLE: jangan pakai plugin updater — artifact-nya installer NSIS
-     * yang tidak berlaku untuk folder portable. Baca latest.json langsung dan
-     * ambil field "portable" (url + sha256) yang diisi saat rilis.
+     * JALUR QUICK-SWAP (portable DAN install): baca latest.json langsung dan
+     * ambil field "portable" (url + sha256). Kalau ada, update = unduh exe,
+     * keluar, timpa satu file, nyala lagi - tanpa installer (Terax-style).
+     * Tidak ada field-nya, atau unduhan gagal nanti → jalur NSIS senyap di
+     * bawah tetap jadi fallback untuk salinan install.
      */
     const info = await cmd.getAppInfo().catch(() => null);
-    if (info?.portable) {
+    if (info) {
       try {
         const res = await fetch(PORTABLE_ENDPOINT, { cache: 'no-store' });
         if (!res.ok) throw new Error(String(res.status));
@@ -138,29 +140,39 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
         const baru = latest.version ?? '';
         const p = latest.portable;
         if (!baru || !p?.url || !p?.sha256) {
+          if (info.portable) {
+            // Portable tidak punya jalur lain: tanpa field "portable" berarti
+            // rilis itu tidak menyediakan exe portable.
+            set({ status: 'up-to-date', message: tx('update.upToDate'), version: null, portableRilis: null });
+            return;
+          }
+          // Salinan install: lanjut ke plugin updater (NSIS) di bawah.
+        } else if (baru === info.version) {
           set({ status: 'up-to-date', message: tx('update.upToDate'), version: null, portableRilis: null });
           return;
-        }
-        if (baru === info.version) {
-          set({ status: 'up-to-date', message: tx('update.upToDate'), version: null, portableRilis: null });
+        } else {
+          set({
+            status: 'available',
+            version: baru,
+            pubDate: null,
+            notes: null,
+            dialogOpen: !opts?.senyap,
+            message: null,
+            portableRilis: { url: p.url, sha256: p.sha256, versi: baru },
+          });
           return;
         }
-        set({
-          status: 'available',
-          version: baru,
-          pubDate: null,
-          notes: null,
-          dialogOpen: !opts?.senyap,
-          message: null,
-          portableRilis: { url: p.url, sha256: p.sha256, versi: baru },
-        });
       } catch (e) {
-        set({
-          status: opts?.senyap ? 'idle' : 'error',
-          message: opts?.senyap ? null : tf('update.checkFailed', { e: String(e) }),
-        });
+        if (info.portable) {
+          // Portable tanpa jalur lain juga.
+          set({
+            status: opts?.senyap ? 'idle' : 'error',
+            message: opts?.senyap ? null : tf('update.checkFailed', { e: String(e) }),
+          });
+          return;
+        }
+        // Salinan install: gagal baca latest.json → biarkan plugin updater mencoba.
       }
-      return;
     }
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
@@ -216,12 +228,12 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
     const info = await cmd.getAppInfo().catch(() => null);
 
     /*
-     * JALUR PORTABLE: unduh exe baru (sha256 diverifikasi Rust), lalu siapkan
-     * skrip swap yang menimpa zephyr.exe begitu app keluar dan menyalakan
-     * versi baru. Tombol Restart memanggil restart() yang mengeksekusi
-     * skrip itu. Tidak ada installer yang disentuh dari salinan portable.
+     * JALUR QUICK-SWAP: dipilih kalau check() menemukan field "portable" di
+     * latest.json - portable maupun install sama-sama lewat sini. Unduh exe
+     * baru (sha256 diverifikasi Rust), lalu siapkan skrip swap dengan BACKUP:
+     * move gagal -> exe lama dipulihkan dan Zephyr tetap menyala.
      */
-    if (info?.portable) {
+    if (info?.portable || get().portableRilis) {
       const rilis = get().portableRilis;
       if (!rilis) {
         set({ status: 'error', message: tx('update.nothingToDownload'), progress: 0 });
@@ -237,7 +249,7 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
             if (p !== null) set({ progress: p });
           },
         );
-        await invoke('portable_update_unduh', { url: rilis.url, sha256Hex: rilis.sha256 });
+        await invoke('quick_swap_unduh', { url: rilis.url, sha256Hex: rilis.sha256 });
         lepas();
         set({ status: 'ready', progress: 100, message: tx('update.restartToInstall') });
         notifyInfo(tx('update.installed'), { source: 'update' });
@@ -288,12 +300,13 @@ export const useUpdater = create<UpdaterState & UpdaterActions>((set, get) => ({
   },
 
   restart: async () => {
-    /* Portable: jalankan skrip swap (timpa exe saat keluar) lalu keluar;
-       skrip menyalakan Zephyr versi baru sendiri. */
+    /* Quick-swap (portable atau install dengan unduhan quick-swap): tulis
+       skrip swap (backup + timpa exe saat keluar) lalu keluar; skrip
+       menyalakan Zephyr versi baru sendiri. */
     const info = await cmd.getAppInfo().catch(() => null);
-    if (info?.portable) {
+    if (info?.portable || get().portableRilis) {
       try {
-        await invoke('portable_update_siapkan');
+        await invoke('quick_swap_siapkan');
         const { exit } = await import('@tauri-apps/plugin-process');
         await exit(0);
       } catch (e) {
