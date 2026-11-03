@@ -2601,7 +2601,7 @@ function isTruncatedToolResponseError(error: string): boolean {
 }
 
 /** Only errors from the provider request itself are eligible for agent retry. */
-function isRetryableAgentProviderError(error: string): boolean {
+export function isRetryableAgentProviderError(error: string): boolean {
   const text = error.toLowerCase();
   if (
     /\b(?:401|403|400|404)\b/.test(text) ||
@@ -2617,6 +2617,13 @@ function isRetryableAgentProviderError(error: string): boolean {
     text.includes('malformed')
   ) return false;
   if (/\b(?:408|429|500|502|503|504)\b/.test(text)) return true;
+  /*
+   * Error kuota yang ditulis TANPA angka status: bentuk Anthropic-style
+   * `too_many_requests` (terukur dari frame error provider gratis) dan
+   * penyebutan `rate limit` - semuanya 429 yang menyamar, jadi masuk tangga
+   * retry, bukan mematikan run di tengah tugas berat.
+   */
+  if (/too_many_requests|rate[_ ]limit/.test(text)) return true;
   /*
    * A CONNECT timeout is final, not retryable.
    *
@@ -2646,6 +2653,35 @@ function isRetryableAgentProviderError(error: string): boolean {
   if (/stream terputus|invalid stream response|stream ended before completion/.test(text))
     return true;
   return /connection|connect|network|econn|enotfound|reset by peer|broken pipe|dns/.test(text);
+}
+
+/**
+ * Detect a provider error that arrived as CHAT CONTENT instead of an HTTP
+ * status or an SSE error frame.
+ *
+ * ## Kenapa ini ada
+ *
+ * Gateway LLM gratis (terukur dari run benchmark nyata, run yang mati dalam
+ * 8 detik) menjawab HTTP 200 lalu menuliskan kegagalannya sebagai pesan model:
+ * `[upstream: {'type': 'error', 'error': {'type': 'too_many_requests', ...`.
+ * Loop agen melihat teks, menganggapnya jawaban yang sah, dan menutup run
+ * sebagai SUKSES - tidak ada retry, tidak ada wait-recover, tidak ada fallback
+ * model, padahal ketiganya sudah ada dan benar untuk 429 sungguhan.
+ *
+ * ## Kenapa polanya ketat
+ *
+ * Jawaban model yang KEBETULAN membahas error (misalnya user menyalin pesan
+ * error ke chat) tidak boleh dikira kegagalan. Syaratnya karena itu bertingkat:
+ * teks harus MEMBUKA dengan penanda `[upstream:`, ATAU berupa objek error yang
+ * nyaris murni (`'type': 'error'` / `"type": "error"` dengan penutup kurung di
+ * ujung) - bukan sekadar memuat kata "error" di mana pun.
+ */
+export function isUpstreamErrorAsContent(teks: string): boolean {
+  const t = String(teks ?? '').trim();
+  if (!t || t.length > 2000) return false;
+  if (t.startsWith('[upstream:')) return true;
+  if (!/^[\[{]/.test(t)) return false;
+  return /['"]type['"]\s*:\s*['"]error['"]/.test(t.slice(0, 400));
 }
 
 function tungguRetryAgent(ms: number): Promise<boolean> {
@@ -8610,6 +8646,23 @@ export const useAi = create<AiStore>((set0, get) => {
            * Kuota SUKSES (2xx) dihitung terpisah dari percobaan: 429/5xx
            * memakai plafon percobaan (70), bukan plafon sukses (60).
            */
+          /*
+           * Beberapa gateway LLM gratis tidak mengirim error sebagai status HTTP
+           * - mereka mengirim HTTP 200 lalu menuliskan errornya SEBAGAI KONTEN
+           * chat (diukur dari run nyata: teks bubble berisi `[upstream:
+           * {'type': 'error', 'error': {'type': 'too_many_requests', ...`).
+           * Tanpa deteksi ini run dianggap SUKSES: tidak ada retry, tidak ada
+           * wait-recover, dan tugas berat mati diam-diam di tengah jalan.
+           *
+           * Syarat ketat agar jawaban model yang KEBETULAN membahas error tidak
+           * salah tangkap: tanpa tool call, teksnya pendek (error gateway tidak
+           * pernah panjang), dan polanya khas (buka dengan `[upstream:` atau
+           * memuat `'type': 'error'`/`"type": "error"`).
+           */
+          if (!res.error && res.toolCalls.length === 0 && isUpstreamErrorAsContent(res.content)) {
+            res = { ...res, error: `provider error as content: ${res.content.slice(0, 300)}` };
+          }
+
           if (!res.error) catatSukses(kunciPercobaan);
 
           // Retry only a failed provider request before any tool call is returned.
