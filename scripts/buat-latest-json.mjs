@@ -49,6 +49,11 @@ const catatan = fs.readFileSync(berkasCatatan, 'utf8');
 
 const setup = `Zephyr_${VERSI}_x64-setup.exe`;
 const portableExe = `Zephyr_${VERSI}_x64-portable.exe`;
+/* package-portable-windows.mjs menulis exe tunggal di portable\ (patokan
+   struktur 1.1.15); terima juga yang ditaruh di root untuk kecocokan lama. */
+const portablePath = [path.join(DIR, 'portable', portableExe), path.join(DIR, portableExe)].find((p) =>
+  fs.existsSync(p),
+);
 
 const latest = {
   version: VERSI,
@@ -64,7 +69,7 @@ const latest = {
      updaterStore membacanya sendiri). */
   portable: {
     url: `https://github.com/${REPO}/releases/download/v${VERSI}/${portableExe}`,
-    sha256: sha256(path.join(DIR, portableExe)),
+    sha256: sha256(portablePath ?? path.join(DIR, portableExe)),
   },
 };
 
@@ -83,8 +88,8 @@ for (const [plat, info] of Object.entries(ulang.platforms)) {
 }
 /* Nama di URL harus sama dengan nama berkas yang benar-benar ada. */
 const adaWindows = fs.existsSync(path.join(DIR, setup));
-const adaPortable = fs.existsSync(path.join(DIR, portableExe));
-console.log(`berkas ada: windows=${adaWindows} portable=${adaPortable}`);
+const adaPortable = Boolean(portablePath);
+console.log(`berkas ada: windows=${adaWindows} portable=${adaPortable} (${portablePath ?? portableExe})`);
 if (!adaWindows) throw new Error('berkas yang dirujuk latest.json belum ada: ' + setup);
 if (!adaPortable) {
   throw new Error(
