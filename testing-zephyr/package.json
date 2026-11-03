@@ -1,0 +1,13 @@
+{
+  "name": "electron-catatan",
+  "version": "1.0.0",
+  "description": "Aplikasi catatan sederhana dengan Electron dan penyimpanan JSON lokal",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.1"
+  }
+}
