@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+  <title>Catatan</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="traffic" aria-hidden="true">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <h1>Catatan</h1>
+    <input id="search" type="search" placeholder="Cari catatan..." autocomplete="off" />
+  </header>
+
+  <main>
+    <form id="composer" class="composer">
+      <input id="input" type="text" placeholder="Tulis catatan baru lalu tekan Enter" autocomplete="off" maxlength="500" />
+      <button type="submit">Tambah</button>
+    </form>
+
+    <div class="filters" role="tablist">
+      <button type="button" class="filter active" data-filter="all">Semua</button>
+      <button type="button" class="filter" data-filter="active">Belum selesai</button>
+      <button type="button" class="filter" data-filter="done">Selesai</button>
+    </div>
+
+    <ul id="list" class="list"></ul>
+    <p id="empty" class="empty" hidden>Tidak ada catatan.</p>
+  </main>
+
+  <footer class="statusbar">
+    <span id="count">0 catatan</span>
+    <span id="saved" class="saved">Tersimpan</span>
+  </footer>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
