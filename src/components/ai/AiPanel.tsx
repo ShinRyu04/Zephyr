@@ -2641,7 +2641,7 @@ const bukaModels = () => bukaPanel('models');
                 data-testid="ai-resume"
                 title={tr('Continue from where it stopped')}
                 aria-label={tr('Continue from where it stopped')}
-                onClick={() => void lanjutkanAgent()}
+                onClick={() => void lanjutkanAgent(composerId)}
               >
                 <AiIkon name="send" size={14} />
               </button>

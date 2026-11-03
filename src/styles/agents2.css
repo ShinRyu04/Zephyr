@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Jendela Agents — seluruh chrome-nya digambar sendiri karena jendelanya
  * frameless (`decorations: false`).
  *
@@ -4487,24 +4487,23 @@ body.agx-dragging-kolom {
 }
 
 /*
- * Strip ANTREAN (work-stack-queue) TAMPIL kembali di jendela ini.
+ * Strip ANTREAN (ai-antrian) TAMPIL kembali di jendela ini.
  *
- * `ai-perubahan.css` menyembunyikan strip `[data-testid='ai-work-stack-queue']`
+ * `ai-perubahan.css` menyembunyikan strip `[data-testid='ai-antrian']`
  * secara global karena di jendela utama daftar yang sama persis sudah hidup di
  * tab Queue kartu review - menampilkan dua barisan itu sekaligus hanya
  * memboroskan layar. Kartu review TIDAK dirender di jendela Agents, jadi tanpa
  * pengecualian ini stripnya jadi satu-satunya tampilan antrean dan ikut hilang:
  * pesan yang diketik selagi agen bekerja tidak terlihat di mana pun.
  *
- * Selector memakai testid (bukan class) karena elemen strip itu `<section
- * className="ai-work-section" data-testid="ai-work-stack-queue">`. Specifity
- * tiga kelas/atribut mengalahkan aturan global dua atribut, dan cakupannya
+ * Selector memakai testid (bukan class) karena elemen kartu itu `<section
+ * className="experts-kartu" data-testid="ai-antrian">`. Specifity tiga
+ * kelas/atribut mengalahkan aturan global dua atribut, dan cakupannya
  * hanya canvas chat `.agx-chat` - panel AI jendela utama tetap tersembunyi.
  */
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] {
   display: block;
 }
-
 /*
  * Ukuran strip antrean = ukuran KOTAK KETIK.
  *
@@ -4519,10 +4518,11 @@ body.agx-dragging-kolom {
  * hanya section-nya yang menyempit, border kiri/kanan stack tetap penuh dan
  * garisnya menggantung di luar isi.
  */
-.agx-chat .ai-work-stack:has(> [data-testid='ai-work-stack-queue']) {
+.agx-canvas [data-testid='agx-chat'] .ai-panel .experts-kartu:has(> [data-testid='ai-antrian']) {
   width: 100%;
   max-width: 880px;
-  margin: 10px auto 0;
+  align-self: center;
+  margin: 10px 0 0;
 }
 
 /*
@@ -4531,12 +4531,12 @@ body.agx-dragging-kolom {
  * dengan elipsis (judul penuh tetap di `title`), dan daftar dibatasi ±5 baris
  * lalu menggulir sendiri.
  */
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-work-summary {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-work-summary {
   padding: 4px 10px;
   min-height: 26px;
 }
 
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-list {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-list {
   max-height: 106px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -4548,14 +4548,14 @@ body.agx-dragging-kolom {
  * volume vertikalnya: kartu review hidup di drop-up yang boleh tinggi, strip
  * ini menumpang di atas komposer.
  */
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-row {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-row {
   min-height: 24px;
   padding: 2px 8px 2px 10px;
   gap: 7px;
   border-radius: 0;
 }
 
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-review-antrian-teks {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-review-antrian-teks {
   font-size: 11.5px;
   line-height: 1.35;
   white-space: nowrap;
@@ -4608,23 +4608,23 @@ body.agx-dragging-kolom {
  * tombol kirim yang diminta pembaca tidak pernah terlihat. Hanya opacity yang
  * dilonggarkan - ukuran, urutan, dan jarak tetap sama.
  */
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-aksi {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-aksi {
   opacity: 0.65;
 }
 
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-row:hover .ai-cq-aksi,
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-aksi:focus-within {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-row:hover .ai-cq-aksi,
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-aksi:focus-within {
   opacity: 1;
 }
 
 /* Tombol kirim sedikit lebih besar + berwarna aksen: ini aksi utama baris. */
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-send {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-send {
   width: 17px;
   height: 17px;
   color: var(--accent);
 }
 
-.agx-chat .ai-work-section[data-testid='ai-work-stack-queue'] .ai-cq-send.is-sibuk {
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] .ai-cq-send.is-sibuk {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }

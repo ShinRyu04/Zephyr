@@ -549,13 +549,12 @@ const BATAS_AKSI_SAMA = 3;
  *
  * Higher than the write limit because a read after a write is legitimate
  * verification — the model checks its own work — and a directory listing that
- * genuinely changed between calls is progress. Six was too generous: a live
- * run spent eleven identical reads before the guard fired, and readers see four
- * re-reads of the same unchanged bytes as a stuck loop, not as checking. Four
- * still allows "write, verify, adjust, verify", and the `BATAS_MANDEK` guard
- * above catches the broader circling that never repeats a fingerprint.
+ * genuinely changed between calls is progress. Eight allows "read, write,
+ * verify, adjust, verify" across a heavy turn while still catching the same
+ * unchanged bytes coming back over and over; the `BATAS_MANDEK` guard above
+ * catches the broader circling that never repeats a fingerprint.
  */
-const BATAS_BACA_SAMA = 4;
+const BATAS_BACA_SAMA = 8;
 const BATAS_AKSI_INGAT = 2;
 
 /*
@@ -569,45 +568,47 @@ const BATAS_AKSI_INGAT = 2;
  * The distinguishing fact is not repetition but the absence of PROGRESS after
  * a page has already been opened. Once an open succeeded in this turn, any
  * further browser/web call that is not itself an open for a DIFFERENT url is
- * the model circling. Three of those in a row is enough to stop.
+ * the model circling. Six of those in a row is enough to stop.
  */
-export const BATAS_BROWSER_MUTER = 3;
+export const BATAS_BROWSER_MUTER = 6;
 /*
  * Langkah beruntun yang hanya MEMBACA sebelum agen disodok, lalu diakhiri.
  *
- * Lima, turun dari delapan. Turunnya bukan karena "lebih ketat lebih baik":
- * penghitung ini diperiksa SEKALI PER LANGKAH, bukan per panggilan tool, jadi
+ * Penghitung ini diperiksa SEKALI PER LANGKAH, bukan per panggilan tool, jadi
  * satu langkah boleh berisi tiga bacaan sekaligus tanpa menaikkannya tiga
- * kali. Yang tersisa dihitung hanya langkah yang benar-benar tidak mengubah
- * apa pun - dan delapan langkah seperti itu beruntun lebih lama daripada yang
- * dibutuhkan tugas yang jujur: berkasnya sudah ada di disk, modelnya hanya
- * membaca ulang. Lima membuat sodokan datang saat pembaca SUDAH melihat
- * agennya diam, bukan setengah menit sesudahnya.
+ * kali. Yang dihitung hanya langkah yang benar-benar tidak mengubah apa pun.
+ * 60 memberi ruang investigasi panjang yang jujur (riset memang membaca
+ * banyak halaman/berkas berurutan) sementara loop yang benar-benar mengulang
+ * tetap ditangkap guard sidik-jari jauh lebih cepat.
  */
-const BATAS_TANPA_KEMAJUAN = 15;
+const BATAS_TANPA_KEMAJUAN = 60;
 /*
  * Berapa kali model boleh disodok untuk melanjutkan saat ia berhenti memanggil
  * tool ATAU membaca tanpa kemajuan padahal rencananya belum selesai.
  *
- * DULU turun ke 4, sekarang NAIK ke 10.
+ * Model yang bekerja dengan cara "berpikir dulu, lalu menulis" sering
+ * mengirim satu giliran teks tanpa tool (menjelaskan rencana, atau berhenti
+ * sejenak untuk membaca hasil tool sebelumnya). Jeda wajar seperti itu tidak
+ * boleh mengakhiri run selama rencananya masih terbuka.
  *
- * Pelajaran angka 20: cukup untuk membuat agen "terus bekerja" setelah
- * tugasnya benar-benar selesai (todo lupa ditandai `done`). Tapi 4
- * berlebihan ke arah sebaliknya - lihat di bawah.
- *
- * NAIK dari 4 ke 10.
- *
- * Empat terlalu ketat untuk model yang bekerja dengan cara "berpikir dulu,
- * lalu menulis": satu giliran teks tanpa tool (menjelaskan rencana, atau
- * berhenti sejenak untuk membaca hasil tool sebelumnya) sudah menghabiskan
- * seperempat jatah. Tiga jeda wajar seperti itu berturut-turut - dan run
- * diakhiri padahal rencananya jelas belum selesai. Itulah keluhan "AI selalu
- * berhenti saat kerja".
- *
- * Sepuluh memberi ruang untuk beberapa jeda berpikir yang jujur. Batas keras
- * yang sebenarnya tetap MAX_AGENT_STEPS; ini hanya rem untuk "menyodok terus".
+ * 40 memberi ruang untuk banyak jeda berpikir yang jujur (ala opencode /
+ * Claude Code). Batas keras yang sebenarnya tetap MAX_AGENT_STEPS; ini hanya
+ * rem untuk "menyodok terus".
  */
-const BATAS_LANJUT_TANPA_TOOL = 10;
+const BATAS_LANJUT_TANPA_TOOL = 40;
+/*
+ * Berapa kali model boleh disodok ketika tugas berat dimulai dengan jawaban
+ * teks TANPA satu pun tool. Terpisah dari BATAS_LANJUT_TANPA_TOOL karena kasus
+ * ini berbeda: bukan "rencana belum selesai", melainkan "belum ada kerja sama
+ * sekali". Dua sodokan cukup untuk model yang lupa memanggil tool; setelah itu
+ * run harus berhenti dengan kegagalan jujur, bukan "Selesai - 0 langkah".
+ *
+ * This guard deliberately does NOT depend on To-Do List. With that switch off,
+ * `todo_write` is removed from the wire and the old todo-based nudge had
+ * nothing to read - so a write task that answered with text alone was reported
+ * as a successful run.
+ */
+const BATAS_AWAL_TANPA_TOOL = 2;
 
 /*
  * Langkah berturut-turut tanpa PERUBAHAN APA PUN sebelum agen ditegur lalu
@@ -620,13 +621,13 @@ const BATAS_LANJUT_TANPA_TOOL = 10;
  * membuat run berjalan sampai batas langkah sementara pembaca melihat agen yang
  * tidak pernah selesai.
  *
- * Delapan terbukti terlalu pendek: tugas riset/analisis yang memang tujuannya
- * MEMBACA (tanpa todo_write) menghabiskan hitungan ini di ~langkah 9 lalu
- * dihentikan di tengah investigasi yang sehat. Dua puluh memberi ruang
- * investigasi panjang yang jujur; loop sungguhan tetap ditangkap guard
- * sidik-jari (BATAS_AKSI_SAMA / BATAS_BACA_SAMA) jauh lebih cepat.
+ * Tugas riset/analisis yang memang tujuannya MEMBACA (tanpa todo_write) bisa
+ * menghabiskan puluhan langkah tanpa menulis apa pun, dan itu pekerjaan yang
+ * sehat. 200 memberi ruang investigasi panjang ala opencode; loop sungguhan
+ * tetap ditangkap guard sidik-jari (BATAS_AKSI_SAMA / BATAS_BACA_SAMA) jauh
+ * lebih cepat.
  */
-const BATAS_MANDEK = 40;
+const BATAS_MANDEK = 200;
 
 /*
  * Tool yang benar-benar mengubah sesuatu.
@@ -1733,13 +1734,13 @@ export async function catatHasilKonteks(
 let seq = 0;
 const nextId = (p: string) => `${p}-${Date.now().toString(36)}-${++seq}`;
 
-// Multi-file tasks commonly need more than 60 tool turns. Keep a finite
-// safety cap, but do not stop a healthy agent halfway through a normal task.
-// 200: a full website or app scaffold (6-12 files, each written then verified
-// once) runs 80-140 steps once wasteful re-reads are counted as no-progress;
-// 120 cut those off mid-build. The no-progress guard, not this ceiling, is what
-// stops a genuinely looping run, so a higher cap only helps real work finish.
-export const MAX_AGENT_STEPS = 200;
+// Multi-file and multi-hour tasks commonly need far more than 60 tool turns.
+// Keep a finite safety cap, but do not stop a healthy agent halfway through a
+// real task. 1000 matches the long-running behaviour of opencode/Claude Code;
+// the no-progress guards (BATAS_MANDEK / fingerprint watchdogs), not this
+// ceiling, are what stop a genuinely looping run, so a higher cap only helps
+// real work finish.
+export const MAX_AGENT_STEPS = 1000;
 
 /**
  * How many times a malformed/truncated tool call is re-asked before the run
@@ -1777,7 +1778,7 @@ function sidikGagal(nama: string, hasil: string): string {
  *
  * Two minutes: long enough for a reader to notice the panel and press Allow,
  * short enough that a run started where no panel can appear does not sit idle
- * for the 15-minute watchdog. On expiry the step is skipped WITH a toast, so the
+ * for the 45-minute watchdog. On expiry the step is skipped WITH a toast, so the
  * agent continues with other tools instead of dying silently.
  *
  * Overridable at runtime (`setIzinTimeout`) so a harness can prove the timeout
@@ -2259,6 +2260,8 @@ const retiredAgentAttempts = new Set<string>();
 
 let agentBatal = false;
 let agentStopReason: AgentStopReason | null = null;
+/* Automatic resumes used by THIS run; see AUTO_LANJUT_MAKS. */
+let autoLanjut = 0;
 
 function classifyAgentFailure(error: string, reason: AgentStopReason | null = agentStopReason): AgentFailureCategory {
   const text = error.toLowerCase();
@@ -2391,7 +2394,7 @@ const AGENT_IDLE_MS = 900_000;
  *     Itu bentuk macet yang paling sering terjadi dan paling sulit dilihat:
  *     stream tetap hidup, keep-alive dan potongan usage terus datang, dan
  *     watchdog diam tidak pernah menembak karena setiap byte dianggap tanda
- *     sehat. Yang akhirnya menghentikan run hanya batas keras 15 menit.
+ *     sehat. Yang akhirnya menghentikan run hanya batas keras 45 menit.
  *
  * Batasnya harus cukup lega untuk kerja berat yang SEHAT, karena satu-satunya
  * cara timer ini menyala adalah dengan mematikan langkah yang sedang berjalan.
@@ -2458,19 +2461,22 @@ function agentHardLimitArm() {
     // If no step is waiting (the run hung outside the loop), release the UI
     // directly - the resolved step can no longer do it from inside the loop.
     if (!r) {
-      useAi.setState({
-        agentBusy: false,
-  agentBusys: { '': false },
-  pendings: { '': null },
-        pending: null,
-        agentConfirm: null,
-  agentTanya: null,
-        agentPhase: 'idle',
-        agentCurrentTool: null,
-        agentStepIndex: 0,
-        agentStepLimit: MAX_AGENT_STEPS,
-        agentLastProgressAt: null,
-        toast: 'Satu langkah berjalan melebihi batas waktu dan dihentikan. Agen siap menerima perintah lagi.',
+      useAi.setState((s) => {
+        const id = AGENT_RUN_COMPOSER ?? '';
+        return {
+          agentBusy: false,
+          agentBusys: { ...s.agentBusys, [id]: false },
+          pendings: { ...s.pendings, [id]: null },
+          pending: null,
+          agentConfirm: null,
+          agentTanya: null,
+          agentPhase: 'idle',
+          agentCurrentTool: null,
+          agentStepIndex: 0,
+          agentStepLimit: MAX_AGENT_STEPS,
+          agentLastProgressAt: null,
+          toast: 'Satu langkah berjalan melebihi batas waktu dan dihentikan. Agen siap menerima perintah lagi.',
+        };
       });
     }
   }, AGENT_HARD_LIMIT_MS);
@@ -2522,10 +2528,11 @@ const BATAS_ARGUMEN_RUSAK_BERTURUT = 4;
  *
  * Two was too few: a transient provider hiccup in the middle of a long task
  * ended the run for good, which reads to the user as "the agent just stops".
- * Four resumes cover a flaky gateway without letting a permanently broken
- * model loop in the background.
+ * 20 resumes cover a long, flaky run the way opencode/Claude Code keep going,
+ * while the counter still resets per fresh turn (and is preserved across a
+ * resume chain) so a permanently broken model cannot loop forever.
  */
-const AUTO_LANJUT_MAKS = 4;
+const AUTO_LANJUT_MAKS = 20;
 
 /*
  * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
@@ -2737,7 +2744,10 @@ function agentWatchdogArm() {
     // If no step is waiting (e.g. it hung outside the loop),
     // force the agent status released so the UI and subagents are not locked.
     if (!r) {
-      useAi.setState({ agentBusy: false, agentBusys: { '': false }, pendings: { '': null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
+      useAi.setState((s) => {
+        const id = AGENT_RUN_COMPOSER ?? '';
+        return { agentBusy: false, agentBusys: { ...s.agentBusys, [id]: false }, pendings: { ...s.pendings, [id]: null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null };
+      });
     }
   }, AGENT_IDLE_MS);
 }
@@ -2748,7 +2758,7 @@ function agentWatchdogArm() {
  * Dipisah dari `agentWatchdogArm` karena keduanya harus bisa menembak
  * sendiri-sendiri: stream yang terus mengirim keep-alive tanpa token baru tidak
  * pernah menyentuh `AGENT_IDLE_MS`, dan justru itulah kasus yang membuat agen
- * menggantung sampai batas keras 15 menit.
+ * menggantung sampai batas keras 45 menit.
  *
  * Pesan yang diberikannya berbeda dari watchdog diam, dan perbedaan itu
  * disengaja: pembaca perlu tahu bahwa providernya HIDUP tapi tidak lagi
@@ -2773,7 +2783,10 @@ function agentNoProgressArm() {
         `${Math.round(AGENT_NO_PROGRESS_MS / 1000)} detik. Langkah dihentikan.`,
     });
     if (!r) {
-      useAi.setState({ agentBusy: false, agentBusys: { '': false }, pendings: { '': null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null });
+      useAi.setState((s) => {
+        const id = AGENT_RUN_COMPOSER ?? '';
+        return { agentBusy: false, agentBusys: { ...s.agentBusys, [id]: false }, pendings: { ...s.pendings, [id]: null }, pending: null, agentConfirm: null, agentPhase: 'idle', agentCurrentTool: null, agentStepIndex: 0, agentStepLimit: MAX_AGENT_STEPS, agentLastProgressAt: null, agentStartedAt: null };
+      });
     }
   }, AGENT_NO_PROGRESS_MS);
 }
@@ -3132,7 +3145,16 @@ interface AiState {
    * on the panel showing that conversation. Shared, the button appeared on both
    * and pressing it on the wrong panel resumed work into the other one's chat.
    */
-  agentResumes: Record<string, { teks: string; images: string[] } | null>;
+  agentResumes: Record<
+    string,
+    {
+      teks: string;
+      history: AgentMsg[];
+      images?: string[];
+      langkah: number;
+      at: number;
+    } | null
+  >;
 
   /*
    * Messages the user sent while the assistant was still answering.
@@ -3481,7 +3503,13 @@ interface AiActions {
 
   setModelTier: (t: ModelTier | null) => void;
 
-  sendAgent: (text: string, images?: string[], tampilBubble?: string, composerId?: string) => Promise<boolean>;
+  sendAgent: (
+    text: string,
+    images?: string[],
+    tampilBubble?: string,
+    composerId?: string,
+    opts?: { resume?: boolean },
+  ) => Promise<boolean>;
 
   /*
    * Jalur kirim Experts Mode (agentAktif === 'experts'): menambahkan pesan
@@ -3563,7 +3591,12 @@ interface AiActions {
 
     exportChat: (composerId?: string) => Promise<void>;
 
-  send: (text?: string, images?: string[], composerId?: string) => Promise<boolean>;
+  send: (
+    text?: string,
+    images?: string[],
+    composerId?: string,
+    opts?: { resume?: boolean; dariAntrean?: boolean },
+  ) => Promise<boolean>;
 
   /* Drop one queued message, or clear the whole queue. */
   buangAntrian: (idx: number | string, composerId?: string) => void;
@@ -3644,7 +3677,7 @@ interface AiActions {
    * all), so the model picks up after the last completed step instead of
    * redoing them. Returns false when there is nothing to resume.
    */
-  lanjutkanAgent: () => Promise<boolean>;
+  lanjutkanAgent: (composerId?: string) => Promise<boolean>;
   cancel: () => Promise<void>;
 
   onChunk: (c: AiChunk) => void;
@@ -3870,18 +3903,43 @@ function bootTier(): ModelTier | null {
  */
 let COMPOSER_AKTIF = '';
 
+/*
+ * The surface that owns the agent run in flight.
+ *
+ * `COMPOSER_AKTIF` is rewritten by every `send`, including a chat message on a
+ * DIFFERENT surface while the agent is working. Reading it for agent progress
+ * then writes the run's busy state into whichever surface typed last - the
+ * editor's run can make the main tab busy, and the reverse. Agent-only fields
+ * therefore use this separate id, set once for the whole run. Chat-only fields
+ * (pending / queue) keep using `COMPOSER_AKTIF`.
+ */
+let AGENT_RUN_COMPOSER: string | null = null;
+
+/*
+ * Which surface owns a chunk id.
+ *
+ * `onChunk` and `terapkanChunkKeState` used to read `COMPOSER_AKTIF`, which is
+ * whichever surface typed last. A chat answer arriving while another surface
+ * sent a message therefore cleared the WRONG surface's pending id, and the queue
+ * drain then ran in the wrong lane. Chunk ids are stable for the whole request:
+ * `reqId` in chat, `botMsg.id` for the agent (the chunk handler remaps attempts
+ * to that id). Register them at send time and remove them on the terminal frame.
+ */
+const permukaanChunk = new Map<string, string>();
+
 /** Mirror a flat run-state patch into the writing surface's record. */
 function mirrorRun(
   patch: Record<string, unknown>,
   s: AiState,
 ): Record<string, unknown> {
-  const id = COMPOSER_AKTIF;
+  const idChat = COMPOSER_AKTIF;
+  const idAgent = AGENT_RUN_COMPOSER ?? COMPOSER_AKTIF;
   const out: Record<string, unknown> = { ...patch };
-  if ('pending' in patch) out.pendings = { ...s.pendings, [id]: patch.pending as string | null };
-  if ('agentBusy' in patch) out.agentBusys = { ...s.agentBusys, [id]: patch.agentBusy as boolean };
+  if ('pending' in patch) out.pendings = { ...s.pendings, [idChat]: patch.pending as string | null };
+  if ('agentBusy' in patch) out.agentBusys = { ...s.agentBusys, [idAgent]: patch.agentBusy as boolean };
   if ('antrian' in patch) {
     const a = patch.antrian as AntrianPesan[];
-    out.antrians = { ...s.antrians, [id]: a };
+    out.antrians = { ...s.antrians, [idChat]: a };
   }
 
   /*
@@ -3909,7 +3967,7 @@ function mirrorRun(
   ];
   const adaAgent = AGEN_KUNCI.some(([k]) => k in patch);
   if (adaAgent) {
-    const lama = s.agentStates[id];
+    const lama = s.agentStates[idAgent];
     const dasar: AgentSurfaceState = lama ?? {
       steps: [],
       phase: 'idle',
@@ -3927,13 +3985,29 @@ function mirrorRun(
     for (const [k, field] of AGEN_KUNCI) {
       if (k in patch) (next as unknown as Record<string, unknown>)[field] = patch[k];
     }
-    out.agentStates = { ...s.agentStates, [id]: next };
+    out.agentStates = { ...s.agentStates, [idAgent]: next };
   }
   if ('agentResume' in patch) {
-    out.agentResumes = { ...s.agentResumes, [id]: patch.agentResume as { teks: string; images: string[] } | null };
+    out.agentResumes = { ...s.agentResumes, [idAgent]: patch.agentResume as AiState['agentResume'] };
   }
 
   return out;
+}
+
+/**
+ * The checkpoint for one surface.
+ *
+ * `agentResumes['']` may legitimately be `null` (the main surface has no
+ * checkpoint), while the legacy flat `agentResume` still holds the last run's
+ * point. Falling back on nullish-coalescing would then leak an editor
+ * checkpoint into the main chat, so presence of the key - not truthiness - is
+ * what decides.
+ */
+function checkpointPermukaan(s: AiState, composerId: string): AiState['agentResume'] {
+  if (Object.prototype.hasOwnProperty.call(s.agentResumes, composerId)) {
+    return s.agentResumes[composerId] ?? null;
+  }
+  return composerId === '' ? s.agentResume : null;
 }
 
 /*
@@ -4561,10 +4635,16 @@ export const useAi = create<AiStore>((set0, get) => {
       return { goals: next };
     });
   },
-  lanjutkanAgent: async () => {
-    const cp = get().agentResume;
+  lanjutkanAgent: async (composerId = '') => {
+    /*
+     * The checkpoint belongs to the surface that produced it. Reading the flat
+     * `agentResume` here sent an editor run's checkpoint into the main chat -
+     * the reader pressed Continue in the editor tab and watched the right-hand
+     * panel answer instead.
+     */
+    const cp = checkpointPermukaan(get(), composerId);
     if (!cp || get().agentBusy || get().pending) return false;
-    await get().send(cp.teks, cp.images);
+    await get().send(cp.teks, cp.images, composerId, { resume: true });
     return true;
   },
   kirimAntrian: async (idx, composerId = '', opts) => {
@@ -4594,6 +4674,16 @@ export const useAi = create<AiStore>((set0, get) => {
     const pos = posisiAntrian(daftar, idx);
     const item = pos >= 0 ? daftar[pos] : undefined;
     if (!item) return false;
+
+    /*
+     * Automatic drain is app-wide safe: there is one provider request and one
+     * agent loop. A surface whose own `agentBusys[...]` is false can still be
+     * looking at a run in the other window; sending now made `send` queue the
+     * item again and report `true`, so it disappeared from this drain and
+     * reappeared in the other surface's lane. The explicit "send this row now"
+     * action (`sekarang`) bypasses this gate because it is allowed to cancel.
+     */
+    if (!opts?.sekarang && (get().agentBusy || get().pending)) return false;
 
     /*
      * AMBIL DULU, kirim belakangan.
@@ -4675,7 +4765,9 @@ export const useAi = create<AiStore>((set0, get) => {
      * Sent as THIS surface, so the message lands in the conversation that
      * queued it and its reply does not surface in the other panel.
      */
-    const terkirim = await get().send(item.teks, item.images, composerId);
+    const terkirim = await get().send(item.teks, item.images, composerId, {
+      dariAntrean: true,
+    });
     if (!terkirim) {
       /*
        * GAGAL (mis. belum ada API key): kembalikan ke DEPAN antrean, jangan
@@ -4726,8 +4818,8 @@ export const useAi = create<AiStore>((set0, get) => {
       !!(get().agentBusys[composerId] ?? (composerId === '' ? get().agentBusy : false));
     // "lanjut" with a pending checkpoint continues the interrupted run from
     // where it stopped instead of starting a new one on top of the failure.
-    if (/^\s*lanjut(kan)?\s*[.!?…]*\s*$/i.test(teksBersih ?? '') && get().agentResume && !sibuk) {
-      await get().lanjutkanAgent();
+    if (/^\s*lanjut(kan)?\s*[.!?…]*\s*$/i.test(teksBersih ?? '') && checkpointPermukaan(get(), composerId) && !sibuk) {
+      await get().lanjutkanAgent(composerId);
       return;
     }
     await tungguGambar();
@@ -5300,7 +5392,7 @@ export const useAi = create<AiStore>((set0, get) => {
    * Kalau panel chat tidak ter-mount - run dari command palette, dari
    * keybinding, dari jendela AI terpisah yang belum dibuka, atau headless -
    * tidak ada tombol, Promise tidak pernah selesai, dan agen menunggu sampai
-   * watchdog 15 menit membunuhnya.
+   * watchdog 45 menit membunuhnya.
    *
    * Dua perbaikan:
    *
@@ -6099,7 +6191,12 @@ export const useAi = create<AiStore>((set0, get) => {
     return true;
     },
 
-  send: async (text, images, composerId = ''): Promise<boolean> => {
+  send: async (
+    text,
+    images,
+    composerId = '',
+    opts?: { resume?: boolean; dariAntrean?: boolean },
+  ): Promise<boolean> => {
     COMPOSER_AKTIF = composerId;
     get().sinkronProvider();
     const diketik = (text ?? get().drafts[''] ?? '').trim();
@@ -6177,6 +6274,13 @@ export const useAi = create<AiStore>((set0, get) => {
       ? get().agentBusy
       : !!(get().pendings[composerId] ?? (composerId === '' ? get().pending : null));
     if (sibuk) {
+      /*
+       * A queued row must never be re-queued by `send`. The old path returned
+       * true after parking it again, so the drain thought it was delivered and
+       * the row vanished from this surface's queue while reappearing in the
+       * other one. Return false; `_kirimAntrianSatu` puts it back at the front.
+       */
+      if (opts?.dariAntrean) return false;
       // Park it instead of refusing: the composer accepts the message and it
       // goes out as soon as the running task finishes.
       /*
@@ -6212,7 +6316,13 @@ export const useAi = create<AiStore>((set0, get) => {
        * aturan antrean hanya berlaku untuk baris berteks.
        */
       if (diketik.trim().length === 0) {
-        set((s) => ({ antrian: [...s.antrian, barisAntrean] }));
+        set((s) => {
+          const sesudah = [...(s.antrians[kunciAntrean] ?? []), barisAntrean];
+          return {
+            antrians: { ...s.antrians, [kunciAntrean]: sesudah },
+            ...(kunciAntrean === '' ? { antrian: sesudah } : {}),
+          };
+        });
         set((s) => ({ drafts: { ...s.drafts, [composerId]: '' }, draftImages: [], toast: tx('Added to the queue') }));
         return true;
       }
@@ -6249,7 +6359,7 @@ export const useAi = create<AiStore>((set0, get) => {
       if (useStore.getState().settings.agents?.agentAktif === 'experts') {
         return get().sendExperts(raw, imgs, tampil, composerId);
       }
-      return get().sendAgent(raw, imgs, tampil, composerId);
+      return get().sendAgent(raw, imgs, tampil, composerId, { resume: opts?.resume });
     }
 
     let content = raw;
@@ -6375,6 +6485,7 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     const reqId = nextId('req');
+    permukaanChunk.set(reqId, composerId);
     let ragContext: string | null = null;
     const rag = useStore.getState().settings.models;
     if (rag.ragEnabled && rag.ragUrl.trim() && rag.ragProject.trim()) {
@@ -6908,10 +7019,10 @@ export const useAi = create<AiStore>((set0, get) => {
         role: 'user',
         content: tampilBubble ?? goal,
         at: Date.now(),
-      };
-      set((s) => ({
-        sessions: s.sessions.map((x) =>
-          x.id === sessionId
+    };
+    set((s) => ({
+      sessions: s.sessions.map((x) =>
+        x.id === sessionId
             ? { ...x, messages: [...x.messages, steerMsg].slice(-MAX_MSGS) }
             : x,
         ),
@@ -6990,8 +7101,24 @@ export const useAi = create<AiStore>((set0, get) => {
     return msg.id;
   },
 
-  sendAgent: async (raw, explicitImages, tampilBubble, composerId = '') => {
+  sendAgent: async (
+    raw,
+    explicitImages,
+    tampilBubble,
+    composerId = '',
+    opts?: { resume?: boolean },
+  ) => {
     COMPOSER_AKTIF = composerId;
+    /*
+     * Read the checkpoint BEFORE the start `set()` clears it. That set has
+     * `agentResume: null` ("a new run invalidates the old point"), and the
+     * checkpoint used to be read twenty lines later - so a resume always saw
+     * null, rebuilt history from the visible transcript, and restarted at step
+     * zero. Capture it here, per surface, and only when the caller explicitly
+     * asked to resume: a fresh message that happens to have the same text must
+     * not silently turn into a resume.
+     */
+    const checkpointAwal = opts?.resume ? checkpointPermukaan(get(), composerId) : null;
     get().sinkronProvider();
     clearGambarMenunggu();
     if (get().pending || get().agentBusy) {
@@ -7138,6 +7265,10 @@ export const useAi = create<AiStore>((set0, get) => {
        */
       reasoningMs: 0,
     };
+    /* Agent writes from here to the exit path belong to THIS surface, even if a
+       chat message on another surface changes `COMPOSER_AKTIF` meanwhile. */
+    AGENT_RUN_COMPOSER = composerId;
+    permukaanChunk.set(botMsg.id, composerId);
     set((s) => ({
       sessions: s.sessions.map((x) =>
         x.id === sessionId
@@ -7185,7 +7316,14 @@ export const useAi = create<AiStore>((set0, get) => {
      * compares against it and only notifies past a threshold - a two-second
      * reply does not deserve a toast.
      */
-    void import('./notifikasiAi').then((m) => m.catatMulaiRun(activeAgentUiId ?? '')).catch(() => {});
+    /*
+     * Use the bubble id, not `activeAgentUiId`. That variable is assigned only
+     * when the first provider call starts (further below); at this point it is
+     * still null, so the run was recorded under '' while completion looked it
+     * up under `botMsg.id` and found nothing. The finish notification never
+     * fired for that reason alone.
+     */
+    void import('./notifikasiAi').then((m) => m.catatMulaiRun(botMsg.id)).catch(() => {});
     /*
      * Open this turn's file checkpoint.
      *
@@ -7245,12 +7383,19 @@ export const useAi = create<AiStore>((set0, get) => {
     // included): that is the whole point — the model continues after the last
     // completed step instead of redoing finished work. Fresh runs build the
     // history from the visible session as before.
-    const checkpoint = get().agentResume;
+    const checkpoint = checkpointAwal;
     let langkahAwal = 0;
     if (checkpoint && checkpoint.teks === content) {
       history.push(...checkpoint.history);
       langkahAwal = checkpoint.langkah;
-      set({ agentResume: null });
+    } else {
+      /* autoLanjut adalah anggaran per-GILIRAN, bukan per-proses. Tanpa reset
+         saat giliran BARU dimulai, setelah empat kali melanjutkan otomatis
+         sepanjang umur app, run berikutnya tidak pernah melanjutkan lagi (run
+         "berhenti sendiri"). Reset hanya untuk giliran baru: rantai resume
+         tetap memakai anggaran yang sama supaya provider yang benar-benar mati
+         tidak diulang tanpa batas. */
+      autoLanjut = 0;
     }
     /*
      * Riwayat percakapan sebelumnya dibawa HANYA sebatas giliran terakhir, dan
@@ -7535,6 +7680,7 @@ export const useAi = create<AiStore>((set0, get) => {
      * benar-benar mandek tidak membuat loop berputar sampai MAX_AGENT_STEPS.
      */
     let lanjutTanpaTool = 0;
+    let awalTanpaTool = 0;
     /*
      * Whether the guard has already given the model its one reminder.
      *
@@ -7615,8 +7761,6 @@ export const useAi = create<AiStore>((set0, get) => {
      * sudah membuktikan dirinya membaik.
      */
     let argumenRusakBerturut = 0;
-/* Automatic resumes used by THIS run; see AUTO_LANJUT_MAKS. */
-let autoLanjut = 0;
     /*
      * A(i)/A(iv): keadaan yang hanya perlu dihitung SEKALI per run.
      *
@@ -8375,6 +8519,28 @@ let autoLanjut = 0;
               } else {
                 pesan.push({ role: 'user', content: catatanStatus });
               }
+              /*
+               * Ack `user` setelah blok hasil tool — wajib untuk GLM yang
+               * dibungkus proxy tertentu (terukur live pada 127.0.0.1:20135):
+               * permintaan yang pesan TERAKHIRNYA `tool` ditolak 400
+               * "[1214] messages 参数非法", sementara body yang SAMA plus satu
+               * `user` kecil di akhir diterima 200. Bentuk "akhir = tool" adalah
+               * bentuk resmi OpenAI untuk lanjutan tool-loop, tetapi proxy itu
+               * menolaknya, dan run agent Zephyr mengirim persis bentuk itu di
+               * SETIAP langkah setelah tool pertama — makanya run berat selalu
+               * mati di tengah dengan "Request rejected (400)" sementara klien
+               * lain yang menyisipkan teks user antar-langkah tidak pernah
+               * melihatnya. Ack ini bernilai sama untuk model (status pekerjaan
+               * sudah ditempel di hasil tool di atas); perannya hanya
+               * mengembalikan pesan terakhir ke `user` tanpa menambah informasi
+               * palsu. Hanya disisipkan ketika belum ada `user` di ekor —
+               * jalur `catatanStatus` di atas sudah menjamin itu untuk
+               * langkah ber-tool, dan `gerbangRencana`/`koreksiArgumenTool`
+               * menambah `user` sendiri.
+               */
+              if (pesan[pesan.length - 1]?.role === 'tool') {
+                pesan.push({ role: 'user', content: '[tool results above — continue the task]' });
+              }
             }
             if (gerbangRencana) {
               /*
@@ -8864,7 +9030,59 @@ let autoLanjut = 0;
            * Tanpa todo, tidak ada penanda sisa pekerjaan yang bisa dipercaya,
            * jadi perilaku lama dipertahankan: satu giliran tanpa tool call =
            * selesai.
+           *
+           * That last rule is no longer safe for a HEAVY task. The To-Do List
+           * switch can be off, in which case `todo_write` is not even on the
+           * wire; a build request then answered with text alone ended as a
+           * successful run with zero steps. The first-step guard below does not
+           * read the todo list at all: it looks at `beratRun` and the absence of
+           * any tool call, nudges twice, then fails honestly.
            */
+          const balasTanya = /\?\s*$/.test((res.content ?? '').trim());
+          if (
+            beratRun &&
+            langkah === 0 &&
+            !navigationOnly &&
+            !agentBatal &&
+            !balasTanya &&
+            awalTanpaTool < BATAS_AWAL_TANPA_TOOL
+          ) {
+            awalTanpaTool += 1;
+            history.push({
+              role: 'user',
+              content:
+                'Your previous turn called NO tool. This is a build/change task, not a question. ' +
+                'Call the appropriate tool now (read_file, write_file, edit, bash_run, or another ' +
+                'tool that makes measurable progress), then continue the task. Do not answer with ' +
+                'a summary and do not stop.',
+            });
+            set((s) => ({
+              agentSteps: [
+                ...s.agentSteps,
+                {
+                  kind: 'tool',
+                  name: '(tool awal)',
+                  args: '{}',
+                  result: `Tugas berat tidak memanggil tool sama sekali; diminta memulai (${awalTanpaTool}/${BATAS_AWAL_TANPA_TOOL}).`,
+                  ok: false,
+                  at: Date.now(),
+                },
+              ],
+            }));
+            continue;
+          }
+          if (
+            beratRun &&
+            langkah === 0 &&
+            !navigationOnly &&
+            !agentBatal &&
+            !balasTanya &&
+            awalTanpaTool >= BATAS_AWAL_TANPA_TOOL
+          ) {
+            agentStopReason = 'no-tool';
+            agentBatal = true;
+            break;
+          }
           const sisaTodo = useAi.getState().agentTodos.filter((t) => t.status !== 'done');
           /*
            * A todo whose file ALREADY EXISTS ON DISK is not evidence of work
@@ -10400,10 +10618,16 @@ let autoLanjut = 0;
        * than captured at the start: a chat is often renamed mid-run, and the
        * name the reader sees in the sidebar is the one they should see here.
        */
-      const sesiAktif = get().sessions.find((s) => s.id === get().activeId);
+      /*
+       * The run wrote into `sessionId`; `activeId` is whatever chat happens to
+       * be selected when it ends. Switching chats mid-run gave the notification
+       * the wrong conversation's title. It also must use the same key as
+       * `catatMulaiRun` (`botMsg.id`), not `activeAgentUiId`.
+       */
+      const sesiAktif = get().sessions.find((s) => s.id === sessionId);
       const judulSesi = (sesiAktif?.title ?? '').trim();
       catatSelesaiRun(
-        activeAgentUiId ?? '',
+        botMsg.id,
         judulSesi || 'Zephyr',
         runWasCancelled ? 'Stopped.' : akhir?.trim() || 'Done.',
         hasil,
@@ -10565,11 +10789,12 @@ let autoLanjut = 0;
             const st = get();
             /* The reader may have started something else in the meantime; a
                background resume must never fight them for the composer. */
-            if (st.agentBusy || st.pending || !st.agentResume) return;
+            const cp = checkpointPermukaan(st, composerId);
+            if (st.agentBusy || st.pending || !cp) return;
             set({
-              toast: `Melanjutkan otomatis (${jumlah}/${AUTO_LANJUT_MAKS}) setelah ${agentFailureLabel(agentFailure.category).toLowerCase()} — kerja berlanjut dari langkah terakhir.`,
+              toast: `Melanjutkan otomatis (${jumlah}/${AUTO_LANJUT_MAKS}) setelah ${agentFailureLabel(agentFailure.category).toLowerCase()} �?" kerja berlanjut dari langkah terakhir.`,
             });
-            void st.lanjutkanAgent();
+            void st.lanjutkanAgent(composerId);
           }, jeda);
         }
       }
@@ -10611,7 +10836,7 @@ let autoLanjut = 0;
        appended by a late rAF onto a message the UI has marked finished. */
     flushChunkBuf();
     agentWatchdogDisarm();
-    // Without this the 15-minute timer outlives its run and fires in the middle
+    // Without this the 45-minute timer outlives its run and fires in the middle
     // of a LATER one, killing a healthy agent.
     agentHardLimitDisarm();
     agentStepResolve = null;
@@ -10811,6 +11036,11 @@ let autoLanjut = 0;
       ),
     }));
     persist(get());
+    /*
+     * The run's surface record is complete. From here on, writes belong to
+     * whatever the reader does next - not to this finished run.
+     */
+    AGENT_RUN_COMPOSER = null;
 
     /*
      * Close the turn's checkpoint and attach it to the message it belongs to.
@@ -11009,11 +11239,16 @@ let autoLanjut = 0;
     // user cancellation also remains non-draining.
     if (!runWasCancelled && !agentFailure) {
       /* The queue of the surface that just finished, not the primary one's. */
-      const daftar = get().antrians[COMPOSER_AKTIF] ?? [];
+      const daftar = get().antrians[composerId] ?? [];
       const next = daftar[0];
-      if (next && !(get().agentBusys[COMPOSER_AKTIF] ?? false)) {
-        void get().kirimAntrian(0, COMPOSER_AKTIF);
-      } else if (!next && !(get().agentBusys[COMPOSER_AKTIF] ?? false) && get().antrian.length > 0) {
+      if (next && !(get().agentBusys[composerId] ?? false)) {
+        void get().kirimAntrian(0, composerId);
+      } else if (
+        !next &&
+        composerId === '' &&
+        !(get().agentBusys[composerId] ?? false) &&
+        get().antrian.length > 0
+      ) {
         /*
          * LANE ANTREAN-LIVE (item C): pesan yang diketik SESUDAH drain langkah
          * terakhir tidak pernah lewat drain mana pun. Jalur lama membiarkannya
@@ -11029,13 +11264,13 @@ let autoLanjut = 0;
         if (selesai.langsungDiproses) {
           const pindah = get().antrian;
           set((s) => {
-            const sesudah = [...(s.antrians[COMPOSER_AKTIF] ?? []), ...pindah];
+            const sesudah = [...(s.antrians[composerId] ?? []), ...pindah];
             return {
-              antrians: { ...s.antrians, [COMPOSER_AKTIF]: sesudah },
-              ...(COMPOSER_AKTIF === '' ? { antrian: sesudah } : { antrian: [] }),
+              antrians: { ...s.antrians, [composerId]: sesudah },
+              antrian: sesudah,
             };
           });
-          void get().kirimAntrian(0, COMPOSER_AKTIF);
+          void get().kirimAntrian(0, composerId);
         }
       }
     } else {
@@ -11159,7 +11394,7 @@ let autoLanjut = 0;
          * "no reply" into "cannot type". They are cleared together here.
          */
         agentBusy: false,
-        agentBusys: { ...s.agentBusys, '': false },
+        agentBusys: { ...s.agentBusys, [AGENT_RUN_COMPOSER ?? '']: false },
         agentPhase: 'idle',
         agentCurrentTool: null,
         agentStepIndex: 0,
@@ -11174,6 +11409,8 @@ let autoLanjut = 0;
         })),
       }));
       persist(get());
+      /* If no step was waiting, this is the only exit this hung run gets. */
+      if (!tunggu) AGENT_RUN_COMPOSER = null;
       return;
     }
     const id = get().pending;
@@ -11289,7 +11526,7 @@ let autoLanjut = 0;
      * menyentuh `agentStepResolve`. Kalau frame yang ditelan itu justru frame
      * PENUTUP (`toolDone`/`done`/`err`), loop tetap parkir di `await` dan tidak
      * ada apa pun yang membangunkannya - bubble tetap `streaming: true`, meter
-     * tetap di indeks lama, dan hanya batas keras 15 menit yang mengakhiri.
+     * tetap di indeks lama, dan hanya batas keras 45 menit yang mengakhiri.
      *
      * Ini satu-satunya jalur di `onChunk` yang bisa menelan terminal, jadi
      * penutupnya dipasang di sini: frame terminal yang akan dibuang tetap
@@ -11427,7 +11664,7 @@ let autoLanjut = 0;
      * masih hidup tetapi tidak lagi mengirim apa-apa yang berguna. Stream yang
      * hanya mengeluarkan keep-alive, potongan usage, atau frame kosong akan
      * mengembalikan timer ke 360 detik setiap kali - selamanya. Yang akhirnya
-     * menghentikan run cuma batas mutlak 15 menit, dan itulah "beberapa menit
+     * menghentikan run cuma batas mutlak 45 menit, dan itulah "beberapa menit
      * lalu state kembali sendiri" yang dilaporkan.
      *
      * Basis timer diubah dari "ada frame" menjadi "ada perubahan konten", yang
@@ -11443,7 +11680,7 @@ let autoLanjut = 0;
     if (c.toolDone) {
       agentWatchdogDisarm();
       /* Langkah selesai, jadi batas mutlaknya juga dibatalkan. Kalau tidak,
-         timer 15 menit itu akan menembak di tengah langkah BERIKUTNYA dan
+         timer 45 menit itu akan menembak di tengah langkah BERIKUTNYA dan
          menghentikan agen yang sedang berjalan normal. */
       agentHardLimitDisarm();
       cancelled.delete(c.id);
@@ -11624,7 +11861,8 @@ let autoLanjut = 0;
         return;
       }
     }
-    terapkanChunkKeState(c);
+    const chunkComposer = permukaanChunk.get(c.id) ?? COMPOSER_AKTIF;
+    terapkanChunkKeState(c, chunkComposer);
     if (c.done || c.err) persist(get());
 
     /*
@@ -11634,14 +11872,19 @@ let autoLanjut = 0;
      */
     if (c.done || c.err) {
       const s2 = get();
-      const next = (s2.antrians[COMPOSER_AKTIF] ?? [])[0];
-      if (next && !(s2.pendings[COMPOSER_AKTIF] ?? null) && !(s2.agentBusys[COMPOSER_AKTIF] ?? false)) {
+      const next = (s2.antrians[chunkComposer] ?? [])[0];
+      if (
+        next &&
+        !(s2.pendings[chunkComposer] ?? null) &&
+        !(s2.agentBusys[chunkComposer] ?? false)
+      ) {
         // Lewat `kirimAntrian` supaya satu-satunya jalur drain pada mode chat
         // sama dengan mode agent: item HANYA dihapus kalau `send` benar-benar
         // diterima. Kalau tidak (mis. belum ada API key), pesan tetap di
         // antrian dan tidak hilang diam-diam.
-        void get().kirimAntrian(0, COMPOSER_AKTIF);
+        void get().kirimAntrian(0, chunkComposer);
       }
+      permukaanChunk.delete(c.id);
     }
   },
 
@@ -11898,7 +12141,7 @@ function segmenReasoningBerikut(
   return berubah ? segmen : undefined;
 }
 
-function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void {
+function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }, composerId = COMPOSER_AKTIF): void {
   /*
    * A buffered frame carries its reasoning as an ordered list; a direct chunk
    * carries a single string. Normalise to a list so one map pass applies all.
@@ -12050,7 +12293,7 @@ function terapkanChunkKeState(c: AiChunk & { reasoningFrames?: string[] }): void
        * jalan. Hanya frame terminal yang mengubah nilai ini, jadi hanya frame
        * terminal yang membayar salinannya.
        */
-      ...(c.done || c.err ? { pendings: { ...s.pendings, [COMPOSER_AKTIF]: sisaPending } } : {}),
+      ...(c.done || c.err ? { pendings: { ...s.pendings, [composerId]: sisaPending } } : {}),
 
       reasoningText: reasoningHasil ? (s.reasoningText ?? '') + reasoningHasil : s.reasoningText,
     };

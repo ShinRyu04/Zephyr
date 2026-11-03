@@ -70,7 +70,8 @@
     "verify:sinkron-ikon": "node scripts/verify-sinkron-ikon.mjs",
     "verify:tema-tidak-default": "node scripts/verify-tema-tidak-default.mjs",
     "verify:alur-marketplace": "node scripts/verify-alur-marketplace.mjs",
-    "verify:browser-tab": "node scripts/verify-browser-tab.mjs"
+    "verify:browser-tab": "node scripts/verify-browser-tab.mjs",
+    "bench:agent": "node scripts/bench-agent.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.3",
@@ -99,6 +100,7 @@
     "@replit/codemirror-vim": "^6.4.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
+    "@tauri-apps/plugin-notification": "^2.8.0",
     "@tauri-apps/plugin-opener": "^2.0.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-store": "^2.0.0",

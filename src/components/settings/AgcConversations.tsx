@@ -39,7 +39,11 @@ import { useT } from '../../lib/i18n';
 import AiIkon from '../ai/AiIkon';
 import { useAi } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
-import { riwayatNotifikasi } from '../../lib/notifikasiAi';
+import {
+  mintaIzinNotifikasi,
+  riwayatNotifikasi,
+  ujiNotifikasi,
+} from '../../lib/notifikasiAi';
 import { useTanya } from '../../lib/tanyaStore';
 
 type Tab = 'setelan' | 'riwayat' | 'notifikasi';
@@ -193,6 +197,18 @@ export default function AgcConversations() {
   useEffect(() => {
     setRiwayat(riwayatNotifikasi());
   }, [tab]);
+
+  const [statusIzinNotif, setStatusIzinNotif] = useState<string | null>(null);
+  const tesNotifikasi = async () => {
+    const izin = await mintaIzinNotifikasi();
+    setStatusIzinNotif(izin);
+    /*
+     * The test button is the ONLY place that asks for permission. A granted
+     * plugin permission gets the native path; `unavailable` falls back to the
+     * Rust notifier so the button still proves the integration works.
+     */
+    if (izin === 'granted' || izin === 'unavailable') await ujiNotifikasi();
+  };
 
   /*
    * One writer for every switch.
@@ -536,6 +552,26 @@ export default function AgcConversations() {
                 onChange={(v) => set({ notifSound: v })}
                 testid="agx-conv-notif-sound"
               />
+            </div>
+
+            <div className="set-row">
+              <button
+                type="button"
+                className="agset-btn-batal"
+                data-testid="agx-conv-notif-test"
+                onClick={() => void tesNotifikasi()}
+              >
+                {tr('Test notification')}
+              </button>
+              {statusIzinNotif && (
+                <span className="aim-muted" data-testid="agx-conv-notif-izin">
+                  {statusIzinNotif === 'granted'
+                    ? tr('Notifications are allowed')
+                    : statusIzinNotif === 'unavailable'
+                      ? tr('Using the built-in fallback')
+                      : tr('Notifications are blocked')}
+                </span>
+              )}
             </div>
 
             {/*

@@ -16,7 +16,13 @@ import { tmpdir } from 'node:os';
 import { mkdirSync, rmSync } from 'node:fs';
 
 const list = await (await fetch('http://127.0.0.1:9223/json/list')).json();
-const pg = list.find((x) => x.type === 'page');
+/* Dua jendela bisa hidup bersamaan (`/` dan `/index.html#agents`) dan urutan
+ * `/json/list` tidak dijamin, jadi `find(type==='page')` bisa mendarat di
+ * jendela Agents yang tidak punya tab Claude Code. Pilih target utama eksplisit. */
+const pg =
+  list.find((x) => x.type === 'page' && !x.url.includes('#') && new URL(x.url).pathname === '/') ??
+  list.find((x) => x.type === 'page' && !x.url.includes('#')) ??
+  list.find((x) => x.type === 'page');
 if (!pg) { console.error('no page'); process.exit(1); }
 const ws = new WebSocket(pg.webSocketDebuggerUrl, { perMessageDeflate: false });
 await new Promise((r) => ws.once('open', r));
@@ -42,6 +48,15 @@ const check = (i, ok, d) => { out.push(ok); console.log(`${ok ? 'LULUS' : 'GAGAL
    page, where a Windows backslash would be read as an escape. */
 const sandbox = `${tmpdir()}/zephyr-resume-${process.pid}`.replaceAll('\\', '/');
 mkdirSync(sandbox, { recursive: true });
+
+/*
+ * This harness talks to the REAL Claude Code tab, so it must leave no trace:
+ * no test session, no test messages, and the Agent tab back in front. Without
+ * this, the user opens Claude Code later and finds the BAMBU prompts from this
+ * test sitting in their history (reported 2 Nov).
+ */
+const sebelum = await ev(`JSON.stringify((()=>{const st=window.__ZEPHYR_CLICHAT__.getState();
+  return { sessions: st.sessions, activeId: st.activeId };})())`);
 
 console.log('tab:', await ev(`(()=>{const t=[...document.querySelectorAll('[role="tab"],button')].find(e=>/^Claude Code$/.test((e.textContent||'').trim())); if(t) t.click(); return 'ok';})()`));
 await new Promise((r) => setTimeout(r, 800));
@@ -88,6 +103,17 @@ for (let i = 0; i < 150; i++) {
 check('R2', answer.length > 0, answer ? `answered: ${JSON.stringify(answer.slice(0, 80))}` : 'no answer after turn 2');
 /* The whole feature in one assertion: a fresh session cannot know the word. */
 check('R3', /BAMBU/i.test(answer), `remembered across turns: ${/BAMBU/i.test(answer)}`);
+
+/* Put the Claude Code tab back exactly as it was before this test. */
+let sesiAwal = { sessions: {}, activeId: {} };
+try { sesiAwal = JSON.parse(sebelum); } catch (e) { /* bridge hilang: tidak ada yang perlu dipulihkan */ }
+const pulih = await ev(`(()=>{const S=window.__ZEPHYR_CLICHAT__; const s=${JSON.stringify(sesiAwal)};
+  S.setState({ sessions: s.sessions, activeId: s.activeId });
+  try { localStorage.setItem('zephyr.aiCliSessions.v1', JSON.stringify({ sessions: s.sessions, activeId: s.activeId })); } catch (e) {}
+  const tab = document.querySelector('[data-testid="ai-host-tab-chat"]');
+  if (tab) tab.click();
+  return 'dipulihkan';})()`);
+console.log('cleanup:', pulih);
 
 try {
   rmSync(sandbox, { recursive: true, force: true });

@@ -133,7 +133,7 @@ export function catatSelesaiRun(id: string, judul: string, ringkas: string, hasi
   const bolehBunyi = conv?.notifSound === true;
 
   if (bolehBanner) {
-    void notifyShow(judul.trim().slice(0, 80) || 'Zephyr', badan);
+    void tampilkanBanner(judul.trim().slice(0, 80) || 'Zephyr', badan);
   }
 
   if (bolehBunyi) {
@@ -161,6 +161,64 @@ export function catatSelesaiRun(id: string, judul: string, ringkas: string, hasi
       catatBunyi(null, 0);
     }
   }
+}
+
+/**
+ * Show one banner through the best available path.
+ *
+ * The Tauri plugin is preferred because Windows then attributes the toast to
+ * Zephyr and keeps it in the notification centre; the PowerShell fallback stays
+ * for a build where the plugin is unavailable or permission was never granted.
+ * When both refuse, an in-app toast is still worth raising - the reader at the
+ * desk sees it, and the transcript remains the source of truth either way.
+ */
+async function tampilkanBanner(judul: string, badan: string): Promise<boolean> {
+  try {
+    const n = await import('@tauri-apps/plugin-notification');
+    /*
+     * Never prompt from here. The permission dialog belongs to the explicit
+     * Settings action, not to a run finishing at an arbitrary moment; a prompt
+     * nobody asked for is exactly what this module promises not to do.
+     */
+    if (await n.isPermissionGranted()) {
+      await n.sendNotification({ title: judul, body: badan });
+      return true;
+    }
+  } catch {
+    /* plugin missing/permission store unavailable: fall through */
+  }
+
+  try {
+    if (await notifyShow(judul, badan)) return true;
+  } catch {
+    /* Rust command unavailable: fall through */
+  }
+
+  try {
+    const { notifyInfo } = await import('./notificationStore');
+    notifyInfo(judul, { detail: badan, source: 'AI run' });
+  } catch {
+    /* A notification is a courtesy; the transcript still shows the result. */
+  }
+  return false;
+}
+
+/** Ask for the OS notification permission. Only Settings calls this. */
+export async function mintaIzinNotifikasi(): Promise<
+  'granted' | 'denied' | 'default' | 'unavailable'
+> {
+  try {
+    const n = await import('@tauri-apps/plugin-notification');
+    if (await n.isPermissionGranted()) return 'granted';
+    return await n.requestPermission();
+  } catch {
+    return 'unavailable';
+  }
+}
+
+/** Fire a test banner through the same path a finished run uses. */
+export async function ujiNotifikasi(): Promise<boolean> {
+  return tampilkanBanner('Zephyr', 'Notifications are working.');
 }
 
 /** Forget a run that was cancelled before it finished. */

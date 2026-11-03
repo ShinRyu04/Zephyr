@@ -64,9 +64,42 @@ const h = await cdp.json(
     .getState()
     .sessions.filter((s) => (s.messages ?? []).some((m) => (m.tools ?? []).length > 0))
     .sort((a, b) => (b.messages?.length ?? 0) - (a.messages?.length ?? 0))[0];
-  out.adaSesiTool = !!sesiDenganTool;
-  if (sesiDenganTool) {
-    A.getState().selectChat(sesiDenganTool.id, '');
+  /*
+   * Sandbox yang segar tidak punya sesi dengan tool row (butuh run nyata).
+   * Tanam satu sesi dummy berisi tool rows supaya pengukuran S4-S8 tetap
+   * bermakna; sesi tanaman dibuang lagi di akhir harness.
+   */
+  let idTanaman = null;
+  if (!sesiDenganTool) {
+    idTanaman = A.getState().newChat('');
+    const sid = A.getState().activeIds[''];
+    A.setState((st) => ({
+      sessions: st.sessions.map((x) =>
+        x.id === sid
+          ? {
+              ...x,
+              messages: [
+                {
+                  id: 'm-tanam-1',
+                  role: 'assistant',
+                  content: 'Harness transcript',
+                  at: Date.now(),
+                  tools: [
+                    { name: 'read_file', args: JSON.stringify({ path: 'src/main.ts' }), result: 'ok', ok: true, at: Date.now(), ms: 120 },
+                    { name: 'edit_file', args: JSON.stringify({ path: 'src/main.ts' }), result: 'ok', ok: true, at: Date.now(), ms: 340 },
+                    { name: 'bash_run', args: JSON.stringify({ cmd: 'npm test' }), result: 'ok', ok: true, at: Date.now(), ms: 2100 },
+                  ],
+                },
+              ],
+            }
+          : x,
+      ),
+    }));
+  }
+  const targetSesi = sesiDenganTool ?? A.getState().sessions.find((x) => x.id === idTanaman);
+  out.adaSesiTool = !!targetSesi;
+  if (targetSesi) {
+    A.getState().selectChat(targetSesi.id, '');
     await tunggu(900);
     /*
      * Open every accordion so the rows exist to be measured. A closed accordion
@@ -80,11 +113,11 @@ const h = await cdp.json(
   const ukur = () => {
     /*
      * Measure BOTH shapes: a row inside an opened accordion
-     * ('ai-kerja-baris') and a standalone card ('.cli-tool'). The accordion is
-     * the normal shape now, so measuring only '.cli-tool' reported zero rows and
-     * failed a working UI.
+     * ('ai-kerja-baris' — flat list) and a tree row ('ai-gariswaktu-tool').
+     * The tree is the shape the transcript renders now, so measuring only
+     * '.cli-tool'/'ai-kerja-baris' reported zero rows and failed a working UI.
      */
-    const tools = [...document.querySelectorAll('[data-testid="ai-kerja-baris"], .cli-tool')];
+    const tools = [...document.querySelectorAll('[data-testid="ai-kerja-baris"], [data-testid="ai-gariswaktu-tool"], .cli-tool')];
     const h = tools.map((x) => Math.round(x.getBoundingClientRect().height)).sort((a, b) => b - a);
     const head = document.querySelector('.ai-kerja-head, .cli-tool-head');
     const title = document.querySelector('.cli-tool-title');
@@ -114,6 +147,9 @@ const h = await cdp.json(
 
   S.getState().setAiMax(false);
   await tunggu(400);
+
+  /* Buang sesi tanaman supaya sandbox bersih. */
+  if (idTanaman) A.getState().deleteChat(idTanaman);
 
   return out;
 })().catch((e) => ({ fatal: String(e) })))`,

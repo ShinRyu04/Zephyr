@@ -13,7 +13,13 @@ import { tmpdir } from 'node:os';
 import { mkdirSync, rmSync } from 'node:fs';
 
 const list = await (await fetch('http://127.0.0.1:9223/json/list')).json();
-const pg = list.find((x) => x.type === 'page');
+/* Dua jendela bisa hidup bersamaan (`/` dan `/index.html#agents`) dan urutan
+ * `/json/list` tidak dijamin, jadi `find(type==='page')` bisa mendarat di
+ * jendela Agents yang tidak punya tab Claude Code. Pilih target utama eksplisit. */
+const pg =
+  list.find((x) => x.type === 'page' && !x.url.includes('#') && new URL(x.url).pathname === '/') ??
+  list.find((x) => x.type === 'page' && !x.url.includes('#')) ??
+  list.find((x) => x.type === 'page');
 if (!pg) { console.error('no page'); process.exit(1); }
 const ws = new WebSocket(pg.webSocketDebuggerUrl, { perMessageDeflate: false });
 await new Promise((r) => ws.once('open', r));
