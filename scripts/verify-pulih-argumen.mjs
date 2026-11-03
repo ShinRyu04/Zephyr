@@ -12,7 +12,7 @@
  *
  *   A1  jatah toleransi argumen rusak berurutan = 4 (dulu 2)
  *   A2  kategori `protocol` BOLEH dilanjutkan (dulu hanya provider/timeout)
- *   A3  auto-resume dibatasi 2 dan tidak jalan kalau user membatalkan
+ *   A3  auto-resume dibatasi (20) dan tidak jalan kalau user membatalkan
  *   A4  pesan pemulihan menyuruh MEMPECAH berkas besar (bukan mengulang sama)
  *   A5  penghitung rusak di-reset setelah langkah sukses
  */
@@ -45,15 +45,22 @@ cek(
 
 /* A3 */
 const mAUTO = /AUTO_LANJUT_MAKS = (\d+)/.exec(src);
-cek('A3a batas auto-resume = 2', mAUTO?.[1] === '2', `nilai=${mAUTO?.[1] ?? '?'}`);
+cek('A3a batas auto-resume = 20', mAUTO?.[1] === '20', `nilai=${mAUTO?.[1] ?? '?'}`);
 cek(
   'A3b auto-resume tidak jalan saat run dibatalkan user',
-  /agentFailure\.category === 'protocol' && autoLanjut < AUTO_LANJUT_MAKS && !agentBatal/.test(src),
+  /kategoriLanjut && autoLanjut < AUTO_LANJUT_MAKS && !agentBatal/.test(src) &&
+    /agentFailure\.category === 'timeout'/.test(src) &&
+    /agentFailure\.category === 'provider'/.test(src),
   'terpasang',
 );
 cek(
   'A3c auto-resume tidak merebut composer yang sedang sibuk',
-  /if \(st\.agentBusy \|\| st\.pending \|\| !st\.agentResume\) return;/.test(src),
+  /if \(st\.agentBusy \|\| st\.pending \|\| !cp\) return;/.test(src),
+  'terpasang',
+);
+cek(
+  'A3d anggaran auto-resume di-reset untuk giliran BARU (bukan rantai resume)',
+  /\} else \{[\s\S]{0,700}autoLanjut = 0;/.test(src),
   'terpasang',
 );
 

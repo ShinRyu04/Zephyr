@@ -1087,8 +1087,10 @@ export const TOOL_WEB: AgentTool[] = [
       if (!cekUkuran.ok) return `(download ditolak: ${cekUkuran.alasan})`;
       /* A file this turn creates, written through `cmd.fsWrite` rather than the
          builtins' `tulis()` helper — so the checkpoint has to be told here too,
-         or the download is invisible to "put back what this turn changed". */
-      await (await import('../checkpoint')).catat(dest);
+         or the download is invisible to "put back what this turn changed".
+         Fail-open like the builtins' write path: the snapshot is bookkeeping,
+         and a dead dev server must not fail a finished download. */
+      await (await import('../checkpoint')).catat(dest).catch(() => undefined);
       await cmd.fsWrite(dest, konten, undefined, undefined, { allowMissing: true });
       /* A download is a new file on disk like any other, so the tree has to
          hear about it. Same reason as the builtins' write path: relying on

@@ -60,6 +60,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock", "s
 zip = { version = "5", default-features = false, features = ["deflate"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 discord-rich-presence = "1.1.0"
+tauri-plugin-notification = "2"
 
 [features]
 # Fitur custom-protocol hanya aktif saat build release (production).

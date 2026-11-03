@@ -924,17 +924,17 @@
 }
 
 /*
- * Strip antrian LAMA di work-stack (ai-work-stack-queue) disembunyikan:
+ * Kartu antrean (ai-antrian) disembunyikan di jendela utama:
  * antrian sekarang tinggal di tab Queue kartu review di bawahnya - dua-duanya
  * menampilkan barisan pesan yang sama persis, dan itu pemborosan layar.
  *
- * Selektornya ATTRIBUT, bukan class: elemen strip dirender `<section
- * className="ai-work-section" data-testid="ai-work-stack-queue">` (AiPanel),
- * jadi selector class `.ai-work-stack-queue` dulu TIDAK PERNAH mengenai apa
- * pun - aturan sembunyi ini mati sunyi. Jendela Agents mengembalikan
- * tampilannya lewat `.agx-chat` (agents2.css).
+ * Selektornya ATTRIBUT, bukan class: elemen kartu dirender `<section
+ * className="experts-kartu" data-testid="ai-antrian">` (KartuAntrean).
+ * Jendela Agents mengembalikan tampilannya lewat `.agx-canvas .agx-chat`
+ * (agents2.css) yang lebih spesifik dari selektor ini.
  */
-.ai-work-section[data-testid='ai-work-stack-queue'] {
+.ai-host-pane [data-testid='ai-antrian'],
+.agx-canvas [data-testid='agx-chat'] [data-testid='ai-antrian'] {
   display: none;
 }
 

@@ -33,13 +33,26 @@ use std::process::Command;
 /// failed". The caller is told whether it was shown so the UI can decide to fall
 /// back to an in-app toast.
 #[tauri::command]
-pub fn notify_show(title: String, body: String) -> bool {
-    let judul = title.trim();
-    let isi = body.trim();
+pub async fn notify_show(title: String, body: String) -> bool {
+    let judul = title.trim().to_owned();
+    let isi = body.trim().to_owned();
     if judul.is_empty() && isi.is_empty() {
         return false;
     }
 
+    /*
+     * The Windows path builds a toast through PowerShell, which costs a process
+     * spawn and can take seconds on a cold start. Running it directly on the
+     * command thread held the IPC reply - and the caller's queue drain - for
+     * that whole time. The notification is fire-and-forget; keeping it off the
+     * async runtime is the only thing the caller needs.
+     */
+    tauri::async_runtime::spawn_blocking(move || tampil_platform(&judul, &isi))
+        .await
+        .unwrap_or(false)
+}
+
+fn tampil_platform(judul: &str, isi: &str) -> bool {
     #[cfg(target_os = "windows")]
     {
         tampil_windows(judul, isi)
@@ -348,13 +361,17 @@ mod tests {
     fn judul_dan_isi_kosong_tidak_memanggil_apa_pun() {
         /* Nothing to say means nothing to show - and crucially, no process is
            spawned for it. */
-        assert!(!notify_show("   ".into(), "  ".into()));
+        let hasil = tauri::async_runtime::block_on(notify_show("   ".into(), "  ".into()));
+        assert!(!hasil);
     }
 
     #[test]
     fn panggilan_tidak_pernah_panic() {
         /* The contract is "best effort": whatever the platform does, this must
            return rather than unwind. A notification failing is not an error. */
-        let _ = notify_show("Zephyr".into(), "Run finished".into());
+        let _ = tauri::async_runtime::block_on(notify_show(
+            "Zephyr".into(),
+            "Run finished".into(),
+        ));
     }
 }

@@ -53,6 +53,30 @@ const awal = await J(`(() => {
   return { busy: s.agentBusys.agents ?? false, lane: (s.antrians.agents ?? []).map((a) => a.teks) };
 })()`);
 
+/*
+ * `.agx-chat` hanya dirender saat percakapan Agents punya pesan
+ * (AgentsApp: jumlahPesan > 0 -> <AiPanel/>; tanpa pesan -> komposer
+ * kosong). Jendela yang baru dibuka tidak punya keduanya, jadi uji menanam
+ * satu sesi + satu pesan dummy untuk me-render panel AI, dan membersihkannya
+ * di akhir.
+ */
+const sesiPalsu = await J(`(() => {
+  const Ai = window.__ZEPHYR_AI__.store;
+  const s = Ai.getState();
+  const sudahAda = s.activeIds.agents && s.sessions.some((x) => x.id === s.activeIds.agents && x.messages.length > 0);
+  if (sudahAda) return null;
+  const id = s.newChat('agents');
+  const sid = Ai.getState().activeIds.agents;
+  Ai.setState((st) => ({
+    sessions: st.sessions.map((x) =>
+      x.id === sid
+        ? { ...x, messages: [{ id: 'm-agx-harness', role: 'user', content: 'Harness session', at: Date.now() }] }
+        : x,
+    ),
+  }));
+  return { id, dibuat: true };
+})()`);
+
 const ukur = await J(`await (async () => {
   const Ai = window.__ZEPHYR_AI__.store;
   Ai.setState({ agentBusys: { ...Ai.getState().agentBusys, agents: true }, agentBusy: true });
@@ -61,7 +85,7 @@ const ukur = await J(`await (async () => {
   await Ai.getState().kirimSekarang('AGX-ANTRE-2 pesan yang cukup panjang untuk melihat pemotongan teks pada baris antrean', undefined, 'agents');
   await wait(800);
   const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), x: Math.round(b.x) }; };
-  const strip = document.querySelector('.agx-chat [data-testid="ai-work-stack-queue"]');
+  const strip = document.querySelector('.agx-chat [data-testid="ai-antrian"]');
   const baris = document.querySelector('.agx-chat .ai-cq-row');
   const daftar = document.querySelector('.agx-chat .ai-cq-list');
   const aksi = document.querySelector('.agx-chat .ai-cq-aksi');
@@ -69,7 +93,7 @@ const ukur = await J(`await (async () => {
   const out = {
     adaStrip: !!strip,
     display: strip ? getComputedStyle(strip).display : null,
-    strip: r('.agx-chat [data-testid="ai-work-stack-queue"]'),
+    strip: r('.agx-chat [data-testid="ai-antrian"]'),
     input: r('.agx-chat .ai-input-row'),
     baris: r('.agx-chat .ai-cq-row'),
     daftarH: r('.agx-chat .ai-cq-list')?.h ?? null,
@@ -116,6 +140,15 @@ const tombol = await J(`await (async () => {
   await wait(400);
   return hasil;
 })()`);
+
+/* Bersihkan sesi tanaman bila harness yang membuatnya. */
+if (sesiPalsu) {
+  await J(`(() => {
+    const Ai = window.__ZEPHYR_AI__.store;
+    Ai.getState().deleteChat(${JSON.stringify(sesiPalsu.id)});
+    return 1;
+  })()`);
+}
 
 cdp.close();
 

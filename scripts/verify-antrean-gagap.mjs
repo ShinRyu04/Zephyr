@@ -76,6 +76,10 @@ const awal = await evalJs(`(() => { const s = window.__ZEPHYR_AI__.store.getStat
 console.log('keadaan awal: ' + awal);
 const A = JSON.parse(awal);
 
+/* Bersihkan sisa run sebelumnya di KEDUA lane (flat + per-permukaan) supaya
+   hitungan uji dimulai dari nol yang sungguhan. */
+await evalJs(`(() => { const st = window.__ZEPHYR_AI__.store; st.setState({ antrian: [] }); st.getState().antrians[''] = []; })()`);
+
 /* Paksa keadaan "sedang sibuk" supaya send() memarkir pesan ke antrean -
    itu jalur yang mengandung bug. */
 const diparkir = await evalJs(`
@@ -99,7 +103,7 @@ const hasil = await evalJs(`
 const H = JSON.parse(hasil);
 cek('send() mengembalikan true saat masuk antrean', H.kembali === true, 'kembali=' + H.kembali);
 cek('tepat satu pesan masuk antrean', H.antrian === 1, H.antrian + ' pesan');
-cek('draft dikosongkan setelah parkir', (await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().draft === '')()`)) === true);
+cek('draft dikosongkan setelah parkir', (await evalJs(`(() => (window.__ZEPHYR_AI__.store.getState().drafts?.[''] ?? null) === '')()`)) === true);
 
 /* --- 2. mengirim pesan kedua menambah SATU, bukan dua --- */
 await evalJs(`(async () => { await window.__ZEPHYR_AI__.store.getState().send('uji-antrean-gagap-2'); })()`, true);
@@ -107,24 +111,57 @@ await sleep(400);
 const dua = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.length)()`);
 cek('pesan kedua menambah tepat satu', dua === 2, dua + ' pesan di antrean');
 
-/* --- 3. drain mengosongkan tepat satu pesan --- */
+/* --- 3. drain otomatis saat GILIRAN MASIH SIBUK = NO-OP AMAN --- */
 /*
- * Drain dipanggil dalam keadaan masih sibuk, jadi `send()` di dalamnya akan
- * MEMARKIR ulang pesan itu - dan itulah bentuk bug-nya: sebuah drain yang tidak
- * pernah membuat antrean menyusut berarti pesan yang sama dikirim berulang kali.
- *
- * Yang diukur adalah apakah pesan itu BERPINDAH dari posisinya (terkirim), bukan
- * apakah antreannya kosong: dengan masih sibuk, pesan berikutnya memang wajar
- * ikut terparkir.
+ * Perilaku produk yang dikunci (2026-11): drain otomatis menolak jalan saat
+ * global sibuk (`agentBusy`/`pending`). Dulu ia MENGAMBIL baris, lalu `send`
+ * memarkirnya ulang - baris "berpindah" tanpa terkirim, dan toast palsu
+ * 'Added to the queue' muncul di tengah run. Sekarang baris dibiarkan utuh di
+ * antrean sampai giliran selesai; tidak ada duplikat, tidak ada kehilangan.
+ * Yang diukur: antrean SAMA PERSIS sebelum dan sesudah drain saat sibuk.
  */
-const sebelumDrain = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
+const sebelumSibuk = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
 await evalJs(`(async () => { await window.__ZEPHYR_AI__.store.getState().kirimAntrian(0); })()`, true);
 await sleep(900);
-const sesudahDrain = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
-cek('drain memindahkan pesan pertama keluar dari kepala antrean', sebelumDrain !== sesudahDrain, sebelumDrain.slice(0, 40) + ' -> ' + sesudahDrain.slice(0, 40));
+const sesudahSibuk = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
+cek('drain saat sibuk tidak mengubah antrean (no-op aman)', sebelumSibuk === sesudahSibuk && sesudahSibuk.length > 0, sesudahSibuk.slice(0, 40));
+
+/* --- 4. drain saat BEBAS tapi kirim GAGAL -> baris PULIH ke depan --- */
+/*
+ * Dengan giliran bebas dan `send` MENOLAK, `kirimAntrian` wajib mengembalikan
+ * baris ke DEPAN antrean - pesan tidak boleh hilang diam-diam, dan tidak boleh
+ * dobel.
+ *
+ * `send` DITIMPA spy yang selalu menjawab false. Memalsukan "tanpa key" lewat
+ * provider fiktif TIDAK aman: `sinkronProvider()` di dalam `send` menimpa
+ * provider kembali ke pilihan settings yang valid, dan pesan uji terkirim
+ * NYATA ke gateway. Spy menjaga uji ini murni di level store.
+ */
+const sendAsli = await evalJs(`(() => { const st = window.__ZEPHYR_AI__.store; return String(st.getState().send); })()`);
+await evalJs(`(() => { window.__ZEPHYR_AI__.store.setState({ pending: false, agentBusy: false, __spySend: true }); window.__ZEPHYR_AI__.store.getState().__kirimAsli = window.__ZEPHYR_AI__.store.getState().send; })()`);
+await evalJs(`(() => { const st = window.__ZEPHYR_AI__.store; st.setState({ send: async () => { st.setState({ __spyTerpanggil: (st.getState().__spyTerpanggil ?? 0) + 1 }); return false; } }); })()`);
+await sleep(200);
+const sebelumBebas = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
+await evalJs(`(async () => { await window.__ZEPHYR_AI__.store.getState().kirimAntrian(0); })()`, true);
+await sleep(600);
+const spyTerpanggil = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().__spyTerpanggil ?? 0)()`);
+const sesudahBebas = await evalJs(`(() => window.__ZEPHYR_AI__.store.getState().antrian.map((a) => a.teks).join('|'))()`);
+cek('drain memanggil send satu kali', spyTerpanggil === 1, 'dipanggil=' + spyTerpanggil);
+cek(
+  'drain saat bebas + send menolak: baris pulih ke depan, tidak hilang',
+  sesudahBebas.split('|')[0] === 'uji-antrean-gagap-1' && sesudahBebas === sebelumBebas,
+  sesudahBebas.slice(0, 40),
+);
 
 /* --- pulihkan keadaan awal --- */
-await evalJs(`(() => { window.__ZEPHYR_AI__.store.setState({ antrian: [], pending: ${A.pending}, agentBusy: ${A.busy} }); })()`);
+await evalJs(`(() => {
+  const st = window.__ZEPHYR_AI__.store;
+  const kirim = st.getState().__kirimAsli;
+  const patch = { antrian: [], pending: ${A.pending}, agentBusy: ${A.busy}, __spyTerpanggil: null, __kirimAsli: null };
+  if (kirim) patch.send = kirim;
+  st.setState(patch);
+  st.getState().antrians[''] = [];
+})()`);
 await sleep(300);
 const akhir = await evalJs(`(() => { const s = window.__ZEPHYR_AI__.store.getState(); return JSON.stringify({ antrian: s.antrian.length, pending: !!s.pending, busy: !!s.agentBusy }); })()`);
 console.log('\nkeadaan akhir: ' + akhir);

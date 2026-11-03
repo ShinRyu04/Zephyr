@@ -388,9 +388,10 @@ async function cariToolTerdefer(
   query: string,
   limit: number,
 ): Promise<Array<{ nama: string; deskripsi: string; params: Record<string, unknown> }>> {
-  const [{ AGENT_TOOLS }, { TOOL_DIKIRIM_SELALU }] = await Promise.all([
+  const [{ AGENT_TOOLS }, { TOOL_DIKIRIM_SELALU, AWALAN_MCP, POLA_AWALAN_MCP }, { useToolGate }] = await Promise.all([
     import('../agentTools'),
     import('./catalog'),
+    import('../toolGate'),
   ]);
   /*
    * Exclude what is ALREADY SENT, not what the catalog calls "core". Those are
@@ -406,6 +407,23 @@ async function cariToolTerdefer(
    */
   const dikirim = new Set<string>(TOOL_DIKIRIM_SELALU);
   const bridge = new Set(['tool_search', 'tool_call']);
+  /*
+   * Tool yang dimatikan user tidak boleh MUNCUL di hasil pencarian.
+   *
+   * `jalankanAgentTool` menolak tool di luar `aktif` (`agentTools.ts`), jadi
+   * tanpa saringan ini `tool_search` menawarkan pintu yang pasti terkunci:
+   * model memanggil `lsp_diagnostics` enam kali berturut-turut dan setiap
+   * panggilan gagal dengan "sedang dinonaktifkan di pengaturan tool". Skor
+   * benchmark mencatatnya sebagai argumen rusak padahal modelnya benar.
+   *
+   * Dengarkan store saat pencarian berjalan, bukan saat modul dimuat: sekat
+   * bisa berubah sebelum agent pertama kali mencari.
+   */
+  const aktif = useToolGate.getState().aktif;
+  const bolehDipanggil = (nama: string): boolean => {
+    const bersih = nama.replace(POLA_AWALAN_MCP, '');
+    return aktif.has(nama) || aktif.has(bersih) || aktif.has(AWALAN_MCP + bersih);
+  };
   const kata = query
     .toLowerCase()
     .split(/[^a-z0-9_]+/)
@@ -414,6 +432,7 @@ async function cariToolTerdefer(
   for (const t of AGENT_TOOLS) {
     const nama = t.spec.name;
     if (dikirim.has(nama) || bridge.has(nama)) continue;
+    if (!bolehDipanggil(nama)) continue;
     const namaLc = nama.toLowerCase();
     const descLc = String(t.spec.description ?? '').toLowerCase();
     let nilai = 0;
@@ -787,9 +806,27 @@ export const TOOL_BAWAAN: AgentTool[] = [
        * "put back what this turn changed". Exactly the failure the note in
        * `checkpoint.ts` warns about: recording at the call sites means
        * remembering to add it to the next one.
+       *
+       * FAIL-OPEN, terukur dari run nyata: lazy import ke `../checkpoint`
+       * di mode dev me-fetch modul dari Vite — kalau dev server mati DI
+       * TENGAH run, import dilempar dan seluruh tool dilaporkan ERROR
+       * padahal tulisannya sendiri belum jalan; agent lalu menghabiskan
+       * sisa langkah untuk me-retry pekerjaan yang sebenarnya bisa selesai.
+       * Snapshot adalah jaring pengaman pembukuan, bukan bagian dari kerja:
+       * kegagalannya tidak boleh menggagalkan tugas pembaca (catatan
+       * "refusing to do the reader's work" di bawah berlaku sama).
        */
-      await (await import('../checkpoint')).catat(path);
+      await (await import('../checkpoint')).catat(path).catch(() => undefined);
       await cmd.fsWrite(path, isi, undefined, undefined, { allowMissing: true });
+      /*
+       * Berkas yang baru DITULIS berarti isinya diketahui persis oleh penulisnya
+       * - sama seperti berkas yang baru dibaca. Tanpa catatan ini, `multi_edit`
+       * sesudah `write_file` ditolak dengan "belum dibaca di sesi ini" dan model
+       * hanya punya dua jalan: membaca ulang (satu langkah per berkas) atau
+       * menimpa buta dengan `write_file` lagi. Keduanya sudah terjadi; yang
+       * kedua menghapus suntingan lain yang mungkin sudah ada.
+       */
+      tandaiDibaca(path, isi);
       await segarkanTab(path);
       await segarkanPohon(path);
       const diff = buatDiff(path, lama, isi);
@@ -847,9 +884,13 @@ export const TOOL_BAWAAN: AgentTool[] = [
       jagaTulis(to);
       const hasil = await cmd.fsRead(from);
       /* The destination is a file this turn creates. Recorded so the checkpoint
-         can delete it — same reason as the create path above. */
-      await (await import('../checkpoint')).catat(to);
+         can delete it — same reason as the create path above. Fail-open: the
+         snapshot is bookkeeping, not the reader's work (see write_file). */
+      await (await import('../checkpoint')).catat(to).catch(() => undefined);
       await cmd.fsWrite(to, hasil.content, undefined, undefined, { allowMissing: true });
+      /* Salinan ditulis dari isi yang baru dibaca: suntingan berikutnya tidak
+         perlu membaca ulang berkas tujuan (alasan yang sama dengan write_file). */
+      tandaiDibaca(to, hasil.content);
       await segarkanPohon(to);
       return `Disalin: ${from} -> ${to} (${hasil.content.length} karakter)`;
     },
@@ -1284,8 +1325,21 @@ export const TOOL_BAWAAN: AgentTool[] = [
         return n ? `${n} job dibersihkan.` : 'Tidak ada job yang perlu dibersihkan.';
       }
 
+      /*
+       * `id` hanya wajib untuk `baca`/`hentikan`. Guard ini dulu berlaku untuk
+       * SEMUA aksi, sehingga `aksi:"mulai"` (yang justru TIDAK punya id karena
+       * id baru lahir setelah job dibuat) selalu ditolak dengan "`id` wajib" —
+       * cabang `mulai` di bawah jadi tak pernah tercapai. Terukur dari run
+       * nyata: agen mencoba `bash_job` dua kali untuk `npm install` dan
+       * `npx electron .`, keduanya gagal, lalu terpaksa memakai `bash_run`
+       * yang MEMBLOKIR sampai timeout 10 menit karena proses GUI tidak pernah
+       * keluar. Perintah latar adalah satu-satunya jalan yang benar untuk
+       * server/GUI; menutup jalur itu memaksa agen menggantung.
+       */
       const id = String(a.id ?? '').trim();
-      if (!id) return 'ERROR: `id` wajib untuk aksi baca/hentikan (lihat aksi "daftar").';
+      if (!id && (aksi === 'baca' || aksi === 'hentikan')) {
+        return 'ERROR: `id` wajib untuk aksi baca/hentikan (lihat aksi "daftar").';
+      }
 
       if (aksi === 'hentikan') {
         const j = await store.stop(id);
@@ -2420,16 +2474,23 @@ export async function tulis(path: string, isi: string): Promise<void> {
    *
    * Failures are swallowed inside `catatSebelumTulis`: the snapshot is a safety
    * net, and refusing to do the reader's work because the net could not be hung
-   * would be the wrong trade.
+   * would be the wrong trade. The `.catch` extends that promise to the import
+   * itself: in dev mode the lazy import fetches from Vite, and a dev server
+   * that dies mid-run used to fail the whole tool (see write_file).
    */
-  await (await import('../checkpoint')).catat(path);
+  await (await import('../checkpoint')).catat(path).catch(() => undefined);
 
   const tab = tabUntuk(path);
   if (tab) {
     useStore.getState().updateTabContent(tab.id, isi);
+    tandaiDibaca(path, isi);
     return;
   }
   await cmd.fsWrite(path, isi, undefined, undefined, { wasExisting: true });
+  /* Setiap tulisan agen melewati fungsi ini, jadi inilah satu tempat yang
+     membuat "baru ditulis" sama dengan "sudah dibaca" untuk invarian
+     baca-sebelum-sunting. Lihat catatan di `berkasDibaca`. */
+  tandaiDibaca(path, isi);
 }
 
 /** Muat ulang tab kalau berkasnya sedang terbuka dan isinya berubah di disk. */

@@ -60,8 +60,10 @@ const q1 = await J(`await (async () => {
   await ketik('ANTRE-DOM-1');
   await ketik('ANTRE-DOM-2');
   const s = Ai.getState();
-  const kartu = document.querySelector('[data-testid="ai-review"]');
-  const isi = [...(kartu?.querySelectorAll('[data-testid="ai-review-queue"] .ai-review-antrian-teks') ?? [])].map((e) => e.getAttribute('title'));
+  /* Kartu antrean kini Qoder-style: [data-testid="ai-antrian"], testid lama
+     ai-review-queue dipindah ke elemen daftarnya. */
+  const kartu = document.querySelector('[data-testid="ai-antrian"]');
+  const isi = [...(kartu?.querySelectorAll('.ai-review-antrian-teks') ?? [])].map((e) => e.getAttribute('title'));
   return {
     lane: (s.antrians[''] ?? []).map((a) => a.teks),
     masihSibuk: s.agentBusy,
@@ -87,11 +89,9 @@ const q6 = await J(`await (async () => {
   await Ai.getState().kirimSekarang('TOMBOL-1', undefined, '');
   await Ai.getState().kirimSekarang('TOMBOL-2', undefined, '');
   await wait(700);
-  const kartu = document.querySelector('[data-testid="ai-review"]');
-  const qtab = kartu?.querySelector('[data-testid="ai-review-tab-queue"]');
-  if (kartu?.getAttribute('data-open') !== '1' && qtab) { qtab.click(); await wait(400); }
-  const barisKartu = document.querySelectorAll('[data-testid="ai-review-queue"] .ai-review-antrian').length;
-  const kirimKartu = document.querySelectorAll('[data-testid^="ai-review-antrian-kirim-"]').length;
+  const kartu = document.querySelector('[data-testid="ai-antrian"]');
+  const barisKartu = kartu?.querySelectorAll('.ai-review-antrian').length ?? 0;
+  const kirimKartu = kartu?.querySelectorAll('[data-testid^="ai-antrian-kirim-"]').length ?? 0;
   Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
   Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false }, antrian: [] });
   await wait(300);
@@ -106,7 +106,14 @@ const q7 = await J(`await (async () => {
   Object.keys(Ai.getState().antrians).forEach((k) => Ai.getState().kosongkanAntrian(k));
   Ai.setState({ agentBusy: false, agentBusys: { ...Ai.getState().agentBusys, '': false }, pending: null, pendings: { '': null }, antrian: [] });
   await wait(250);
-  const sesi = Ai.getState().sessions.find((x) => x.id === Ai.getState().activeId);
+  /*
+   * Q7 memakai SPY send (jawab true, hitung panggilan), bukan provider nyata:
+   * dua drain bersamaan menguji PENJAGA race-nya, bukan jaringan - dan drain
+   * dengan send nyata pernah mengirim pesan uji ke gateway sungguhan.
+   */
+  const sendAsli = Ai.getState().send;
+  let panggilan = 0;
+  Ai.setState({ send: async () => { panggilan++; await wait(120); return true; } });
   const tandai = 'DUP-UJI-' + Date.now().toString(36);
   Ai.setState({ agentBusys: { ...Ai.getState().agentBusys, '': true }, agentBusy: true });
   await wait(80);
@@ -120,12 +127,12 @@ const q7 = await J(`await (async () => {
     Ai.getState().kirimAntrian(0, ''),
   ]);
   await wait(800);
-  const s = Ai.getState();
-  const ses = s.sessions.find((x) => x.id === s.activeId) ?? sesi;
+  Ai.setState({ send: sendAsli });
   const hasil = {
     tandai,
     diterima: dua.filter((r) => r.status === 'fulfilled' && r.value === true).length,
-    jumlahDiTranscript: (ses?.messages ?? []).filter((m) => m.role === 'user' && String(m.content).includes(tandai)).length,
+    dipanggil: panggilan,
+    sisaAntrean: (Ai.getState().antrians[''] ?? []).length,
   };
   await Ai.getState().cancel();
   for (let i = 0; i < 30 && (Ai.getState().agentBusy || Ai.getState().pending); i++) await wait(150);
@@ -196,9 +203,9 @@ cek(
   `lane=${JSON.stringify(q1?.lane)} sibuk=${q1?.masihSibuk}`,
 );
 cek(
-  'Q2 kartu review terbuka menampilkan isi antrean',
-  q1?.kartuTerbuka === '1' && (q1?.isiKartu ?? []).length === 2,
-  `open=${q1?.kartuTerbuka} isi=${JSON.stringify(q1?.isiKartu)}`,
+  'Q2 kartu antrean menampilkan isi antrean',
+  (q1?.isiKartu ?? []).length === 2,
+  `isi=${JSON.stringify(q1?.isiKartu)}`,
 );
 cek('Q3 draft komposer dikosongkan setelah masuk antrean', (q1?.draft ?? 'x') === '', `draft=${JSON.stringify(q1?.draft)}`);
 cek(
@@ -218,8 +225,8 @@ cek(
 );
 cek(
   'Q7 dua drain bersamaan mengirim baris SEKALI (tidak duplikat)',
-  q7?.diterima === 1 && q7?.jumlahDiTranscript === 1,
-  `diterima=${q7?.diterima} diTranscript=${q7?.jumlahDiTranscript}`,
+  q7?.diterima === 1 && q7?.dipanggil === 1 && (q7?.sisaAntrean ?? 1) === 0,
+  `diterima=${q7?.diterima} dipanggil=${q7?.dipanggil} sisa=${q7?.sisaAntrean}`,
 );
 
 console.log(`\n== ${lulus}/${lulus + gagal} lulus ==`);

@@ -2,16 +2,16 @@
  * Peta alasan berhentinya agent, terpisah dari store.
  *
  * Kenapa murni dan di modul sendiri: perilaku yang diuji di sini (alasan -> pesan
- * + kategori) hanya bisa dipicu di `aiStore` oleh kode yang menunggu sampai 15
+ * + kategori) hanya bisa dipicu di `aiStore` oleh kode yang menunggu sampai 45
  * menit - batas keras, watchdog, dan guard kemajuan semuanya timer atau
  * penghitung yang tidak praktis dinyalakan di harness. Dengan memindahkan
  * PEMETAANNYA ke fungsi tanpa state, satu skrip Node bisa membuktikan bahwa
  * 'guard' tidak lagi dilaporkan sebagai timeout provider tanpa harus menjalankan
- * loop 15 menitnya. Store tetap satu-satunya yang memanggil fungsi ini.
+ * loop 45 menitnya. Store tetap satu-satunya yang memanggil fungsi ini.
  */
 
 /** Alasan sebuah langkah agent berakhir. `null` berarti belum ada alasan. */
-export type AgentStopReason = 'user' | 'watchdog' | 'guard' | 'provider' | 'hard-limit';
+export type AgentStopReason = 'user' | 'watchdog' | 'guard' | 'provider' | 'hard-limit' | 'no-tool';
 
 /** Kategori kegagalan yang ditampilkan ke pembaca. */
 export type AgentFailureCategory = 'provider' | 'tool' | 'timeout' | 'cancelled' | 'protocol' | 'unknown';
@@ -40,7 +40,14 @@ export function agentStopMessage(reason: string): { message: string; category: A
     };
   }
   if (reason === 'hard-limit') {
-    return { category: 'timeout', message: 'Satu langkah melebihi batas waktu 15 menit dan dihentikan.' };
+    return { category: 'timeout', message: 'Satu langkah melebihi batas waktu 45 menit dan dihentikan.' };
+  }
+  if (reason === 'no-tool') {
+    return {
+      category: 'tool',
+      message:
+        'Tugas berat berhenti tanpa satu pun tool dijalankan. Model hanya menulis teks, jadi tidak ada perubahan yang bisa diverifikasi.',
+    };
   }
   if (reason === 'watchdog') {
     return { category: 'timeout', message: 'Provider berhenti menjawab sebelum langkah selesai.' };

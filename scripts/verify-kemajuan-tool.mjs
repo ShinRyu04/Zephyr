@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const akar = join(dirname(fileURLToPath(import.meta.url)), '..');
-const src = readFileSync(join(akar, 'src/lib/aiStore.ts'), 'utf8');
+const src = readFileSync(join(akar, 'src/lib/aiStore.ts'), 'utf8').replace(/\r\n/g, '\n');
 
 let lulus = 0;
 let gagal = 0;
