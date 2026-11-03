@@ -30,7 +30,7 @@ const PORT = arg('port', '9223');
 const TUGAS = arg('task', 'kalkulator');
 const PROVIDER = arg('provider', '');
 const MODEL = arg('model', '');
-const MENIT = Number(arg('menit', TUGAS === 'catatan' ? '25' : '12'));
+const MENIT = Number(arg('menit', TUGAS === 'catatan' || TUGAS === 'miniide' ? '25' : '12'));
 const DIR = arg('dir', '');
 const SKILL_MATI = (arg('nonaktif-skill', '') || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 const OUT = arg('out', path.join(tmpdir(), `bench-agent-${Date.now()}.json`));
@@ -54,6 +54,123 @@ const TUGAS_SPEC = {
       'Jangan pakai framework dan JANGAN jalankan `npm install` (elektron sudah ada di mesin ini) — cukup tulis berkasnya. ' +
       'Setelah selesai, verifikasi sendiri bahwa berkasnya ada dan sintaksnya benar.',
     siapkan: () => {},
+  },
+  miniide: {
+    prompt:
+      'Buat aplikasi web "editor kode mini" di folder saat ini, murni HTML/CSS/JS tanpa framework: `index.html`, `app.js`, ' +
+      '`ide-core.js` (CommonJS, logika inti agar bisa diuji), `style.css`, `README.md`. ' +
+      'Fitur wajib: (1) daftar berkas di panel kiri dari daftar teks yang ada di halaman, (2) buka berkas ke textarea, ' +
+      '(3) simpan isi textarea kembali ke daftar (di memori), (4) CARI: highlight/daftar hasil pencarian kata di berkas aktif ' +
+      'beserta nomor baris dan kolom. `ide-core.js` WAJIB mengekspor `cariKata(teks, kata)` CommonJS yang mengembalikan ' +
+      'array `{baris, kolom}` (1-based, kolom 1-based). Tanpa `npm install`. Setelah selesai, jalankan `node --check` pada ' +
+      'berkas JS dan pastikan lolos, lalu laporkan ringkasannya.',
+    siapkan: () => {},
+  },
+  bughunt: {
+    prompt:
+      'Folder ini adalah proyek kecil (kalkulator + todo CLI) yang DIKETAHUI punya beberapa bug. ' +
+      'Tugas: cari bug di `hitung.js` dan `todo.js`, perbaiki SEMUANYA, lalu buktikan dengan menjalankan `node test.js` ' +
+      'sampai keluar dengan kode 0. Jangan ubah `test.js` (ia adalah spesifikasi). Jangan menambah fitur baru. ' +
+      'Setelah semua lulus, laporkan daftar bug yang kamu perbaiki.',
+    siapkan: (d) => {
+      writeFileSync(
+        path.join(d, 'hitung.js'),
+        [
+          '// Kalkulator kecil. CommonJS.',
+          'function tambah(a, b) {',
+          '  return a * b; // TODO: ini kelihatan salah',
+          '}',
+          '',
+          'function kurang(a, b) {',
+          '  return b - a; // TODO: periksa urutan',
+          '}',
+          '',
+          'function kali(a, b) {',
+          '  let hasil = 0;',
+          '  for (let i = 0; i <= b; i++) hasil += a; // TODO: batas loop',
+          '  return hasil;',
+          '}',
+          '',
+          'module.exports = { tambah, kurang, kali };',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(d, 'todo.js'),
+        [
+          "// Todo CLI kecil. CommonJS. Data disimpan di todo.json (dibuat saat simpan()).",
+          "const fs = require('node:fs');",
+          'const FILE = "todo.json";',
+          '',
+          'function muat() {',
+          '  const teks = fs.readFileSync(FILE, "utf8"); // TODO: berkas belum ada?',
+          '  return JSON.parse(teks);',
+          '}',
+          '',
+          'function simpan(daftar) {',
+          '  fs.writeFileSync(FILE, JSON.stringify(daftar, null, 2));',
+          '}',
+          '',
+          'function tambah(daftar, teks) {',
+          '  daftar.push({ id: daftar.length + 1, teks, selesai: false });',
+          '  return daftar;',
+          '}',
+          '',
+          'function toggle(daftar, id) {',
+          '  const item = daftar.find((x) => x.id === id - 1); // TODO: id salah?',
+          '  if (!item) return daftar;',
+          '  item.selesai = !item.selesai;',
+          '  return daftar;',
+          '}',
+          '',
+          'function sisa(daftar) {',
+          '  let n = 0;',
+          '  for (let i = 0; i <= daftar.length; i++) { // TODO: batas loop',
+          '    if (!daftar[i].selesai) n++;',
+          '  }',
+          '  return n;',
+          '}',
+          '',
+          'module.exports = { muat, simpan, tambah, toggle, sisa };',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(d, 'test.js'),
+        [
+          "const assert = require('node:assert');",
+          "const fs = require('node:fs');",
+          "const { tambah, kurang, kali } = require('./hitung.js');",
+          "const T = require('./todo.js');",
+          '',
+          'assert.strictEqual(tambah(2, 3), 5, "tambah");',
+          'assert.strictEqual(tambah(-1, 1), 0, "tambah negatif");',
+          'assert.strictEqual(kurang(9, 4), 5, "kurang");',
+          'assert.strictEqual(kali(4, 3), 12, "kali");',
+          'assert.strictEqual(kali(0, 5), 0, "kali nol");',
+          '',
+          'if (fs.existsSync("todo.json")) fs.unlinkSync("todo.json");',
+          '',
+          'let daftar = T.muat(); // berkas belum ada -> harus [] tanpa crash',
+          'assert.deepStrictEqual(daftar, [], "muat kosong");',
+          '',
+          'T.tambah(daftar, "a");',
+          'T.tambah(daftar, "b");',
+          'T.simpan(daftar);',
+          'daftar = T.muat();',
+          'assert.strictEqual(daftar.length, 2, "persistensi");',
+          '',
+          'T.toggle(daftar, 1);',
+          'assert.strictEqual(daftar[0].selesai, true, "toggle id 1");',
+          'assert.strictEqual(T.sisa(daftar), 1, "sisa");',
+          'T.toggle(daftar, 2);',
+          'assert.strictEqual(T.sisa(daftar), 0, "sisa habis");',
+          '',
+          "console.log('OK');",
+          '',
+        ].join('\n'),
+      );
+    },
   },
 };
 
@@ -91,14 +208,16 @@ if (awal.busy) {
 }
 
 const dir = DIR || path.join(tmpdir(), `zephyr-bench-${TUGAS}-${Date.now()}`);
-mkdirSync(dir, { recursive: true });
-spec.siapkan(dir);
-for (const f of ['hitung.js', 'test.js', 'main.js', 'renderer.js', 'preload.js', 'index.html', 'style.css', 'package.json']) {
-  if (existsSync(path.join(dir, f)) && !flag('overwrite')) {
+/* Pemeriksaan SEBELUM siapkan(): siapkan() memang menulis berkas tugas, jadi
+   memeriksa setelahnya membuat benchmark selalu mundur sendiri (terukur). */
+for (const f of ['hitung.js', 'test.js', 'todo.js', 'main.js', 'renderer.js', 'preload.js', 'index.html', 'style.css', 'app.js', 'ide-core.js', 'package.json']) {
+  if (existsSync(path.join(dir, f)) && !flag('overwrite') && DIR) {
     console.log(`folder tidak kosong (${f}) — pakai --overwrite atau --dir lain`);
     process.exit(1);
   }
 }
+mkdirSync(dir, { recursive: true });
+spec.siapkan(dir);
 if (flag('overwrite')) {
   for (const f of ['hitung.js', 'test.js']) {
     try { rmSync(path.join(dir, f), { force: true }); } catch { /* abaikan */ }
@@ -271,6 +390,135 @@ if (TUGAS === 'kalkulator') {
     (t) => ['bash_run', 'bash_job', 'bash_background'].includes(t.name) && /node\s+test\.js|npm\s+test/i.test(`${t.hasil || ''}`),
   ) || tool.some((t) => /OK|tes lulus|test passed/i.test(t.hasil || ''));
   cek.push({ nama: 'K4 agent menjalankan verifikasinya sendiri', lulus: verifikasiSendiri, bukti: `${verifikasiSendiri}` });
+} else if (TUGAS === 'miniide') {
+  const wajib = ['index.html', 'app.js', 'ide-core.js', 'style.css', 'README.md'];
+  const hilang = wajib.filter((f) => !existsSync(path.join(dir, f)));
+  cek.push({ nama: 'M1 lima berkas aplikasi ada', lulus: hilang.length === 0, bukti: hilang.length ? `hilang: ${hilang.join(',')}` : 'lengkap' });
+
+  const cekSintaks = ['app.js', 'ide-core.js']
+    .filter((f) => existsSync(path.join(dir, f)))
+    .map((f) => ({ f, r: spawnSync(process.execPath, ['--check', f], { cwd: dir, encoding: 'utf8' }) }));
+  const rusak = cekSintaks.filter((x) => x.r.status !== 0);
+  cek.push({ nama: 'M2 sintaks app.js + ide-core.js valid', lulus: rusak.length === 0, bukti: rusak.map((x) => x.f).join(',') || 'ok' });
+
+  if (existsSync(path.join(dir, 'ide-core.js'))) {
+    const tersembunyi = path.join(dir, '_uji_tersembunyi.mjs');
+    writeFileSync(
+      tersembunyi,
+      [
+        "import assert from 'node:assert';",
+        "import { createRequire } from 'node:module';",
+        "const require = createRequire(import.meta.url);",
+        "const m = require('./ide-core.js');",
+        'const f = typeof m.cariKata === "function" ? m.cariKata : m.default && m.default.cariKata;',
+        "assert.strictEqual(typeof f, 'function', 'cariKata bukan fungsi');",
+        'const hasil = f("halo dunia halo", "halo");',
+        'assert.ok(Array.isArray(hasil), "hasil array");',
+        'assert.deepStrictEqual(hasil, [{ baris: 1, kolom: 1 }, { baris: 1, kolom: 12 }], "dua temuan satu baris");',
+        'const dua = f("satu\\ndua satu\\n", "satu");',
+        'assert.deepStrictEqual(dua, [{ baris: 1, kolom: 1 }, { baris: 2, kolom: 5 }], "dua baris");',
+        'assert.deepStrictEqual(f("tidak ada", "xyz"), [], "tidak ada temuan");',
+        "console.log('HIDDEN-OK');",
+      ].join('\n'),
+    );
+    const hidden = jalankan('_uji_tersembunyi.mjs');
+    cek.push({
+      nama: 'M3 uji tersembunyi cariKata (baris+kolom 1-based)',
+      lulus: hidden.kode === 0 && hidden.out.includes('HIDDEN-OK'),
+      bukti: `kode=${hidden.kode} ${hidden.out.slice(0, 140).replace(/\n/g, ' ')}`,
+    });
+    try { rmSync(tersembunyi, { force: true }); } catch { /* abaikan */ }
+  } else {
+    cek.push({ nama: 'M3 uji tersembunyi cariKata', lulus: false, bukti: 'tidak ada ide-core.js' });
+  }
+
+  let isiApp = '';
+  let isiHtml = '';
+  try { isiApp = readFileSync(path.join(dir, 'app.js'), 'utf8'); } catch { isiApp = ''; }
+  try { isiHtml = readFileSync(path.join(dir, 'index.html'), 'utf8'); } catch { isiHtml = ''; }
+  const gabung = `${isiApp}\n${isiHtml}`;
+  const fitur = [
+    ['daftar berkas', /daftar|list|file/i],
+    ['buka ke editor', /textarea|editor/i],
+    ['simpan', /simpan|save/i],
+    ['pencarian + nomor baris', /cari|search|highlight/i],
+  ];
+  const ada = fitur.filter(([, re]) => re.test(gabung)).map(([n]) => n);
+  cek.push({ nama: 'M4 fitur daftar/buka/simpan/cari tampak di UI', lulus: ada.length === 4, bukti: ada.join(',') });
+
+  cek.push({ nama: 'M5 agent memverifikasi sendiri', lulus: verifikasi.length > 0, bukti: `${verifikasi.length} langkah` });
+} else if (TUGAS === 'bughunt') {
+  /*
+   * Penilaian bughunt: proyek asli diperbaiki agent, lalu diuji dengan
+   * "test.js" MILIK AGENT (spesifikasi yang dilarang diubah). Harness
+   * menjalankan node test.js di folder hasil, plus salinan spesifikasi
+   * tersembunyi untuk memastikan agent tidak menipu dengan melonggarkan test:
+   * salinan aslinya ditulis ulang di sini dan dijalankan dari folder lain.
+   */
+  const ujiAsli = path.join(dir, '_spesifikasi_asli.mjs');
+  writeFileSync(
+    ujiAsli,
+    [
+      "import { createRequire } from 'node:module';",
+      'const require = createRequire(import.meta.url);',
+      "const assert = require('node:assert');",
+      "const { tambah, kurang, kali } = require('./hitung.js');",
+      "const T = require('./todo.js');",
+      "const fs = require('node:fs');",
+      'assert.strictEqual(tambah(2, 3), 5, "tambah");',
+      'assert.strictEqual(tambah(-1, 1), 0, "tambah negatif");',
+      'assert.strictEqual(kurang(9, 4), 5, "kurang");',
+      'assert.strictEqual(kali(4, 3), 12, "kali");',
+      'assert.strictEqual(kali(0, 5), 0, "kali nol");',
+      'try { fs.unlinkSync("todo.json"); } catch { }',
+      'let daftar = T.muat();',
+      'assert.deepStrictEqual(daftar, [], "muat kosong");',
+      'T.tambah(daftar, "a");',
+      'T.tambah(daftar, "b");',
+      'T.simpan(daftar);',
+      'daftar = T.muat();',
+      'assert.strictEqual(daftar.length, 2, "persistensi");',
+      'T.toggle(daftar, 1);',
+      'assert.strictEqual(daftar[0].selesai, true, "toggle id 1");',
+      'assert.strictEqual(T.sisa(daftar), 1, "sisa");',
+      'T.toggle(daftar, 2);',
+      'assert.strictEqual(T.sisa(daftar), 0, "sisa habis");',
+      "console.log('SPESIFIKASI-OK');",
+      '',
+    ].join('\n'),
+  );
+  const spesifikasi = jalankan('_spesifikasi_asli.mjs');
+  cek.push({
+    nama: 'B1 spesifikasi asli lulus (semua 6 bug benar diperbaiki)',
+    lulus: spesifikasi.kode === 0 && spesifikasi.out.includes('SPESIFIKASI-OK'),
+    bukti: `kode=${spesifikasi.kode} ${spesifikasi.out.slice(0, 140).replace(/\n/g, ' ')}`,
+  });
+
+  const testAgent = existsSync(path.join(dir, 'test.js')) ? jalankan('test.js') : { kode: null, out: 'tidak ada test.js' };
+  const testTidakDilonggarkan = (() => {
+    try {
+      const isi = readFileSync(path.join(dir, 'test.js'), 'utf8');
+      /* Spesifikasi asli punya 13 assert; versi dilonggarkan menghapus/mengganti sebagian. */
+      return isi.includes('tambah(2, 3), 5') && isi.includes('kali(4, 3), 12') && isi.includes('toggle(daftar, 1)') && isi.includes('muat()');
+    } catch {
+      return false;
+    }
+  })();
+  cek.push({
+    nama: 'B2 node test.js (milik agent, tidak dilonggarkan) exit 0',
+    lulus: testAgent.kode === 0 && testTidakDilonggarkan,
+    bukti: `kode=${testAgent.kode} utuh=${testTidakDilonggarkan}`,
+  });
+
+  const lapor = akhir?.teksAkhir || '';
+  const bugDilaporkan = (lapor.match(/\b(bug|bugnya|perbaiki|diperbaiki|salah)\b/gi) || []).length;
+  cek.push({
+    nama: 'B3 agent melaporkan daftar bug yang diperbaiki',
+    lulus: bugDilaporkan >= 2,
+    bukti: `sebutan=${bugDilaporkan} teks=${lapor.slice(0, 80).replace(/\n/g, ' ')}`,
+  });
+
+  try { rmSync(ujiAsli, { force: true }); } catch { /* abaikan */ }
 } else {
   const wajib = ['index.html', 'main.js', 'preload.js', 'renderer.js', 'style.css', 'package.json'];
   const hilang = wajib.filter((f) => !existsSync(path.join(dir, f)));
