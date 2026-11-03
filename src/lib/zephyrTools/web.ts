@@ -372,8 +372,35 @@ async function tungguWebview(paneId: string, batasMs = 10000): Promise<boolean> 
  * harus toleran - kalau tidak, halaman yang SUDAH benar akan dikira belum
  * dinavigasi dan agen menunggu 15 detik untuk sesuatu yang sudah selesai.
  */
+/*
+ * "URL yang sama" untuk keputusan JANGAN navigasi ulang.
+ *
+ * Normalisasi ketat dulu membuat agent me-refresh halaman yang sedang user
+ * tonton (terukur dari reproduksi hidup): lima bentuk untuk satu halaman -
+ * `example.com/`, `example.com`, `www.example.com/`, `http://example.com/`,
+ * `example.com/index.html` - dinilai BERBEDA semua, dan agent yang membaca
+ * ulang lalu gagal akan membuka lagi dengan bentuk berikutnya, sehingga tab
+ * Browser reload terus di depan user.
+ *
+ * Karena itu identitas SITUS yang dibandingkan, bukan string URL:
+ *   - scheme http/https disamakan (redirect http->https membuat bentuk lain
+ *     untuk halaman yang sama),
+ *   - `www.` dibuang,
+ *   - `/index.html` dan `/` dibuang,
+ *   - hash dibuang, trailing slash dibuang.
+ * Query DISIMPAN: `?page=2` dan `?page=3` memang halaman berbeda.
+ */
 function samaUrl(a: string, b: string): boolean {
-  const n = (u: string) => String(u ?? '').trim().replace(/#.*$/, '').replace(/\/+$/, '').toLowerCase();
+  const n = (u: string) =>
+    String(u ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/#.*$/, '')
+      .replace(/\/index\.html$/, '')
+      .replace(/\/index\.htm$/, '')
+      .replace(/\/+$/, '');
   const ka = n(a);
   const kb = n(b);
   return ka === kb || ka.startsWith(kb) || kb.startsWith(ka);
