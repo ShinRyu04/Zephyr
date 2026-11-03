@@ -228,6 +228,14 @@ const siap = await c.runAsync(`
   ${SKILL_MATI.length ? `try { localStorage.setItem('zephyr.skills.nonaktif', ${JSON.stringify(JSON.stringify(SKILL_MATI))}); } catch (e) {}` : ''}
   await S.getState().openWorkspace(${JSON.stringify(dir)});
   try { await window.__ZEPHYR_WS__.state().setTrust(${JSON.stringify(dir)}, true); } catch (e) {}
+  /* Tab editor dari run/workspace SEBELUMNYA tetap terbuka setelah openWorkspace,
+     dan akarCwd() memilih folder berkas aktif sebagai cwd bash_run — tab lama
+     membuat SETIAP bash_run ditolak "cwd di luar workspace" (terukur di run
+     miniide deepseek ke-2). Tutup semuanya supaya cwd = workspace baru. */
+  try {
+    const st9 = S.getState();
+    for (const t of [...st9.tabs]) st9.forceCloseTab(t.id);
+  } catch (e) {}
   X.store.setState({ approvalMode: 'auto' });
   ${MODEL ? `await X.store.getState().setModel(${JSON.stringify(MODEL)}, ${JSON.stringify(PROVIDER || undefined)});` : ''}
   X.store.getState().newChat('');
