@@ -1,7 +1,7 @@
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tauri::State;
@@ -134,6 +134,101 @@ fn tentukan_cwd(state: &AppState, cwd: Option<String>) -> ZResult<PathBuf> {
     Ok(dir)
 }
 
+/*
+ * `cd` di dalam isi perintah adalah pintu keluar dari kontainmen cwd.
+ *
+ * `tentukan_cwd` memvalidasi PARAMETER cwd, tapi isi perintah bebas melakukan
+ * `cd /d D:\mana pun && node test.js` - terukur dari run benchmark nyata:
+ * agent menemukan folder lama di %TEMP%, lalu mengeksekusi di sana lewat cd,
+ * sehingga "jalankan test di workspace" menjadi "jalankan di folder lain yang
+ * kebetulan trusted". Kontraknya jelas: shell agent BEKERJA DI WORKSPACE.
+ * Pindah folder di dalam sesi shell itu keputusan user, bukan agent.
+ *
+ * Aturan (gagal-tertutup, sama seperti guard lain):
+ *   - `cd`/`cd /d`/`Set-Location` dengan target ABSOLUT di luar workspace -> tolak.
+ *   - target relatif `..` yang setelah normalisasi keluar workspace -> tolak.
+ *   - `cd` tanpa argumen (home), atau target di dalam workspace -> boleh.
+ * Pemeriksaan ini TEKS, bukan shell pintar: bentuk yang tidak dikenali
+ * (variabel, tanda kutip aneh) diperlakukan sebagai kandidat cd yang harus
+ * lolos aturan yang sama, jadi lolosnya butuh sengaja.
+ */
+fn jaga_cd(state: &AppState, perintah: &str, cwd: &Path) -> ZResult<()> {
+    let Some(ws) = state.workspace_path() else {
+        return Ok(());
+    };
+    let akhir = folder_akhir_cd(perintah, cwd).map_err(ZephyrError::InvalidInput)?;
+    if !crate::paths::is_inside(&ws, &akhir) {
+        return Err(ZephyrError::Permission(format!(
+            "cd keluar workspace ditolak: {} (shell agent bekerja di dalam {})",
+            akhir.to_string_lossy(),
+            ws.to_string_lossy()
+        )));
+    }
+    Ok(())
+}
+
+/*
+ * Hitung folder efektif SETELAH seluruh perintah dijalankan, mengikuti setiap
+ * `cd` di dalamnya. Murni (tanpa I/O) supaya bisa diuji langsung; `jaga_cd`
+ * yang membandingkan hasilnya dengan workspace.
+ *
+ * Aturan:
+ *   - Segmen dipisah pada `&&`, `||`, `;` (urutan cd dihitung, bukan per-cd).
+ *   - `cd` / `cd /d` / `chdir` / `Set-Location` / `sl` dikenali; target absolut,
+ *     relatif, dan `..` dinormalisasi terhadap folder efektif berjalan.
+ *   - `cd` tanpa target kembali ke cwd awal (perilaku PowerShell/cmd yang
+ *     paling aman untuk kontainmen).
+ */
+fn folder_akhir_cd(perintah: &str, cwd: &Path) -> std::result::Result<PathBuf, String> {
+    let low = perintah.to_lowercase();
+    let mut folder_sekarang = cwd.to_path_buf();
+
+    for segmen in low.split("&&").flat_map(|s| s.split("||")).flat_map(|s| s.split(';')) {
+        let seg = segmen.trim().trim_start_matches(['(', ')']).trim();
+        let tanpa_awalan = seg
+            .trim_start_matches("cmd /c")
+            .trim_start_matches("cmd.exe /c")
+            .trim_start();
+        let body = tanpa_awalan.strip_prefix("cd /d").map(|s| s.trim_start()).or_else(|| {
+            tanpa_awalan
+                .strip_prefix("cd ")
+                .or_else(|| tanpa_awalan.strip_prefix("cd"))
+                .map(|s| s.trim_start())
+                .or_else(|| tanpa_awalan.strip_prefix("set-location ").map(|s| s.trim_start()))
+                .or_else(|| tanpa_awalan.strip_prefix("sl ").map(|s| s.trim_start()))
+                .or_else(|| tanpa_awalan.strip_prefix("chdir ").map(|s| s.trim_start()))
+        });
+
+        match body {
+            None => { /* bukan cd: folder efektif tetap */ }
+            Some(target) => {
+                let target = target.trim_matches(['"', '\'']);
+                if target.is_empty() {
+                    folder_sekarang = cwd.to_path_buf();
+                    continue;
+                }
+                let kandidat = if Path::new(target).is_absolute() {
+                    PathBuf::from(target)
+                } else {
+                    folder_sekarang.join(target)
+                };
+                let mut norm = PathBuf::new();
+                for k in kandidat.components() {
+                    match k {
+                        std::path::Component::ParentDir => {
+                            norm.pop();
+                        }
+                        std::path::Component::CurDir => {}
+                        lain => norm.push(lain.as_os_str()),
+                    }
+                }
+                folder_sekarang = norm;
+            }
+        }
+    }
+    Ok(folder_sekarang)
+}
+
 async fn jalan(
     child: &mut tokio::process::Child,
     out_pipe: &mut Option<tokio::process::ChildStdout>,
@@ -220,6 +315,8 @@ pub async fn agent_exec(
         return Err(ZephyrError::InvalidInput("empty command".into()));
     }
     let cwd = tentukan_cwd(&state, cwd)?;
+
+    jaga_cd(&state, perintah, &cwd)?;
 
     let ms_cap = timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)
@@ -327,6 +424,52 @@ mod tests {
     fn shell_ditemukan() {
         let (s, _) = shell_for("echo hi");
         assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn cd_dalam_workspace_dihitung() {
+        let cwd = Path::new("C:/kerja/proyek");
+        let akhir = folder_akhir_cd("cd /d \"C:/kerja/proyek/src\" && node test.js", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/kerja/proyek/src"));
+    }
+
+    #[test]
+    fn cd_keluar_workspace_terdeteksi() {
+        let cwd = Path::new("C:/kerja/proyek");
+        let akhir = folder_akhir_cd("cd /d \"C:/temp/lain\" && node test.js", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/temp/lain")); /* jaga_cd yang menolak */
+    }
+
+    #[test]
+    fn cd_relatif_mundur_dihitung() {
+        let cwd = Path::new("C:/kerja/proyek/sub");
+        let akhir = folder_akhir_cd("cd .. && node test.js", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/kerja/proyek"));
+        let keluar = folder_akhir_cd("cd ../../.. && node x", cwd).unwrap();
+        assert!(!keluar.starts_with("C:/kerja/proyek"));
+    }
+
+    #[test]
+    fn cd_tanpa_target_kembali_ke_cwd() {
+        let cwd = Path::new("C:/kerja/proyek");
+        let akhir = folder_akhir_cd("node a; cd; node b", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/kerja/proyek"));
+    }
+
+    #[test]
+    fn perintah_tanpa_cd_tetap_di_cwd() {
+        let cwd = Path::new("C:/kerja/proyek");
+        let akhir = folder_akhir_cd("node test.js && git status", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/kerja/proyek"));
+    }
+
+    #[test]
+    fn urutan_cd_beruntun_dihitung() {
+        let cwd = Path::new("C:/kerja/proyek");
+        let akhir = folder_akhir_cd("cd src; cd lib; node x; cd ..; node y", cwd).unwrap();
+        assert_eq!(akhir, PathBuf::from("C:/kerja/proyek/src"));
+        let dalam = folder_akhir_cd("cd src && cd lib && node x", cwd).unwrap();
+        assert_eq!(dalam, PathBuf::from("C:/kerja/proyek/src/lib"));
     }
 
     #[cfg(windows)]
