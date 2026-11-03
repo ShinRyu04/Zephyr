@@ -198,7 +198,7 @@ const aiStore = baca('src/lib/aiStore.ts');
 const bridge = baca('src/lib/devBridge.ts');
 const promptSrc = baca('src/lib/systemPrompt.ts');
 periksa('ALAT_BUTUH_FOLDER = list_directory/glob/grep', /ALAT_BUTUH_FOLDER = \['list_directory', 'glob', 'grep'\]/.test(subset));
-periksa('alatUntukTugas menerima keadaan folder', /adaFolder = true,\n\): string\[\] \{/.test(subset));
+periksa('alatUntukTugas menerima keadaan folder', /adaFolder = true,\r?\n\): string\[\] \{/.test(subset));
 periksa('penyaringan folder dipakai saat menyusun daftar', /if \(!adaFolder\) hasil = hasil\.filter\(\(n\) => !butuhFolder\(n\)\)/.test(subset));
 periksa('gerbang rencana ikut aturan folder', /gerbangRencanaSiap\(alatAktif, adaFolderRun\)/.test(aiStore));
 periksa('run nyata membaca keadaan workspace', /const adaFolderRun = useStore\.getState\(\)\.workspace !== null/.test(aiStore));

@@ -12,7 +12,7 @@
  * Kenapa bukan grep: aplikasi yang dipasang user tidak membawa folder sumbernya,
  * jadi pencarian harus jalan dari data yang IKUT BUNDEL - bukan dari disk user.
  *
- * Versi app: 1.1.16 · hash sumber: feeaa157805ab44a
+ * Versi app: 1.1.16 · hash sumber: b6c2b4b8df92b168
  * Hasilkan ulang: node scripts/gen-fakta-zephyr.mjs
  * Periksa sinkron: node scripts/gen-fakta-zephyr.mjs --check
  */
@@ -32,7 +32,7 @@ export const FAKTA_KATEGORI: readonly FaktaKategori[] = ['bridge', 'dokumen', 'e
    tidak terbaca sama saja dengan tidak ada cap. Angka berkas/entri yang juga
    dilaporkan --print-cakupan bisa diturunkan dari artefak yang sama:
    FAKTA_HASH_BERKAS.length (berkas) dan FAKTA_INDEKS.length (entri) di bawah. */
-export const FAKTA_VERSI = { aplikasi: '1.1.16', hashSumber: 'feeaa157805ab44a' } as const;
+export const FAKTA_VERSI = { aplikasi: '1.1.16', hashSumber: 'b6c2b4b8df92b168' } as const;
 
 /** Berkas (nama relatif, urut) yang isinya masuk hashSumber, plus resep
  *  hitungnya. Dengan ini cap bisa DIHITUNG ULANG dari luar generator - di mesin
@@ -448,10 +448,10 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/adapters/mod.rs","205 baris · ekspor: split_data_url, prepare, extract_delta, extract_reasoning, extract_usage, trim_base, prepare_tools, parse_tool_response, prepare_tools_stream, StreamAcc, new, feed, feed_reasoning, reasoning_parts, finish"],
   ["kode","src-tauri/src/adapters/openai.rs","1269 baris · ekspor: prepare, extract_delta, extract_reasoning, prepare_tools, parse_tool_response, ToolAcc, reasoning_parts, feed_reasoning, feed, finish, extract_usage"],
   ["kode","src-tauri/src/adapters/xml_tools.rs","855 baris · ekspor: normalisasi_penanda, posisi_aman, mungkin_awal_tag, mengandung_tool_call, bersihkan_teks, parse_teks"],
-  ["kode","src-tauri/src/agent_exec.rs","344 baris · ekspor: ExecResult, agent_exec"],
+  ["kode","src-tauri/src/agent_exec.rs","487 baris · ekspor: ExecResult, agent_exec"],
   ["kode","src-tauri/src/agent_patch.rs","126 baris · ekspor: PatchResult, file_patch"],
   ["kode","src-tauri/src/agents.rs","195 baris · ekspor: AgentInfo, list_agents, find_exe_for_test"],
-  ["kode","src-tauri/src/ai.rs","2349 baris · ekspor: ChatMsg, all_images, ToolCall, AgentMsg, ToolSpec, AiToolResult, Prepared, CapturedRequest, CapturedToolCallDiagnostic, rekam_request, ReasoningEffort, openai, anthropic_budget, anthropic_effort, gemini_budget, TolakTerakhir, tolak_terakhir, ai_chat, ai_cancel, ai_tool_chat, ai_penolakan_terakhir, ai_tool_chat_stream, ai_capture_set, ai_capture_get, ai_capture_clear"],
+  ["kode","src-tauri/src/ai.rs","2409 baris · ekspor: ChatMsg, all_images, ToolCall, AgentMsg, ToolSpec, AiToolResult, Prepared, CapturedRequest, CapturedToolCallDiagnostic, rekam_request, ReasoningEffort, openai, anthropic_budget, anthropic_effort, gemini_budget, TolakTerakhir, tolak_terakhir, ai_chat, ai_cancel, ai_tool_chat, ai_penolakan_terakhir, ai_tool_chat_stream, ai_capture_set, ai_capture_get, ai_capture_clear"],
   ["kode","src-tauri/src/api_client.rs","299 baris · //! API client: the HTTP and GraphQL side of the editor. · ekspor: HttpHeader, HttpPermintaan, HttpJawaban, http_request, graphql_body, graphql_errors"],
   ["kode","src-tauri/src/app_state.rs","941 baris · ekspor: AppState, FileIndex, PerfMark, McpRuntime, GitPermit, AiRequestGuard, new, scm_repo_aktif, set_scm_repo, uptime_ms, perf_mark, perf_marks, bump, counters, git_permit, ext_store_code, ext_code_len, mcp_set_runtime, mcp_take_runtime, mcp_port, mcp_requested_port, mcp_set_token, mcp_token, mcp_uptime_ms, mcp_register, mcp_set_ui_ready, mcp_ui_ready, mcp_resolve, mcp_forget, mcp_fail_pending, mcp_lock, ai_begin, ai_begin_guard, ai_cancel, pty_insert, pty_exists, pty_get, pty_remove, pty_list, pty_count, …(+33)"],
   ["kode","src-tauri/src/avatars.rs","195 baris · ekspor: avatar_save, avatar_delete, avatar_url"],
@@ -750,7 +750,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/components/terminal/logoMerek.ts","103 baris · REAL brand marks, generated from `simple-icons` (vinstalled). · ekspor: MerekLogo, LOGO_MEREK"],
   ["kode","src/components/workspace/RestrictedBanner.tsx","34 baris · tanpa ekspor"],
   ["kode","src/components/workspace/RootSection.tsx","105 baris · tanpa ekspor"],
-  ["kode","src/components/workspace/TrustDialog.tsx","99 baris · tanpa ekspor"],
+  ["kode","src/components/workspace/TrustDialog.tsx","107 baris · tanpa ekspor"],
   ["kode","src/explorer.rs","1 baris · tanpa ekspor"],
   ["kode","src/fs_utils.rs","1 baris · tanpa ekspor"],
   ["kode","src/lib/a11yStore.ts","91 baris · ekspor: Kesopanan, MAX_RIWAYAT, useA11y, umumkan, AccessibilitySettings, DEFAULT_A11Y, terapkanA11y, osMintaReducedMotion, reducedMotionEfektif"],
@@ -774,7 +774,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/aiDebugStore.ts","107 baris · ekspor: ReqLog, LOG_MAKS, useAiDebug"],
   ["kode","src/lib/aiMemori.ts","983 baris · MEMORI PERSISTEN LINTAS SESI untuk Zeph AI (item backlog `ai-ingat-sesi`). · ekspor: LapisMemori, JenisMemori, EntriMemori, EntriBaru, DokumenMemori, HasilUrai, PortMemori, IoBerkas, OpsiMemori, VERSI_MEMORI, MARKER_MEMORI, ANGGARAN_BAWAAN, BATAS_TOKEN_BAWAAN, MAKS_TEKS, MAKS_ENTRI, JUDUL_BLOK, normalisasiTeks, kunciProyek, idEntri, tanggalDari, AturanTulis, ATURAN_TULIS, ATURAN_TULIS_PROMPT, layakDiingat, rangkaikanStore, uraiStore, pangkas, terlihat, tambahKeDokumen, hapusDiDokumen, cariDiDokumen, pilihUntukBlok, blokDariDokumen, jalurSementara, simpanAtomik, portBerkas, jalurMemori, muatDariPort, simpanDokumen, entriStore, …(+12)"],
   ["kode","src/lib/aiModelsStore.ts","41 baris · ekspor: useAiModels"],
-  ["kode","src/lib/aiStore.ts","12786 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+50)"],
+  ["kode","src/lib/aiStore.ts","12839 baris · ekspor: KALIMAT_PASCA_POTONG_CHARS, CATATAN_MAKS_CHARS, potongCatatan, AntrianPesan, GoalState, MAX_MSGS, ATTACH_LIMIT, MSG_LIMIT, MAX_IMAGES, IMAGE_MAX_BYTES, PERSIST_TOOL_CHARS, HISTORY_KEEP_STEPS, HISTORY_TOOL_CHARS, HISTORY_BACA_CHARS, batasPotongTool, HISTORY_TOOL_TAIL_RATIO, potongHasilRiwayat, BATAS_BROWSER_MUTER, HasilMuterBrowser, BATAS_JENDELA_SIDIK, cekMuterBrowser, HasilCatatAksi, catatAksiBerulang, keputusanAksiBerulang, pesanBacaDitolak, resetAgentToolCache, finishAgentToolCache, jalankanAgentToolCached, konteksAgent, resetCacheKonteks, baseUrlModel, fullUrlProvider, resetKonteksAgent, oneShot, riwayatAgen, bagiLangkahDariRiwayat, ringkasRiwayat, langkahDariRiwayat, bentukWireRiwayat, padatkanRiwayat, …(+52)"],
   ["kode","src/lib/aiTabsStore.ts","157 baris · ekspor: CliTab, cliTabs, AiTabId, useAiTabs"],
   ["kode","src/lib/aiWindow.ts","43 baris · ekspor: AI_WINDOW_LABEL, bukaAiWindow, tutupAiWindow"],
   ["kode","src/lib/aiZephyrState.ts","1000 baris · aiZephyrState.ts · ekspor: VersiApp, StatusUpdate, SettingAktif, WorkspaceKeadaan, LayoutKeadaan, McpKeadaan, LspKeadaan, KontribusiMasuk, EkstensiMasuk, EkstensiStatus, EkstensiKeadaan, PotretKeadaan, SumberKeadaan, nilaiEkstensi, susunKeadaan, kepalaKeadaan, ringkasKeadaan, kumpulkanDariApp, setPotretKeadaan, potretKeadaan, blokKeadaanRingkas"],
@@ -989,7 +989,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src/lib/zephyrTools/peta.ts","134 baris · `peta` — \"where is X in Zephyr\", answered from the 6.300-entry fact index. · ekspor: petaTool"],
   ["kode","src/lib/zephyrTools/tulisBerkas.ts","73 baris · Which tool calls write files, and which paths each one touched. · ekspor: namaToolTulis, pathsDari"],
   ["kode","src/lib/zephyrTools/tunjuk.ts","524 baris · `tunjuk` — turn \"I can't find it\" into \"it is open now\". · ekspor: tunjukTool"],
-  ["kode","src/lib/zephyrTools/web.ts","1109 baris · Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. · ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
+  ["kode","src/lib/zephyrTools/web.ts","1136 baris · Tool Web & Browser - 11 tool yang tersedia tapi tidak menyala default. · ekspor: SKEMA_WEB_FETCH, lantaiHttpsWeb, TOOL_WEB"],
   ["kode","src/lib/zephyrTools/webSatu.ts","64 baris · `web` — search and fetch, one tool. · ekspor: WebAksi, TOOL_WEB_LAMA, TOOL_WEB_SATU"],
   ["kode","src/lib/zephyrTools/worktree.ts","279 baris · worktree - git worktree (checkout paralel) dari dalam Zephyr, untuk MODEL. · ekspor: NAMA_TOOL_WORKTREE, PERINTAH_DAFTAR, PERINTAH_BUAT, PERINTAH_HAPUS, EntriWorktree, HasilWorktree, DataDaftar, barisWorktree, TOOL_WORKTREE"],
   ["kode","src/lib/zephyrTools/zephyrIngat.ts","207 baris · `ingat` - memori lintas sesi milik Zeph AI sendiri. · ekspor: AKSI_INGAT, SPEC_INGAT, jalankanIngat, TOOL_INGAT"],
