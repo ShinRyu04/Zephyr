@@ -170,14 +170,40 @@ del \"%~f0\"\r\n",
     );
     std::fs::write(&cmd_path, skrip).map_err(|e| format!("gagal menulis skrip swap: {e}"))?;
 
-    use std::os::windows::process::CommandExt;
-    std::process::Command::new("cmd.exe")
-        .args(["/C", &cmd_path.to_string_lossy()])
-        .creation_flags(0x0800_0000 | 0x0000_0008) // CREATE_NO_WINDOW | DETACHED_PROCESS
-        .spawn()
-        .map_err(|e| format!("gagal menjalankan skrip swap: {e}"))?;
+    /*
+     * Detached tanpa jendela di Windows (CREATE_NO_WINDOW | DETACHED_PROCESS);
+     * di Unix, proses daemon lewat pre-exec fork sehingga cmd tidak mati saat
+     * parent keluar. Fungsi `spawn_detached` mengisolasi perbedaan platform.
+     */
+    spawn_detached("cmd.exe", &["/C", &cmd_path.to_string_lossy()])?;
 
     Ok(cmd_path.to_string_lossy().to_string())
+}
+
+#[cfg(windows)]
+pub(crate) fn spawn_detached(program: &str, args: &[&str]) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    std::process::Command::new(program)
+        .args(args)
+        .creation_flags(0x0800_0000 | 0x0000_0008) // CREATE_NO_WINDOW | DETACHED_PROCESS
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("gagal menjalankan skrip swap: {e}"))
+}
+
+#[cfg(not(windows))]
+pub(crate) fn spawn_detached(program: &str, args: &[&str]) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    use std::process::{Command, Stdio};
+    Command::new(program)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("gagal menjalankan skrip swap: {e}"))
 }
 
 #[cfg(test)]
