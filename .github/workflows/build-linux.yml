@@ -59,7 +59,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx --yes @tauri-apps/cli@^2 build --bundles deb appimage
+        run: npx --yes @tauri-apps/cli@^2 build --bundles deb appimage rpm
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -86,4 +86,6 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb.sig \
             src-tauri/target/release/bundle/appimage/*.AppImage \
             src-tauri/target/release/bundle/appimage/*.AppImage.sig \
+            src-tauri/target/release/bundle/rpm/*.rpm \
+            src-tauri/target/release/bundle/rpm/*.rpm.sig \
             --clobber

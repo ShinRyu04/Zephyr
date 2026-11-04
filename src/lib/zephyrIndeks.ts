@@ -506,7 +506,7 @@ export const FAKTA_INDEKS: readonly FaktaEntri[] = [
   ["kode","src-tauri/src/portable_update.rs","159 baris · Portable self-update — dua command yang melengkapi `updaterStore` untuk · ekspor: portable_update_unduh, portable_update_siapkan"],
   ["kode","src-tauri/src/proc.rs","44 baris · ekspor: CREATE_NO_WINDOW, cmd, tokio_cmd"],
   ["kode","src-tauri/src/pty.rs","564 baris · ekspor: TailBuf, PtySession, info, terminate, tail_lines, PtyInfo, ShellInfo, list_shells, resolve_shell_for_test, pty_spawn, pty_write, pty_resize, pty_kill, pty_list, pty_tail, pty_set_paused, pty_interrupt"],
-  ["kode","src-tauri/src/quick_swap.rs","182 baris · Quick-swap self-update — update ala \"restart ganti versi\" untuk SEMUA · ekspor: quick_swap_unduh, quick_swap_siapkan"],
+  ["kode","src-tauri/src/quick_swap.rs","229 baris · Quick-swap self-update â€” update ala \"restart ganti versi\" untuk SEMUA · ekspor: quick_swap_unduh, quick_swap_siapkan"],
   ["kode","src-tauri/src/rag.rs","100 baris · ekspor: RagHit, rag_search"],
   ["kode","src-tauri/src/run.rs","832 baris · ekspor: RunOutput, RunDone, ToolStatus, RunRuntime, run_tool_status, run_start, run_stop, run_selesai, run_input, run_input_eof, run_active"],
   ["kode","src-tauri/src/search.rs","1224 baris · ekspor: SearchOpts, RgHit, SearchSummary, SearchRuntime, cari_rg, bangun_args, search_grep, search_cancel, search_rg_info, ReplaceHasil, MAKS_BERKAS_GANTI, search_replace, ganti_lintas_berkas"],
