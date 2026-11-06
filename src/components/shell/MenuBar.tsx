@@ -285,7 +285,14 @@ export default function MenuBar() {
 
       {/* VS Code-style command center: a box on the menu row, in line with
           File/Edit/etc. Click = open the Command Palette (command mode). */}
-      <div className="mb-cc-wrap" role="none">
+      {/* DRAG FIX: `decorations: false` means this bar is the only thing the
+          user can grab to move the window, and Tauri starts a drag only when
+          the MOUSEDOWN TARGET itself has `data-tauri-drag-region`. This
+          wrapper is `flex: 1 1 auto`, so it paints every empty pixel between
+          the menus and the window controls — without the attribute here the
+          bar had no grabbable surface at all. Buttons inside stay clickable:
+          they are the target on their own clicks and carry no attribute. */}
+      <div className="mb-cc-wrap" role="none" data-tauri-drag-region>
         <button
           className="mb-cc"
           data-testid="mb-command-center"
