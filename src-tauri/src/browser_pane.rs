@@ -10,11 +10,13 @@
 // open them in an external browser.
 //
 // PAGAR: setiap jalan masuk ke webview lewat `crate::web::periksa_url_pane`
-// (skema http/https saja, tanpa userinfo, tanpa IP privat/link-local, port
-// 80/443) — dipanggil SEBELUM webview lahir di `browser_pane_open`, sebelum
-// `navigate` di `browser_pane_nav`, dan pada SETIAP navigasi di dalam webview
-// lewat `WebviewBuilder::on_navigation` (menutup `location.href = ...` yang
-// dikirim `browser_pane_eval`). Bukti tanpa app: `node scripts/uji-pane-browser.mjs`.
+// (skema http/https saja, tanpa userinfo, tanpa IP privat/link-local
+// non-loopback, port 80/443 untuk host publik — LOOPBACK bebas semua port
+// untuk pratinjau dev server) — dipanggil SEBELUM webview lahir di
+// `browser_pane_open`, sebelum `navigate` di `browser_pane_nav`, dan pada
+// SETIAP navigasi di dalam webview lewat `WebviewBuilder::on_navigation`
+// (menutup `location.href = ...` yang dikirim `browser_pane_eval`). Bukti
+// tanpa app: `node scripts/uji-pane-browser.mjs`.
 
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
@@ -686,14 +688,14 @@ mod tests {
 
     #[test]
     fn gerbang_navigasi_menolak_host_privat_dan_link_local() {
-        for s in [
-            "http://127.0.0.1/",
-            "http://169.254.169.254/latest/meta-data/",
-            "http://10.0.0.5/",
-            "http://[::1]/",
-            "http://localhost/",
-        ] {
-            assert!(!boleh_navigasi_dengan(&u(s), &aman()), "{s} harus ditolak di on_navigation");
+        // Loopback (127.0.0.1, ::1, localhost) TIDAK lagi di daftar ini:
+        // sejak kebijakan dev-preview, loopback selalu sah di pane — lihat
+        // `loopback_selalu_sah_semua_port`.
+        for s in ["http://169.254.169.254/latest/meta-data/", "http://10.0.0.5/"] {
+            assert!(
+                !boleh_navigasi_dengan(&u(s), &aman()),
+                "{s} harus ditolak di on_navigation"
+            );
         }
     }
 
@@ -714,7 +716,7 @@ mod tests {
     /// ON/OFF `izinJaringanLokal` di gerbang navigasi.
     #[test]
     fn on_off_izin_jaringan_lokal_pada_navigasi() {
-        let kasus = ["http://127.0.0.1/", "http://192.168.1.10/x", "http://printer.local/"];
+        let kasus = ["http://192.168.1.10/x", "http://printer.local/"];
         for s in kasus {
             assert!(
                 !boleh_navigasi_dengan(&u(s), &aman()),
@@ -740,17 +742,42 @@ mod tests {
         }
     }
 
-    /// ON/OFF `portWeb`: non-80/443 hanya sah bila port ditambahkan.
+    /// ON/OFF `portWeb` untuk host PUBLIK: non-80/443 hanya sah bila port
+    /// ditambahkan ke daftar. Host loopback TIDAK memakai daftar ini —
+    /// bebas semua port (lihat `loopback_selalu_sah_semua_port`).
     #[test]
     fn on_off_port_web_pada_navigasi() {
-        let url = "http://127.0.0.1:8080/";
+        let url = "http://contoh.com:8080/";
         let boleh_port = KebijakanJaringan {
-            izin_jaringan_lokal: true,
             port_sah: vec![80, 443, 8080],
             ..KebijakanJaringan::default()
         };
-        assert!(!boleh_navigasi_dengan(&u(url), &lokal()), "port 8080 di luar daftar: ditolak");
-        assert!(boleh_navigasi_dengan(&u(url), &boleh_port), "port 8080 ditambahkan: diterima");
+        assert!(
+            !boleh_navigasi_dengan(&u(url), &aman()),
+            "port 8080 di luar daftar: ditolak"
+        );
+        assert!(
+            boleh_navigasi_dengan(&u(url), &boleh_port),
+            "port 8080 ditambahkan: diterima"
+        );
+    }
+
+    /// LOOPBACK selalu sah di pane, SEMUA port, TANPA setelan — pratinjau
+    /// dev server (`localhost:5173`, `127.0.0.1:3000`) adalah kegunaan utama
+    /// pane. Metadata cloud tetap ditolak (lihat test sebelumnya).
+    #[test]
+    fn loopback_selalu_sah_semua_port() {
+        let uji = [
+            "http://localhost:5173/",
+            "http://127.0.0.1:3000/api",
+            "http://127.0.0.1:8080/",
+            "http://[::1]:4173/",
+            "http://sub.localhost:9000/x",
+        ];
+        for s in uji {
+            assert!(boleh_navigasi_dengan(&u(s), &aman()), "OFF: {s} harus sah");
+            assert!(boleh_navigasi_dengan(&u(s), &lokal()), "ON: {s} harus sah");
+        }
     }
 
     /// ON/OFF `hopRedirect` di gerbang navigasi tidak relevan (per-hop ada di

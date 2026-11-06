@@ -194,6 +194,19 @@ function isIpPrivat(host) {
   return false;
 }
 
+// LOOPBACK = 127.0.0.0/8, ::1, `localhost`, `*.localhost` — mirror kebijakan
+// `apakah_loopback` di web.rs. `.local` BUKAN loopback (mDNS perangkat lain).
+function isLoopback(host) {
+  if (isIpLiteral(host)) {
+    const h = host.replace(/^\[|\]$/g, '').toLowerCase();
+    if (h === '::1') return true;
+    if (/^127(\.\d{1,3}){3}$/.test(h)) return true;
+    return false;
+  }
+  const h = host.replace(/\.$/, '').toLowerCase();
+  return h === 'localhost' || h.endsWith('.localhost');
+}
+
 // Pencocokan host: cocok bila host == entri ATAU host subdomain SAH (batas titik).
 // Mencegah "contoh.com.jahat.com" lolos untuk entri "contoh.com".
 function hostDiAllowlist(host, allow) {
@@ -230,12 +243,15 @@ function izinkanBuka(urlStr, allow = ALLOWLIST) {
   if (!u.hostname) return tolak('host-kosong');
   const host = u.hostname.toLowerCase();
 
-  if (isIpPrivat(host)) return tolak('ip-privat:' + host);
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
+  // LOOPBACK = selalu sah, SEMUA port, tanpa allowlist/setelan — pratinjau
+  // dev server adalah kegunaan utama pane (mirror web.rs: apakah_loopback).
+  const loopback = isLoopback(host);
+  if (!loopback && isIpPrivat(host)) return tolak('ip-privat:' + host);
+  if (!loopback && (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local'))) {
     return tolak('nama-lokal:' + host);
   }
-  if (!hostDiAllowlist(host, allow)) return tolak('host-luar-allowlist:' + host);
-  if (!PORT_IZIN.has(u.port)) return tolak('port-tak-lazim:' + (u.port || '(default)'));
+  if (!loopback && !hostDiAllowlist(host, allow)) return tolak('host-luar-allowlist:' + host);
+  if (!loopback && !PORT_IZIN.has(u.port)) return tolak('port-tak-lazim:' + (u.port || '(default)'));
 
   return terima(u);
 }
@@ -304,9 +320,15 @@ uji('C07 IP link-local 169.254.169.254 ditolak walau ADA di allowlist', () => {
   return { ok: g.ok === false && /ip-privat/.test(g.alasan || ''), info: g.alasan };
 });
 
-uji('C08 IP loopback 127.0.0.1 ditolak walau ADA di allowlist', () => {
-  const g = izinkanBuka('http://127.0.0.1/');
-  return { ok: g.ok === false && /ip-privat/.test(g.alasan || ''), info: g.alasan };
+uji('C08 IP loopback 127.0.0.1 sah di pane (dev preview, semua port)', () => {
+  const a = izinkanBuka('http://127.0.0.1/');
+  const b = izinkanBuka('http://127.0.0.1:5173/');
+  const c = izinkanBuka('http://localhost:3000/api');
+  const d = izinkanBuka('http://[::1]:4173/');
+  return {
+    ok: a.ok && b.ok && c.ok && d.ok,
+    info: [a, b, c, d].map((g) => (g.ok ? 'ok' : g.alasan)).join(' | '),
+  };
 });
 
 uji('C09 IP privat 10.0.0.5 ditolak walau ADA di allowlist', () => {
@@ -366,20 +388,23 @@ uji('C14 penolakan SEBELUM webview/socket (penghitung 0)', () => {
     'data:text/html,x',
     'about:blank',
     'http://169.254.169.254/latest/meta-data',
-    'http://127.0.0.1/',
+    'http://10.0.0.99/x',
     'https://contoh.com:31337/',
   ];
   for (const u of buruk) bukaDenganPagar(u);
   const sebelum = { webview: cnt.webview, socket: cnt.socket };
-  // Kontrol positif: URL sah HARUS memanggil tepat 1x (agar penghitung 0 tak hampa).
+  // Kontrol positif: URL sah HARUS memanggil tepat 1x per URL (agar
+  // penghitung 0 tak hampa) — termasuk loopback yang kini sah di pane.
   const baik = bukaDenganPagar('https://contoh.com/ok');
+  const baikLokal = bukaDenganPagar('http://localhost:5173/dev');
   return {
     ok:
       sebelum.webview === 0 &&
       sebelum.socket === 0 &&
       baik.ok === true &&
-      cnt.webview === 1 &&
-      cnt.socket === 1,
+      baikLokal.ok === true &&
+      cnt.webview === 2 &&
+      cnt.socket === 2,
     info:
       'buruk webview=' + sebelum.webview + ' socket=' + sebelum.socket + '; sah webview=' + cnt.webview + ' socket=' + cnt.socket,
   };

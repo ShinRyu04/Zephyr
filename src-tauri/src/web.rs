@@ -61,7 +61,8 @@ pub fn batas_byte_dipakai(diminta: Option<usize>) -> usize {
 pub struct KebijakanJaringan {
     /// `izinJaringanLokal` (default `false`). Saat `true`, loopback/privat/
     /// link-local/CGNAT dan `*.local`/`*.localhost` boleh dijangkau — KECUALI
-    /// endpoint metadata cloud yang tetap ditolak.
+    /// endpoint metadata cloud yang tetap ditolak. Pane browser SELALU
+    /// membolehkan loopback (semua port) apa pun setelan ini.
     pub izin_jaringan_lokal: bool,
     /// `hopRedirect` (default `BATAS_HOP_REDIRECT`, di-clamp `HOP_REDIRECT_MAKS`).
     pub hop_redirect: u32,
@@ -303,10 +304,12 @@ pub fn validate_outbound_url_dengan(
 ///      `about:` tertutup sebelum webview lahir;
 ///   2. userinfo (`user@host`) — trik menaruh host yang tampak sah di depan host
 ///      sungguhan (`contoh.com` lalu `jahat.com`) ditolak apa pun hostnya;
-///   3. host yang menunjuk langsung ke IP privat/link-local/loopback
-///      (`127.0.0.1`, `169.254.169.254` endpoint metadata, `10.x`, `::1`) dan
-///      nama lokal (`localhost`, `*.localhost`, `*.local`);
-///   4. port di luar 80/443.
+///   3. host yang menunjuk langsung ke IP privat/link-local (`10.x`,
+///      `192.168.x`, `169.254.169.254` endpoint metadata) dan nama lokal
+///      non-loopback (`*.local`) — KECUALI LOOPBACK: `127.0.0.0/8`, `::1`,
+///      `localhost`, `*.localhost` SELALU sah, SEMUA port (pratinjau dev
+///      server adalah kegunaan utama pane di editor kode);
+///   4. port di luar 80/443 — di host loopback semua port sah.
 ///
 /// WHY TANPA DNS: gerbang ini berjalan tepat sebelum webview dibuat dan pada
 /// SETIAP event navigasi di dalamnya; resolusi DNS di sana bisa menggantung,
@@ -320,10 +323,11 @@ pub fn periksa_url_pane(url: &str) -> ZResult<tauri::Url> {
 }
 
 /// Seperti `periksa_url_pane`, tetapi menghormati kebijakan jaringan-lokal:
-/// `izin_jaringan_lokal` membuka IP privat/link-local/loopback dan nama lokal
-/// (`localhost`, `*.localhost`, `*.local`); `portWeb` memperluas port yang sah;
-/// `169.254.169.254` TETAP ditolak. Skema terlarang dan userinfo tetap ditolak
-/// tanpa syarat — tidak ada setelan yang membukanya.
+/// LOOPBACK (`127.0.0.0/8`, `::1`, `localhost`, `*.localhost`) SELALU sah,
+/// SEMUA port, tanpa setelan — pratinjau dev server; `izin_jaringan_lokal`
+/// membuka IP privat/link-local/CGNAT dan `*.local`; `portWeb` memperluas
+/// port untuk host publik; `169.254.169.254` TETAP ditolak. Skema terlarang
+/// dan userinfo tetap ditolak tanpa syarat — tidak ada setelan yang membukanya.
 pub fn periksa_url_pane_dengan(url: &str, kb: &KebijakanJaringan) -> ZResult<tauri::Url> {
     let s = url.trim();
     if s.is_empty() {
@@ -359,15 +363,23 @@ pub fn periksa_url_pane_dengan(url: &str, kb: &KebijakanJaringan) -> ZResult<tau
     // "hostname biasa".
     let host_telanjang = host.trim_start_matches('[').trim_end_matches(']');
     let izin = kb.izin_jaringan_lokal;
+    // LOOPBACK (127.0.0.0/8, ::1, `localhost`, `*.localhost`) = selalu sah di
+    // pane, SEMUA port, TANPA setelan. Pratinjau dev server (`localhost:5173`,
+    // `127.0.0.1:3000`) adalah kegunaan utama pane di editor kode, dan
+    // loopback adalah mesin user sendiri. SSRF yang layak dijaga di sini tetap
+    // dijaga: host privat LAN, link-local, dan endpoint metadata cloud —
+    // `169.254.169.254` BUKAN loopback dan tetap ditolak apa pun setelannya.
+    let loopback = apakah_loopback(host_telanjang);
     if let Ok(ip) = host_telanjang.parse::<IpAddr>() {
-        if ip_terlarang_dengan(ip, izin) {
+        if !loopback && ip_terlarang_dengan(ip, izin) {
             return Err(ZephyrError::InvalidInput(format!(
                 "host {host} menunjuk alamat privat/link-local — ditolak"
             )));
         }
     } else {
         let bawah = host.trim_end_matches('.').to_ascii_lowercase();
-        if !izin
+        if !loopback
+            && !izin
             && (bawah == "localhost"
                 || bawah.ends_with(".localhost")
                 || bawah.ends_with(".local"))
@@ -379,12 +391,25 @@ pub fn periksa_url_pane_dengan(url: &str, kb: &KebijakanJaringan) -> ZResult<tau
     }
 
     let port = u.port_or_known_default().unwrap_or(0);
-    if !kb.port_diizinkan(port) {
+    if !loopback && !kb.port_diizinkan(port) {
         return Err(ZephyrError::InvalidInput(format!(
-            "URL port {port} is not allowed (hanya 80/443)"
+            "URL port {port} is not allowed (hanya 80/443; loopback bebas semua port)"
         )));
     }
     Ok(u)
+}
+
+/// Loopback menurut kebijakan pane: IP loopback (`127.0.0.0/8`, `::1`) ATAU
+/// nama yang by-definition loopback (`localhost`, `*.localhost` — RFC 6761
+/// memannikan keduanya ke loopback). `.local` BUKAN loopback (mDNS, bisa
+/// menunjuk perangkat lain di LAN), jadi tetap dijaga setelan
+/// `izinJaringanLokal`.
+fn apakah_loopback(host_telanjang: &str) -> bool {
+    if let Ok(ip) = host_telanjang.parse::<IpAddr>() {
+        return ip.is_loopback();
+    }
+    let bawah = host_telanjang.trim_end_matches('.').to_ascii_lowercase();
+    bawah == "localhost" || bawah.ends_with(".localhost")
 }
 
 /// Satu langkah redirect: gabungkan `location` dengan `dasar`, lalu periksa ULANG
@@ -858,18 +883,34 @@ mod tests {
 
     #[test]
     fn gerbang_pane_menolak_host_privat_link_local_dan_nama_lokal() {
+        // Loopback (127.0.0.1, ::1, localhost) TIDAK di daftar ini: selalu
+        // sah di pane untuk pratinjau dev server — lihat
+        // `gerbang_pane_menerima_loopback_semua_port`.
         for url in [
-            "http://127.0.0.1/",
             "http://169.254.169.254/latest/meta-data/",
             "http://10.0.0.5/",
             "http://172.16.0.1/",
             "http://192.168.1.1/",
-            "http://[::1]/",
-            "http://localhost/",
             "http://pane.local/",
         ] {
             assert!(periksa_url_pane(url).is_err(), "{url} harus ditolak");
         }
+    }
+
+    #[test]
+    fn gerbang_pane_menerima_loopback_semua_port() {
+        // Pratinjau dev server adalah kegunaan utama pane: loopback sah di
+        // semua port tanpa setelan; metadata cloud tetap ditolak.
+        for url in [
+            "http://localhost:5173/",
+            "http://127.0.0.1:3000/api",
+            "http://127.0.0.1:8080/",
+            "http://[::1]:4173/",
+            "http://sub.localhost:9000/x",
+        ] {
+            assert!(periksa_url_pane(url).is_ok(), "{url} loopback harus sah di pane");
+        }
+        assert!(periksa_url_pane("http://169.254.169.254/").is_err());
     }
 
     #[test]
@@ -942,6 +983,7 @@ mod tests {
     #[test]
     fn izin_jaringan_lokal_off_menolak_ip_privat() {
         let kb = KebijakanJaringan::default();
+        // Jalur FETCH tetap menolak loopback (pagar SSRF fetch lebih ketat):
         for url in [
             "http://127.0.0.1/",
             "http://10.0.0.1/",
@@ -955,9 +997,29 @@ mod tests {
                 validate_outbound_url_dengan(url, &kb).is_err(),
                 "OFF: {url} harus ditolak"
             );
+        }
+        // PANE: privat/link-local/`*.local` non-loopback tetap ditolak saat OFF;
+        // loopback selalu sah (kebijakan pratinjau dev server).
+        for url in [
+            "http://10.0.0.1/",
+            "http://192.168.1.1/",
+            "http://172.16.0.1/",
+            "http://pane.local/",
+        ] {
             assert!(
                 periksa_url_pane_dengan(url, &kb).is_err(),
                 "OFF (pane): {url} harus ditolak"
+            );
+        }
+        for url in [
+            "http://127.0.0.1/",
+            "http://127.0.0.1:5173/",
+            "http://[::1]/",
+            "http://localhost/",
+        ] {
+            assert!(
+                periksa_url_pane_dengan(url, &kb).is_ok(),
+                "OFF (pane): {url} loopback harus sah"
             );
         }
     }
