@@ -3544,7 +3544,7 @@ interface AiActions {
     images?: string[],
     tampilBubble?: string,
     composerId?: string,
-    opts?: { resume?: boolean },
+    opts?: { resume?: boolean; ragContext?: string | null },
   ) => Promise<boolean>;
 
   /*
@@ -4064,6 +4064,45 @@ function checkpointPermukaan(s: AiState, composerId: string): AiState['agentResu
 declare global {
   interface Window {
     __ZEPHYR_AI_STORE__?: typeof useAi;
+  }
+}
+
+/*
+ * KONTEKS RAG untuk kedua jalur kirim (chat & agent).
+ *
+ * Dulu blok ini hidup di dalam send() SETELAH cabang modeAgent — mode Agent
+ * (bawaan) tidak pernah sampai ke sana, jadi server RAG yang sudah dipasang
+ * user tidak pernah dipakai di jalur agen. Diangkat jadi helper level modul
+ * supaya satu lokasi melayani kedua jalur; jalur Experts sengaja TIDAK
+ * memanggilnya (alurnya rencana -> gerbang konfirmasi, bukan loop, jadi
+ * tidak ada panggilan HTTP yang terbuang saat user hanya menyusun rencana).
+ */
+async function ambilKonteksRag(
+  raw: string,
+  set: (partial: Partial<AiStore>) => void,
+): Promise<string | null> {
+  const rag = useStore.getState().settings.models;
+  if (!(rag.ragEnabled && rag.ragUrl.trim() && rag.ragProject.trim())) return null;
+  try {
+    const hits = await cmd.ragSearch(
+      rag.ragUrl.trim().replace(/\/+$/, ''),
+      rag.ragProject.trim(),
+      raw.slice(0, 400),
+      rag.ragK || 4,
+    );
+    if (hits.length === 0) return null;
+    return (
+      'RAG context from this project (answer from this when relevant):\n\n' +
+      hits
+        .map(
+          (h, i) =>
+            `[${i + 1}] ${h.sourceFile || '(tanpa file)'} (skor ${h.score.toFixed(2)})\n${h.content}`,
+        )
+        .join('\n\n---\n\n')
+    );
+  } catch (e) {
+    set({ toast: cmd.asZephyrError(e).message });
+    return null;
   }
 }
 
@@ -6389,13 +6428,16 @@ export const useAi = create<AiStore>((set0, get) => {
       }));
       return true;
     }
+    /* Konteks RAG dihitung SEBELUM cabang ini supaya jalur agent juga
+       mendapatkannya; jalur chat di bawah memakai variabel yang sama. */
+    const ragContext = await ambilKonteksRag(raw, set);
     if (modeAgent) {
       /* Experts Mode dipilih lewat ModeMenu (agentAktif === 'experts'):
          alurnya sendiri — Lead menyusun rencana dulu, bukan loop agent. */
       if (useStore.getState().settings.agents?.agentAktif === 'experts') {
         return get().sendExperts(raw, imgs, tampil, composerId);
       }
-      return get().sendAgent(raw, imgs, tampil, composerId, { resume: opts?.resume });
+      return get().sendAgent(raw, imgs, tampil, composerId, { resume: opts?.resume, ragContext });
     }
 
     let content = raw;
@@ -6522,31 +6564,6 @@ export const useAi = create<AiStore>((set0, get) => {
 
     const reqId = nextId('req');
     permukaanChunk.set(reqId, composerId);
-    let ragContext: string | null = null;
-    const rag = useStore.getState().settings.models;
-    if (rag.ragEnabled && rag.ragUrl.trim() && rag.ragProject.trim()) {
-      try {
-        const hits = await cmd.ragSearch(
-          rag.ragUrl.trim().replace(/\/+$/, ''),
-          rag.ragProject.trim(),
-          raw.slice(0, 400),
-          rag.ragK || 4,
-        );
-        if (hits.length > 0) {
-          ragContext =
-            'RAG context from this project (answer from this when relevant):\n\n' +
-            hits
-              .map(
-                (h, i) =>
-                  `[${i + 1}] ${h.sourceFile || '(tanpa file)'} (skor ${h.score.toFixed(2)})\n${h.content}`,
-              )
-              .join('\n\n---\n\n');
-        }
-      } catch (e) {
-
-        set({ toast: cmd.asZephyrError(e).message });
-      }
-    }
         const userMsg: ChatMsg = {
           id: nextId('m'),
           role: 'user',
@@ -7142,9 +7159,12 @@ export const useAi = create<AiStore>((set0, get) => {
     explicitImages,
     tampilBubble,
     composerId = '',
-    opts?: { resume?: boolean },
+    opts?: { resume?: boolean; ragContext?: string | null },
   ) => {
     COMPOSER_AKTIF = composerId;
+    /* Konteks RAG dari send(): sudah diambil di sana (satu panggilan untuk
+       kedua jalur), tinggal ditempel ke riwayat provider sebelum payload. */
+    const ragContext = opts?.ragContext ?? null;
     /*
      * Read the checkpoint BEFORE the start `set()` clears it. That set has
      * `agentResume: null` ("a new run invalidates the old point"), and the
@@ -7543,6 +7563,8 @@ export const useAi = create<AiStore>((set0, get) => {
       }
     }
 
+    /* RAG: posisi semantik sama dengan jalur chat — sebelum payload user. */
+    if (ragContext) history.push({ role: 'user', content: ragContext });
     history.push({
       role: 'user',
       content: payloadAgen + identityReminder(get().model, content),
