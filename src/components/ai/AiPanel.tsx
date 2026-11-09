@@ -7,6 +7,7 @@ import {
   type AgentSurfaceState,
 } from '../../lib/aiStore';
 import { useStore } from '../../lib/store';
+import { type ToolRule } from '../../lib/toolRules';
 import { bukaPanel } from '../../lib/bukaPanel';
 import { useSessionsSide } from '../../lib/sessionsSideStore';
 import {
@@ -377,6 +378,30 @@ function AiPanelInner({ composerId = '' }: { composerId?: string }) {
   /* Dispatch is the agent, always - chat was retired, so this panel no longer
      switches on the mode; it only reads the run's own record (above). */
   const agentPutuskan = useAi((s) => s.agentPutuskan);
+  /*
+   * "Allow always" — tulis aturan izin baru untuk panggilan ini, lalu jalankan
+   * jalur approve yang sama dengan tombol Allow. Aturannya dibaca dari
+   * settings.agents.toolRules (first-match-wins; evaluasi di aiStore.ts).
+   *
+   * Polanya di-escape (teksArgumen membandingkan regex case-insensitive), dan
+   * aturan ditaruh di DEPAN daftar supaya menang atas aturan umum yang mungkin
+   * sudah ada — persis semantik "selalu untuk panggilan ini".
+   */
+  const izinkanSelalu = useCallback(() => {
+    if (!agentConfirm) return;
+    const aturan = useStore.getState().settings.agents?.toolRules ?? [];
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const baru: ToolRule = {
+      id: `r${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`,
+      tool: agentConfirm.tool,
+      match: escape(agentConfirm.argsText),
+      action: 'allow',
+      note: 'Ditambahkan dari kartu approval (Allow always)',
+      enabled: true,
+    };
+    void useStore.getState().applySettings({ agents: { toolRules: [baru, ...aturan] } } as never);
+    agentPutuskan(true);
+  }, [agentConfirm, agentPutuskan]);
   /* Pertanyaan dari agen (tool ask_user): agen menahan langkahnya sampai user
      menjawab, jadi kartunya tidak boleh ikut disembunyikan saat panel sibuk. */
   const agentTanya = kosong.tanya;
@@ -2743,6 +2768,13 @@ const bukaModels = () => bukaPanel('models');
               onClick={() => agentPutuskan(true)}
             >
               {tr('Allow')}
+            </button>
+            <button
+              className="btn btn-sm"
+              data-testid="ai-agent-confirm-always"
+              onClick={izinkanSelalu}
+            >
+              {tr('Always allow')}
             </button>
             <button
               className="btn btn-sm"
