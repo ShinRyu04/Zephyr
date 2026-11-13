@@ -14,7 +14,7 @@
   <p>
     <img src="https://img.shields.io/github/v/release/ShinRyu04/Zephyr?label=version&color=blue" alt="version" />
     <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey" alt="platform" />
-    <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="license" />
+    <img src="https://img.shields.io/badge/license-MIT-blue" alt="license" />
   </p>
 </div>
 
@@ -149,4 +149,4 @@ Issues and pull requests are welcome. Bug reports are most useful with the diagn
 
 ## License
 
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
+Zephyr is licensed under the MIT License. See [LICENSE](LICENSE).

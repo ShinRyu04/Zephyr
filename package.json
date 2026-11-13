@@ -1,8 +1,8 @@
 {
   "name": "zephyr",
   "private": true,
-  "version": "1.1.16",
-  "license": "Apache-2.0",
+  "version": "1.1.17",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "verify": "node scripts/verify.mjs",
