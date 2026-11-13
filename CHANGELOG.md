@@ -74,6 +74,43 @@ All notable changes per release. Format follows the spirit of
   nothing listened, so no scheduled command had ever executed;
 - Queued messages no longer lose their image attachments when they are sent.
 
+## [1.1.17] - 2026-11-13
+
+### Changed
+- License changed from Apache-2.0 to MIT (`LICENSE`, `package.json`,
+  `src-tauri/Cargo.toml`, README and SECURITY);
+- Version bumped to 1.1.17 in `package.json`, `package-lock.json`,
+  `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` and `src-tauri/tauri.conf.json`;
+  the generated fact index was regenerated against the new sources.
+
+### Added
+- Experts Mode rebuilt to Qoder parity: real step icons, file cards with type
+  icons and line deltas, Read ranges, queue actions, collapsed research rows,
+  interleaved Lead notes;
+- MCP servers from the catalog can be installed over the stdio transport
+  (`command`/`args`/`cwd`); the catalog grew to 24 servers and cards can be
+  uninstalled;
+- Installed and portable copies both update themselves (`quick-swap`): the new
+  version is swapped in on restart after its signature is verified;
+- `Ctrl+Shift+B` runs the current program in an interactive terminal;
+- Icon themes with eight folder shapes and a marketplace that installs them;
+- Conversation bookmarks and rewind, an always-allow action on approval cards,
+  and a full Chat Settings page with working per-section reset.
+
+### Fixed
+- A failed agent run or chat turn now stops once and shows the error instead of
+  auto-resuming the same broken request; the repeated-action guard no longer
+  trips on legitimate repeated reads;
+- Malformed tool arguments are salvaged instead of ending the run;
+- `tool_search` no longer advertises tools that the tool gate disables;
+- RAG context is applied on the agent path, not only on the chat path;
+- Images reach the provider (payload ceiling raised to 80k characters, images
+  shortened before sending);
+- Browser pane no longer reloads when a site normalizes its own URL; loopback
+  previews are always allowed while private non-loopback hosts stay blocked.
+
+Full notes: `Release/1.1.17/Notes/RELEASE_NOTES.md`.
+
 ## [1.1.13] - 2026-09-30
 
 ### Fixed
