@@ -2526,13 +2526,12 @@ const BATAS_ARGUMEN_RUSAK_BERTURUT = 4;
 /**
  * How many times a run may resume ITSELF after a protocol stop.
  *
- * Two was too few: a transient provider hiccup in the middle of a long task
- * ended the run for good, which reads to the user as "the agent just stops".
- * 20 resumes cover a long, flaky run the way opencode/Claude Code keep going,
- * while the counter still resets per fresh turn (and is preserved across a
- * resume chain) so a permanently broken model cannot loop forever.
+ * User call: a failure must fail ONCE, visibly, and stay failed. Resuming
+ * automatically just re-fires the same broken request and spams the transcript
+ * with duplicate user/assistant bubbles, so the budget is zero. The user can
+ * still resume by hand (lanjutkanAgent / checkpoint button).
  */
-const AUTO_LANJUT_MAKS = 20;
+const AUTO_LANJUT_MAKS = 0;
 
 /*
  * PLAFON ANGGARAN KREDENSIAL per menit (60 sukses / 70 percobaan / 60 dtk).
@@ -6948,23 +6947,10 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     /*
-     * Chat mode retries a failed request, exactly like the agent does.
-     *
-     * WHY it did not before, and why that was wrong: only `sendAgent` had retry
-     * logic, so a transient provider failure - a 502 from the router, a dropped
-     * connection - killed a plain chat turn on the first attempt while the same
-     * failure in agent mode was silently retried and usually succeeded. The user
-     * sees "Server provider bermasalah (502) — coba lagi nanti" in chat and a
-     * perfectly fine answer in the agent, from the same provider, seconds apart.
-     *
-     * A chat turn has no tools and no side effects, so retrying it is strictly
-     * safer than retrying an agent step: there is nothing to replay. The stream
-     * is restarted from the beginning, which is why the partial text is cleared
-     * before each attempt (see `resetTeksRetry` below) - otherwise the second
-     * attempt's answer lands on top of the first attempt's fragment and the
-     * message stutters.
+     * User call: a failed chat turn must fail ONCE. No silent re-send — the
+     * bubble shows the error and the user decides whether to send again.
      */
-    const RETRY_CHAT = [1200, 3000] as const;
+    const RETRY_CHAT: number[] = [];
     let terakhirErr: string | null = null;
     for (let retry = 0; retry <= RETRY_CHAT.length; retry++) {
       if (retry > 0) {

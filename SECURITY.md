@@ -108,4 +108,4 @@ real header is shown as the reason, not a generic failure message.
 
 ## License
 
-Zephyr is licensed under the Apache-2.0 License. See [LICENSE](LICENSE).
+Zephyr is licensed under the MIT License. See [LICENSE](LICENSE).
