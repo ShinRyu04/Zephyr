@@ -583,13 +583,15 @@ function ekstensiBundel() {
 function dokumenBundel() {
   const berkas = [
     'README.md',
-    'ARCHITECTURE.md',
     'AGENTS.md',
     'CHANGELOG.md',
     'docs/ATURAN-KERJA.md',
     'docs/cara-pasang-plugin.md',
     'docs/rekomendasi-suara-lokal.md',
   ];
+  /* ARCHITECTURE.md sengaja TIDAK ikut: berkas itu lokal saja
+     (.git/info/exclude), jadi build dari checkout bersih selalu menghasilkan
+     jumlah potongan berbeda dan indeks tampak basi. */
   for (const n of readdirSync(akar)
     .filter((f) => /^RELEASE_NOTES.*\.md$/.test(f))
     .sort())
