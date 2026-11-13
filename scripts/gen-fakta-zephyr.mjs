@@ -1626,7 +1626,10 @@ function hashSumber() {
     } catch {
       isi = '(tidak ada)';
     }
-    masukkan(p, isi);
+    /* Hash isi ternormalisasi LF: checkout Windows (CRLF) dan Linux (LF)
+       harus menghasilkan hash yang sama, kalau tidak indeks yang dibuat di
+       Windows selalu terlihat basi saat dibangun di Linux/CI. */
+    masukkan(p, isi.replace(/\r\n/g, '\n'));
   }
   return h.digest('hex').slice(0, 16);
 }
