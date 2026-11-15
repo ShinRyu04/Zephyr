@@ -16,6 +16,7 @@ import { useAiModels } from './aiModelsStore';
 import { PERAN, tebakPeran, peranDariPrefix, infoPeran } from './subagentRoles';
 import { PANEL_TABS } from './panelStore';
 import { useAi, extractCommand, isDestructive, MAX_MSGS, MSG_LIMIT, ATTACH_LIMIT, jalurKonteksKerja, jejakPemadatan } from './aiStore';
+import { useAiDebug } from './aiDebugStore';
 import { useDiff } from './diffStore';
 import { useToolGate } from './toolGate';
 /*
@@ -340,6 +341,16 @@ export function installDevBridge(): void {
 
   w.__ZEPHYR_AI__ = {
     store: useAi,
+
+    /* Log permintaan (Panel Debug) untuk harness: melihat status/balasan
+       tiap attempt tanpa menyentuh UI. */
+    debug: useAiDebug,
+
+    /* Store subagent untuk harness: penguji yang menyuntik batch palsu harus
+       menulis ke INSTANCE YANG SAMA dengan yang dirender UI — impor dinamis
+       dari eval bisa mendarat di salinan modul lain (terbukti dengan slot
+       execLive). */
+    subagen: useSubAgent,
 
     /* Phase 3: cross-store unread marking, the same call `cronRunner` makes. */
     tandaiSesiBelumDibaca,

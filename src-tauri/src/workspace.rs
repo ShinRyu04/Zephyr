@@ -182,6 +182,32 @@ pub fn ensure_trusted_path(state: &AppState, path: &Path, apa: &str) -> ZResult<
     )))
 }
 
+/// Percayai `folder` OTOMATIS, tapi HANYA kalau `root_repo` sudah Trusted.
+///
+/// Dipakai `git_worktree_add`: worktree adalah checkout dari repo yang SAMA
+/// dengan root yang keputusan trust-nya sudah diambil user. Mewarisi trust
+/// bukan membuka pintu baru — root Restricted/Unknown melahirkan worktree
+/// Restricted juga (subagent tidak bisa menulis, persis root-nya).
+pub fn percayai_warisi(
+    state: &AppState,
+    folder: &Path,
+    root_repo: &str,
+) -> ZResult<bool> {
+    let akar = crate::paths::canonical_or_parent(Path::new(root_repo));
+    if !matches!(trust_untuk(state, &akar), Trust::Trusted) {
+        return Ok(false);
+    }
+    let mut map = baca_trust(state);
+    let k = kunci(folder);
+    if map.get(&k) == Some(&Trust::Trusted) {
+        return Ok(true);
+    }
+    map.insert(k, Trust::Trusted);
+    tulis_trust(state, &map)?;
+    Ok(true)
+}
+
+
 pub fn baca_workspace_file(path: &Path) -> ZResult<WorkspaceFile> {
     let teks = std::fs::read_to_string(path)
         .map_err(|e| ZephyrError::Io(format!("read {}: {e}", path.to_string_lossy())))?;

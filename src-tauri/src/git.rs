@@ -1844,6 +1844,15 @@ pub fn git_worktree_add(
     } else {
         git(&state, &["worktree", "add", &target_str, &branch])?;
     }
+    /*
+     * Worktree mewarisi trust repo induknya (workspace yang sudah Trusted).
+     * Tanpa ini, subagent yang bekerja DI DALAM worktree ditolak guard tulis
+     * di setiap `write_file`: folder worktree yang baru dibuat tidak ada di
+     * trust.json. Root Restricted/Unknown melahirkan worktree Restricted
+     * juga — tidak ada trust baru yang diciptakan. Gagal mewarisi diabaikan:
+     * tulisan nanti ditolak dengan pesan yang jelas, bukan diam-diam.
+     */
+    let _ = crate::workspace::percayai_warisi(&state, &target, &root.to_string_lossy());
     Ok(())
 }
 

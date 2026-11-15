@@ -1,11 +1,31 @@
 use crate::app_state::AppState;
 use crate::errors::{ZResult, ZephyrError};
 use serde::Serialize;
+use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
+/*
+ * Rentang jeda minimum antar event `agent-exec-live` untuk SATU aliran.
+ *
+ * Emit per pembacaan 8KB membuat WebView mengenerima ratusan event per detik
+ * untuk perintah yang menulis deras (build besar). Gerbang 120ms ini
+ * menggabungkan antrean chunk menjadi satu event; sisa byte terakhir tetap
+ * dikirim saat aliran selesai supaya ekor output tidak hilang di jeda.
+ */
+const STREAM_EMIT_GAP_MS: u128 = 120;
+
+fn kirim_stream(app: &AppHandle, id: &str, stream: &str, teks: &str) {
+    if teks.is_empty() {
+        return;
+    }
+    let _ = app.emit(
+        "agent-exec-live",
+        json!({ "id": id, "stream": stream, "text": teks }),
+    );
+}
 const MAX_OUTPUT_CHARS: usize = 20_000;
 /*
  * Default when the model does not pass a timeout.
@@ -235,6 +255,8 @@ async fn jalan(
     err_pipe: &mut Option<tokio::process::ChildStderr>,
     out_buf: &std::sync::Arc<tokio::sync::Mutex<Vec<u8>>>,
     err_buf: &std::sync::Arc<tokio::sync::Mutex<Vec<u8>>>,
+    app: AppHandle,
+    stream_id: Option<String>,
 ) -> std::io::Result<(i32, String, String)> {
     use tokio::io::AsyncReadExt;
 
@@ -256,25 +278,75 @@ async fn jalan(
     let se = err_pipe.as_mut();
     let ob = out_buf.clone();
     let eb = err_buf.clone();
+    /*
+     * Satu aliran event per pipe: byte sejak emit terakhir ditahan di buffer
+     * lokal `pending`, lalu dilepas menjadi satu event `agent-exec-live`
+     * begitu jeda STREAM_EMIT_GAP_MS lewat (atau aliran tamat). Tanpa gerbang
+     * ini, perintah yang menulis deras membanjiri WebView dengan event.
+     */
     let t_out = async {
+        let mut pending: Vec<u8> = Vec::new();
+        let mut terakhir = Instant::now();
         if let Some(p) = so {
             let mut chunk = [0u8; 8192];
             loop {
                 match p.read(&mut chunk).await {
                     Ok(0) | Err(_) => break,
-                    Ok(n) => ob.lock().await.extend_from_slice(&chunk[..n]),
+                    Ok(n) => {
+                        ob.lock().await.extend_from_slice(&chunk[..n]);
+                        if stream_id.is_some() {
+                            pending.extend_from_slice(&chunk[..n]);
+                            if terakhir.elapsed().as_millis() >= STREAM_EMIT_GAP_MS {
+                                if let Some(id) = &stream_id {
+                                    kirim_stream(
+                                        &app,
+                                        id,
+                                        "out",
+                                        &String::from_utf8_lossy(&pending),
+                                    );
+                                }
+                                pending.clear();
+                                terakhir = Instant::now();
+                            }
+                        }
+                    }
                 }
+            }
+            if let Some(id) = &stream_id {
+                kirim_stream(&app, id, "out", &String::from_utf8_lossy(&pending));
             }
         }
     };
     let t_err = async {
+        let mut pending: Vec<u8> = Vec::new();
+        let mut terakhir = Instant::now();
         if let Some(p) = se {
             let mut chunk = [0u8; 8192];
             loop {
                 match p.read(&mut chunk).await {
                     Ok(0) | Err(_) => break,
-                    Ok(n) => eb.lock().await.extend_from_slice(&chunk[..n]),
+                    Ok(n) => {
+                        eb.lock().await.extend_from_slice(&chunk[..n]);
+                        if stream_id.is_some() {
+                            pending.extend_from_slice(&chunk[..n]);
+                            if terakhir.elapsed().as_millis() >= STREAM_EMIT_GAP_MS {
+                                if let Some(id) = &stream_id {
+                                    kirim_stream(
+                                        &app,
+                                        id,
+                                        "err",
+                                        &String::from_utf8_lossy(&pending),
+                                    );
+                                }
+                                pending.clear();
+                                terakhir = Instant::now();
+                            }
+                        }
+                    }
                 }
+            }
+            if let Some(id) = &stream_id {
+                kirim_stream(&app, id, "err", &String::from_utf8_lossy(&pending));
             }
         }
     };
@@ -301,22 +373,45 @@ async fn jalan(
     Ok((code, stdout, stderr))
 }
 
+/*
+ * Sinyal TAMAT satu aliran streaming, ke pemanggil mana pun yang mengirim
+ * `stream_id`. Frontend tidak mengimpor store lain lewat modul tool (siklus
+ * modul + duplikasi instance) — pembersihan slot ekor keluaran lewat event
+ * yang SAMA dengan datanya, ditangani listener tunggal di aiStore.
+ */
+fn kirim_stream_selesai(app: &AppHandle, stream_id: &Option<String>) {
+    if let Some(id) = stream_id {
+        let _ = app.emit("agent-exec-live", json!({ "id": id, "done": true }));
+    }
+}
+
 #[tauri::command(async)]
 pub async fn agent_exec(
     state: State<'_, AppState>,
+    app: AppHandle,
     command: String,
     timeout_ms: Option<u64>,
     cwd: Option<String>,
+    stream_id: Option<String>,
 ) -> ZResult<ExecResult> {
     crate::workspace::ensure_trusted(&state, "Menjalankan perintah")?;
 
     let perintah = command.trim();
     if perintah.is_empty() {
+        kirim_stream_selesai(&app, &stream_id);
         return Err(ZephyrError::InvalidInput("empty command".into()));
     }
-    let cwd = tentukan_cwd(&state, cwd)?;
+    let cwd = tentukan_cwd(&state, cwd);
+    if let Err(e) = cwd {
+        kirim_stream_selesai(&app, &stream_id);
+        return Err(e);
+    }
+    let cwd = cwd?;
 
-    jaga_cd(&state, perintah, &cwd)?;
+    if let Err(e) = jaga_cd(&state, perintah, &cwd) {
+        kirim_stream_selesai(&app, &stream_id);
+        return Err(e);
+    }
 
     let ms_cap = timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)
@@ -324,9 +419,15 @@ pub async fn agent_exec(
 
     let started = Instant::now();
     let mut c = build(perintah, cwd)?;
-    let mut child = c
-        .spawn()
-        .map_err(|e| ZephyrError::Internal(format!("running the command failed: {e}")))?;
+    let mut child = match c.spawn() {
+        Ok(c2) => c2,
+        Err(e) => {
+            kirim_stream_selesai(&app, &stream_id);
+            return Err(ZephyrError::Internal(format!(
+                "running the command failed: {e}"
+            )));
+        }
+    };
 
     let mut out_pipe = child.stdout.take();
     let mut err_pipe = child.stderr.take();
@@ -341,12 +442,13 @@ pub async fn agent_exec(
 
     let (exit_code, timed_out, stdout, stderr) = match tokio::time::timeout(
         Duration::from_millis(ms_cap),
-        jalan(&mut child, &mut out_pipe, &mut err_pipe, &out_buf, &err_buf),
+        jalan(&mut child, &mut out_pipe, &mut err_pipe, &out_buf, &err_buf, app.clone(), stream_id.clone()),
     )
     .await
     {
         Ok(Ok((code, so, se))) => (code, false, so, se),
         Ok(Err(e)) => {
+            kirim_stream_selesai(&app, &stream_id);
             return Err(ZephyrError::Internal(format!(
                 "waiting for the command failed: {e}"
             )));
@@ -371,6 +473,7 @@ pub async fn agent_exec(
             (-1, true, so, se)
         }
     };
+    kirim_stream_selesai(&app, &stream_id);
 
     let (stdout, t1) = potong_ekor(&stdout);
     let (stderr, t2) = potong_ekor(&stderr);

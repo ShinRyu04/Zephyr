@@ -8578,7 +8578,7 @@
 }
 /* Detail = teks polos redup, BUKAN chip: latar code bawaan mengubah satu
    baris hasil kerja jadi deretan kotak, dan itu bukan bentuk rujukan. */
-.ai-gariswaktu-tool-detail {
+.ai-gariswaktu .ai-gariswaktu-tool .ai-gariswaktu-tool-detail {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -8594,6 +8594,42 @@
   border-radius: 0;
   padding: 0;
 }
+/*
+ * `.ai-body code` (di ai-streaming.css, TERSIR BAWAH berkas ini) membungkus
+ * setiap elemen `code` dengan latar chip; satu baris hasil kerja lalu tampil
+ * sebagai deretan kotak, bentuk yang justru ditolak di komentar atas.
+ * Spesifisitas 3 kelas di sini menang dari `.ai-body code` (2) tanpa bergantung
+ * urutan impor - baris kerja tetap teks mono redup, bukan chip.
+ */
+.ai-body .ai-gariswaktu-tool-detail,
+.ai-body .ai-grup-baris .ai-grup-args,
+.ai-body .ai-kerja-live .ai-grup-args {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+/*
+ * Ekor keluaran perintah yang sedang berjalan, DI BAWAH baris tool hidup.
+ *
+ * Perintah lama hanya spinner: pembaca tidak melihat apa pun sampai selesai.
+ * Blok ini menggambar 8 baris terakhir keluaran nyata (Rust mengirim event
+ * `agent-exec-live` berkala) di kolom yang sama dengan baris kerja — omp-gui
+ * menaruh keluaran di bawah kartu tool, bukan di barisnya, dan begitu juga
+ * di sini. Tanpa latar chip: teks mono redup di bawah baris, bukan kotak.
+ */
+.ai-gariswaktu-live-out {
+  margin: 2px 0 2px 28px;
+  padding: 0;
+  max-height: 9.5em;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted, var(--fg1));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Nama berkas lebih terang dari foldernya - dua nada yang sama dengan
    produk rujukan ("ChatMessage.tsx  src/components/ai/"). */
 .ai-gariswaktu-tool-nama {
@@ -13212,3 +13248,60 @@
   opacity: 0;
   cursor: pointer;
 }
+
+/*
+ * Minimap sesi — kolom sel satu-pesan-per-sel di tepi kanan transkrip.
+ *
+ * `position: sticky` di dalam scroller (.ai-chat, flex column): rail menempel
+ * di dasar layar selama menggulir tanpa portal ke luar panel. Sel warnanya
+ * BERINFORMASI, bukan dekorasi: user = aksen redup, jawaban = netral, giliran
+ * ber-tool = terang, error = merah. Jendela pandang digambar di atas sel yang
+ * sedang terlihat — klik sel mana pun melompat ke pesannya.
+ */
+.ai-chat > .mm-rail {
+  position: sticky;
+  bottom: 10px;
+  align-self: flex-end;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 12px;
+  max-height: 132px;
+  margin: 10px 6px 0 auto;
+  padding: 3px 2px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg1, var(--bg)) 82%, transparent);
+  opacity: 0.9;
+}
+.mm-rail-sel {
+  position: absolute;
+  right: 0;
+  width: 100%;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+.mm-cell {
+  flex: 1 1 0;
+  min-height: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+  cursor: pointer;
+}
+.mm-cell:hover {
+  background: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.mm-cell.is-user {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.mm-cell.is-tool {
+  background: color-mix(in srgb, var(--text) 60%, transparent);
+}
+.mm-cell.is-error {
+  background: var(--danger);
+}
+

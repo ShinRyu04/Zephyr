@@ -2404,3 +2404,79 @@ button.exp-todo-baris:hover {
   font-size: 13px;
   line-height: 1.6;
 }
+
+/*
+ * Swimlane subagent: satu rel per agen dalam batch, bar = rentang hidupnya
+ * di dalam batch. Warna bar = status nyata (jalan/accen, selesai/netral,
+ * gagal/merah) — bukan dekorasi. Meta kanan: biaya provider kalau dilaporkan,
+ * kalau tidak durasi agen itu.
+ */
+.exp-live-swim {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+.exp-lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary, var(--fg1));
+  font-size: 11px;
+  text-align: left;
+}
+.exp-lane:hover {
+  color: var(--text);
+}
+.exp-lane-nama {
+  flex: 0 0 auto;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.exp-lane-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.exp-lane-bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.exp-lane.is-jalan .exp-lane-bar {
+  background: var(--accent);
+}
+.exp-lane.is-gagal .exp-lane-bar {
+  background: var(--danger);
+}
+.exp-lane.is-batal .exp-lane-bar {
+  background: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.exp-lane-meta {
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: right;
+  color: var(--text-muted, var(--fg1));
+  font-variant-numeric: tabular-nums;
+}
+/* Baris agen terminal jadi redup: kwitansi batch tetap terbaca, yang masih
+   jalan tetap menonjol. */
+.exp-live-baris.is-selesai,
+.exp-live-baris.is-batal,
+.exp-live-baris.is-gagal {
+  opacity: 0.72;
+}
+

@@ -510,6 +510,20 @@ pub fn worktree_list(root: String) -> Hasil {
 /// branch `branch` dari HEAD.
 #[tauri::command(async)]
 pub fn worktree_add(
+    state: tauri::State<'_, crate::app_state::AppState>,
+    root: String,
+    path: String,
+    branch: Option<String>,
+    buat_cabang: Option<bool>,
+) -> Hasil {
+    worktree_add_intern(Some(state.inner()), root, path, branch, buat_cabang)
+}
+
+/// Isi `worktree_add`. `state` berbentuk Option supaya UNIT TEST bisa
+/// memanggil fungsi ini TANPA AppState — pewarisan trust dilewati (None),
+/// jadi trust.json milik user tidak tersentuh oleh pengujian.
+pub(crate) fn worktree_add_intern(
+    state: Option<&crate::app_state::AppState>,
     root: String,
     path: String,
     branch: Option<String>,
@@ -517,6 +531,21 @@ pub fn worktree_add(
 ) -> Hasil {
     match add_dalam(&root, &path, branch, buat_cabang) {
         Ok(data) => {
+            /*
+             * Worktree mewarisi trust repo induknya (lihat
+             * `workspace::percayai_warisi`). Tanpa ini, subagent yang bekerja
+             * DI DALAM worktree ditolak guard tulis di setiap `write_file`:
+             * guard hanya mengenali root yang di-trust user, dan folder
+             * worktree yang baru dibuat tidak ada di trust.json. Gagal
+             * mewarisi tidak menggagalkan pembuatan worktree — tulisan nanti
+             * ditolak dengan pesan yang jelas.
+             */
+            if let (Some(st), Some(p)) = (
+                state,
+                data.get("path").and_then(|v| v.as_str()),
+            ) {
+                let _ = crate::workspace::percayai_warisi(st, Path::new(p), &root);
+            }
             let p = data.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let b = data.get("branch").and_then(|v| v.as_str()).unwrap_or("");
             Hasil::sukses(format!("worktree dibuat: {p} (branch {b})"), data)
@@ -680,12 +709,12 @@ mod tests {
         }
         let (akar, _jaga) = repo_mini("jalur");
 
-        let h = worktree_add(teks(&akar), "cabang-lain".into(), Some("uji".into()), Some(false));
+        let h = worktree_add_intern(None, teks(&akar), "cabang-lain".into(), Some("uji".into()), Some(false));
         assert!(!h.berhasil, "jalur relatif harus ditolak");
         assert!(h.pesan.contains("ABSOLUT"), "pesan: {}", h.pesan);
 
         let nakal = format!("{}/halo/../nakal", teks(&akar.parent().unwrap()));
-        let h = worktree_add(teks(&akar), nakal, Some("uji".into()), Some(false));
+        let h = worktree_add_intern(None, teks(&akar), nakal, Some("uji".into()), Some(false));
         assert!(!h.berhasil, "'..' harus ditolak");
         assert!(h.pesan.contains("'..'"), "pesan: {}", h.pesan);
     }
@@ -697,7 +726,7 @@ mod tests {
         }
         let (akar, _jaga) = repo_mini("di-dalam");
 
-        let h = worktree_add(
+        let h = worktree_add_intern(None, 
             teks(&akar),
             teks(&akar.join("checkout-di-dalam")),
             Some("uji".into()),
@@ -716,11 +745,11 @@ mod tests {
         let (akar, _jaga) = repo_mini("branch");
         let target = target_worktree(&akar, "branch");
 
-        let h = worktree_add(teks(&akar), teks(&target), Some("   ".into()), Some(false));
+        let h = worktree_add_intern(None, teks(&akar), teks(&target), Some("   ".into()), Some(false));
         assert!(!h.berhasil);
         assert!(h.pesan.contains("branch kosong"), "pesan: {}", h.pesan);
 
-        let h = worktree_add(
+        let h = worktree_add_intern(None, 
             teks(&akar),
             teks(&target),
             Some("nama~tidak sah".into()),
@@ -741,7 +770,7 @@ mod tests {
         fs::create_dir_all(&target).unwrap();
         let _jaga2 = Bersihkan(target.clone());
 
-        let h = worktree_add(teks(&akar), teks(&target), Some("uji".into()), Some(true));
+        let h = worktree_add_intern(None, teks(&akar), teks(&target), Some("uji".into()), Some(true));
         assert!(!h.berhasil);
         assert!(h.pesan.contains("sudah ada"), "pesan: {}", h.pesan);
     }
@@ -757,7 +786,7 @@ mod tests {
 
         let kasus: Vec<Hasil> = vec![
             worktree_list("bukan-jalur-absolut".into()),
-            worktree_add(teks(&akar), "relatif".into(), Some("uji".into()), Some(true)),
+            worktree_add_intern(None, teks(&akar), "relatif".into(), Some("uji".into()), Some(true)),
             worktree_remove(teks(&akar), teks(&akar), Some(false)),
         ];
 
@@ -769,8 +798,8 @@ mod tests {
 
         // Kegagalan harus BERBEDA satu sama lain: satu pesan generik untuk semua
         // penolakan membuat model menebak apa yang salah.
-        let a = worktree_add(teks(&akar), "relatif".into(), Some("uji".into()), Some(true));
-        let b = worktree_add(
+        let a = worktree_add_intern(None, teks(&akar), "relatif".into(), Some("uji".into()), Some(true));
+        let b = worktree_add_intern(None, 
             teks(&akar),
             teks(&akar.join("x")),
             Some("uji".into()),
@@ -805,7 +834,7 @@ mod tests {
         let target = target_worktree(&akar, "siklus");
         let _jaga2 = Bersihkan(target.clone());
 
-        let b = worktree_add(teks(&akar), teks(&target), Some("uji-siklus".into()), Some(true));
+        let b = worktree_add_intern(None, teks(&akar), teks(&target), Some("uji-siklus".into()), Some(true));
         assert!(b.berhasil, "buat harus berhasil: {}", b.pesan);
         assert!(target.join("a.txt").is_file(), "checkout harus punya isi repo");
 
@@ -847,13 +876,13 @@ mod tests {
         println!("worktree_list(root={}) -> {{berhasil:{}, pesan:{:?}}}", teks(&akar), daftar.berhasil, daftar.pesan);
         assert!(daftar.berhasil);
 
-        let buat = worktree_add(
+        let buat = worktree_add_intern(None, 
             teks(&akar),
             teks(&target),
             Some("contoh-cabang".into()),
             Some(true),
         );
-        println!("worktree_add(path={}) -> {{berhasil:{}, pesan:{:?}}}", teks(&target), buat.berhasil, buat.pesan);
+        println!("worktree_add_intern(None, path={}) -> {{berhasil:{}, pesan:{:?}}}", teks(&target), buat.berhasil, buat.pesan);
         assert!(buat.berhasil);
 
         // Tanpa paksa: worktree bersih tetap boleh dihapus, dan `paksa` di data
@@ -867,7 +896,7 @@ mod tests {
         let (akar2, _jaga3) = repo_mini("contoh-kotor");
         let target2 = target_worktree(&akar2, "contoh-kotor");
         let _jaga4 = Bersihkan(target2.clone());
-        let b2 = worktree_add(teks(&akar2), teks(&target2), Some("kotor-cabang".into()), Some(true));
+        let b2 = worktree_add_intern(None, teks(&akar2), teks(&target2), Some("kotor-cabang".into()), Some(true));
         assert!(b2.berhasil, "{}", b2.pesan);
         fs::write(target2.join("baru.txt"), "belum di-commit\n").unwrap();
         let tolak = worktree_remove(teks(&akar2), teks(&target2), None);
@@ -884,7 +913,7 @@ mod tests {
         let target = target_worktree(&akar, "kotor");
         let _jaga2 = Bersihkan(target.clone());
 
-        let b = worktree_add(teks(&akar), teks(&target), Some("uji-kotor".into()), Some(true));
+        let b = worktree_add_intern(None, teks(&akar), teks(&target), Some("uji-kotor".into()), Some(true));
         assert!(b.berhasil, "{}", b.pesan);
         fs::write(target.join("a.txt"), "diubah belum di-commit\n").unwrap();
         fs::write(target.join("baru.txt"), "berkas baru\n").unwrap();
@@ -905,7 +934,7 @@ mod tests {
         let target = target_worktree(&akar, "paksa");
         let _jaga2 = Bersihkan(target.clone());
 
-        let b = worktree_add(teks(&akar), teks(&target), Some("uji-paksa".into()), Some(true));
+        let b = worktree_add_intern(None, teks(&akar), teks(&target), Some("uji-paksa".into()), Some(true));
         assert!(b.berhasil, "{}", b.pesan);
         fs::write(target.join("a.txt"), "diubah belum di-commit\n").unwrap();
 

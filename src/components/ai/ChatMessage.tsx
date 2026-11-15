@@ -3,6 +3,7 @@ import { Fragment } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAi, isDestructive } from '../../lib/aiStore';
+import { kiraToken, perkiraanKonteks, jendelaKonteks } from '../../lib/contextBudget';
 import { bagiHunk, barisDiff, ringkasDiff, type DiffRow } from '../../lib/simpleDiff';
 import { clipboardWrite } from '../../lib/clipboard';
 import { findModel, ProviderLogo } from '../../lib/modelCatalog';
@@ -544,6 +545,17 @@ function BarisToolDatar({
   hidup: boolean;
   permukaan?: 'main' | 'agents';
 }) {
+  /*
+   * Ekor keluaran perintah yang sedang berjalan (`agent-exec-live`). Selector
+   * mengembalikan STRING/null — zustand v5 membandingkan dengan ===, objek
+   * baru tiap potongan berarti render abadi. Null untuk baris yang tidak
+   * hidup atau tool yang bukan keluarga "jalan" (baca/cari tidak punya
+   * keluaran yang berarti). Diletakkan SEBELUM early-return run_subagent:
+   * hook tidak boleh bersyarat.
+   */
+  const tailHidup = useAi((s) =>
+    hidup && toolKind(run.name) === 'jalan' ? (s.execLive?.tail ?? null) : null,
+  );
   if (namaPolos(run.name) === 'run_subagent') {
     return <BarisSubagent run={run} hidup={hidup} permukaan={permukaan} />;
   }
@@ -557,36 +569,50 @@ function BarisToolDatar({
     target && !perintah && namaBerkas !== target
       ? target.slice(0, target.length - namaBerkas.length).replace(/[\\/]$/, '')
       : '';
+  const ekorTampil = tailHidup
+    ? tailHidup.replace(/\n+$/, '').split('\n').slice(-8).join('\n')
+    : null;
   return (
-    <div className="ai-gariswaktu-tool" data-testid="ai-gariswaktu-tool">
-      <span className={`cli-tool-ikon is-${toolKind(run.name)}`} aria-hidden="true">
-        {ikonTarget ? (
-          <IkonBerkas ikon={ikonTarget} size={12} />
-        ) : (
-          <AiIkon name={toolGlyph(run.name) as never} size={12} />
-        )}
-      </span>
-      <span className="ai-gariswaktu-tool-label">{infoAksi(run.name).label}</span>
-      {perintah ? (
-        <code className="ai-gariswaktu-tool-detail" title={perintah}>
-          {perintah}
-        </code>
-      ) : target ? (
-        <span className="ai-gariswaktu-tool-detail" title={target}>
-          {ikonTarget && namaBerkas ? (
-            <>
-              <IkonBerkas ikon={ikonTarget} size={12} />
-              <span className="ai-gariswaktu-tool-nama">{namaBerkas}</span>
-              {dirBerkas && <span className="ai-gariswaktu-tool-dir">{dirBerkas}</span>}
-            </>
+    <>
+      <div className="ai-gariswaktu-tool" data-testid="ai-gariswaktu-tool">
+        <span className={`cli-tool-ikon is-${toolKind(run.name)}`} aria-hidden="true">
+          {ikonTarget ? (
+            <IkonBerkas ikon={ikonTarget} size={12} />
           ) : (
-            target
+            <AiIkon name={toolGlyph(run.name) as never} size={12} />
           )}
         </span>
+        <span className="ai-gariswaktu-tool-label">{infoAksi(run.name).label}</span>
+        {perintah ? (
+          <code className="ai-gariswaktu-tool-detail" title={perintah}>
+            {perintah}
+          </code>
+        ) : target ? (
+          <span className="ai-gariswaktu-tool-detail" title={target}>
+            {ikonTarget && namaBerkas ? (
+              <>
+                <IkonBerkas ikon={ikonTarget} size={12} />
+                <span className="ai-gariswaktu-tool-nama">{namaBerkas}</span>
+                {dirBerkas && <span className="ai-gariswaktu-tool-dir">{dirBerkas}</span>}
+              </>
+            ) : (
+              target
+            )}
+          </span>
+        ) : null}
+        {run.ok === false && <span className="cli-tool-fail">failed</span>}
+        {hidup && <span className="ai-kerja-spin" aria-hidden="true" />}
+      </div>
+      {ekorTampil ? (
+        <pre
+          className="ai-gariswaktu-live-out"
+          data-testid="ai-exec-live-out"
+          aria-live="polite"
+        >
+          {ekorTampil}
+        </pre>
       ) : null}
-      {run.ok === false && <span className="cli-tool-fail">failed</span>}
-      {hidup && <span className="ai-kerja-spin" aria-hidden="true" />}
-    </div>
+    </>
   );
 }
 
@@ -1121,12 +1147,18 @@ function PesanUser({ teks }: { teks: string }) {
 function ChatMessageInner({
   msg,
   permukaan = 'main',
+  composerId,
 }: {
   msg: ChatMsg;
   /* Permukaan pemilik transkrip: 'agents' = Agent window. Hanya di sana
      pesan plan dirender sebagai kartu "Plan" - permukaan lain tetap jawaban
      biasa supaya hemat ruang (keputusan user). */
   permukaan?: 'main' | 'agents';
+  /* Kunci permukaan agent (`agentStates`) yang memilik giliran ini. Hanya
+     transkrip yang hidup yang membacanya: judul bar induk bisa lalu menulis
+     tool yang sedang jalan dan posisi langkah (N/M) seperti produk rujukan,
+     bukan cuma jam dinding. Undefined = tidak ada permukaan (pesan lama). */
+  composerId?: string;
 }) {
   /*
    * Transcript appearance, from Chat Settings.
@@ -1138,6 +1170,31 @@ function ChatMessageInner({
    */
   const showThinking = useAi((s) => s.showThinking);
   const showStamps = useAi((s) => s.showStamps);
+  /*
+   * Langkah hidup permukaan ini, sebagai STRING tunggal (zustand v5
+   * membandingkan hasil selector dengan ===: objek baru tiap tulisan store
+   * berarti render ulang abadi - pelajaran fase 09). Null saat giliran ini
+   * bukan yang hidup, bukan lagi menjalankan tool, atau permukaannya tidak
+   * dikenal. Berisi "shell 5/40" tepat saat loop agent berjalan, lalu judul
+   * bar induk menempelkannya di belakang durasi.
+   */
+  const langkahHidup = useAi((s) => {
+    if (!msg.streaming) return null;
+    const st = s.agentStates[composerId ?? ''];
+    if (!st || st.phase !== 'running-tool' || !st.currentTool || !st.stepLimit) return null;
+    return `${st.currentTool} ${st.stepIndex}/${st.stepLimit}`;
+  });
+
+  /*
+   * Transkrip sesi pemilik giliran ini — HANYA saat giliran hidup, untuk
+   * perkiraan konteks di judul bar kerja. Null saat mati supaya selector
+   * berhenti menggali sessions pada transkrip lama.
+   */
+  const sesiMsgs = useAi((s) => {
+    if (!msg.streaming) return null;
+    const id = s.activeIds[composerId ?? ''];
+    return (id ? s.sessions.find((x) => x.id === id)?.messages : null) ?? null;
+  });
   /*
    * Narration slices, one per tool, from the `atChar` offsets stamped at
    * append time (see aiStore). `potongNarasi[i]` is the text that arrived
@@ -1402,8 +1459,33 @@ function ChatMessageInner({
     const d = Math.max(1, Math.round(ms / 1000));
     return d >= 60 ? `${Math.floor(d / 60)}m ${d % 60}s` : `${d}s`;
   };
+  /*
+   * Akuntansi giliran hidup, satu baris kecil di belakang durasi:
+   * perkiraan konteks terpakai (dari transkrip sesi, rumus yang SAMA dengan
+   * compaction otomatis di contextBudget) dan laju token detik ini
+   * (kiraToken isi pesan / detik berjalan — perkiraan kasar, bukan angka
+   * provider). String tunggal supaya tidak menambah state.
+   */
+  const akuntansi = useMemo(() => {
+    if (!msg.streaming) return '';
+    const bagian: string[] = [];
+    if (sesiMsgs?.length) {
+      const s = useAi.getState();
+      const dipakai = perkiraanKonteks(sesiMsgs);
+      const total = jendelaKonteks(s.model || 'default');
+      if (total > 0) bagian.push(`ctx ${Math.min(100, Math.round((dipakai / total) * 100))}%`);
+    }
+    if (detikJalan > 1 && msg.content) {
+      bagian.push(`${Math.max(1, Math.round(kiraToken(msg.content) / detikJalan))} t/s`);
+    }
+    return bagian.join(' · ');
+  }, [msg.streaming, msg.content, sesiMsgs, detikJalan]);
   const judulTurn = msg.streaming
-    ? tf('Bekerja selama {d}', { d: formatDurasiPendek(detikJalan * 1000) })
+    ? `${tf('Bekerja selama {d}', { d: formatDurasiPendek(detikJalan * 1000) })}${
+        [langkahHidup, akuntansi].filter(Boolean).length
+          ? ` · ${[langkahHidup, akuntansi].filter(Boolean).join(' · ')}`
+          : ''
+      }`
     : tf('Selesai dalam {d}', { d: formatDurasiPendek(durasiTurn) });
 
   useEffect(() => {
