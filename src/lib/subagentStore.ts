@@ -329,6 +329,13 @@ export interface SubStep {
 export interface SubAgent {
   id: string;
   nama: string;
+
+  /*
+   * Folder git worktree milik agen ini (batch `worktree: true`). Null =
+   * agen bekerja di pohon utama. Isi folder TIDAK dihapus otomatis: hasil
+   * kerja agen tinggal di situ sampai di-merge atau dihapus manual.
+   */
+  worktreePath?: string | null;
   tugas: string;
 
   peran: PeranId;
@@ -474,6 +481,14 @@ interface SubAgentState {
        * lebih banyak langkah daripada riset satu-pertanyaan.
        */
       langkahOverride?: number;
+      /**
+       * WORKTREE: buat satu git worktree terpisah untuk SELURUH batch
+       * (`<workspace>/.worktrees/<id>`), arahkan brief + cwd tool bash agen
+       * ke sana, dan sebut jalurnya di ringkasan. Isolasi kerja: perubahan
+       * subagent tidak menyentuh pohon utama sampau di-merge. Gagal membuat
+       * worktree = batch jalan TANPA worktree (fail-open), bukan gagal.
+       */
+      worktree?: boolean;
     },
   ) => Promise<number>;
 
@@ -913,7 +928,42 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
     });
     const sesiId = ai.activeId ?? ai.newChat();
 
-    const buatAgent = (teks: string, i: number): SubAgent => {
+    /*
+     * WORKTREE per agen (batch `worktree: true`).
+     *
+     * Satu worktree PER agen: klaim berkas antar agen tidak perlu lagi karena
+     * tiap agen menulis di pohonnya sendiri. Dibuat lewat `git_worktree_add`
+     * (Rust) — folder induk dibuat dulu, karena Rust sengaja tidak menebak
+     * struktur folder. Gagal apa pun = agen TANPA worktree (fail-open): batch
+     * tetap jalan di pohon utama, dan tidak ada yang diam-diam setengah jalan.
+     */
+    let jalurWorktree: (string | null)[] = rantai.map(() => null);
+    if (opts?.worktree) {
+      const wsRoot = useStore.getState().workspace;
+      if (wsRoot) {
+        const stempel = Date.now().toString(36);
+        const induk = `${wsRoot.replace(/[\\/]+$/, '')}-worktrees`;
+        jalurWorktree = await Promise.all(
+          rantai.map(async (_, i) => {
+            try {
+              const { fsCreateDir, worktreeAdd } = await import('./commands');
+              await fsCreateDir(induk).catch(() => undefined);
+              const wt = `${induk}/wt-${stempel}-${i}`;
+              await worktreeAdd({
+                path: wt,
+                branch: `zephyr/wt-${stempel}-${i}`,
+                createBranch: true,
+              });
+              return wt;
+            } catch {
+              return null;
+            }
+          }),
+        );
+      }
+    }
+
+    const buatAgent = (teks: string, i: number, worktreePath: string | null = null): SubAgent => {
       /*
        * A custom worker wins over the built-in guess, but only when the `[Name]`
        * actually matches a definition the user enabled. A typo then falls
@@ -1012,6 +1062,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
         inputTokens: null,
         outputTokens: null,
         costUsd: null,
+        worktreePath: worktreePath ?? null,
       };
     };
 
@@ -1025,7 +1076,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
       for (const langkah of rantai) {
         if (!langkah[w]) continue;
         indeks.push(agents.length);
-        agents.push(buatAgent(langkah[w], agents.length));
+        agents.push(buatAgent(langkah[w], agents.length, jalurWorktree[agents.length] ?? null));
       }
       waves.push(indeks);
     }
@@ -1397,7 +1448,16 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
             for (const p of ctxT.targets) klaimFile(id, p);
             try {
               const { jalankanAgentTool } = await import('./agentTools');
-              hasil = await jalankanAgentTool(ctxT.namaJalan, ctxT.args);
+              /* Agen worktree: tool bash jalan DI DALAM worktree-nya. Argumen
+                 `cwd` sudah didukung handler bash (param user lebih dulu, jadi
+                 model tetap bisa menimpa bila perlu). Tool selain bash tetap
+                 memakai path absolut dari brief. */
+              const agenIni = get().agents.find((a) => a.id === id);
+              const argJalan =
+                agenIni?.worktreePath && ctxT.namaJalan.startsWith('bash')
+                  ? { ...ctxT.args, cwd: agenIni.worktreePath }
+                  : ctxT.args;
+              hasil = await jalankanAgentTool(ctxT.namaJalan, argJalan);
               if (ctxT.targets.length) {
                 catat((a) => ({
                   ...a,
@@ -1556,9 +1616,11 @@ async function jalankanSatu(
     },
     {
       role: 'user',
-      content: ctx.konteks
-        ? `${agent.tugas}\n\nResults from the previous step (use these, do not redo the work):\n${ctx.konteks}`
-        : agent.tugas,
+      content: (agent.worktreePath
+        ? `${agent.tugas}\n\nFolder kerjamu: ${agent.worktreePath} — git worktree terpisah. SEMUA berkas yang kamu tulis atau edit wajib memakai path absolut DI DALAM folder itu; jangan sentuh pohon utama.`
+        : agent.tugas) + (ctx.konteks
+        ? `\n\nResults from the previous step (use these, do not redo the work):\n${ctx.konteks}`
+        : ''),
     },
   ];
 

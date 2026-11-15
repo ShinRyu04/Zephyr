@@ -1255,7 +1255,22 @@ export const TOOL_BAWAAN: AgentTool[] = [
         );
       }
 
-      const r = await cmd.agentExec(aman, bacaAngka(a.timeout), akarCwd() ?? undefined);
+      /*
+       * Streaming hidup: id unik per panggilan; Rust mengirim event
+       * `agent-exec-live` berkala dan listener tunggal di aiStore menampung
+       * ekornya. Pembersihan slot TIDAK di sini: aiStore tidak boleh diimpor
+       * dari modul tool (siklus builtins ← agentTools ← aiStore membuat
+       * instance modul ganda — slot yang dihapus bukan slot yang tampak).
+       * Rust mengirim `{ done: true }` di SEMUA jalur keluar; listener yang
+       * menghapus slot.
+       */
+      const streamId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const r: cmd.AgentExecResult = await cmd.agentExec(
+        aman,
+        bacaAngka(a.timeout),
+        akarCwd() ?? undefined,
+        streamId,
+      );
       const bagian = [
         `exit=${r.exitCode}${r.timedOut ? ' (WAKTU HABIS)' : ''} (${r.ms} ms)`,
         diubah ? '(URL dikutip otomatis agar & tidak memecah perintah)' : '',
@@ -1399,6 +1414,11 @@ export const TOOL_BAWAAN: AgentTool[] = [
           prompt: { type: 'string', description: 'Instruksi lengkap untuk subagent.' },
           type: { type: 'string', description: 'Jenis subagent.' },
           description: { type: 'string', description: 'Label singkat untuk kartunya.' },
+          worktree: {
+            type: 'boolean',
+            description:
+              'true = subagent bekerja di git worktree terpisah (branch zephyr/*), jadi pohon utama tidak tersentuh sampai hasilnya di-merge. Untuk tugas yang mengubah banyak berkas.',
+          },
         },
         required: ['prompt'],
       },

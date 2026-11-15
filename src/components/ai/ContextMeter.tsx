@@ -168,6 +168,25 @@ export default function ContextMeter({ composerId = '' }: { composerId?: string 
     return { dipakai, total, persen, tokMasuk, tokKeluar, biaya: perkiraanBiaya(model, tokMasuk, tokKeluar) };
   }, [msgs, model]);
 
+  /*
+   * TOTAL semua sesi di jendela ini, sebagai STRING tunggal (zustand v5:
+   * objek baru per tulisan store = render abadi). Jumlah chat + kiraan token
+   * masuk/keluar lintas sesi — angka yang tidak bisa dibaca dari satu
+   * transkrip saja. Estimasi murah (panjang/4), dihitung ulang saat daftar
+   * sesi berubah identitas, bukan per token.
+   */
+  const totalSemua = useAi((s) => {
+    let masuk = 0;
+    let keluar = 0;
+    for (const sess of s.sessions) {
+      for (const m of sess.messages) {
+        if (m.role === 'user') masuk += kiraToken(m.content ?? '');
+        else if (m.role === 'assistant') keluar += kiraToken(m.content ?? '');
+      }
+    }
+    return `${s.sessions.length}|${masuk}|${keluar}`;
+  });
+
   const tingkat = persen >= 85 ? 'penuh' : persen >= 60 ? 'sedang' : 'aman';
 
   return (
@@ -258,6 +277,20 @@ export default function ContextMeter({ composerId = '' }: { composerId?: string 
             <span>{tr('Session tokens')}</span>
             <b data-testid="ctx-token-sesi">
               {tokMasuk.toLocaleString('id-ID')} ↓ / {tokKeluar.toLocaleString('id-ID')} ↑
+            </b>
+          </div>
+          <div className="ctx-baris">
+            <span>{tr('All sessions')}</span>
+            <b data-testid="ctx-token-semua">
+              {(() => {
+                const [jumlah, masuk, keluar] = totalSemua.split('|');
+                const biayaSemua = perkiraanBiaya(model, Number(masuk), Number(keluar));
+                return `${jumlah} ${tr('chats')} · ${Number(masuk).toLocaleString('id-ID')} ↓ / ${Number(keluar).toLocaleString('id-ID')} ↑${
+                  biayaSemua !== null
+                    ? ` · ${biayaSemua < 0.01 ? '<$0.01' : `$${biayaSemua.toFixed(biayaSemua < 1 ? 3 : 2)}`}`
+                    : ''
+                }`;
+              })()}
             </b>
           </div>
           {biaya !== null && (

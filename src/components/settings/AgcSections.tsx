@@ -2035,6 +2035,126 @@ export function AgcPermissions() {
         </button>
         {pesan && <span className="agc-actions-pesan">{pesan}</span>}
       </div>
+
+      <StreamRules />
+    </div>
+  );
+}
+
+/*
+ * Stream rules — regex yang diperiksa terhadap keluaran model SEMASA ia
+ * mengalir pada langkah agent. Saat cocok, aliran dihentikan dan aturan itu
+ * disuntikkan sebagai catatan pada percobaan ulang langkah yang sama (sekali
+ * per langkah). Editor meniru daftar aturan izin di atas: satu baris = pola +
+ * aturan + sakelar aktif + hapus. Pola rusak dilaporkan SEBELUM disimpan,
+ * persis perilaku ujiPola di atas.
+ */
+function StreamRules() {
+  const tr = useT();
+  const tf = useTf();
+  const aturanList =
+    useStore((s) => s.settings.agents?.streamRules) ?? [];
+  const simpanAturan = (next: NonNullable<typeof aturanList>) => {
+    void useStore.getState().applySettings({ agents: { streamRules: next } } as never);
+  };
+  const uji = (pola: string): string | null => {
+    if (!pola.trim()) return null;
+    try {
+      new RegExp(pola);
+      return null;
+    } catch (e) {
+      return String((e as Error).message ?? e);
+    }
+  };
+  return (
+    <div className="agc-stream" data-testid="agc-stream">
+      <h2 className="agc-pane-title">{tr('Stream rules')}</h2>
+      <p className="agc-pane-desc">
+        {tr('When the model output matches a pattern mid-stream, the stream is stopped, the rule is injected into the retry, and the step runs once more.')}
+      </p>
+      {aturanList.length === 0 ? (
+        <div className="agc-empty" data-testid="agc-stream-empty">
+          {tr('No stream rules.')}
+        </div>
+      ) : (
+        <div className="agc-rules" data-testid="agc-stream-list">
+          {aturanList.map((r) => {
+            const salah = uji(r.pola);
+            return (
+              <div className="agc-rule" key={r.id} data-testid={`agc-stream-${r.id}`}>
+                <input
+                  className="agc-field"
+                  data-testid={`agc-stream-pattern-${r.id}`}
+                  value={r.pola}
+                  placeholder={tr('Pattern (regex)')}
+                  aria-label={tr('Pattern (regex)')}
+                  onChange={(e) =>
+                    simpanAturan(
+                      aturanList.map((x) => (x.id === r.id ? { ...x, pola: e.target.value } : x)),
+                    )
+                  }
+                />
+                <input
+                  className="agc-field"
+                  data-testid={`agc-stream-rule-${r.id}`}
+                  value={r.aturan}
+                  placeholder={tr('Rule')}
+                  aria-label={tr('Rule')}
+                  onChange={(e) =>
+                    simpanAturan(
+                      aturanList.map((x) => (x.id === r.id ? { ...x, aturan: e.target.value } : x)),
+                    )
+                  }
+                />
+                <label className="agc-item-switch" title={tr('Enabled')}>
+                  <input
+                    type="checkbox"
+                    checked={r.enabled !== false}
+                    onChange={(e) =>
+                      simpanAturan(
+                        aturanList.map((x) => (x.id === r.id ? { ...x, enabled: e.target.checked } : x)),
+                      )
+                    }
+                  />
+                </label>
+                <button
+                  className="agc-item-del"
+                  data-testid={`agc-stream-del-${r.id}`}
+                  title={tr('Delete')}
+                  aria-label={tr('Delete')}
+                  onClick={() => simpanAturan(aturanList.filter((x) => x.id !== r.id))}
+                >
+                  <AiIkon name="trash" size={13} />
+                </button>
+                {salah && (
+                  <p className="agc-rule-salah" data-testid={`agc-stream-bad-${r.id}`}>
+                    {tf('Pattern is not valid: {x}', { x: salah })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="agc-actions">
+        <button
+          className="btn btn-sm"
+          data-testid="agc-stream-add"
+          onClick={() =>
+            simpanAturan([
+              ...aturanList,
+              {
+                id: `sr${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`,
+                pola: '',
+                aturan: '',
+                enabled: true,
+              },
+            ])
+          }
+        >
+          {tr('Add a rule')}
+        </button>
+      </div>
     </div>
   );
 }

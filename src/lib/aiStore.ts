@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import { create } from 'zustand';
 import { subagentOnChunk } from './subagentStore';
 import {
@@ -2239,6 +2240,8 @@ let agentStepResolve: ((r: AgentStepResult) => void) | null = null;
 // have its own id so a cancelled worker cannot deliver into a later attempt.
 let activeAgentAttempt: string | null = null;
 let activeAgentUiId: string | null = null;
+/* Sesi pemilik percobaan aktif — untuk stream rules yang membaca isi bubble. */
+let activeAgentSesiId: string | null = null;
 
 /**
  * Which surface the running agent belongs to: the EDITOR's AI panel, or the
@@ -2257,6 +2260,35 @@ export const permukaanAgentAktif = (): 'editor' | 'agents' => activeAgentPermuka
 
 const cancelledAttempts = new Set<string>();
 const retiredAgentAttempts = new Set<string>();
+
+/*
+ * ── Stream rules (aturan aliran) ──────────────────────────────────────────
+ *
+ * Regex yang diperiksa terhadap teks jawaban model SEMASA ia mengalir pada
+ * langkah agent. Saat cocok: aliran dibatalkan lewat `ai_cancel` (Rust), dan
+ * aturannya disuntikkan sebagai catatan user pada percobaan ulang langkah
+ * yang sama — koreksi arah tanpa membayar biaya konteks di setiap giliran.
+ * Satu penyuntikan per langkah; kecocokan berikutnya pada langkah yang sama
+ * dibiarkan lewat supaya aturan yang tidak mungkin dipenuhi tidak loop.
+ */
+type AturanStream = { id: string; pola: string; aturan: string; enabled?: boolean };
+let aturanAliranMenyala: { attemptId: string; aturan: string } | null = null;
+let aturanAliranTerpakaiStep = false;
+
+function cocokAturanAliran(teks: string): AturanStream | null {
+  if (!teks) return null;
+  const daftar = useStore.getState().settings.agents?.streamRules ?? [];
+  for (const r of daftar) {
+    if (r.enabled === false || !r.pola) continue;
+    try {
+      if (new RegExp(r.pola, 'i').test(teks)) return r;
+    } catch {
+      /* pola rusak = aturan diabaikan (evaluator fail-closed, sama seperti
+         toolRules): percobaan tidak boleh mati karena regex user. */
+    }
+  }
+  return null;
+}
 
 let agentBatal = false;
 let agentStopReason: AgentStopReason | null = null;
@@ -3174,6 +3206,19 @@ interface AiState {
   agentStates: Record<string, AgentSurfaceState>;
 
   /*
+   * Ekor keluaran perintah yang sedang berjalan (`bash_run`), dari event
+   * `agent-exec-live` Rust. Satu slot GLOBAL, bukan per permukaan: model loop
+   * menjalankan satu perintah shell pada satu waktu, dan baris tool yang
+   * hidup di transkrip mana pun menampilkan slot ini — potongan terakhir
+   * (dipangkas ke TAIL_EKSEKUSI) yang membuat pembaca melihat progres nyata,
+   * bukan spinner kosong. `id` menjaga baris tua tidak menampilkan ekor
+   * perintah yang SUDAH selesai: pemanggil menghapus slot hanya bila id-nya
+   * sendiri yang masih tertulis.
+   */
+  execLive: { id: string; tail: string } | null;
+
+
+  /*
    * The resumable checkpoint, per surface.
    *
    * A checkpoint is a half-finished task in ONE conversation, so Resume belongs
@@ -3496,6 +3541,10 @@ interface AiActions {
     opsi: { destruktif?: boolean; tulis?: boolean },
   ) => Promise<boolean>;
   setAgentProgress: (progress: Partial<AgentProgress>) => void;
+  /** Tulis satu potongan keluaran perintah hidup (`agent-exec-live`). */
+  setExecLive: (id: string, potongan: string) => void;
+  /** Hapus slot keluaran hidup — hanya bila slot masih milik `id`. */
+  clearExecLive: (id: string) => void;
 
   /**
    * Ajukan pertanyaan ke user dan tunggu jawabannya.
@@ -4161,6 +4210,7 @@ export const useAi = create<AiStore>((set0, get) => {
   agentBusy: false,
   agentBusys: { '' : false },
   agentStates: {},
+  execLive: null,
   agentResumes: {},
   agentNavigationOnly: false,
   agentPhase: 'idle',
@@ -5435,6 +5485,7 @@ export const useAi = create<AiStore>((set0, get) => {
     }
     set({ modelTier: t });
   },
+
   setAgentProgress: (progress) => set((s) => {
     const mulai = progress.agentStartedAt !== undefined
       ? progress.agentStartedAt
@@ -5449,6 +5500,23 @@ export const useAi = create<AiStore>((set0, get) => {
         : progress.agentPhase === 'idle' ? null : Date.now(),
     };
   }),
+
+  /*
+   * Ekor keluaran perintah hidup. Dipangkas dari DEPAN (bukan belakang):
+   * pembaca peduli progres TERAKHIR, dan terminal menulis progres di baris
+   * baru paling akhir. Batas 4000 karakter ≈ 60 baris terminal — jauh lebih
+   * besar dari yang digambar UI (8 baris), jadi UI selalu menampilkan penuh
+   * apa yang ia pilih, bukan potongan yang kebetulan tersisa.
+   */
+  setExecLive: (id, potongan) => set((s) => {
+    const lama = s.execLive;
+    const tail = ((lama?.id === id ? lama.tail : '') + potongan)
+      .slice(-EXEC_LIVE_TAIL);
+    return { execLive: { id, tail } };
+  }),
+  clearExecLive: (id) => set((s) => (
+    s.execLive?.id === id ? { execLive: null } : {}
+  )),
   agentPutuskan: (setujui) => {
     if (agentConfirmResolve) {
       const r = agentConfirmResolve;
@@ -8192,6 +8260,11 @@ export const useAi = create<AiStore>((set0, get) => {
         let res: AgentStepResult;
         let faseTungguPulih = 0;
         let koreksiArgumenTool = false;
+        /* Stream rules: teks aturan yang menyala pada langkah INI dan akan
+           disuntikkan pada percobaan ulang. Null = tidak ada. Reset tiap
+           langkah: batas satu penyuntikan per langkah. */
+        let aturanSuntik: string | null = null;
+        aturanAliranTerpakaiStep = false;
         /*
          * Extra output-token headroom for THIS step, added when a tool call was
          * cut off at the ceiling. A write of a big file is sent as a tool
@@ -8312,6 +8385,7 @@ export const useAi = create<AiStore>((set0, get) => {
             if (activeAgentAttempt) retiredAgentAttempts.add(activeAgentAttempt);
             activeAgentAttempt = attemptId;
             activeAgentUiId = botMsg.id;
+            activeAgentSesiId = sessionId;
             activeAgentPermukaan = composerId === 'agents' ? 'agents' : 'editor';
             agentStepResolve = resolve;
             /*
@@ -8380,6 +8454,28 @@ export const useAi = create<AiStore>((set0, get) => {
               todoAktifRun &&
               get().agentTodos.length === 0 &&
               gerbangRencanaSiap(alatAktif, adaFolderRun);
+            /*
+             * MODEL ROLES: langkah gerbang rencana boleh memakai model lain.
+             *
+             * `settings.agents.modelPlan` = "provider/model" (format yang sama
+             * dengan picker tier HydraFusion) untuk langkah PERTAMA tugas
+             * berat — yang disuruh menyusun todo_write. Pikir-rencana adalah
+             * langkah termahal per token yang dibaca; menjalankannya di model
+             * murah lalu mengeksekusi di model pilihan user = pola "model
+             * roles" ala omp. Model tidak ada di katalog = model aktif dipakai
+             * apa adanya (fail-open), bukan gagal diam-diam.
+             */
+            const modelPlanId = useStore.getState().settings.agents?.modelPlan;
+            if (gerbangRencana && modelPlanId && !sudahFallback) {
+              const slash = modelPlanId.indexOf('/');
+              const pPlan = slash > 0 ? modelPlanId.slice(0, slash) : activeDef.provider;
+              const mPlan = slash > 0 ? modelPlanId.slice(slash + 1) : modelPlanId;
+              const defPlan = findModel(mPlan, pPlan);
+              if (defPlan) {
+                activeDef = defPlan;
+                activeCfg = useStore.getState().settings.models.providers[defPlan.provider] ?? {};
+              }
+            }
             const alatKirim = gerbangRencana
               ? alatRencanaPertama(alatAktif, adaFolderRun)
               : /* LAMA-a1: subset per kelas tugas, selalu <= 20 tool.
@@ -8619,6 +8715,24 @@ export const useAi = create<AiStore>((set0, get) => {
                 ),
               });
             }
+
+            if (aturanSuntik) {
+              /*
+               * Stream rule fired on the previous attempt: the rule text rides
+               * in as a user note on the retry, the same channel the argument
+               * correction uses. One injection per step (the flag is reset per
+               * step), so a rule the retry cannot satisfy runs out instead of
+               * looping forever.
+               */
+              pesan.push({
+                role: 'user',
+                content: potongCatatan(
+                  'A configured stream rule matched your previous output mid-stream, so that attempt was stopped. ' +
+                    `Follow this rule in the retry: ${aturanSuntik}`,
+                ),
+              });
+              aturanSuntik = null;
+            }
              cmd
               .aiToolChatStream({
                 id: attemptId,
@@ -8667,8 +8781,28 @@ export const useAi = create<AiStore>((set0, get) => {
            * pernah panjang), dan polanya khas (buka dengan `[upstream:` atau
            * memuat `'type': 'error'`/`"type": "error"`).
            */
-          if (!res.error && res.toolCalls.length === 0 && isUpstreamErrorAsContent(res.content)) {
-            res = { ...res, error: `provider error as content: ${res.content.slice(0, 300)}` };
+          /*
+           * Stream rules: aliran dipotong aturan. Sinyalnya `aturanAliranMenyala` (dipasang listener saat teks
+           * mengalir; Rust membalas frame penutup dgn cancelled:true karena
+           * cancel itu yang KITA kirim lewat ai_cancel). Konten parsial
+           * dibuang, aturan disuntikkan pada percobaan ulang, dan langkah
+           * yang sama diulang — BUKAN error provider, jadi tidak masuk
+           * hitungan tunggu-pulih.
+           */
+          if (
+            aturanAliranMenyala &&
+            !agentBatal &&
+            (res.cancelled || res.toolCalls.length === 0)
+          ) {
+            const aturan = aturanAliranMenyala.aturan;
+            aturanAliranMenyala = null;
+            if (aturan && !aturanSuntik) {
+              aturanSuntik = aturan;
+              res = {
+                ...res,
+                error: `stream rule fired: ${aturan}`,
+              };
+            }
           }
 
           if (!res.error) catatSukses(kunciPercobaan);
@@ -8676,13 +8810,16 @@ export const useAi = create<AiStore>((set0, get) => {
           // Retry only a failed provider request before any tool call is returned.
           // The history is untouched until the successful response below, so a
           // retry cannot replay a tool or duplicate a local write.
+          const aturanRetryAktif = aturanSuntik !== null;
           const bolehRetry =
-            !res.cancelled &&
+            (aturanRetryAktif || !res.cancelled) &&
             !agentBatal &&
             res.toolCalls.length === 0 &&
-            !!res.error &&
-            (isRetryableAgentToolResponseError(res.error) ||
-              isRetryableAgentProviderError(res.error));
+            (!!res.error || aturanRetryAktif) &&
+            (aturanRetryAktif ||
+              isRetryableAgentToolResponseError(res.error ?? '') ||
+              isRetryableAgentProviderError(res.error ?? ''));
+
           const retryableToolResponse =
             !!res.error && isRetryableAgentToolResponseError(res.error);
           /*
@@ -11684,6 +11821,35 @@ export const useAi = create<AiStore>((set0, get) => {
     }
 
     /*
+     * Stream rules: periksa isi bubble (terakumulasi + delta ini) terhadap
+     * settings.agents.streamRules HANYA pada percobaan agent yang aktif —
+     * jalur chat tidak punya `attempt` dan lewat begitu saja. Saat cocok,
+     * aliran dibatalkan (Rust menutup stream) dan langkah yang sama diulang
+     * dengan aturan tersuntik; logika retry-nya di loop langkah, bukan di sini.
+     * Chunk yang jatuh di percobaan mati tidak usah disimpan.
+     */
+    if (
+      !terminalFrame &&
+      c.text &&
+      attempt &&
+      activeAgentUiId &&
+      !aturanAliranMenyala &&
+      !aturanAliranTerpakaiStep
+    ) {
+      const isi = useAi
+        .getState()
+        .sessions.find((x) => x.id === activeAgentSesiId)
+        ?.messages.find((m) => m.id === activeAgentUiId)?.content;
+      const cocok = cocokAturanAliran((isi ?? '') + c.text);
+      if (cocok) {
+        aturanAliranMenyala = { attemptId: attempt, aturan: cocok.aturan };
+        aturanAliranTerpakaiStep = true;
+        void cmd.aiCancel(attempt).catch(() => {});
+        return;
+      }
+    }
+
+    /*
      * Buffer pure text/reasoning deltas and let ONE store write serve the whole
      * animation frame. Terminal chunks (`done`/`err`/`toolDone`) skip this and
      * go straight through, after flushing whatever was still buffered so their
@@ -11985,6 +12151,53 @@ export const useAi = create<AiStore>((set0, get) => {
   },
   };
 });
+
+/** Batas ekor keluaran perintah hidup yang disimpan store (karakter). */
+const EXEC_LIVE_TAIL = 4000;
+
+/*
+ * Listener `agent-exec-live` — SATU per jendela, terikat di modul.
+ *
+ * Penanda disimpan di `window`, bukan variabel modul: HMR menyusun ulang
+ * modul ini dan variabel baru berarti guard false lagi, sementara listener
+ * modul lama masih hidup (pelajaran bocor listener di App.tsx). Nilainya
+ * janji ikatan itu sendiri — 'proses' selama listen() berjalan.
+ */
+type IkatanEksekusi = 'proses' | Promise<() => void> | (() => void);
+/* Cast window ke bentuk jembatan: satu-satunya cara menyimpan penanda ikatan
+   lintas HMR; window adalah global DOM yang bentuk extra-nya tidak ada di tipe. */
+const WIN_EXEC = window as { __ZEPHYR_JEMBATAN_EXEC__?: Record<string, IkatanEksekusi> };
+const JEMBATAN_EXEC: Record<string, IkatanEksekusi> = (WIN_EXEC.__ZEPHYR_JEMBATAN_EXEC__ ??= {});
+if (!JEMBATAN_EXEC['agent-exec-live']) {
+  JEMBATAN_EXEC['agent-exec-live'] = 'proses';
+  void (async () => {
+    try {
+      const lepas = await listen<{
+        id: string;
+        stream?: string;
+        text?: string;
+        done?: boolean;
+      }>(
+        'agent-exec-live',
+        (e) => {
+          const p = e.payload;
+          if (!p || typeof p.id !== 'string') return;
+          if (p.done === true) {
+            /* Sinyal tamat dari Rust — SEMUA jalur keluar `agent_exec`
+               mengirimnya. Slot ekor dihapus di sini, satu-satunya tempat. */
+            useAi.getState().clearExecLive(p.id);
+            return;
+          }
+          if (typeof p.text !== 'string') return;
+          useAi.getState().setExecLive(p.id, p.text);
+        },
+      );
+      JEMBATAN_EXEC['agent-exec-live'] = lepas;
+    } catch {
+      delete JEMBATAN_EXEC['agent-exec-live'];
+    }
+  })();
+}
 
 /*
  * Publish this window's live store so a chunk callback can always reach the

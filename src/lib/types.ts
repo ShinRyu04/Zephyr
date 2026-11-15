@@ -1763,6 +1763,28 @@ export interface Settings {
     toolRules?: import('./toolRules').ToolRule[];
 
     /*
+     * Stream rules (ala omp "time-traveling stream rules"): regex yang diperiksa
+     * TERHADAP teks jawaban model SEMASA ia mengalir. Saat cocok, aliran
+     * dihentikan (`ai_cancel`), aturannya disuntikkan sebagai catatan user pada
+     * percobaan ulang, dan langkah yang sama diulang sekali — koreksi arah tanpa
+     * membayar biaya konteks setiap giliran.
+     *
+     * Satu penyuntikan per langkah: aturan yang cocok lagi pada percobaan ulang
+     * dibiarkan lewat, supaya aturan yang tidak mungkin dipenuhi tidak membuat
+     * loop tanpa ujung.
+     */
+    streamRules?: { id: string; pola: string; aturan: string; enabled?: boolean }[];
+
+    /*
+     * Model untuk LANGKAH RENCANA (gerbang todo_write pada tugas berat).
+     *
+     * Id model KATALOG di provider yang sama dengan model aktif; kosong =
+     * pakai model aktif untuk semuanya (perilaku lama). Eksekusi tetap di
+     * model pilihan user — hanya pikir-rencana yang berpindah.
+     */
+    modelPlan?: string;
+
+    /*
      * CLI agents the reader added themselves.
      *
      * The four built-in recipes (codex, claude, gemini, opencode) are

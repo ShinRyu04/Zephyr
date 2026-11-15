@@ -336,11 +336,12 @@ export interface AgentExecResult {
  * tetap memvalidasinya dan jatuh ke `state.workspace_path()` kalau kosong,
  * jadi parameter opsional ini aman - hanya berarti pakai tebakan backend lagi.
  */
-export const agentExec = (command: string, timeoutMs?: number, cwd?: string) =>
+export const agentExec = (command: string, timeoutMs?: number, cwd?: string, streamId?: string) =>
   invoke<AgentExecResult>('agent_exec', {
     command,
     timeoutMs: timeoutMs ?? null,
     cwd: cwd ?? null,
+    streamId: streamId ?? null,
   });
 
 /** What one Auto Fix Lints run produced. Mirrors `HasilFix` in `lint_fix.rs`. */

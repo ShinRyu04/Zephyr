@@ -370,7 +370,11 @@ const server = http.createServer(async (req, res) => {
         ? {
             nama: 'todo_write',
             args: {
-              todos: [{ content: `(mock) ${prompt.slice(0, 60) || 'tugas'}`, status: 'done' }],
+              todos: [
+                (riwayatPenuh ?? prompt).includes('PENDINGTODO')
+                  ? { content: '(mock) langkah eksekusi', status: 'pending' }
+                  : { content: `(mock) ${prompt.slice(0, 60) || 'tugas'}`, status: 'done' },
+              ],
             },
           }
         : null));

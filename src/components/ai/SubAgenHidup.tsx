@@ -89,6 +89,12 @@ export default function SubAgenHidup({
     const akhir = Math.max(...agents.map((a) => a.selesai ?? kini));
     return Math.max(0, Math.round((akhir - awal) / 1000));
   }, [agents, hidup.length, kini]);
+  /* Rentang batch untuk swimlane: mulai terawal → selesai terakhir (atau
+     detik kini selama masih ada yang jalan). */
+  const awalBatch = agents.length ? Math.min(...agents.map((a) => a.mulai)) : 0;
+  const akhirBatch = agents.length
+    ? Math.max(...agents.map((a) => a.selesai ?? kini))
+    : 0;
 
   if (!terikat) return null;
 
@@ -109,7 +115,58 @@ export default function SubAgenHidup({
       </button>
       {buka && (
         <div className="exp-live-daftar" data-testid="exp-live-list">
-          {hidup.map((a) => {
+          {agents.length >= 2 && (
+            /*
+             * Swimlane: satu rel per agen batch, posisi bar = kapan agen
+             * mulai vs selesai di dalam rentang batch. Data (mulai, selesai,
+             * status) sudah ada di baris agen — tidak ada state baru. Klik
+             * lane = detail agen, sama dengan klik baris.
+             */
+            <div className="exp-live-swim" data-testid="exp-live-swim">
+              {agents.map((a) => {
+                const span = Math.max(1, akhirBatch - awalBatch);
+                const kiri = Math.min(96, Math.max(0, ((a.mulai - awalBatch) / span) * 100));
+                const lebar = Math.max(
+                  2,
+                  Math.min(100 - kiri, (((a.selesai ?? kini) - a.mulai) / span) * 100),
+                );
+                const biaya =
+                  a.costUsd !== null
+                    ? a.costUsd < 0.01
+                      ? '<$0.01'
+                      : `$${a.costUsd.toFixed(a.costUsd < 1 ? 3 : 2)}`
+                    : '';
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`exp-lane is-${a.status}`}
+                    data-testid={`exp-lane-${a.id}`}
+                    title={`${a.tugas}${biaya ? ` · ${biaya}` : ''}`}
+                    onClick={() => {
+                      sorot(a.id);
+                      if (permukaan === 'agents') bukaPanelAgx('subagent');
+                      else void useStore.getState().bukaViewAi('subagent');
+                    }}
+                  >
+                    <span className="exp-lane-nama">
+                      {a.customNama || infoPeran(a.peran)?.label || a.peran}
+                    </span>
+                    <span className="exp-lane-track" aria-hidden="true">
+                      <span
+                        className="exp-lane-bar"
+                        style={{ left: `${kiri}%`, width: `${lebar}%` }}
+                      />
+                    </span>
+                    <span className="exp-lane-meta">
+                      {biaya || `${Math.max(1, Math.round(((a.selesai ?? kini) - a.mulai) / 1000))}s`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {agents.map((a) => {
             const langkahTerakhir = a.langkah[a.langkah.length - 1];
             const narasi =
               a.status === 'jalan' && langkahTerakhir
@@ -118,7 +175,7 @@ export default function SubAgenHidup({
                   : (langkahTerakhir.teks ?? '').slice(0, 80)
                 : '';
             return (
-              <div key={a.id} className="exp-live-baris">
+              <div key={a.id} className={`exp-live-baris is-${a.status}`}>
                 <button
                   type="button"
                   className="exp-live-row"
@@ -145,8 +202,12 @@ export default function SubAgenHidup({
                   <span className="exp-live-tugas">{a.tugas}</span>
                   {a.status === 'jalan' ? (
                     <span className="experts-spin" aria-hidden="true" />
-                  ) : (
+                  ) : a.status === 'menunggu' ? (
                     <span className="exp-live-tunggu">{tr('waiting')}</span>
+                  ) : a.status === 'gagal' ? (
+                    <span className="exp-live-tunggu">{tr('failed')}</span>
+                  ) : (
+                    <AiIkon name="check" size={12} />
                   )}
                 </button>
                 {narasi && <div className="exp-live-langkah">{narasi}</div>}

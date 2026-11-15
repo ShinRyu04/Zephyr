@@ -617,6 +617,26 @@ export default function ChatSettingsPage({
     },
     {
       section: 'models',
+      id: 'modelplan',
+      label: 'Plan model (model roles)',
+      hint:
+        'Model for the FIRST planning step of a heavy task — the step that writes the todo list. ' +
+        'Execution keeps the main model. Empty = the main model plans too.',
+      words: 'model plan role roles planning cheap first step todo gate write list',
+      ctl: (
+        <Select
+          value={settings.agents?.modelPlan ?? ''}
+          testid="cset-modelplan"
+          label="Plan model"
+          options={[{ value: '', label: tr('Same as the main model') }, ...opsiModel]}
+          onChange={(v) => void apply({ agents: { modelPlan: v } })}
+        />
+      ),
+      isDefault: !settings.agents?.modelPlan,
+      reset: () => void apply({ agents: { modelPlan: '' } }),
+    },
+    {
+      section: 'models',
       id: 'hydraterakhir',
       label: 'HydraFusion last route',
       hint: 'The model that produced the last answer and why the route chose it.',

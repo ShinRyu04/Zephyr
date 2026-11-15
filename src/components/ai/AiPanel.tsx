@@ -52,8 +52,10 @@ import SubAgenHidup from './SubAgenHidup';
 import { useExperts } from '../../lib/expertsStore';
 import { IkonAhli } from './expertsBuka';
 import { DayDivider } from './ChatStamp';
-import type { ChatMsg } from '../../lib/types';
 import { LoopStrip, GoalStrip } from './JobStrips';
+import type { ChatMsg } from '../../lib/types';
+import MinimapSesi from './MinimapSesi';
+import ContextMeter from './ContextMeter';
 import ModelSelector from './ModelSelector';
 import BrowserContextChip from './BrowserContextChip';
 import { ModeMenu, PermissionMenu } from './ModeMenu';
@@ -228,7 +230,7 @@ const PesanList = memo(function PesanList({
   /* From Chat Settings. Turning it off must actually remove the dividers. */
   if (!showDividers) {
     for (const m of msgs) {
-      baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} />);
+      baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} composerId={composerId} />);
       const kartuTurn = kartuPesan(m, permukaan);
       if (kartuTurn) baris.push(kartuTurn);
     }
@@ -250,7 +252,7 @@ const PesanList = memo(function PesanList({
       baris.push(<DayDivider key={`d-${m.id}`} at={m.at} />);
       hariSebelumnya = hari;
     }
-    baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} />);
+    baris.push(<ChatMessage key={m.id} msg={m} permukaan={permukaan} composerId={composerId} />);
     const kartuTurn = kartuPesan(m, permukaan);
     if (kartuTurn) baris.push(kartuTurn);
   }
@@ -1393,6 +1395,14 @@ const bukaModels = () => bukaPanel('models');
           * chat surface, which is the "the Show sessions button disappeared"
           * report. It is back, and it is the only way to reopen the column.
           */}
+        {/*
+          * Ring konteks + akuntansi sesi: hover = popup (pemakaian, token,
+          * perkiraan biaya, total SEMUA sesi, tombol Compact). Komponen ini
+          * dulunya ada tapi TIDAK PERNAH dipasang - angkanya ada di kode,
+          * tidak pernah sampai ke mata. Satu ikon kecil di kepala panel,
+          * bukan bar baru di bawah composer.
+          */}
+        <ContextMeter composerId={composerId} />
         <button
           type="button"
           className={`ai-ikon ai-head-sesi${sesiSisiBuka ? ' is-on' : ''}`}
@@ -1598,6 +1608,13 @@ const bukaModels = () => bukaPanel('models');
            */
           <PesanList composerId={composerId} ambilScroller={ambilScroller} />
         )}
+
+        {/*
+          * Minimap sesi: satu sel per pesan di tepi kanan, klik = lompat.
+          * Sticky di dalam scroller — selalu terlihat tanpa keluar dari
+          * panel. Null di bawah 8 pesan (komponen yang memutus).
+          */}
+        <MinimapSesi composerId={composerId} ambilScroller={ambilScroller} />
 
         {/* Panel TODO: MUST be outside the agent-busy condition. The task list is written
             by the agent mid-task, but once the task finishes the user still needs
