@@ -18,6 +18,16 @@
   </p>
 </div>
 
+> [!IMPORTANT]
+> **Zephyr is no longer actively updated.**
+>
+> Development has moved on and focus is now on our new application, **Nakroth**:
+>
+> - **GitHub:** https://github.com/ShinRyu04/Nakroth
+> - **Website:** https://shinryu04.github.io/Nakroth/
+>
+> Zephyr remains MIT licensed and existing installations will continue to work normally.
+
 Zephyr is a desktop code editor built on Tauri 2 + Rust and React 18. On Windows there is no bundled browser runtime: it renders with WebView2, which already ships with the OS; on Linux it uses the system WebKitGTK. The editor is CodeMirror 6, the terminal is xterm.js over ConPTY on Windows and a PTY on Linux, and an MCP server on port 9222 lets Claude Code, Codex, Gemini CLI, or opencode read and drive the window. The installer is 7.9 MB and the executable is 21 MB. No telemetry. No account.
 
 ## Screenshots
