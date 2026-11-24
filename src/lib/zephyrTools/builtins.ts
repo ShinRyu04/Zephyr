@@ -1233,13 +1233,15 @@ export const TOOL_BAWAAN: AgentTool[] = [
        */
       const { keputusanTerminal } = await import('../terminalAgent');
       const keputusan = keputusanTerminal(aman);
+      const cwdArg = typeof a.cwd === 'string' && a.cwd.trim() ? a.cwd.trim() : undefined;
+      const cwd = cwdArg ?? akarCwd() ?? undefined;
 
       if (keputusan.lingkungan === 'system') {
         const { useTerminal } = await import('../terminalStore');
         const hasil = await useTerminal.getState().jalankanDiTerminal(aman, {
           buka: keputusan.buka,
           timeoutMs: bacaAngka(a.timeout) ?? 120000,
-          cwd: akarCwd() ?? undefined,
+          cwd,
         });
         const keluaran = hasil.keluaran.trim();
         return potong(
@@ -1268,7 +1270,7 @@ export const TOOL_BAWAAN: AgentTool[] = [
       const r: cmd.AgentExecResult = await cmd.agentExec(
         aman,
         bacaAngka(a.timeout),
-        akarCwd() ?? undefined,
+        cwd,
         streamId,
       );
       const bagian = [
@@ -1425,7 +1427,8 @@ export const TOOL_BAWAAN: AgentTool[] = [
     },
     run: async (a) => {
       const prompt = wajib(a, 'prompt');
-      return potong(await jalankanSubagent([prompt]));
+      const worktree = a.worktree === true || a.worktree === 'true';
+      return potong(await jalankanSubagent([prompt], { worktree }));
     },
   },
 
@@ -2465,9 +2468,14 @@ export function buatDiff(path: string, lama: string, baru: string): string {
  * ada di `getState().ringkasan` setelah selesai. Membaca balikan fungsi sebagai
  * teks adalah kekeliruan yang pernah terjadi - angka 3 lalu dianggap hasil.
  */
-async function jalankanSubagent(prompts: string[]): Promise<string> {
+async function jalankanSubagent(
+  prompts: string[],
+  opts?: { worktree?: boolean },
+): Promise<string> {
   const { useSubAgent } = await import('../subagentStore');
-  await useSubAgent.getState().jalankan(prompts, { bersarang: true, kedalaman: 1 });
+  await useSubAgent
+    .getState()
+    .jalankan(prompts, { bersarang: true, kedalaman: 1, worktree: opts?.worktree });
   const ringkasan = useSubAgent.getState().ringkasan;
   return ringkasan || '(subagent selesai, tidak ada ringkasan)';
 }

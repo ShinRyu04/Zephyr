@@ -649,6 +649,30 @@ impl AppState {
         }
     }
 
+    /// True if `p` is inside one of the extra workspace roots or an explicitly
+    /// allowed folder (such as a trusted git worktree created via `git_worktree_add`).
+    pub fn is_allowed(&self, p: &Path) -> bool {
+        let abs = crate::paths::canonical_or_parent(p);
+        for r in self.roots() {
+            if crate::paths::is_inside(&r, &abs) {
+                return true;
+            }
+        }
+        if let Ok(set) = read_lock(&self.allowed, "allowed") {
+            if set.contains(&abs) {
+                return true;
+            }
+            let mut cur = abs.parent().map(|x| x.to_path_buf());
+            while let Some(c) = cur {
+                if set.contains(&c) {
+                    return true;
+                }
+                cur = c.parent().map(|x| x.to_path_buf());
+            }
+        }
+        false
+    }
+
     pub fn workspace_path(&self) -> Option<PathBuf> {
         read_lock(&self.workspace, "workspace")
             .ok()

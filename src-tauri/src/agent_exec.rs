@@ -143,7 +143,7 @@ fn tentukan_cwd(state: &AppState, cwd: Option<String>) -> ZResult<PathBuf> {
     let dir = crate::paths::validate_cwd(std::path::Path::new(&raw))?;
 
     if let Some(ws) = state.workspace_path() {
-        if !crate::paths::is_inside(&ws, &dir) {
+        if !crate::paths::is_inside(&ws, &dir) && !state.is_allowed(&dir) {
             return Err(ZephyrError::InvalidInput(format!(
                 "cwd di luar workspace: {}",
                 dir.to_string_lossy()
@@ -177,7 +177,7 @@ fn jaga_cd(state: &AppState, perintah: &str, cwd: &Path) -> ZResult<()> {
         return Ok(());
     };
     let akhir = folder_akhir_cd(perintah, cwd).map_err(ZephyrError::InvalidInput)?;
-    if !crate::paths::is_inside(&ws, &akhir) {
+    if !crate::paths::is_inside(&ws, &akhir) && !state.is_allowed(&akhir) {
         return Err(ZephyrError::Permission(format!(
             "cd keluar workspace ditolak: {} (shell agent bekerja di dalam {})",
             akhir.to_string_lossy(),
@@ -394,7 +394,10 @@ pub async fn agent_exec(
     cwd: Option<String>,
     stream_id: Option<String>,
 ) -> ZResult<ExecResult> {
-    crate::workspace::ensure_trusted(&state, "Menjalankan perintah")?;
+    if let Err(e) = crate::workspace::ensure_trusted(&state, "Menjalankan perintah") {
+        kirim_stream_selesai(&app, &stream_id);
+        return Err(e);
+    }
 
     let perintah = command.trim();
     if perintah.is_empty() {
@@ -418,7 +421,13 @@ pub async fn agent_exec(
         .clamp(1_000, MAX_TIMEOUT_MS);
 
     let started = Instant::now();
-    let mut c = build(perintah, cwd)?;
+    let mut c = match build(perintah, cwd) {
+        Ok(c) => c,
+        Err(e) => {
+            kirim_stream_selesai(&app, &stream_id);
+            return Err(e);
+        }
+    };
     let mut child = match c.spawn() {
         Ok(c2) => c2,
         Err(e) => {

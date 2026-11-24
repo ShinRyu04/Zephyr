@@ -74,6 +74,50 @@ All notable changes per release. Format follows the spirit of
   nothing listened, so no scheduled command had ever executed;
 - Queued messages no longer lose their image attachments when they are sent.
 
+## [1.1.18] - 2026-11-24
+
+> **Maintenance Notice:** Zephyr is now rarely updated. Users looking for an
+> actively developed successor can migrate to **Nakroth**:
+> https://github.com/ShinRyu04/Nakroth | https://shinryu04.github.io/Nakroth/
+
+### Added
+- Live agent shell streaming (`agent-exec-live` events throttled at 120ms) with
+  an 8-line live output tail directly beneath running shell tool rows;
+- Live working turn header showing duration, active tool + step `N/M`, context
+  percentage, and tokens/sec;
+- Stream rules: mid-stream regex abort with one injected-rule retry per step,
+  plus a rule editor in Agent Customizations → Permissions;
+- Model roles (`agents.modelPlan`) in Chat Settings for the first planning step
+  of heavy tasks;
+- Per-subagent git worktrees (`worktree: true` on `run_subagent`, `zephyr/*`
+  branches, inherited workspace trust);
+- Session minimap rail (8+ messages, viewport indicator, click-to-jump),
+  subagent swimlane timeline with cost/duration, `ContextMeter` mounted in the
+  AI panel header with all-session totals, and flat tool rows.
+
+### Fixed
+- Restored `isUpstreamErrorAsContent` detection in `aiStore` so HTTP 200
+  upstream gateway errors are retried instead of treated as finished answers;
+- Fixed subagent worktrees end-to-end: `run_subagent` forwards `worktree`,
+  `bash_run` honors `cwd`, `git_worktree_add` creates missing parent folders
+  and registers trusted worktrees via `AppState::allow_exact`, and `agent_exec`
+  allows commands inside registered worktrees while keeping workspace bounds;
+- Hardened stream rules (skip empty patterns/rules, include buffered chunks in
+  regex checks and clear buffer on abort, match exact `attemptId`, keep
+  stream-rule retries out of provider wait-recover/fallback);
+- `modelPlan` fails open to the active model if a cross-provider planning model
+  has no API key configured;
+- `ContextMeter` computes cross-session totals only when its popup is open,
+  preventing per-frame scans across all sessions during streaming;
+- Fixed `MinimapSesi` trailing scroll drops, rAF cleanup, below-threshold
+  listener overhead, and cross-panel jump scoping;
+- Replaced `color-mix()` in minimap and swimlane CSS for WebView2 compatibility;
+- Fixed PowerShell `{0}` / `{1}` placeholder escaping in `dev_update.rs` helper
+  logging, added missing `agent_exec` early-exit stream-done signals, synced
+  `package-lock.json` (`1.1.18` / `MIT`), and regenerated `zephyrIndeks.ts`.
+
+Full notes: `Release/1.1.18/Notes/RELEASE_NOTES.md`.
+
 ## [1.1.17] - 2026-11-13
 
 ### Changed

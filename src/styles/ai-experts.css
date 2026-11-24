@@ -2416,7 +2416,7 @@ button.exp-todo-baris:hover {
   flex-direction: column;
   gap: 3px;
   padding: 8px 10px 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-bottom: 1px solid var(--border);
 }
 .exp-lane {
   display: flex;
@@ -2447,23 +2447,27 @@ button.exp-todo-baris:hover {
   flex: 1 1 auto;
   height: 8px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--text) 8%, transparent);
+  background: var(--surface-3, rgba(128, 128, 128, 0.12));
 }
 .exp-lane-bar {
   position: absolute;
   top: 1px;
   bottom: 1px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--text) 55%, transparent);
+  background: var(--text-muted);
+  opacity: 0.75;
 }
 .exp-lane.is-jalan .exp-lane-bar {
   background: var(--accent);
+  opacity: 1;
 }
 .exp-lane.is-gagal .exp-lane-bar {
   background: var(--danger);
+  opacity: 1;
 }
 .exp-lane.is-batal .exp-lane-bar {
-  background: color-mix(in srgb, var(--text) 22%, transparent);
+  background: var(--text-muted);
+  opacity: 0.35;
 }
 .exp-lane-meta {
   flex: 0 0 auto;

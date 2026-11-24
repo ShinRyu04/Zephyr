@@ -287,7 +287,7 @@ pub fn dev_update_apply(relaunch: Option<bool>) -> Result<DevUpdateHasil, String
     let skrip = format!(
         r#"$ErrorActionPreference = 'Stop'
 $log = '{log}'
-function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
+function Catat($m) {{ "[{{0}}] {{1}}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath $log -Append -Encoding utf8 }}
 Catat 'helper hidup'
 $pid_lama = {pid}
 for ($i = 0; $i -lt 600; $i++) {{
@@ -392,7 +392,7 @@ pub fn dev_update_rollback(relaunch: Option<bool>) -> Result<DevUpdateHasil, Str
 
     let skrip = format!(
         r#"$ErrorActionPreference = 'Stop'
-function Catat($m) {{ "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
+function Catat($m) {{ "[{{0}}] {{1}}" -f (Get-Date -Format 'HH:mm:ss'), $m | Out-File -FilePath '{log}' -Append -Encoding utf8 }}
 Catat 'helper rollback hidup'
 for ($i = 0; $i -lt 600; $i++) {{
   if (-not (Get-Process -Id {pid} -ErrorAction SilentlyContinue)) {{ break }}

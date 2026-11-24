@@ -544,7 +544,13 @@ pub(crate) fn worktree_add_intern(
                 state,
                 data.get("path").and_then(|v| v.as_str()),
             ) {
-                let _ = crate::workspace::percayai_warisi(st, Path::new(p), &root);
+                let wt_path = Path::new(p);
+                if matches!(
+                    crate::workspace::percayai_warisi(st, wt_path, &root),
+                    Ok(true)
+                ) {
+                    st.allow_exact(wt_path);
+                }
             }
             let p = data.get("path").and_then(|v| v.as_str()).unwrap_or("");
             let b = data.get("branch").and_then(|v| v.as_str()).unwrap_or("");

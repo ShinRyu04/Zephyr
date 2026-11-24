@@ -13271,15 +13271,16 @@
   margin: 10px 6px 0 auto;
   padding: 3px 2px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg1, var(--bg)) 82%, transparent);
-  opacity: 0.9;
+  background: var(--surface-2, var(--bg));
+  border: 1px solid var(--border);
+  opacity: 0.92;
 }
 .mm-rail-sel {
   position: absolute;
   right: 0;
   width: 100%;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--accent-soft, rgba(59, 130, 246, 0.16));
   pointer-events: none;
 }
 .mm-cell {
@@ -13289,19 +13290,24 @@
   padding: 0;
   border: 0;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--text) 30%, transparent);
+  background: var(--text-muted);
+  opacity: 0.45;
   cursor: pointer;
 }
 .mm-cell:hover {
-  background: color-mix(in srgb, var(--text) 55%, transparent);
+  background: var(--text);
+  opacity: 0.7;
 }
 .mm-cell.is-user {
-  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: var(--accent);
+  opacity: 0.65;
 }
 .mm-cell.is-tool {
-  background: color-mix(in srgb, var(--text) 60%, transparent);
+  background: var(--text);
+  opacity: 0.6;
 }
 .mm-cell.is-error {
   background: var(--danger);
+  opacity: 1;
 }
 

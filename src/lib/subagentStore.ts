@@ -946,8 +946,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
         jalurWorktree = await Promise.all(
           rantai.map(async (_, i) => {
             try {
-              const { fsCreateDir, worktreeAdd } = await import('./commands');
-              await fsCreateDir(induk).catch(() => undefined);
+              const { worktreeAdd } = await import('./commands');
               const wt = `${induk}/wt-${stempel}-${i}`;
               await worktreeAdd({
                 path: wt,
@@ -1455,7 +1454,7 @@ export const useSubAgent = create<SubAgentState>((set, get) => ({
               const agenIni = get().agents.find((a) => a.id === id);
               const argJalan =
                 agenIni?.worktreePath && ctxT.namaJalan.startsWith('bash')
-                  ? { ...ctxT.args, cwd: agenIni.worktreePath }
+                  ? { cwd: agenIni.worktreePath, ...ctxT.args }
                   : ctxT.args;
               hasil = await jalankanAgentTool(ctxT.namaJalan, argJalan);
               if (ctxT.targets.length) {

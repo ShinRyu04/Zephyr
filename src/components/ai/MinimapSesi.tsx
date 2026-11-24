@@ -42,6 +42,7 @@ export default function MinimapSesi({
      elemen scroller sendiri (rAF-throttled): AiPanel punya listener scroll
      untuk lengket-bawah, tapi keadaan pandang rail adalah urusannya sendiri. */
   useEffect(() => {
+    if (msgs.length < AMBANG_SELMAT) return;
     const el = ambilScroller();
     if (!el) return;
     const ukur = () => {
@@ -56,28 +57,28 @@ export default function MinimapSesi({
       );
     };
     ukur();
-    let terakhir = 0;
     const onScroll = () => {
       if (raf.current) return;
       raf.current = window.requestAnimationFrame(() => {
         raf.current = 0;
-        if (Date.now() - terakhir > 80) {
-          terakhir = Date.now();
-          ukur();
-        }
+        ukur();
       });
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       el.removeEventListener('scroll', onScroll);
-      if (raf.current) window.cancelAnimationFrame(raf.current);
+      if (raf.current) {
+        window.cancelAnimationFrame(raf.current);
+        raf.current = 0;
+      }
     };
   }, [ambilScroller, msgs.length]);
 
   if (msgs.length < AMBANG_SELMAT) return null;
 
   const lompat = (id: string) => {
-    const baris = document.querySelector<HTMLElement>(`[data-ai-row="${CSS.escape(id)}"]`);
+    const scope = ambilScroller() ?? document;
+    const baris = scope.querySelector<HTMLElement>(`[data-ai-row="${CSS.escape(id)}"]`);
     baris?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 

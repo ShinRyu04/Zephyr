@@ -170,12 +170,12 @@ export default function ContextMeter({ composerId = '' }: { composerId?: string 
 
   /*
    * TOTAL semua sesi di jendela ini, sebagai STRING tunggal (zustand v5:
-   * objek baru per tulisan store = render abadi). Jumlah chat + kiraan token
-   * masuk/keluar lintas sesi — angka yang tidak bisa dibaca dari satu
-   * transkrip saja. Estimasi murah (panjang/4), dihitung ulang saat daftar
-   * sesi berubah identitas, bukan per token.
+   * objek baru per tulisan store = render abadi). Hanya dihitung saat popup
+   * TERBUKA (`buka === true`) supaya streaming token tidak memindai seluruh
+   * riwayat semua sesi pada setiap frame saat popup tertutup.
    */
   const totalSemua = useAi((s) => {
+    if (!buka) return '';
     let masuk = 0;
     let keluar = 0;
     for (const sess of s.sessions) {

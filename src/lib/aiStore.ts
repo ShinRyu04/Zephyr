@@ -2279,7 +2279,7 @@ function cocokAturanAliran(teks: string): AturanStream | null {
   if (!teks) return null;
   const daftar = useStore.getState().settings.agents?.streamRules ?? [];
   for (const r of daftar) {
-    if (r.enabled === false || !r.pola) continue;
+    if (r.enabled === false || !r.pola?.trim() || !r.aturan?.trim()) continue;
     try {
       if (new RegExp(r.pola, 'i').test(teks)) return r;
     } catch {
@@ -8265,6 +8265,8 @@ export const useAi = create<AiStore>((set0, get) => {
            langkah: batas satu penyuntikan per langkah. */
         let aturanSuntik: string | null = null;
         aturanAliranTerpakaiStep = false;
+        aturanAliranMenyala = null;
+        let lastAttemptId = '';
         /*
          * Extra output-token headroom for THIS step, added when a tool call was
          * cut off at the ceiling. A write of a big file is sent as a tool
@@ -8305,6 +8307,7 @@ export const useAi = create<AiStore>((set0, get) => {
           }
           res = await new Promise<AgentStepResult>((resolve) => {
             const attemptId = nextId(`attempt-${botMsg.id}`);
+            lastAttemptId = attemptId;
             /*
              * A retry starts the answer over, so the partial answer the FAILED
              * attempt already wrote has to go first.
@@ -8471,7 +8474,11 @@ export const useAi = create<AiStore>((set0, get) => {
               const pPlan = slash > 0 ? modelPlanId.slice(0, slash) : activeDef.provider;
               const mPlan = slash > 0 ? modelPlanId.slice(slash + 1) : modelPlanId;
               const defPlan = findModel(mPlan, pPlan);
-              if (defPlan) {
+              const bolehPlan =
+                defPlan &&
+                (defPlan.provider === activeDef.provider ||
+                  useSettingsUi.getState().hasKey(defPlan.provider));
+              if (bolehPlan) {
                 activeDef = defPlan;
                 activeCfg = useStore.getState().settings.models.providers[defPlan.provider] ?? {};
               }
@@ -8781,6 +8788,9 @@ export const useAi = create<AiStore>((set0, get) => {
            * pernah panjang), dan polanya khas (buka dengan `[upstream:` atau
            * memuat `'type': 'error'`/`"type": "error"`).
            */
+          if (!res.error && res.toolCalls.length === 0 && isUpstreamErrorAsContent(res.content)) {
+            res = { ...res, error: `provider error as content: ${res.content.slice(0, 300)}` };
+          }
           /*
            * Stream rules: aliran dipotong aturan. Sinyalnya `aturanAliranMenyala` (dipasang listener saat teks
            * mengalir; Rust membalas frame penutup dgn cancelled:true karena
@@ -8789,12 +8799,14 @@ export const useAi = create<AiStore>((set0, get) => {
            * yang sama diulang — BUKAN error provider, jadi tidak masuk
            * hitungan tunggu-pulih.
            */
+          const menyala = aturanAliranMenyala as { attemptId: string; aturan: string } | null;
           if (
-            aturanAliranMenyala &&
+            menyala &&
+            menyala.attemptId === lastAttemptId &&
             !agentBatal &&
             (res.cancelled || res.toolCalls.length === 0)
           ) {
-            const aturan = aturanAliranMenyala.aturan;
+            const aturan = menyala.aturan;
             aturanAliranMenyala = null;
             if (aturan && !aturanSuntik) {
               aturanSuntik = aturan;
@@ -8803,6 +8815,8 @@ export const useAi = create<AiStore>((set0, get) => {
                 error: `stream rule fired: ${aturan}`,
               };
             }
+          } else if (menyala?.attemptId === lastAttemptId) {
+            aturanAliranMenyala = null;
           }
 
           if (!res.error) catatSukses(kunciPercobaan);
@@ -8858,6 +8872,7 @@ export const useAi = create<AiStore>((set0, get) => {
              */
             if (
               bolehRetry &&
+              !aturanRetryAktif &&
               !retryableToolResponse &&
               faseTungguPulih < TUNGGU_PULIH_DELAYS.length
             ) {
@@ -8889,7 +8904,7 @@ export const useAi = create<AiStore>((set0, get) => {
              * already configured. Model history is untouched, so no tool call
              * is replayed and no local write is duplicated.
              */
-            if (bolehRetry && !retryableToolResponse && !sudahFallback) {
+            if (bolehRetry && !aturanRetryAktif && !retryableToolResponse && !sudahFallback) {
               /*
                * HydraFusion's own ladder comes FIRST when the plan is active.
                *
@@ -11840,8 +11855,10 @@ export const useAi = create<AiStore>((set0, get) => {
         .getState()
         .sessions.find((x) => x.id === activeAgentSesiId)
         ?.messages.find((m) => m.id === activeAgentUiId)?.content;
-      const cocok = cocokAturanAliran((isi ?? '') + c.text);
+      const tertahan = chunkBuf.get(c.id)?.text ?? '';
+      const cocok = cocokAturanAliran((isi ?? '') + tertahan + c.text);
       if (cocok) {
+        chunkBuf.delete(c.id);
         aturanAliranMenyala = { attemptId: attempt, aturan: cocok.aturan };
         aturanAliranTerpakaiStep = true;
         void cmd.aiCancel(attempt).catch(() => {});

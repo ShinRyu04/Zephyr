@@ -1831,6 +1831,12 @@ pub fn git_worktree_add(
         )));
     }
 
+    if let Some(parent) = target.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(crate::paths::long_path(parent))?;
+        }
+    }
+
     let target_str = target.to_string_lossy().to_string();
     if create_branch {
         let base = match from {
@@ -1849,10 +1855,17 @@ pub fn git_worktree_add(
      * Tanpa ini, subagent yang bekerja DI DALAM worktree ditolak guard tulis
      * di setiap `write_file`: folder worktree yang baru dibuat tidak ada di
      * trust.json. Root Restricted/Unknown melahirkan worktree Restricted
-     * juga — tidak ada trust baru yang diciptakan. Gagal mewarisi diabaikan:
-     * tulisan nanti ditolak dengan pesan yang jelas, bukan diam-diam.
+     * juga — tidak ada trust baru yang diciptakan. Ketika trust diwariskan,
+     * daftarkan juga `target` ke `state.allow_exact` supaya `ensure_writable`
+     * dan `agent_exec` (bash di dalam worktree) menerimanya tanpa membuka
+     * folder di luar worktree itu.
      */
-    let _ = crate::workspace::percayai_warisi(&state, &target, &root.to_string_lossy());
+    if matches!(
+        crate::workspace::percayai_warisi(&state, &target, &root.to_string_lossy()),
+        Ok(true)
+    ) {
+        state.allow_exact(&target);
+    }
     Ok(())
 }
 
